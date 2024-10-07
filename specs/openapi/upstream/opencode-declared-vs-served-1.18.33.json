@@ -20,19 +20,19 @@
     "derived_on": "2026-10-07",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose \u2014 SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current \u2014 SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit \u2014 SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; ; SHIM-GAP-005 declared the 17 formerly served-not-declared rows as intentional shim extensions (x-shim-extension: true + extension-rationale on each route): /doc (S001), /permission/{id} GET (S002), /permission/{id}/resolve POST (S003), /project/{projectID} GET (S004, METHOD-ABSENT beside the declared PATCH), /vcs/{id} GET (S005), /instance GET + /instance/path GET + /instance/vcs GET + /instance/vcs/diff GET (S006..009) and the eight known-but-untranslated 501 stubs /instance/vcs/status, /instance/vcs/diff/raw, /instance/vcs/apply, /instance/command, /instance/agent, /instance/skill, /instance/lsp, /instance/formatter (S010..017); the comparison classifies these as shim_extensions (appendix-shim-extensions.md, count shim_extension_operations), leaving drift_served_not_declared at 0; SHIM-GAP-005 also restored four served-surface outcomes rotted to 200 in the ROUTE-FIX-020 window (/pty POST, /vcs/apply POST, /vcs/diff/raw GET, /vcs/status GET are all 501-typed per their handlers, and the /find/ prefix rule stub_outcome is 501) that a fresh comparison run had silently re-scored covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose \u2014 SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current \u2014 SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit \u2014 SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; ; SHIM-GAP-005 declared the 17 formerly served-not-declared rows as intentional shim extensions (x-shim-extension: true + extension-rationale on each route): /doc (S001), /permission/{id} GET (S002), /permission/{id}/resolve POST (S003), /project/{projectID} GET (S004, METHOD-ABSENT beside the declared PATCH), /vcs/{id} GET (S005), /instance GET + /instance/path GET + /instance/vcs GET + /instance/vcs/diff GET (S006..009) and the eight known-but-untranslated 501 stubs /instance/vcs/status, /instance/vcs/diff/raw, /instance/vcs/apply, /instance/command, /instance/agent, /instance/skill, /instance/lsp, /instance/formatter (S010..017); the comparison classifies these as shim_extensions (appendix-shim-extensions.md, count shim_extension_operations), leaving drift_served_not_declared at 0; SHIM-GAP-005 also restored four served-surface outcomes rotted to 200 in the ROUTE-FIX-020 window (/pty POST, /vcs/apply POST, /vcs/diff/raw GET, /vcs/status GET are all 501-typed per their handlers, and the /find/ prefix rule stub_outcome is 501) that a fresh comparison run had silently re-scored covered; regenerate with scripts/compare-opencode-declared-served.py; ROUTE-FIX-029 moved POST /tui/show-toast (tui.showToast, SHIM-DRIFT-108) from OUTCOME-MISMATCH untyped-501 drift to covered: the handler validates the declared requestBody schema (required non-empty message, required variant in the info|success|warning|error enum, duration exclusiveMinimum 0, additionalProperties false) and answers the declared 200 with the truthful boolean false (this shim has no attached TUI process, so no toast is shown)"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 102,
-    "covered_operations": 68,
+    "covered_operations": 69,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 112,
+    "drift_declared_not_served": 111,
     "drift_by_class": {
       "NOT-SERVED": 102,
-      "OUTCOME-MISMATCH": 10
+      "OUTCOME-MISMATCH": 9
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -700,6 +700,16 @@
       "evidence": "server.go tuiPublish via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-139): validates the declared EventTuiPromptAppend|EventTuiCommandExecute|EventTuiToastShow|EventTuiSessionSelect union and returns 200 false because no TUI event sink is attached; malformed/invalid events or selectors answer declared 400, non-POST answers 405"
     },
     {
+      "path": "/tui/show-toast",
+      "method": "POST",
+      "operationId": "tui.showToast",
+      "tags": "tui",
+      "declared_responses": "200,400",
+      "family": "/tui/*",
+      "served_outcome": "200",
+      "evidence": "server.go tuiShowToast via handleTUI (ROUTE-FIX-029, formerly SHIM-DRIFT-108): 200 false because no TUI is attached, 400 BadRequest on a schema-violating body (required non-empty message, variant in the info|success|warning|error enum, duration > 0, additionalProperties false), 405 METHOD_NOT_ALLOWED on non-POST"
+    },
+    {
       "path": "/vcs",
       "method": "GET",
       "operationId": "vcs.get",
@@ -789,7 +799,7 @@
       "declared_responses": "200,400,404",
       "family": "/tui/*",
       "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
+      "evidence": "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 (declared tui.showToast, served by the /tui/show-toast route above)",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-006"
     }
@@ -2011,19 +2021,6 @@
       "id": "SHIM-DRIFT-107"
     },
     {
-      "path": "/tui/show-toast",
-      "method": "POST",
-      "operationId": "tui.showToast",
-      "tags": "tui",
-      "declared_responses": "200,400",
-      "family": "/tui/*",
-      "served_outcome": "501",
-      "evidence": "server.go:209 handleTUI",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-108"
-    },
-    {
       "path": "/tui/submit-prompt",
       "method": "POST",
       "operationId": "tui.submitPrompt",
@@ -2034,7 +2031,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-109"
+      "id": "SHIM-DRIFT-108"
     },
     {
       "path": "/vcs/apply",
@@ -2047,7 +2044,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-110"
+      "id": "SHIM-DRIFT-109"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2060,7 +2057,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-111"
+      "id": "SHIM-DRIFT-110"
     },
     {
       "path": "/vcs/status",
@@ -2073,7 +2070,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-112"
+      "id": "SHIM-DRIFT-111"
     }
   ],
   "drift_served_not_declared": [],

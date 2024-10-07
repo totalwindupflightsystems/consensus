@@ -1666,15 +1666,77 @@ func TestTUIPublish(t *testing.T) {
 	requireTUIMethodNotAllowed(t, status, body)
 }
 
+// TestTUIShimOnlyActionsRemain501 pins the shim-only TUI actions that stay
+// 501 stubs. show-toast left this set in ROUTE-FIX-029: it is a declared
+// pinned-upstream operation (tui.showToast) served truthfully by TestShowToast.
 func TestTUIShimOnlyActionsRemain501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	for _, path := range []string{"/tui/submit-prompt", "/tui/execute-command", "/tui/show-toast"} {
+	for _, path := range []string{"/tui/submit-prompt", "/tui/execute-command"} {
 		status, _, body := doShimRequest(t, srv.URL, http.MethodPost, path)
 		if status != http.StatusNotImplemented {
 			t.Errorf("POST %s: got %d, want unchanged 501. Body: %s", path, status, body)
 		}
+	}
+
+	// The declared operation keeps its sibling method contract: non-POST on
+	// /tui/show-toast answers 405 METHOD_NOT_ALLOWED, not 501.
+	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/tui/show-toast")
+	requireTUIMethodNotAllowed(t, status, body)
+}
+
+// TestShowToast serves tui.showToast's pinned contract
+// (specs/openapi/upstream/openapi-1.18.33.json /tui/show-toast): requestBody
+// {title?, message (required), variant (required, info|success|warning|error),
+// duration? exclusiveMinimum 0}, additionalProperties false; responses are a
+// boolean 200 and a 400 BadRequestError. No TUI process is attached, so the
+// truthful 200 body is false.
+func TestShowToast(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	// Happy path: 200 with the declared boolean (false - no TUI attached).
+	for name, body := range map[string]string{
+		"message+variant": `{"message":"saved","variant":"success"}`,
+		"with title":      `{"title":"Heads up","message":"saved","variant":"info"}`,
+		"with duration":   `{"message":"saved","variant":"warning","duration":2500}`,
+		"full body":       `{"title":"t","message":"m","variant":"error","duration":1}`,
+	} {
+		t.Run("200/"+name, func(t *testing.T) {
+			status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/show-toast", body)
+			requireTUIFalse(t, status, header, body)
+		})
+	}
+
+	// 400 arms: missing message, empty message, bad variant, missing variant,
+	// duration <= 0, unknown property, malformed JSON.
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"missing message", `{"variant":"info"}`},
+		{"empty message", `{"message":"","variant":"info"}`},
+		{"missing variant", `{"message":"saved"}`},
+		{"bad variant", `{"message":"saved","variant":"maybe"}`},
+		{"null variant", `{"message":"saved","variant":null}`},
+		{"zero duration", `{"message":"saved","variant":"info","duration":0}`},
+		{"negative duration", `{"message":"saved","variant":"info","duration":-5}`},
+		{"unknown property", `{"message":"saved","variant":"info","priority":"high"}`},
+		{"wrong message type", `{"message":17,"variant":"info"}`},
+		{"not an object", `["message"]`},
+		{"malformed json", `{"message":`},
+	} {
+		t.Run("400/"+tc.name, func(t *testing.T) {
+			status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/show-toast", tc.body)
+			requireTUIBadRequest(t, status, body)
+		})
+	}
+
+	// 405 arm: a non-POST method answers METHOD_NOT_ALLOWED.
+	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/tui/show-toast")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("GET /tui/show-toast: got %d, want 405. Body: %s", status, body)
 	}
 }
 

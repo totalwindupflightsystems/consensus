@@ -4694,9 +4694,10 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // TUI operations that are declared but not yet translated. Every currently
 // declared operation formerly listed here is now served by a truthful handler.
 //
-// The shim-only actions (submit-prompt, execute-command, show-toast) keep their
+// The shim-only actions (submit-prompt, execute-command) keep their
 // pre-existing 501 error body and tuiAction stub contract. They are deliberately
-// outside this map and are not part of ROUTE-FIX-023.
+// outside this map and are not part of ROUTE-FIX-023; show-toast joined the
+// pinned-upstream handlers in ROUTE-FIX-029.
 var tuiDeclaredOps = map[string]string{}
 
 // handlePty serves the bare /pty mount (ROUTE-ADD-102 / ROUTE-FIX-010):
@@ -5032,6 +5033,51 @@ func (s *Server) tuiPublish(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, false)
 }
 
+// tuiShowToast serves tui.showToast's declared contract: requestBody
+// {title?, message (required), variant (required, info|success|warning|error),
+// duration? exclusiveMinimum 0}, additionalProperties false, a boolean 200
+// and a 400 BadRequestError arm. The shim has no attached TUI process to
+// display a toast, so a valid request returns the declared boolean false
+// rather than claiming a toast was shown.
+func (s *Server) tuiShowToast(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) {
+		return
+	}
+	var req struct {
+		Title    *string `json:"title"`
+		Message  *string `json:"message"`
+		Variant  *string `json:"variant"`
+		Duration *int    `json:"duration"`
+	}
+	if !decodeTUIJSONBody(w, r, &req,
+		"request body must be an object containing only title, message, variant, duration") {
+		return
+	}
+	if req.Message == nil || *req.Message == "" {
+		writeOpencodeBadRequest(w, r, "Payload", "required field message must be a non-empty string")
+		return
+	}
+	if req.Variant == nil {
+		writeOpencodeBadRequest(w, r, "Payload", "required field variant must be a string")
+		return
+	}
+	switch *req.Variant {
+	case "info", "success", "warning", "error":
+	default:
+		writeOpencodeBadRequest(w, r, "Payload", "field variant must be info, success, warning, or error")
+		return
+	}
+	if req.Duration != nil && *req.Duration <= 0 {
+		writeOpencodeBadRequest(w, r, "Payload", "field duration must be a positive integer")
+		return
+	}
+	writeJSON(w, false)
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
@@ -5079,6 +5125,9 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	case "publish":
 		s.tuiPublish(w, r)
 		return
+	case "show-toast":
+		s.tuiShowToast(w, r)
+		return
 	}
 
 	if op, ok := tuiDeclaredOps[sub]; ok {
@@ -5087,10 +5136,12 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TUI sub-paths: append-prompt, submit-prompt, execute-command, show-toast
-	// These are shim-only and do not map to native API calls.
+	// TUI sub-paths: submit-prompt, execute-command. These remain shim-only
+	// and do not map to native API calls. show-toast left this switch in
+	// ROUTE-FIX-029: it is a declared pinned-upstream operation, served by
+	// the tuiShowToast case in the ROUTE-FIX-023 switch above.
 	switch sub {
-	case "append-prompt", "submit-prompt", "execute-command", "show-toast":
+	case "submit-prompt", "execute-command":
 		writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 			fmt.Sprintf("TUI control %q is not implemented in this shim; use opencode's built-in TUI", sub))
 	default:
