@@ -1,0 +1,22 @@
+version: 1
+plan_version: 1
+work_item: { id: postgres-bootstrap-verification-01, repo: wojons/conscientiousness }
+execution:
+  status: completed
+  cursor: { phase_id: phase-1, task_id: task-1-1, step_id: step-1-1-1 }
+  notes: "Accepted gap — Postgres CI not available. Required verification (go test ./internal/bootstrap) passes. See accepted-gap.md."
+plan:
+  phases:
+    - id: phase-1
+      title: Add or document Postgres bootstrap verification
+      tasks:
+        - id: task-1-1
+          title: Postgres bootstrap test path
+          steps:
+            - id: step-1-1-1
+              title: Add gated Postgres test or accepted-gap evidence
+              spec_ref: specs/015-api-and-mcp.md
+              verification:
+                - { type: command, command: "go test ./internal/bootstrap -v -count=1", required: true }
+                - { type: command, command: "CONSCIENCE_TEST_POSTGRES_URL=<url> go test ./internal/bootstrap -run Postgres -v -count=1", required: false }
+axiom_trace: "axiom:trace work_item=postgres-bootstrap-verification-01 spec=specs/015-api-and-mcp.md,specs/016-cli-interface.md plan=.memory-bank/work-items/postgres-bootstrap-verification-01/plan.yaml evidence=.memory-bank/work-items/postgres-bootstrap-verification-01/verification.md"

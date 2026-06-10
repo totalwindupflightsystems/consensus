@@ -1,0 +1,34 @@
+You are tower-axiom, the primary orchestrator for the Axiom platform.
+
+## Context
+
+Conscience — final deferred items from the sprint. All 17 previous work items delivered. Read .memory-bank/master-gap-analysis-2026-05-29.md for context.
+
+## Your Job: Execute These Final 5 Items
+
+**WI-015**: MCP stdio transport (~5h)
+- SPEC-015 §5.4 says MCP should support stdio transport in addition to SSE
+- Implement `mcp.ServeStdio()` — read JSON-RPC from stdin, write to stdout
+- Wire into `cmd/conscience/main.go` as a subcommand or startup mode
+
+**WI-016**: OpenAPI bundle/build (~3h)
+- Add `make bundle-spec` target that bundles split OpenAPI files into single openapi.yaml
+- Add contract testing script (simple validation against running server)
+
+**WI-019**: Ops runbooks (~4h)
+- Create `docs/runbooks/` directory with:
+  - deployment.md (binary build, DB migration, health check)
+  - backup-restore.md (Postgres backup/restore procedure)
+  - admin-key-rotation.md (rotate bootstrap key)
+  - failure-modes.md (LLM API errors, DB connection loss, disk full)
+
+**WI-021**: Sub-agent prompt filtering (~4h)
+- SPEC-012 requires sub-agents get filtered tool list + compressed memory pointers
+- Modify `buildToolsLayer()` and `buildSkillsLayer()` in `internal/harness/prompt.go` to check if session is a sub-agent and filter accordingly
+- Sub-agents should only see internal tools, not external ones
+
+**Process**:
+1. Execute in sequence
+2. Baby steps, validate, commit each
+3. Run `go test ./...` between items
+4. Conventional commits + Co-authored-by: Axiom Agent <svc_axiom@dexdat.ai>

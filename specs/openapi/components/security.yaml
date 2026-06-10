@@ -1,0 +1,14 @@
+# Security schemes for the Conscience API.
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+BearerAuth:
+  type: http
+  scheme: bearer
+  description: |
+    API key prefixed with cs_ (e.g., cs_sk_a1b2c3d4...).
+
+    Key types:
+    - cs_ak_* : admin — full CRUD on all tables
+    - cs_sk_* : session — CRUD within one session
+    - cs_rk_* : readonly — SELECT on all tables
+    - cs_wk_* : webhook — INSERT into external_events only

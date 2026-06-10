@@ -1,0 +1,22 @@
+-- ============================================================================
+-- Conscience — 010_quarantine_scanner.sql
+-- ============================================================================
+-- Cognitive Firewall: Add 'webhook' to external_quarantine.source_type CHECK
+-- constraint and create the scanning infrastructure (SPEC-005 §Cognitive Firewall,
+-- SPEC-013 §5.2, WI-004).
+--
+-- NOTE: This migration is SQLite-compatible only. PostgreSQL-specific
+-- ALTER TABLE DROP CONSTRAINT statements (not supported by SQLite) have been
+-- removed. The filterForSQLite function in internal/migrate/migrate.go already
+-- strips PG-only extensions/functions/triggers/RLS from migration 001, so some
+-- PG-authored tables may also be absent in SQLite. Indexes on those tables are
+-- also no-ops here — they'll be created by the Go application layer at startup
+-- if the table exists.
+--
+-- axiom:trace work_item=WI-004 spec=specs/005-security.md,specs/003-database.md plan=phase-5/task-1/step-1
+-- ============================================================================
+
+-- The external_quarantine table and its indexes are created by the Go
+-- application layer at startup when running on SQLite. See
+-- internal/db/schema_setup.go for the runtime table creation logic.
+-- No SQL statements needed in this migration for SQLite.

@@ -1,0 +1,29 @@
+You are tower-axiom. Implement error detection in the Conscience planning loop so sessions transition to 'failed' status when they encounter unrecoverable planning errors.
+
+BUG: When a session has an invalid goal (e.g., "SELECT * FROM nonexistent_table"), the planning loop completes all 10 turns of no-op responses and transitions the session to 'idle' instead of 'failed'.
+
+WHAT TO IMPLEMENT:
+In internal/harness/planning.go, the `runInteractivePlanning` function:
+
+1. After each `parseAIResponse` call that returns a TurnPlan:
+   - Check if the plan indicates an unrecoverable error (e.g., the LLM response contains error keywords or the agent gives up)
+   - If all turns are no-op AND the goal appears impossible, transition to 'failed' not 'idle'
+
+2. Specifically, after max turns (line 401-437):
+   - If all turns were no-op (turnsWithWork == 0), check if the goal/prompt appears fundamentally unachievable
+   - Set status to 'failed' with a descriptive error message instead of 'idle'
+   - Insert a memory event with type='planning_error' explaining why
+
+3. Add a simple heuristic: if the LLM response contains phrases like "I cannot", "unable to", "don't understand", "not possible", "error", "invalid" in the monologue during no-op turns, consider the session as having encountered an error.
+
+IMPLEMENTATION APPROACH:
+- Add an `errorDetected` boolean flag that gets set when the LLM's monologue indicates an error
+- After max turns with no productive work: if errorDetected → set status to 'failed', else → set status to 'idle'
+- Insert error memory event: INSERT INTO memory_events (session_id, event_type, content, iteration_created) VALUES (?, 'planning_error', ?, ?)
+
+VERIFICATION:
+- Run `go build -buildvcs=false ./...` 
+- Only modify internal/harness/planning.go
+- Do NOT modify any other files
+
+FOCUS: Simple, minimal change. Don't over-engineer. The heuristic check on monologue content is sufficient for this AC.

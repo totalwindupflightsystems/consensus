@@ -1,0 +1,21 @@
+version: 1
+plan_version: 1
+work_item: { id: repo-hygiene-generated-artifacts-01, repo: wojons/conscientiousness }
+execution:
+  status: completed
+  cursor: { phase_id: phase-1, task_id: task-1-1, step_id: step-1-1-1 }
+plan:
+  phases:
+    - id: phase-1
+      title: Ignore generated local artifacts safely
+      tasks:
+        - id: task-1-1
+          title: Add ignore rules and verify status noise reduction
+          steps:
+            - id: step-1-1-1
+              title: Update ignore rules for generated artifacts
+              spec_ref: specs/021-repository-layout.md
+              verification:
+                - { type: command, command: "git status --short", required: true }
+                - { type: command, command: "git check-ignore -v coverage.out dev.db .morty/stdout.log", required: false }
+axiom_trace: "axiom:trace work_item=repo-hygiene-generated-artifacts-01 spec=specs/021-repository-layout.md plan=.memory-bank/work-items/repo-hygiene-generated-artifacts-01/plan.yaml evidence=.memory-bank/work-items/repo-hygiene-generated-artifacts-01/verification.md"

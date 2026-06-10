@@ -1,0 +1,160 @@
+# Session endpoint paths (SPEC-015 §3.1).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# POST /api/v1/sessions — Create a new agent session
+sessions:
+  post:
+    tags: [Sessions]
+    summary: Create a new agent session
+    operationId: createSession
+    description: |
+      Creates a new agent session and returns its ID, status, and a session-scoped API key.
+      Only admin-scoped API keys can create sessions.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateSessionRequest"
+    responses:
+      "201":
+        description: Session created successfully.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/CreateSessionResponse"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  # GET /api/v1/sessions — List sessions
+  get:
+    tags: [Sessions]
+    summary: List sessions
+    operationId: listSessions
+    description: |
+      Lists agent sessions with optional status filter.
+      Session-scoped keys only see their own session.
+      Admin and readonly keys see all sessions.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/StatusFilter"
+    responses:
+      "200":
+        description: List of sessions.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Session"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# /api/v1/sessions/{sessionId}
+session:
+  get:
+    tags: [Sessions]
+    summary: Get session details
+    operationId: getSession
+    description: |
+      Returns full details for a single session.
+      Session-scoped keys can only access their own session.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    responses:
+      "200":
+        description: Session details.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Session"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  patch:
+    tags: [Sessions]
+    summary: Update session status
+    operationId: updateSession
+    description: |
+      Pause, resume, or cancel a session.
+      - pause: transitions session from active state to paused
+      - resume: transitions session from paused to idle
+      - cancel: transitions session to failed and sets completed_at
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/UpdateSessionRequest"
+    responses:
+      "200":
+        description: Updated session.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Session"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  delete:
+    tags: [Sessions]
+    summary: Soft-delete a session
+    operationId: deleteSession
+    description: |
+      Soft-deletes a session by setting it to failed with completed_at.
+      Only admin keys may delete sessions.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    responses:
+      "200":
+        description: Session deleted.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  example: deleted
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

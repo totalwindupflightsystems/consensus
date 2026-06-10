@@ -1,0 +1,22 @@
+{
+  "skill_requirements": {
+    "name": "api-documentation",
+    "description": "Generate API documentation from code comments and OpenAPI specs",
+    "category": "documentation",
+    "primary_use_cases": ["Documenting REST APIs", "Generating OpenAPI specs", "Creating API reference docs"],
+    "target_audience": "developers",
+    "complexity_level": "intermediate"
+  },
+  "capabilities": {
+    "core_functions": ["Parse code comments", "Extract endpoint information", "Generate OpenAPI JSON", "Create markdown documentation"],
+    "scripts_needed": ["parse-comments.sh", "generate-openapi.sh", "create-docs.sh"],
+    "references_needed": ["openapi-spec", "markdown-templates", "api-guidelines"],
+    "assets_needed": ["templates/", "examples/"]
+  },
+  "constraints": {
+    "compatibility_requirements": ["opencode", "claude-code", "cursor"],
+    "security_constraints": ["No code execution from untrusted sources", "Validate input files", "Sandbox script execution"],
+    "privacy_constraints": ["No PII extraction", "Anonymize example data"],
+    "performance_constraints": ["Process files < 100ms each", "Memory limit 512MB"]
+  }
+}

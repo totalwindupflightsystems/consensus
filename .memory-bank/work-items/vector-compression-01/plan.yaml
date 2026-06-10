@@ -1,0 +1,106 @@
+# Work Item: vector-compression-01
+# Vector Compression Pipeline (CS-GAP-001)
+#
+# axiom:trace work_item=vector-compression-01
+#   spec=specs/002-memory.md,specs/003-database.md,specs/011-canonical-definitions.md
+#   plan=.memory-bank/work-items/vector-compression-01/plan.yaml
+
+work_item_id: vector-compression-01
+title: Vector Compression Pipeline
+spec: CS-GAP-001 / SPEC-002 §8 / SPEC-011 §10
+priority: critical
+status: completed
+
+phases:
+  - id: phase-1
+    title: Foundation — Embedding Client & Core Types
+    status: pending
+    tasks:
+      - id: task-1-1
+        title: Create embedding client interface and OpenAI implementation
+        status: pending
+        steps:
+          - id: step-1-1-1
+            action: Create internal/llm/embedding.go with EmbeddingClient interface
+            verification: Compiles, interface is clean
+          - id: step-1-1-2
+            action: Implement OpenAI embedding client (POST /v1/embeddings)
+            verification: Unit test with mock HTTP server
+          - id: step-1-1-3
+            action: Create internal/llm/embedding_test.go
+            verification: go test ./internal/llm/ passes
+
+      - id: task-1-2
+        title: Create compression core types and cosine similarity
+        status: pending
+        steps:
+          - id: step-1-2-1
+            action: Create internal/compression package with types
+            verification: Package compiles
+          - id: step-1-2-2
+            action: Implement CosineSimilarity function
+            verification: Known values produce correct results
+          - id: step-1-2-3
+            action: Implement tier escalation logic
+            verification: Tier ladder maps correctly
+          - id: step-1-2-4
+            action: Create internal/compression/compression_test.go
+            verification: go test ./internal/compression/ passes
+
+  - id: phase-2
+    title: Compression Worker
+    status: pending
+    tasks:
+      - id: task-2-1
+        title: Build compression worker goroutine
+        status: pending
+        steps:
+          - id: step-2-1-1
+            action: Create internal/compression/worker.go with queue polling
+            verification: Worker compiles and can start/stop
+          - id: step-2-1-2
+            action: Implement event processing (embed → summarize → validate)
+            verification: ProcessOne handles full flow
+          - id: step-2-1-3
+            action: Implement billing recording for compression/embedding
+            verification: agent_billing gets rows with correct categories
+          - id: step-2-1-4
+            action: Create internal/compression/worker_test.go
+            verification: go test ./internal/compression/ passes
+
+  - id: phase-3
+    title: Database Migration & Wiring
+    status: pending
+    tasks:
+      - id: task-3-1
+        title: Create migration 015 for embedding model
+        status: pending
+        steps:
+          - id: step-3-1-1
+            action: Seed model_registry with text-embedding-3-small
+            verification: Migration runs cleanly
+          - id: step-3-1-2
+            action: Set embedding_model in system_settings
+            verification: system_settings has key 'embedding_model'
+
+      - id: task-3-2
+        title: Wire compression worker into main.go
+        status: pending
+        steps:
+          - id: step-3-2-1
+            action: Add compression config to internal/config/config.go
+            verification: Config loads with defaults
+          - id: step-3-2-2
+            action: Start compression worker in cmd/conscience/main.go
+            verification: Worker starts and processes pending entries
+
+  - id: phase-4
+    title: Verification & Cleanup
+    status: pending
+    tasks:
+      - id: task-4-1
+        title: Run full test suite
+        status: pending
+      - id: task-4-2
+        title: Write progress.md and commit
+        status: pending

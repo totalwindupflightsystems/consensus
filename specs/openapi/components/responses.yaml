@@ -1,0 +1,76 @@
+# Shared response objects for the Conscience API.
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+ErrorResponse:
+  description: Standard error envelope (SPEC-015 §6).
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [error]
+        properties:
+          error:
+            type: object
+            required: [code, message]
+            properties:
+              code:
+                type: string
+                description: Machine-readable error code.
+                example: SESSION_NOT_FOUND
+              message:
+                type: string
+                description: Human-readable error message.
+                example: Session with id 'abc-123' does not exist.
+              details:
+                type: object
+                additionalProperties: true
+                description: Optional error-specific details.
+
+BadRequest:
+  description: Invalid request — malformed JSON or missing required fields.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+Unauthorized:
+  description: Missing or invalid API key.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+Forbidden:
+  description: API key scope does not permit this action.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+NotFound:
+  description: Resource does not exist.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+Conflict:
+  description: Resource in wrong state for this action.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+RateLimited:
+  description: Too many requests.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"
+
+InternalError:
+  description: Unexpected server error.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"

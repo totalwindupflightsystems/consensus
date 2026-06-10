@@ -1,0 +1,90 @@
+# Auth (API key management) endpoint paths (SPEC-015 §3.8).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# POST /api/v1/auth/keys — Create a new API key
+authKeys:
+  post:
+    tags: [Auth]
+    summary: Create a new API key
+    operationId: createAPIKey
+    description: |
+      Creates a new API key with the specified scope. Returns the full key
+      value — store it immediately, it is not recoverable.
+      Admin scope required.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateAPIKeyRequest"
+    responses:
+      "201":
+        description: API key created.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/CreateAPIKeyResponse"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  get:
+    tags: [Auth]
+    summary: List API keys
+    operationId: listAPIKeys
+    description: |
+      Lists all API keys (prefix and scope only — no hashes or full keys).
+      Admin scope required.
+    security:
+      - BearerAuth: []
+    responses:
+      "200":
+        description: List of API keys (prefixes only).
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/APIKeyEntry"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# DELETE /api/v1/auth/keys/{keyId} — Revoke an API key
+authKeyItem:
+  delete:
+    tags: [Auth]
+    summary: Revoke an API key
+    operationId: revokeAPIKey
+    description: |
+      Revokes an API key by setting its expiration to now.
+      Admin scope required.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/ApiKeyId"
+    responses:
+      "200":
+        description: Key revoked.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/RevokeAPIKeyResponse"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

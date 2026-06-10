@@ -1,0 +1,1552 @@
+openapi: "3.1.0"
+info:
+  title: Conscience Agent Runtime
+  description: |
+    Database-native cognitive architecture for AI agents.
+
+    All state lives in the database. The API writes to the same tables the agent reads from.
+    There is no separate API state — the database is the single source of truth.
+
+    ## Key Concepts
+    - **Sessions** — Every agent instance is a session row. RLS isolation, billing, lifecycle.
+    - **Memory Events** — Immutable append-only ledger. Display state managed via display_modes.
+    - **Transactions** — Atomic cognition: every thought is a SQL transaction.
+    - **Tools & Skills** — Progressive disclosure: metadata always visible, full instructions on demand.
+    - **HITL Approvals** — Human-in-the-loop: pause for review before destructive actions.
+
+    ## Authentication
+    All endpoints except `/api/v1/health` require a Bearer API key:
+    - cs_ak_* : admin — full CRUD
+    - cs_sk_* : session — scoped to one session
+    - cs_rk_* : readonly — SELECT only
+    - cs_wk_* : webhook — event ingestion only
+
+    Keys are SHA-256 hashed before storage. The full key is only returned at creation time.
+  version: "0.1.0"
+  contact:
+    name: Conscience
+    url: https://github.com/wojons/conscientiousness
+
+servers:
+  - url: http://localhost:8090
+    description: Local development (SQLite or local Postgres)
+  - url: https://{host}
+    description: Remote deployment (any Postgres provider)
+    variables:
+      host:
+        default: localhost:8090
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: System
+    description: Health check (no auth)
+  - name: Sessions
+    description: Agent session lifecycle
+  - name: Memory
+    description: Agent memory and context inspection
+  - name: Tasks
+    description: Task queue management
+  - name: Tools
+    description: Tool and skill registry
+  - name: Approvals
+    description: Human-in-the-loop approvals
+  - name: Metrics
+    description: System metrics, billing, and configuration
+  - name: Auth
+    description: API key management
+
+paths:
+  # ── System ──
+  /api/v1/health:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: Server is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Sessions (SPEC-015 §3.1) ──
+  /api/v1/sessions:
+    post:
+      tags: [Sessions]
+      summary: Create a new agent session
+      operationId: createSession
+      security: [{BearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Sessions]
+      summary: List sessions
+      operationId: listSessions
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by comma-separated status values.
+      responses:
+        "200":
+          description: List of sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      summary: Get session details
+      operationId: getSession
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Sessions]
+      summary: Update session (pause/resume/cancel)
+      operationId: updateSession
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionRequest"
+      responses:
+        "200":
+          description: Updated session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Sessions]
+      summary: Soft-delete a session (admin)
+      operationId: deleteSession
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/message:
+    post:
+      tags: [Sessions]
+      summary: Send a message to an agent session
+      operationId: sendMessage
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "200":
+          description: Message received.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageReceivedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Memory & Context (SPEC-015 §3.2) ──
+  /api/v1/sessions/{sessionId}/memory:
+    get:
+      tags: [Memory]
+      summary: List memory events
+      operationId: listMemory
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by event type.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: List of memory events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEvent"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/memory/{memoryId}:
+    get:
+      tags: [Memory]
+      summary: Get a single memory event
+      operationId: getMemoryEvent
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memoryId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Memory event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryEvent"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/context:
+    get:
+      tags: [Memory]
+      summary: Get active context (rendered)
+      operationId: getActiveContext
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+      responses:
+        "200":
+          description: Rendered active context items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveContextItem"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/iterations:
+    get:
+      tags: [Memory]
+      summary: List iteration commits
+      operationId: listIterations
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: List of iteration commits.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IterationCommit"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Tasks (SPEC-015 §3.3) ──
+  /api/v1/sessions/{sessionId}/tasks:
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      operationId: createTask
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Tasks]
+      summary: List tasks for a session
+      operationId: listTasks
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by status.
+      responses:
+        "200":
+          description: List of tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/tasks/{taskId}:
+    patch:
+      tags: [Tasks]
+      summary: Update task status
+      operationId: updateTask
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Updated task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/tasks/{taskId}/claim:
+    post:
+      tags: [Tasks]
+      summary: Claim a task
+      operationId: claimTask
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Task claimed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Tools & Skills (SPEC-015 §3.4) ──
+  /api/v1/tools:
+    get:
+      tags: [Tools]
+      summary: List available tools
+      operationId: listTools
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by tool status.
+        - name: hemisphere
+          in: query
+          schema:
+            type: string
+            enum: [internal, external]
+      responses:
+        "200":
+          description: List of tools.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tool"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/tools/{toolName}/execute:
+    post:
+      tags: [Tools]
+      summary: Execute a tool
+      operationId: executeTool
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteToolRequest"
+      responses:
+        "200":
+          description: Tool execution result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteToolResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/skills:
+    get:
+      tags: [Tools]
+      summary: List skill metadata
+      operationId: listSkills
+      security: [{BearerAuth: []}]
+      responses:
+        "200":
+          description: List of skills (metadata only).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Skill"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/skills/{skillName}:
+    get:
+      tags: [Tools]
+      summary: Get full skill instructions
+      operationId: getSkill
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: skillName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full skill details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── HITL Approvals (SPEC-015 §3.5) ──
+  /api/v1/approvals:
+    get:
+      tags: [Approvals]
+      summary: List pending approvals
+      operationId: listApprovals
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: session_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of pending approvals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Approval"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/approvals/{approvalId}:
+    get:
+      tags: [Approvals]
+      summary: Get approval details
+      operationId: getApproval
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approval details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/approvals/{approvalId}/review:
+    post:
+      tags: [Approvals]
+      summary: Review a pending approval
+      operationId: reviewApproval
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalReviewRequest"
+      responses:
+        "200":
+          description: Reviewed approval.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/approvals:
+    get:
+      tags: [Approvals]
+      summary: List approvals for a session
+      operationId: listSessionApprovals
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            default: pending
+      responses:
+        "200":
+          description: List of approvals for the session.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Approval"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Metrics, Billing, Config (SPEC-015 §3.6-3.7) ──
+  /api/v1/metrics:
+    get:
+      tags: [Metrics]
+      summary: System-wide metrics
+      operationId: getMetrics
+      security: [{BearerAuth: []}]
+      responses:
+        "200":
+          description: System metrics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Metrics"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/{sessionId}/billing:
+    get:
+      tags: [Metrics]
+      summary: Per-session cost breakdown
+      operationId: getSessionBilling
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session billing details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionBilling"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/config:
+    get:
+      tags: [Metrics]
+      summary: System configuration
+      operationId: getConfig
+      security: [{BearerAuth: []}]
+      responses:
+        "200":
+          description: System configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Auth: API Key Management (SPEC-015 §3.8) ──
+  /api/v1/auth/keys:
+    post:
+      tags: [Auth]
+      summary: Create a new API key
+      operationId: createAPIKey
+      security: [{BearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAPIKeyRequest"
+      responses:
+        "201":
+          description: API key created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAPIKeyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Auth]
+      summary: List API keys
+      operationId: listAPIKeys
+      security: [{BearerAuth: []}]
+      responses:
+        "200":
+          description: List of API keys (prefixes only).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/APIKeyEntry"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/keys/{keyId}:
+    delete:
+      tags: [Auth]
+      summary: Revoke an API key
+      operationId: revokeAPIKey
+      security: [{BearerAuth: []}]
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Key revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevokeAPIKeyResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: API key prefixed with cs_ (e.g., cs_sk_a1b2c3d4...).
+
+  schemas:
+    # ── Shared ──
+    HealthResponse:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          example: healthy
+        version:
+          type: string
+          example: "0.1.0"
+
+    # ── Session Schemas ──
+    CreateSessionRequest:
+      type: object
+      required: [agent_name, goal]
+      properties:
+        agent_name:
+          type: string
+        goal:
+          type: string
+        model_id:
+          type: string
+        context_budget:
+          type: integer
+        hitl_config:
+          type: object
+          additionalProperties: true
+
+    CreateSessionResponse:
+      type: object
+      required: [id, status, api_key, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        api_key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      required: [id, agent_name, model_id, status, context_budget, iteration, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        agent_name:
+          type: string
+        model_id:
+          type: string
+        status:
+          type: string
+          enum: [booting, idle, thinking, planning, tool_exec, executing, waiting_sub, paused, completed, failed]
+        goal:
+          type: string
+          nullable: true
+        context_budget:
+          type: integer
+        tokens_used_in:
+          type: integer
+          format: int64
+        tokens_used_out:
+          type: integer
+          format: int64
+        iteration:
+          type: integer
+          format: int64
+        heartbeat_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateSessionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pause, resume, cancel]
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+        type:
+          type: string
+          enum: [user_instruction, user_correction, system_override]
+          default: user_instruction
+
+    MessageReceivedResponse:
+      type: object
+      required: [status, session]
+      properties:
+        status:
+          type: string
+          example: message_received
+        session:
+          type: string
+          format: uuid
+
+    # ── Memory Event Schemas ──
+    MemoryEvent:
+      type: object
+      required: [id, session_id, type, iteration_created, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [header, text_block, tool_call, tool_result, thinking, system, inherited_pointer, user_message]
+        content:
+          type: string
+          nullable: true
+        summary_text:
+          type: string
+          nullable: true
+        session_id:
+          type: string
+          format: uuid
+        iteration_created:
+          type: integer
+          format: int64
+        display_mode:
+          type: string
+          enum: [full, compressed, hidden]
+        created_at:
+          type: string
+          format: date-time
+
+    ActiveContextItem:
+      type: object
+      required: [id, iteration_created, type, display_mode]
+      properties:
+        id:
+          type: integer
+          format: int64
+        iteration_created:
+          type: integer
+          format: int64
+        type:
+          type: string
+        display_mode:
+          type: string
+          enum: [full, compressed, hidden]
+        rendered_text:
+          type: string
+          nullable: true
+
+    IterationCommit:
+      type: object
+      required: [iteration_id, session_id, active_pointers, rows_affected, created_at]
+      properties:
+        iteration_id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        active_pointers:
+          type: array
+          items:
+            type: integer
+            format: int64
+        display_rules:
+          description: Display rules.
+        llm_response:
+          description: LLM response.
+        sql_executed:
+          type: array
+          items:
+            type: string
+        rows_affected:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Task Schemas ──
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+        prerequisite_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    Task:
+      type: object
+      required: [id, session_id, title, status, priority, prerequisite_ids, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        parent_task_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, claimed, in_progress, reviewed, published, failed, cancelled]
+        priority:
+          type: integer
+        locked_by_agent:
+          type: string
+          format: uuid
+          nullable: true
+        prerequisite_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        result_memory_id:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        claimed_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateTaskRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [claimed, in_progress, reviewed, published, failed, cancelled]
+
+    # ── Tool & Skill Schemas ──
+    Tool:
+      type: object
+      required: [id, name, description, hemisphere, handler_type, status, enabled, requires_approval]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        hemisphere:
+          type: string
+          enum: [internal, external]
+        handler_type:
+          type: string
+          enum: [sql_function, http_endpoint, go_native, subprocess]
+        status:
+          type: string
+          enum: [active, testing, deprecated, disabled]
+        enabled:
+          type: boolean
+        requires_approval:
+          type: boolean
+
+    Skill:
+      type: object
+      required: [id, name, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        metadata:
+          description: Lightweight skill metadata.
+        enabled:
+          type: boolean
+
+    SkillDetail:
+      type: object
+      required: [id, name, instructions, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        metadata:
+          description: Skill metadata.
+        instructions:
+          type: string
+        linked_tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        enabled:
+          type: boolean
+
+    ExecuteToolRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        parameters:
+          type: object
+          additionalProperties: true
+
+    ExecuteToolResponse:
+      type: object
+      required: [tool_name, is_error]
+      properties:
+        tool_name:
+          type: string
+        result:
+          description: Tool result.
+        rows_affected:
+          type: integer
+          format: int64
+        is_error:
+          type: boolean
+        error:
+          type: string
+
+    # ── Approval Schemas ──
+    Approval:
+      type: object
+      required: [id, session_id, iteration, request_type, description, risk_level, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        iteration:
+          type: integer
+          format: int64
+        request_type:
+          type: string
+          enum: [tool_execution, destructive_action, budget_override, schema_change, sub_agent_spawn, custom]
+        description:
+          type: string
+        risk_level:
+          type: string
+          enum: [low, medium, high, critical]
+        context:
+          description: Approval context.
+        target_tool:
+          type: string
+          nullable: true
+        target_sql:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected, expired, modified]
+        reviewer_id:
+          type: string
+          nullable: true
+        review_notes:
+          type: string
+          nullable: true
+        modified_sql:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApprovalReviewRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected, modified]
+        notes:
+          type: string
+        modified_sql:
+          type: string
+
+    # ── Billing Schemas ──
+    BillingEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        iteration:
+          type: integer
+          format: int64
+        model_id:
+          type: string
+        category:
+          type: string
+          enum: [cognition, compression, embedding, tool_call]
+        prompt_tokens:
+          type: integer
+          format: int64
+        completion_tokens:
+          type: integer
+          format: int64
+        cache_read_tokens:
+          type: integer
+          format: int64
+        cache_write_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        recorded_at:
+          type: string
+          format: date-time
+
+    SessionBilling:
+      type: object
+      required: [session_id, total_cost_usd, entries]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        total_cost_usd:
+          type: number
+          format: double
+        total_prompt_tokens:
+          type: integer
+          format: int64
+        total_completion_tokens:
+          type: integer
+          format: int64
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillingEntry"
+
+    # ── Config & Metrics ──
+    Config:
+      type: object
+      properties:
+        llm:
+          type: object
+          additionalProperties: true
+        hitl:
+          type: object
+          additionalProperties: true
+        harness:
+          type: object
+          additionalProperties: true
+        database:
+          type: object
+          additionalProperties: true
+        logging:
+          type: object
+          additionalProperties: true
+        system_settings:
+          type: object
+          additionalProperties: true
+
+    Metrics:
+      type: object
+      required: [active_sessions, pending_tasks, pending_approvals, total_sessions]
+      properties:
+        active_sessions:
+          type: integer
+        pending_tasks:
+          type: integer
+        pending_approvals:
+          type: integer
+        total_sessions:
+          type: integer
+        total_cost_usd:
+          type: number
+          format: double
+
+    # ── Auth Schemas ──
+    CreateAPIKeyRequest:
+      type: object
+      required: [scope]
+      properties:
+        scope:
+          type: string
+          enum: [admin, session, readonly, webhook]
+        session_id:
+          type: string
+          format: uuid
+        expires_in:
+          type: integer
+
+    CreateAPIKeyResponse:
+      type: object
+      required: [id, key_prefix, api_key, scope, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        key_prefix:
+          type: string
+        api_key:
+          type: string
+        scope:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    APIKeyEntry:
+      type: object
+      required: [id, prefix, scope, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        prefix:
+          type: string
+        scope:
+          type: string
+          enum: [admin, session, readonly, webhook]
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    RevokeAPIKeyResponse:
+      type: object
+      required: [status, key_id, revoked_at]
+      properties:
+        status:
+          type: string
+          example: revoked
+        key_id:
+          type: string
+          format: uuid
+        revoked_at:
+          type: string
+          format: date-time
+
+  responses:
+    ErrorResponse:
+      description: Standard error envelope.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    additionalProperties: true
+
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    Forbidden:
+      description: API key scope does not permit this action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    NotFound:
+      description: Resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    Conflict:
+      description: Resource in wrong state for this action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    RateLimited:
+      description: Too many requests.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/responses/ErrorResponse/content/application~1json/schema"

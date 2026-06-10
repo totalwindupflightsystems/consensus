@@ -1,0 +1,131 @@
+openapi: "3.1.0"
+info:
+  title: Conscience Agent Runtime
+  description: |
+    Database-native cognitive architecture for AI agents.
+
+    All state lives in the database. The API writes to the same tables the agent reads from.
+    There is no separate API state — the database is the single source of truth.
+
+    ## Key Concepts
+
+    - **Sessions** — Every agent instance is a session row. RLS isolation, billing, lifecycle.
+    - **Memory Events** — Immutable append-only ledger. Display state managed via display_modes.
+    - **Transactions** — Atomic cognition: every thought is a SQL transaction.
+    - **Tools & Skills** — Progressive disclosure: metadata always visible, full instructions on demand.
+    - **HITL Approvals** — Human-in-the-loop: pause for review before destructive actions.
+
+    ## Authentication
+
+    All endpoints except `/api/v1/health` require a Bearer API key:
+    - `cs_ak_*` : admin — full CRUD
+    - `cs_sk_*` : session — scoped to one session
+    - `cs_rk_*` : readonly — SELECT only
+    - `cs_wk_*` : webhook — event ingestion only
+
+    Keys are SHA-256 hashed before storage. The full key is only returned at creation time.
+  version: "0.1.0"
+  contact:
+    name: Conscience
+    url: https://github.com/wojons/conscientiousness
+
+servers:
+  - url: http://localhost:8090
+    description: Local development (SQLite or local Postgres)
+  - url: https://{host}
+    description: Remote deployment (any Postgres provider)
+    variables:
+      host:
+        default: localhost:8090
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: System
+    description: Health check (no auth)
+  - name: Sessions
+    description: Agent session lifecycle
+  - name: Memory
+    description: Agent memory and context inspection
+  - name: Tasks
+    description: Task queue management
+  - name: Tools
+    description: Tool and skill registry
+  - name: Approvals
+    description: Human-in-the-loop approvals
+  - name: Metrics
+    description: System metrics, billing, and configuration
+  - name: Auth
+    description: API key management
+
+paths:
+  # ── System ──
+  /api/v1/health:
+    $ref: "./paths/health.yaml"
+
+  # ── Sessions (SPEC-015 §3.1) ──
+  /api/v1/sessions:
+    $ref: "./paths/sessions.yaml#/sessions"
+  /api/v1/sessions/{sessionId}:
+    $ref: "./paths/sessions.yaml#/session"
+  /api/v1/sessions/{sessionId}/message:
+    $ref: "./paths/messages.yaml"
+
+  # ── Memory & Context (SPEC-015 §3.2) ──
+  /api/v1/sessions/{sessionId}/memory:
+    $ref: "./paths/memory.yaml#/memory"
+  /api/v1/sessions/{sessionId}/memory/{memoryId}:
+    $ref: "./paths/memory.yaml#/memoryItem"
+  /api/v1/sessions/{sessionId}/context:
+    $ref: "./paths/memory.yaml#/context"
+  /api/v1/sessions/{sessionId}/iterations:
+    $ref: "./paths/memory.yaml#/iterations"
+
+  # ── Tasks (SPEC-015 §3.3) ──
+  /api/v1/sessions/{sessionId}/tasks:
+    $ref: "./paths/tasks.yaml#/tasks"
+  /api/v1/tasks/{taskId}:
+    $ref: "./paths/tasks.yaml#/task"
+  /api/v1/tasks/{taskId}/claim:
+    $ref: "./paths/tasks.yaml#/claim"
+
+  # ── Tools & Skills (SPEC-015 §3.4) ──
+  /api/v1/tools:
+    $ref: "./paths/tools.yaml#/tools"
+  /api/v1/tools/{toolName}/execute:
+    $ref: "./paths/tools.yaml#/execute"
+  /api/v1/skills:
+    $ref: "./paths/skills.yaml#/skills"
+  /api/v1/skills/{skillName}:
+    $ref: "./paths/skills.yaml#/skill"
+
+  # ── Approvals (SPEC-015 §3.5) ──
+  /api/v1/approvals:
+    $ref: "./paths/approvals.yaml#/approvals"
+  /api/v1/approvals/{approvalId}:
+    $ref: "./paths/approvals.yaml#/approval"
+  /api/v1/approvals/{approvalId}/review:
+    $ref: "./paths/approvals.yaml#/review"
+  /api/v1/sessions/{sessionId}/approvals:
+    $ref: "./paths/approvals.yaml#/sessionApprovals"
+
+  # ── Metrics, Billing, Config (SPEC-015 §3.6-3.7) ──
+  /api/v1/metrics:
+    $ref: "./paths/metrics.yaml#/metrics"
+  /api/v1/sessions/{sessionId}/billing:
+    $ref: "./paths/metrics.yaml#/billing"
+  /api/v1/config:
+    $ref: "./paths/metrics.yaml#/config"
+
+  # ── Auth: API Key Management (SPEC-015 §3.8) ──
+  /api/v1/auth/keys:
+    $ref: "./paths/auth.yaml#/authKeys"
+  /api/v1/auth/keys/{keyId}:
+    $ref: "./paths/auth.yaml#/authKeyItem"
+
+components:
+  securitySchemes:
+    $ref: "./components/security.yaml"
+  schemas:
+    $ref: "./components/schemas.yaml"

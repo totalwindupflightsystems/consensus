@@ -1,0 +1,212 @@
+---
+version: 1
+
+commands:
+  /axiom-step:
+    description: "Execute a single plan step"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - confidence
+      - evidence
+      - memory_updates
+    notes: "See specs/04-XML-Protocol.md and specs/13-Command-Registry.md for tag format."
+
+  /axiom-verify:
+    description: "Run verification checks for a step, task, or phase"
+    required_tags:
+      - codeops_verify
+      - status
+      - summary
+    optional_tags:
+      - inject
+      - confidence
+    notes: "Verifier output. See specs/04-XML-Protocol.md."
+
+  /axiom-sitrep:
+    description: "Generate a deterministic sitrep report"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - diagnostics
+
+  /axiom-sync-indexes:
+    description: "Sync and repair _index.md inventories"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-trace:
+    description: "Audit and repair traceability markers and links"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-distribution:
+    description: "Sync installer/version/template distribution artifacts"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-all:
+    description: "Run the full sync suite"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - diagnostics
+
+  /axiom-sync-command-registry:
+    description: "Sync .axiom/command-registry.yaml with installed commands"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-version-manifest:
+    description: "Validate and regenerate .axiom/.version.md"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-memory-bank-core:
+    description: "Sync Memory Bank core structure"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-work-items:
+    description: "Sync work item folder hygiene"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-specs-inventory:
+    description: "Sync specs inventory files"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-sync-template:
+    description: "Sync axiom-template/ from this repo"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-loop:
+    description: "Build/refresh a Ralph loop scaffold"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-prompt-update:
+    description: "Refresh PROMPT.md / PROMPT-VERIFY.md prompt bundle"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-spec-request:
+    description: "Feature request -> spec update -> spec verification"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-roadmap-refresh:
+    description: "Refresh TODO and implementation plans"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-work-item:
+    description: "Create/refresh a work item (meta-plan + plan artifacts)"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-best-practices:
+    description: "Generate and store best practices guidance"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+  /axiom-kickoff:
+    description: "Combined kickoff (specs + work item + roadmap + loop)"
+    required_tags:
+      - axiom
+      - status
+      - summary
+    optional_tags:
+      - evidence
+      - diagnostics
+
+# Event handlers: map event names to agent/command pairs.
+# See specs/13-Command-Registry.md#REQ-CR-EVENTS-001 for schema and rules.
+# event_handlers:
+#   spec_changed:
+#     handler: "@prompt-mirror-axiom"
+#     command: "/axiom-prompt-mirror-check"
+#     description: "Trigger prompt mirror drift check when specs change"

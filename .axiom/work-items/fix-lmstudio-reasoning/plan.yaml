@@ -1,0 +1,32 @@
+work_item: fix-lmstudio-reasoning
+title: "Fix LLM client to handle LM Studio reasoning_content fallback and 400 errors"
+priority: critical
+status: pending
+specs:
+  - specs/008-harness.md
+  - specs/015-api-and-mcp.md
+files_to_modify:
+  - internal/llm/openai.go
+  - internal/harness/planning.go
+steps:
+  - step: 1
+    action: "Debug why LM Studio returns empty content for qwen models"
+    details: |
+      qwen reasoning models put output in reasoning_content, not content.
+      The fallback in openai.go may not be working. Test directly with curl
+      to understand the response shape, then fix the Go client.
+  - step: 2
+    action: "Fix error parsing for LM Studio 400 responses"
+    details: |
+      LM Studio returns error as a string but the Go code expects an
+      openaiError struct. Make error parsing tolerant of both formats.
+  - step: 3
+    action: "Add a non-thinking model option for testing"
+    details: |
+      Some models produce empty content. Allow the test config to specify
+      a model that produces direct content (e.g., deepcoder or a simpler
+      model) as a fallback.
+verification:
+  - "LLM call to LM Studio succeeds with qwen/qwen3.5-9b"
+  - "AgentOutput JSON is parsed from LLM response"
+  - "No 400 error on LM Studio response parsing"

@@ -1,0 +1,52 @@
+# Skills endpoint paths (SPEC-015 §3.4).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET /api/v1/skills
+skills:
+  get:
+    tags: [Tools]
+    summary: List skill metadata (progressive disclosure)
+    operationId: listSkills
+    description: |
+      Lists skill metadata only — lightweight summaries (~100 tokens each).
+      This is the "progressive disclosure" first layer. To get full
+      instructions, use GET /api/v1/skills/{skillName}.
+    security:
+      - BearerAuth: []
+    responses:
+      "200":
+        description: List of skills (metadata only).
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Skill"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/skills/{skillName}
+skill:
+  get:
+    tags: [Tools]
+    summary: Get full skill instructions
+    operationId: getSkill
+    description: |
+      Returns full skill details including the complete instructions text
+      (which can be thousands of tokens). This is the second layer of
+      progressive disclosure — only call this when the skill is actually needed.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SkillName"
+    responses:
+      "200":
+        description: Full skill details.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/SkillDetail"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

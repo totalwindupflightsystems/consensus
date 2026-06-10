@@ -1,0 +1,155 @@
+# yaml-language-server: $schema=../../../.opencode/skills/axiom-plan-schema/plan-schema.json
+work_item_id: WI-005
+title: "Implement External Tool Execution Sandbox"
+status: completed
+completed_at: 2026-06-01
+completed_commit: fd4bde9
+execution:
+  cursor: phase-4/task-4
+  mode: sequential
+  max_retries: 2
+
+phases:
+  - id: phase-1
+    title: "Core Sandbox + Schema"
+    tasks:
+      - id: task-1
+        title: "Create migration 011 for tool_results and tool_requests"
+        spec_ref: specs/010-tools.md,specs/003-database.md
+        actions:
+          - "Add exit_code (INT) and duration_ms (BIGINT) to tool_results"
+          - "Add approval_request_id (UUID) to tool_requests"
+          - "Add awaiting_approval to tool_requests status CHECK"
+        verification:
+          - "go build ./... passes"
+        evidence: migrations/011_tool_sandbox.sql
+        rollback: "git checkout -- migrations/011_tool_sandbox.sql"
+
+      - id: task-2
+        title: "Implement ExecuteExternalTool() in internal/tools/execute.go"
+        spec_ref: specs/010-tools.md §Tool Execution, §Security
+        actions:
+          - "Create ExecuteExternalTool() with subprocess execution"
+          - "30s default timeout (configurable via tool_requests.timeout_ms)"
+          - "1MB output size limit"
+          - "Temp dir per execution (working directory isolation)"
+          - "Environment variable whitelist (CONSCIENCE_*, HOME, PATH, USER)"
+          - "Return ExternalToolResult with output, exit_code, duration, error"
+        verification:
+          - "go build ./... passes"
+          - "go test ./internal/tools/... -run TestExecuteExternalTool"
+        evidence: internal/tools/execute.go
+
+      - id: task-3
+        title: "Add concurrent execution semaphore + network control"
+        spec_ref: specs/010-tools.md §Security
+        actions:
+          - "Add MaxConcurrentExecutions constant (10)"
+          - "Add semaphore channel for limiting concurrent subprocesses"
+          - "Add NoNetwork flag to sandbox config (env: CONSCIENCE_TOOL_NETWORK=none)"
+        verification:
+          - "go build ./... passes"
+        evidence: internal/tools/sandbox.go
+
+  - id: phase-2
+    title: "Rate Limiting + Approval Gating"
+    tasks:
+      - id: task-1
+        title: "Add rate limiter in internal/tools/rate_limiter.go"
+        spec_ref: specs/010-tools.md,specs/003-database.md §5.5
+        actions:
+          - "Create CheckRateLimit(ctx, db, toolName, sessionID) function"
+          - "Query tool_requests count in last minute vs rate_limit_per_min"
+          - "Return error if limit exceeded"
+        verification:
+          - "go build ./... passes"
+          - "go test ./internal/tools/... -run TestRateLimit"
+        evidence: internal/tools/rate_limiter.go
+
+      - id: task-2
+        title: "Add approval gating in internal/tools/approval.go"
+        spec_ref: specs/014-hitl-interrupt-state.md §2.2, §3.1
+        actions:
+          - "Create CreateApprovalGate(ctx, db, sessionID, toolName, params) function"
+          - "INSERT into approval_requests with request_type='tool_execution'"
+          - "Update session status to 'paused'"
+          - "Update tool_request status to 'awaiting_approval'"
+          - "Return approval_request ID"
+        verification:
+          - "go build ./... passes"
+        evidence: internal/tools/approval.go
+
+  - id: phase-3
+    title: "Harness Wiring"
+    tasks:
+      - id: task-1
+        title: "Update executeTool() for subprocess handler"
+        spec_ref: specs/010-tools.md §Tool Execution
+        actions:
+          - "Replace subprocess stub with call to tools.ExecuteExternalTool()"
+          - "Parse tool_requests.parameters JSON to extract args"
+          - "Pass timeout_ms from tool_request"
+          - "Check rate limit before execution"
+          - "Check approval requirement before execution"
+        verification:
+          - "go build ./... passes"
+        evidence: internal/harness/tool_executor.go
+
+      - id: task-2
+        title: "Update tool_results writing for exit_code and duration_ms"
+        spec_ref: specs/010-tools.md,specs/003-database.md
+        actions:
+          - "Update INSERT INTO tool_results to include exit_code and duration_ms"
+          - "Update error path to record exit_code=-1"
+        verification:
+          - "go build ./... passes"
+        evidence: internal/harness/tool_executor.go
+
+  - id: phase-4
+    title: "Tests + Verification"
+    tasks:
+      - id: task-1
+        title: "Write sandbox execution tests"
+        actions:
+          - "Test successful execution (echo command)"
+          - "Test timeout enforcement (sleep command with short timeout)"
+          - "Test output size limit (generate large output)"
+          - "Test env whitelist (verify only whitelisted vars pass through)"
+          - "Test non-zero exit code"
+          - "Test command not found"
+        verification:
+          - "go test ./internal/tools/... -run TestExecuteExternalTool -v"
+        evidence: internal/tools/execute_test.go
+
+      - id: task-2
+        title: "Write rate limit and approval tests"
+        actions:
+          - "Test rate limit enforcement using in-memory DB"
+          - "Test approval gating creates approval_request"
+        verification:
+          - "go test ./internal/tools/... -run TestRateLimit -v"
+          - "go test ./internal/tools/... -run TestApproval -v"
+        evidence: internal/tools/rate_limiter_test.go, internal/tools/approval_test.go
+
+      - id: task-3
+        title: "Update harness tool executor tests"
+        actions:
+          - "Update setupToolExecutorTestDB for new schema columns"
+          - "Test subprocess tool execution through PollOnce"
+          - "Verify exit_code and duration_ms in tool_results"
+        verification:
+          - "go test ./internal/harness/... -run TestToolExecutor -v"
+        evidence: internal/harness/tool_executor_test.go
+
+      - id: task-4
+        title: "Full test suite + commit"
+        actions:
+          - "go build ./... && go vet ./... && go test ./..."
+          - "Commit with conventional commit + Co-authored-by"
+        verification:
+          - "go build ./... passes"
+          - "go vet ./... passes"
+          - "go test ./... passes"
+        evidence: verification.md
+
+axiom:trace work_item=WI-005 spec=specs/010-tools.md,specs/014-hitl-interrupt-state.md plan=plan.yaml

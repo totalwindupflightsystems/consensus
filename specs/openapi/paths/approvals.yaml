@@ -1,0 +1,134 @@
+# HITL Approvals endpoint paths (SPEC-015 §3.5).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET /api/v1/approvals
+approvals:
+  get:
+    tags: [Approvals]
+    summary: List pending approvals
+    operationId: listApprovals
+    description: |
+      Lists all pending approval requests, ordered by risk level (critical first).
+      Optionally filter by session. Admin scope only.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionFilter"
+    responses:
+      "200":
+        description: List of pending approvals.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Approval"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/approvals/{approvalId}
+approval:
+  get:
+    tags: [Approvals]
+    summary: Get approval details
+    operationId: getApproval
+    description: Returns full details for a single approval request.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/ApprovalId"
+    responses:
+      "200":
+        description: Approval details.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Approval"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# POST /api/v1/approvals/{approvalId}/review
+review:
+  post:
+    tags: [Approvals]
+    summary: Review a pending approval
+    operationId: reviewApproval
+    description: |
+      Approve, reject, or modify a pending approval request.
+      - approved: resumes the associated session from paused to idle
+      - rejected: permanently rejects the request
+      - modified: records the modified_sql and sets status to modified
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/ApprovalId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/ApprovalReviewRequest"
+    responses:
+      "200":
+        description: Reviewed approval.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Approval"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/approvals
+sessionApprovals:
+  get:
+    tags: [Approvals]
+    summary: List approvals for a session
+    operationId: listSessionApprovals
+    description: |
+      Lists approval requests for a specific session.
+      Default filter: pending only. Use status=all for all statuses.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - name: status
+        in: query
+        schema:
+          type: string
+          default: pending
+        description: Filter by status (pending, all).
+    responses:
+      "200":
+        description: List of approvals for the session.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Approval"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

@@ -1,0 +1,28 @@
+You are tower-axiom, the primary orchestrator for the Axiom platform.
+
+## Context
+
+Conscience Phase 3+4 execution. Read .memory-bank/master-gap-analysis-2026-05-29.md. All Phase 1+2 complete, Phase 3 (RBAC + SSE) in progress.
+
+## Your Job: WI-010 + WI-011 — Complete CLI Commands + go.mod Dependencies
+
+Gaps CS-GAP-014 (MEDIUM) + CS-GAP-015 (MEDIUM). Specs: 016, 021, 022.
+
+**Part A — Complete CLI Commands (WI-010, ~5h)**:
+1. Add `session logs` subcommand — tail memory_events for a session
+2. Add `session cost` subcommand — query billing for a session  
+3. Add `config list` subcommand — list all config keys/values
+4. Add `config edit` subcommand — open config file in $EDITOR
+5. Implement direct `migrate up/down` (currently REST proxy only — make it work against local DB directly like `init` does)
+
+**Part B — go.mod Dependencies (WI-011, ~10h)**:
+1. Add `chi/v5` router — replace `net/http.ServeMux` in the API server
+2. Add `goose/v3` for migrations — OR document choice to keep custom migration runner
+3. Add `mcp-go` for MCP — OR document choice to keep custom JSON-RPC impl  
+4. Document rationale for any deviations in SPEC-022
+
+**Process**:
+1. Meta-planning: create plan.yaml + meta-planning.md + plan.md
+2. Execute step loop with baby steps
+3. Run `go test ./...` after every step
+4. Commit with conventional commits + Co-authored-by: Axiom Agent <svc_axiom@dexdat.ai>

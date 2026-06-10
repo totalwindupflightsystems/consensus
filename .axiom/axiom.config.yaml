@@ -1,0 +1,64 @@
+---
+version: 1
+repo_id: "wojons/conscientiousness"
+
+confidence:
+  weights:
+    requirements_clarity: 20
+    spec_alignment: 20
+    test_coverage: 20
+    checks_pass_rate: 25
+    plan_completion: 10
+    ambiguity_remaining: 5
+  thresholds:
+    low: 40
+    high: 70
+
+verification:
+  required_checks:
+    - pre_commit
+
+limits:
+  max_open_prs: 3
+
+# --- Jira Integration ---
+jira:
+  project_key: null              # TODO: set to your Jira project key (e.g., "PROJ", "BACKEND")
+
+persistence:
+  checkpoint_on_every_step: true
+  stale_lock_timeout_seconds: 3600
+
+# --- Git Branching ---
+# axiom:trace work_item=branch-management-02 spec=specs/63-Work-Item-Branch-Management.md jira_ref=DEX-62 plan=phase-4/task-4-1/step-4-1-2
+# mode: "off"       — no branch management (default, safe for all repos)
+# mode: "auto-branch" — Axiom creates a branch per work item and optionally opens a PR/merges on complete
+# mode: "worktree"  — repo uses git worktrees; branch setup is skipped
+git:
+  co_author: "Axiom Agent <svc_axiom@dexdat.ai>"
+  branching:
+    mode: "off"
+
+# --- Release Automation (post-merge hook) ---
+# See: specs/06-Project-Configuration.md#release-section
+# Escape hatch: AXIOM_NO_RELEASE=1 git merge ...
+# axiom:trace work_item=release-automation-01 spec=specs/06-Project-Configuration.md#release-section plan=P-release-automation/phase-ra-1/task-ra-1-4/step-ra-1-4-1 jira_ref=SWDE-6
+release:
+  primary_branch: main
+  worktree_default_bump: minor
+  direct_commit_default_bump: patch
+  branch_name_keywords:
+    patch: [bug, fix, hotfix, patch]
+    minor: [feature, feat, enhancement]
+    major: [breaking, major]
+  allow_agent_override: true
+  allow_human_override: true
+  changelog_path: CHANGELOG.md
+  version_file: VERSION
+  package_json_path: .axiom/plugin/package.json
+  tag_prefix: "v"
+  create_tags: true
+  push_tags: false
+  auto_bump_on_merge: true
+  auto_tag_on_merge: true
+  auto_push_tags: false

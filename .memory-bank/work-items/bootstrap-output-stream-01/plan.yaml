@@ -1,0 +1,22 @@
+version: 1
+plan_version: 1
+work_item: { id: bootstrap-output-stream-01, repo: wojons/conscientiousness }
+execution:
+  status: completed
+  completed_at: 2026-05-28T01:51:00Z
+  cursor: { phase_id: phase-1, task_id: task-1-1, step_id: step-1-1-1 }
+plan:
+  phases:
+    - id: phase-1
+      title: Normalize bootstrap output behavior
+      tasks:
+        - id: task-1-1
+          title: Decide and verify output stream contract
+          steps:
+            - id: step-1-1-1
+              title: Update code/docs/tests for init and serve key output
+              spec_ref: specs/016-cli-interface.md
+              verification:
+                - { type: command, command: "go test ./internal/cli ./cmd/conscience -v -count=1", required: false }
+                - { type: command, command: "make test", required: true }
+axiom_trace: "axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md plan=.memory-bank/work-items/bootstrap-output-stream-01/plan.yaml evidence=.memory-bank/work-items/bootstrap-output-stream-01/verification.md"

@@ -1,0 +1,22 @@
+version: 1
+plan_version: 1
+work_item: { id: bootstrap-admin-key-policy-01, repo: wojons/conscientiousness }
+execution:
+  status: completed
+  cursor: { phase_id: phase-1, task_id: task-1-1, step_id: step-1-1-1 }
+  completed_at: 2026-05-28T08:13:00-07:00
+plan:
+  phases:
+    - id: phase-1
+      title: Decide bootstrap admin key lifetime policy
+      tasks:
+        - id: task-1-1
+          title: Policy decision and implementation
+          steps:
+            - id: step-1-1-1
+              title: Implement/document bootstrap key expiry or revocation policy
+              spec_ref: specs/015-api-and-mcp.md
+              verification:
+                - { type: command, command: "go test ./internal/bootstrap ./internal/api -v -count=1", required: true }
+                - { type: command, command: "make test", required: true }
+axiom_trace: "axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md,specs/005-security.md plan=.memory-bank/work-items/bootstrap-admin-key-policy-01/plan.yaml evidence=.memory-bank/work-items/bootstrap-admin-key-policy-01/verification.md"

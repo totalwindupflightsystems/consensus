@@ -1,0 +1,51 @@
+You are tower-axiom, the primary orchestrator for the Axiom platform.
+
+## Context
+
+Conscience project. 20 of 22 gaps closed in the sprint. One major item remains: WI-012 — Vector Compression Pipeline.
+
+Read .memory-bank/master-gap-analysis-2026-05-29.md for full context. Gap CS-GAP-001 (CRITICAL).
+
+## Your Job: WI-012 — Vector Compression Pipeline
+
+**Goal**: Agent-triggered memory compression with vector validation. The spec's promise that the agent can compress its own memory, validated by cosine similarity, with tier escalation.
+
+### Step 1: Create Axiom Work Item
+Create proper Axiom-format files:
+- `.memory-bank/work-items/vector-compression-01/plan.yaml` — phased plan with tasks and steps
+- `.memory-bank/work-items/vector-compression-01/meta-planning.md` — analysis of specs, approach
+- `.memory-bank/work-items/vector-compression-01/plan.md` — detailed implementation plan
+
+### Step 2: Execute
+Implement the pipeline:
+
+1. **Embedding model**: Select and integrate a text embedding model (use OpenAI `text-embedding-3-small` via the existing OpenAI client, or a local option). Add `embedding_model` to `model_registry`.
+
+2. **Compression queue worker**: Add a heartbeat goroutine that polls `compression_queue` table for pending events, processes them, and writes compressed summaries back to `memory_events` with `display_mode='compressed'`.
+
+3. **Cosine similarity validation**: Before accepting a compressed summary, generate an embedding of the summary and compare to the embedding of the original events. Must exceed threshold (0.85) or reject and retry.
+
+4. **Tier escalation**: If an event gets compressed multiple times, promote through tiers: raw → compressed → abstract → canonical.
+
+5. **Compression worker role**: Use a separate DB role or session context flag so compressed events are marked with the compression worker identity in RLS.
+
+6. **Progressive disclosure**: Compressed events appear in the `active_context_view` at higher cache tiers — the agent sees summaries first, can page-fault to load full content.
+
+### Key Specs
+- SPEC-002 §8: Memory compression with vector validation, tier escalation
+- SPEC-003 §6.2: Cache tier ordering (static > ledger > dynamic)
+- SPEC-011: Embedding model parity, compression worker role
+
+### Process
+1. Meta-plan first — read specs, understand the full compression flow
+2. Create plan.yaml with clear phases
+3. Execute step loop with baby steps
+4. Run `go test ./...` after every step
+5. Commit with conventional commits + Co-authored-by: Axiom Agent <svc_axiom@dexdat.ai>
+6. Write .memory-bank/progress.md as you go
+
+### Constraints
+- Must work with both Postgres and SQLite backends
+- Embeddings stored as JSON arrays (not pgvector — avoid extension dependency)
+- Keep the embedding model configurable (env var or model_registry row)
+- Build real code, not stubs

@@ -1,0 +1,69 @@
+# Tools endpoint paths (SPEC-015 §3.4).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET /api/v1/tools
+tools:
+  get:
+    tags: [Tools]
+    summary: List available tools
+    operationId: listTools
+    description: |
+      Lists all tools in the registry. Supports filtering by status and hemisphere.
+      Tools are the executable capabilities — SQL functions, HTTP endpoints,
+      Go handlers, and subprocesses.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/StatusFilter"
+      - $ref: "../components/parameters.yaml#/HemisphereFilter"
+    responses:
+      "200":
+        description: List of tools.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Tool"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# POST /api/v1/tools/{toolName}/execute
+execute:
+  post:
+    tags: [Tools]
+    summary: Execute a tool
+    operationId: executeTool
+    description: |
+      Executes an internal tool (sql_function or go_native) within a session,
+      or enqueues an external tool (http_endpoint or subprocess) for async dispatch.
+      The tool must be enabled and in active status.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/ToolName"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/ExecuteToolRequest"
+    responses:
+      "200":
+        description: Tool execution result.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/ExecuteToolResponse"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

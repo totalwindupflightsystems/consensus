@@ -1,0 +1,31 @@
+You are tower-axiom. Fix a bug in the Conscience project's planning loop.
+
+BUG: After max planning turns (10) with zero productive work, a session gets stuck in 'tool_exec' status instead of transitioning to 'idle'.
+
+ROOT CAUSE: In internal/harness/planning.go, the `runInteractivePlanning` function's max-turns handler (around lines 401-437) has a path where the session status is NOT updated to idle.
+
+The code at line 410 logs "max turns reached with no productive work", then checks:
+- Line 414: if len(memoryStateChanges) > 0 → goes to applyMemoryStateChanges + handleCommitV2
+- Line 424: else → tx.Rollback() + UPDATE sessions SET status = 'idle'
+
+But the LLM generates `memory_state_changes` in its no-op responses (even when the action is no-op). These accumulate in the `memoryStateChanges` slice. So line 414 is TRUE, and the code goes into handleCommitV2.
+
+The problem: handleCommitV2 (line 568-595) works within a transaction. But the transaction state might already be compromised (rolled back or error). When handleCommitV2 returns an error, the code at line 420-421 returns that error — and the caller may not properly handle the session cleanup.
+
+WHAT TO FIX:
+1. After the max-turns handler (line 410), BEFORE checking memoryStateChanges, ensure the session status is explicitly set to idle as a fallback
+2. OR add a deferred status update that runs regardless of the path taken:
+   ```go
+   defer func() {
+       // Ensure session always ends up idle after max turns
+       h.db.Exec(ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now') WHERE id = $1 AND status NOT IN ('idle','failed','paused')`, sessionID)
+   }()
+   ```
+3. Verify that the memoryStateChanges path in handleCommitV2 properly commits and updates status
+
+VERIFICATION:
+- Run `go build -buildvcs=false ./...` after your changes
+- The fix must be in internal/harness/planning.go only
+- Do NOT modify any other files
+
+Reference the session ID 6d65fa3f from our test that demonstrated this bug — it stayed in tool_exec even after "max turns reached with no productive work" was logged.

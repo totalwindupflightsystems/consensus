@@ -16,3 +16,5 @@ dev.db
 
 # Work item — ephemeral test run output
 **/runs/
+dev.db*
+.worktrees/

@@ -1,0 +1,28 @@
+You are tower-axiom, the primary orchestrator for the Axiom platform.
+
+## Context
+
+Conscience Phase 3 execution. All Phase 1+2 complete. Read .memory-bank/master-gap-analysis-2026-05-29.md.
+
+## Your Job: WI-008 + WI-009 — RBAC Scope Model + SSE Event Stream
+
+Gaps CS-GAP-009 (HIGH) + CS-GAP-013 (MEDIUM). Specs: 004, 005, 015.
+
+**Part A — RBAC Scope Model (CS-GAP-009)**:
+1. Add `projects` table and `project_id` to sessions/tasks
+2. Implement scope hierarchy: Global > Project > Sub-Agent
+3. Wire scope checks into: session creation, task claiming, memory access, subagent spawning
+4. Sub-agents inherit parent's project scope
+
+**Part B — SSE Event Stream (CS-GAP-013)**:
+1. Wire EventBus with actual data feed:
+   - Use pgx LISTEN/NOTIFY (from WI-002) to detect DB changes
+   - OR implement polling goroutine that queries latest events
+2. Push: session state changes, memory events, approval requests, quarantine events to SSE subscribers
+3. Wire into shim event bridge (currently no-op in main.go:290-304)
+
+**Process**:
+1. Meta-planning: create plan.yaml + meta-planning.md + plan.md
+2. Execute step loop with baby steps
+3. Run `go test ./...` after every step
+4. Commit with conventional commits + Co-authored-by: Axiom Agent <svc_axiom@dexdat.ai>

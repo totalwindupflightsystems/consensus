@@ -1,0 +1,103 @@
+# Shared parameters for the Conscience API.
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+SessionId:
+  name: sessionId
+  in: path
+  required: true
+  schema:
+    type: string
+    format: uuid
+  description: UUID of the agent session.
+
+MemoryId:
+  name: memoryId
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: ID of the memory event.
+
+TaskId:
+  name: taskId
+  in: path
+  required: true
+  schema:
+    type: string
+    format: uuid
+  description: UUID of the task.
+
+ApprovalId:
+  name: approvalId
+  in: path
+  required: true
+  schema:
+    type: string
+    format: uuid
+  description: UUID of the approval request.
+
+SkillName:
+  name: skillName
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Name of the skill as registered in skills_registry.
+
+ToolName:
+  name: toolName
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Name of the tool as registered in tools_registry.
+
+ApiKeyId:
+  name: keyId
+  in: path
+  required: true
+  schema:
+    type: string
+    format: uuid
+  description: UUID of the API key.
+
+StatusFilter:
+  name: status
+  in: query
+  schema:
+    type: string
+  description: Filter by comma-separated status values.
+
+TypeFilter:
+  name: type
+  in: query
+  schema:
+    type: string
+  description: Filter memory events by type.
+
+SessionFilter:
+  name: session_id
+  in: query
+  schema:
+    type: string
+    format: uuid
+  description: Filter by session ID.
+
+HemisphereFilter:
+  name: hemisphere
+  in: query
+  schema:
+    type: string
+    enum: [internal, external]
+  description: Filter tools by hemisphere.
+
+Limit:
+  name: limit
+  in: query
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 1000
+    default: 50
+  description: Maximum number of results to return.

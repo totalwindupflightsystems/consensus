@@ -1,0 +1,682 @@
+# Shared data model schemas for the Conscience API.
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# ─── Session Schemas (SPEC-015 §3.1) ───
+
+CreateSessionRequest:
+  type: object
+  required: [agent_name, goal]
+  properties:
+    agent_name:
+      type: string
+      description: Semantic name for the agent.
+    goal:
+      type: string
+      description: Task description injected into the system prompt.
+    model_id:
+      type: string
+      description: LLM model identifier. If omitted, uses the first enabled model from the registry.
+    context_budget:
+      type: integer
+      default: 128000
+      description: Maximum token budget for the agent's context window.
+    hitl_config:
+      type: object
+      additionalProperties: true
+      description: Optional HITL configuration overrides.
+
+CreateSessionResponse:
+  type: object
+  required: [id, status, api_key, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: UUID of the created session.
+    status:
+      type: string
+      enum: [booting]
+      description: Initial session status.
+    api_key:
+      type: string
+      description: Session-scoped API key. Store this — it is not recoverable.
+    created_at:
+      type: string
+      format: date-time
+      description: Creation timestamp.
+
+Session:
+  type: object
+  required: [id, agent_name, model_id, status, context_budget, iteration, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    parent_id:
+      type: string
+      format: uuid
+      nullable: true
+      description: Parent session ID for sub-agents.
+    agent_name:
+      type: string
+    model_id:
+      type: string
+    status:
+      type: string
+      enum: [booting, idle, thinking, planning, tool_exec, executing, waiting_sub, paused, completed, failed]
+      description: Current session state.
+    goal:
+      type: string
+      nullable: true
+      description: The task goal.
+    context_budget:
+      type: integer
+      description: Token budget for the context window.
+    tokens_used_in:
+      type: integer
+      format: int64
+      description: Accumulated input tokens used.
+    tokens_used_out:
+      type: integer
+      format: int64
+      description: Accumulated output tokens used.
+    iteration:
+      type: integer
+      format: int64
+      description: Current iteration counter.
+    heartbeat_at:
+      type: string
+      format: date-time
+      description: Last known-alive timestamp.
+    created_at:
+      type: string
+      format: date-time
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: Timestamp when session completed or failed.
+
+UpdateSessionRequest:
+  type: object
+  required: [status]
+  properties:
+    status:
+      type: string
+      enum: [pause, resume, cancel]
+      description: |
+        Action to perform:
+        - pause — pauses the session (must be in active state)
+        - resume — resumes a paused session
+        - cancel — fails the session immediately
+
+SendMessageRequest:
+  type: object
+  required: [content]
+  properties:
+    content:
+      type: string
+      description: The message content.
+    type:
+      type: string
+      enum: [user_instruction, user_correction, system_override]
+      default: user_instruction
+      description: Message type.
+
+MessageReceivedResponse:
+  type: object
+  required: [status, session]
+  properties:
+    status:
+      type: string
+      example: message_received
+    session:
+      type: string
+      format: uuid
+
+# ─── Memory Event Schemas (SPEC-015 §3.2) ───
+
+MemoryEvent:
+  type: object
+  required: [id, session_id, type, iteration_created, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    type:
+      type: string
+      enum: [header, text_block, tool_call, tool_result, thinking, system, inherited_pointer, user_message]
+    content:
+      type: string
+      nullable: true
+    summary_text:
+      type: string
+      nullable: true
+      description: Compressed summary set by the compression worker.
+    session_id:
+      type: string
+      format: uuid
+    iteration_created:
+      type: integer
+      format: int64
+    display_mode:
+      type: string
+      enum: [full, compressed, hidden]
+      default: full
+      description: Current rendering state.
+    created_at:
+      type: string
+      format: date-time
+
+ActiveContextItem:
+  type: object
+  required: [id, iteration_created, type, display_mode]
+  properties:
+    id:
+      type: integer
+      format: int64
+    iteration_created:
+      type: integer
+      format: int64
+    type:
+      type: string
+      description: Event type from memory_events.
+    display_mode:
+      type: string
+      enum: [full, compressed, hidden]
+    rendered_text:
+      type: string
+      nullable: true
+      description: |
+        Text to display based on display_mode:
+        - full → original content
+        - compressed → summary_text
+        - hidden → null
+
+IterationCommit:
+  type: object
+  required: [iteration_id, session_id, active_pointers, rows_affected, created_at]
+  properties:
+    iteration_id:
+      type: integer
+      format: int64
+    session_id:
+      type: string
+      format: uuid
+    active_pointers:
+      type: array
+      items:
+        type: integer
+        format: int64
+      description: IDs of memory events active in this iteration.
+    display_rules:
+      description: Display rules for the iteration.
+    llm_response:
+      description: Structured LLM response from this iteration.
+    sql_executed:
+      type: array
+      items:
+        type: string
+      description: SQL statements executed in this iteration.
+    rows_affected:
+      type: integer
+      description: Number of database rows affected.
+    created_at:
+      type: string
+      format: date-time
+
+# ─── Task Schemas (SPEC-015 §3.3) ───
+
+CreateTaskRequest:
+  type: object
+  required: [title]
+  properties:
+    title:
+      type: string
+      description: Short, descriptive task title.
+    description:
+      type: string
+      description: Detailed task description.
+    priority:
+      type: integer
+      minimum: 1
+      maximum: 10
+      default: 5
+      description: Priority (1 = lowest, 10 = highest).
+    prerequisite_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      description: IDs of tasks that must be published before this one can be claimed.
+
+Task:
+  type: object
+  required: [id, session_id, title, status, priority, prerequisite_ids, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    session_id:
+      type: string
+      format: uuid
+    parent_task_id:
+      type: string
+      format: uuid
+      nullable: true
+    title:
+      type: string
+    description:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [pending, claimed, in_progress, reviewed, published, failed, cancelled]
+    priority:
+      type: integer
+      minimum: 1
+      maximum: 10
+    locked_by_agent:
+      type: string
+      format: uuid
+      nullable: true
+      description: Session ID of the agent that currently holds the lock.
+    prerequisite_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+    result_memory_id:
+      type: integer
+      format: int64
+      nullable: true
+      description: Pointer to the memory event containing this task's output.
+    created_at:
+      type: string
+      format: date-time
+    claimed_at:
+      type: string
+      format: date-time
+      nullable: true
+    completed_at:
+      type: string
+      format: date-time
+      nullable: true
+
+UpdateTaskRequest:
+  type: object
+  required: [status]
+  properties:
+    status:
+      type: string
+      enum: [claimed, in_progress, reviewed, published, failed, cancelled]
+      description: New status. Must be a valid transition from the current state.
+
+# ─── Tool & Skill Schemas (SPEC-015 §3.4) ───
+
+Tool:
+  type: object
+  required: [id, name, description, hemisphere, handler_type, status, enabled, requires_approval]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    description:
+      type: string
+    hemisphere:
+      type: string
+      enum: [internal, external]
+    handler_type:
+      type: string
+      enum: [sql_function, http_endpoint, go_native, subprocess]
+    status:
+      type: string
+      enum: [active, testing, deprecated, disabled]
+    enabled:
+      type: boolean
+    requires_approval:
+      type: boolean
+      description: Whether human approval is required before executing this tool.
+
+Skill:
+  type: object
+  required: [id, name, enabled]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    metadata:
+      description: Lightweight skill metadata (~100 tokens).
+    enabled:
+      type: boolean
+
+SkillDetail:
+  type: object
+  required: [id, name, instructions, enabled]
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    metadata:
+      description: Lightweight skill metadata.
+    instructions:
+      type: string
+      description: Full skill instructions (can be thousands of tokens).
+    linked_tool_ids:
+      type: array
+      items:
+        type: string
+        format: uuid
+      description: IDs of tools this skill depends on.
+    enabled:
+      type: boolean
+
+ExecuteToolRequest:
+  type: object
+  required: [session_id]
+  properties:
+    session_id:
+      type: string
+      format: uuid
+      description: Session to execute within.
+    parameters:
+      type: object
+      additionalProperties: true
+      description: Tool-specific parameters matching the tool's parameter_schema.
+
+ExecuteToolResponse:
+  type: object
+  required: [tool_name, is_error]
+  properties:
+    tool_name:
+      type: string
+    result:
+      description: Tool execution result.
+    rows_affected:
+      type: integer
+      format: int64
+    is_error:
+      type: boolean
+      description: Whether the execution produced an error.
+    error:
+      type: string
+      description: Error message if is_error is true.
+
+# ─── Approval Schemas (SPEC-015 §3.5) ───
+
+Approval:
+  type: object
+  required: [id, session_id, iteration, request_type, description, risk_level, status, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    session_id:
+      type: string
+      format: uuid
+    iteration:
+      type: integer
+      format: int64
+    request_type:
+      type: string
+      enum: [tool_execution, destructive_action, budget_override, schema_change, sub_agent_spawn, custom]
+    description:
+      type: string
+    risk_level:
+      type: string
+      enum: [low, medium, high, critical]
+    context:
+      description: Approval context (agent monologue, previous actions, etc.).
+    target_tool:
+      type: string
+      nullable: true
+      description: Tool being requested for execution.
+    target_sql:
+      type: string
+      nullable: true
+      description: SQL being requested for execution.
+    status:
+      type: string
+      enum: [pending, approved, rejected, expired, modified]
+    reviewer_id:
+      type: string
+      nullable: true
+    review_notes:
+      type: string
+      nullable: true
+    modified_sql:
+      type: string
+      nullable: true
+      description: Modified SQL when decision is "modified".
+    created_at:
+      type: string
+      format: date-time
+    reviewed_at:
+      type: string
+      format: date-time
+      nullable: true
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+
+ApprovalReviewRequest:
+  type: object
+  required: [decision]
+  properties:
+    decision:
+      type: string
+      enum: [approved, rejected, modified]
+      description: Review decision.
+    notes:
+      type: string
+      description: Optional review notes.
+    modified_sql:
+      type: string
+      description: Required when decision is "modified".
+
+# ─── Billing Schemas (SPEC-015 §3.6) ───
+
+BillingEntry:
+  type: object
+  required: [id, session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cost_usd, recorded_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    session_id:
+      type: string
+      format: uuid
+    iteration:
+      type: integer
+      format: int64
+    model_id:
+      type: string
+    category:
+      type: string
+      enum: [cognition, compression, embedding, tool_call]
+    prompt_tokens:
+      type: integer
+      format: int64
+    completion_tokens:
+      type: integer
+      format: int64
+    cache_read_tokens:
+      type: integer
+      format: int64
+    cache_write_tokens:
+      type: integer
+      format: int64
+    cost_usd:
+      type: number
+      format: double
+    recorded_at:
+      type: string
+      format: date-time
+
+SessionBilling:
+  type: object
+  required: [session_id, total_cost_usd, entries]
+  properties:
+    session_id:
+      type: string
+      format: uuid
+    total_cost_usd:
+      type: number
+      format: double
+    total_prompt_tokens:
+      type: integer
+      format: int64
+    total_completion_tokens:
+      type: integer
+      format: int64
+    entries:
+      type: array
+      items:
+        $ref: "#/BillingEntry"
+
+# ─── Config & Metrics Schemas (SPEC-015 §3.7) ───
+
+Config:
+  type: object
+  properties:
+    llm:
+      type: object
+      additionalProperties: true
+      description: LLM configuration (model, provider, etc.).
+    hitl:
+      type: object
+      additionalProperties: true
+      description: HITL configuration.
+    harness:
+      type: object
+      additionalProperties: true
+      description: Harness configuration.
+    database:
+      type: object
+      additionalProperties: true
+      description: Database configuration.
+    logging:
+      type: object
+      additionalProperties: true
+      description: Logging configuration.
+    system_settings:
+      type: object
+      additionalProperties: true
+      description: Raw system_settings table values.
+
+Metrics:
+  type: object
+  required: [active_sessions, pending_tasks, pending_approvals, total_sessions]
+  properties:
+    active_sessions:
+      type: integer
+      description: Number of sessions in active statuses.
+    pending_tasks:
+      type: integer
+      description: Number of pending tasks.
+    pending_approvals:
+      type: integer
+      description: Number of pending approval requests.
+    total_sessions:
+      type: integer
+      description: Total number of sessions in the database.
+    total_cost_usd:
+      type: number
+      format: double
+      description: Total cumulative cost across all sessions.
+
+# ─── Auth Schemas (SPEC-015 §3.8) ───
+
+CreateAPIKeyRequest:
+  type: object
+  required: [scope]
+  properties:
+    scope:
+      type: string
+      enum: [admin, session, readonly, webhook]
+      description: Key scope.
+    session_id:
+      type: string
+      format: uuid
+      description: Required for session-scoped keys.
+    expires_in:
+      type: integer
+      description: Seconds until expiration.
+
+CreateAPIKeyResponse:
+  type: object
+  required: [id, key_prefix, api_key, scope, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    key_prefix:
+      type: string
+      description: First 8 characters for identification.
+    api_key:
+      type: string
+      description: The full API key. Store this — it is not recoverable.
+    scope:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+APIKeyEntry:
+  type: object
+  required: [id, prefix, scope, created_at]
+  properties:
+    id:
+      type: string
+      format: uuid
+    prefix:
+      type: string
+      description: Key prefix (first 8 chars).
+    scope:
+      type: string
+      enum: [admin, session, readonly, webhook]
+    session_id:
+      type: string
+      format: uuid
+      nullable: true
+    expires_at:
+      type: string
+      format: date-time
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+
+RevokeAPIKeyResponse:
+  type: object
+  required: [status, key_id, revoked_at]
+  properties:
+    status:
+      type: string
+      example: revoked
+    key_id:
+      type: string
+      format: uuid
+    revoked_at:
+      type: string
+      format: date-time
+
+# ─── Health Schemas ───
+
+HealthResponse:
+  type: object
+  required: [status, version]
+  properties:
+    status:
+      type: string
+      example: healthy
+    version:
+      type: string
+      example: "0.1.0"

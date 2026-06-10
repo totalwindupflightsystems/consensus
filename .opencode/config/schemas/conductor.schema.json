@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "conductor.schema.json",
+  "title": "Conductor Plugin Config",
+  "description": "Configuration for the Axiom conductor OpenCode plugin.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "database_path": {
+      "type": "string",
+      "default": ".conductor/conductor.db",
+      "description": "Path to the conductor SQLite database, relative to the project root. Override via AXIOM_CONDUCTOR_DATABASE_PATH env var or conductor.json."
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_concurrent_agents": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1
+        },
+        "max_agents_per_session": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1
+        },
+        "default_timeout_minutes": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 1
+        }
+      }
+    },
+    "polling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completion_check_interval_seconds": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1
+        },
+        "cost_update_interval_seconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5
+        }
+      }
+    },
+    "context_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "verbosity": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "normal",
+            "verbose"
+          ],
+          "default": "normal"
+        },
+        "show_cost": {
+          "type": "boolean",
+          "default": true
+        },
+        "show_elapsed": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cancel_on_session_end": {
+          "type": "boolean",
+          "default": true
+        },
+        "retention_days": {
+          "type": "integer",
+          "default": 7,
+          "minimum": 1
+        }
+      }
+    },
+    "stash": {
+      "$comment": "axiom:trace work_item=conductor-phase4-config-adoption spec=specs/112-Plugin-Config-Management.md#5.6 plan=phase-4/task-4-7/r3-low-003",
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Stash (side-car log) settings for conductor-managed sessions.",
+      "properties": {
+        "auto_create": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically create a stash record for each spawned agent session."
+        },
+        "default_log_level": {
+          "type": "string",
+          "enum": [
+            "decisions",
+            "verbose",
+            "silent"
+          ],
+          "default": "decisions",
+          "description": "Default verbosity level for agent decision logs written to the stash."
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "spire_socket_path": {
+          "type": "string",
+          "default": "/run/spire/sockets/agent.sock"
+        },
+        "allow_spawn_secret_fallback": {
+          "type": "boolean",
+          "default": false
+        },
+        "fallback_log_level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "critical"
+          ],
+          "default": "critical",
+          "description": "Log level used when the auth fallback path is taken (spawn-secret mode)."
+        }
+      }
+    }
+  }
+}

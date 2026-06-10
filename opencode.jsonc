@@ -1,0 +1,146 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Axiom uses repo-local OpenCode configuration.
+  // Repo-local agents/commands/tools live under .opencode/.
+  // tower-axiom is the default human-facing agent (cheaper model by default; switch to Opus when you need heavier lifting).
+  // team-axiom remains available as an alternative primary agent.
+  "default_agent": "tower-axiom",
+  "disabled_providers": [],
+
+  // small_model controls session title generation only (not agent fallback).
+  // Nemotron 3 Super 120B is ultra-cheap and sufficient for title generation.
+  // See .memory-bank/topics/model-selection-guide.md for full model strategy.
+  "small_model": "opencode-go/deepseek-v4-flash",
+
+  "instructions": ["AGENTS.md", ".opencode/prompts/git-rules.md", ".opencode/prompts/memory-bank-client.md", ".opencode/prompts/swarm-client.md", ".opencode/prompts/duplicate-work-prevention.md", ".opencode/prompts/skill-map-client.md"],
+
+  // Axiom plugin is loaded via .opencode/plugins/axiom.ts (re-exports only
+  // AxiomPlugin from .axiom/plugin/dist/index.js). That file handles the
+  // OpenCode plugin loader requirement that every export must be a function.
+  //
+  // For npm package-style loading, use "plugin": ["opencode-axiom/plugin"]
+  // (the /plugin subpath exports only AxiomPlugin — safe for getLegacyPlugins).
+  // Do NOT use "plugin": ["opencode-axiom"] — the full dist/index.js exports
+  // ~66 symbols including non-function values and causes "Plugin export is not a function".
+  //
+  // Evidence: .memory-bank/work-items/opencode-plugin-entrypoints-01/verification.md
+
+  // Model selection architecture (see specs/31-OpenCode-Integration-Contract.md#11.0):
+  //
+  // OpenCode ships with free built-in models that require zero API keys:
+  //   opencode/big-pickle, opencode/glm-5-free, opencode/gpt-5-nano,
+  //   opencode/minimax-m2.5-free, opencode/trinity-large-preview-free
+  //
+  // Model precedence (highest wins):
+  //   1. Per-request model field in API call
+  //   2. CLI --model flag (opencode run --model <MODEL>)
+  //   3. Agent file model: frontmatter (.opencode/agents/*.md)
+  //   4. This file's model.default (below)
+  //   5. OpenCode built-in default (free model, zero config)
+  //
+  // To use Bedrock models: set AWS_PROFILE=bedrock-api2 (or your profile)
+  // To use OpenAI: set OPENAI_API_KEY
+  // To use free defaults: do nothing — it just works.
+
+  // v1: permissive; Axiom orchestrator relies on tool execution.
+  // external_directory allows agents to access /tmp test repos for install verification.
+  "permission": {
+    "bash": "allow",
+    "edit": "allow",
+    "write": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "webfetch": "allow",
+    "patch": "allow",
+    "external_directory": {
+      "/tmp/**": "allow",
+      "/private/tmp/**": "allow",
+      "~/axiom-tests/**": "allow"
+    },
+    // SEC-2026-04-16: Hard-block identical tool calls repeating 3+ times.
+    // Prevents the recursive fork bomb pattern where an agent spawns itself
+    // with the same prompt indefinitely. Default is "ask" — we set "deny"
+    // so it hard-blocks without waiting for human approval (which may not
+    // be available in automated/headless runs).
+    "doom_loop": "deny"
+  },
+  "mcp": {
+    "chrome-devtools": {
+      "enabled": false,
+      "type": "local",
+      "command": ["npx", "-y", "--registry", "https://registry.npmjs.org", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
+    },
+    "axiom-api": {
+      "enabled": false,
+      "type": "local",
+      "command": ["uvx", "--with", "fastmcp>=2.0,<3.0", "awslabs.openapi-mcp-server@latest"],
+      "environment": {
+        "API_NAME": "axiom",
+        "API_BASE_URL": "http://127.0.0.1:8100",
+        "API_SPEC_URL": "http://127.0.0.1:8100/openapi.json",
+        "LOG_LEVEL": "ERROR",
+        "ENABLE_PROMETHEUS": "false",
+        "ENABLE_OPERATION_PROMPTS": "true"
+      }
+    },
+    "pastebin": {
+      "type": "local",
+      "command": ["pb", "mcp", "--api-url", "https://pastebin.solo.dexdat.io"],
+      "enabled": false
+    },
+    // Docling MCP — document conversion and processing (PDF, images, structured formats).
+    // Provides tools for converting PDFs to DoclingDocument JSON, generating documents,
+    // and RAG applications. Enable when doing multi-modal intake work (DEX-397).
+    // Usage: set "enabled": true, then prompt e.g. "Convert the PDF at <path> to DoclingDocument"
+    // Requires: uvx (uv tool runner) — install with: curl -LsSf https://astral.sh/uv/install.sh | sh
+    // Source: https://github.com/docling-project/docling-mcp
+    "docling": {
+      "enabled": false,
+      "type": "local",
+      "command": ["uvx", "--from=docling-mcp", "docling-mcp-server", "--transport", "stdio"]
+    },
+
+    // Notion MCP — read/write Notion workspaces (pages, databases, comments).
+    // Used by @rfc-writer-axiom and any agent that needs Notion access.
+    // Per specs/54-Notion-MCP-Integration-And-RFC-Writer-Agent.md REQ-RFC-MODE-001:
+    //   v1 supports Local CLI mode only (Notion MCP provided by user's MCP client).
+    //   Enable here for Local Automated (ralph loop) mode — Open Decision 4 in spec 54.
+    // Prerequisites:
+    //   1. Install: npm install -g @notionhq/notion-mcp-server
+    //   2. Set NOTION_TOKEN env var in your shell: export NOTION_TOKEN=<your-integration-token>
+    //      (Notion internal integration token — create at https://www.notion.so/profile/integrations)
+    //   3. Connect pages/databases to the integration in Notion
+    // Usage: set "enabled": true, then agents can use notion_* tools.
+    // Note: The @notionhq/notion-mcp-server reads NOTION_TOKEN from the process environment
+    //       automatically — no environment block needed here.
+    // Source: https://www.npmjs.com/package/@notionhq/notion-mcp-server
+    // axiom:trace work_item=fold-in-bundle-01 spec=specs/54-Notion-MCP-Integration-And-RFC-Writer-Agent.md plan=phase-99/task-99-C001 jira_ref=DEX-493
+    "notion": {
+      "enabled": false,
+      "type": "local",
+      "command": ["npx", "-y", "--registry", "https://registry.npmjs.org", "@notionhq/notion-mcp-server@latest"]
+    },
+
+    // Slack MCP — send messages and receive replies via Slack.
+    // Used by the multi-channel communication system per specs/60-Multi-Channel-Communication.md.
+    // Per REQ-MCC-MCP-002: MCP server configs for channels go in .axiom/axiom.config.yaml.
+    // This entry enables Slack MCP for Local Automated (ralph loop) mode.
+    // Prerequisites:
+    //   1. Install: npm install -g @modelcontextprotocol/server-slack
+    //   2. Set env vars in your shell before enabling:
+    //      export SLACK_BOT_TOKEN=<xoxb-your-bot-token>
+    //      export SLACK_TEAM_ID=<your-workspace-team-id>
+    // Usage: set "enabled": true, then agents can use slack_* tools for outbound messaging.
+    // Note: @modelcontextprotocol/server-slack reads SLACK_BOT_TOKEN and SLACK_TEAM_ID
+    //       from the process environment automatically — no environment block needed here.
+    // SES fallback: configure channels.slack.fallback in .axiom/axiom.config.yaml.
+    // axiom:trace work_item=fold-in-bundle-01 spec=specs/60-Multi-Channel-Communication.md plan=phase-99/task-99-C001 jira_ref=DEX-493
+    "slack": {
+      "enabled": false,
+      "type": "local",
+      "command": ["npx", "-y", "--registry", "https://registry.npmjs.org", "@modelcontextprotocol/server-slack@latest"]
+    }
+  }
+}

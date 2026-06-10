@@ -1,0 +1,44 @@
+version: 1
+plan_version: 1
+work_item:
+  id: runtime-dev-bootstrap-auth-01
+  jira_key: null
+  repo: wojons/conscientiousness
+  pr_branch: axiom/runtime-dev-bootstrap-auth-01
+execution:
+  status: completed
+  cursor:
+    phase_id: phase-1
+    task_id: task-1-1
+    step_id: step-1-1-1
+  notes: "Verified 2026-05-16. Full evidence at verification.md. All checks pass: go test, serve bootstrap, init bootstrap, trace repair."
+plan:
+  phases:
+    - id: phase-1
+      title: Fix local bootstrap authentication
+      tasks:
+        - id: task-1-1
+          title: Define and implement first-admin-key bootstrap
+          steps:
+            - id: step-1-1-1
+              title: Align init/serve bootstrap contract with specs
+              command: manual-dev
+              spec_ref: specs/016-cli-interface.md
+              inputs:
+                files:
+                  - internal/cli/init.go
+                  - cmd/conscience/main.go
+                  - internal/api/billing.go
+              verification:
+                - type: command
+                  command: make test
+                  required: true
+                  timeout_seconds: 120
+                - type: command
+                  command: make dev plus authenticated /api/v1/sessions probe
+                  required: true
+                  timeout_seconds: 120
+dependencies: []
+meta_planning:
+  notes_md_path: .memory-bank/work-items/runtime-dev-bootstrap-auth-01/meta-planning.md
+axiom_trace: "axiom:trace work_item=runtime-dev-bootstrap-auth-01 spec=specs/016-cli-interface.md,specs/015-api-and-mcp.md plan=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/plan.yaml evidence=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/verification.md"
