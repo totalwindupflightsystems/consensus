@@ -2,7 +2,7 @@
 
 > Written by Hermes from specs + debugging sessions (2025-06-09).
 > Branch: `hermes-operationalize` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com
-> **State:** 24/60 ACs passing (+5 this wake: AC-020, AC-021, AC-022, AC-024, AC-025).
+> **State:** 25/60 ACs passing. Layer 4 (Memory Engine) complete. 5 deferred.
 > **Last run:** 2025-06-09 19:58 UTC — AC-016 (session transitions) PASS. All 24 test packages green. Fixed TestCircuitBreaker_ConcurrentAccess_NoRace (:memory→file DB for pool compat).
 
 ---
@@ -176,10 +176,11 @@ Core cognitive architecture: append-only ledger, dynamic views, pages, commits.
 **Verify:** Create 2 pages with overlapping IDs → query view → assert each event appears once.
 **Evidence:** `TestAC022_MemoryPages_CreateAndResolve` → 3 deduplicated events from 2 overlapping pages. `TestAC022_MemoryPages_NoOverlap` → 2 distinct pages produce 2 unique IDs. Fixed `parseInt64ArrayFromString` to handle JSON format `[1,2]` in addition to PG format `{1,2}`. Harness `resolvePageMemoryIDs` + `annotatePageEvents` implement full dedup pipeline for SQLite.
 
-### AC-023: Iteration commits — snapshot and rollback
-**Status:** pending | **Spec:** SPEC-002 §6
+### AC-023: Iteration commits — snapshot and rollback ✅
+**Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §6
 **Goal:** Each iteration saves active_pointers. Querying older commit restores snapshot.
 **Verify:** Run 3 iterations → assert 3 commit rows → query iteration 2 → assert pointers match.
+**Evidence:** `TestAC023_IterationCommits_MultipleIterations` runs 3 iterations via `FinalizeIteration`. Each creates an `iteration_commits` row with llm_response, sql_executed (JSON array), and rows_affected. Querying iteration 2 returns the correct data. All assertions PASS.
 
 ### AC-024: Display mode compression — summary_text substitution ✅
 **Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §3.4, §8
