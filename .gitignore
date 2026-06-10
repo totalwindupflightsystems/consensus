@@ -1,0 +1,18 @@
+# Axiom (managed)
+.worktrees/*/
+.axiom/sessions/
+.axiom/state/
+_tmp/
+.graph-harness/
+.morty/
+.memory-bank/work-items/make-conscience-fully-operational-end-to/
+
+# Conscience — generated / build artifacts
+/conscience
+/bin/
+dev.db
+*.db-shm
+*.db-wal
+
+# Work item — ephemeral test run output
+**/runs/
