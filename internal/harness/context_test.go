@@ -348,14 +348,11 @@ func TestFormatMemoryEvent_Full(t *testing.T) {
 	}
 
 	result := formatMemoryEvent(m)
-	if !strings.Contains(result, "text_block") {
-		t.Error("missing event type in formatted output")
-	}
 	if !strings.Contains(result, "The user asked about data") {
 		t.Error("missing content in formatted output")
 	}
-	if !strings.Contains(result, "iter 5") {
-		t.Error("missing iteration number in formatted output")
+	if !strings.Contains(result, "user asked") {
+		t.Error("missing readable text in formatted output")
 	}
 }
 
@@ -374,9 +371,6 @@ func TestFormatMemoryEvent_Compressed(t *testing.T) {
 	}
 	if !strings.Contains(result, "Short summary") {
 		t.Error("compressed event should show summary text")
-	}
-	if !strings.Contains(result, "compressed") {
-		t.Error("missing 'compressed' marker")
 	}
 }
 

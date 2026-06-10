@@ -597,3 +597,105 @@ func TestFormatContextAsMarkdown_ZeroTimeEvents(t *testing.T) {
 		t.Error("expected 'unknown time' for zero timestamp")
 	}
 }
+
+// ============================================================================
+// Type-to-Markdown Mapping Tests (SPEC-002 §7.2) — AC-025
+// ============================================================================
+
+func TestFormatMemoryEventByType_Header(t *testing.T) {
+	evt := MemoryEvent{Type: "header", Content: "## Session Summary", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "## ## Session Summary\n\n"
+	if result != want {
+		t.Errorf("header type:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_TextBlock(t *testing.T) {
+	evt := MemoryEvent{Type: "text_block", Content: "Hello world", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "Hello world\n\n"
+	if result != want {
+		t.Errorf("text_block:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_ToolCall(t *testing.T) {
+	evt := MemoryEvent{Type: "tool_call", Content: "scraping example.com", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "**scraping example.com**\n\n"
+	if result != want {
+		t.Errorf("tool_call:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_ToolResult(t *testing.T) {
+	evt := MemoryEvent{Type: "tool_result", Content: "status: 200 OK", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "```\nstatus: 200 OK\n```\n\n"
+	if result != want {
+		t.Errorf("tool_result:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_Thinking(t *testing.T) {
+	evt := MemoryEvent{Type: "thinking", Content: "I should check the docs first", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "<!-- I should check the docs first -->\n\n"
+	if result != want {
+		t.Errorf("thinking:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_System(t *testing.T) {
+	evt := MemoryEvent{Type: "system", Content: "Database migration applied", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "> Database migration applied\n\n"
+	if result != want {
+		t.Errorf("system:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_UserMessage(t *testing.T) {
+	evt := MemoryEvent{Type: "user_message", Content: "What is the status?", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "What is the status?\n\n"
+	if result != want {
+		t.Errorf("user_message:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_InheritedPointer(t *testing.T) {
+	evt := MemoryEvent{Type: "inherited_pointer", Content: "analysis from parent session", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "[→ analysis from parent session]\n\n"
+	if result != want {
+		t.Errorf("inherited_pointer:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_UnknownType(t *testing.T) {
+	evt := MemoryEvent{Type: "unknown_type", Content: "fallback text", DisplayMode: "full"}
+	result := FormatMemoryEventByType(evt)
+	want := "fallback text\n\n"
+	if result != want {
+		t.Errorf("unknown type:\ngot:  %q\nwant: %q", result, want)
+	}
+}
+
+func TestFormatMemoryEventByType_HiddenEvent(t *testing.T) {
+	evt := MemoryEvent{Type: "text_block", Content: "secret", DisplayMode: "hidden"}
+	result := FormatMemoryEventByType(evt)
+	if result != "" {
+		t.Errorf("hidden event should return empty, got %q", result)
+	}
+}
+
+func TestFormatMemoryEventByType_CompressedWithSummary(t *testing.T) {
+	evt := MemoryEvent{Type: "text_block", Content: "long content", SummaryText: "short summary", DisplayMode: "compressed"}
+	result := FormatMemoryEventByType(evt)
+	want := "short summary\n\n"
+	if result != want {
+		t.Errorf("compressed:\ngot:  %q\nwant: %q", result, want)
+	}
+}

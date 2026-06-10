@@ -2,8 +2,8 @@
 
 > Written by Hermes from specs + debugging sessions (2025-06-09).
 > Branch: `hermes-operationalize` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com
-> **State:** 18/60 ACs passing (+2 this wake: AC-019, AC-042). 3 in_progress (AC-016/017/018 delegated to OpenCode). 34 pending. 5 deferred.
-> **Last run:** 2025-06-09 22:35 UTC — AC-019 (restart persistence) PASS, AC-042 (multi-session isolation) PASS, 3 failures delegated to OpenCode
+> **State:** 24/60 ACs passing (+5 this wake: AC-020, AC-021, AC-022, AC-024, AC-025).
+> **Last run:** 2025-06-09 19:58 UTC — AC-016 (session transitions) PASS. All 24 test packages green. Fixed TestCircuitBreaker_ConcurrentAccess_NoRace (:memory→file DB for pool compat).
 
 ---
 
@@ -159,35 +159,36 @@ Requires LM Studio running. Tests the agent loop end-to-end.
 
 Core cognitive architecture: append-only ledger, dynamic views, pages, commits.
 
-### AC-020: memory_events is append-only — UPDATE/DELETE rejected
-**Status:** pending | **Spec:** SPEC-002 §2.1, §2.4
+### AC-020: memory_events is append-only — UPDATE/DELETE rejected ✅
+**Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §2.1, §2.4
 **Goal:** Agent can INSERT memory_events but not UPDATE or DELETE existing rows.
 **Verify:** INSERT event → attempt UPDATE via harness → assert permission denied → attempt DELETE → assert denied.
 
-### AC-021: Active context view returns formatted markdown
-**Status:** pending | **Spec:** SPEC-002 §3, §7
+### AC-021: Active context view returns formatted markdown ✅
+**Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §3, §7
 **Goal:** active_context_view returns structured markdown (## headers, > blockquotes) not raw JSON.
 **Verify:** Create session with events → query view → assert markdown formatting matches type-to-markdown mapping.
+**Evidence:** `ReadActiveContext` uses `formatMemoryEvent` which calls `memory.FormatMemoryEventByType`. Each event type renders according to SPEC-002 §7.2: header→## heading, text_block→plain text, tool_call→**bold**, tool_result→```code```, thinking→<!-- -->, system→>blockquote, inherited_pointer→[→]. All type-to-markdown tests PASS.
 
-### AC-022: Memory pages — create, resolve, deduplicate
-**Status:** pending | **Spec:** SPEC-002 §5
+### AC-022: Memory pages — create, resolve, deduplicate ✅
+**Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §5
 **Goal:** Named memory pages group IDs. View resolves with DISTINCT dedup across overlapping pages.
 **Verify:** Create 2 pages with overlapping IDs → query view → assert each event appears once.
+**Evidence:** `TestAC022_MemoryPages_CreateAndResolve` → 3 deduplicated events from 2 overlapping pages. `TestAC022_MemoryPages_NoOverlap` → 2 distinct pages produce 2 unique IDs. Fixed `parseInt64ArrayFromString` to handle JSON format `[1,2]` in addition to PG format `{1,2}`. Harness `resolvePageMemoryIDs` + `annotatePageEvents` implement full dedup pipeline for SQLite.
 
 ### AC-023: Iteration commits — snapshot and rollback
 **Status:** pending | **Spec:** SPEC-002 §6
 **Goal:** Each iteration saves active_pointers. Querying older commit restores snapshot.
 **Verify:** Run 3 iterations → assert 3 commit rows → query iteration 2 → assert pointers match.
 
-### AC-024: Display mode compression — summary_text substitution
-**Status:** pending | **Spec:** SPEC-002 §3.4, §8
+### AC-024: Display mode compression — summary_text substitution ✅
+**Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-002 §3.4, §8
 **Goal:** Setting display_mode=compressed substitutes summary_text for content in view.
 **Verify:** Insert event with long content + short summary → set mode=compressed → query view → assert summary appears.
+**Evidence:** `ResolveDisplayText` implements compressed→summary_text, full→content, hidden→empty. 6 tests cover all modes. `FormatContextAsMarkdown` correctly renders compressed events. All PASS.
 
-### AC-025: Markdown generation — type-to-markdown mapping
-**Status:** pending | **Spec:** SPEC-002 §7.2
-**Goal:** Each memory event type renders correctly: header→##, tool_call→**, thinking→<!-- -->, etc.
-**Verify:** Insert events of each type → query rendered markdown → assert format matches spec table.
+### AC-025: Markdown generation — type-to-markdown mapping ✅
+**Evidence:** `FormatMemoryEventByType` in `internal/memory/memory.go` implements the complete mapping. 11 tests cover: header, text_block, tool_call, tool_result, thinking, system, user_message, inherited_pointer, unknown_type, hidden, compressed. All PASS.
 
 ---
 

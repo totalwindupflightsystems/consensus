@@ -616,10 +616,19 @@ func filterForSQLite(rawSQL string) string {
 			}
 			continue
 		case strings.HasPrefix(upper, "CREATE TRIGGER"):
-			skipMode = mTrigger; skipDepth = 0; skipUntilMarker = ""
-			for _, ch := range trimmed { if ch == '(' { skipDepth++ }; if ch == ')' { skipDepth-- } }
-			if strings.HasSuffix(trimmed, ";") && skipDepth <= 0 { continue }
-			continue
+			// SQLite-native triggers use BEGIN...END (keep these)
+			// PostgreSQL triggers use EXECUTE FUNCTION (skip these)
+			if strings.Contains(upper, " BEGIN ") {
+				// SQLite-style — keep the line as-is (don't skip)
+				// The BEGIN...END body has its own semicolons, but that's fine
+				// because splitStatements handles it on the full migration content later.
+				// We just need to NOT skip it here.
+			} else {
+				skipMode = mTrigger; skipDepth = 0; skipUntilMarker = ""
+				for _, ch := range trimmed { if ch == '(' { skipDepth++ }; if ch == ')' { skipDepth-- } }
+				if strings.HasSuffix(trimmed, ";") && skipDepth <= 0 { continue }
+				continue
+			}
 		case strings.HasPrefix(upper, "DROP TRIGGER"):
 			continue
 		case strings.HasPrefix(upper, "CREATE POLICY"):

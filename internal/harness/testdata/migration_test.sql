@@ -51,6 +51,10 @@ CREATE TABLE memory_events (
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Append-only triggers for memory_events (AC-020) — single-line bodies to avoid semicolon splitting
+CREATE TRIGGER IF NOT EXISTS trg_me_au BEFORE UPDATE ON memory_events FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'memory_events is append-only: UPDATE is not permitted'); END;
+CREATE TRIGGER IF NOT EXISTS trg_me_ad BEFORE DELETE ON memory_events FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'memory_events is append-only: DELETE is not permitted'); END;
+
 -- display_modes — display state separate from memory_events
 CREATE TABLE display_modes (
     memory_id         INTEGER NOT NULL REFERENCES memory_events(id) ON DELETE CASCADE,

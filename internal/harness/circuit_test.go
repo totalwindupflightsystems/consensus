@@ -8,6 +8,7 @@ package harness
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -24,7 +25,16 @@ import (
 func setupCircuitTestDB(t *testing.T) (db.DB, func()) {
 	t.Helper()
 	ctx := context.Background()
-	database, err := driver.Open(ctx, db.Config{URL: "sqlite://:memory:"})
+
+	// Use a temp file instead of :memory: so all pool connections see the same DB
+	dbPath := "/tmp/circuit-test-" + t.Name() + ".db"
+	os.Remove(dbPath)
+	os.Remove(dbPath + "-wal")
+	os.Remove(dbPath + "-shm")
+
+	database, err := driver.Open(ctx, db.Config{
+		URL: "sqlite://" + dbPath + "?_journal_mode=WAL&_time_format=sqlite",
+	})
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

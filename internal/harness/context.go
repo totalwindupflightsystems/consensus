@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/conscientiousness/internal/memory"
 )
 
 // ============================================================================
@@ -184,14 +185,15 @@ func toInt64Array(v any) []int64 {
 	}
 }
 
-// parseInt64ArrayFromString parses a SQLite-serialized JSONB array string.
+// parseInt64ArrayFromString parses a SQLite-serialized array string.
+// Handles both PostgreSQL format: {12,45,102}
+// And JSON format: [12,45,102]
 func parseInt64ArrayFromString(s string) []int64 {
-	if s == "" || s == "[]" || s == "null" {
+	if s == "" || s == "[]" || s == "null" || s == "{}" {
 		return nil
 	}
-	// SQLite JSONB comes as a text representation: {12,45,102}
-	// Strip braces and split
-	s = strings.Trim(s, "{}")
+	// Strip braces (both {} and [])
+	s = strings.Trim(s, "{}[]")
 	if s == "" {
 		return nil
 	}
@@ -413,20 +415,16 @@ func (h *Harness) formatContextMarkdown(ic *IterationContext, memories []MemoryE
 }
 
 // formatMemoryEvent renders a single memory event for Markdown output.
+// Uses type-specific formatting per SPEC-002 §7.2 (AC-025).
 func formatMemoryEvent(m MemoryEventInfo) string {
-	switch m.DisplayMode {
-	case "compressed":
-		if m.SummaryText != "" {
-			return fmt.Sprintf("[%s | iter %d | compressed] %s\n",
-				m.Type, m.IterationCreated, m.SummaryText)
-		}
-		return fmt.Sprintf("[%s | iter %d | compressed]\n", m.Type, m.IterationCreated)
-	case "hidden":
-		return "" // hidden events don't appear at all
-	default: // "full"
-		return fmt.Sprintf("[%s | iter %d] %s\n",
-			m.Type, m.IterationCreated, m.Content)
+	// Build a MemoryEvent for the formatter
+	evt := memory.MemoryEvent{
+		Type:         m.Type,
+		Content:      m.Content,
+		SummaryText:  m.SummaryText,
+		DisplayMode:  m.DisplayMode,
 	}
+	return memory.FormatMemoryEventByType(evt)
 }
 
 // ============================================================================

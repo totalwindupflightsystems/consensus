@@ -296,3 +296,56 @@ func formatTimestamp(t time.Time) string {
 	}
 	return t.Format(time.RFC3339)
 }
+
+// ============================================================================
+// Type-to-Markdown Mapping (SPEC-002 §7.2) — AC-025
+// ============================================================================
+
+// FormatMemoryEventByType renders a single memory event's content according to
+// its type. Each type gets a distinct markdown presentation:
+//
+//   header            → ## heading
+//   text_block        → plain paragraph
+//   tool_call         → **bold** inline
+//   tool_result       → ```code block```
+//   thinking          → <!-- HTML comment -->
+//   system            → > blockquote
+//   user_message      → plain paragraph
+//   inherited_pointer → compact reference [→parent]
+//
+// The rendered_text field of MemoryEvent should be populated by calling this
+// function when building the active context view on SQLite (where the PG view
+// is unavailable due to the SQLite migration filter).
+func FormatMemoryEventByType(evt MemoryEvent) string {
+	text := ResolveDisplayText(evt)
+	if text == "" {
+		return "" // hidden events excluded
+	}
+
+	switch evt.Type {
+	case "header":
+		return fmt.Sprintf("## %s\n\n", text)
+
+	case "text_block", "user_message":
+		return fmt.Sprintf("%s\n\n", text)
+
+	case "tool_call":
+		return fmt.Sprintf("**%s**\n\n", text)
+
+	case "tool_result":
+		return fmt.Sprintf("```\n%s\n```\n\n", text)
+
+	case "thinking":
+		return fmt.Sprintf("<!-- %s -->\n\n", text)
+
+	case "system":
+		return fmt.Sprintf("> %s\n\n", text)
+
+	case "inherited_pointer":
+		return fmt.Sprintf("[→ %s]\n\n", text)
+
+	default:
+		// Unknown type — fall back to plain text
+		return fmt.Sprintf("%s\n\n", text)
+	}
+}
