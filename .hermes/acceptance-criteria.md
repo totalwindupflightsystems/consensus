@@ -2,8 +2,8 @@
 
 > Written by Hermes from specs + debugging sessions (2025-06-09).
 > Branch: `hermes-operationalize` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com
-> **State:** 59/60 ACs passing. Layers 0-9 complete. 1 deferred (AC-053). 0 pending.
-> **Last verified:** 2026-06-10 17:40 UTC — Staleness check: build clean (24MB), all 25 packages pass (fresh), server starts (health=200). Config now uses deepseek-chat @ api.deepseek.com; LM Studio still reachable (27 models). 7 uncommitted fixes pending (planning.go tx order, migrate.go prefix match, harness context/test helpers hardening).
+> **State:** 60/60 ACs passing ✅. ALL LAYERS COMPLETE. 0 pending. 0 deferred.
+> **Last verified:** 2026-06-10 22:10 UTC — AC-053 (timed onboarding): 5s E2E. Full test suite: 25/25 packages. Real LLM integration: 40s PASS. Server health: 200.
 
 ---
 
@@ -91,9 +91,9 @@ Verify the database has everything the code expects.
 
 ### AC-011: All 16 migrations apply cleanly ✅
 **Status:** passed | **Verified:** 2025-06-09
-**Goal:** `schema_versions` has 16 rows, zero migration failures.
-**Verify:** `SELECT COUNT(*) FROM schema_versions` → 16.
-**Evidence:** 16/16 applied: 001-010 + 011(sqlite missing tables) + 012(tool sandbox) + 013(trust level) + 014(active context view) + 015(projects) + 016(embedding model).
+**Goal:** `schema_versions` has 17 rows, zero migration failures.
+**Verify:** `SELECT COUNT(*) FROM schema_versions` → 17.
+**Evidence:** 17/17 applied: 001-010 + 011(sqlite missing tables) + 012(tool sandbox) + 013(trust level) + 014(active context view) + 015(projects) + 016(embedding model) + 017(agent_circuit_breakers).
 
 ### AC-012: 36 tables exist in sqlite_master ✅
 **Status:** passed | **Verified:** 2025-06-09
@@ -378,11 +378,12 @@ Operator management interface and developer onboarding.
 **Verify:** Create approval → list shows it → show returns details → approve resumes session → reject injects reason.
 **Evidence:** TestAC052_ApproveCLI PASS. Full lifecycle (create, list, show, accept, reject) verified.
 
-### AC-053: Developer onboarding — init + serve + session in <5min
-**Status:** deferred | **Spec:** SPEC-019 §4.1
+### AC-053: Developer onboarding — init + serve + session in <5min ✅
+**Status:** passed | **Verified:** 2026-06-10 22:10 UTC
+**Spec:** SPEC-019 §4.1
 **Goal:** Fresh install to first agent interaction under 5 minutes.
 **Verify:** Timebox: init → serve → session create --goal "say hello" → measure wall clock <300s.
-**Notes:** Requires running server with LLM. All CLI commands exist and work. Needs timed E2E verification.
+**Evidence:** Full E2E flow completed in **5 seconds**. init→serve (1s health)→session create→message→planning status→1 memory event. Session=b9c8c986, status=planning. Well under 300s threshold.
 
 ### AC-054: Multi-session memory — Day 1 context on Day 2 ✅
 **Status:** passed | **Verified:** 2026-06-10 | **Spec:** SPEC-019 §3.2
