@@ -1,0 +1,27 @@
+CRITICAL: Fix the migration runner's alreadyApplied check at internal/migrate/migrate.go line 236.
+
+PROBLEM:
+- GetState() builds AppliedMigrations at line 163 as `fmt.Sprintf("%03d_%s", version, name)` — e.g. "001_initial schema"
+- RunMigrations() at line 236 compares `fn == m.Filename || strings.HasSuffix(fn, m.Filename)` — m.Filename is "001_initial_schema.sql"
+- These strings NEVER match (spaces vs underscores, no .sql extension on fn)
+- RESULT: ALL 16 migrations re-apply on every startup, and the first fails with "table sessions already exists"
+
+FIX (one-line change at line 236):
+Replace:
+    if fn == m.Filename || strings.HasSuffix(fn, m.Filename) {
+With:
+    if fn == m.Filename || strings.HasSuffix(fn, m.Filename) || strings.HasPrefix(m.Filename, fn[:3]) {
+
+The `fn[:3]` extracts the 3-digit version prefix (e.g., "001") and checks if the filename starts with it. This is the simplest fix that works with the existing format.
+
+DO NOT change GetState or schema_versions record format. DO NOT change the Name extraction on line 107. ONLY change the one comparison line.
+
+After fixing: the server must start without migration errors. Run:
+  go build -o /tmp/conscience-test ./cmd/conscience
+then start the server:
+  /tmp/conscience-test serve --config /workspace/conscience.yaml
+and verify:
+  curl http://127.0.0.1:8094/api/v1/health
+returns {"status":"healthy","version":"0.1.0"}
+
+CRITICAL: Container has NO Python. DO NOT install anything or run Python code. Just WRITE files and run Go build/test.

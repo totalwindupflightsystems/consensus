@@ -1,21 +1,15 @@
-You are tower-axiom, the primary orchestrator for the Axiom platform.
+Create an Axiom work item for verifying Postgres bootstrap in the conscience project. 
 
-## Project: Conscientiousness
-## Work Item: real-llm-integration-tests-01
+Goal: Verify the conscience binary can bootstrap into Postgres, not just SQLite. This involves:
+1. Looking at the existing Postgres migration setup (internal/db/postgres/)
+2. Writing a bootstrap test that connects to Postgres and runs migrations
+3. Verifying the full schema applies correctly
 
-Load the work item plan from .memory-bank/work-items/real-llm-integration-tests-01/plan.yaml.
-Read the relevant specs (specs/008-harness.md, specs/015-api-and-mcp.md, specs/000-north-star.md).
-Then execute the work item using the step loop.
+Work item ID: postgres-bootstrap-verification-01
+Repo: /workspace (conscientiousness)
 
-/axiom-step-loop real-llm-integration-tests-01 mode=full-queue
+Load specs/009-deployment.md for deployment context.
+Read specs/003-database.md for the database schema.
+Check specs/021-repository-layout.md for migration locations.
 
-## Important context:
-- The git repo has index corruption — git commit/stash/reset all fail. 
-  Do NOT attempt git operations. Just write the code and verify it builds + passes.
-- The work item is: create internal/harness/real_llm_integration_test.go
-- The test must be skippable with -short and when LM Studio is unreachable
-- Verify: go build ./... (must pass), go vet ./internal/harness/ (must pass)
-- Run: go test -short -run TestRealLLMIntegration -count=1 -v ./internal/harness/ (should SKIP)
-- The project builds cleanly (verified pre-launch)
-- Use baby steps — smallest meaningful change, validate each step
-- Build real code, not stubs
+Focus on what's actually missing — don't re-implement what already works.

@@ -174,26 +174,15 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	ctx, cancel := context.WithTimeout(ctx, config.Timeout)
 	defer cancel()
 
-	// Open single long-running transaction (HARDEN-PLAN-01)
-	tx, err := h.db.BeginTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("planning: begin tx: %w", err)
-	}
-	defer func() {
-		if tx.IsActive() {
-			tx.Rollback()
-		}
-	}()
-
-	if err := tx.SetSessionContext(ctx, sessionID); err != nil {
-		return nil, fmt.Errorf("planning: set session context: %w", err)
-	}
-
 	// Debug-level logging to trace atomic claim
 	slog.Debug("planning: attempting atomic claim", "session_id", sessionID)
 
-	// Atomic claim: transition from thinking→planning. Uses a separate
-	// connection pool slot so this commits outside the transaction.
+	// Atomic claim: transition from thinking→planning.
+	// This runs BEFORE opening the planning transaction so the claim uses
+	// an unpinned pool connection. On SQLite in-memory (tests), each pool
+	// connection has its own private database — running the claim inside
+	// the transaction would use a separate connection and fail with
+	// "no such table: sessions".
 	// The WHERE status='thinking' clause prevents duplicate goroutines
 	// from processing the same session on concurrent heartbeat ticks.
 	if err := h.db.Exec(ctx,
@@ -214,6 +203,21 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		slog.Info("planning: session already claimed by another worker, bailing out",
 			"session_id", sessionID, "actual_status", actualStatus)
 		return nil, nil // another goroutine got there first
+	}
+
+	// Open single long-running transaction (HARDEN-PLAN-01)
+	tx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("planning: begin tx: %w", err)
+	}
+	defer func() {
+		if tx.IsActive() {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.SetSessionContext(ctx, sessionID); err != nil {
+		return nil, fmt.Errorf("planning: set session context: %w", err)
 	}
 
 	// Track state

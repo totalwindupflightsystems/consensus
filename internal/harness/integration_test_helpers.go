@@ -21,10 +21,11 @@ import (
 // integration testing. It handles setup (migration, seeding) and teardown.
 type testHarness struct {
 	*Harness
-	conn   db.DB
+	conn    db.DB
 	ctx    context.Context
 	cancel context.CancelFunc
 	hitl   *hitl.Manager
+	tmpPath string // temp database file, cleaned up on close
 }
 
 // newTestHarness creates a new harness connected to a fresh SQLite in-memory database.
@@ -33,8 +34,21 @@ type testHarness struct {
 func newTestHarness(llm LLMClient) (*testHarness, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://:memory:"})
+	// Use a temp file instead of :memory: so that all sql.DB pool connections
+	// share the same database. With :memory:, each connection gets its own
+	// private in-memory database, causing "no such table" errors when the
+	// harness opens a separate transaction connection.
+	tmpFile, err := os.CreateTemp("", "conscience-test-*.db")
 	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("test harness: create temp db: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+
+	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
+	if err != nil {
+		os.Remove(tmpPath)
 		cancel()
 		return nil, fmt.Errorf("test harness: open sqlite: %w", err)
 	}
@@ -61,6 +75,7 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 		ctx:     ctx,
 		cancel:  cancel,
 		hitl:    hitl.New(conn),
+		tmpPath: tmpPath,
 	}, nil
 }
 
@@ -68,6 +83,9 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 func (th *testHarness) close() {
 	th.cancel()
 	th.conn.Close()
+	if th.tmpPath != "" {
+		os.Remove(th.tmpPath)
+	}
 }
 
 // runTestMigration loads and executes the SQLite test migration from testdata/.

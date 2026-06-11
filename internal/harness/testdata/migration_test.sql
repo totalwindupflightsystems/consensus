@@ -208,18 +208,27 @@ CREATE TABLE memory_pages (
     UNIQUE(name, session_id)
 );
 
--- staging_buffer — multi-turn planning scratchpad
+-- staging_buffer — multi-turn planning scratchpad (SPEC-020 §4)
 CREATE TABLE staging_buffer (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id        TEXT NOT NULL REFERENCES sessions(id),
+    iteration         INTEGER NOT NULL DEFAULT 0,
     turn              INTEGER NOT NULL DEFAULT 1,
     seq               INTEGER NOT NULL DEFAULT 1,
-    sql_statement     TEXT NOT NULL DEFAULT '',
-    status            TEXT NOT NULL DEFAULT 'staged'
-                      CHECK (status IN ('staged','executed','committed','rolled_back','failed')),
+    cmd_type          TEXT NOT NULL DEFAULT 'sql'
+                      CHECK (cmd_type IN (
+                          'sql', 'file_write', 'file_edit', 'file_delete',
+                          'memory_write', 'tool_call_ref'
+                      )),
+    payload           TEXT NOT NULL DEFAULT '{}',
+    description       TEXT NOT NULL DEFAULT '',
+    executed          INTEGER NOT NULL DEFAULT 0,
     result            TEXT,
     error             TEXT,
-    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    status            TEXT NOT NULL DEFAULT 'staged'
+                      CHECK (status IN ('staged','executed','committed','rolled_back','failed')),
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    executed_at       TEXT
 );
 
 -- api_keys — API key authentication

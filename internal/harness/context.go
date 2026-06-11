@@ -416,6 +416,7 @@ func (h *Harness) formatContextMarkdown(ic *IterationContext, memories []MemoryE
 
 // formatMemoryEvent renders a single memory event for Markdown output.
 // Uses type-specific formatting per SPEC-002 §7.2 (AC-025).
+// Adds display mode labels ([compressed]) for compressed events (AC-024).
 func formatMemoryEvent(m MemoryEventInfo) string {
 	// Build a MemoryEvent for the formatter
 	evt := memory.MemoryEvent{
@@ -424,7 +425,12 @@ func formatMemoryEvent(m MemoryEventInfo) string {
 		SummaryText:  m.SummaryText,
 		DisplayMode:  m.DisplayMode,
 	}
-	return memory.FormatMemoryEventByType(evt)
+	rendered := memory.FormatMemoryEventByType(evt)
+	// Add compressed label before the rendered content
+	if m.DisplayMode == "compressed" {
+		rendered = "[compressed] " + rendered
+	}
+	return rendered
 }
 
 // ============================================================================

@@ -233,7 +233,7 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 		// Check if already applied
 		alreadyApplied := false
 		for _, fn := range state.AppliedMigrations {
-			if fn == m.Filename || strings.HasSuffix(fn, m.Filename) {
+						if fn == m.Filename || strings.HasSuffix(fn, m.Filename) || strings.HasPrefix(m.Filename, fn[:3]) {
 				alreadyApplied = true
 				break
 			}
