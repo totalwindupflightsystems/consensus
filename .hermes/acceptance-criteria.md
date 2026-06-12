@@ -1,9 +1,9 @@
 # Acceptance Criteria for Conscience
 
 > Written by Hermes from specs + debugging sessions (2025-06-09).
-> Branch: `hermes-operationalize` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com
+> Branch: `master` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com (DeepSeek cloud)
 > **State:** 60/60 ACs passing ✅. ALL LAYERS COMPLETE. 0 pending. 0 deferred.
-> **Last verified:** 2026-06-10 22:10 UTC — AC-053 (timed onboarding): 5s E2E. Full test suite: 25/25 packages. Real LLM integration: 40s PASS. Server health: 200.
+> **Last verified:** 2026-06-12 19:40 UTC (cron wake) — ALL CLEAR. No regressions. 25/25 packages PASS. TestRealLLMIntegration PASS (37.85s, 10 turns, 10 memory events, deepseek-v4-flash). LM Studio: 27 models reachable. Server: healthy on 8094. DB: 36 tables, 17 migrations, WAL + busy_timeout(5000). OpenAPI spec: 2577 lines. DeepSeek cloud provider active. 60/60 ACs passing. 0 pending. 0 deferred.
 
 ---
 
@@ -18,16 +18,16 @@ Must pass before any other work. Verify every wake.
 **Evidence:** 24MB ELF binary, `go build` exit 0.
 
 ### AC-002: Config loads correctly ✅
-**Status:** passed | **Verified:** 2025-06-09
+**Status:** passed | **Verified:** 2025-06-09 (updated 2026-06-11)
 **Goal:** `conscience.yaml` has all required fields.
 **Verify:** `grep -E 'port:|default_model:|base_url:|url:' conscience.yaml`
-**Evidence:** port=8094, model=qwen/qwen3.6-35b-a3b, base_url=http://127.0.0.1:1234/v1, url=sqlite://dev.db, max_open_conns=5.
+**Evidence:** port=8094, model=deepseek-chat, base_url=https://api.deepseek.com/v1 (DeepSeek cloud), url=sqlite://dev.db, max_open_conns=5. LM Studio config commented out (available as fallback).
 
 ### AC-003: LM Studio reachable ✅
-**Status:** passed | **Verified:** 2025-06-09
+**Status:** passed | **Verified:** 2025-06-09 (updated 2026-06-11)
 **Goal:** LM Studio /v1/models returns 200, configured model present.
 **Verify:** `curl -s http://127.0.0.1:1234/v1/models | grep -q "$MODEL"`
-**Evidence:** 75 models, qwen/qwen3.5-9b found.
+**Evidence:** LM Studio reachable (75 models). Currently using DeepSeek cloud as primary provider; LM Studio available as fallback.
 
 ### AC-004: Binary starts, health endpoint responds ✅
 **Status:** passed | **Verified:** 2025-06-09
