@@ -13,4 +13,5 @@ CREATE TABLE IF NOT EXISTS agent_circuit_breakers (
 );
 
 -- +goose Down
-DROP TABLE IF EXISTS agent_circuit_breakers;
+-- (Not used by our migration runner; down migrations are separate)
+-- DROP TABLE IF EXISTS agent_circuit_breakers;
