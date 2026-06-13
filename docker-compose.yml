@@ -1,0 +1,29 @@
+# Conscience — PostgreSQL test container
+# Start: docker compose up -d
+# Stop:  docker compose down -v
+#
+# axiom:trace work_item=WI-postgres-full-integration
+#   spec=specs/003-database.md
+#   plan=phase-1/task-1/step-1
+#   ops=docker-compose.yml
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: conscience
+      POSTGRES_PASSWORD: conscience
+      POSTGRES_DB: conscience
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conscience -d conscience"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 3s
+
+volumes:
+  pgdata:

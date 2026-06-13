@@ -35,7 +35,7 @@ BEGIN;
 -- needs to be in the registry for discoverability). Tag it with 'embedding'
 -- so the compression worker can identify it.
 INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out, classifier_tags, enabled)
-VALUES ('text-embedding-3-small', 1, 8191, 0.0000, 0.0000, '["embedding"]', true)
+VALUES ('text-embedding-3-small', 1, 8191, 0.0000, 0.0000, '{embedding}', true)
 ON CONFLICT (model_id) DO NOTHING;
 
 -- ============================================================================

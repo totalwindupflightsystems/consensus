@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
 
 -- 2. external_events — Universal inbox for all incoming events.
 CREATE TABLE IF NOT EXISTS external_events (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    id              SERIAL PRIMARY KEY,
     source          TEXT NOT NULL,
     source_id       TEXT,
     event_type      TEXT NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS external_events (
     session_id      TEXT,
     workflow_id     TEXT,
     status          TEXT NOT NULL DEFAULT 'pending',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at    TEXT
 );
 

@@ -94,6 +94,15 @@ func (r *Runner) LoadMigrations() error {
 			continue
 		}
 
+		// Skip SQLite-specific migrations when running on Postgres.
+		// Files named *_sqlite_*.sql are SQLite-only schema additions
+		// (e.g., trigger emulation, SQLite-specific tables).
+		if r.database != nil && db.DetectBackendFromDB(r.database) == db.BackendPostgres {
+			if strings.Contains(strings.ToLower(entry.Name()), "_sqlite_") {
+				continue
+			}
+		}
+
 		matches := filenamePattern.FindStringSubmatch(entry.Name())
 		if matches == nil {
 			continue // Skip files that don't match naming convention
@@ -784,6 +793,8 @@ func toInt(v interface{}) int {
 	switch val := v.(type) {
 	case int:
 		return val
+	case int32:
+		return int(val)
 	case int64:
 		return int(val)
 	case float64:

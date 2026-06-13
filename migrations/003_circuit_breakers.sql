@@ -3,7 +3,7 @@
 
 -- +goose Up
 CREATE TABLE IF NOT EXISTS agent_circuit_breakers (
-    session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    session_id   UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     breaker_type TEXT NOT NULL CHECK (breaker_type IN ('consecutive_errors', 'iterations', 'budget')),
     threshold    INTEGER NOT NULL DEFAULT 5,
     current_count INTEGER NOT NULL DEFAULT 0,

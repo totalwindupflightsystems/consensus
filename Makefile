@@ -114,6 +114,23 @@ contract-test: build
 	echo ""; \
 	echo "==> Contract test complete."
 
+# --- Postgres Integration Tests ---
+# Requires: docker compose up -d (starts postgres:16)
+# Runs: Postgres-specific migration bootstrap test (skips gracefully when PG unavailable)
+.PHONY: test-pg
+test-pg:
+	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience_test_pw@localhost:5432/conscience_test?sslmode=disable \
+		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgres -v -count=1
+
+# Full Postgres integration test — applies all migrations, verifies tables/indexes/triggers,
+# exercises CRUD, FK constraints, and append-only enforcement.
+# Requires: docker compose up -d (postgres:16-alpine on port 5432)
+# axiom:trace work_item=WI-postgres-full-integration spec=specs/003-database.md plan=phase-1/task-1/step-1
+.PHONY: test-pg-full
+test-pg-full:
+	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience@localhost:5432/conscience?sslmode=disable \
+		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgresFullIntegration -v -count=1
+
 # --- Run built binary ---
 
 run: build

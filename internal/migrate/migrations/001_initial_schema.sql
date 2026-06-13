@@ -27,7 +27,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- JSON Schema validation for dynamic columns (§4 / SPEC-003 §4.2)
-CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
+-- Gracefully degrades when the extension is not installed (e.g., managed cloud Postgres)
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_jsonschema not available — JSON Schema validation will be application-layer';
+END;
+$$;
 
 -- ============================================================================
 -- SECTION 2 — CORE IDENTITY & SYSTEM TABLES
@@ -61,9 +68,6 @@ CREATE TABLE sessions (
     iteration         BIGINT NOT NULL DEFAULT 0,
     heartbeat_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     planning_max_turns INT NOT NULL DEFAULT 10,
-    trust_level       TEXT NOT NULL DEFAULT 'high'
-                      CHECK (trust_level IN ('low', 'medium', 'high')),
-    project_id        TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at      TIMESTAMPTZ
 );
@@ -642,8 +646,19 @@ GRANT SELECT, INSERT ON secret_access_audit TO agent_role;
 REVOKE UPDATE, DELETE ON memory_events FROM agent_role;
 
 -- Vault isolation: agent_role cannot read secrets.
-REVOKE SELECT ON vault.secrets FROM agent_role;
-REVOKE SELECT ON vault.decrypted_secrets FROM agent_role;
+-- Conditionally applied — vault.secrets is a Supabase feature not always present.
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_class WHERE relname = 'secrets') THEN
+        REVOKE SELECT ON vault.secrets FROM agent_role;
+    END IF;
+    IF EXISTS (SELECT FROM pg_class WHERE relname = 'decrypted_secrets') THEN
+        REVOKE SELECT ON vault.decrypted_secrets FROM agent_role;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'vault isolation not applied — vault schema may not exist';
+END;
+$$;
 
 -- 10.2 compression_worker — background summary generation.
 GRANT UPDATE (summary_text) ON memory_events TO compression_worker;
