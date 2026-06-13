@@ -3,7 +3,7 @@
 > Written by Hermes from specs + debugging sessions (2025-06-09).
 > Branch: `master` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com (DeepSeek cloud)
 > **State:** 60/60 ACs passing ✅. ALL LAYERS COMPLETE. 0 pending. 0 deferred.
-> **Last verified:** 2026-06-13 03:54 UTC (cron wake) — ALL CLEAR. No regressions. 25/25 packages PASS. TestRealLLMIntegration PASS (35.72s, 10 turns, 10 memory events, deepseek-v4-flash). TestMultiSessionIsolation PASS (0.32s). TestServerRestartPersistence PASS (11.33s). LM Studio: 27 models reachable (HTTP 200). Server: healthy on 8094 (was down at wake, restarted). DB: WAL confirmed (dev.db-wal 1.3MB + dev.db-shm). OpenAPI spec accessible. DeepSeek cloud provider active. 60/60 ACs passing. 0 pending. 0 deferred.
+> **Last verified:** 2026-06-13 12:03 CDT (cron wake) — ALL CLEAR. No regressions. 25/25 packages PASS. TestRealLLMIntegration PASS (40.25s, 10 turns, 9 memory events, deepseek-v4-flash). TestMultiSessionIsolation PASS (0.32s). TestServerRestartPersistence PASS (11.34s). TestHandlePlanningErrorSetsFailed PASS. TestCircuitBreaker_WriteAndReadCount PASS. LM Studio reachable (HTTP 200). Server: healthy on 8094 (already running). DB: WAL confirmed (dev.db-wal 1.3MB + dev.db-shm). DeepSeek cloud provider active. 60/60 ACs passing. 0 pending. 0 deferred.
 
 ---
 
