@@ -3,7 +3,7 @@
 > Written by Hermes from specs + debugging sessions (2025-06-09).
 > Branch: `master` | Binary: 24MB | LLM: deepseek-chat @ api.deepseek.com (DeepSeek cloud)
 > **State:** 60/60 ACs passing ✅. ALL LAYERS COMPLETE. 0 pending. 0 deferred.
-> **Last verified:** 2026-06-15 11:52 CDT (cron wake) — ALL CLEAR. 24/25 packages PASS (0 failures, -p 1 isolation; 6 circuit_breaker tests fail due to /tmp disk I/O quota, not code). Build: PASS (24.7MB fresh to ~/tmp/, /tmp full for final output). Server: healthy (TestRealLLMIntegration 40.5s PASS, 10 turns, real DeepSeek flash, status→idle). LM Studio: reachable (75 models). DB: WAL confirmed. 60/60 ACs passing. 0 pending. 0 deferred.
+> **Last verified:** 2026-06-15 23:19 CDT (cron wake) — ALL CLEAR. **25/25 packages PASS (0 failures).** Circuit breaker tests now passing (previously 6 /tmp-quota failures resolved). Build: PASS (24.7MB fresh binary). Config: WAL+deepseek-chat+max_open_conns=5. Server: healthy (TestRealLLMIntegration 39.8s PASS, status→idle, 9 memory events, real DeepSeek). LM Studio: reachable (27 models). OpenAPI: valid. CLI: all subcommands present. 60/60 ACs passing. 0 pending. 0 deferred.
 
 ---
 
@@ -292,7 +292,7 @@ Spawning, isolation, approvals, circuit breakers.
 **Spec:** SPEC-014 §2.3, §4.3
 **Goal:** After 3 errors, session pauses (not fails) when HITL configured.
 **Verify:** `go build`, `go test -run TestCircuitBreaker_WriteAndReadCount` and harness integration test.
-**Evidence:** `CheckCircuitBreaker` in `internal/harness/circuit.go` persists tripped state to `agent_circuit_breakers`. Wired into `executor.go` `pollAndDispatch` — after 3 planning failures across heartbeats, session transitions to `status='paused'`. All 25 circuit breaker tests PASS.
+**Evidence:** `CheckCircuitBreaker` in `internal/harness/circuit.go` persists tripped state to `agent_circuit_breakers`. Wired into `executor.go` `pollAndDispatch` — after 3 planning failures across heartbeats, session transitions to `status='paused'`. All 25 circuit breaker tests PASS (2026-06-15).
 
 ### AC-041: Tool-required approval — requires_approval=true triggers HITL ✅
 **Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-014 §2.2
