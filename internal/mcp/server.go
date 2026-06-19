@@ -1,5 +1,5 @@
 // axiom:trace work_item=interfaces-api-cli-01,full-platform-audit spec=specs/015-api-and-mcp.md plan=phase-3 impl=internal/mcp/server.go
-// axiom:trace work_item=make-conscience-fully-operational-end-to spec=specs/015-api-and-mcp.md plan=phase-3/task-3-2/step-3-2-1 impl=internal/mcp/server.go
+// axiom:trace work_item=make-consensus-fully-operational-end-to spec=specs/015-api-and-mcp.md plan=phase-3/task-3-2/step-3-2-1 impl=internal/mcp/server.go
 package mcp
 
 import (
@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -230,7 +230,7 @@ type mcpSession struct {
 func NewServer(database db.DB) *Server {
 	return &Server{
 		db:       database,
-		name:     "conscience",
+		name:     "consensus",
 		ver:      "0.1.0",
 		sessions: make(map[string]*mcpSession),
 	}

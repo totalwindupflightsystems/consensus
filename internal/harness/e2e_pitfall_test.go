@@ -1,4 +1,4 @@
-// Package harness: E2E tests proving Conscience handles the most common
+// Package harness: E2E tests proving Consensus handles the most common
 // agentic harness pitfalls identified in 2025-2026 industry research.
 //
 // Sources:
@@ -8,7 +8,7 @@
 //   - xAI Search: top pitfalls from X/Twitter engineering discourse
 //   - TrantorInc: "AI Agent Failure Modes in Production"
 //
-// Top pitfalls mapped to Conscience's architecture:
+// Top pitfalls mapped to Consensus's architecture:
 //   #1 State Corruption → ACID transactions + WAL + rollback
 //   #2 Missing Circuit Breakers → agent_circuit_breakers table
 //   #3 Contract/Format Violations (36%) → structured JSON output enforcement
@@ -39,7 +39,7 @@ import (
 // rate limit + malformed JSON → unnoticed retry loop burning hundreds in API
 // credits." (NullS0S, X/2026)
 //
-// Conscience's answer: agent_circuit_breakers table with configurable thresholds.
+// Consensus's answer: agent_circuit_breakers table with configurable thresholds.
 // After max_consecutive_errors failures, the session is paused and no more LLM
 // calls are attempted. The harness heartbeat skips paused sessions.
 
@@ -92,7 +92,7 @@ api_rate:
   readonly_per_min: 200
 `, port, dbPath)
 
-	configPath := filepath.Join(tmpDir, "conscience.yaml")
+	configPath := filepath.Join(tmpDir, "consensus.yaml")
 	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -184,7 +184,7 @@ api_rate:
 // state, leading to erratic behavior that looks like reasoning failure but is
 // actually propagation of bad data." (the_inference, X/2026)
 //
-// Conscience's answer: All agent SQL runs inside a database transaction. On any
+// Consensus's answer: All agent SQL runs inside a database transaction. On any
 // SQL error, the transaction rolls back. No partial state is committed. The
 // harness records the error in audit_logs and injects it into the next context.
 // The LLM never sees corrupted state because there IS no corrupted state — the
@@ -237,7 +237,7 @@ api_rate:
   readonly_per_min: 200
 `, port, apiKey, dbPath)
 
-	configPath := filepath.Join(tmpDir, "conscience.yaml")
+	configPath := filepath.Join(tmpDir, "consensus.yaml")
 	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -326,7 +326,7 @@ api_rate:
 // context of what already succeeded, what failed, and where to pick up.
 // No re-execution. No lost state. No silent corruption." (Temporal, 2026)
 //
-// Conscience's answer: All state is in SQLite WAL or Postgres WAL. On server
+// Consensus's answer: All state is in SQLite WAL or Postgres WAL. On server
 // restart, the harness heartbeat finds sessions with status='planning' or
 // 'thinking' and resumes them. The WAL ensures the last committed transaction
 // is durable. In-flight (uncommitted) transactions are rolled back by SQLite
@@ -379,7 +379,7 @@ api_rate:
   readonly_per_min: 200
 `, port, apiKey, dbPath)
 
-	configPath := filepath.Join(tmpDir, "conscience.yaml")
+	configPath := filepath.Join(tmpDir, "consensus.yaml")
 	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

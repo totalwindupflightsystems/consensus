@@ -1,6 +1,6 @@
-# 000 - North Star: Conscience
+# 000 - North Star: Consensus
 
-**Project:** Conscience  
+**Project:** Consensus  
 **Status:** Design Complete  
 **Created:** 2026-04-08  
 **Source:** Gemini conversation (38 turns)
@@ -9,9 +9,9 @@
 
 ## What We Are Building
 
-**Conscience** is a database-native cognitive architecture for AI agents.
+**Consensus** is a database-native cognitive architecture for AI agents.
 
-The LLM is a massive, non-deterministic data beast. It must be paired with the most deterministic system in computing: a relational database. Conscience replaces the Bash/file-system execution layer that current AI agents use with PostgreSQL (or SQLite via PocketBase) as the runtime, memory system, security sandbox, and event bus—all in one.
+The LLM is a massive, non-deterministic data beast. It must be paired with the most deterministic system in computing: a relational database. Consensus replaces the Bash/file-system execution layer that current AI agents use with PostgreSQL (or SQLite via PocketBase) as the runtime, memory system, security sandbox, and event bus—all in one.
 
 The agent doesn't run commands in a terminal. It writes SQL to manage its own mind.
 
@@ -19,7 +19,7 @@ The agent doesn't run commands in a terminal. It writes SQL to manage its own mi
 
 ## Why It Exists
 
-| Problem | Bash/CLI Agents | Conscience |
+| Problem | Bash/CLI Agents | Consensus |
 |---|---|---|
 | State management | External stores, lost between sessions | Append-only ledger with time-travel rollback |
 | Context window | Monolithic prompt strings that bloat | Dynamic SQL VIEW with pointer-based paging |
@@ -47,12 +47,12 @@ The agent doesn't run commands in a terminal. It writes SQL to manage its own mi
 
 ## The Name
 
-The framework is called **Conscience** because:
+The framework is called **Consensus** because:
 
 - The agent doesn't just "remember" rules — it **physically cannot break them** (database constraints)
 - When told "never let this happen again," it **alters its own schema** — not its prompt
 - The "conscious" layer is what the agent sees (dynamic view); the "subconscious" is the immutable ledger it can search but not see (Alt-Mode)
-- The database kernel is the conscience — rejecting harmful actions before they manifest
+- The database kernel is the consensus — rejecting harmful actions before they manifest
 
 ---
 

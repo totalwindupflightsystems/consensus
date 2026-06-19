@@ -11,24 +11,24 @@ $ go build ./...
 ## Test
 ```bash
 $ go test ./...
-ok  	github.com/wojons/conscientiousness/internal/api	(cached)
-ok  	github.com/wojons/conscientiousness/internal/billing	(cached)
-ok  	github.com/wojons/conscientiousness/internal/cli	(cached)
-ok  	github.com/wojons/conscientiousness/internal/config	(cached)
-ok  	github.com/wojons/conscientiousness/internal/db	(cached)
-ok  	github.com/wojons/conscientiousness/internal/db/driver	(cached)
-ok  	github.com/wojons/conscientiousness/internal/harness	1.287s
-ok  	github.com/wojons/conscientiousness/internal/hitl	(cached)
-ok  	github.com/wojons/conscientiousness/internal/llm	0.265s
-ok  	github.com/wojons/conscientiousness/internal/mcp	(cached)
-ok  	github.com/wojons/conscientiousness/internal/migrate	(cached)
-ok  	github.com/wojons/conscientiousness/internal/secrets	(cached)
-ok  	github.com/wojons/conscientiousness/internal/security	(cached)
-ok  	github.com/wojons/conscientiousness/internal/session	(cached)
-ok  	github.com/wojons/conscientiousness/internal/shim/opencode	(cached)
-ok  	github.com/wojons/conscientiousness/internal/subagent	(cached)
-ok  	github.com/wojons/conscientiousness/internal/tools	(cached)
-ok  	github.com/wojons/conscientiousness/internal/webhook	(cached)
+ok  	github.com/wojons/consensus/internal/api	(cached)
+ok  	github.com/wojons/consensus/internal/billing	(cached)
+ok  	github.com/wojons/consensus/internal/cli	(cached)
+ok  	github.com/wojons/consensus/internal/config	(cached)
+ok  	github.com/wojons/consensus/internal/db	(cached)
+ok  	github.com/wojons/consensus/internal/db/driver	(cached)
+ok  	github.com/wojons/consensus/internal/harness	1.287s
+ok  	github.com/wojons/consensus/internal/hitl	(cached)
+ok  	github.com/wojons/consensus/internal/llm	0.265s
+ok  	github.com/wojons/consensus/internal/mcp	(cached)
+ok  	github.com/wojons/consensus/internal/migrate	(cached)
+ok  	github.com/wojons/consensus/internal/secrets	(cached)
+ok  	github.com/wojons/consensus/internal/security	(cached)
+ok  	github.com/wojons/consensus/internal/session	(cached)
+ok  	github.com/wojons/consensus/internal/shim/opencode	(cached)
+ok  	github.com/wojons/consensus/internal/subagent	(cached)
+ok  	github.com/wojons/consensus/internal/tools	(cached)
+ok  	github.com/wojons/consensus/internal/webhook	(cached)
 
 22 packages, 0 failures.
 ```

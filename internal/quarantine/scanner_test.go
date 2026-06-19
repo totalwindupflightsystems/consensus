@@ -13,7 +13,7 @@ import (
 
 func TestScanCleanContent(t *testing.T) {
 	// axiom:trace work_item=WI-004 plan=phase-6/task-1/step-1
-	content := `{"event": "push", "repository": "conscience", "ref": "refs/heads/main"}`
+	content := `{"event": "push", "repository": "consensus", "ref": "refs/heads/main"}`
 	config := DefaultScannerConfig()
 	config.ConfidenceThreshold = 0.3
 

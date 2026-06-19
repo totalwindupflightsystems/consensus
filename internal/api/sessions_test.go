@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
-	"github.com/wojons/conscientiousness/internal/hitl"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/hitl"
 )
 
 // ============================================================================

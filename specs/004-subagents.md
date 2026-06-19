@@ -4,7 +4,7 @@
 
 ## Overview
 
-Agents in the Conscience framework can spawn sub-agents to parallelize work, delegate tasks, and scope memory. Sub-agents are first-class citizens of the task system with enforced isolation and controlled communication channels.
+Agents in the Consensus framework can spawn sub-agents to parallelize work, delegate tasks, and scope memory. Sub-agents are first-class citizens of the task system with enforced isolation and controlled communication channels.
 
 ## Spawning
 
@@ -101,7 +101,7 @@ Sub-agents cannot access other agents' memories or tools, enforced at the databa
 CREATE POLICY isolate_memories ON memory_events
   FOR SELECT
   USING (
-    session_id = current_setting('conscience.session_id')::UUID
+    session_id = current_setting('consensus.session_id')::UUID
   );
 ```
 
@@ -109,7 +109,7 @@ CREATE POLICY isolate_memories ON memory_events
 CREATE POLICY isolate_tasks ON tasks
   FOR SELECT
   USING (
-    session_id = current_setting('conscience.session_id')::UUID
+    session_id = current_setting('consensus.session_id')::UUID
   );
 ```
 

@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/session"
 )
 
 // ============================================================================
@@ -837,7 +837,7 @@ func (h *Harness) formatPlanningSystemPromptV2(ic *IterationContext, buffer *Sta
 	schemaBuf.WriteString("**SQLite:** No gen_random_uuid(). No SERIAL/BIGSERIAL — use INTEGER PRIMARY KEY AUTOINCREMENT. No ::type casts. No JSONB operators.\n")
 	schemaSection := schemaBuf.String()
 
-	return fmt.Sprintf(`You are a Conscience agent in interactive multi-turn planning mode (SPEC-020).
+	return fmt.Sprintf(`You are a Consensus agent in interactive multi-turn planning mode (SPEC-020).
 
 Goal: %s
 Session: %s

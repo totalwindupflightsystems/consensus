@@ -40,8 +40,8 @@ axiom:trace work_item=vector-compression-01 spec=specs/002-memory.md,specs/011-c
 | Path | Change |
 |------|--------|
 | `internal/config/config.go` | Added CompressionConfig struct + defaults |
-| `cmd/conscience/main.go` | Wire compression worker startup |
-| `conscience.yaml` | Added compression config section |
+| `cmd/consensus/main.go` | Wire compression worker startup |
+| `consensus.yaml` | Added compression config section |
 
 ## SPEC-002 §8 Requirements Checklist
 

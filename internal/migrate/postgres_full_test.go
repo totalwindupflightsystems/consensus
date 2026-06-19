@@ -4,7 +4,7 @@
 // every table, index, and trigger, then exercises CRUD, FK constraints, and
 // append-only enforcement on memory_events.
 //
-// Skip condition: CONSCIENCE_TEST_POSTGRES_URL must be set.
+// Skip condition: CONSENSUS_TEST_POSTGRES_URL must be set.
 // Requires: docker compose up -d (postgres:16-alpine on port 5432).
 //
 // axiom:trace work_item=WI-postgres-full-integration
@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 // ============================================================================
@@ -29,9 +29,9 @@ import (
 // ============================================================================
 
 func TestPostgresFullIntegration(t *testing.T) {
-	pgURL := os.Getenv("CONSCIENCE_TEST_POSTGRES_URL")
+	pgURL := os.Getenv("CONSENSUS_TEST_POSTGRES_URL")
 	if pgURL == "" {
-		t.Skip("CONSCIENCE_TEST_POSTGRES_URL not set; skipping Postgres full integration test")
+		t.Skip("CONSENSUS_TEST_POSTGRES_URL not set; skipping Postgres full integration test")
 	}
 
 	ctx := context.Background()

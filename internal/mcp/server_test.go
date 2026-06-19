@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -235,8 +235,8 @@ func TestInitialize_WithValidAuth_Succeeds(t *testing.T) {
 	if initResult.ProtocolVersion != "2024-11-05" {
 		t.Errorf("expected protocolVersion 2024-11-05, got %s", initResult.ProtocolVersion)
 	}
-	if initResult.ServerInfo.Name != "conscience" {
-		t.Errorf("expected server name 'conscience', got %s", initResult.ServerInfo.Name)
+	if initResult.ServerInfo.Name != "consensus" {
+		t.Errorf("expected server name 'consensus', got %s", initResult.ServerInfo.Name)
 	}
 	if sess.authScope != "admin" {
 		t.Errorf("expected auth scope admin, got %s", sess.authScope)
@@ -537,11 +537,11 @@ func TestResourcesList_ReturnsResources(t *testing.T) {
 	for _, r := range resources {
 		uris[r.URI] = true
 	}
-	if !uris["conscience://sessions"] {
-		t.Error("missing conscience://sessions resource")
+	if !uris["consensus://sessions"] {
+		t.Error("missing consensus://sessions resource")
 	}
-	if !uris["conscience://tools"] {
-		t.Error("missing conscience://tools resource")
+	if !uris["consensus://tools"] {
+		t.Error("missing consensus://tools resource")
 	}
 }
 
@@ -561,7 +561,7 @@ func TestResourceTemplates_ReturnsTemplates(t *testing.T) {
 	if len(templates) != 1 {
 		t.Errorf("expected 1 template, got %d", len(templates))
 	}
-	if templates[0].URITemplate != "conscience://sessions/{session_id}/context" {
+	if templates[0].URITemplate != "consensus://sessions/{session_id}/context" {
 		t.Errorf("unexpected template: %s", templates[0].URITemplate)
 	}
 }
@@ -843,7 +843,7 @@ func TestResourcesRead_UnknownURI_ReturnsError(t *testing.T) {
 		Method:  "resources/read",
 	}
 	req.Params, _ = json.Marshal(map[string]any{
-		"uri": "conscience://unknown_resource",
+		"uri": "consensus://unknown_resource",
 	})
 
 	_, err := srv.handleResourcesRead(req, sess)
@@ -1005,7 +1005,7 @@ func TestResourcesRead_SessionContext_Extended(t *testing.T) {
 
 	req := &JSONRPCRequest{JSONRPC: "2.0", Method: "resources/read"}
 	req.Params, _ = json.Marshal(map[string]any{
-		"uri": "conscience://sessions/sess-1/context",
+		"uri": "consensus://sessions/sess-1/context",
 	})
 
 	result, err := srv.handleResourcesRead(req, sess)
@@ -1034,7 +1034,7 @@ func TestResourcesRead_Sessions_SessionScoped(t *testing.T) {
 	sess := &mcpSession{authScope: "session", agentSessionID: "sess-1"}
 
 	req := &JSONRPCRequest{JSONRPC: "2.0", Method: "resources/read"}
-	req.Params, _ = json.Marshal(map[string]any{"uri": "conscience://sessions"})
+	req.Params, _ = json.Marshal(map[string]any{"uri": "consensus://sessions"})
 
 	_, err := srv.handleResourcesRead(req, sess)
 	if err != nil {

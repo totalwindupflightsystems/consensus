@@ -22,14 +22,14 @@ var (
 	optConfig string
 )
 
-// NewRootCommand creates the root `conscience` command with all subcommands.
+// NewRootCommand creates the root `consensus` command with all subcommands.
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "conscience",
-		Short: "Conscience — database-native cognitive architecture for AI agents",
-		Long: `Conscience is a database-native cognitive architecture for AI agents.
+		Use:   "consensus",
+		Short: "Consensus — database-native cognitive architecture for AI agents",
+		Long: `Consensus is a database-native cognitive architecture for AI agents.
 
-The CLI is a management tool for the Conscience runtime. It handles
+The CLI is a management tool for the Consensus runtime. It handles
 operational tasks: starting the server, managing sessions, reviewing
 approvals, running migrations, and inspecting system state.`,
 		SilenceUsage:  true,
@@ -38,15 +38,15 @@ approvals, running migrations, and inspecting system state.`,
 
 	// Global flags (SPEC-016 §4)
 	root.PersistentFlags().StringVar(&optServer, "server", "http://localhost:8090",
-		"Conscience server base URL (env: CONSCIENCE_SERVER)")
+		"Consensus server base URL (env: CONSENSUS_SERVER)")
 	root.PersistentFlags().StringVar(&optAPIKey, "api-key", "",
-		"API key for authentication (env: CONSCIENCE_API_KEY)")
+		"API key for authentication (env: CONSENSUS_API_KEY)")
 	root.PersistentFlags().StringVar(&optFormat, "format", "table",
 		"Output format: table, json, yaml")
 	root.PersistentFlags().BoolVar(&optQuiet, "quiet", false,
 		"Suppress non-essential output")
 	root.PersistentFlags().StringVar(&optConfig, "config", "",
-		"Config file path (default: ./conscience.yaml or ~/.conscience/config.yaml)")
+		"Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)")
 
 	// Register all command groups
 	root.AddCommand(
@@ -68,7 +68,7 @@ approvals, running migrations, and inspecting system state.`,
 	return root
 }
 
-// cliConfig represents the CLI-relevant portion of the conscience config file.
+// cliConfig represents the CLI-relevant portion of the consensus config file.
 type cliConfig struct {
 	Server struct {
 		URL    string `yaml:"url"`
@@ -76,8 +76,8 @@ type cliConfig struct {
 	} `yaml:"server"`
 }
 
-// loadCLIConfig loads config from the priority chain: --config flag > ./conscience.yaml >
-// ~/.conscience/config.yaml > /etc/conscience/config.yaml. Returns nil if no config found.
+// loadCLIConfig loads config from the priority chain: --config flag > ./consensus.yaml >
+// ~/.consensus/config.yaml > /etc/consensus/config.yaml. Returns nil if no config found.
 func loadCLIConfig() *cliConfig {
 	homeDir, _ := os.UserHomeDir()
 	configPath := resolveConfigPath(homeDir)
@@ -107,15 +107,15 @@ func resolveConfigPath(homeDir string) string {
 	}
 
 	// 2. Project-level
-	candidates = append(candidates, "conscience.yaml")
+	candidates = append(candidates, "consensus.yaml")
 
 	// 3. User-level
 	if homeDir != "" {
-		candidates = append(candidates, filepath.Join(homeDir, ".conscience", "config.yaml"))
+		candidates = append(candidates, filepath.Join(homeDir, ".consensus", "config.yaml"))
 	}
 
 	// 4. System-level (Linux only)
-	candidates = append(candidates, filepath.Join("/etc", "conscience", "config.yaml"))
+	candidates = append(candidates, filepath.Join("/etc", "consensus", "config.yaml"))
 
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
@@ -133,30 +133,30 @@ func applyConfigOverrides() {
 	}
 
 	// Only override if the default or env didn't set these already
-	if optServer == "http://localhost:8090" && os.Getenv("CONSCIENCE_SERVER") == "" && cfg.Server.URL != "" {
+	if optServer == "http://localhost:8090" && os.Getenv("CONSENSUS_SERVER") == "" && cfg.Server.URL != "" {
 		optServer = cfg.Server.URL
 	}
-	if optAPIKey == "" && os.Getenv("CONSCIENCE_API_KEY") == "" && cfg.Server.APIKey != "" {
+	if optAPIKey == "" && os.Getenv("CONSENSUS_API_KEY") == "" && cfg.Server.APIKey != "" {
 		optAPIKey = cfg.Server.APIKey
 	}
 }
 
 // Execute runs the root command and returns an exit code.
 func Execute() int {
-	// Priority: --config flag > ./conscience.yaml > ~/.conscience/config.yaml > /etc/conscience/config.yaml
+	// Priority: --config flag > ./consensus.yaml > ~/.consensus/config.yaml > /etc/consensus/config.yaml
 	applyConfigOverrides()
 
 	// Apply environment variable overrides (higher priority than config file, lower than -- flags)
-	if optServer == "http://localhost:8090" && os.Getenv("CONSCIENCE_SERVER") != "" {
-		optServer = os.Getenv("CONSCIENCE_SERVER")
+	if optServer == "http://localhost:8090" && os.Getenv("CONSENSUS_SERVER") != "" {
+		optServer = os.Getenv("CONSENSUS_SERVER")
 	}
-	if optAPIKey == "" && os.Getenv("CONSCIENCE_API_KEY") != "" {
-		optAPIKey = os.Getenv("CONSCIENCE_API_KEY")
+	if optAPIKey == "" && os.Getenv("CONSENSUS_API_KEY") != "" {
+		optAPIKey = os.Getenv("CONSENSUS_API_KEY")
 	}
 
 	cmd := NewRootCommand()
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "conscience: %v\n", err)
+		fmt.Fprintf(os.Stderr, "consensus: %v\n", err)
 		return exitCode(err)
 	}
 	return 0
@@ -171,7 +171,7 @@ func newClient() *Client {
 func newFormatter() *Formatter {
 	f := Format(string(optFormat))
 	if f != FormatJSON && f != FormatYAML && f != FormatTable {
-		fmt.Fprintf(os.Stderr, "conscience: unknown format %q, falling back to table\n", optFormat)
+		fmt.Fprintf(os.Stderr, "consensus: unknown format %q, falling back to table\n", optFormat)
 		f = FormatTable
 	}
 	return NewFormatter(os.Stdout, f, optQuiet)

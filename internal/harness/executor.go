@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/security"
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/security"
+	"github.com/wojons/consensus/internal/session"
 )
 
 // DefaultTrustLevel is the trust level used when a session doesn't have one set.
@@ -529,7 +529,7 @@ func (h *Harness) buildRollbackResult(sessionID string, ic *IterationContext, ou
 // StartHeartbeatLoop begins the task polling loop. It continuously polls the
 // database for pending tasks and dispatches them to RunAgentIteration.
 //
-// This is designed to be called as a goroutine from cmd/conscience/main.go.
+// This is designed to be called as a goroutine from cmd/consensus/main.go.
 func (h *Harness) StartHeartbeatLoop(ctx context.Context) {
 	slog.Info("harness: heartbeat loop started", "interval", h.HeartbeatConfig.Interval)
 	ticker := time.NewTicker(h.HeartbeatConfig.Interval)

@@ -13,14 +13,14 @@ Must pass before any other work. Verify every wake.
 
 ### AC-001: Binary builds from source ✅
 **Status:** passed | **Verified:** 2025-06-09
-**Goal:** `go build -o conscience ./cmd/conscience` succeeds zero errors.
-**Verify:** `cd ~/conscientiousness && go build -o /tmp/conscience-test ./cmd/conscience 2>&1`
+**Goal:** `go build -o conscience ./cmd/consensus` succeeds zero errors.
+**Verify:** `cd ~/conscientiousness && go build -o /tmp/consensus-test ./cmd/consensus 2>&1`
 **Evidence:** 24MB ELF binary, `go build` exit 0.
 
 ### AC-002: Config loads correctly ✅
 **Status:** passed | **Verified:** 2025-06-09 (updated 2026-06-11)
-**Goal:** `conscience.yaml` has all required fields.
-**Verify:** `grep -E 'port:|default_model:|base_url:|url:' conscience.yaml`
+**Goal:** `consensus.yaml` has all required fields.
+**Verify:** `grep -E 'port:|default_model:|base_url:|url:' consensus.yaml`
 **Evidence:** port=8094, model=deepseek-chat, base_url=https://api.deepseek.com/v1 (DeepSeek cloud), url=sqlite://dev.db, max_open_conns=5. LM Studio config commented out (available as fallback).
 
 ### AC-003: LM Studio reachable ✅
@@ -39,7 +39,7 @@ Must pass before any other work. Verify every wake.
 ### AC-005: Database WAL mode + multi-connection ✅
 **Status:** passed | **Verified:** 2025-06-09
 **Goal:** `max_open_conns: 5`, database URL includes `_journal_mode=WAL`.
-**Verify:** `grep max_open_conns conscience.yaml && grep journal_mode conscience.yaml`
+**Verify:** `grep max_open_conns consensus.yaml && grep journal_mode consensus.yaml`
 **Evidence:** Both confirmed. Fixes SQLITE_BUSY during LLM calls.
 
 ---
@@ -350,7 +350,7 @@ Operator management interface and developer onboarding.
 
 ### AC-048: `conscience init` — bootstrap creates DB, key, config ✅
 **Status:** passed | **Verified:** 2026-06-09 | **Spec:** SPEC-016 §5.2
-**Goal:** `conscience init` creates SQLite DB, admin key, conscience.yaml.
+**Goal:** `conscience init` creates SQLite DB, admin key, consensus.yaml.
 **Verify:** Run init in temp dir → assert DB exists → assert cs_ak_ key printed → assert config written.
 **Evidence:** TestAC048_CLIToolParsing PASS. CLI tool parsing verified.
 

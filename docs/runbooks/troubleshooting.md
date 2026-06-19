@@ -1,12 +1,12 @@
 # Troubleshooting Runbook
 
-**Purpose**: General diagnostics for Conscience operational issues — log locations, health checks, startup problems, and common configuration errors.
+**Purpose**: General diagnostics for Consensus operational issues — log locations, health checks, startup problems, and common configuration errors.
 **Severity**: Varies
 **Estimated Time**: 5-30 minutes depending on symptom
 
 ---
 
-## axiom:trace work_item=make-conscience-fully-operational-end-to spec=specs/009-deployment.md doc=docs/runbooks/troubleshooting.md
+## axiom:trace work_item=make-consensus-fully-operational-end-to spec=specs/009-deployment.md doc=docs/runbooks/troubleshooting.md
 
 ---
 
@@ -33,18 +33,18 @@ Is the server running?
 
 ## §1. Log Locations
 
-Conscience writes all operational logs to **stderr** (not stdout). The bootstrap admin key is the only output on stdout.
+Consensus writes all operational logs to **stderr** (not stdout). The bootstrap admin key is the only output on stdout.
 
 | Environment | Log Destination | How to View |
 |---|---|---|
-| Local dev | stderr (terminal) | Scroll back in terminal or redirect: `conscience serve 2> conscience.log` |
+| Local dev | stderr (terminal) | Scroll back in terminal or redirect: `consensus serve 2> consensus.log` |
 | Docker | Container stderr | `docker logs <container>` |
-| systemd | Journal | `journalctl -u conscience -f` |
-| Kubernetes | Container stderr | `kubectl logs <pod> -c conscience` |
+| systemd | Journal | `journalctl -u consensus -f` |
+| Kubernetes | Container stderr | `kubectl logs <pod> -c consensus` |
 
 ### Log Levels
 
-Set via `CONSCIENCE_LOG_LEVEL` env var or `--log-level` flag:
+Set via `CONSENSUS_LOG_LEVEL` env var or `--log-level` flag:
 
 | Level | When to Use |
 |---|---|
@@ -55,19 +55,19 @@ Set via `CONSCIENCE_LOG_LEVEL` env var or `--log-level` flag:
 
 ```bash
 # Enable debug logging
-CONSCIENCE_LOG_LEVEL=debug ./bin/conscience serve --db sqlite://conscience.db
+CONSENSUS_LOG_LEVEL=debug ./bin/consensus serve --db sqlite://consensus.db
 ```
 
 ### Key Log Messages to Watch
 
 | Message | Meaning | Action |
 |---|---|---|
-| `conscience: schema migrations applied` | Migrations ran on startup | Normal — first start or schema change |
-| `conscience: starting` | Server is listening | Normal |
-| `conscience: llm client init failed` | LLM provider config error | Check §3 |
-| `conscience: agent iteration N/M failed` | Agent call failed | Check LLM or DB |
-| `conscience: heartbeat claimed task` | Agent iteration started | Normal |
-| `conscience: HITL manager started` | Approval system ready | Normal |
+| `consensus: schema migrations applied` | Migrations ran on startup | Normal — first start or schema change |
+| `consensus: starting` | Server is listening | Normal |
+| `consensus: llm client init failed` | LLM provider config error | Check §3 |
+| `consensus: agent iteration N/M failed` | Agent call failed | Check LLM or DB |
+| `consensus: heartbeat claimed task` | Agent iteration started | Normal |
+| `consensus: HITL manager started` | Approval system ready | Normal |
 
 ---
 
@@ -103,14 +103,14 @@ curl http://localhost:8090/api/v1/health
 ### Auth Check
 
 ```bash
-curl -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
+curl -H "Authorization: Bearer $CONSENSUS_API_KEY" \
   http://localhost:8090/api/v1/sessions
 ```
 
 | Response | Meaning |
 |---|---|
 | `{"sessions":[...]}` | Auth working, server operational |
-| HTTP 401 | API key invalid or expired — run `conscience init` to bootstrap new key |
+| HTTP 401 | API key invalid or expired — run `consensus init` to bootstrap new key |
 | HTTP 403 | API key lacks required scope |
 
 ---
@@ -120,7 +120,7 @@ curl -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
 ### Symptom: Binary exits immediately with error
 
 ```bash
-./bin/conscience serve --db-url postgres://localhost:5432/conscience
+./bin/consensus serve --db-url postgres://localhost:5432/consensus
 # Output: config: ...
 # or: db: ...
 # or: migrate: ...
@@ -131,7 +131,7 @@ curl -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
 1. **Check config loading** — the first error is usually config-related:
    ```bash
    # Test config loading explicitly
-   CONSCIENCE_LOG_LEVEL=debug ./bin/conscience config get all
+   CONSENSUS_LOG_LEVEL=debug ./bin/consensus config get all
    ```
 
 2. **Check database connectivity** — the second error is usually DB:
@@ -139,39 +139,39 @@ curl -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
    # Test DB connection independently
    psql "$DATABASE_URL" -c "SELECT 1"
    # or for SQLite:
-   sqlite3 /path/to/conscience.db "SELECT 1;"
+   sqlite3 /path/to/consensus.db "SELECT 1;"
    ```
 
 3. **Check migration state** — if DB connects but schema is wrong:
    ```bash
-   ./bin/conscience migrate status --db-url "$DATABASE_URL"
+   ./bin/consensus migrate status --db-url "$DATABASE_URL"
    ```
 
 ### Symptom: LLM initialization fails
 
 ```
-conscience: llm client init failed: llm: mock provider requires CONSCIENCE_MOCK_LLM=1 env var
+consensus: llm client init failed: llm: mock provider requires CONSENSUS_MOCK_LLM=1 env var
 ```
 
 **Cause:** Provider is set to `mock` without the safety env var.
 
-**Fix:** Set `CONSCIENCE_LLM_PROVIDER=openai` (or anthropic) and provide the API key:
+**Fix:** Set `CONSENSUS_LLM_PROVIDER=openai` (or anthropic) and provide the API key:
 
 ```bash
-export CONSCIENCE_LLM_PROVIDER=openai
+export CONSENSUS_LLM_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
-./bin/conscience serve --db-url postgres://localhost:5432/conscience
+./bin/consensus serve --db-url postgres://localhost:5432/consensus
 ```
 
 Or if you intentionally want mock mode:
 ```bash
-export CONSCIENCE_MOCK_LLM=1
-./bin/conscience serve
+export CONSENSUS_MOCK_LLM=1
+./bin/consensus serve
 ```
 
 ### Symptom: "no admin key in database"
 
-This happens on first startup when no bootstrap key is found. Conscience auto-generates one:
+This happens on first startup when no bootstrap key is found. Consensus auto-generates one:
 
 ```
 Admin key: cs_ak_xxxxxxxxxxxxxxxx
@@ -180,7 +180,7 @@ Admin key: cs_ak_xxxxxxxxxxxxxxxx
 **If you miss the startup output:**
 ```bash
 # Generate a new bootstrap key
-./bin/conscience init --db-url "$DATABASE_URL"
+./bin/consensus init --db-url "$DATABASE_URL"
 ```
 
 ---
@@ -191,12 +191,12 @@ Admin key: cs_ak_xxxxxxxxxxxxxxxx
 
 ```bash
 # Check for long-running sessions
-curl -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
+curl -H "Authorization: Bearer $CONSENSUS_API_KEY" \
   http://localhost:8090/api/v1/sessions
 # Look for sessions with status "thinking" or "boot"
 
 # Check LLM latency from logs
-grep "llm: response received" conscience.log | tail -5
+grep "llm: response received" consensus.log | tail -5
 # Look for elapsed_ms > 30000 (30s)
 ```
 
@@ -204,7 +204,7 @@ grep "llm: response received" conscience.log | tail -5
 
 ```bash
 # Check active connections (Postgres)
-SELECT * FROM pg_stat_activity WHERE application_name = 'conscience';
+SELECT * FROM pg_stat_activity WHERE application_name = 'consensus';
 
 # Check SQLite busy state
 # Look for "database is locked" errors in logs
@@ -219,16 +219,16 @@ SELECT * FROM pg_stat_activity WHERE application_name = 'conscience';
 
 ```bash
 # Check binary size
-ls -lh bin/conscience
+ls -lh bin/consensus
 
 # Check SQLite database size
-ls -lh conscience.db
+ls -lh consensus.db
 
 # Check Postgres database size
-SELECT pg_size_pretty(pg_database_size('conscience'));
+SELECT pg_size_pretty(pg_database_size('consensus'));
 
 # Monitor log growth
-du -sh /var/log/conscience/
+du -sh /var/log/consensus/
 ```
 
 ---
@@ -237,11 +237,11 @@ du -sh /var/log/conscience/
 
 | Error | Cause | Fix |
 |---|---|---|
-| `config: unknown field "..."` | YAML typo in conscience.yaml | Check config file syntax |
+| `config: unknown field "..."` | YAML typo in consensus.yaml | Check config file syntax |
 | `db: unsupported driver` | DB URL scheme not recognized | Must start with `postgres://` or `sqlite://` |
 | `migrate: schema version N > max available` | Binary older than DB schema | Update binary to match migration set |
 | `migrate: migration N not found in binary` | DB schema newer than binary | Rollback DB or update binary |
-| `llm: unknown provider` | CONSCIENCE_LLM_PROVIDER typo | Must be `openai`, `anthropic`, `openrouter`, or `mock` |
+| `llm: unknown provider` | CONSENSUS_LLM_PROVIDER typo | Must be `openai`, `anthropic`, `openrouter`, or `mock` |
 | `llm: api error: 401` | Invalid or missing API key | Check OPENAI_API_KEY or ANTHROPIC_API_KEY env var |
 | `llm: api error: 429` | Rate limited | Wait and retry; reduce concurrent sessions |
 
@@ -254,16 +254,16 @@ du -sh /var/log/conscience/
 curl http://localhost:8090/api/v1/health
 
 # Migration status
-./bin/conscience migrate status --db-url "$DATABASE_URL"
+./bin/consensus migrate status --db-url "$DATABASE_URL"
 
 # View active sessions
-./bin/conscience session list
+./bin/consensus session list
 
 # Check server version
-./bin/conscience version
+./bin/consensus version
 
 # Configuration dump
-./bin/conscience config get all
+./bin/consensus config get all
 
 # Stress test connectivity
 for i in 1 2 3 4 5; do

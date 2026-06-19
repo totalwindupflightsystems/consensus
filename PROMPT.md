@@ -1,4 +1,4 @@
-# Conscience — Morty Improvement Queue Builder
+# Consensus — Morty Improvement Queue Builder
 
 Morty is now running a staged improvement queue. Do not choose broad work. Use the current Morty stage name to select exactly one work item, implement the smallest useful slice, and stop after producing verifiable evidence for that stage.
 
@@ -11,7 +11,7 @@ Morty is now running a staged improvement queue. Do not choose broad work. Use t
 5. `build-api-rate-limit-scope` → `.memory-bank/work-items/api-rate-limit-scope-01/plan.md`
 6. `build-repo-hygiene-generated-artifacts` → `.memory-bank/work-items/repo-hygiene-generated-artifacts-01/plan.md`
 
-If the current stage is not listed, read `.morty/conscience.json` and select the work item referenced by the closest matching stage name. If still unclear, stop with `STATUS: BLOCKED` and explain the ambiguity.
+If the current stage is not listed, read `.morty/consensus.json` and select the work item referenced by the closest matching stage name. If still unclear, stop with `STATUS: BLOCKED` and explain the ambiguity.
 
 ## Builder rules
 

@@ -28,8 +28,8 @@ axiom:trace work_item=spec-016-hardening-01 spec=specs/016-cli-interface.md swee
 
 ## Changes Made
 
-1. **internal/config/config.go** — Added `LoadWithPath()`, `resolveConfigPath()` with ~/.conscience/ and /etc/ fallbacks, `SetConfigPath()` for --config flag, `Path()` method
-2. **cmd/conscience/main.go** — Wired `cli.InitFunc = runInit`, `cli.ServerFunc = runServer`; added `runInit()` function
+1. **internal/config/config.go** — Added `LoadWithPath()`, `resolveConfigPath()` with ~/.consensus/ and /etc/ fallbacks, `SetConfigPath()` for --config flag, `Path()` method
+2. **cmd/consensus/main.go** — Wired `cli.InitFunc = runInit`, `cli.ServerFunc = runServer`; added `runInit()` function
 3. **internal/cli/serve.go** — Wired --config flag to `config.SetConfigPath()` + env var flag passthrough; added --adapter and --migrations flags
 4. **internal/cli/migrate.go** — `migrate create` now actually writes a .sql file to migrations/ instead of printing
 5. **internal/cli/config.go** — Added `config edit` command; `config set` now uses `buildNestedMap` for dot-notation; added proper imports

@@ -35,9 +35,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: conscience
-          POSTGRES_PASSWORD: conscience
-          POSTGRES_DB: conscience
+          POSTGRES_USER: consensus
+          POSTGRES_PASSWORD: consensus
+          POSTGRES_DB: consensus
         ports:
           - 5432:5432
         options: >-
@@ -55,7 +55,7 @@ jobs:
 
       - name: Postgres full integration test
         env:
-          CONSCIENCE_TEST_POSTGRES_URL: postgres://conscience:conscience@localhost:5432/conscience?sslmode=disable
+          CONSENSUS_TEST_POSTGRES_URL: postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable
         run: make test-pg-full
 
   # ── Real LLM E2E Tests (manual / scheduled only — costs tokens) ─

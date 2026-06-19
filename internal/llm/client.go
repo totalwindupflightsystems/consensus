@@ -5,7 +5,7 @@
 // interfaces for each provider (OpenAI, Anthropic, mock).
 //
 // The harness does NOT import this package — wiring happens at the application
-// level in cmd/conscience/.
+// level in cmd/consensus/.
 //
 // axiom:trace work_item=spec-006-hardening-01 spec=specs/008-harness.md,specs/006-transactions.md plan=phase-1/task-1 impl=internal/llm/client.go
 package llm
@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/wojons/conscientiousness/internal/harness"
+	"github.com/wojons/consensus/internal/harness"
 )
 
 // ============================================================================
@@ -119,7 +119,7 @@ func (c *Config) Validate() error {
 
 // NewClient creates the appropriate LLM client based on the provider config.
 //
-// Production safety: when provider is "mock", CONSCIENCE_MOCK_LLM=1 must
+// Production safety: when provider is "mock", CONSENSUS_MOCK_LLM=1 must
 // be set explicitly to prevent accidental mock usage in production.
 func NewClient(cfg *Config) (harness.LLMClient, error) {
 	if err := cfg.Validate(); err != nil {
@@ -128,8 +128,8 @@ func NewClient(cfg *Config) (harness.LLMClient, error) {
 
 	switch cfg.Provider {
 	case ProviderMock:
-		if os.Getenv("CONSCIENCE_MOCK_LLM") != "1" {
-			return nil, fmt.Errorf("llm: mock provider requires CONSCIENCE_MOCK_LLM=1 env var")
+		if os.Getenv("CONSENSUS_MOCK_LLM") != "1" {
+			return nil, fmt.Errorf("llm: mock provider requires CONSENSUS_MOCK_LLM=1 env var")
 		}
 		return NewMockClient(), nil
 	case ProviderOpenAI:

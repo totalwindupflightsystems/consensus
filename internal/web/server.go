@@ -1,4 +1,4 @@
-// Package web provides a minimal web admin UI for the Conscience runtime.
+// Package web provides a minimal web admin UI for the Consensus runtime.
 //
 // The web UI serves embedded HTML pages (dashboard, sessions, memory browser).
 // All data operations go through the existing REST API. The server also provides
@@ -60,10 +60,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.html(w, pageShell(
-		"Conscience — Admin UI",
+		"Consensus — Admin UI",
 		s.apiURL,
 		"",
-		`<p>Welcome to the Conscience admin console. Use the navigation to manage sessions, inspect memory, and monitor system health.</p>`),
+		`<p>Welcome to the Consensus admin console. Use the navigation to manage sessions, inspect memory, and monitor system health.</p>`),
 	)
 }
 
@@ -94,7 +94,7 @@ try {
   document.getElementById('health-status').innerHTML='<div class="error-box">'+err.message+'</div>'
 }})();
 </script>`
-	s.html(w, pageShell("Dashboard — Conscience", s.apiURL, "dashboard", c))
+	s.html(w, pageShell("Dashboard — Consensus", s.apiURL, "dashboard", c))
 }
 
 func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +163,7 @@ async function doCancel(id){if(!confirm('Cancel this session?'))return;try{await
 async function doResume(id){try{await apiFetch('/api/v1/sessions/'+id,{method:'PATCH',body:JSON.stringify({status:'idle'})});load()}catch(e){alert(e.message)}}
 load();
 </script>`
-	s.html(w, pageShell("Sessions — Conscience", s.apiURL, "sessions", c))
+	s.html(w, pageShell("Sessions — Consensus", s.apiURL, "sessions", c))
 }
 
 func (s *Server) handleMemory(w http.ResponseWriter, r *http.Request) {
@@ -193,12 +193,12 @@ async function lookup(){
 }
 document.getElementById('session-lookup').addEventListener('keydown',function(e){if(e.key==='Enter')lookup()});
 </script>`
-	s.html(w, pageShell("Memory — Conscience", s.apiURL, "memory", c))
+	s.html(w, pageShell("Memory — Consensus", s.apiURL, "memory", c))
 }
 
 func (s *Server) handleHealthPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"healthy":true,"version":"conscience-0.1.0","ui":"web-admin"}`))
+	w.Write([]byte(`{"healthy":true,"version":"consensus-0.1.0","ui":"web-admin"}`))
 }
 
 func (s *Server) html(w http.ResponseWriter, page string) {
@@ -267,7 +267,7 @@ input:focus,select:focus{outline:none;border-color:#58a6ff}
 @media(max-width:768px){.stat-grid{grid-template-columns:1fr}.header nav{flex-wrap:wrap}}
 </style></head>
 <body>
-<header class="header"><h1>⚡ Conscience</h1>
+<header class="header"><h1>⚡ Consensus</h1>
 <nav>
 <a href="/dashboard"` + dashClass + `>Dashboard</a>
 <a href="/sessions"` + sessClass + `>Sessions</a>
@@ -278,8 +278,8 @@ input:focus,select:focus{outline:none;border-color:#58a6ff}
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 <script>
 var API_URL="` + apiURL + `";
-var API_KEY=sessionStorage.getItem('conscience_api_key')||'';
-function ensureAuth(){if(!API_KEY){var k=prompt('Enter your Conscience API key:');if(k){sessionStorage.setItem('conscience_api_key',k);location.reload()}}}
+var API_KEY=sessionStorage.getItem('consensus_api_key')||'';
+function ensureAuth(){if(!API_KEY){var k=prompt('Enter your Consensus API key:');if(k){sessionStorage.setItem('consensus_api_key',k);location.reload()}}}
 async function apiFetch(path,opts){opts=opts||{};var url=API_URL+path;var h={'Content-Type':'application/json',opts:opts};for(var k in opts.headers)h[k]=opts.headers[k];if(API_KEY)h['Authorization']='Bearer '+API_KEY;var r=await fetch(url,{method:opts.method||'GET',headers:h,body:opts.body});if(!r.ok)throw new Error(await r.text()||'HTTP '+r.status);return r.json()}
 function formatTime(t){if(!t)return'—';var d=new Date(t);if(isNaN(d.getTime()))return t;return d.toLocaleString()}
 function truncate(s,n){if(!s)return'';s=String(s);return s.length>n?s.slice(0,n)+'…':s}

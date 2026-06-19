@@ -58,7 +58,7 @@ WHERE id = :session_id
 
 ### 2.4 External Interrupts (Human-Initiated)
 
-A human can pause any running session at any time via the CLI (`conscience session pause <id>`) or the REST API:
+A human can pause any running session at any time via the CLI (`consensus session pause <id>`) or the REST API:
 
 ```sql
 UPDATE sessions SET status = 'paused' WHERE id = :session_id;
@@ -148,7 +148,7 @@ Agent iteration:
   → Harness sends notification (webhook, Slack, email, dashboard)
 
 Human review:
-  → Alt-Mode dashboard shows pending approval (via CLI `conscience approve list` or future web UI)
+  → Alt-Mode dashboard shows pending approval (via CLI `consensus approve list` or future web UI)
   → Human reviews context, risk level, target
   → Human chooses:
      a) APPROVE → UPDATE approval_requests SET status = 'approved', reviewer_id = 'human-1'
@@ -212,7 +212,7 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_request_id UUID;
-    v_session_id UUID := current_setting('conscience.session_id')::UUID;
+    v_session_id UUID := current_setting('consensus.session_id')::UUID;
     v_iteration BIGINT;
     v_timeout_minutes INT;
 BEGIN
@@ -371,7 +371,7 @@ Only users with `alt_mode_role` can approve requests. The `review_approval()` fu
 
 ```sql
 -- In review_approval(), add:
-IF current_setting('conscience.user_id', true) IS NULL THEN
+IF current_setting('consensus.user_id', true) IS NULL THEN
     RAISE EXCEPTION 'Reviewer identity required';
 END IF;
 ```

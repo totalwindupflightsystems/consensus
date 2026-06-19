@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // axiom:trace work_item=runtime-harness-01 spec=specs/001-architecture.md plan=phase-1/task-1-1/step-1-1-2 test=internal/db/driver/driver_test.go
@@ -26,7 +26,7 @@ func TestOpenSQLiteFileTemp(t *testing.T) {
 	ctx := context.Background()
 
 	// Use a unique temp file to avoid cross-test contamination
-	f, err := os.CreateTemp("", "conscience-test-*.db")
+	f, err := os.CreateTemp("", "consensus-test-*.db")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}

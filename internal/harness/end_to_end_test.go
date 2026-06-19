@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/api"
-	"github.com/wojons/conscientiousness/internal/hitl"
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/session"
 )
 
 func TestEndToEnd_FullStack(t *testing.T) {

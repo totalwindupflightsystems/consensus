@@ -9,7 +9,7 @@ amended_by: spec-alignment-scan-01 — expanded ACs to cover all cited spec deta
 
 # Meta-Planning — Runtime Harness
 
-**Mission:** implement the Conscience cognition runtime after the schema and package skeleton exist. This work item owns the harness iteration loop, dynamic system prompt assembly, tool execution boundaries, and multi-turn interactive transaction planning behavior. The first slice must prove one minimal iteration can read context, accept structured output, commit database changes, and enqueue tool work.
+**Mission:** implement the Consensus cognition runtime after the schema and package skeleton exist. This work item owns the harness iteration loop, dynamic system prompt assembly, tool execution boundaries, and multi-turn interactive transaction planning behavior. The first slice must prove one minimal iteration can read context, accept structured output, commit database changes, and enqueue tool work.
 
 axiom:trace work_item=runtime-harness-01 spec=specs/006-transactions.md,specs/008-harness.md,specs/010-tools.md,specs/012-system-prompt-and-discovery.md,specs/020-multi-turn-planning.md plan=phase-1/task-1/step-1 evidence=.memory-bank/work-items/runtime-harness-01/verification.md prompt=.memory-bank/work-items/_prompt.md
 
@@ -106,7 +106,7 @@ axiom:trace work_item=runtime-harness-01 spec=specs/006-transactions.md,specs/00
 |---|---|---|
 | AC-034 | `display_modes` table replaces mutable display state on `memory_events`. The `active_context_view` JOINs `display_modes` to resolve `full` / `compressed` / `hidden` rendering per memory event. | SPEC-002 §3.2, SPEC-002 §2.3 Note, SPEC-011 §3 |
 | AC-035 | `memory_pages` table resolves named page references: `target_ids` (→ memory_events.id) and `linked_page_ids` (→ other memory_pages.id, single-level expansion) are expanded into active pointers. Deduplication via DISTINCT ON id ensures overlapping pages don't duplicate tokens. | SPEC-002 §5 |
-| AC-036 | `active_context_view` uses session-level RLS scoping (`current_setting('conscience.session_id')`) to ensure each session sees only its own events. Hidden events (WHERE dm.mode = 'hidden') are excluded. | SPEC-002 §3.2 |
+| AC-036 | `active_context_view` uses session-level RLS scoping (`current_setting('consensus.session_id')`) to ensure each session sees only its own events. Hidden events (WHERE dm.mode = 'hidden') are excluded. | SPEC-002 §3.2 |
 
 ### Compression & Model Registry
 

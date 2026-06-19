@@ -1,4 +1,4 @@
-// Package config loads and manages Conscience configuration.
+// Package config loads and manages Consensus configuration.
 //
 // Configuration is loaded with priority: CLI flags > environment variables >
 // YAML config file > defaults. The Config struct is the single source of truth
@@ -14,10 +14,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
-// Config is the root configuration for the Conscience binary.
+// Config is the root configuration for the Consensus binary.
 type Config struct {
 	Server     ServerConfig     `yaml:"server"`
 	Adapters   AdaptersConfig   `yaml:"adapters"`
@@ -170,10 +170,10 @@ func Defaults() Config {
 // Load reads configuration from the priority chain and applies environment overrides.
 //
 // Priority chain (first file found wins):
-//  1. CONSCIENCE_CONFIG env var
-//  2. ./conscience.yaml
-//  3. ~/.conscience/config.yaml
-//  4. /etc/conscience/config.yaml
+//  1. CONSENSUS_CONFIG env var
+//  2. ./consensus.yaml
+//  3. ~/.consensus/config.yaml
+//  4. /etc/consensus/config.yaml
 //
 // Priority: env vars > YAML file > defaults.
 func Load() (Config, error) {
@@ -226,14 +226,14 @@ func LoadWithPath(configPath string) (Config, error) {
 func resolveConfigPath() string {
 	candidates := []string{}
 
-	if v := os.Getenv("CONSCIENCE_CONFIG"); v != "" {
+	if v := os.Getenv("CONSENSUS_CONFIG"); v != "" {
 		candidates = append(candidates, v)
 	}
 
 	candidates = append(candidates,
-		"conscience.yaml",
-		configFileAtHome(".conscience", "config.yaml"),
-		"/etc/conscience/config.yaml",
+		"consensus.yaml",
+		configFileAtHome(".consensus", "config.yaml"),
+		"/etc/consensus/config.yaml",
 	)
 
 	for _, p := range candidates {
@@ -257,19 +257,19 @@ func configFileAtHome(elem ...string) string {
 }
 
 func applyEnvOverrides(cfg *Config) {
-	if v := os.Getenv("CONSCIENCE_HOSTNAME"); v != "" {
+	if v := os.Getenv("CONSENSUS_HOSTNAME"); v != "" {
 		cfg.Server.Hostname = v
 	}
-	if v := os.Getenv("CONSCIENCE_PORT"); v != "" {
+	if v := os.Getenv("CONSENSUS_PORT"); v != "" {
 		fmt.Sscanf(v, "%d", &cfg.Server.Port)
 	}
-	if v := os.Getenv("CONSCIENCE_DB_URL"); v != "" {
+	if v := os.Getenv("CONSENSUS_DB_URL"); v != "" {
 		cfg.Database.URL = v
 	}
-	if v := os.Getenv("CONSCIENCE_API_KEY"); v != "" {
+	if v := os.Getenv("CONSENSUS_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v
 	}
-	if v := os.Getenv("CONSCIENCE_LOG_LEVEL"); v != "" {
+	if v := os.Getenv("CONSENSUS_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
 	}
 	if v := os.Getenv("OPENAI_API_KEY"); v != "" && cfg.LLM.Provider == "openai" && cfg.LLM.APIKey == "" {

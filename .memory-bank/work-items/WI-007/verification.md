@@ -11,7 +11,7 @@
 | # | Criterion | Verification | Status |
 |---|-----------|-------------|--------|
 | 1 | Replace Go context assembly with VIEW query | Postgres: `readMemoriesFromView` queries `active_context_view`. SQLite: Go fallback preserved. | ✅ |
-| 2 | Wire `SET LOCAL conscience.session_id` before reads | `ReadActiveContext` begins tx → `SetSessionContext()` → queries. PG: `SELECT set_config(...)`. SQLite: stores session ID. | ✅ |
+| 2 | Wire `SET LOCAL consensus.session_id` before reads | `ReadActiveContext` begins tx → `SetSessionContext()` → queries. PG: `SELECT set_config(...)`. SQLite: stores session ID. | ✅ |
 | 3 | VIEW features work end-to-end | VIEW includes DISTINCT ON, CASE rendering, cache_tier, collapse_status. Go `sortByCacheTier` provides Layer 1→2→3 ordering. | ✅ |
 | 4 | Tool call collapse logic added to VIEW | `migrations/013_active_context_view_enhanced.sql` adds window-function based collapse when >10 tool calls exist. | ✅ |
 | 5 | Dual-backend support | Both Postgres (VIEW) and SQLite (Go fallback) paths implemented. All 26 test packages pass on SQLite. | ✅ |
@@ -28,7 +28,7 @@ warning: both GOPATH and GOROOT are the same directory (/home/kara/go)
 
 ```
 $ go test ./... -count=1
-ok  	github.com/wojons/conscientiousness/internal/harness	1.440s
+ok  	github.com/wojons/consensus/internal/harness	1.440s
 ... all 26 packages ok ...
 ```
 

@@ -1,9 +1,9 @@
 # Progress Report
 
 **Updated**: 2026-06-02  
-**Work Item**: make-conscience-fully-operational-end-to
+**Work Item**: make-consensus-fully-operational-end-to
 
-## Milestone: Platform Operational Readiness — make-conscience-fully-operational-end-to ✅
+## Milestone: Platform Operational Readiness — make-consensus-fully-operational-end-to ✅
 
 **Commit:** *(pending)* — `chore: align specs, add trace markers, create runbooks`
 **RT-003 (SPEC-022 deps): ALIGNED**
@@ -22,7 +22,7 @@
 
 ### Key Changes
 - **SPEC-021**: Updated file inventory to match actual codebase — fixed anthropic description (real, not stub), added compression/ section, updated external deps (removed SDK deps not in go.mod), added migrations 009-015
-- **MCP trace markers**: Added `axiom:trace work_item=make-conscience-fully-operational-end-to` to all 4 MCP source files
+- **MCP trace markers**: Added `axiom:trace work_item=make-consensus-fully-operational-end-to` to all 4 MCP source files
 - **Troubleshooting runbook**: Created with log locations, health check diagnostics, startup failure guide, common config errors, escalation paths
 - **plan.yaml**: Advanced cursor from phase-1/step-1-1-1 to phase-5 (completed), updated status from failed to completed
 
@@ -50,7 +50,7 @@
 | Tests | 15 sandbox tests + 11 rate limit tests + 9 approval tests + 12 harness tests = 47 total | `*_test.go` files |
 
 ### Key Features
-- **Sandbox isolation**: Temp working dir per execution, env whitelist (CONSCIENCE_*, HOME, PATH, USER)
+- **Sandbox isolation**: Temp working dir per execution, env whitelist (CONSENSUS_*, HOME, PATH, USER)
 - **Timeout enforcement**: Configurable per-request (default 30s), context-based cancellation
 - **Output capping**: 1MB limit via limitedWriter, truncated with marker
 - **Concurrency control**: Channel semaphore limits to 10 concurrent subprocesses

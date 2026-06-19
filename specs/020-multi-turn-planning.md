@@ -205,7 +205,7 @@ async function runAgentIteration(sessionId: string): Promise<IterationResult> {
 
     // Open the transaction — stays open across all turns
     const tx = await db.beginTransaction();
-    await tx.execute(sql`SET LOCAL conscience.session_id = ${sessionId}`);
+    await tx.execute(sql`SET LOCAL consensus.session_id = ${sessionId}`);
 
     // Set session status
     await db.execute(sql`UPDATE sessions SET status = 'planning' WHERE id = ${sessionId}`);
@@ -300,7 +300,7 @@ async function runAgentIteration(sessionId: string): Promise<IterationResult> {
 
                 // Re-open transaction for retry
                 tx = await db.beginTransaction();
-                await tx.execute(sql`SET LOCAL conscience.session_id = ${sessionId}`);
+                await tx.execute(sql`SET LOCAL consensus.session_id = ${sessionId}`);
                 continue;
             }
 

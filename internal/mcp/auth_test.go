@@ -250,7 +250,7 @@ func TestFormatJSON_InvalidValue(t *testing.T) {
 
 func TestMatchSessionContext_Valid(t *testing.T) {
 	// URI must be long enough: prefix + sessionID + suffix
-	if !matchSessionContext("conscience://sessions/s1/context") {
+	if !matchSessionContext("consensus://sessions/s1/context") {
 		t.Error("expected match for valid URI")
 	}
 }
@@ -258,11 +258,11 @@ func TestMatchSessionContext_Valid(t *testing.T) {
 func TestMatchSessionContext_Invalid(t *testing.T) {
 	invalidURIs := []string{
 		"",
-		"conscience://tools",
-		"conscience://sessions",
-		"conscience://sessions/s1",
-		"conscience://sessions/s1/notcontext",
-		"conscience://sessions//context", // empty session ID
+		"consensus://tools",
+		"consensus://sessions",
+		"consensus://sessions/s1",
+		"consensus://sessions/s1/notcontext",
+		"consensus://sessions//context", // empty session ID
 	}
 	for _, uri := range invalidURIs {
 		if matchSessionContext(uri) {
@@ -272,7 +272,7 @@ func TestMatchSessionContext_Invalid(t *testing.T) {
 }
 
 func TestExtractSessionIDFromURI(t *testing.T) {
-	uri := "conscience://sessions/abc-123/context"
+	uri := "consensus://sessions/abc-123/context"
 	id := extractSessionIDFromURI(uri)
 	if id != "abc-123" {
 		t.Errorf("expected 'abc-123', got %q", id)
@@ -297,8 +297,8 @@ func TestHasSuffix(t *testing.T) {
 
 func TestNewServer_Defaults(t *testing.T) {
 	srv := NewServer(nil)
-	if srv.name != "conscience" {
-		t.Errorf("expected 'conscience', got %q", srv.name)
+	if srv.name != "consensus" {
+		t.Errorf("expected 'consensus', got %q", srv.name)
 	}
 	if srv.ver != "0.1.0" {
 		t.Errorf("expected '0.1.0', got %q", srv.ver)
@@ -535,7 +535,7 @@ func TestHandleResourcesRead_UnknownURI(t *testing.T) {
 	req := &JSONRPCRequest{
 		JSONRPC: "2.0",
 		Method:  "resources/read",
-		Params:  []byte(`{"uri": "conscience://unknown"}`),
+		Params:  []byte(`{"uri": "consensus://unknown"}`),
 	}
 
 	_, err := srv.handleResourcesRead(req, sess)

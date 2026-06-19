@@ -15,7 +15,7 @@
 
 ## What's Left to Build
 1. **Consolidated SQL schema** — All CREATE TABLE statements in one runnable file
-2. **Go project structure** — `cmd/conscience/main.go`, `internal/harness/`, `internal/api/`, `internal/mcp/`, `internal/db/`
+2. **Go project structure** — `cmd/consensus/main.go`, `internal/harness/`, `internal/api/`, `internal/mcp/`, `internal/db/`
 3. **Database driver interface** — Postgres (pgx) + SQLite (modernc.org/sqlite) behind shared interface
 4. **Harness loop** — Go implementation of SPEC-008 / SPEC-020
 5. **REST API** — Go HTTP server (SPEC-015 endpoints)
@@ -49,7 +49,7 @@
 - display_mode column → separate table (append-only)
 - skills_registry dual purpose → split into tools + skills tables
 - Tool execution inside main tx → two-phase model
-- Mixed current_setting prefixes → unified conscience.*
+- Mixed current_setting prefixes → unified consensus.*
 - Deno Edge Functions + PocketBase Go → Single Go binary with driver interface
 - Kysely/Drizzle ORM → Direct SQL (database/sql + pgx for Postgres, modernc.org/sqlite for SQLite)
 - handler_type values → sql_function, http_endpoint, go_native, subprocess

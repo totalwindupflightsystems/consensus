@@ -3,13 +3,13 @@
 ## Phase 1: Fail Fast + Mock Opt-In ✅
 
 ### Phase 1 Task 1: Remove mock fallback in main.go
-- Changed `cmd/conscience/main.go:111-115` from Warn+fallback to `fmt.Fprintf(os.Stderr, ...)` + `os.Exit(1)`
-- **Evidence**: `grep NewMockClient cmd/conscience/main.go` → no longer used as fallback
+- Changed `cmd/consensus/main.go:111-115` from Warn+fallback to `fmt.Fprintf(os.Stderr, ...)` + `os.Exit(1)`
+- **Evidence**: `grep NewMockClient cmd/consensus/main.go` → no longer used as fallback
 - `go build ./...` ✅
 
-### Phase 1 Task 2: Add CONSCIENCE_MOCK_LLM env var in NewClient factory
+### Phase 1 Task 2: Add CONSENSUS_MOCK_LLM env var in NewClient factory
 - Added `os` import to `internal/llm/client.go`
-- Added `CONSCIENCE_MOCK_LLM=1` check in `NewClient()` — returns error if env var not set
+- Added `CONSENSUS_MOCK_LLM=1` check in `NewClient()` — returns error if env var not set
 - Added `TestNewClient_MockRejectsWithoutEnv` test
 - Updated `TestNewClient_Mock` to set env var
 - `go test ./internal/llm/...` ✅

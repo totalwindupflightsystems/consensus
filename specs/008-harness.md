@@ -31,11 +31,11 @@ The harness is a **long-running Go process**, not a serverless function. It hold
 
 ## Deployment Model
 
-The harness is a **single Go binary** (`conscience`) that contains all runtime components:
+The harness is a **single Go binary** (`consensus`) that contains all runtime components:
 
 ```
 ┌─────────────────────────────────────────┐
-│           Go Binary (conscience)         │
+│           Go Binary (consensus)         │
 │                                         │
 │  ┌─────────┐  ┌──────┐  ┌───────────┐  │
 │  │ Harness  │  │ REST │  │ MCP Server│  │
@@ -60,7 +60,7 @@ The binary connects to whatever database is configured:
 | Setup | Database | Connection |
 |---|---|---|
 | Local development | SQLite (embedded in binary) | `--db sqlite://data.db` |
-| Self-hosted Supabase | Local Postgres | `--db postgres://localhost:5432/conscience` |
+| Self-hosted Supabase | Local Postgres | `--db postgres://localhost:5432/consensus` |
 | Supabase Cloud | Hosted Postgres | `--db postgres://postgres:pass@db.xxx.supabase.co:5432/postgres` |
 | Any Postgres | Any provider | `--db postgres://...` |
 

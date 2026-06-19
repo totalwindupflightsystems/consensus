@@ -1,4 +1,4 @@
-# Conscience — Build targets
+# Consensus — Build targets
 # axiom:trace work_item=repo-bootstrap-01 spec=specs/021-repository-layout.md plan=phase-1/task-1/step-4
 # axiom:trace work_item=WI-016 spec=specs/018-openapi-contract.md plan=phase-5/task-5-2/step-5-2-1
 
@@ -76,13 +76,13 @@ lint-spec:
 	fi
 
 # Run contract tests against a running server (SPEC-018 §6)
-# Requires: conscience server running, API key in CONSCIENCE_API_KEY env var
+# Requires: consensus server running, API key in CONSENSUS_API_KEY env var
 contract-test: build
 	@echo "==> Running contract tests..."
 	@chmod +x bin/contract-test.sh 2>/dev/null || true
-	@if [ -z "$$CONSCIENCE_API_KEY" ]; then \
-		echo "ERROR: CONSCIENCE_API_KEY environment variable required"; \
-		echo "Usage: CONSCIENCE_API_KEY=cs_ak_... make contract-test"; \
+	@if [ -z "$$CONSENSUS_API_KEY" ]; then \
+		echo "ERROR: CONSENSUS_API_KEY environment variable required"; \
+		echo "Usage: CONSENSUS_API_KEY=cs_ak_... make contract-test"; \
 		exit 1; \
 	fi
 	@SERVER_URL="http://localhost:8090"; \
@@ -97,11 +97,11 @@ contract-test: build
 	if [ "$$NOAUTH" = "401" ]; then echo "    ✓ Unauthenticated rejected (401)"; else echo "    ✗ Expected 401, got $$NOAUTH"; fi; \
 	\
 	echo "  [3/5] GET /api/v1/sessions (with auth)..."; \
-	SESSIONS=$$(curl -s -o /dev/null -w "%{http_code}" "$$SERVER_URL/api/v1/sessions" -H "Authorization: Bearer $$CONSCIENCE_API_KEY" 2>/dev/null); \
+	SESSIONS=$$(curl -s -o /dev/null -w "%{http_code}" "$$SERVER_URL/api/v1/sessions" -H "Authorization: Bearer $$CONSENSUS_API_KEY" 2>/dev/null); \
 	if [ "$$SESSIONS" = "200" ]; then echo "    ✓ Sessions list (200)"; else echo "    ✗ Expected 200, got $$SESSIONS"; fi; \
 	\
 	echo "  [4/5] POST /api/v1/sessions (create)..."; \
-	CREATE=$$(curl -s -o /tmp/_contract_create.json -w "%{http_code}" -X POST "$$SERVER_URL/api/v1/sessions" -H "Authorization: Bearer $$CONSCIENCE_API_KEY" -H "Content-Type: application/json" -d '{"agent_name":"test","goal":"contract test"}' 2>/dev/null); \
+	CREATE=$$(curl -s -o /tmp/_contract_create.json -w "%{http_code}" -X POST "$$SERVER_URL/api/v1/sessions" -H "Authorization: Bearer $$CONSENSUS_API_KEY" -H "Content-Type: application/json" -d '{"agent_name":"test","goal":"contract test"}' 2>/dev/null); \
 	if [ "$$CREATE" = "201" ] || [ "$$CREATE" = "200" ]; then \
 		echo "    ✓ Session created ($$CREATE)"; \
 		cat /tmp/_contract_create.json 2>/dev/null | head -c 200; echo; \
@@ -119,7 +119,7 @@ contract-test: build
 # Runs: Postgres-specific migration bootstrap test (skips gracefully when PG unavailable)
 .PHONY: test-pg
 test-pg:
-	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience_test_pw@localhost:5432/consensus_test?sslmode=disable \
+	CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus_test_pw@localhost:5432/consensus_test?sslmode=disable \
 		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgres -v -count=1
 
 # Full Postgres integration test — applies all migrations, verifies tables/indexes/triggers,
@@ -128,7 +128,7 @@ test-pg:
 # axiom:trace work_item=WI-postgres-full-integration spec=specs/003-database.md plan=phase-1/task-1/step-1
 .PHONY: test-pg-full
 test-pg-full:
-	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience@localhost:5432/consensus?sslmode=disable \
+	CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable \
 		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgresFullIntegration -v -count=1
 
 # --- Run built binary ---

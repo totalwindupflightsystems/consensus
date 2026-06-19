@@ -6,7 +6,7 @@ Reduce generated-artifact noise so future agents can stage and review changes sa
 
 1. Inspect `.gitignore`, `.ignore`, and current dirty generated artifacts.
 2. Add ignore rules for local DBs, coverage outputs, built binary, and Morty runtime logs/state where appropriate.
-3. Do not ignore source configs like `.morty/conscience.json` unless intentionally generated.
+3. Do not ignore source configs like `.morty/consensus.json` unless intentionally generated.
 4. Verify with `git status --short` and targeted ignore checks.
 
 ## Verification

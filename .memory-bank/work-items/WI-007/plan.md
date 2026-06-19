@@ -1,7 +1,7 @@
 # WI-007 — Execution Plan
 
 ## Summary
-Wire `active_context_view` as the actual context source for the harness, replacing Go-level SQL assembly. Add tool call collapse logic to the VIEW. Wire `SET LOCAL conscience.session_id` for RLS enforcement.
+Wire `active_context_view` as the actual context source for the harness, replacing Go-level SQL assembly. Add tool call collapse logic to the VIEW. Wire `SET LOCAL consensus.session_id` for RLS enforcement.
 
 ## Phases
 
@@ -30,7 +30,7 @@ Wire `active_context_view` as the actual context source for the harness, replaci
 
 | Operation | Postgres | SQLite |
 |-----------|----------|--------|
-| RLS context | `SET LOCAL conscience.session_id` via `SetSessionContext()` | Store sessionID in Tx struct |
+| RLS context | `SET LOCAL consensus.session_id` via `SetSessionContext()` | Store sessionID in Tx struct |
 | Memory events | Query `active_context_view` (enhanced VIEW) | Manual `SELECT ... LEFT JOIN display_modes` |
 | Page resolution | VIEW CTE (all_ids union) | Go `resolvePageMemoryIDsTx` |
 | Dedup | `DISTINCT ON` in VIEW | Go `annotatePageEvents` |

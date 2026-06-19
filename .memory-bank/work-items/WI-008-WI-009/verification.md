@@ -54,7 +54,7 @@ go test ./...                           # All 24 packages pass
 - `internal/api/service.go` — CreateSessionInput + CreateSession now support project_id
 - `internal/api/sessions.go` — rowToSessionResponse includes project_id; CreateSessionResponse shows it
 - `internal/api/types.go` — CreateSessionRequest/SessionResponse have project_id fields
-- `cmd/conscience/main.go` — Wire Postgres LISTEN/NOTIFY or SQLite polling; shimEventBridge uses EventBus
+- `cmd/consensus/main.go` — Wire Postgres LISTEN/NOTIFY or SQLite polling; shimEventBridge uses EventBus
 - `internal/subagent/subagent.go` — SpawnSubAgent inherits parent's project_id
 - `internal/session/session.go` — ProjectID field on Session struct
 - `internal/shim/opencode/server.go` — session query includes project_id

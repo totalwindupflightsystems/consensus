@@ -1,5 +1,5 @@
 // Package subagent implements sub-agent spawning, memory forking, parent
-// wake-up, and depth limiting for Conscience (SPEC-004).
+// wake-up, and depth limiting for Consensus (SPEC-004).
 //
 // Agents can spawn sub-agents to parallelize work, delegate tasks, and scope
 // memory. Sub-agents are first-class citizens of the task system with enforced
@@ -23,8 +23,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/session"
 )
 
 // ============================================================================
@@ -104,7 +104,7 @@ func (m *Manager) ForkMemory(ctx context.Context, parentSessionID, childSessionI
 // ============================================================================
 
 // SetSessionContext sets the session identity for RLS enforcement.
-// On Postgres this issues SET LOCAL conscience.session_id.
+// On Postgres this issues SET LOCAL consensus.session_id.
 // On SQLite this stores the session ID for Go-layer enforcement.
 func (m *Manager) SetSessionContext(ctx context.Context, tx db.Tx, sessionID string) error {
 	return tx.SetSessionContext(ctx, sessionID)

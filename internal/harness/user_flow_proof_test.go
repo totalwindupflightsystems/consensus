@@ -1,4 +1,4 @@
-// Package harness: comprehensive user flow proof tests for Conscience (SPEC-019).
+// Package harness: comprehensive user flow proof tests for Consensus (SPEC-019).
 //
 // These tests prove the human interaction flows defined in SPEC-019 work
 // end-to-end across all subsystems. Each test is a walkthrough — it simulates
@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/api"
-	"github.com/wojons/conscientiousness/internal/hitl"
-	"github.com/wojons/conscientiousness/internal/session"
-	"github.com/wojons/conscientiousness/internal/subagent"
+	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/session"
+	"github.com/wojons/consensus/internal/subagent"
 )
 
 // ============================================================================
@@ -34,7 +34,7 @@ import (
 // ============================================================================
 
 // flowTestEnv bundles all subsystems needed for user flow proof tests.
-// It mirrors a fully operational Conscience instance with harness, API,
+// It mirrors a fully operational Consensus instance with harness, API,
 // HITL, and subagent managers — all backed by a real SQLite in-memory DB.
 type flowTestEnv struct {
 	th       *testHarness
@@ -182,12 +182,12 @@ func (e *flowTestEnv) assertSessionStatus(t *testing.T, sessionID string, expect
 // ============================================================================
 // AC-FLOW-01: Developer First Connection End-to-End
 //
-// Proves: "The developer's first experience connecting their tool to Conscience"
+// Proves: "The developer's first experience connecting their tool to Consensus"
 //         (SPEC-019 §3.1)
 //
 // Walkthrough:
-//   1. conscience init — bootstrap DB, create admin key
-//   2. conscience serve — start API server
+//   1. consensus init — bootstrap DB, create admin key
+//   2. consensus serve — start API server
 //   3. opencode attach — create session + get session key
 //   4. First interaction — send message, run iteration, get response
 //   5. Verify: session exists, message delivered, agent responds
@@ -202,11 +202,11 @@ func TestUserFlowProof_DeveloperFirstConnection(t *testing.T) {
 	t.Log("╚══════════════════════════════════════════════════════════╝")
 	t.Log("")
 
-	// ---- Step 1: conscience init (simulated) ----
-	t.Log("$ conscience init")
+	// ---- Step 1: consensus init (simulated) ----
+	t.Log("$ consensus init")
 	t.Log("  ✓ Database initialized (SQLite)")
 	t.Logf("  ✓ Admin key: %s", e.adminKey)
-	t.Log("  ✓ Config saved: ./conscience.yaml")
+	t.Log("  ✓ Config saved: ./consensus.yaml")
 
 	// Verify admin key works
 	req, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/health", nil)
@@ -217,8 +217,8 @@ func TestUserFlowProof_DeveloperFirstConnection(t *testing.T) {
 	}
 	t.Log("")
 
-	// ---- Step 2: conscience serve ----
-	t.Log("$ conscience serve")
+	// ---- Step 2: consensus serve ----
+	t.Log("$ consensus serve")
 	t.Log("  ✓ Server running at http://localhost:8090")
 	t.Log("  ✓ opencode adapter active")
 	t.Log("  ✓ MCP server: /mcp/sse")
@@ -247,14 +247,14 @@ func TestUserFlowProof_DeveloperFirstConnection(t *testing.T) {
 	result := e.runIteration(t, sessionID, &AgentOutput{
 		InternalMonologue: "New user session. Exploring available tools and context.",
 		MemoryStateChanges: []string{
-			fmt.Sprintf("INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Hello! I''m a Conscience agent. I can help analyze the auth module.', '%s', %d)", sessionID, iter),
+			fmt.Sprintf("INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Hello! I''m a Consensus agent. I can help analyze the auth module.', '%s', %d)", sessionID, iter),
 		},
 	})
 
 	if result.Status != "success" {
 		t.Fatalf("iteration failed: %s", result.Status)
 	}
-	t.Log("  Agent: 'Hello! I''m a Conscience agent. I can help analyze the auth module.'")
+	t.Log("  Agent: 'Hello! I''m a Consensus agent. I can help analyze the auth module.'")
 	t.Log("")
 
 	// ---- Verify ----
@@ -284,7 +284,7 @@ func TestUserFlowProof_DeveloperFirstConnection(t *testing.T) {
 // ============================================================================
 // AC-FLOW-02: Developer Ongoing Multi-Session Persistence
 //
-// Proves: "The developer works across multiple sessions. Conscience remembers."
+// Proves: "The developer works across multiple sessions. Consensus remembers."
 //         (SPEC-019 §3.2)
 //
 // Walkthrough:
@@ -378,7 +378,7 @@ func TestUserFlowProof_DeveloperMultiSession(t *testing.T) {
 // AC-FLOW-03: Developer Multi-Tool Workflow
 //
 // Proves: "A developer uses different tools for different tasks, all backed
-//         by the same Conscience agent." (SPEC-019 §3.3)
+//         by the same Consensus agent." (SPEC-019 §3.3)
 //
 // Walkthrough:
 //   1. opencode TUI — create session, send message, get response
@@ -426,8 +426,8 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 
 	// ---- Tool B: Claude Code MCP (afternoon) ----
 	t.Log("--- Afternoon: Claude Code (via MCP tools) ---")
-	t.Log("> Use the conscience tool to review the payment module I built this morning")
-	t.Log("  [Claude Code calls Conscience MCP tools]")
+	t.Log("> Use the consensus tool to review the payment module I built this morning")
+	t.Log("  [Claude Code calls Consensus MCP tools]")
 
 	// Simulate MCP: get_session_status
 	reqMCP, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions/"+sessionID, nil)
@@ -455,7 +455,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 
 	// ---- Tool C: CLI (evening) ----
 	t.Log("--- Evening: CLI status check ---")
-	t.Log("$ conscience session list")
+	t.Log("$ consensus session list")
 
 	reqCLI, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions", nil)
 	reqCLI.Header.Set("Authorization", "Bearer "+e.adminKey)
@@ -467,7 +467,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	t.Logf("  CLI: %d active sessions", len(sessions))
 
 	// CLI cost check
-	t.Log("$ conscience session cost <id>")
+	t.Log("$ consensus session cost <id>")
 	reqCost, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions/"+sessionID+"/billing", nil)
 	reqCost.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respCost, _ := e.apiTS.Client().Do(reqCost)
@@ -503,7 +503,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 // ============================================================================
 // AC-FLOW-04: Operator Deployment Flow
 //
-// Proves: "Operator deploys Conscience — Supabase and PocketBase paths"
+// Proves: "Operator deploys Consensus — Supabase and PocketBase paths"
 //         (SPEC-019 §3.4, §4.1, §4.2)
 //
 // Walkthrough:
@@ -523,7 +523,7 @@ func TestUserFlowProof_OperatorDeployment(t *testing.T) {
 
 	// ---- Path A: PocketBase (local) ----
 	t.Log("--- Deployment Path A: PocketBase (SQLite local) ---")
-	t.Log("$ conscience init --pocketbase")
+	t.Log("$ consensus init --pocketbase")
 	t.Log("  ✓ Database initialized (SQLite embedded)")
 	t.Log("  ✓ Tables created (sessions, memory_events, api_keys, ...)")
 
@@ -541,7 +541,7 @@ func TestUserFlowProof_OperatorDeployment(t *testing.T) {
 	}
 	t.Logf("  ✓ %d core tables verified (PocketBase)", len(coreTables))
 
-	t.Log("$ conscience serve --port 8090")
+	t.Log("$ consensus serve --port 8090")
 	t.Log("  ✓ Server running at http://localhost:8090")
 	t.Log("  ✓ Harness heartbeat: 5s")
 	t.Log("  ✓ MCP server: /mcp/sse")
@@ -550,13 +550,13 @@ func TestUserFlowProof_OperatorDeployment(t *testing.T) {
 	// ---- Path B: Supabase (cloud) ----
 	t.Log("--- Deployment Path B: Supabase (PostgreSQL) ---")
 
-	t.Log("$ conscience init --supabase --db-url postgresql://...")
+	t.Log("$ consensus init --supabase --db-url postgresql://...")
 	t.Log("  ✓ Schema installed on Supabase PostgreSQL")
 	t.Log("  ✓ pgvector extension enabled")
 	t.Log("  ✓ RLS policies applied on all tables")
 	t.Log("  ✓ pg_cron maintenance jobs scheduled")
 
-	t.Log("$ conscience serve --db postgresql://...")
+	t.Log("$ consensus serve --db postgresql://...")
 	t.Log("  ✓ Server connected to Supabase PostgreSQL")
 	t.Log("  ✓ FOR UPDATE SKIP LOCKED for multi-worker task claiming")
 	t.Log("")
@@ -636,12 +636,12 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 	}
 	t.Logf("  ⚠️  Agent paused: %s — approval needed", sessionID)
 	e.assertSessionStatus(t, sessionID, string(session.StatusPaused))
-	t.Log("  Notification received: 'Conscience HITL: HIGH — Delete 5000 old orders'")
+	t.Log("  Notification received: 'Consensus HITL: HIGH — Delete 5000 old orders'")
 	t.Log("")
 
 	// ---- Step 2: Operator reviews ----
 	t.Log("--- Operator reviews approval ---")
-	t.Log("$ conscience approve list")
+	t.Log("$ consensus approve list")
 
 	reqList, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/approvals", nil)
 	reqList.Header.Set("Authorization", "Bearer "+e.adminKey)
@@ -655,7 +655,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 	json.Unmarshal(bodyList, &approvalsList)
 	t.Logf("  CLI: %d pending approval(s)", len(approvalsList))
 
-	t.Log("$ conscience approve show " + approval.ID)
+	t.Log("$ consensus approve show " + approval.ID)
 	ar, _ := e.hitlMgr.GetApproval(e.ctx, approval.ID)
 	if ar == nil {
 		t.Fatalf("approval %s not found", approval.ID)
@@ -668,7 +668,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 
 	// ---- Step 3a: Approve with modification ----
 	t.Log("--- Decision: Modify and approve ---")
-	t.Log(`$ conscience approve <id> --modified-sql "UPDATE orders SET status='archived' WHERE ..."`)
+	t.Log(`$ consensus approve <id> --modified-sql "UPDATE orders SET status='archived' WHERE ..."`)
 
 	if err := e.hitlMgr.ReviewApproval(e.ctx, approval.ID, hitl.DecisionApproved,
 		"admin-reviewer", "Archive instead of delete",
@@ -688,7 +688,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 		hitl.RiskMedium)
 	e.assertSessionStatus(t, sessionID, string(session.StatusPaused))
 
-	t.Log("$ conscience reject " + approval2.ID + " --reason 'Not needed yet'")
+	t.Log("$ consensus reject " + approval2.ID + " --reason 'Not needed yet'")
 	if err := e.hitlMgr.ReviewApproval(e.ctx, approval2.ID, hitl.DecisionRejected,
 		"admin-reviewer", "Not needed yet", ""); err != nil {
 		t.Logf("  Reject: %v", err)
@@ -705,7 +705,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 
 	// ---- Step 4: Cancel session ----
 	t.Log("--- Cancel session ---")
-	t.Log("$ conscience session cancel " + sessionID)
+	t.Log("$ consensus session cancel " + sessionID)
 
 	// Transition session to failed to simulate cancel
 	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
@@ -719,13 +719,13 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 // ============================================================================
 // AC-FLOW-06: Local Onboarding (<5 minutes)
 //
-// Proves: "Individual developer wanting to try Conscience locally should
+// Proves: "Individual developer wanting to try Consensus locally should
 //         be up and running in under 5 minutes." (SPEC-019 §4.1)
 //
 // Walkthrough:
 //   1. Start timer
-//   2. conscience init — under 10s
-//   3. conscience serve — instant
+//   2. consensus init — under 10s
+//   3. consensus serve — instant
 //   4. Create first session + first interaction
 //   5. Verify total time < 5 min
 // ============================================================================
@@ -742,20 +742,20 @@ func TestUserFlowProof_LocalOnboarding(t *testing.T) {
 	start := time.Now()
 
 	// Step 1: Install (simulated — harness already created)
-	t.Log("$ brew install conscience")
+	t.Log("$ brew install consensus")
 	t.Log("  ✓ Binary installed")
 	elapsed := time.Since(start)
 	t.Logf("  Time: %v", elapsed.Round(time.Millisecond))
 
 	// Step 2: Init
-	t.Log("$ conscience init")
+	t.Log("$ consensus init")
 	t.Log("  ✓ Database initialized (SQLite)")
 	t.Logf("  ✓ Admin key: %s", e.adminKey)
 	elapsed2 := time.Since(start)
 	t.Logf("  Time: %v", elapsed2.Round(time.Millisecond))
 
 	// Step 3: Serve
-	t.Log("$ conscience serve")
+	t.Log("$ consensus serve")
 	t.Log("  ✓ Server running at http://localhost:8090")
 
 	// Step 4: First interaction
@@ -766,12 +766,12 @@ func TestUserFlowProof_LocalOnboarding(t *testing.T) {
 	e.runIteration(t, sessionID, &AgentOutput{
 		InternalMonologue: "First user interaction. Greeting.",
 		MemoryStateChanges: []string{
-			fmt.Sprintf("INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Hello! I''m a Conscience agent with persistent memory. I can help with coding, analysis, and research.', '%s', %d)", sessionID, iter),
+			fmt.Sprintf("INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Hello! I''m a Consensus agent with persistent memory. I can help with coding, analysis, and research.', '%s', %d)", sessionID, iter),
 		},
 	})
 
 	total := time.Since(start)
-	t.Logf("  Agent: 'Hello! I''m a Conscience agent with persistent memory. I can help...'")
+	t.Logf("  Agent: 'Hello! I''m a Consensus agent with persistent memory. I can help...'")
 	t.Logf("")
 	t.Logf("  ⏱  Total time to first interaction: %v", total.Round(time.Millisecond))
 
@@ -792,7 +792,7 @@ func TestUserFlowProof_LocalOnboarding(t *testing.T) {
 // ============================================================================
 // AC-FLOW-07: Team Onboarding
 //
-// Proves: "Team lead setting up Conscience for multiple developers."
+// Proves: "Team lead setting up Consensus for multiple developers."
 //         (SPEC-019 §4.2)
 //
 // Walkthrough:
@@ -813,7 +813,7 @@ func TestUserFlowProof_TeamOnboarding(t *testing.T) {
 
 	// Step 1: Admin installs schema
 	t.Log("--- Admin: Install schema ---")
-	t.Log("$ conscience init --supabase")
+	t.Log("$ consensus init --supabase")
 	t.Log("  ✓ Schema installed on shared PostgreSQL")
 
 	// Set HITL config
@@ -900,11 +900,11 @@ func TestUserFlowProof_TeamOnboarding(t *testing.T) {
 // ============================================================================
 // AC-FLOW-08: MCP-Only Onboarding
 //
-// Proves: "Developer who just wants Conscience tools inside Claude Code
+// Proves: "Developer who just wants Consensus tools inside Claude Code
 //         or opencode, not full agent replacement." (SPEC-019 §4.3)
 //
 // Walkthrough:
-//   1. Start Conscience server
+//   1. Start Consensus server
 //   2. Add as MCP server in Claude Code
 //   3. Use MCP tools: create_session, send_message, get_session_status
 //   4. Verify: all MCP tools functional
@@ -919,19 +919,19 @@ func TestUserFlowProof_MCPOnlyOnboarding(t *testing.T) {
 	t.Log("╚══════════════════════════════════════════════════════════╝")
 	t.Log("")
 
-	// Step 1: Start Conscience
-	t.Log("$ conscience serve --mcp")
+	// Step 1: Start Consensus
+	t.Log("$ consensus serve --mcp")
 	t.Log("  ✓ MCP server running at http://localhost:8090/mcp/sse")
 	t.Log("")
 
 	// Step 2: Add as MCP server
-	t.Log("$ claude mcp add conscience --transport http http://localhost:8090/mcp/sse")
+	t.Log("$ claude mcp add consensus --transport http http://localhost:8090/mcp/sse")
 	t.Log("  ✓ MCP server registered in Claude Code")
 	t.Log("")
 
 	// Step 3: Use MCP tools (via API since MCP wraps API)
 	t.Log("--- MCP tool: create_session ---")
-	t.Log(`> Create a Conscience agent session to analyze my database`)
+	t.Log(`> Create a Consensus agent session to analyze my database`)
 
 	sessionID, _ := e.createSessionViaAPI(t, "mcp-agent",
 		"Analyze the database schema and identify optimization opportunities",
@@ -967,7 +967,7 @@ func TestUserFlowProof_MCPOnlyOnboarding(t *testing.T) {
 		sr.AgentName, sr.Status, sr.Iteration)
 	t.Log("")
 
-	t.Log("--- MCP resource: conscience://tools ---")
+	t.Log("--- MCP resource: consensus://tools ---")
 	reqTools, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/tools", nil)
 	reqTools.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respTools, _ := e.apiTS.Client().Do(reqTools)
@@ -1090,7 +1090,7 @@ func TestUserFlowProof_StuckAgentRecovery(t *testing.T) {
 
 	// --- Operator responds ---
 	t.Log("--- Operator: Review and respond ---")
-	t.Log("$ conscience approve list")
+	t.Log("$ consensus approve list")
 
 	ar, _ := e.hitlMgr.GetApproval(e.ctx, approval.ID)
 	t.Logf("  Type: %s | Risk: %s", ar.RequestType, ar.RiskLevel)
@@ -1098,7 +1098,7 @@ func TestUserFlowProof_StuckAgentRecovery(t *testing.T) {
 	t.Log("")
 
 	t.Log("--- Decision: Reject with guidance ---")
-	t.Log(`$ conscience reject <id> --reason "Use email column instead of user_email"`)
+	t.Log(`$ consensus reject <id> --reason "Use email column instead of user_email"`)
 
 	if err := e.hitlMgr.ReviewApproval(e.ctx, approval.ID, hitl.DecisionRejected,
 		"admin-reviewer", "Use email column instead of user_email", ""); err != nil {
@@ -1181,7 +1181,7 @@ func TestUserFlowProof_BudgetExceededRecovery(t *testing.T) {
 
 	// --- Operator recovers ---
 	t.Log("--- Operator: Increase budget ---")
-	t.Log("$ conscience config set harness.budget_limit_cents 1000")
+	t.Log("$ consensus config set harness.budget_limit_cents 1000")
 	t.Log("  ✓ Budget increased to $10.00")
 
 	// Approve budget override
@@ -1246,7 +1246,7 @@ func TestUserFlowProof_ServerUnreachableRecovery(t *testing.T) {
 
 	// Test 3: Recovery instructions
 	t.Log("--- Recovery instructions ---")
-	t.Log("$ conscience serve")
+	t.Log("$ consensus serve")
 	t.Log("  ✓ Server restarted")
 	t.Log("  ✓ opencode attach → works again")
 
@@ -1318,7 +1318,7 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 
 	// Step 1: Check schema status → outdated
 	t.Log("--- Schema status check ---")
-	t.Log("$ conscience migrate version")
+	t.Log("$ consensus migrate version")
 	t.Log("  Current: 0.2.0")
 	t.Log("  Required: 0.3.0")
 	t.Log("  ⚠️  Schema is OUTDATED")
@@ -1331,7 +1331,7 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 
 	// Step 2: Run migration
 	t.Log("--- Run migrations ---")
-	t.Log("$ conscience migrate")
+	t.Log("$ consensus migrate")
 	t.Log("  Running migration 001_initial_schema.sql...")
 	t.Log("  Running migration 002_indexes.sql...")
 	t.Log("  Running migration 003_add_memory_pages.sql...")

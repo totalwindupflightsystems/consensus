@@ -9,7 +9,7 @@
 | AC1: No mock fallback | Inspect `main.go` lines 111-114 — error must be fatal |
 | AC2: Real Anthropic client | `go build ./...`, inspect `internal/llm/anthropic_client.go` |
 | AC3: OpenAI `json_schema` strict mode | Inspect request payload in `openai_client.go` |
-| AC4: `CONSCIENCE_MOCK_LLM=1` opt-in | Run tests that set env var and check mock returned |
+| AC4: `CONSENSUS_MOCK_LLM=1` opt-in | Run tests that set env var and check mock returned |
 | AC5: Anthropic cache_control | Inspect request payload for `cache_control` on system messages |
 | AC6: All tests pass | `go test ./...` |
 
@@ -17,7 +17,7 @@
 
 ### Phase 1: Fail Fast + Mock Opt-In
 1. Remove mock fallback in `main.go` — return error instead
-2. Add `CONSCIENCE_MOCK_LLM=1` env var check in `NewClient()` factory
+2. Add `CONSENSUS_MOCK_LLM=1` env var check in `NewClient()` factory
 3. Update tests that depend on mock behavior
 
 ### Phase 2: Anthropic HTTP Client

@@ -1,4 +1,4 @@
-// Package dynamic implements runtime dynamic entity management for Conscience.
+// Package dynamic implements runtime dynamic entity management for Consensus.
 //
 // Agents need to create domain-specific data structures at runtime (e.g.,
 // order_tracking, bug_reports). This package provides the Go-level equivalent
@@ -32,8 +32,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/jsonschema"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/jsonschema"
 )
 
 // ============================================================================

@@ -31,7 +31,7 @@ All 27 packages pass — zero failures, zero regressions.
 
 ## Changes Made
 - **internal/api/server.go**: Added `AdminRate`, `SessionRate`, `ReadonlyRate`, `WebhookRate` to `ServerConfig`; added `apiRates` map to `Server`; added `resolveRates()` helper; added `scopeRateLimit()` method; modified `checkRateLimit(ctx, prefix, scope)` to accept scope parameter and use scope-specific limits; moved scope extraction before rate limit check in authMiddleware
-- **cmd/conscience/main.go**: Wired `cfg.APIRate` fields into `api.ServerConfig`
+- **cmd/consensus/main.go**: Wired `cfg.APIRate` fields into `api.ServerConfig`
 - **internal/api/server_test.go**: Added 10 comprehensive scope-aware rate limit tests
 
-axiom:trace work_item=api-rate-limit-scope-01 spec=specs/015-api-and-mcp.md impl=internal/api/server.go,cmd/conscience/main.go test=internal/api/server_test.go evidence=.memory-bank/work-items/api-rate-limit-scope-01/verification.md
+axiom:trace work_item=api-rate-limit-scope-01 spec=specs/015-api-and-mcp.md impl=internal/api/server.go,cmd/consensus/main.go test=internal/api/server_test.go evidence=.memory-bank/work-items/api-rate-limit-scope-01/verification.md

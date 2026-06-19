@@ -1,7 +1,7 @@
 # real-llm-integration-tests-01: Real LLM Integration Tests
 
 ## Goal
-Add integration tests that prove Conscience works end-to-end with a real LLM (LM Studio's qwen/qwen3.6-35b-a3b). Currently all 1,028 tests mock the LLM — the core consciousness loop (LLM → JSON → SQL → commit) has never been verified with a real model in the test suite.
+Add integration tests that prove Consensus works end-to-end with a real LLM (LM Studio's qwen/qwen3.6-35b-a3b). Currently all 1,028 tests mock the LLM — the core consciousness loop (LLM → JSON → SQL → commit) has never been verified with a real model in the test suite.
 
 ## Plan
 
@@ -15,7 +15,7 @@ func TestRealLLMIntegration(t *testing.T) {
         t.Skip("skipping real LLM integration test in short mode")
     }
     
-    // 1. Compile and start conscience binary on random port
+    // 1. Compile and start consensus binary on random port
     // 2. Hit /health until ready
     // 3. Create session via POST /api/v1/sessions
     // 4. Send message via POST /api/v1/sessions/{id}/message  

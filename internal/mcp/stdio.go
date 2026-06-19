@@ -1,4 +1,4 @@
-// Package mcp implements the Model Context Protocol (MCP) server for Conscience.
+// Package mcp implements the Model Context Protocol (MCP) server for Consensus.
 //
 // This file implements the stdio transport for MCP (SPEC-015 §5.4).
 // Unlike the SSE transport (which uses HTTP for both directions), stdio transport

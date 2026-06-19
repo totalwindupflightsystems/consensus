@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/hitl"
+	"github.com/wojons/consensus/internal/hitl"
 )
 
 // ============================================================================

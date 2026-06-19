@@ -1,4 +1,4 @@
-// Package api implements the REST API handlers for Conscience (SPEC-015).
+// Package api implements the REST API handlers for Consensus (SPEC-015).
 //
 // The API layer is a thin HTTP interface to the same database the agent
 // harness reads from. There is no separate API state — the database is the
@@ -22,9 +22,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/hitl"
-	"github.com/wojons/conscientiousness/internal/quarantine"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/quarantine"
 )
 
 // ============================================================================

@@ -39,7 +39,7 @@ const MaxOutputBytes = 1 * 1024 * 1024 // 1MB
 const MaxConcurrentExecutions = 10
 
 // AllowedEnvPrefixes are the environment variable prefixes allowed in the sandbox.
-var AllowedEnvPrefixes = []string{"CONSCIENCE_", "HOME", "PATH", "USER"}
+var AllowedEnvPrefixes = []string{"CONSENSUS_", "HOME", "PATH", "USER"}
 
 // ============================================================================
 // Types
@@ -56,12 +56,12 @@ type ExternalToolConfig struct {
 	MaxOutputBytes int
 
 	// NoNetwork restricts network access for the tool.
-	// When true, CONSCIENCE_TOOL_NETWORK=none is set in the subprocess env,
+	// When true, CONSENSUS_TOOL_NETWORK=none is set in the subprocess env,
 	// and tools that need network should self-enforce this.
 	NoNetwork bool
 
 	// AllowedEnv is the list of environment variable names or prefixes
-	// that are forwarded to the subprocess. Default: CONSCIENCE_*, HOME, PATH, USER.
+	// that are forwarded to the subprocess. Default: CONSENSUS_*, HOME, PATH, USER.
 	AllowedEnv []string
 
 	// ExecutableOverride overrides the executable to run.
@@ -120,7 +120,7 @@ func ActiveExecutionCount() int64 {
 
 // createTempWorkDir creates a temporary directory for tool execution.
 func createTempWorkDir(toolName string) (string, func(), error) {
-	dir, err := os.MkdirTemp("", fmt.Sprintf("conscience-tool-%s-*", sanitizeName(toolName)))
+	dir, err := os.MkdirTemp("", fmt.Sprintf("consensus-tool-%s-*", sanitizeName(toolName)))
 	if err != nil {
 		return "", nil, fmt.Errorf("sandbox: create temp dir: %w", err)
 	}
@@ -158,10 +158,10 @@ func buildSandboxEnv(cfg ExternalToolConfig) []string {
 		}
 	}
 
-	// Add CONSCIENCE_TOOL_NETWORK=none if network is disabled
+	// Add CONSENSUS_TOOL_NETWORK=none if network is disabled
 	var env []string
 	if cfg.NoNetwork {
-		env = append(env, "CONSCIENCE_TOOL_NETWORK=none")
+		env = append(env, "CONSENSUS_TOOL_NETWORK=none")
 	}
 
 	// Forward matching env vars from the parent process

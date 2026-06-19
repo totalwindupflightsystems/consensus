@@ -23,8 +23,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/memory"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/memory"
 )
 
 // ============================================================================
@@ -237,7 +237,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 		}
 	}()
 
-	// Set RLS session context (Postgres: SET LOCAL conscience.session_id;
+	// Set RLS session context (Postgres: SET LOCAL consensus.session_id;
 	// SQLite: stores session ID for Go-layer enforcement)
 	if err := tx.SetSessionContext(ctx, sessionID); err != nil {
 		return nil, fmt.Errorf("read context: set session context: %w", err)
@@ -330,7 +330,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 func (h *Harness) formatSystemPrompt(ic *IterationContext, tools []ToolInfo) string {
 	var sb strings.Builder
 
-	sb.WriteString("You are a Conscience agent. You run inside a database-native runtime.\n")
+	sb.WriteString("You are a Consensus agent. You run inside a database-native runtime.\n")
 	sb.WriteString("Your goal is: ")
 	sb.WriteString(ic.Goal)
 	sb.WriteString("\n\n")
@@ -608,7 +608,7 @@ func (h *Harness) readTools(ctx context.Context) ([]ToolInfo, error) {
 //   - Page resolution (direct + linked page expansion, SPEC-002 §5.2)
 //   - Display mode rendering (CASE: compressed→summary, hidden→NULL)
 //   - Cache tier ordering column (SPEC-003 §6.2)
-//   - RLS isolation via SET LOCAL conscience.session_id
+//   - RLS isolation via SET LOCAL consensus.session_id
 func (h *Harness) readMemoriesFromView(ctx context.Context, tx db.Tx, sessionID string) ([]MemoryEventInfo, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT id, session_id, iteration_created, type,

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 // ============================================================================

@@ -1,5 +1,5 @@
 // axiom:trace work_item=interfaces-api-cli-01,full-platform-audit spec=specs/015-api-and-mcp.md plan=phase-3 impl=internal/mcp/resources.go
-// axiom:trace work_item=make-conscience-fully-operational-end-to spec=specs/015-api-and-mcp.md plan=phase-3/task-3-2/step-3-2-1 impl=internal/mcp/resources.go
+// axiom:trace work_item=make-consensus-fully-operational-end-to spec=specs/015-api-and-mcp.md plan=phase-3/task-3-2/step-3-2-1 impl=internal/mcp/resources.go
 package mcp
 
 import (
@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -18,13 +18,13 @@ import (
 func (s *Server) handleResourcesList(sess *mcpSession) (any, *JSONRPCErrObj) {
 	resources := []MCPResourceDefinition{
 		{
-			URI:         "conscience://sessions",
+			URI:         "consensus://sessions",
 			Name:        "sessions",
 			Description: "Active agent sessions",
 			MimeType:    "application/json",
 		},
 		{
-			URI:         "conscience://tools",
+			URI:         "consensus://tools",
 			Name:        "tools_registry",
 			Description: "Available tools and skills",
 			MimeType:    "application/json",
@@ -38,7 +38,7 @@ func (s *Server) handleResourcesList(sess *mcpSession) (any, *JSONRPCErrObj) {
 func (s *Server) handleResourceTemplates(sess *mcpSession) (any, *JSONRPCErrObj) {
 	templates := []MCPResourceTemplate{
 		{
-			URITemplate: "conscience://sessions/{session_id}/context",
+			URITemplate: "consensus://sessions/{session_id}/context",
 			Name:        "session_context",
 			Description: "Active context view for a session",
 			MimeType:    "application/json",
@@ -66,9 +66,9 @@ func (s *Server) handleResourcesRead(req *JSONRPCRequest, sess *mcpSession) (any
 	var rpcErr *JSONRPCErrObj
 
 	switch {
-	case read.URI == "conscience://sessions":
+	case read.URI == "consensus://sessions":
 		result, rpcErr = s.readSessionsResource(ctx, sess)
-	case read.URI == "conscience://tools":
+	case read.URI == "consensus://tools":
 		result, rpcErr = s.readToolsResource(ctx, sess)
 	case matchSessionContext(read.URI):
 		sessionID := extractSessionIDFromURI(read.URI)
@@ -123,7 +123,7 @@ func (s *Server) readSessionsResource(ctx context.Context, sess *mcpSession) (an
 	content, _ := json.MarshalIndent(sessions, "", "  ")
 	return MCPReadResourceResult{
 		Contents: []MCPResourceContent{{
-			URI:      "conscience://sessions",
+			URI:      "consensus://sessions",
 			MimeType: "application/json",
 			Text:     string(content),
 		}},
@@ -153,7 +153,7 @@ func (s *Server) readToolsResource(ctx context.Context, sess *mcpSession) (any, 
 	content, _ := json.MarshalIndent(tools, "", "  ")
 	return MCPReadResourceResult{
 		Contents: []MCPResourceContent{{
-			URI:      "conscience://tools",
+			URI:      "consensus://tools",
 			MimeType: "application/json",
 			Text:     string(content),
 		}},
@@ -189,7 +189,7 @@ func (s *Server) readSessionContextResource(ctx context.Context, sess *mcpSessio
 	content, _ := json.MarshalIndent(events, "", "  ")
 	return MCPReadResourceResult{
 		Contents: []MCPResourceContent{{
-			URI:      "conscience://sessions/" + sessionID + "/context",
+			URI:      "consensus://sessions/" + sessionID + "/context",
 			MimeType: "application/json",
 			Text:     string(content),
 		}},
@@ -291,7 +291,7 @@ func (s *Server) handlePromptsGet(req *JSONRPCRequest, sess *mcpSession) (any, *
 
 // matchSessionContext checks if a URI targets a session-specific context resource.
 func matchSessionContext(uri string) bool {
-	const prefix = "conscience://sessions/"
+	const prefix = "consensus://sessions/"
 	const suffix = "/context"
 	return len(uri) > len(prefix)+len(suffix) &&
 		uri[:len(prefix)] == prefix &&
@@ -299,8 +299,8 @@ func matchSessionContext(uri string) bool {
 }
 
 func extractSessionIDFromURI(uri string) string {
-	// conscience://sessions/{session_id}/context
-	const prefix = "conscience://sessions/"
+	// consensus://sessions/{session_id}/context
+	const prefix = "consensus://sessions/"
 	const suffix = "/context"
 	return uri[len(prefix) : len(uri)-len(suffix)]
 }

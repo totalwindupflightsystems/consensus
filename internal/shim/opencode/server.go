@@ -1,6 +1,6 @@
 // Package opencode implements the opencode server protocol shim (SPEC-017).
 //
-// The shim translates opencode's HTTP protocol into Conscience's native REST API.
+// The shim translates opencode's HTTP protocol into Consensus's native REST API.
 // It runs in-process alongside the harness, using the same database connection.
 //
 // axiom:trace work_item=interfaces-api-cli-01 spec=specs/017-ui-adapter-layer.md plan=phase-6/task-6-1/step-6-1-1 impl=internal/shim/opencode/server.go
@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -40,7 +40,7 @@ type EventBus interface {
 }
 
 // Server is the opencode protocol shim that translates opencode HTTP requests
-// to Conscience native API calls.
+// to Consensus native API calls.
 //
 // SPEC-017 §2: "The opencode shim does NOT bypass the native API. It calls it."
 // The shim uses the api.Service layer — the same business logic the REST API uses.
@@ -284,12 +284,12 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 func (s *Server) handleGlobalHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"healthy": true,
-		"version": "conscience-0.1.0",
+		"version": "consensus-0.1.0",
 	})
 }
 
 func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
-	// SSE event stream — maps Conscience events to opencode event types
+	// SSE event stream — maps Consensus events to opencode event types
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
@@ -353,7 +353,7 @@ func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// translateConscienceEvent converts a native Conscience event into an opencode-format event.
+// translateConscienceEvent converts a native Consensus event into an opencode-format event.
 func (s *Server) translateConscienceEvent(sessionID, eventType string, data any) map[string]any {
 	switch eventType {
 	case "session_update":
@@ -537,7 +537,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Translate: opencode "title" → Conscience "agent_name"
+	// Translate: opencode "title" → Consensus "agent_name"
 	agentName := req.Title
 	if agentName == "" {
 		agentName = "opencode-agent"
@@ -679,7 +679,7 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		switch sub {
 		case "prompt_async", "shell", "command", "share", "summarize", "init", "fork", "revert":
 			writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
-				fmt.Sprintf("endpoint %q is opencode-specific, not supported by Conscience shim", sub))
+				fmt.Sprintf("endpoint %q is opencode-specific, not supported by Consensus shim", sub))
 		default:
 			writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
 		}
@@ -774,7 +774,7 @@ func (s *Server) patchSession(w http.ResponseWriter, r *http.Request, sessionID 
 	}
 	if req.Status != "" {
 		status := req.Status
-		// Map opencode status → Conscience status
+		// Map opencode status → Consensus status
 		switch status {
 		case "pause", "paused":
 			status = "paused"
@@ -909,7 +909,7 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 		name = "VCS"
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
-		fmt.Sprintf("%s is opencode-specific, not supported by Conscience shim; use native tool API", name))
+		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))
 }
 
 // ============================================================================
@@ -1128,7 +1128,7 @@ func (s *Server) handleProvider(w http.ResponseWriter, r *http.Request) {
 	if err != nil || row == nil {
 		// Fallback if no models registered
 		writeJSON(w, map[string]any{
-			"provider":  "conscience",
+			"provider":  "consensus",
 			"version":   "0.1.0",
 			"model":     "gpt-4o",
 			"maxTokens": 128000,
@@ -1136,7 +1136,7 @@ func (s *Server) handleProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{
-		"provider":  "conscience",
+		"provider":  "consensus",
 		"version":   "0.1.0",
 		"model":     toString(row["model_id"]),
 		"maxTokens": toInt64(row["max_context"]),
@@ -1150,7 +1150,7 @@ func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	// Return available agent types
 	writeJSON(w, []map[string]any{
-		{"name": "default", "description": "Default Conscience agent"},
+		{"name": "default", "description": "Default Consensus agent"},
 		{"name": "researcher", "description": "Research-focused agent"},
 		{"name": "coder", "description": "Code-focused agent"},
 		{"name": "analyst", "description": "Data analysis agent"},
@@ -1363,7 +1363,7 @@ func (s *Server) handlePermissions(w http.ResponseWriter, r *http.Request) {
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
 		return
 	}
-	// Translate: opencode permission list → Conscience approval_requests
+	// Translate: opencode permission list → Consensus approval_requests
 	ctx := r.Context()
 	sessionID := r.URL.Query().Get("session_id")
 
@@ -1469,7 +1469,7 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 	ctx := r.Context()
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Translate: opencode permission resolution → Conscience approval review
+	// Translate: opencode permission resolution → Consensus approval review
 	// SPEC-017 §3.7: Maps to POST /api/v1/approvals/:id/review
 	// HARDEN-SHIM-10: Emit event on resolution for SSE subscribers
 	err := s.db.Exec(ctx,
@@ -1528,7 +1528,7 @@ func (s *Server) handleLSP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"enabled": false,
 		"status":  "unavailable",
-		"message": "LSP integration is not yet available in Conscience shim",
+		"message": "LSP integration is not yet available in Consensus shim",
 	})
 }
 
@@ -1546,7 +1546,7 @@ const swaggerUIPage = `<!DOCTYPE html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Conscience — opencode Shim API</title>
+  <title>Consensus — opencode Shim API</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>body{margin:0;background:#fafafa;}.topbar{display:none;}</style>
 </head>
@@ -1561,8 +1561,8 @@ const swaggerUIPage = `<!DOCTYPE html>
         layout: "StandaloneLayout",
         spec: {
           openapi: "3.1.0",
-          info: { title: "Conscience opencode Shim", version: "0.1.0",
-            description: "opencode server protocol shim for Conscience agent runtime." },
+          info: { title: "Consensus opencode Shim", version: "0.1.0",
+            description: "opencode server protocol shim for Consensus agent runtime." },
           servers: [{ url: "http://localhost:8090", description: "Shim server" }],
           tags: [
             { name: "Global", description: "Health check and event stream" },

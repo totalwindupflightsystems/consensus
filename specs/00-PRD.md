@@ -1,4 +1,4 @@
-# PRD — Conscience: Database-Native Cognitive Architecture
+# PRD — Consensus: Database-Native Cognitive Architecture
 
 ## Problem
 - **AI agents today run on Bash/file-system execution layers** — they manage state in files, permissions in sandboxes, and memory in monolithic prompt strings. The non-deterministic nature of LLMs combined with non-deterministic execution environments produces corrupted state, lost context, and fragile error recovery.

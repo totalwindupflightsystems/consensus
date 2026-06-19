@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/tools"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/tools"
 )
 
 // ============================================================================

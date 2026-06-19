@@ -415,7 +415,7 @@ func TestExecuteTool_EnqueueExternal(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('sess-ext', 'test', 'gpt-4o', 'idle', 'Enqueue test', $1, $1)`, now)
-	_ = srv.conn.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, status, enabled) VALUES ('tool-ext', 'external_scraper', 'Scrape URLs', 'external', 'http_endpoint', 'https://scraper.conscience', 'active', 1)`)
+	_ = srv.conn.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, status, enabled) VALUES ('tool-ext', 'external_scraper', 'Scrape URLs', 'external', 'http_endpoint', 'https://scraper.consensus', 'active', 1)`)
 
 	body := `{"session_id":"sess-ext","parameters":{"url":"https://example.com"}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tools/external_scraper/execute", strings.NewReader(body))

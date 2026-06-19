@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-This spec defines how the Conscience repository is organized, which Go packages exist, what lives where, and how spec sections map to implementation packages. The goal: a developer can read this file and know exactly where to find or add code.
+This spec defines how the Consensus repository is organized, which Go packages exist, what lives where, and how spec sections map to implementation packages. The goal: a developer can read this file and know exactly where to find or add code.
 
 ---
 
@@ -17,7 +17,7 @@ This spec defines how the Conscience repository is organized, which Go packages 
 ```
 conscientiousness/
 ├── cmd/
-│   └── conscience/           # Main binary entry point
+│   └── consensus/           # Main binary entry point
 │       └── main.go
 ├── internal/                 # Private application packages
 │   ├── harness/              # Agent iteration loop (SPEC-008, SPEC-020)
@@ -66,7 +66,7 @@ conscientiousness/
 ├── go.sum
 ├── Makefile                  # Build, test, lint targets
 ├── Dockerfile                # Multi-stage build for container deployment
-├── conscience.yaml           # Default configuration file
+├── consensus.yaml           # Default configuration file
 └── README.md
 ```
 
@@ -74,7 +74,7 @@ conscientiousness/
 
 ## 3. Package Details
 
-### 3.1 `cmd/conscience/` — Binary Entry Point
+### 3.1 `cmd/consensus/` — Binary Entry Point
 
 Minimal. Parses config, initializes logger, starts server.
 
@@ -109,7 +109,7 @@ type Tx interface {
 }
 ```
 
-Postgres implementation wraps `pgx/v5` with `SET LOCAL conscience.session_id` on `SetSessionContext`.
+Postgres implementation wraps `pgx/v5` with `SET LOCAL consensus.session_id` on `SetSessionContext`.
 SQLite implementation wraps `modernc.org/sqlite` with Go-layer session injection on `SetSessionContext`.
 
 | File | Purpose |
@@ -168,7 +168,7 @@ Model Context Protocol server from SPEC-015 §5.
 | `server.go` | MCP protocol handler, JSON-RPC dispatch, SSE transport |
 | `server_test.go` | MCP server tests |
 | `tools.go` | `tools/list` and `tools/call` — create_session, send_message, get_session_status, list_memory, review_approval, query_tool |
-| `resources.go` | Resource handlers (`conscience://sessions/*`, `conscience://tools`), prompts handlers |
+| `resources.go` | Resource handlers (`consensus://sessions/*`, `consensus://tools`), prompts handlers |
 | `auth.go` | MCP authentication (API key validation), auth helpers, shared type converters |
 | `auth_test.go` | MCP auth tests |
 | `stdio.go` | MCP stdio transport (JSON-RPC 2.0 over stdin/stdout) |
@@ -270,7 +270,7 @@ Abstraction over OpenAI and Anthropic APIs. Uses raw HTTP for both providers —
 
 ### 3.16 `internal/shim/opencode/` — opencode Protocol Shim
 
-Implements SPEC-017. Translates opencode server protocol requests to native Conscience API calls.
+Implements SPEC-017. Translates opencode server protocol requests to native Consensus API calls.
 
 | File | Purpose |
 |---|---|
@@ -285,16 +285,16 @@ Implements SPEC-016 using Cobra.
 | File | Purpose |
 |---|---|
 | `root.go` | Root command, global flags |
-| `serve.go` | `conscience serve` |
-| `init.go` | `conscience init` |
-| `session.go` | `conscience session` (list, create, cancel) |
-| `approve.go` | `conscience approve` |
-| `migrate.go` | `conscience migrate` (up, down, status) |
-| `config.go` | `conscience config` (get, set) |
-| `status.go` | `conscience status` |
-| `memory.go` | `conscience memory` (list, search) |
-| `tool.go` | `conscience tool` (list, execute) |
-| `client.go` | HTTP client for Conscience API |
+| `serve.go` | `consensus serve` |
+| `init.go` | `consensus init` |
+| `session.go` | `consensus session` (list, create, cancel) |
+| `approve.go` | `consensus approve` |
+| `migrate.go` | `consensus migrate` (up, down, status) |
+| `config.go` | `consensus config` (get, set) |
+| `status.go` | `consensus status` |
+| `memory.go` | `consensus memory` (list, search) |
+| `tool.go` | `consensus tool` (list, execute) |
+| `client.go` | HTTP client for Consensus API |
 | `completion.go` | Shell completion generation |
 | `formatter.go` | Output formatting (table, JSON, text) |
 
@@ -361,7 +361,7 @@ Thin HTTP server wrapper around the internal API and MCP handlers.
 ## 4. Dependency Graph
 
 ```
-cmd/conscience
+cmd/consensus
   ├── internal/cli
   ├── internal/config
   ├── internal/db
@@ -431,15 +431,15 @@ No CGO. No Node.js. No Python. Build with `CGO_ENABLED=0 go build`.
 ```makefile
 # Build binary
 build:
-	CGO_ENABLED=0 go build -o bin/conscience ./cmd/conscience
+	CGO_ENABLED=0 go build -o bin/consensus ./cmd/consensus
 
 # Run with SQLite (zero dependencies)
 dev:
-	go run ./cmd/conscience serve --db sqlite://dev.db
+	go run ./cmd/consensus serve --db sqlite://dev.db
 
 # Run with local Postgres
 dev-pg:
-	go run ./cmd/conscience serve --db postgres://localhost:5432/conscience
+	go run ./cmd/consensus serve --db postgres://localhost:5432/consensus
 
 # Run tests
 test:
@@ -451,7 +451,7 @@ lint:
 
 # Docker build
 docker:
-	docker build -t conscience .
+	docker build -t consensus .
 ```
 
 ---
@@ -464,14 +464,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /conscience ./cmd/conscience
+RUN CGO_ENABLED=0 go build -o /consensus ./cmd/consensus
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /conscience /usr/local/bin/conscience
-COPY conscience.yaml /etc/conscience/conscience.yaml
+COPY --from=builder /consensus /usr/local/bin/consensus
+COPY consensus.yaml /etc/consensus/consensus.yaml
 EXPOSE 8090
-ENTRYPOINT ["conscience"]
+ENTRYPOINT ["consensus"]
 CMD ["serve"]
 ```
 
@@ -490,14 +490,14 @@ CMD ["serve"]
 | SPEC-006 Transactions | `internal/harness`, `internal/billing` | `internal/db` |
 | SPEC-007 JSON Schema | `internal/db/jsonschema` | `internal/db` (CHECK constraints in migrations) |
 | SPEC-008 Harness | `internal/harness` | `internal/llm`, `internal/tools` |
-| SPEC-009 Deployment | `Dockerfile`, `Makefile`, `conscience.yaml` | `cmd/conscience` |
+| SPEC-009 Deployment | `Dockerfile`, `Makefile`, `consensus.yaml` | `cmd/consensus` |
 | SPEC-010 Tools | `internal/tools` | `internal/security/classifier.go` |
 | SPEC-011 Canonical Definitions | (authority spec, cross-cutting) | All packages |
 | SPEC-012 System Prompt | `internal/harness/prompt.go` | `internal/memory` |
 | SPEC-013 Webhooks | `internal/webhook` | `internal/api` |
 | SPEC-014 HITL | `internal/hitl` | `internal/api/approvals.go` |
 | SPEC-015 API & MCP | `internal/api`, `internal/mcp` | `internal/cli`, `internal/web` |
-| SPEC-016 CLI | `internal/cli` | `cmd/conscience` |
+| SPEC-016 CLI | `internal/cli` | `cmd/consensus` |
 | SPEC-017 UI Adapter | `internal/shim/opencode` | `internal/api` |
 | SPEC-018 OpenAPI | `internal/api/openapi.go` (auto-generated) | — |
 | SPEC-019 User Flows | (UX spec, no direct code) | All user-facing packages |
@@ -516,7 +516,7 @@ Phased approach — each phase produces a testable artifact:
 3. `internal/db` — interface + Postgres + SQLite implementations
 4. `migrations/001_initial_schema.sql` — all tables from SPEC-003
 5. `internal/migrate` — migration runner
-6. `cmd/conscience/main.go` — entry point that connects, migrates, starts
+6. `cmd/consensus/main.go` — entry point that connects, migrates, starts
 
 ### Phase 2: Harness Loop (can run an agent iteration)
 7. `internal/llm` — OpenAI + Anthropic clients
@@ -541,4 +541,4 @@ Phased approach — each phase produces a testable artifact:
 
 ---
 
-*SPEC-021 — Repository Layout — Conscience Framework*
+*SPEC-021 — Repository Layout — Consensus Framework*

@@ -188,8 +188,8 @@ func (b *SystemPromptBuilder) buildLayers(ctx context.Context, config *SystemPro
 func (b *SystemPromptBuilder) buildIdentityLayer(config *SystemPromptConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString("# Conscience Agent Runtime\n\n")
-	sb.WriteString("You are a **Conscience agent** running in a database-native cognitive architecture.\n")
+	sb.WriteString("# Consensus Agent Runtime\n\n")
+	sb.WriteString("You are a **Consensus agent** running in a database-native cognitive architecture.\n")
 	sb.WriteString("Your mind is a PostgreSQL (or SQLite) database. You think by writing SQL.\n\n")
 
 	// Agent identity

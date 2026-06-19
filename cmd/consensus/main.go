@@ -1,14 +1,14 @@
-// Command conscience is the unified binary for the Conscience runtime.
+// Command consensus is the unified binary for the Consensus runtime.
 //
 // The binary contains the harness loop, REST API, MCP server, CLI management
 // commands, and protocol shims. It connects to PostgreSQL or SQLite via a
 // driver interface; one binary, two backends.
 //
-// When invoked with subcommands (conscience session list, conscience status),
+// When invoked with subcommands (consensus session list, consensus status),
 // it acts as a thin REST client to a running server. Without subcommands,
-// it starts the server (equivalent to conscience serve).
+// it starts the server (equivalent to consensus serve).
 //
-// axiom:trace work_item=runtime-dev-bootstrap-auth-01 spec=specs/016-cli-interface.md,specs/015-api-and-mcp.md plan=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/plan.md impl=cmd/conscience/main.go test=internal/bootstrap/admin_key_test.go evidence=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/verification.md
+// axiom:trace work_item=runtime-dev-bootstrap-auth-01 spec=specs/016-cli-interface.md,specs/015-api-and-mcp.md plan=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/plan.md impl=cmd/consensus/main.go test=internal/bootstrap/admin_key_test.go evidence=.memory-bank/work-items/runtime-dev-bootstrap-auth-01/verification.md
 package main
 
 import (
@@ -22,24 +22,24 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/wojons/conscientiousness/internal/api"
-	"github.com/wojons/conscientiousness/internal/billing"
-	"github.com/wojons/conscientiousness/internal/bootstrap"
-	"github.com/wojons/conscientiousness/internal/cli"
-	"github.com/wojons/conscientiousness/internal/compression"
-	"github.com/wojons/conscientiousness/internal/config"
-	"github.com/wojons/conscientiousness/internal/db"
-	dbdriver "github.com/wojons/conscientiousness/internal/db/driver"
-	"github.com/wojons/conscientiousness/internal/db/postgres"
-	"github.com/wojons/conscientiousness/internal/harness"
-	"github.com/wojons/conscientiousness/internal/hitl"
-	"github.com/wojons/conscientiousness/internal/llm"
-	"github.com/wojons/conscientiousness/internal/mcp"
-	"github.com/wojons/conscientiousness/internal/migrate"
-	"github.com/wojons/conscientiousness/internal/quarantine"
-	"github.com/wojons/conscientiousness/internal/shim/opencode"
-	"github.com/wojons/conscientiousness/internal/web"
-	"github.com/wojons/conscientiousness/internal/webhook"
+	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/billing"
+	"github.com/wojons/consensus/internal/bootstrap"
+	"github.com/wojons/consensus/internal/cli"
+	"github.com/wojons/consensus/internal/compression"
+	"github.com/wojons/consensus/internal/config"
+	"github.com/wojons/consensus/internal/db"
+	dbdriver "github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/db/postgres"
+	"github.com/wojons/consensus/internal/harness"
+	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/llm"
+	"github.com/wojons/consensus/internal/mcp"
+	"github.com/wojons/consensus/internal/migrate"
+	"github.com/wojons/consensus/internal/quarantine"
+	"github.com/wojons/consensus/internal/shim/opencode"
+	"github.com/wojons/consensus/internal/web"
+	"github.com/wojons/consensus/internal/webhook"
 )
 
 func main() {
@@ -85,7 +85,7 @@ func runServer() {
 		os.Exit(1)
 	}
 	if migrated {
-		slog.Info("conscience: schema migrations applied")
+		slog.Info("consensus: schema migrations applied")
 	}
 	adminKey, err := bootstrap.EnsureFirstAdminKey(ctx, database, bootstrap.GetBootstrapKeyTTL())
 	if err != nil {
@@ -94,8 +94,8 @@ func runServer() {
 	}
 	// Bootstrap output: admin key goes to stdout (machine-parseable, SPEC-016 §3).
 	// Errors and operational logs stay on stderr.
-	// axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md impl=cmd/conscience/main.go
-	// axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-002 impl=cmd/conscience/main.go
+	// axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md impl=cmd/consensus/main.go
+	// axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-002 impl=cmd/consensus/main.go
 	for _, line := range bootstrap.FormatResult(adminKey) {
 		fmt.Println(line)
 	}
@@ -119,7 +119,7 @@ func runServer() {
 
 	llmClient, err := llm.NewClient(llmCfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "conscience: llm client init failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "consensus: llm client init failed: %v\n", err)
 		os.Exit(1)
 	}
 	h := harness.New(database, llmClient)
@@ -178,7 +178,7 @@ func runServer() {
 		})
 
 		compWorker.Start(ctx)
-		slog.Info("conscience: compression worker enabled",
+		slog.Info("consensus: compression worker enabled",
 			"model", workerCfg.EmbeddingModel,
 			"interval", workerCfg.PollInterval,
 			"threshold", workerCfg.CosineThreshold,
@@ -211,11 +211,11 @@ func runServer() {
 	hitlMgr := hitl.New(database)
 	// Initialize default global HITL config (idempotent — migration 008 also inserts defaults)
 	if err := hitlMgr.SetConfiguration(ctx, hitl.DefaultConfiguration()); err != nil {
-		slog.Warn("conscience: failed to init default HITL config", "error", err)
+		slog.Warn("consensus: failed to init default HITL config", "error", err)
 	}
 	// Start expiry cron — every 5 minutes, expires stale pending approvals
 	hitlMgr.StartExpiryCron(ctx, 5*time.Minute)
-	slog.Info("conscience: HITL manager started", "expiry_interval", "5m")
+	slog.Info("consensus: HITL manager started", "expiry_interval", "5m")
 
 	// API Server (REST endpoints + SSE)
 	apiSrv = api.NewServer(api.ServerConfig{
@@ -246,9 +246,9 @@ func runServer() {
 				handler(n.Channel, n.Payload)
 			})
 			if err := listener.Start(); err != nil {
-				slog.Warn("conscience: postgres event listener failed to start", "error", err)
+				slog.Warn("consensus: postgres event listener failed to start", "error", err)
 			} else {
-				slog.Info("conscience: postgres LISTEN/NOTIFY event bridge started")
+				slog.Info("consensus: postgres LISTEN/NOTIFY event bridge started")
 				// Clean up listener on shutdown
 				go func() {
 					<-ctx.Done()
@@ -271,7 +271,7 @@ func runServer() {
 			return result, nil
 		}
 		stopPoller := api.StartSQliteEventPoller(ctx, apiSrv.EventBus(), queryFn)
-		slog.Info("conscience: SQLite event polling started")
+		slog.Info("consensus: SQLite event polling started")
 		_ = stopPoller // kept for future explicit stop if needed
 	}
 
@@ -298,7 +298,7 @@ func runServer() {
 	apiMux.Handle("/ui/", http.StripPrefix("/ui", webUI.Handler()))
 
 	// opencode Protocol Shim (SPEC-017) — translates opencode server protocol
-	// into native Conscience API calls. Enabled by default.
+	// into native Consensus API calls. Enabled by default.
 	if cfg.Adapters.OpenCode.Enabled {
 		shimService := opencode.NewServiceAdapter(apiSrv.Service())
 		shimSrv := opencode.NewServer(database, cfg.Adapters.OpenCode.AdminKey, shimEvents, shimService)
@@ -329,27 +329,27 @@ func runServer() {
 		apiMux.Handle("/project/", shimSrv.Handler())
 		apiMux.Handle("/vcs", shimSrv.Handler())
 		apiMux.Handle("/vcs/", shimSrv.Handler())
-		slog.Info("conscience: opencode shim enabled")
+		slog.Info("consensus: opencode shim enabled")
 	}
 
-	slog.Info("conscience: starting", "addr", addrString(cfg.Server))
+	slog.Info("consensus: starting", "addr", addrString(cfg.Server))
 
 	// Start API server (which now serves both API and MCP routes)
 	go func() {
 		if err := apiSrv.Start(); err != nil {
-			fmt.Fprintf(os.Stderr, "conscience: %v\n", err)
+			fmt.Fprintf(os.Stderr, "consensus: %v\n", err)
 			cancel()
 		}
 	}()
 
 	<-ctx.Done()
-	slog.Info("conscience: shutting down")
+	slog.Info("consensus: shutting down")
 }
 
 // runMCPStdio starts the MCP server in stdio transport mode.
 // Reads JSON-RPC 2.0 from stdin, writes responses to stdout.
 // Logs go to stderr.
-// axiom:trace work_item=WI-015 spec=specs/015-api-and-mcp.md plan=phase-5/task-5-1/step-5-1-1 impl=cmd/conscience/main.go
+// axiom:trace work_item=WI-015 spec=specs/015-api-and-mcp.md plan=phase-5/task-5-1/step-5-1-1 impl=cmd/consensus/main.go
 func runMCPStdio() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -377,7 +377,7 @@ func runMCPStdio() {
 		os.Exit(1)
 	}
 	if migrated {
-		slog.Info("conscience: schema migrations applied")
+		slog.Info("consensus: schema migrations applied")
 	}
 
 	// Ensure bootstrap admin key exists
@@ -393,19 +393,19 @@ func runMCPStdio() {
 
 	// Create MCP server and start stdio transport
 	mcpSrv := mcp.NewServer(database)
-	slog.Info("conscience: starting MCP stdio transport")
+	slog.Info("consensus: starting MCP stdio transport")
 
 	if err := mcpSrv.ServeStdio(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "conscience: mcp stdio: %v\n", err)
+		fmt.Fprintf(os.Stderr, "consensus: mcp stdio: %v\n", err)
 		os.Exit(1)
 	}
 
-	slog.Info("conscience: MCP stdio transport shut down")
+	slog.Info("consensus: MCP stdio transport shut down")
 }
 
 // runMigrate runs database migrations directly against a database (specified by --db-url).
 // This enables offline migration without a running server (CS-GAP-014).
-// axiom:trace work_item=WI-010 spec=specs/016-cli-interface.md impl=cmd/conscience/main.go
+// axiom:trace work_item=WI-010 spec=specs/016-cli-interface.md impl=cmd/consensus/main.go
 func runMigrate(action string, dbURL string) error {
 	ctx := context.Background()
 	cfg, err := config.Load()
@@ -508,7 +508,7 @@ func runInit(dbURL string) error {
 		return err
 	}
 
-	fmt.Println("conscience: init")
+	fmt.Println("consensus: init")
 	fmt.Printf("Database:      %s\n", cfg.Database.URL)
 	if migrated {
 		fmt.Println("Migrations:    applied")
@@ -516,8 +516,8 @@ func runInit(dbURL string) error {
 		fmt.Println("Migrations:    current")
 	}
 	// Bootstrap output: admin key uses consistent machine-parseable format (SPEC-016 §3).
-	// axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md impl=cmd/conscience/main.go
-	// axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-002 impl=cmd/conscience/main.go
+	// axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md impl=cmd/consensus/main.go
+	// axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-002 impl=cmd/consensus/main.go
 	for _, line := range bootstrap.FormatResult(result) {
 		fmt.Println(line)
 	}
@@ -525,7 +525,7 @@ func runInit(dbURL string) error {
 		fmt.Println("Existing admin secrets cannot be recovered; create or rotate keys via the API if needed.")
 	}
 	fmt.Printf("Server URL:    http://%s\n", addrString(cfg.Server))
-	fmt.Println("Config file:   ./conscience.yaml or ~/.conscience/config.yaml")
+	fmt.Println("Config file:   ./consensus.yaml or ~/.consensus/config.yaml")
 	return nil
 }
 
@@ -534,14 +534,14 @@ func addrString(sc config.ServerConfig) string {
 }
 
 // resolveLLMBaseURL returns the LLM provider base URL from config or environment.
-// Supports OpenRouter via CONSCIENCE_LLM_BASE_URL or OPENROUTER_BASE_URL env vars.
+// Supports OpenRouter via CONSENSUS_LLM_BASE_URL or OPENROUTER_BASE_URL env vars.
 func resolveLLMBaseURL(cfg config.Config) string {
 	// Config file takes priority
 	if cfg.LLM.BaseURL != "" {
 		return cfg.LLM.BaseURL
 	}
 	// Environment variable overrides
-	if v := os.Getenv("CONSCIENCE_LLM_BASE_URL"); v != "" {
+	if v := os.Getenv("CONSENSUS_LLM_BASE_URL"); v != "" {
 		return v
 	}
 	if v := os.Getenv("OPENROUTER_BASE_URL"); v != "" {

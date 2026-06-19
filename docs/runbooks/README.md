@@ -1,6 +1,6 @@
 # Ops Runbooks
 
-Operational runbooks for the Conscience agent runtime. Each runbook follows the symptom → triage → recovery → verification pattern.
+Operational runbooks for the Consensus agent runtime. Each runbook follows the symptom → triage → recovery → verification pattern.
 
 | Runbook | Purpose | Severity |
 |---------|---------|----------|

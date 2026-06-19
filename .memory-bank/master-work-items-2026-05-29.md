@@ -1,4 +1,4 @@
-# Conscience — Master Work Item List (Fresh Sweep)
+# Consensus — Master Work Item List (Fresh Sweep)
 
 **Generated**: 2026-05-29 | **Source**: master-gap-analysis-2026-05-29.md
 **Total**: 22 work items, ~215h estimated
@@ -14,7 +14,7 @@
   1. Remove `llm.NewMockClient()` fallback at `main.go:112-114` — return error instead
   2. Implement real Anthropic client (replace stub that always errors)
   3. Wire `response_format: json_schema` with `strict: true` for OpenAI (CS-GAP-007)
-  4. Add `CONSCIENCE_MOCK_LLM=1` opt-in flag for dev/testing
+  4. Add `CONSENSUS_MOCK_LLM=1` opt-in flag for dev/testing
   5. Add Anthropic `cache_control` breakpoints (CS-GAP-016)
 - **Specs**: 007, 012, 022
 - **Effort**: 12h
@@ -92,7 +92,7 @@
 - **Goal**: Harness queries the VIEW instead of assembling context in Go
 - **Tasks**:
   1. Replace `context.go:314-349` Go assembly with `SELECT * FROM active_context_view WHERE session_id = $1`
-  2. Implement `SET LOCAL conscience.session_id` for RLS on view queries (CS-GAP-010)
+  2. Implement `SET LOCAL consensus.session_id` for RLS on view queries (CS-GAP-010)
   3. Wire VIEW's `DISTINCT ON` deduplication, `CASE` rendering, and cache tier ordering
   4. Add tool call collapse rules to the VIEW
 - **Specs**: 001, 002, 003, 005

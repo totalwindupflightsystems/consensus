@@ -165,26 +165,26 @@ func TestExecuteExternalTool_NotFound(t *testing.T) {
 func TestExecuteExternalTool_EnvWhitelist(t *testing.T) {
 	ctx := context.Background()
 	cfg := DefaultExternalToolConfig()
-	cfg.AllowedEnv = []string{"CONSCIENCE_*", "HOME"}
+	cfg.AllowedEnv = []string{"CONSENSUS_*", "HOME"}
 
 	// Set a test env var with the allowed prefix
-	os.Setenv("CONSCIENCE_TEST_VAR", "should_pass")
-	defer os.Unsetenv("CONSCIENCE_TEST_VAR")
+	os.Setenv("CONSENSUS_TEST_VAR", "should_pass")
+	defer os.Unsetenv("CONSENSUS_TEST_VAR")
 
-	result, err := ExecuteExternalTool(ctx, "sh", []string{"-c", "echo CONSCIENCE_TEST_VAR=$CONSCIENCE_TEST_VAR"}, cfg)
+	result, err := ExecuteExternalTool(ctx, "sh", []string{"-c", "echo CONSENSUS_TEST_VAR=$CONSENSUS_TEST_VAR"}, cfg)
 	if err != nil {
 		t.Fatalf("ExecuteExternalTool: %v", err)
 	}
 
-	if !strings.Contains(result.Output, "CONSCIENCE_TEST_VAR=should_pass") {
-		t.Errorf("CONSCIENCE_TEST_VAR not forwarded in sandbox env. Output: %q", result.Output)
+	if !strings.Contains(result.Output, "CONSENSUS_TEST_VAR=should_pass") {
+		t.Errorf("CONSENSUS_TEST_VAR not forwarded in sandbox env. Output: %q", result.Output)
 	}
 }
 
 func TestExecuteExternalTool_EnvBlocked(t *testing.T) {
 	ctx := context.Background()
 	cfg := DefaultExternalToolConfig()
-	cfg.AllowedEnv = []string{"CONSCIENCE_*"} // Only CONSCIENCE_* allowed
+	cfg.AllowedEnv = []string{"CONSENSUS_*"} // Only CONSENSUS_* allowed
 
 	// PATH should NOT be in the allowed list
 	result, err := ExecuteExternalTool(ctx, "sh", []string{"-c", "echo PATH=$PATH"}, cfg)
@@ -213,7 +213,7 @@ func TestExecuteExternalTool_WorkDirIsolation(t *testing.T) {
 		t.Fatalf("ExecuteExternalTool: %v", err)
 	}
 
-	if !strings.Contains(result.Output, "conscience-tool") {
+	if !strings.Contains(result.Output, "consensus-tool") {
 		t.Errorf("working directory should be a temp dir, got: %q", result.Output)
 	}
 

@@ -91,7 +91,7 @@ Syntactically valid SQL that violates logical constraints is caught by RLS:
 ```
 Iteration 1:
   Agent outputs: DELETE FROM tool_requests  -- no WHERE clause
-  Postgres executes: DELETE FROM tool_requests WHERE session_id = current_setting('conscience.session_id')::UUID
+  Postgres executes: DELETE FROM tool_requests WHERE session_id = current_setting('consensus.session_id')::UUID
   → Only the agent's own rows are deleted (RLS scoping)
   → COMMIT, but impact is limited to agent's own data
 ```
@@ -111,7 +111,7 @@ BEGIN
   UPDATE tasks
   SET status = 'published', completed_at = now()
   WHERE id = task_id
-    AND session_id = current_setting('conscience.session_id')::UUID;
+    AND session_id = current_setting('consensus.session_id')::UUID;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```

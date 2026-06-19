@@ -1,4 +1,4 @@
-# Conscience Demo
+# Consensus Demo
 
 Run the live demo:
 
@@ -6,7 +6,7 @@ Run the live demo:
 go test -v -run TestDemo_FullAgentHarness -timeout 300s ./demo/
 ```
 
-Requires `DEEPSEEK_API_KEY` environment variable (or set in conscience.yaml).
+Requires `DEEPSEEK_API_KEY` environment variable (or set in consensus.yaml).
 
 ## What It Demonstrates
 

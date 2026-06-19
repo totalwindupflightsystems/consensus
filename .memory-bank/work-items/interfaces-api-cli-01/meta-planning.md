@@ -9,7 +9,7 @@ last_alignment_scan: 2026-05-03
 
 # Meta-Planning — API, MCP, CLI, and UI Adapter
 
-Mission: expose Conscience through stable operator and machine interfaces once the schema and harness exist. This track owns REST endpoints, MCP transport, CLI commands, OpenAPI synchronization, opencode adapter behavior, and user flow proof.
+Mission: expose Consensus through stable operator and machine interfaces once the schema and harness exist. This track owns REST endpoints, MCP transport, CLI commands, OpenAPI synchronization, opencode adapter behavior, and user flow proof.
 
 axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/016-cli-interface.md,specs/017-ui-adapter-layer.md,specs/018-openapi-contract.md,specs/019-user-interaction-flows.md plan=phase-1/task-1/step-1 evidence=.memory-bank/work-items/interfaces-api-cli-01/verification.md prompt=.memory-bank/work-items/_prompt.md
 
@@ -21,7 +21,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 2. **AC-AUTH-02**: Four key scopes enforced: `admin` (full CRUD), `session` (single-session scope), `readonly` (SELECT only), `webhook` (external_events INSERT only).
 3. **AC-AUTH-03**: Only SHA-256 hash of the API key stored in `key_hash`; raw key never persisted.
 4. **AC-AUTH-04**: Key prefix (`cs_*`) with first 8 chars stored in `key_prefix` for indexed lookup.
-5. **AC-AUTH-05**: Session-scoped keys restrict access to that session only (RLS via `SET LOCAL conscience.session_id`).
+5. **AC-AUTH-05**: Session-scoped keys restrict access to that session only (RLS via `SET LOCAL consensus.session_id`).
 6. **AC-AUTH-06**: Expired keys (past `expires_at`) rejected with 401 UNAUTHENTICATED.
 7. **AC-AUTH-07**: `POST /api/v1/auth/keys` (create), `GET /api/v1/auth/keys` (list prefix+scope), `DELETE /api/v1/auth/keys/:id` (revoke) all operational.
 8. **AC-AUTH-08**: Rate limiting enforced per key type: admin 1000/min, session 100/min, readonly 200/min, webhook 500/min.
@@ -45,7 +45,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 ### MCP Server (SPEC-015 §5)
 
 22. **AC-MCP-01**: MCP server exposes 6 tools: `create_session`, `send_message`, `get_session_status`, `list_memory`, `review_approval`, `query_tool`.
-23. **AC-MCP-02**: MCP server exposes 3 resources: `conscience://sessions`, `conscience://sessions/{id}/context`, `conscience://tools`.
+23. **AC-MCP-02**: MCP server exposes 3 resources: `consensus://sessions`, `consensus://sessions/{id}/context`, `consensus://tools`.
 24. **AC-MCP-03**: MCP server exposes 1 prompt: `agent_status`.
 25. **AC-MCP-04**: MCP auth via Bearer token in initialize handshake `_meta.authorization`; same `api_keys` table and scope enforcement.
 26. **AC-MCP-05**: MCP SSE transport at `/mcp/sse`.
@@ -61,11 +61,11 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 
 ### CLI Surface (SPEC-016)
 
-33. **AC-CLI-01**: Global flags: `--server` (CONSCIENCE_SERVER), `--api-key` (CONSCIENCE_API_KEY), `--format` (table|json|yaml), `--quiet`, `--config`.
+33. **AC-CLI-01**: Global flags: `--server` (CONSENSUS_SERVER), `--api-key` (CONSENSUS_API_KEY), `--format` (table|json|yaml), `--quiet`, `--config`.
 34. **AC-CLI-02**: Output formats: table (default), json, yaml; --quiet suppresses non-essential output.
 35. **AC-CLI-03**: Exit codes: 0=success, 1=general error, 2=invalid args, 3=server unreachable, 4=auth failed, 5=not found, 6=conflict, 7=rate limited.
 36. **AC-CLI-04**: Command groups operational: `serve`, `init`, `session` (create/list/show/logs/pause/resume/cancel/cost), `approve` (list/show/approve/reject/interactive), `migrate` (run/version/rollback/create), `config` (list/get/set/edit), `status`, `memory` (list/show/iterations/pages), `tool` (list/show), `skill` (list/show).
-37. **AC-CLI-05**: Config file resolution: `./conscience.yaml` > `~/.conscience/config.yaml` > `/etc/conscience/config.yaml`.
+37. **AC-CLI-05**: Config file resolution: `./consensus.yaml` > `~/.consensus/config.yaml` > `/etc/consensus/config.yaml`.
 38. **AC-CLI-06**: Shell completion scripts generated for bash, zsh, fish.
 39. **AC-CLI-07**: All CLI commands are thin REST clients; no direct database access.
 40. **AC-CLI-08**: Interactive approval mode walks operator through pending approvals.
@@ -92,9 +92,9 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 55. **AC-SHIM-06**: Config/Provider/Agent endpoints mapped to native API: `/config` → `GET/PATCH /api/v1/config`, `/provider` → config providers, `/agent` → agent types, `/auth/:id` → auth management.
 56. **AC-SHIM-07**: Auth translation: HTTP Basic Auth (`opencode:<password>`) → password validated as admin API key → native API calls with resolved key.
 57. **AC-SHIM-08**: HITL translation: approval_requested → opencode permission.requested event; permission response → native `POST /api/v1/approvals/:id/review`.
-58. **AC-SHIM-09**: Shim session mapping table (`shim_session_map`) for opencode external_id → Conscience session_id.
+58. **AC-SHIM-09**: Shim session mapping table (`shim_session_map`) for opencode external_id → Consensus session_id.
 59. **AC-SHIM-10**: Excluded endpoints return 501: `prompt_async`, `shell`, `command`, `share`, `summarize`, `init`, `fork`, `revert`, `project`, `vcs`.
-60. **AC-SHIM-11**: Connection flow: `conscience serve --adapter opencode` → `opencode attach http://localhost:8090` → TUI connects, authenticates, creates/restores session.
+60. **AC-SHIM-11**: Connection flow: `consensus serve --adapter opencode` → `opencode attach http://localhost:8090` → TUI connects, authenticates, creates/restores session.
 61. **AC-SHIM-12**: `/doc` serves OpenAPI 3.1 spec at shim root; `/mcp` endpoints for MCP config/status.
 
 ### User Flow Proof (SPEC-019)
@@ -108,9 +108,9 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 68. **AC-FLOW-07**: Team onboarding (Supabase): schema install → config → serve → API key distribution per developer.
 69. **AC-FLOW-08**: MCP-only onboarding: `claude mcp add` or opencode MCP config → tool access without full TUI replacement.
 70. **AC-FLOW-09**: Error recovery — agent stuck: consecutive errors → paused → operator diagnosis via `session logs` → cancel or fix.
-71. **AC-FLOW-10**: Error recovery — budget exceeded: auto-pause → `conscience session resume` or config set `budget_limit_cents`.
-72. **AC-FLOW-11**: Error recovery — server unreachable: clear error message with guidance to start `conscience serve`.
-73. **AC-FLOW-12**: Error recovery — schema migration: `conscience status` shows outdated → `conscience migrate` → sessions resume.
+71. **AC-FLOW-10**: Error recovery — budget exceeded: auto-pause → `consensus session resume` or config set `budget_limit_cents`.
+72. **AC-FLOW-11**: Error recovery — server unreachable: clear error message with guidance to start `consensus serve`.
+73. **AC-FLOW-12**: Error recovery — schema migration: `consensus status` shows outdated → `consensus migrate` → sessions resume.
 
 ## Scope Fences
 
@@ -156,6 +156,6 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 | opencode server API version drift | High | Pin to specific opencode version; add version-check in shim |
 | Rate limiting performance impact | Medium | In-memory counter with periodic DB sync; measure latency overhead |
 | MCP protocol changes | Medium | Target MCP 2024-11-05; add protocol version negotiation |
-| File system access mismatch (shim) | High | Document clearly in shim; tools read local filesystem via Conscience tool system |
-| PostgREST OpenAPI overlap | Low | Conscience spec is authoritative superset; document relationship |
+| File system access mismatch (shim) | High | Document clearly in shim; tools read local filesystem via Consensus tool system |
+| PostgREST OpenAPI overlap | Low | Consensus spec is authoritative superset; document relationship |
 | CLI binary size (Go embedded) | Low | Acceptable for Go binary; measure and budget |

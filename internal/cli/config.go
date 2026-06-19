@@ -153,12 +153,12 @@ func newConfigEditCmd() *cobra.Command {
 		Short: "Edit configuration file",
 		Long: `Open the configuration file in your editor ($EDITOR).
 
-If no config file exists, opens a new file at ./conscience.yaml.`,
+If no config file exists, opens a new file at ./consensus.yaml.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			configPath := "conscience.yaml"
+			configPath := "consensus.yaml"
 
 			// Try the priority chain to find an existing file.
-			for _, p := range []string{"conscience.yaml", "~/.conscience/config.yaml"} {
+			for _, p := range []string{"consensus.yaml", "~/.consensus/config.yaml"} {
 				path := p
 				if strings.HasPrefix(p, "~/") {
 					homeDir, _ := os.UserHomeDir()

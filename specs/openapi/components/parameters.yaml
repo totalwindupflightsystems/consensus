@@ -1,4 +1,4 @@
-# Shared parameters for the Conscience API.
+# Shared parameters for the Consensus API.
 # axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
 
 SessionId:

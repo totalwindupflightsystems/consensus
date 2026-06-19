@@ -1,7 +1,7 @@
 # Product Context
 
-## Why Conscience Exists
-Bash/CLI AI agents are structurally flawed: non-deterministic state, no durable memory, escapable sandboxes, no rollback. Conscience pairs the LLM with the most deterministic system available (a relational database) to create agents that physically cannot break their own rules.
+## Why Consensus Exists
+Bash/CLI AI agents are structurally flawed: non-deterministic state, no durable memory, escapable sandboxes, no rollback. Consensus pairs the LLM with the most deterministic system available (a relational database) to create agents that physically cannot break their own rules.
 
 ## How It Works
 - Agent reads from `active_context_view` (a SQL VIEW that filters/compresses memory)
@@ -14,13 +14,13 @@ Bash/CLI AI agents are structurally flawed: non-deterministic state, no durable 
 ## User Experience Goals
 - **Supabase one-click deploy**: Sign up → run SQL script → system is live
 - **PocketBase binary**: Download → double-click → agent running locally
-- **CLI-first management**: All operations (session control, approvals, memory inspection, cost tracking, configuration) via `conscience` CLI
-- **opencode TUI via shim**: `opencode attach` gives users a polished terminal chat interface backed by Conscience
-- **MCP tool access**: Any MCP-compatible client can use Conscience as a tool provider
+- **CLI-first management**: All operations (session control, approvals, memory inspection, cost tracking, configuration) via `consensus` CLI
+- **opencode TUI via shim**: `opencode attach` gives users a polished terminal chat interface backed by Consensus
+- **MCP tool access**: Any MCP-compatible client can use Consensus as a tool provider
 - **Web admin UI**: Future phase — API supports it, CLI proves the surface is complete, web dashboard designed later
 
 ## Key Differentiators vs LangChain/AutoGen
-| Feature | LangChain/AutoGen | Conscience |
+| Feature | LangChain/AutoGen | Consensus |
 |---|---|---|
 | State | External stores, lost between sessions | Append-only ledger with time-travel |
 | Context | Monolithic prompt strings | Dynamic SQL VIEW with paging |

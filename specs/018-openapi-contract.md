@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-Conscience maintains a machine-readable OpenAPI 3.1 specification as the single source of truth for its REST API. The OpenAPI contract is used for:
+Consensus maintains a machine-readable OpenAPI 3.1 specification as the single source of truth for its REST API. The OpenAPI contract is used for:
 
 1. **Auto-generated client SDKs** — TypeScript, Go, Python, etc.
 2. **Contract testing** — validate server behavior against the spec
@@ -55,14 +55,14 @@ The root `openapi.yaml` uses `$ref` to pull in path and component files. This ke
 # openapi.yaml
 openapi: "3.1.0"
 info:
-  title: Conscience Agent Runtime
+  title: Consensus Agent Runtime
   description: |
     Database-native cognitive architecture for AI agents.
     All state lives in the database. The API writes to the same tables the agent reads from.
   version: "0.1.0"
   contact:
-    name: Conscience
-    url: https://github.com/conscience/conscience
+    name: Consensus
+    url: https://github.com/consensus/consensus
   license:
     name: MIT
 
@@ -394,7 +394,7 @@ npx openapi-typescript specs/openapi/bundled.yaml -o packages/client/src/types.t
 npx openapi-fetch --input specs/openapi/bundled.yaml --output packages/client/src/
 
 # Go client
-oapi-codegen --package conscience specs/openapi/bundled.yaml > client/client.go
+oapi-codegen --package consensus specs/openapi/bundled.yaml > client/client.go
 
 # Python client
 datamodel-codegen --input specs/openapi/bundled.yaml --output client/python/
@@ -465,7 +465,7 @@ schemathesis run specs/openapi/bundled.yaml \
 
 ### 7.1 Spec Versioning
 
-The OpenAPI spec version is separate from the Conscience runtime version:
+The OpenAPI spec version is separate from the Consensus runtime version:
 - **Spec version** (`info.version`): follows semver, incremented when API shape changes
 - **Runtime version** (`engine_version` in sessions table): tracks schema version
 
@@ -515,7 +515,7 @@ jobs:
 
 ## 9. Serving the Spec
 
-The Conscience server serves the OpenAPI spec at runtime:
+The Consensus server serves the OpenAPI spec at runtime:
 
 | Path | Content |
 |---|---|
@@ -534,14 +534,14 @@ This is served by the Go binary's HTTP handler regardless of database backend.
 | Spec serving | Go handler at `/doc`, `/openapi.yaml` | Same — shared code |
 | Contract tests | Same test suite | Same test suite |
 | SDK generation | Same process | Same process |
-| PostgREST overlap | PostgREST auto-generates OpenAPI — Conscience spec overrides/supplements | Manual spec maintained |
+| PostgREST overlap | PostgREST auto-generates OpenAPI — Consensus spec overrides/supplements | Manual spec maintained |
 
-**Note on PostgREST:** Supabase's PostgREST already generates an OpenAPI spec from database schema. The Conscience spec is a superset — it covers the same CRUD operations (with the same shapes) plus custom endpoints (message sending, tool execution, approvals, shims) that PostgREST cannot generate. The Conscience spec is authoritative.
+**Note on PostgREST:** Supabase's PostgREST already generates an OpenAPI spec from database schema. The Consensus spec is a superset — it covers the same CRUD operations (with the same shapes) plus custom endpoints (message sending, tool execution, approvals, shims) that PostgREST cannot generate. The Consensus spec is authoritative.
 
 ---
 
 ## 11. Open Questions
 
-1. **PostgREST integration**: Should the Conscience spec reference PostgREST's auto-generated endpoints (for standard CRUD) or fully replace them?
+1. **PostgREST integration**: Should the Consensus spec reference PostgREST's auto-generated endpoints (for standard CRUD) or fully replace them?
 2. **Spec-first vs code-first**: Should the OpenAPI spec be hand-maintained (spec-first) or auto-generated from code annotations (code-first)? This spec assumes spec-first.
 3. **gRPC/protobuf**: Will there ever be a need for a binary protocol, or is HTTP+JSON+SSE sufficient?

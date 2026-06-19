@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/quarantine"
+	"github.com/wojons/consensus/internal/quarantine"
 )
 
 // ============================================================================

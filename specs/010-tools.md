@@ -6,7 +6,7 @@
 
 ## Overview
 
-The Conscience tool system is split into two hemispheres — internal (database-native) and external (TypeScript runtime) — connected by a shared registry, governed by ownership policies, and verified by an autonomous CI/CD pipeline.
+The Consensus tool system is split into two hemispheres — internal (database-native) and external (TypeScript runtime) — connected by a shared registry, governed by ownership policies, and verified by an autonomous CI/CD pipeline.
 
 ---
 
@@ -85,7 +85,7 @@ The Go binary fetches tool code dynamically from the database and executes it in
 ```go
 func ExecuteExternalTool(ctx context.Context, tool CustomAgentTool, params map[string]any) (*ToolResult, error) {
     // Write tool code to temp file
-    tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("conscience-tool-%s.js", tool.Name))
+    tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("consensus-tool-%s.js", tool.Name))
     os.WriteFile(tmpFile, []byte(tool.Code), 0600)
 
     // Execute in sandboxed subprocess with timeout
@@ -151,7 +151,7 @@ CREATE TABLE tools_registry (
 ```sql
 CREATE POLICY enforce_ownership ON custom_agent_tools
   FOR UPDATE USING (
-    current_setting('conscience.session_id')::UUID = (
+    current_setting('consensus.session_id')::UUID = (
       SELECT creator_session_id FROM custom_agent_tools WHERE id = custom_agent_tools.id
     )
   );
@@ -429,4 +429,4 @@ Everything is a database row. Everything is governed by SQL. The database is the
 
 ---
 
-*SPEC-010 — Tools — Conscience Framework*
+*SPEC-010 — Tools — Consensus Framework*

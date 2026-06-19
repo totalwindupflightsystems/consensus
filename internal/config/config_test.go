@@ -41,8 +41,8 @@ func TestDefaults(t *testing.T) {
 
 func TestLoadNoFileUsesDefaults(t *testing.T) {
 	// Ensure no config file is found.
-	os.Setenv("CONSCIENCE_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSCIENCE_CONFIG")
+	os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer os.Unsetenv("CONSENSUS_CONFIG")
 
 	cfg, err := Load()
 	if err != nil {
@@ -55,10 +55,10 @@ func TestLoadNoFileUsesDefaults(t *testing.T) {
 }
 
 func TestEnvOverride(t *testing.T) {
-	os.Setenv("CONSCIENCE_DB_URL", "postgres://override:5432/db")
-	os.Setenv("CONSCIENCE_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSCIENCE_DB_URL")
-	defer os.Unsetenv("CONSCIENCE_CONFIG")
+	os.Setenv("CONSENSUS_DB_URL", "postgres://override:5432/db")
+	os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer os.Unsetenv("CONSENSUS_DB_URL")
+	defer os.Unsetenv("CONSENSUS_CONFIG")
 
 	cfg, err := Load()
 	if err != nil {

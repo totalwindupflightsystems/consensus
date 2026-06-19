@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-Specs 000-015 define how the machine thinks. This spec defines how the human interacts. Conscience has three distinct user types, each with different needs, workflows, and preferred tools. No user should ever need to "learn Conscience" — they should use the tool they already know, with Conscience running invisibly behind it.
+Specs 000-015 define how the machine thinks. This spec defines how the human interacts. Consensus has three distinct user types, each with different needs, workflows, and preferred tools. No user should ever need to "learn Consensus" — they should use the tool they already know, with Consensus running invisibly behind it.
 
 ---
 
@@ -29,10 +29,10 @@ Specs 000-015 define how the machine thinks. This spec defines how the human int
 
 ### 2.2 The Operator
 
-**Who:** A DevOps engineer, team lead, or technical manager responsible for running Conscience instances and overseeing agent activity.
+**Who:** A DevOps engineer, team lead, or technical manager responsible for running Consensus instances and overseeing agent activity.
 
 **Needs:**
-- Deploy and configure Conscience instances
+- Deploy and configure Consensus instances
 - Monitor active sessions, costs, and errors
 - Review and respond to HITL approval requests
 - Kill stuck or runaway agents
@@ -42,7 +42,7 @@ Specs 000-015 define how the machine thinks. This spec defines how the human int
 
 ### 2.3 The Integrator
 
-**Who:** A developer building a custom application on top of Conscience — a dashboard, a Slack bot, a CI/CD pipeline integration, or a custom workflow.
+**Who:** A developer building a custom application on top of Consensus — a dashboard, a Slack bot, a CI/CD pipeline integration, or a custom workflow.
 
 **Needs:**
 - Machine-readable API spec (SPEC-018)
@@ -58,15 +58,15 @@ Specs 000-015 define how the machine thinks. This spec defines how the human int
 
 ### 3.1 Developer: First Connection
 
-The developer's first experience connecting their tool to Conscience.
+The developer's first experience connecting their tool to Consensus.
 
-**Prerequisites:** A Conscience server is running (deployed by an operator or running locally).
+**Prerequisites:** A Consensus server is running (deployed by an operator or running locally).
 
 ```
-Step 1: Install Conscience (if running locally)
-  $ brew install conscience
-  $ conscience init --llm-key sk-...
-  $ conscience serve --port 8090 --adapter opencode
+Step 1: Install Consensus (if running locally)
+  $ brew install consensus
+  $ consensus init --llm-key sk-...
+  $ consensus serve --port 8090 --adapter opencode
 
 Step 2: Connect with opencode
   $ opencode attach http://localhost:8090
@@ -74,17 +74,17 @@ Step 2: Connect with opencode
 Step 3: Use as normal
   > Analyze the auth module for security issues
 
-  # Conscience agent processes with full cognitive architecture
+  # Consensus agent processes with full cognitive architecture
   # User sees response in opencode's TUI as normal
 ```
 
-**What the developer sees:** Nothing different. Their tool works the same way. Conscience is invisible.
+**What the developer sees:** Nothing different. Their tool works the same way. Consensus is invisible.
 
 **What's different under the hood:** The agent has persistent memory (survives session restarts), database-backed transaction safety, and constrained behavior. If the agent hits a destructive action, it pauses for approval.
 
 ### 3.2 Developer: Ongoing Work
 
-The developer works across multiple sessions. Conscience remembers.
+The developer works across multiple sessions. Consensus remembers.
 
 ```
 Day 1:
@@ -99,8 +99,8 @@ Day 2 (new session, same project):
 
   ⚠️ Agent paused: "I need to modify the users table schema. Approve?"
   > (developer switches to terminal)
-  $ conscience approve list
-  $ conscience approve abc-123 --notes "OK but add a migration"
+  $ consensus approve list
+  $ consensus approve abc-123 --notes "OK but add a migration"
   Agent: [resumes with approved modification]
   Agent: "Done. I've added the migration and refactored the validation..."
 ```
@@ -109,23 +109,23 @@ Day 2 (new session, same project):
 
 ### 3.3 Developer: Multi-Tool Workflow
 
-A developer uses different tools for different tasks, all backed by the same Conscience agent.
+A developer uses different tools for different tasks, all backed by the same Consensus agent.
 
 ```
 Morning: opencode for coding
   $ opencode attach http://localhost:8090
   > Implement the payment processing module
-  [Conscience agent works through opencode's TUI]
+  [Consensus agent works through opencode's TUI]
 
 Afternoon: Claude Code for code review (via MCP tools)
-  # Claude Code has Conscience as an MCP server
-  > Use the conscience tool to review the payment module I built this morning
-  [Claude Code calls Conscience MCP tools, agent uses memory from morning]
+  # Claude Code has Consensus as an MCP server
+  > Use the consensus tool to review the payment module I built this morning
+  [Claude Code calls Consensus MCP tools, agent uses memory from morning]
 
 Evening: CLI for quick status check
-  $ conscience session list
-  $ conscience session cost abc-123
-  $ conscience memory list abc-123 --limit 5
+  $ consensus session list
+  $ consensus session cost abc-123
+  $ consensus memory list abc-123 --limit 5
 ```
 
 **Key difference:** The agent's memory persists regardless of which tool is used. Switching tools doesn't mean starting over.
@@ -134,30 +134,30 @@ Evening: CLI for quick status check
 
 ```
 Day 0: Initial deployment
-  $ conscience init --supabase --db-url postgresql://...
+  $ consensus init --supabase --db-url postgresql://...
   Admin API key: cs_ak_a1b2c3d4...
   Schema version: 0.1.0
   Server URL: https://my-project.supabase.co/functions/v1
 
 Day 1: Daily check
-  $ conscience status
+  $ consensus status
   Active sessions: 5
   Pending approvals: 1
   Total cost today: $4.20
 
-  $ conscience approve list
+  $ consensus approve list
   [HIGH] delete_old_logs (session: abc-123) — "Delete logs older than 90 days"
-  $ conscience approve abc-123
+  $ consensus approve abc-123
 
 Day 7: Incident
   # Alert arrives via Slack: "Agent session xyz-789 has 5 consecutive errors"
-  $ conscience session logs xyz-789 --iterations 3
+  $ consensus session logs xyz-789 --iterations 3
   # Error: agent keeps trying to access a dropped table
-  $ conscience session cancel xyz-789
-  $ conscience session create --agent-name analyst --goal "Re-analyze the dataset with the new schema"
+  $ consensus session cancel xyz-789
+  $ consensus session create --agent-name analyst --goal "Re-analyze the dataset with the new schema"
 
 Day 30: Cost review
-  $ conscience session list --format json | jq '[.[] | .cost_cents] | add'
+  $ consensus session list --format json | jq '[.[] | .cost_cents] | add'
   42350  # $423.50 total spend
 ```
 
@@ -169,10 +169,10 @@ The operator's most common interactive workflow.
 Scenario: Agent requests destructive action
 
 Notification arrives:
-  Slack: "Conscience approval needed: HIGH — Delete 5000 rows from orders where status='cancelled'"
+  Slack: "Consensus approval needed: HIGH — Delete 5000 rows from orders where status='cancelled'"
 
 Operator reviews:
-  $ conscience approve show abc-456
+  $ consensus approve show abc-456
   Type: destructive_action
   Session: researcher-session-1
   Iteration: 23
@@ -184,16 +184,16 @@ Operator reviews:
 
 Decision options:
   A) Approve as-is:
-    $ conscience approve abc-456
+    $ consensus approve abc-456
 
   B) Reject:
-    $ conscience reject abc-456 --reason "Don't delete orders, archive them instead"
+    $ consensus reject abc-456 --reason "Don't delete orders, archive them instead"
 
   C) Modify and approve:
-    $ conscience approve abc-456 --modified-sql "UPDATE orders SET status='archived' WHERE status='cancelled' AND created_at < '2026-01-01'"
+    $ consensus approve abc-456 --modified-sql "UPDATE orders SET status='archived' WHERE status='cancelled' AND created_at < '2026-01-01'"
 
   D) Cancel the whole session:
-    $ conscience session cancel researcher-session-1
+    $ consensus session cancel researcher-session-1
 ```
 
 ### 3.6 Integrator: Custom Dashboard
@@ -203,10 +203,10 @@ Scenario: Building a custom web dashboard for the team
 
 Step 1: Read the spec
   # Get OpenAPI spec
-  GET http://conscience:8090/openapi.json
+  GET http://consensus:8090/openapi.json
 
 Step 2: Generate SDK
-  npx openapi-typescript http://conscience:8090/openapi.json -o src/types.ts
+  npx openapi-typescript http://consensus:8090/openapi.json -o src/types.ts
 
 Step 3: Build dashboard
   const sessions = await client.GET('/api/v1/sessions');
@@ -215,7 +215,7 @@ Step 3: Build dashboard
   });
 
   // Subscribe to real-time events
-  const events = new EventSource('http://conscience:8090/api/v1/events');
+  const events = new EventSource('http://consensus:8090/api/v1/events');
   events.onmessage = (e) => updateDashboard(JSON.parse(e.data));
 
   // Handle approval from dashboard
@@ -230,24 +230,24 @@ Step 3: Build dashboard
 
 ### 4.1 Local Development (PocketBase Path)
 
-Target: Individual developer wanting to try Conscience locally.
+Target: Individual developer wanting to try Consensus locally.
 
 ```
 1. Install
-   $ brew install conscience
-   # or: curl -fsSL https://conscience.dev/install | bash
+   $ brew install consensus
+   # or: curl -fsSL https://consensus.dev/install | bash
 
 2. Initialize
-   $ conscience init
+   $ consensus init
    ? LLM provider: OpenAI / Anthropic
    ? API key: sk-...
    ? Default model: gpt-4o (recommended)
    ✓ Database initialized (SQLite)
    ✓ Admin key: cs_ak_a1b2c3d4...
-   ✓ Config saved: ./conscience.yaml
+   ✓ Config saved: ./consensus.yaml
 
 3. Start
-   $ conscience serve
+   $ consensus serve
    ✓ Server running at http://localhost:8090
    ✓ opencode adapter: http://localhost:8090 (run `opencode attach http://localhost:8090`)
    ✓ MCP server: http://localhost:8090/mcp/sse
@@ -255,61 +255,61 @@ Target: Individual developer wanting to try Conscience locally.
 
 4. Connect with opencode
    $ opencode attach http://localhost:8090
-   → opencode TUI starts, connected to Conscience backend
+   → opencode TUI starts, connected to Consensus backend
 
 5. First interaction
    > Hello, what can you help me with?
-   Agent: "I'm a Conscience agent with persistent memory. I can help with..."
+   Agent: "I'm a Consensus agent with persistent memory. I can help with..."
 ```
 
 **Time to first interaction:** Under 5 minutes from install.
 
 ### 4.2 Team Deployment (Supabase Path)
 
-Target: Team lead setting up Conscience for multiple developers.
+Target: Team lead setting up Consensus for multiple developers.
 
 ```
 1. Create Supabase project
    → Sign up at supabase.com
    → Create new project
 
-2. Install Conscience schema
+2. Install Consensus schema
    → Open SQL Editor
-   → Paste install_conscience.sql
+   → Paste install_consensus.sql
    → Run
 
 3. Configure LLM keys
-   $ conscience config set llm.api_key sk-...
+   $ consensus config set llm.api_key sk-...
    → Stored in config file (or Supabase Vault if available)
 
  4. Start the server
-    $ conscience serve --db postgres://your-project.supabase.co:5432/postgres
+    $ consensus serve --db postgres://your-project.supabase.co:5432/postgres
 
  5. Share connection info with team
    Server: https://your-project.supabase.co
    Each developer gets their own API key:
-   $ conscience session create --api-only
+   $ consensus session create --api-only
    → Returns: cs_sk_... (share this with the developer)
 
 6. Each developer connects
    → opencode: `opencode attach https://your-project.supabase.co`
-   → Claude Code: add Conscience as MCP server
+   → Claude Code: add Consensus as MCP server
    → Or use CLI directly
 ```
 
 ### 4.3 MCP-Only Integration
 
-Target: Developer who just wants Conscience tools inside Claude Code or opencode, not full agent replacement.
+Target: Developer who just wants Consensus tools inside Claude Code or opencode, not full agent replacement.
 
 ```
-1. Start Conscience
-   $ conscience serve
+1. Start Consensus
+   $ consensus serve
 
 2. Add as MCP server in Claude Code
-   $ claude mcp add conscience --transport http http://localhost:8090/mcp/sse
+   $ claude mcp add consensus --transport http http://localhost:8090/mcp/sse
 
-3. Use Conscience tools in Claude Code
-   > Create a Conscience agent session to analyze my database
+3. Use Consensus tools in Claude Code
+   > Create a Consensus agent session to analyze my database
    Claude: [calls MCP tool: create_session]
    Claude: [calls MCP tool: send_message]
 
@@ -332,18 +332,18 @@ Error: column "user_email" does not exist
 Iterations failed: 3/3
 
 The agent is waiting for human review.
-Use: conscience approve list
+Use: consensus approve list
 ```
 
 **What the operator does:**
 ```
-$ conscience approve show <id>
+$ consensus approve show <id>
 # Sees the error context, agent's monologue, what it was trying to do
 
 # Options:
-$ conscience approve <id>              # Let it try again
-$ conscience reject <id> --reason "Use email column instead"
-$ conscience session cancel <id>       # Give up
+$ consensus approve <id>              # Let it try again
+$ consensus reject <id> --reason "Use email column instead"
+$ consensus session cancel <id>       # Give up
 ```
 
 ### 5.2 Agent Needs Approval (HITL)
@@ -367,8 +367,8 @@ You'll be notified when this is reviewed.
 ⚠️ Budget limit reached ($5.00 / $5.00)
 Session has been paused.
 
-To continue: conscience session resume <id>
-To increase budget: conscience config set harness.budget_limit_cents 1000
+To continue: consensus session resume <id>
+To increase budget: consensus config set harness.budget_limit_cents 1000
 ```
 
 ### 5.4 Server Unreachable
@@ -377,20 +377,20 @@ To increase budget: conscience config set harness.budget_limit_cents 1000
 ```
 Error: Connection refused at http://localhost:8090
 
-Is the Conscience server running?
-  $ conscience serve
+Is the Consensus server running?
+  $ consensus serve
 ```
 
 ### 5.5 Schema Migration Needed
 
 **What the operator sees:**
 ```
-$ conscience status
+$ consensus status
 Server:    running
 Schema:    OUTDATED (current: 0.2.0, required: 0.3.0)
 Sessions:  PAUSED (5 sessions waiting for migration)
 
-$ conscience migrate
+$ consensus migrate
 Running migration 003_add_memory_pages.sql...
 Running migration 004_update_tools_registry.sql...
 ✓ Schema updated to 0.3.0
@@ -425,8 +425,8 @@ Running migration 004_update_tools_registry.sql...
 |---|---|---|
 | Chat message | Any time | Through the adapter (opencode TUI) or MCP tool |
 | Approval decision | HITL pause | TUI permission prompt, CLI, or REST API |
-| Session control | Any time | CLI `conscience session pause/cancel/resume` |
-| Configuration change | As needed | CLI `conscience config set` |
+| Session control | Any time | CLI `consensus session pause/cancel/resume` |
+| Configuration change | As needed | CLI `consensus config set` |
 
 ---
 
@@ -434,7 +434,7 @@ Running migration 004_update_tools_registry.sql...
 
 ### 7.1 Zero Learning Curve
 
-The developer should never need to learn "how to use Conscience." They run `opencode attach http://localhost:8090` and get the same opencode experience with Conscience's brain underneath. Zero config friction.
+The developer should never need to learn "how to use Consensus." They run `opencode attach http://localhost:8090` and get the same opencode experience with Consensus's brain underneath. Zero config friction.
 
 ### 7.2 Progressive Disclosure
 
@@ -455,11 +455,11 @@ Most interactions are non-blocking:
 ### 7.4 State Visibility
 
 At any point, the operator can answer:
-- What is the agent doing right now? → `conscience session show <id>`
-- What has it done? → `conscience memory list <id>`
-- How much has it cost? → `conscience session cost <id>`
-- Is it stuck? → `conscience status`
-- What needs my attention? → `conscience approve list`
+- What is the agent doing right now? → `consensus session show <id>`
+- What has it done? → `consensus memory list <id>`
+- How much has it cost? → `consensus session cost <id>`
+- Is it stuck? → `consensus status`
+- What needs my attention? → `consensus approve list`
 
 ---
 
@@ -481,9 +481,9 @@ At any point, the operator can answer:
 
 | Interface | Who Uses It | Status | Spec |
 |---|---|---|---|
-| `conscience` CLI | Operator | Primary management interface | SPEC-016 |
+| `consensus` CLI | Operator | Primary management interface | SPEC-016 |
 | `opencode attach` | Developer | Primary chat/interaction interface (via shim) | SPEC-017 |
-| MCP tools | Developer (from any AI tool) | Tool-level access to Conscience | SPEC-015 §5 |
+| MCP tools | Developer (from any AI tool) | Tool-level access to Consensus | SPEC-015 §5 |
 | Native REST API | Integrator, future web UI | Programmatic access | SPEC-015 |
 | Web admin UI | Operator | **Future phase, not specced** | — |
 | TUI dashboard | Operator | **Future phase, not specced** | — |
@@ -500,7 +500,7 @@ At any point, the operator can answer:
 | Configuration friction | 1 command: `opencode attach` | Number of manual steps in onboarding |
 | Tool compatibility | opencode TUI + MCP clients | opencode attach, Claude Code MCP, etc. |
 | HITL interruption rate | < 10% of sessions | Sessions that pause vs. complete autonomously |
-| Developer awareness of Conscience | Minimal | Developer should rarely think about Conscience directly |
+| Developer awareness of Consensus | Minimal | Developer should rarely think about Consensus directly |
 | Operator response time to approvals | < 15 minutes | Time from approval request to resolution |
 
 ---
@@ -508,7 +508,7 @@ At any point, the operator can answer:
 ## 10. Open Questions
 
 1. **Session reset UX**: How does a developer "start fresh" in `opencode attach`? New session via `/session`? CLI command? Time-based expiry?
-2. **Multi-session awareness**: The opencode TUI has a session picker. Should Conscience expose sessions through the adapter so the picker works?
+2. **Multi-session awareness**: The opencode TUI has a session picker. Should Consensus expose sessions through the adapter so the picker works?
 3. **Team approval routing**: In a team setting, how are approval requests routed to the right person? By risk level? By project?
-4. **File system mismatch**: If Conscience runs on a server but the codebase is local, how do file operations (read/write/edit) work through the adapter?
+4. **File system mismatch**: If Consensus runs on a server but the codebase is local, how do file operations (read/write/edit) work through the adapter?
 5. **pi-agent protocol**: Does pi-agent have a similar `serve` + `attach` model? If so, same adapter pattern applies.

@@ -1,6 +1,6 @@
-# Library Decisions — Conscience
+# Library Decisions — Consensus
 
-Concrete dependency decisions for the Conscience Go binary, based on SPEC-022 research.
+Concrete dependency decisions for the Consensus Go binary, based on SPEC-022 research.
 Each entry includes the chosen library, rationale, and the decision date.
 
 axiom:trace work_item=WI-011 spec=specs/022-library-research.md plan=.memory-bank/work-items/WI-011/plan.md evidence=go.mod,internal/config/library-decisions.md
@@ -42,7 +42,7 @@ If goose adds SQL transformation hooks in the future, we could revisit. For v1, 
 The SPEC-022 recommendation was `github.com/mark3labs/mcp-go`, but the custom JSON-RPC implementation at `internal/mcp/` already provides:
 
 1. **All required tools** — create_session, send_message, get_session_status, list_sessions, pause_session, resume_session with JSON Schema parameter definitions.
-2. **Resource URI handling** — `conscience://sessions/{id}` resource templates with MCP-compatible URI parsing.
+2. **Resource URI handling** — `consensus://sessions/{id}` resource templates with MCP-compatible URI parsing.
 3. **SSE transport** — Proper SSE framing with event types, JSON-RPC 2.0 compliance.
 4. **Auth integration** — API key validation via middleware.
 5. **Zero new dependency** — Avoids a pre-v1.0 SDK with potential API instability.

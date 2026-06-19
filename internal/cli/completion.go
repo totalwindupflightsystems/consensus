@@ -13,18 +13,18 @@ func newCompletionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "completion [bash|zsh|fish]",
 		Short: "Generate shell completion script",
-		Long: `Generate shell completion scripts for Conscience CLI.
+		Long: `Generate shell completion scripts for Consensus CLI.
 
 To load completions:
 
   bash:
-    source <(conscience completion bash)
+    source <(consensus completion bash)
 
   zsh:
-    source <(conscience completion zsh)
+    source <(consensus completion zsh)
 
   fish:
-    conscience completion fish | source`,
+    consensus completion fish | source`,
 		ValidArgs: []string{"bash", "zsh", "fish"},
 		Args:      cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

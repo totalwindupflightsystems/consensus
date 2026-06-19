@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/harness"
+	"github.com/wojons/consensus/internal/harness"
 )
 
 // ============================================================================

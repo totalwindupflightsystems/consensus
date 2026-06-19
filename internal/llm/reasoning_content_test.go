@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/harness"
+	"github.com/wojons/consensus/internal/harness"
 )
 
 // TestOpenAIClient_ReasoningContentFallback verifies that when a thinking/reasoning

@@ -128,7 +128,7 @@ Cache tier ordering (SPEC-003 §6.2): Compressed events remain in Layer 2 (Immut
 7. `migrations/015_embedding_model.sql` — Seed embedding model data
 
 ### Modified Files
-8. `cmd/conscience/main.go` — Start compression worker
+8. `cmd/consensus/main.go` — Start compression worker
 9. `internal/config/config.go` — Add compression config
 
 ## 6. Acceptance Criteria

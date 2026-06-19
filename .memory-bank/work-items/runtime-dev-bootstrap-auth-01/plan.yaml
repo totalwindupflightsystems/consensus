@@ -27,7 +27,7 @@ plan:
               inputs:
                 files:
                   - internal/cli/init.go
-                  - cmd/conscience/main.go
+                  - cmd/consensus/main.go
                   - internal/api/billing.go
               verification:
                 - type: command

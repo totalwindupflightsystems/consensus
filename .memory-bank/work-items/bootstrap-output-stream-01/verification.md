@@ -7,7 +7,7 @@ Date: 2026-05-28
 
 1. **`internal/bootstrap/admin_key.go`** — Added `FormatResult()` (machine-parseable key=value lines) and `FormatResultJSON()` (indented JSON). Both respect SPEC-016 §3 (scriptable, machine-parseable). AdminKeyResult struct now has JSON tags.
 
-2. **`cmd/conscience/main.go`** — `runServer()`: admin key output moved from `os.Stderr` to `os.Stdout` (uses `fmt.Println` via `bootstrap.FormatResult`). `runInit()`: unified to use same `bootstrap.FormatResult` helper. Errors and `slog` remain on stderr.
+2. **`cmd/consensus/main.go`** — `runServer()`: admin key output moved from `os.Stderr` to `os.Stdout` (uses `fmt.Println` via `bootstrap.FormatResult`). `runInit()`: unified to use same `bootstrap.FormatResult` helper. Errors and `slog` remain on stderr.
 
 3. **`internal/bootstrap/admin_key_test.go`** — 5 new tests:
    - `TestFormatResult_CreatedKeyHasMachineParseableOutput` — verifies created=true line with key=, key_prefix=, id=, created_at=
@@ -50,13 +50,13 @@ make test — ALL 23 packages PASS
 
 Newly created key:
 ```
-conscience: first_admin_key created=true key=cs_ak_<hex> key_prefix=cs_ak_<8chars> id=<uuid> created_at=<rfc3339>
-conscience: save this key now; it is stored hashed and will not be printed again
+consensus: first_admin_key created=true key=cs_ak_<hex> key_prefix=cs_ak_<8chars> id=<uuid> created_at=<rfc3339>
+consensus: save this key now; it is stored hashed and will not be printed again
 ```
 
 Existing key:
 ```
-conscience: first_admin_key created=false key_prefix=cs_ak_<8chars> id=<uuid> created_at=<rfc3339>
+consensus: first_admin_key created=false key_prefix=cs_ak_<8chars> id=<uuid> created_at=<rfc3339>
 ```
 
 Both go to **stdout**. Errors and slog go to **stderr**.

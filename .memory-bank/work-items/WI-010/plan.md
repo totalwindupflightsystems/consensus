@@ -18,7 +18,7 @@
 ### Step 1: MigrateFunc hook + --db-url flag
 - Add `var MigrateFunc func(action string, dbURL string) error` to `internal/cli/migrate.go`
 - Add `--db-url` flag to migrate up/down/run/rollback
-- Wire `MigrateFunc` in `cmd/conscience/main.go` to run migrations directly against the DB
+- Wire `MigrateFunc` in `cmd/consensus/main.go` to run migrations directly against the DB
 - Handle: "up" (run pending), "down" (rollback last), "status" (show version)
 
 ### Step 2: Session billing client method

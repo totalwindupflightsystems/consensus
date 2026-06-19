@@ -1,6 +1,6 @@
-# Conscience Deployment
+# Consensus Deployment
 
-Deploy the Conscience agent runtime on any database backend, from local development to production scaling.
+Deploy the Consensus agent runtime on any database backend, from local development to production scaling.
 
 axiom:trace work_item=deployment-ops-01 spec=specs/009-deployment.md plan=phase-1/task-1-2/step-1-2-1 doc=deploy/README.md
 
@@ -8,10 +8,10 @@ axiom:trace work_item=deployment-ops-01 spec=specs/009-deployment.md plan=phase-
 
 ```bash
 # Build the binary
-go build -o conscience ./cmd/conscience
+go build -o consensus ./cmd/consensus
 
 # Run with SQLite (zero dependencies)
-./conscience serve --db sqlite://conscience.db
+./consensus serve --db sqlite://consensus.db
 ```
 
 ## Topology Overview
@@ -33,16 +33,16 @@ Simplest deployment. Everything runs in one process.
 
 ```bash
 # Download or build the binary
-go build -o conscience ./cmd/conscience
+go build -o consensus ./cmd/consensus
 
 # Initialize (creates schema, admin key, config)
-./conscience init --db sqlite://conscience.db
+./consensus init --db sqlite://consensus.db
 
 # Start the server
-./conscience serve --db sqlite://conscience.db
+./consensus serve --db sqlite://consensus.db
 ```
 
-The database file (`conscience.db`) is created if it doesn't exist. No external dependencies. WAL mode is enabled automatically for concurrent reads.
+The database file (`consensus.db`) is created if it doesn't exist. No external dependencies. WAL mode is enabled automatically for concurrent reads.
 
 **Limitations:**
 - No horizontal scaling (single-writer SQLite)
@@ -57,17 +57,17 @@ Full feature set with local Postgres.
 
 ```bash
 # Start Postgres (any method)
-docker run -d --name postgres-conscience \
+docker run -d --name postgres-consensus \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=conscience \
+  -e POSTGRES_DB=consensus \
   -p 5432:5432 postgres:16
 
 # Initialize schema
-./conscience init --db postgres://postgres:password@localhost:5432/conscience
+./consensus init --db postgres://postgres:password@localhost:5432/consensus
 
 # Start
-./conscience serve --db postgres://postgres:password@localhost:5432/conscience
+./consensus serve --db postgres://postgres:password@localhost:5432/consensus
 ```
 
 **Features available:**
@@ -86,7 +86,7 @@ Point the binary at a hosted Supabase Postgres instance.
 # Get connection string from Supabase Dashboard → Project Settings → Database
 # Use port 6543 (Supavisor transaction mode) or 5432 (direct)
 
-./conscience serve \
+./consensus serve \
   --db "postgres://postgres:[PASSWORD]@db.[PROJECT].supabase.co:6543/postgres"
 ```
 
@@ -115,10 +115,10 @@ cd supabase/docker
 docker compose up -d
 
 # Point binary at the local Postgres
-./conscience serve --db postgres://supabase_admin:your-password@localhost:5432/postgres
+./consensus serve --db postgres://supabase_admin:your-password@localhost:5432/postgres
 ```
 
-This gives you the full Supabase features (Auth, Storage, Realtime, Edge Functions) locally, with Conscience running as a Go binary beside them.
+This gives you the full Supabase features (Auth, Storage, Realtime, Edge Functions) locally, with Consensus running as a Go binary beside them.
 
 ---
 
@@ -130,10 +130,10 @@ Deploy the binary to any VM that can reach your Postgres instance.
 
 ```bash
 # Create fly app
-fly launch --name conscience
+fly launch --name consensus
 
 # Set database URL as secret
-fly secrets set CONSCIENCE_DB_URL="postgres://..."
+fly secrets set CONSENSUS_DB_URL="postgres://..."
 
 # Deploy
 fly deploy
@@ -143,7 +143,7 @@ fly deploy
 
 ```bash
 railway up
-# Set CONSCIENCE_DB_URL environment variable in Railway dashboard
+# Set CONSENSUS_DB_URL environment variable in Railway dashboard
 ```
 
 ### Kubernetes
@@ -152,27 +152,27 @@ railway up
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: conscience
+  name: consensus
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: conscience
+      app: consensus
   template:
     metadata:
       labels:
-        app: conscience
+        app: consensus
     spec:
       containers:
-      - name: conscience
-        image: conscience:latest
+      - name: consensus
+        image: consensus:latest
         env:
-        - name: CONSCIENCE_DB_URL
+        - name: CONSENSUS_DB_URL
           valueFrom:
             secretKeyRef:
-              name: conscience-secrets
+              name: consensus-secrets
               key: db-url
-        - name: CONSCIENCE_LISTEN
+        - name: CONSENSUS_LISTEN
           value: ":8090"
 ```
 
@@ -184,7 +184,7 @@ Run multiple binary instances sharing a single Postgres database. No coordinatio
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ conscience│  │ conscience│  │ conscience│
+│ consensus│  │ consensus│  │ consensus│
 │ worker 1  │  │ worker 2  │  │ worker 3  │
 └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
       │              │              │
@@ -198,9 +198,9 @@ Run multiple binary instances sharing a single Postgres database. No coordinatio
 
 ```bash
 # Start three workers
-./conscience serve --db postgres://... --listen :8090 &
-./conscience serve --db postgres://... --listen :8091 &
-./conscience serve --db postgres://... --listen :8092 &
+./consensus serve --db postgres://... --listen :8090 &
+./consensus serve --db postgres://... --listen :8091 &
+./consensus serve --db postgres://... --listen :8092 &
 ```
 
 All workers pull from the same task queue. No leader election, no coordination protocol. The database handles mutual exclusion.
@@ -214,18 +214,18 @@ All workers pull from the same task queue. No leader election, no coordination p
 
 ## Configuration
 
-All deployment options use the same `conscience.yaml` config file or environment variables. See `internal/config/config.go` for the full schema.
+All deployment options use the same `consensus.yaml` config file or environment variables. See `internal/config/config.go` for the full schema.
 
 ### Environment Variables
 
 | Variable | Config Key | Default |
 |---|---|---|
-| `CONSCIENCE_DB_URL` | `database.url` | — |
-| `CONSCIENCE_LISTEN` | `server.port` | `8090` |
-| `CONSCIENCE_HOSTNAME` | `server.hostname` | `127.0.0.1` |
-| `CONSCIENCE_LLM_API_KEY` | `llm.api_key` | — |
-| `CONSCIENCE_LLM_PROVIDER` | `llm.provider` | `openai` |
-| `CONSCIENCE_LOG_LEVEL` | `logging.level` | `info` |
+| `CONSENSUS_DB_URL` | `database.url` | — |
+| `CONSENSUS_LISTEN` | `server.port` | `8090` |
+| `CONSENSUS_HOSTNAME` | `server.hostname` | `127.0.0.1` |
+| `CONSENSUS_LLM_API_KEY` | `llm.api_key` | — |
+| `CONSENSUS_LLM_PROVIDER` | `llm.provider` | `openai` |
+| `CONSENSUS_LOG_LEVEL` | `logging.level` | `info` |
 
 ---
 
@@ -235,16 +235,16 @@ Migrations are embedded in the binary and auto-applied on startup. The `schema_v
 
 ```bash
 # Check current version
-./conscience migrate version
+./consensus migrate version
 
 # Apply pending
-./conscience migrate up
+./consensus migrate up
 
 # Rollback last
-./conscience migrate down
+./consensus migrate down
 
 # Create a new migration stub
-./conscience migrate create "add_new_table"
+./consensus migrate create "add_new_table"
 ```
 
 **Drift protection:** If the database has migrations applied that don't match embedded files, all agents pause (session status → `paused`) until the drift is resolved. This ensures no agent runs against an incompatible schema.

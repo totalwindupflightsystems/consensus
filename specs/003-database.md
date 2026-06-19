@@ -10,7 +10,7 @@
 
 ## 1. Overview
 
-This spec defines the complete database schema for Conscience, covering all core tables, the dynamic entity generator, JSON Schema validation, SQL-enforced constraint types, token caching strategy, and PostgreSQL/SQLite parity requirements.
+This spec defines the complete database schema for Consensus, covering all core tables, the dynamic entity generator, JSON Schema validation, SQL-enforced constraint types, token caching strategy, and PostgreSQL/SQLite parity requirements.
 
 The database is not a persistence layer — it IS the runtime (SPEC-001 §2.1). Every table defined here serves a dual purpose: data storage and runtime enforcement of agent behavior.
 
@@ -516,7 +516,7 @@ BEGIN
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', fq_name);
     EXECUTE format('
         CREATE POLICY isolate_session_%s ON %I
-            FOR ALL USING (session_id = current_setting(''conscience.session_id'')::UUID)
+            FOR ALL USING (session_id = current_setting(''consensus.session_id'')::UUID)
     ', fq_name, fq_name, fq_name);
 
     -- Soft-delete intercept
@@ -925,7 +925,7 @@ CREATE OR REPLACE VIEW active_context_view AS
 WITH active_ids AS (
     SELECT unnest(active_pointers) AS ptr_id
     FROM iteration_commits
-    WHERE session_id = current_setting('conscience.session_id')::UUID
+    WHERE session_id = current_setting('consensus.session_id')::UUID
     ORDER BY iteration_id DESC
     LIMIT 1
 )
@@ -945,7 +945,7 @@ FROM memory_events me
 JOIN active_ids ai ON me.id = ai.ptr_id
 LEFT JOIN display_modes dm ON dm.memory_id = me.id
 WHERE COALESCE(dm.mode, 'full') != 'hidden'
-    AND me.session_id = current_setting('conscience.session_id')::UUID
+    AND me.session_id = current_setting('consensus.session_id')::UUID
 ORDER BY me.iteration_created, me.id;
 ```
 
@@ -1020,7 +1020,7 @@ DECLARE
     v_payload JSONB;
 BEGIN
     IF NEW.summary_text IS NULL AND NEW.embedding IS NOT NULL THEN
-        v_endpoint := current_setting('conscience.llm_endpoint');
+        v_endpoint := current_setting('consensus.llm_endpoint');
 
         v_payload := jsonb_build_object(
             'model', (SELECT model_id FROM model_registry WHERE tier = 1 AND enabled = true ORDER BY cost_per_m_out ASC LIMIT 1),
@@ -1030,7 +1030,7 @@ BEGIN
 
         PERFORM net.http_post(
             url := v_endpoint,
-            headers := '{"Content-Type": "application/json", "Authorization": "Bearer ' || current_setting('conscience.api_key') || '"}'::jsonb,
+            headers := '{"Content-Type": "application/json", "Authorization": "Bearer ' || current_setting('consensus.api_key') || '"}'::jsonb,
             body := v_payload
         );
     END IF;
@@ -1102,22 +1102,22 @@ ALTER TABLE tool_results ENABLE ROW LEVEL SECURITY;
 
 -- Session-scoped isolation policy (applied to each table)
 CREATE POLICY session_isolate_memory ON memory_events
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_display ON display_modes
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_iterations ON iteration_commits
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tasks ON tasks
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tool_req ON tool_requests
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tool_res ON tool_results
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 ```
 
 #### Canonical RLS Role Model (SPEC-011 §13)
@@ -1448,7 +1448,7 @@ These tables are not repeated here to avoid duplication. Each is fully defined i
 
 | Table | Purpose |
 |---|---|
-| `shim_session_map` | Maps external protocol sessions (opencode, MCP) to Conscience session IDs |
+| `shim_session_map` | Maps external protocol sessions (opencode, MCP) to Consensus session IDs |
 
 ### 10.8 From SPEC-020 (Interactive Transaction Staging)
 

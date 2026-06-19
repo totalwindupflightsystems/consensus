@@ -1,5 +1,5 @@
 // Package hitl implements human-in-the-loop approvals and notifications for
-// Conscience (SPEC-014).
+// Consensus (SPEC-014).
 //
 // HITL is the mechanism for humans to inject themselves into the agent
 // execution loop. Agents pause and request approval for risky operations;
@@ -25,8 +25,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/session"
 )
 
 // ============================================================================

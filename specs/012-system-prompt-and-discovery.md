@@ -60,13 +60,13 @@ The system prompt follows the same caching hierarchy as the active context view 
 WITH session_info AS (
     SELECT id, agent_name, goal, context_budget, iteration, status
     FROM sessions
-    WHERE id = current_setting('conscience.session_id')::UUID
+    WHERE id = current_setting('consensus.session_id')::UUID
 ),
 available_tools AS (
     SELECT name, description, hemisphere, handler_type, parameter_schema
     FROM tools_registry
     WHERE enabled = true
-      AND (owner_session_id IS NULL OR owner_session_id = current_setting('conscience.session_id')::UUID)
+      AND (owner_session_id IS NULL OR owner_session_id = current_setting('consensus.session_id')::UUID)
     ORDER BY hemisphere, name
 ),
 available_skills AS (
@@ -120,7 +120,7 @@ FROM session_info si;
 ```markdown
 # Identity
 
-You are **{agent_name}**, an AI agent operating within the Conscience framework.
+You are **{agent_name}**, an AI agent operating within the Consensus framework.
 You manage your own cognition through SQL statements. You do not run shell commands.
 You read from and write to a relational database. Every thought and action is a SQL transaction.
 
@@ -225,7 +225,7 @@ WHERE table_schema = 'public'
   AND table_name NOT IN ({CORE_TABLES})
   AND table_name IN (
       SELECT table_name FROM session_dynamic_tables
-      WHERE session_id = current_setting('conscience.session_id')::UUID
+      WHERE session_id = current_setting('consensus.session_id')::UUID
   );
 ```
 

@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-Conscience needs external interfaces for humans to create sessions, monitor agents, review approvals, and integrate with other systems. This spec defines the REST API, real-time event streams, and MCP (Model Context Protocol) integration that allow external systems to interact with the agent runtime.
+Consensus needs external interfaces for humans to create sessions, monitor agents, review approvals, and integrate with other systems. This spec defines the REST API, real-time event streams, and MCP (Model Context Protocol) integration that allow external systems to interact with the agent runtime.
 
 All external interfaces share a common principle: **they write to the same database the agent reads from.** There is no separate API state — the database is the single source of truth.
 
@@ -67,7 +67,7 @@ async function authenticateRequest(req: Request): Promise<AuthResult> {
 
     // Set session context for RLS
     if (apiKey.session_id) {
-        await db.execute(sql`SET LOCAL conscience.session_id = ${apiKey.session_id}`);
+        await db.execute(sql`SET LOCAL consensus.session_id = ${apiKey.session_id}`);
     }
 
     return {
@@ -88,9 +88,9 @@ The bootstrap admin key is inserted with `expires_at` set to `created_at + TTL`.
 
 | Environment Variable | Default | Meaning |
 |---|---|---|
-| `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS` | `2160` (90 days) | Hours until the bootstrap key expires |
+| `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` | `2160` (90 days) | Hours until the bootstrap key expires |
 
-When `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS` is set to `0`, `expires_at` is set to `NULL`, meaning the key never expires. This preserves backward compatibility with deployments that rely on permanent bootstrap keys.
+When `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` is set to `0`, `expires_at` is set to `NULL`, meaning the key never expires. This preserves backward compatibility with deployments that rely on permanent bootstrap keys.
 
 **REQ-BOOTSTRAP-TTL-002: Bootstrap-time visibility**
 
@@ -108,9 +108,9 @@ The existing auth middleware check — `(expires_at IS NULL OR expires_at > date
 
 **Realized by:**
 
-- `internal/bootstrap/admin_key.go` — `EnsureFirstAdminKey` sets `expires_at` based on `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS`
+- `internal/bootstrap/admin_key.go` — `EnsureFirstAdminKey` sets `expires_at` based on `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS`
 - `internal/api/server.go` — auth middleware enforces `expires_at` check (unchanged)
-- `cmd/conscience/main.go` — calls `EnsureFirstAdminKey` during bootstrap
+- `cmd/consensus/main.go` — calls `EnsureFirstAdminKey` during bootstrap
 
 axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-001 plan= impl=internal/bootstrap/admin_key.go test=internal/bootstrap/admin_key_test.go
 
@@ -323,13 +323,13 @@ On Postgres, the event bus is powered by LISTEN/NOTIFY. On SQLite, it uses Go ch
 
 ### 5.1 What is MCP?
 
-The Model Context Protocol (MCP) is an open standard for connecting AI models to external data sources and tools. Conscience exposes its agent runtime as an MCP server, allowing any MCP-compatible client (Claude Desktop, IDE plugins, etc.) to create and interact with agents.
+The Model Context Protocol (MCP) is an open standard for connecting AI models to external data sources and tools. Consensus exposes its agent runtime as an MCP server, allowing any MCP-compatible client (Claude Desktop, IDE plugins, etc.) to create and interact with agents.
 
 ### 5.2 MCP Server Definition
 
 ```json
 {
-    "name": "conscience",
+    "name": "consensus",
     "version": "0.1.0",
     "description": "Database-native cognitive architecture for AI agents",
     "tools": [
@@ -417,17 +417,17 @@ The Model Context Protocol (MCP) is an open standard for connecting AI models to
         {
             "name": "sessions",
             "description": "Active agent sessions",
-            "uri": "conscience://sessions"
+            "uri": "consensus://sessions"
         },
         {
             "name": "session_context",
             "description": "Active context view for a session",
-            "uri": "conscience://sessions/{session_id}/context"
+            "uri": "consensus://sessions/{session_id}/context"
         },
         {
             "name": "tools_registry",
             "description": "Available tools and skills",
-            "uri": "conscience://tools"
+            "uri": "consensus://tools"
         }
     ],
     "prompts": [
@@ -483,7 +483,7 @@ Resources allow MCP clients to read agent state without needing specific tools:
 ```typescript
 // Resource handler
 async function readResource(uri: string): Promise<string> {
-    if (uri.startsWith('conscience://sessions/') && uri.endsWith('/context')) {
+    if (uri.startsWith('consensus://sessions/') && uri.endsWith('/context')) {
         const sessionId = uri.split('/')[3];
         const context = await db.selectFrom('active_context_view')
             .where('session_id', '=', sessionId)
@@ -491,14 +491,14 @@ async function readResource(uri: string): Promise<string> {
             .execute();
         return formatAsMarkdown(context);
     }
-    if (uri === 'conscience://sessions') {
+    if (uri === 'consensus://sessions') {
         const sessions = await db.selectFrom('sessions')
             .where('status', 'in', ['idle', 'thinking', 'tool_exec', 'waiting_sub', 'paused'])
             .select(['id', 'agent_name', 'status', 'goal', 'iteration'])
             .execute();
         return JSON.stringify(sessions, null, 2);
     }
-    if (uri === 'conscience://tools') {
+    if (uri === 'consensus://tools') {
         const tools = await db.selectFrom('tools_registry')
             .where('enabled', '=', true)
             .select(['name', 'description', 'hemisphere', 'handler_type'])
@@ -623,6 +623,6 @@ All interface code lives in the Go binary. The database backend only affects dat
 
 1. **Pagination**: What pagination strategy for list endpoints? Cursor-based (stable for real-time data) or offset-based (simpler)?
 2. **Batch operations**: Should there be batch endpoints (e.g., create multiple tasks in one request)?
-3. **API versioning**: URL-based (`/api/v1/`) vs header-based (`Accept: application/vnd.conscience.v1+json`)?
+3. **API versioning**: URL-based (`/api/v1/`) vs header-based (`Accept: application/vnd.consensus.v1+json`)?
 4. **WebSocket vs SSE**: Should the real-time stream use WebSocket (bidirectional) or SSE (simpler, unidirectional)?
 5. **CORS**: What origins should be allowed for browser-based dashboards?

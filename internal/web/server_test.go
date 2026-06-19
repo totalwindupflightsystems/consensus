@@ -79,8 +79,8 @@ func TestIndexPage(t *testing.T) {
 	if !strings.Contains(contentType, "text/html") {
 		t.Errorf("expected HTML content type, got %q", contentType)
 	}
-	if !strings.Contains(w.Body.String(), "Conscience") {
-		t.Error("expected Conscience in page body")
+	if !strings.Contains(w.Body.String(), "Consensus") {
+		t.Error("expected Consensus in page body")
 	}
 }
 

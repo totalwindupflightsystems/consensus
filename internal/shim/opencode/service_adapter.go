@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/api"
+	"github.com/wojons/consensus/internal/api"
 )
 
 // ServiceAdapter wraps api.Service to satisfy opencode.Service.

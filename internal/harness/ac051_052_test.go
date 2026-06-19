@@ -1,5 +1,5 @@
-// AC-051: conscience session CLI — create, list, show, cost
-// AC-052: conscience approve CLI — list, show, accept, reject
+// AC-051: consensus session CLI — create, list, show, cost
+// AC-052: consensus approve CLI — list, show, accept, reject
 //
 // These tests verify the DB operations that the CLI commands use,
 // confirming the backend works correctly.
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// AC-051: conscience session — create, list, show, cost
+// AC-051: consensus session — create, list, show, cost
 func TestAC051_SessionCLI(t *testing.T) {
 	th, err := newTestHarness(newMockLLM(minimalOutput()))
 	if err != nil {
@@ -18,7 +18,7 @@ func TestAC051_SessionCLI(t *testing.T) {
 	}
 	defer th.close()
 
-	// Create a session (simulating `conscience session create --goal "test"`)
+	// Create a session (simulating `consensus session create --goal "test"`)
 	err = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration)
 		VALUES ('ac051-s1', 'test-agent', 'test-model', 'idle', 'test goal', 0)
@@ -27,7 +27,7 @@ func TestAC051_SessionCLI(t *testing.T) {
 		t.Fatalf("AC-051: create session: %v", err)
 	}
 
-	// List sessions (simulating `conscience session list`)
+	// List sessions (simulating `consensus session list`)
 	rows, err := th.conn.Query(th.ctx,
 		`SELECT id, status, goal, iteration FROM sessions ORDER BY created_at DESC`)
 	if err != nil {
@@ -37,7 +37,7 @@ func TestAC051_SessionCLI(t *testing.T) {
 		t.Fatal("AC-051: no sessions found in list")
 	}
 
-	// Show session (simulating `conscience session show ac051-s1`)
+	// Show session (simulating `consensus session show ac051-s1`)
 	found := false
 	for _, r := range rows {
 		if toString(r["id"]) == "ac051-s1" {
@@ -58,7 +58,7 @@ func TestAC051_SessionCLI(t *testing.T) {
 		t.Fatal("AC-051: session ac051-s1 not found in list")
 	}
 
-	// Add billing record (simulating `conscience session cost ac051-s1`)
+	// Add billing record (simulating `consensus session cost ac051-s1`)
 	err = th.conn.Exec(th.ctx, `
 		INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cost_usd)
 		VALUES ('ac051-s1', 1, 'test-model', 'cognition', 500, 200, 0.0050)
@@ -85,7 +85,7 @@ func TestAC051_SessionCLI(t *testing.T) {
 	t.Log("AC-051 PASS: session CLI operations (create, list, show, cost) verified")
 }
 
-// AC-052: conscience approve — list, show, accept, reject
+// AC-052: consensus approve — list, show, accept, reject
 func TestAC052_ApproveCLI(t *testing.T) {
 	th, err := newTestHarness(newMockLLM(minimalOutput()))
 	if err != nil {
@@ -110,7 +110,7 @@ func TestAC052_ApproveCLI(t *testing.T) {
 		t.Fatalf("AC-052: create approval: %v", err)
 	}
 
-	// List approvals (simulating `conscience approve list`)
+	// List approvals (simulating `consensus approve list`)
 	rows, err := th.conn.Query(th.ctx, `
 		SELECT id, session_id, status, risk_level, request_type
 		FROM approval_requests
@@ -124,7 +124,7 @@ func TestAC052_ApproveCLI(t *testing.T) {
 		t.Fatal("AC-052: no pending approvals found")
 	}
 
-	// Show approval details (simulating `conscience approve show apr-1`)
+	// Show approval details (simulating `consensus approve show apr-1`)
 	detail, err := th.conn.Query(th.ctx,
 		`SELECT id, session_id, status, risk_level, request_type, description
 		 FROM approval_requests WHERE id = $1`, "apr-1")
@@ -141,7 +141,7 @@ func TestAC052_ApproveCLI(t *testing.T) {
 		t.Errorf("AC-052: risk_level = %q, want 'high'", toString(detail[0]["risk_level"]))
 	}
 
-	// Accept approval (simulating `conscience approve accept apr-1`)
+	// Accept approval (simulating `consensus approve accept apr-1`)
 	err = th.conn.Exec(th.ctx, `
 		UPDATE approval_requests SET status = 'approved', reviewed_at = datetime('now'), review_notes = 'Approved by test'
 		WHERE id = $1
@@ -158,7 +158,7 @@ func TestAC052_ApproveCLI(t *testing.T) {
 			toString(accepted[0]["status"]))
 	}
 
-	// Reject approval (simulating `conscience approve reject apr-2`)
+	// Reject approval (simulating `consensus approve reject apr-2`)
 	err = th.conn.Exec(th.ctx, `
 		INSERT INTO approval_requests (id, session_id, iteration, request_type, status, risk_level, target_sql, description)
 		VALUES ('apr-2', 'ac052-s1', 1, 'schema_change', 'pending', 'critical', 'ALTER TABLE x', 'Need schema change')

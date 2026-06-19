@@ -30,7 +30,7 @@ Implemented the Cognitive Firewall quarantine scanner (CS-GAP-003). All 26 test 
 | `internal/webhook/doc.go` | Updated trace markers |
 | `internal/api/server.go` | Added `quarantineSvc` field, `QuarantineService` config, quarantine route dispatch, `EventBus()` accessor |
 | `internal/api/events.go` | Added `PublishQuarantineEvent` method |
-| `cmd/conscience/main.go` | Wired quarantine service, scanner, inserter into webhook store and API server |
+| `cmd/consensus/main.go` | Wired quarantine service, scanner, inserter into webhook store and API server |
 | `internal/webhook/webhook_test.go` | Added `TestQuarantineMaliciousPayload` integration test |
 
 ## Test Coverage

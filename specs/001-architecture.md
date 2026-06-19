@@ -10,7 +10,7 @@
 
 The LLM is a massive, multi-vector data beast. It is inherently non-deterministic. Attempting to manage its state, memory, and permissions inside a file system or a raw terminal is a structural failure. A non-deterministic engine must be paired with the most deterministic system we have in computing: a relational database.
 
-**Conscience** is an architecture where the database (PostgreSQL or SQLite) is the runtime environment, the memory ledger, the security sandbox, and the cognitive loop.
+**Consensus** is an architecture where the database (PostgreSQL or SQLite) is the runtime environment, the memory ledger, the security sandbox, and the cognitive loop.
 
 ### Evolution of Agent Runtimes
 
@@ -19,7 +19,7 @@ The LLM is a massive, multi-vector data beast. It is inherently non-deterministi
 | 1st | Browser chatbots | No persistence, no tools |
 | 2nd | Code editor sidebars | Read-only, autocomplete-only |
 | 3rd | CLI/TUI agents (Bash) | Non-deterministic, insecure, no state |
-| **4th** | **Database-native (Conscience)** | **Deterministic state machine with memory** |
+| **4th** | **Database-native (Consensus)** | **Deterministic state machine with memory** |
 
 ## 2. Design Principles
 
@@ -58,7 +58,7 @@ The LLM doesn't know which database it's running on. It sees the same schema, re
 
 ### 2.4 Agent as Microservice, Not User
 
-Bash agents emulate a human at a keyboard. Conscience agents operate as backend microservices—managing state, executing precise CRUD operations, and managing data pipelines within a constrained, reliable surface area.
+Bash agents emulate a human at a keyboard. Consensus agents operate as backend microservices—managing state, executing precise CRUD operations, and managing data pipelines within a constrained, reliable surface area.
 
 ## 3. System Components Overview
 
@@ -68,7 +68,7 @@ Bash agents emulate a human at a keyboard. Conscience agents operate as backend 
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
 │              ┌──────────────────────────┐                │
-│              │    Go Binary (conscience) │                │
+│              │    Go Binary (consensus) │                │
 │              │                          │                │
 │              │  ┌─────────┐  ┌───────┐  │                │
 │  ┌────────┐  │  │ Harness │  │ REST  │  │                │
@@ -141,7 +141,7 @@ Bash agents emulate a human at a keyboard. Conscience agents operate as backend 
 
 ## 6. Key Differentiators from Existing Frameworks
 
-| Problem | LangChain/AutoGen | Conscience |
+| Problem | LangChain/AutoGen | Consensus |
 |---|---|---|
 | State management | External memory stores | Append-only ledger with time travel |
 | Context window | Monolithic prompt strings | Dynamic SQL VIEW with paging |
@@ -153,14 +153,14 @@ Bash agents emulate a human at a keyboard. Conscience agents operate as backend 
 | Hallucination damage | Corrupted files | Rejected transaction |
 | Self-improvement | Prompt engineering | ALTER TABLE + JSON Schema constraints |
 
-## 7. Why "Conscience"
+## 7. Why "Consensus"
 
-The framework is called **Conscience** because:
+The framework is called **Consensus** because:
 
 1. The agent doesn't just "remember" rules—it **physically cannot break them** because they're enforced by database constraints
 2. When a user says "modify the system so we can never have that data missing again," the agent doesn't just update its prompt—it **alters the structural boundaries of its own mind** (`ALTER TABLE ADD CONSTRAINT`)
 3. The "conscious" layer is what the agent sees (the dynamic view); the "subconscious" layer is the immutable full ledger it can't see but can search (Alt-Mode)
-4. The database kernel acts as the agent's conscience—rejecting harmful actions before they manifest
+4. The database kernel acts as the agent's consensus—rejecting harmful actions before they manifest
 
 ## 8. References
 
@@ -169,4 +169,4 @@ The framework is called **Conscience** because:
 - Turns 12-14: JSON vs SQL debate, transaction safety, circuit breakers
 - Turns 19-20: Unified deployment, write-once philosophy
 - Turns 26-28: Master architecture document formulation
-- Turns 35-36: "Conscience" naming rationale, unbypassable constraints
+- Turns 35-36: "Consensus" naming rationale, unbypassable constraints

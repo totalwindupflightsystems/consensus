@@ -23,7 +23,7 @@ axiom:trace work_item=repo-bootstrap-01 spec=specs/000-north-star.md,specs/001-a
 
 ## Phases
 
-1. **Step 1** — Create full SPEC-021 package/directory skeleton (all 22 dirs + go.mod, Makefile, Dockerfile, conscience.yaml)
+1. **Step 1** — Create full SPEC-021 package/directory skeleton (all 22 dirs + go.mod, Makefile, Dockerfile, consensus.yaml)
 2. **Step 2** — Document SPEC-022 dependency research decisions with rationale for each chosen library
 3. **Step 3** — Define SPEC-001 architecture seam interfaces (db.DB, db.Tx, dual-backend dispatch)
 4. **Step 4** — Baseline build verification with CGO_ENABLED=0 and SPEC-000 north-star trace note

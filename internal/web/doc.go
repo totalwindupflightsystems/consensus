@@ -1,4 +1,4 @@
-// Package web provides a minimal web admin UI for the Conscience runtime.
+// Package web provides a minimal web admin UI for the Consensus runtime.
 //
 // Serves embedded HTML pages (dashboard, sessions, memory browser).
 // All data operations go through the existing REST API. The server also provides

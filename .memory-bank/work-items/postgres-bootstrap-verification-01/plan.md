@@ -1,6 +1,6 @@
 # postgres-bootstrap-verification-01 — Plan
 
-Prove first-admin-key bootstrap works on Postgres, not just SQLite. Prefer an opt-in integration test gated by `CONSCIENCE_TEST_POSTGRES_URL` so normal local tests remain fast.
+Prove first-admin-key bootstrap works on Postgres, not just SQLite. Prefer an opt-in integration test gated by `CONSENSUS_TEST_POSTGRES_URL` so normal local tests remain fast.
 
 ## Steps
 
@@ -11,7 +11,7 @@ Prove first-admin-key bootstrap works on Postgres, not just SQLite. Prefer an op
 
 ## Verification
 
-- `CONSCIENCE_TEST_POSTGRES_URL=... go test ./internal/bootstrap -run Postgres -v -count=1` when available.
+- `CONSENSUS_TEST_POSTGRES_URL=... go test ./internal/bootstrap -run Postgres -v -count=1` when available.
 - `go test ./internal/bootstrap -v -count=1`.
 - `make test`.
 

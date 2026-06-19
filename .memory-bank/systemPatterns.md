@@ -12,7 +12,7 @@
 - **pg_cron optional** — Go binary has cron fallback for maintenance jobs
 
 ## Design Patterns in Use
-- **RLS for security**: All tables scoped by `conscience.session_id` via `SET LOCAL` (Postgres) or Go-layer enforcement (SQLite)
+- **RLS for security**: All tables scoped by `consensus.session_id` via `SET LOCAL` (Postgres) or Go-layer enforcement (SQLite)
 - **Stored procedures for destructive ops**: `complete_session()`, `set_display_mode()`, `soft_delete()`
 - **SQL injection mitigation**: Statement classifier (DML_READ/WRITE/DDL_CREATE/ALTER/DANGEROUS) + table whitelist + stored proc preference
 - **Token caching**: System instructions (Layer 1) → Schema/Tools (Layer 2) → Active context (Layer 3)

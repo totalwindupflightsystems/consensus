@@ -1,6 +1,6 @@
 // postgres_test.go — Postgres migration bootstrap integration test.
 //
-// Gated by CONSCIENCE_TEST_POSTGRES_URL env var. Skips gracefully when unset.
+// Gated by CONSENSUS_TEST_POSTGRES_URL env var. Skips gracefully when unset.
 // Verifies that all embedded migration files apply cleanly against a real
 // Postgres instance and that core schema tables exist post-migration.
 //
@@ -15,14 +15,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 func TestPostgresBootstrap(t *testing.T) {
-	pgURL := os.Getenv("CONSCIENCE_TEST_POSTGRES_URL")
+	pgURL := os.Getenv("CONSENSUS_TEST_POSTGRES_URL")
 	if pgURL == "" {
-		t.Skip("CONSCIENCE_TEST_POSTGRES_URL not set; skipping Postgres integration test")
+		t.Skip("CONSENSUS_TEST_POSTGRES_URL not set; skipping Postgres integration test")
 	}
 
 	ctx := context.Background()

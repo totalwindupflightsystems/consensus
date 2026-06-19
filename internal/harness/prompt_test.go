@@ -25,7 +25,7 @@ func TestBuildIdentityLayer_ContainsCoreElements(t *testing.T) {
 	layer := b.buildIdentityLayer(config)
 
 	required := []string{
-		"Conscience Agent Runtime",
+		"Consensus Agent Runtime",
 		"test_agent",
 		"gpt-4o",
 		"sess-123",
@@ -357,13 +357,13 @@ func TestPromptCacheFriendly_StaticPrefix(t *testing.T) {
 
 	// Identity should be first (cacheable)
 	identityLayer := b.buildIdentityLayer(config)
-	if !strings.HasPrefix(identityLayer, "# Conscience") {
+	if !strings.HasPrefix(identityLayer, "# Consensus") {
 		t.Error("identity layer should start with header")
 	}
 
 	// Constraints should be toward the end (not cache-breaking)
 	constraintsLayer := b.buildConstraintsLayer(config)
-	if strings.HasPrefix(constraintsLayer, "# Conscience") {
+	if strings.HasPrefix(constraintsLayer, "# Consensus") {
 		t.Error("constraints layer should not be positioned as first content")
 	}
 }
@@ -393,10 +393,10 @@ func TestSubAgentPrompt_DifferentFromParent(t *testing.T) {
 	}
 
 	// But both share the same structural template
-	if strings.Count(prompt1, "# Conscience Agent Runtime") != 1 {
+	if strings.Count(prompt1, "# Consensus Agent Runtime") != 1 {
 		t.Error("parent should have one header")
 	}
-	if strings.Count(prompt2, "# Conscience Agent Runtime") != 1 {
+	if strings.Count(prompt2, "# Consensus Agent Runtime") != 1 {
 		t.Error("child should have one header")
 	}
 }

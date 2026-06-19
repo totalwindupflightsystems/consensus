@@ -25,7 +25,7 @@ func TestMultiSessionIsolation(t *testing.T) {
 
 	binPath := findConscienceBinary(t)
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "conscience-test.db")
+	dbPath := filepath.Join(tmpDir, "consensus-test.db")
 	port := randomPort(t)
 
 	config := fmt.Sprintf(`server:
@@ -50,12 +50,12 @@ database:
 logging:
   level: debug
 `, port, dbPath)
-	if err := os.WriteFile(filepath.Join(tmpDir, "conscience.yaml"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(config), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
 	// Start server
-	cmd := exec.Command(binPath, "--config", filepath.Join(tmpDir, "conscience.yaml"), "serve")
+	cmd := exec.Command(binPath, "--config", filepath.Join(tmpDir, "consensus.yaml"), "serve")
 	cmd.Dir = tmpDir
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Stderr = os.Stderr

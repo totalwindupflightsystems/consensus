@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-Conscience is not just request-response. External systems push events into the database via webhooks, and those events wake agents, trigger workflows, and create tasks. This spec defines how events enter the system, how they're validated, and how they route to the correct agent.
+Consensus is not just request-response. External systems push events into the database via webhooks, and those events wake agents, trigger workflows, and create tasks. This spec defines how events enter the system, how they're validated, and how they route to the correct agent.
 
 The core principle: **The database is the event bus.** No Kafka, no Redis, no RabbitMQ. Webhooks write rows to tables; triggers route them to agents.
 

@@ -1,4 +1,4 @@
-# Conscience — Master Gap Analysis (Fresh Sweep)
+# Consensus — Master Gap Analysis (Fresh Sweep)
 
 **Generated**: 2026-05-29 | **Project**: /home/kara/conscientiousness
 **Implementation State**: 123 Go files, 42 test files, 27 packages. All build and test clean.
@@ -102,7 +102,7 @@ Both agents traced code paths, not just file existence. Convergent findings cros
 
 #### CS-GAP-010: RLS 4-Role Model Not Used at Runtime
 - **Specs**: SPEC-005, SPEC-011
-- **What's missing**: `agent_role`, `compression_worker`, `alt_mode_role`, `tool_executor` defined in SQL migrations but harness connects as single DB role. `SET LOCAL conscience.user_id` never called.
+- **What's missing**: `agent_role`, `compression_worker`, `alt_mode_role`, `tool_executor` defined in SQL migrations but harness connects as single DB role. `SET LOCAL consensus.user_id` never called.
 - **Effort**: ~6h
 
 #### CS-GAP-011: Anthropic Client is a Stub

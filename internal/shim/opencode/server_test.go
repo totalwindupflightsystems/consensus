@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -87,8 +87,8 @@ func TestHealthEndpoint(t *testing.T) {
 	if body["healthy"] != true {
 		t.Error("expected healthy=true")
 	}
-	if body["version"] != "conscience-0.1.0" {
-		t.Errorf("expected version=conscience-0.1.0, got %v", body["version"])
+	if body["version"] != "consensus-0.1.0" {
+		t.Errorf("expected version=consensus-0.1.0, got %v", body["version"])
 	}
 }
 
@@ -395,8 +395,8 @@ func TestGetProvider(t *testing.T) {
 
 	var body map[string]any
 	json.NewDecoder(resp.Body).Decode(&body)
-	if body["provider"] != "conscience" {
-		t.Errorf("expected provider=conscience, got %v", body["provider"])
+	if body["provider"] != "consensus" {
+		t.Errorf("expected provider=consensus, got %v", body["provider"])
 	}
 }
 

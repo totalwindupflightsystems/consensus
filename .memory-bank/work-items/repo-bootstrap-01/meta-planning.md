@@ -21,10 +21,10 @@ Out of scope: full schema, harness, API, CLI implementation.
 
 ### AC-1: Full SPEC-021 package skeleton (SPEC-021)
 The repo contains a Go module and the complete directory/package structure from SPEC-021 §2, including:
-- `cmd/conscience/main.go` (binary entry point)
+- `cmd/consensus/main.go` (binary entry point)
 - `internal/config/`, `internal/db/` (with `postgres/` and `sqlite/` sub-packages), `internal/harness/`, `internal/api/`, `internal/mcp/`
 - `internal/cli/`, `internal/security/`, `internal/secrets/`, `internal/memory/`, `internal/session/`, `internal/tools/`, `internal/billing/`, `internal/llm/`, `internal/webhook/`, `internal/hitl/`, `internal/subagent/`, `internal/shim/`, `internal/migrate/`
-- `migrations/`, `Makefile`, `Dockerfile`, `conscience.yaml`
+- `migrations/`, `Makefile`, `Dockerfile`, `consensus.yaml`
 
 ### AC-2: SPEC-001 architecture seam interfaces (SPEC-001)
 - `internal/db/db.go` defines the `DB` and `Tx` interfaces per SPEC-021 §3.2

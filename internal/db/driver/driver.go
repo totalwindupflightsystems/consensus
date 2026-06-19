@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/postgres"
-	"github.com/wojons/conscientiousness/internal/db/sqlite"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/postgres"
+	"github.com/wojons/consensus/internal/db/sqlite"
 )
 
 // Open creates a database connection based on the configuration URL.

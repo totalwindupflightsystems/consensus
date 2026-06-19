@@ -1,4 +1,4 @@
-module github.com/wojons/conscientiousness
+module github.com/wojons/consensus
 
 go 1.25.0
 

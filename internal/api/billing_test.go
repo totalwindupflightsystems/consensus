@@ -207,7 +207,7 @@ func TestGetConfig_WithSettings(t *testing.T) {
 	_ = srv.conn.Exec(ctx, `INSERT INTO system_settings (key, value) VALUES ('llm.default_model', 'gpt-4o')`)
 	_ = srv.conn.Exec(ctx, `INSERT INTO system_settings (key, value) VALUES ('llm.provider', 'openai')`)
 	_ = srv.conn.Exec(ctx, `INSERT INTO system_settings (key, value) VALUES ('harness.heartbeat_interval_seconds', '5')`)
-	_ = srv.conn.Exec(ctx, `INSERT INTO system_settings (key, value) VALUES ('app.title', 'Conscience')`)
+	_ = srv.conn.Exec(ctx, `INSERT INTO system_settings (key, value) VALUES ('app.title', 'Consensus')`)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
 	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
@@ -243,7 +243,7 @@ func TestGetConfig_WithSettings(t *testing.T) {
 
 	// Uncategorized should be in system_settings
 	if cfg.SystemSettings != nil {
-		if cfg.SystemSettings["app.title"] != "Conscience" {
+		if cfg.SystemSettings["app.title"] != "Consensus" {
 			t.Errorf("expected app.title in system_settings, got %v", cfg.SystemSettings)
 		}
 	}

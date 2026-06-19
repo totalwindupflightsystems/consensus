@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 // ============================================================================
@@ -296,7 +296,7 @@ func TestReadActiveContext_SystemPromptContainsRules(t *testing.T) {
 
 	// System prompt must contain key rules
 	rules := []string{
-		"Conscience agent",
+		"Consensus agent",
 		"structured JSON",
 		"memory_state_changes",
 		"atomic transaction",

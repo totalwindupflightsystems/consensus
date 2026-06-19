@@ -1,4 +1,4 @@
-# Conscience — PostgreSQL test container
+# Consensus — PostgreSQL test container
 # Start: docker compose up -d
 # Stop:  docker compose down -v
 #
@@ -11,15 +11,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: conscience
-      POSTGRES_PASSWORD: conscience
-      POSTGRES_DB: conscience
+      POSTGRES_USER: consensus
+      POSTGRES_PASSWORD: consensus
+      POSTGRES_DB: consensus
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U conscience -d conscience"]
+      test: ["CMD-SHELL", "pg_isready -U consensus -d consensus"]
       interval: 2s
       timeout: 5s
       retries: 10

@@ -2,7 +2,7 @@
 
 ## Summary
 
-`conscience init` prints the bootstrap admin key to stdout, while `conscience serve` prints it to stderr. That may be acceptable, but it is currently undocumented and easy for scripts/operators to miss. This work item decides and implements a consistent operator-facing behavior.
+`consensus init` prints the bootstrap admin key to stdout, while `consensus serve` prints it to stderr. That may be acceptable, but it is currently undocumented and easy for scripts/operators to miss. This work item decides and implements a consistent operator-facing behavior.
 
 ## Scope
 

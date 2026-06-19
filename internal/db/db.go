@@ -1,4 +1,4 @@
-// Package db defines the database driver interface for Conscience.
+// Package db defines the database driver interface for Consensus.
 //
 // All other packages depend on this interface — never on a specific driver.
 // This is the single architectural seam that enables dual-backend support:
@@ -49,7 +49,7 @@ type Tx interface {
 	QueryRow(ctx context.Context, query string, args ...any) (Row, error)
 
 	// SetSessionContext sets the session identity for RLS isolation.
-	// On Postgres this issues SET LOCAL conscience.session_id.
+	// On Postgres this issues SET LOCAL consensus.session_id.
 	// On SQLite this stores the session ID for Go-layer enforcement.
 	SetSessionContext(ctx context.Context, sessionID string) error
 

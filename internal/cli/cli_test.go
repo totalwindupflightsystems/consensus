@@ -264,7 +264,7 @@ func TestClient_NoApiKey(t *testing.T) {
 
 func TestResolveConfigPath_ExplicitFlag(t *testing.T) {
 	// Create a temp file to satisfy os.Stat check
-	tmpFile, err := os.CreateTemp("", "conscience-test-config-*.yaml")
+	tmpFile, err := os.CreateTemp("", "consensus-test-config-*.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ func TestResolveConfigPath_NoFlagReturnsEmpty(t *testing.T) {
 
 	// In a test environment, none of the default paths will exist
 	path := resolveConfigPath("/nonexistent_home")
-	// The priority chain checks: ./conscience.yaml, ~/.conscience/config.yaml, /etc/conscience/config.yaml
+	// The priority chain checks: ./consensus.yaml, ~/.consensus/config.yaml, /etc/consensus/config.yaml
 	// None of these will exist in tests, so returns ""
 	if path != "" {
 		t.Logf("found unexpected config at: %s", path)
@@ -301,8 +301,8 @@ func TestResolveConfigPath_EmptyHome(t *testing.T) {
 	defer func() { optConfig = oldConfig }()
 
 	path := resolveConfigPath("")
-	// Without home dir, ~/.conscience/config.yaml is skipped
-	// Only checks: ./conscience.yaml, /etc/conscience/config.yaml
+	// Without home dir, ~/.consensus/config.yaml is skipped
+	// Only checks: ./consensus.yaml, /etc/consensus/config.yaml
 	if path != "" {
 		t.Logf("found unexpected config at: %s", path)
 	}
@@ -607,8 +607,8 @@ func TestNewServeCmd_HasAllFlags(t *testing.T) {
 
 func TestNewRootCommand_HasAllSubcommands(t *testing.T) {
 	cmd := NewRootCommand()
-	if cmd.Use != "conscience" {
-		t.Errorf("expected 'conscience', got %q", cmd.Use)
+	if cmd.Use != "consensus" {
+		t.Errorf("expected 'consensus', got %q", cmd.Use)
 	}
 
 	expectedCmds := []string{"serve", "init", "session", "approve", "reject", "migrate", "config", "status", "memory", "tool", "skill", "completion"}
@@ -747,7 +747,7 @@ func TestFormatter_PrintTextQuiet(t *testing.T) {
 // Mock HTTP Server for CLI Command Tests
 // ============================================================================
 
-// mockAPIServer creates an httptest.Server that mimics the Conscience REST API.
+// mockAPIServer creates an httptest.Server that mimics the Consensus REST API.
 // The handler map routes paths to specific responses for testing CLI commands.
 type mockAPIServer struct {
 	*httptest.Server
@@ -774,7 +774,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 	// ─── Health ───────────────────────────────────────────
 	if path == "/api/v1/health" && method == http.MethodGet {
 		json.NewEncoder(w).Encode(map[string]any{
-			"healthy": true, "version": "conscience-0.1.0",
+			"healthy": true, "version": "consensus-0.1.0",
 			"schema_version": "1.0.0", "status": "running",
 		})
 		return
@@ -1917,8 +1917,8 @@ func TestInitCommand_OutputGoesToStdoutNotStderr(t *testing.T) {
 	prevInit := InitFunc
 	InitFunc = func(dbURL string) error {
 		// Simulate output that matches bootstrap.FormatResult for a new key
-		fmt.Println("conscience: first_admin_key created=true key=cs_ak_test123 key_prefix=cs_ak_te id=key-001 created_at=2026-05-28T12:00:00Z")
-		fmt.Println("conscience: save this key now; it is stored hashed and will not be printed again")
+		fmt.Println("consensus: first_admin_key created=true key=cs_ak_test123 key_prefix=cs_ak_te id=key-001 created_at=2026-05-28T12:00:00Z")
+		fmt.Println("consensus: save this key now; it is stored hashed and will not be printed again")
 		return nil
 	}
 	defer func() { InitFunc = prevInit }()
@@ -1955,7 +1955,7 @@ func TestLoadCLIConfig_WithValidConfigFile(t *testing.T) {
 
 	// Write a valid config file
 	cfgData := "server:\n  url: http://my-server:9000\n  api_key: my-config-key\n"
-	os.WriteFile("conscience.yaml", []byte(cfgData), 0644)
+	os.WriteFile("consensus.yaml", []byte(cfgData), 0644)
 
 	// Reset optConfig for this test
 	prevConfig := optConfig
@@ -2015,7 +2015,7 @@ func TestApplyConfigOverrides_NoConfig(t *testing.T) {
 func TestApplyConfigOverrides_WithConfigFile(t *testing.T) {
 	// Create a temp config file and override the config resolution to use it
 	dir := t.TempDir()
-	configPath := filepath.Join(dir, "conscience.yaml")
+	configPath := filepath.Join(dir, "consensus.yaml")
 	configContent := `
 server:
   url: http://custom:9999
@@ -2050,7 +2050,7 @@ server:
 func TestApplyConfigOverrides_EnvTakesPriority(t *testing.T) {
 	// Config file should NOT override if env var is set
 	dir := t.TempDir()
-	configPath := filepath.Join(dir, "conscience.yaml")
+	configPath := filepath.Join(dir, "consensus.yaml")
 	configContent := `
 server:
   url: http://config-server:9999
@@ -2066,22 +2066,22 @@ server:
 	optServer = "http://localhost:8090"
 	prevKey := optAPIKey
 	optAPIKey = ""
-	prevEnv := os.Getenv("CONSCIENCE_SERVER")
-	os.Setenv("CONSCIENCE_SERVER", "http://env-server:8888")
+	prevEnv := os.Getenv("CONSENSUS_SERVER")
+	os.Setenv("CONSENSUS_SERVER", "http://env-server:8888")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
 		optAPIKey = prevKey
 		if prevEnv == "" {
-			os.Unsetenv("CONSCIENCE_SERVER")
+			os.Unsetenv("CONSENSUS_SERVER")
 		} else {
-			os.Setenv("CONSCIENCE_SERVER", prevEnv)
+			os.Setenv("CONSENSUS_SERVER", prevEnv)
 		}
 	}()
 
 	applyConfigOverrides()
 
-	// applyConfigOverrides checks env vars — if CONSCIENCE_SERVER is set,
+	// applyConfigOverrides checks env vars — if CONSENSUS_SERVER is set,
 	// the config file value should NOT override the default
 	if optServer != "http://localhost:8090" {
 		t.Errorf("server should remain default when env is set, got %q", optServer)
@@ -2173,7 +2173,7 @@ func TestExecute_RootCommand(t *testing.T) {
 	// Execute should return 0 on success (no subcommand -> runs root help)
 	// We need to reset os.Args temporarily
 	prevArgs := os.Args
-	os.Args = []string{"conscience", "--server", ms.URL}
+	os.Args = []string{"consensus", "--server", ms.URL}
 	defer func() { os.Args = prevArgs }()
 
 	code := Execute()

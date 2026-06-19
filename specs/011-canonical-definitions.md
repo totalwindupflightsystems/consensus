@@ -151,7 +151,7 @@ CREATE OR REPLACE VIEW active_context_view AS
 WITH active_ids AS (
     SELECT unnest(active_pointers) AS ptr_id
     FROM iteration_commits
-    WHERE session_id = current_setting('conscience.session_id')::UUID
+    WHERE session_id = current_setting('consensus.session_id')::UUID
     ORDER BY iteration_id DESC
     LIMIT 1
 )
@@ -171,7 +171,7 @@ FROM memory_events me
 JOIN active_ids ai ON me.id = ai.ptr_id
 LEFT JOIN display_modes dm ON dm.memory_id = me.id
 WHERE COALESCE(dm.mode, 'full') != 'hidden'
-    AND me.session_id = current_setting('conscience.session_id')::UUID
+    AND me.session_id = current_setting('consensus.session_id')::UUID
 ORDER BY me.iteration_created, me.id;
 ```
 
@@ -615,63 +615,63 @@ The system prompt instructs the agent to use stored procedures. The classifier w
 ### 9.1 The Contradiction
 
 Three different namespace prefixes across specs:
-- `conscience.session_id` (SPEC-003 §3.2, §6.3, §7.5)
+- `consensus.session_id` (SPEC-003 §3.2, §6.3, §7.5)
 - `app.current_session_id` (SPEC-004 §, SPEC-005 §)
 - `app.current_user_id` (SPEC-005 §)
 
-### 9.2 Canonical Namespace: `conscience.*`
+### 9.2 Canonical Namespace: `consensus.*`
 
-All session-scoped settings use the `conscience` prefix:
+All session-scoped settings use the `consensus` prefix:
 
 ```sql
 -- Set by harness at session start, per-request
-SET LOCAL conscience.session_id = 'uuid-here';
-SET LOCAL conscience.user_id = 'uuid-here';
+SET LOCAL consensus.session_id = 'uuid-here';
+SET LOCAL consensus.user_id = 'uuid-here';
 
 -- System-wide settings (set at install)
-SET conscience.llm_endpoint = 'https://api.openai.com/v1/chat/completions';
-SET conscience.api_key_ref = 'llm_api_key';  -- Vault reference, not the key itself
+SET consensus.llm_endpoint = 'https://api.openai.com/v1/chat/completions';
+SET consensus.api_key_ref = 'llm_api_key';  -- Vault reference, not the key itself
 ```
 
 ### 9.3 RLS Policies Updated
 
 ```sql
--- All RLS policies use conscience.session_id
+-- All RLS policies use consensus.session_id
 CREATE POLICY session_isolate_memory ON memory_events
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tasks ON tasks
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
--- User-scoped policies use conscience.user_id
+-- User-scoped policies use consensus.user_id
 CREATE POLICY user_data_scope ON project_resources
     FOR ALL USING (
         project_id IN (
             SELECT project_id FROM user_project_access
-            WHERE user_id = current_setting('conscience.user_id')::UUID
+            WHERE user_id = current_setting('consensus.user_id')::UUID
         )
     );
 ```
 
-### 9.4 Why `conscience.*` Not `app.*`
+### 9.4 Why `consensus.*` Not `app.*`
 
 - `app.*` is a generic prefix that could collide with other Postgres extensions or application settings
-- `conscience.*` is namespaced to this framework specifically
-- Makes debugging easier: `SELECT * FROM pg_settings WHERE name LIKE 'conscience.%'` shows all framework state
+- `consensus.*` is namespaced to this framework specifically
+- Makes debugging easier: `SELECT * FROM pg_settings WHERE name LIKE 'consensus.%'` shows all framework state
 
 ### 9.5 Security: SET LOCAL per Transaction
 
-The `conscience.session_id` MUST be set as `SET LOCAL` inside each transaction, never as a session-level setting. This prevents session cross-contamination when connection pooling reuses connections:
+The `consensus.session_id` MUST be set as `SET LOCAL` inside each transaction, never as a session-level setting. This prevents session cross-contamination when connection pooling reuses connections:
 
 ```typescript
 async function setCognitionContext(sessionId: string, userId: string) {
     // SET LOCAL resets at transaction end — no leakage to next transaction
-    await tx.execute(sql`SET LOCAL conscience.session_id = ${sessionId}`);
-    await tx.execute(sql`SET LOCAL conscience.user_id = ${userId}`);
+    await tx.execute(sql`SET LOCAL consensus.session_id = ${sessionId}`);
+    await tx.execute(sql`SET LOCAL consensus.user_id = ${userId}`);
 }
 ```
 
-**Connection pooling safety:** `SET LOCAL` is safe with both Supabase Supavisor (transaction mode) and PgBouncer (transaction mode). In both cases, `SET LOCAL` resets automatically at `COMMIT` or `ROLLBACK` — there is no race condition or leakage risk. `SET` (without `LOCAL`) would be dangerous with pooling because it persists across transactions; `SET LOCAL` is specifically designed for this pattern. Statement-level pooling (e.g., PgBouncer `pool_mode=statement`) is NOT supported for Conscience — transaction pooling is required.
+**Connection pooling safety:** `SET LOCAL` is safe with both Supabase Supavisor (transaction mode) and PgBouncer (transaction mode). In both cases, `SET LOCAL` resets automatically at `COMMIT` or `ROLLBACK` — there is no race condition or leakage risk. `SET` (without `LOCAL`) would be dangerous with pooling because it persists across transactions; `SET LOCAL` is specifically designed for this pattern. Statement-level pooling (e.g., PgBouncer `pool_mode=statement`) is NOT supported for Consensus — transaction pooling is required.
 
 **ORM configuration:** When connecting to Supabase via Supavisor transaction mode (port 6543), prepared statements are NOT supported. Drizzle must be configured with `prepare: false` on the Postgres.js client. Kysely uses the simple query protocol by default and does not require configuration changes. Direct connections (port 5432) and session mode support prepared statements normally.
 
@@ -682,12 +682,12 @@ SQLite does not support `SET LOCAL` or `current_setting()`. PocketBase achieves 
 1. **PocketBase API Rules** (declarative): Collection rules like `session_id = @request.auth.id` provide basic scoping for all API routes with zero Go code.
 2. **Go harness middleware** (for operations requiring RLS-equivalent controls): The harness injects `WHERE session_id = ?` into queries, equivalent to the PostgreSQL RLS policies but enforced at the application layer.
 
-The harness shim (SPEC-009 §Conscience Shim Layer) abstracts this difference behind a common interface:
+The harness shim (SPEC-009 §Consensus Shim Layer) abstracts this difference behind a common interface:
 
 ```typescript
 // PostgreSQL implementation
 async function setSessionContext(tx, sessionId: string) {
-    await tx.execute(sql`SET LOCAL conscience.session_id = ${sessionId}`);
+    await tx.execute(sql`SET LOCAL consensus.session_id = ${sessionId}`);
 }
 
 // PocketBase implementation — no DB-level setting needed
@@ -868,7 +868,7 @@ This table shows which earlier spec sections are superseded by SPEC-011:
 | §6 Billing | SPEC-003 §2.9, SPEC-006 | Cache tokens, NUMERIC cost, category |
 | §7 Tool Execution | SPEC-008 (in-transaction tools), SPEC-006 § | Two-phase execution |
 | §8 SQL Injection | SPEC-007 (raw SQL safety), SPEC-008 | Classifier + whitelist + stored procs, multi-statement splitting, three-tier execution model |
-| §9 Namespace | SPEC-003, SPEC-004, SPEC-005 (mixed prefixes) | All `conscience.*`, SET LOCAL safe with transaction pooling, PocketBase uses app-layer context |
+| §9 Namespace | SPEC-003, SPEC-004, SPEC-005 (mixed prefixes) | All `consensus.*`, SET LOCAL safe with transaction pooling, PocketBase uses app-layer context |
 | §10 Embedding Parity | SPEC-002 §8, §9 | One embedding model for all tiers |
 | §11 Iteration Commits | SPEC-003 §2.3, SPEC-006 (iteration_snapshots) | Merged into iteration_commits |
 | §12 New Tables | SPEC-004, SPEC-007 (undefined references) | agent_messages, system_settings, audit_logs |
@@ -886,7 +886,7 @@ This table shows which earlier spec sections are superseded by SPEC-011:
 
 4. **~~SET LOCAL in SQLite~~** — RESOLVED: PocketBase does not support `SET LOCAL` / `current_setting()`. Session context is passed through Go middleware (`WHERE session_id = ?`) and PocketBase API Rules (`session_id = @request.auth.id`). The harness shim (SPEC-009) abstracts this behind a common interface. `SET LOCAL` is safe with connection pooling (Supavisor/PgBouncer transaction mode) because it resets at `COMMIT`/`ROLLBACK`. Statement-level pooling is NOT supported. See SPEC-009 §Session Context Isolation and §9.6.
 
-5. **~~PocketBase full rewrite concern~~** — RESOLVED: PocketBase parity is an incremental adaptation, not a full rewrite. ~30% of the database layer needs architecturally different code (RLS → API Rules + Go hooks, `current_setting()` → Go context, PL/pgSQL → Go). ~50% is "same logic, different language" (triggers → Go hooks, pg_cron → app.Cron, pg_net → Go HTTP). ~20% is truly portable (table schemas, CHECK constraints, JSON Schema via sqlite-jsonschema). See SPEC-009 §Conscience Shim Layer and §SQLite Parity.
+5. **~~PocketBase full rewrite concern~~** — RESOLVED: PocketBase parity is an incremental adaptation, not a full rewrite. ~30% of the database layer needs architecturally different code (RLS → API Rules + Go hooks, `current_setting()` → Go context, PL/pgSQL → Go). ~50% is "same logic, different language" (triggers → Go hooks, pg_cron → app.Cron, pg_net → Go HTTP). ~20% is truly portable (table schemas, CHECK constraints, JSON Schema via sqlite-jsonschema). See SPEC-009 §Consensus Shim Layer and §SQLite Parity.
 
 6. **~~SQL injection from multi-statement strings~~** — RESOLVED: The harness now splits all SQL strings on semicolons before classification (SPEC-011 §8.2, SPEC-008 §SQL Execution Model). Each statement is classified independently. A string like `"SELECT * FROM mem; DELETE FROM tasks"` is split into two statements, blocked at the classifier level.
 

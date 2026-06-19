@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // DB is a PostgreSQL-backed implementation of db.DB.
@@ -175,11 +175,11 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...any) (db.Row, 
 }
 
 // SetSessionContext sets the session identity for RLS isolation.
-// On PostgreSQL this issues SET LOCAL conscience.session_id, which
+// On PostgreSQL this issues SET LOCAL consensus.session_id, which
 // is automatically reset when the transaction ends.
 func (tx *Tx) SetSessionContext(ctx context.Context, sessionID string) error {
 	_, err := tx.tx.Exec(ctx,
-		"SELECT set_config('conscience.session_id', $1, true)",
+		"SELECT set_config('consensus.session_id', $1, true)",
 		sessionID,
 	)
 	if err != nil {

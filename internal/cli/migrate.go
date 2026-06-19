@@ -13,7 +13,7 @@ import (
 
 // MigrateFunc is set by the main package to enable direct database migration
 // (without a running server). The action is one of "up", "down", or "status".
-// When set, `conscience migrate --db-url <url>` runs directly against the DB.
+// When set, `consensus migrate --db-url <url>` runs directly against the DB.
 // When nil, falls back to REST proxy mode.
 var MigrateFunc func(action string, dbURL string) error
 
@@ -21,15 +21,15 @@ func newMigrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate",
 		Short: "Run database migrations",
-		Long: `Run all pending database migrations. This is an alias for 'conscience migrate run'.
+		Long: `Run all pending database migrations. This is an alias for 'consensus migrate run'.
 
-The Conscience server auto-migrates on startup. This command enables
+The Consensus server auto-migrates on startup. This command enables
 deliberate offline migration.
 
 With --db-url, runs directly against the database (offline mode).
-Without --db-url, sends requests to the running Conscience server.`,
-		// SPEC-016 §5.5: bare `conscience migrate` runs all pending migrations.
-		// §5.5 also says `conscience migrate` → run alias, `conscience migrate run` same.
+Without --db-url, sends requests to the running Consensus server.`,
+		// SPEC-016 §5.5: bare `consensus migrate` runs all pending migrations.
+		// §5.5 also says `consensus migrate` → run alias, `consensus migrate run` same.
 		RunE: runMigrateRun,
 	}
 
@@ -46,7 +46,7 @@ Without --db-url, sends requests to the running Conscience server.`,
 	return cmd
 }
 
-// migrateRun is the shared implementation for both `conscience migrate` and `conscience migrate run`.
+// migrateRun is the shared implementation for both `consensus migrate` and `consensus migrate run`.
 func runMigrateRun(cmd *cobra.Command, args []string) error {
 	dbURL, _ := cmd.Flags().GetString("db-url")
 
@@ -81,7 +81,7 @@ func newMigrateRunCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "run",
 		Short: "Run all pending migrations",
-		Long:  `Run all pending database migrations (alias for 'conscience migrate').`,
+		Long:  `Run all pending database migrations (alias for 'consensus migrate').`,
 		RunE:  runMigrateRun,
 	}
 }

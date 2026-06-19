@@ -45,7 +45,7 @@ The repository had two categories of generated/local artifacts that polluted `gi
 
 ## Changes Applied
 
-1. **`.gitignore`** — Added `**/runs/` pattern for ephemeral test-run output under work items. (`.morty/`, `/conscience`, `/bin/`, `dev.db`, `*.db-shm`, `*.db-wal` entries were already added in the same uncommitted change.)
+1. **`.gitignore`** — Added `**/runs/` pattern for ephemeral test-run output under work items. (`.morty/`, `/consensus`, `/bin/`, `dev.db`, `*.db-shm`, `*.db-wal` entries were already added in the same uncommitted change.)
 2. **`git rm --cached`** — Untracked `.axiom/state/materializer-state.json` and all `.morty/` files so the existing `.gitignore` patterns take effect.
 
 ## Links

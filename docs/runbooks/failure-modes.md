@@ -1,6 +1,6 @@
 # Failure Modes Runbook
 
-**Purpose**: Diagnose and recover from common Conscience failure modes.
+**Purpose**: Diagnose and recover from common Consensus failure modes.
 **Severity**: Varies (P1-P3 depending on impact)
 
 ---
@@ -17,8 +17,8 @@ Agent response: "error: LLM_API_ERROR"
 
 Server logs show:
 ```
-conscience: llm client init failed: ...
-conscience: agent iteration 3/50 failed: LLM API error: ...
+consensus: llm client init failed: ...
+consensus: agent iteration 3/50 failed: LLM API error: ...
 ```
 
 ### Causes
@@ -36,13 +36,13 @@ conscience: agent iteration 3/50 failed: LLM API error: ...
 ```bash
 # 1. Check which sessions are stuck
 curl -s http://localhost:8090/api/v1/sessions \
-  -H "Authorization: Bearer $CONSCIENCE_API_KEY" | \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" | \
   jq '.sessions[] | select(.status == "thinking" or .status == "booting") | {id, status, iteration}'
 
 # 2. Cancel stuck sessions
 SESSION_ID="<stuck-session-id>"
 curl -X POST "http://localhost:8090/api/v1/sessions/$SESSION_ID/message" \
-  -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"content":"Cancel this session and report current state","type":"user_instruction"}'
 
@@ -50,7 +50,7 @@ curl -X POST "http://localhost:8090/api/v1/sessions/$SESSION_ID/message" \
 curl -s http://localhost:8090/api/v1/health | jq '.llm'
 
 # 4. If provider is down, switch to alternate provider in config.yaml
-# conscience.yaml:
+# consensus.yaml:
 # llm:
 #   provider: openai     # or anthropic
 #   base_url: https://api.openai.com/v1
@@ -84,23 +84,23 @@ Agent iteration fails: "query: connection pool exhausted"
 | Network partition | `i/o timeout` | Check network, DNS, firewall |
 | Connection pool exhausted | `pool exhausted` | Increase pool size, reduce agent count |
 | SSL/TLS mismatch | `SSL error` | Update SSL certs, check pg_hba.conf |
-| Credential rotated | `password authentication failed` | Update `CONSCIENCE_DB_URL` |
+| Credential rotated | `password authentication failed` | Update `CONSENSUS_DB_URL` |
 
 ### Recovery Steps
 
 ```bash
 # 1. Check database connectivity from the server host
-psql "$CONSCIENCE_DB_URL" -c "SELECT 1;"
+psql "$CONSENSUS_DB_URL" -c "SELECT 1;"
 
 # 2. Check connection pool (if Postgres)
-psql "$CONSCIENCE_DB_URL" -c "SELECT count(*) FROM pg_stat_activity WHERE datname = 'conscience';"
+psql "$CONSENSUS_DB_URL" -c "SELECT count(*) FROM pg_stat_activity WHERE datname = 'consensus';"
 
-# 3. Restart the Conscience server (attempts to reconnect)
-docker restart conscience
-# or: systemctl restart conscience
+# 3. Restart the Consensus server (attempts to reconnect)
+docker restart consensus
+# or: systemctl restart consensus
 
 # 4. If pool exhaustion: reduce concurrent agents
-# Set CONSCIENCE_MAX_WORKERS=2 in environment before restart
+# Set CONSENSUS_MAX_WORKERS=2 in environment before restart
 
 # 5. Verify reconnection
 curl -s http://localhost:8090/api/v1/health | jq '.database'
@@ -144,7 +144,7 @@ df -h /var/lib/postgresql/
 du -sh /var/lib/postgresql/16/main/
 
 # 2. Identify largest tables (Postgres)
-psql "$CONSCIENCE_DB_URL" -c "
+psql "$CONSENSUS_DB_URL" -c "
 SELECT relname, pg_size_pretty(pg_total_relation_size(relid)) AS size
 FROM pg_catalog.pg_statio_user_tables
 ORDER BY pg_total_relation_size(relid) DESC
@@ -158,18 +158,18 @@ LIMIT 10;
 
 # 4. Complete stale sessions via API
 curl -s http://localhost:8090/api/v1/sessions \
-  -H "Authorization: Bearer $CONSCIENCE_API_KEY" | \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" | \
   jq '.sessions[] | select(.status == "idle" or .status == "booting") | .id' | \
   while read id; do
     id=$(echo $id | tr -d '"')
     curl -X POST "http://localhost:8090/api/v1/sessions/$id/message" \
-      -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
+      -H "Authorization: Bearer $CONSENSUS_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{"content":"Session timed out due to resource constraints.","type":"system_override"}'
   done
 
 # 5. VACUUM (Postgres) or PRAGMA optimize (SQLite)
-psql "$CONSCIENCE_DB_URL" -c "VACUUM;"
+psql "$CONSENSUS_DB_URL" -c "VACUUM;"
 # SQLite: sqlite3 dev.db "PRAGMA optimize;"
 ```
 
@@ -189,8 +189,8 @@ psql "$CONSCIENCE_DB_URL" -c "VACUUM;"
 
 ```
 Server process disappears from process list
-System logs: "Out of memory: killed process conscience"
-System logs: "conscience.service: Main process exited, code=killed, status=9/SIGKILL"
+System logs: "Out of memory: killed process consensus"
+System logs: "consensus.service: Main process exited, code=killed, status=9/SIGKILL"
 Monitoring dashboard shows memory spike then drop
 ```
 
@@ -205,18 +205,18 @@ Monitoring dashboard shows memory spike then drop
 
 ```bash
 # 1. Restart the server
-docker start conscience
-# or: systemctl start conscience
+docker start consensus
+# or: systemctl start consensus
 
 # 2. Check for corrupted database (SQLite)
 sqlite3 dev.db "PRAGMA integrity_check;"
 
 # 3. Reduce concurrent agent count
-export CONSCIENCE_MAX_WORKERS=2
-./bin/conscience serve
+export CONSENSUS_MAX_WORKERS=2
+./bin/consensus serve
 
 # 4. Add systemd resource limits
-# /etc/systemd/system/conscience.service:
+# /etc/systemd/system/consensus.service:
 # [Service]
 # MemoryMax=2G
 # MemoryHigh=1.5G
@@ -246,18 +246,18 @@ Server logs show no activity for the session
 ```bash
 # 1. Identify stuck sessions
 curl -s http://localhost:8090/api/v1/sessions \
-  -H "Authorization: Bearer $CONSCIENCE_API_KEY" | \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" | \
   jq '.sessions[] | select(.status == "thinking") | {id, iteration, heartbeat_at}'
 
 # 2. Force-complete the session
 curl -X POST "http://localhost:8090/api/v1/sessions/$SESSION_ID/message" \
-  -H "Authorization: Bearer $CONSCIENCE_API_KEY" \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"content":"","type":"system_override"}'
 
 # 3. If that fails, cancel via database (emergency)
 # WARNING: Direct DB write — use only when API unavailable
-psql "$CONSCIENCE_DB_URL" -c "
+psql "$CONSENSUS_DB_URL" -c "
 UPDATE sessions SET status = 'failed', completed_at = NOW()
 WHERE id = '$SESSION_ID' AND status = 'thinking';
 "
@@ -287,7 +287,7 @@ curl -s http://localhost:8090/mcp/sse
 
 # 3. Test with raw JSON-RPC
 echo '{"jsonrpc":"2.0","id":1,"method":"ping"}' | \
-  ./bin/conscience mcp-stdio --db-url sqlite://dev.db
+  ./bin/consensus mcp-stdio --db-url sqlite://dev.db
 
 # Expected stdout:
 # {"jsonrpc":"2.0","id":1,"result":{}}

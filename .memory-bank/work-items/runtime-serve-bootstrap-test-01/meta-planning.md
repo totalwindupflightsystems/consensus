@@ -2,7 +2,7 @@
 
 ## Summary
 
-The first-admin-key bootstrap fix is proven by manual live probes, but the full `conscience serve` wiring path is not protected by an automated regression test. This work item adds automated coverage for the startup sequence: config/database open, migrations, first admin key bootstrap, server handler, and authenticated protected endpoint probe.
+The first-admin-key bootstrap fix is proven by manual live probes, but the full `consensus serve` wiring path is not protected by an automated regression test. This work item adds automated coverage for the startup sequence: config/database open, migrations, first admin key bootstrap, server handler, and authenticated protected endpoint probe.
 
 ## Scope
 

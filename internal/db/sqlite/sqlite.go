@@ -15,7 +15,7 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go SQLite driver
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // DB is a SQLite-backed implementation of db.DB.

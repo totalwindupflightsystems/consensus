@@ -10,7 +10,7 @@ last_alignment_scan: 2026-05-04
 
 # Plan — API, MCP, CLI, and UI Adapter
 
-This work item establishes the complete operator and machine interface surface for Conscience: REST API with auth/rate-limiting, MCP server, CLI management tool, OpenAPI contract pipeline, opencode protocol shim, and user flow verification. The plan is split into 7 phases across 5 specs (SPEC-015 through SPEC-019).
+This work item establishes the complete operator and machine interface surface for Consensus: REST API with auth/rate-limiting, MCP server, CLI management tool, OpenAPI contract pipeline, opencode protocol shim, and user flow verification. The plan is split into 7 phases across 5 specs (SPEC-015 through SPEC-019).
 
 axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/016-cli-interface.md,specs/017-ui-adapter-layer.md,specs/018-openapi-contract.md,specs/019-user-interaction-flows.md plan=phase-1/task-1-1/step-1-1-1 evidence=.memory-bank/work-items/interfaces-api-cli-01/verification.md
 
@@ -48,5 +48,5 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 - SQL: api_keys table, api_rate_limits table, shim_session_map table
 - OpenAPI: specs/openapi/ tree (openapi.yaml + paths/ + components/ + bundled.yaml)
 - CI: .github/workflows/api-spec.yaml
-- Config: conscience.yaml schema implementation
+- Config: consensus.yaml schema implementation
 - Tests: unit + integration + contract + Schemathesis + CLI + shim + user-flow

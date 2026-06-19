@@ -1,7 +1,7 @@
-# Project Brief: Conscience
+# Project Brief: Consensus
 
 ## Purpose
-Conscience is a database-native cognitive architecture for AI agents where PostgreSQL (or SQLite) serves as the runtime, memory system, security sandbox, and event bus. The LLM doesn't run commands in a terminal — it writes SQL to manage its own mind.
+Consensus is a database-native cognitive architecture for AI agents where PostgreSQL (or SQLite) serves as the runtime, memory system, security sandbox, and event bus. The LLM doesn't run commands in a terminal — it writes SQL to manage its own mind.
 
 ## Goals
 - Replace Bash/CLI-based agent execution with deterministic database-native operations

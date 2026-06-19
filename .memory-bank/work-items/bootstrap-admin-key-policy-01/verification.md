@@ -8,7 +8,7 @@ Bootstrap admin key expiry/rotation policy implemented and verified. The impleme
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| REQ-BOOTSTRAP-TTL-001: Configurable TTL via `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS` (default 2160h/90d) | ✅ PASS | `GetBootstrapKeyTTL()` reads env var; `EnsureFirstAdminKey()` sets `expires_at` |
+| REQ-BOOTSTRAP-TTL-001: Configurable TTL via `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` (default 2160h/90d) | ✅ PASS | `GetBootstrapKeyTTL()` reads env var; `EnsureFirstAdminKey()` sets `expires_at` |
 | REQ-BOOTSTRAP-TTL-002: Bootstrap-time visibility of expiry | ✅ PASS | `FormatResult()` includes `expires_at` in machine-parseable output and human-readable line |
 | REQ-BOOTSTRAP-TTL-003: No change to auth middleware | ✅ PASS | Auth middleware already checks `expires_at` — verified by `TestAuthMiddleware_ExpiredKey_Returns401` |
 | ADR-023: Decision documented | ✅ PASS | `specs/023-adr-bootstrap-key-expiry.md` documents 90-day default, rationale, alternatives |
@@ -54,7 +54,7 @@ specs/015-api-and-mcp.md#req-bootstrap-ttl-001 ← → internal/bootstrap/admin_
 specs/015-api-and-mcp.md#req-bootstrap-ttl-002 ← → internal/bootstrap/admin_key.go (FormatResult)
 specs/015-api-and-mcp.md#req-bootstrap-ttl-003 ← → internal/api/server.go (auth middleware, unchanged)
 specs/023-adr-bootstrap-key-expiry.md            ← ADR documenting the decision
-cmd/conscience/main.go                            ← wired with GetBootstrapKeyTTL()
+cmd/consensus/main.go                            ← wired with GetBootstrapKeyTTL()
 internal/bootstrap/admin_key_test.go              ← TTL tests (7 new tests)
 ```
 

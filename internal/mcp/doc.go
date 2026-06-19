@@ -1,4 +1,4 @@
-// Package mcp implements the Model Context Protocol (MCP) server for Conscience
+// Package mcp implements the Model Context Protocol (MCP) server for Consensus
 // per SPEC-015 §5. The MCP server exposes the agent runtime to any MCP-compatible
 // client (Claude Desktop, IDE plugins, etc.) via JSON-RPC 2.0.
 //

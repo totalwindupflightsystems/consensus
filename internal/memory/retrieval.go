@@ -20,7 +20,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // Embedder is the minimal embedding interface needed for retrieval.

@@ -12,7 +12,7 @@
 - **Task**: pending → claimed → in_progress → reviewed → published. Cannot skip states.
 
 ## Key Patterns
-- **RLS for security**: All tables scoped by `conscience.session_id` via `SET LOCAL`
+- **RLS for security**: All tables scoped by `consensus.session_id` via `SET LOCAL`
 - **Stored procedures for destructive ops**: complete_session(), set_display_mode(), soft_delete()
 - **SQL injection mitigation**: Statement classifier (DML_READ/WRITE/DDL_CREATE/ALTER/DANGEROUS) + table whitelist + stored proc preference
 - **Token caching**: System instructions (Layer 1) → Schema/Tools (Layer 2) → Active context (Layer 3)

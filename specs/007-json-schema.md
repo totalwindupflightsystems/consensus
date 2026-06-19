@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Conscience framework uses a hybrid approach for LLM output: a structured JSON wrapper containing raw SQL statements. This combines reliable parsing (JSON) with expressive power (SQL) without inventing a custom DSL.
+The Consensus framework uses a hybrid approach for LLM output: a structured JSON wrapper containing raw SQL statements. This combines reliable parsing (JSON) with expressive power (SQL) without inventing a custom DSL.
 
 ## Why Not a Custom DSL
 

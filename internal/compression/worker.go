@@ -28,8 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/llm"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/llm"
 )
 
 // ============================================================================

@@ -1,4 +1,4 @@
-// Package jsonschema provides cross-backend JSON Schema validation for Conscience.
+// Package jsonschema provides cross-backend JSON Schema validation for Consensus.
 //
 // It wraps github.com/santhosh-tekuri/jsonschema/v5 to provide:
 //   - Compile: validate and cache JSON Schema documents

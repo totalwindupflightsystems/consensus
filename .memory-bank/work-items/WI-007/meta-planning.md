@@ -13,7 +13,7 @@
 The `active_context_view` already exists in migration 001 and includes:
 - `DISTINCT ON` deduplication (SPEC-002 §3.6)
 - `CASE` rendering for display_modes (compressed/hidden/full) (SPEC-002 §3.2)
-- `current_setting('conscience.session_id')` for RLS isolation (SPEC-005)
+- `current_setting('consensus.session_id')` for RLS isolation (SPEC-005)
 
 But the harness **never queries it**. Instead, `readMemoryEvents()` in `context.go:436` manually joins `memory_events` + `display_modes` in Go. The VIEW adds:
 - Tool call collapse via window functions (SPEC-002 §3.5) — not yet in the VIEW
@@ -25,7 +25,7 @@ But the harness **never queries it**. Instead, `readMemoryEvents()` in `context.
 
 | Backend | Context Source | RLS Method |
 |---------|---------------|------------|
-| **Postgres** | `active_context_view` (migration 013 enhanced) | `SET LOCAL conscience.session_id` via `SetSessionContext()` |
+| **Postgres** | `active_context_view` (migration 013 enhanced) | `SET LOCAL consensus.session_id` via `SetSessionContext()` |
 | **SQLite** | Go-level query (existing `readMemoryEvents`) | Go-layer session_id WHERE clause |
 
 The migration 013 enhances the VIEW for Postgres and includes SQLite-strippable operators. SQLite views are entirely stripped by `filterForSQLite()` in `migrate.go` because SQLite doesn't support `current_setting`, RLS, or PG-specific functions.

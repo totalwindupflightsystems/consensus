@@ -8,7 +8,7 @@ updated: 2026-05-03
 
 # Meta-Planning — Deployment, HITL, Webhooks, and Subagents
 
-Mission: make Conscience operable after the core runtime exists. This track owns deployment modes, webhook/event ingestion, human interrupt state, and subagent orchestration boundaries.
+Mission: make Consensus operable after the core runtime exists. This track owns deployment modes, webhook/event ingestion, human interrupt state, and subagent orchestration boundaries.
 
 axiom:trace work_item=deployment-ops-01 spec=specs/004-subagents.md,specs/009-deployment.md,specs/013-webhooks-and-events.md,specs/014-hitl-interrupt-state.md plan=phase-1/task-1/step-1 evidence=.memory-bank/work-items/deployment-ops-01/verification.md prompt=.memory-bank/work-items/_prompt.md
 
@@ -18,10 +18,10 @@ axiom:trace work_item=deployment-ops-01 spec=specs/004-subagents.md,specs/009-de
 
 1. **AC-DEP-01** — Binary builds produce a single statically-linked Go binary with embedded migration SQL files (`//go:embed migrations/*.sql`).
 2. **AC-DEP-02** — Embedded schema migrations auto-apply on startup for both Postgres and SQLite backends; drift detection pauses all agents until migration completes.
-3. **AC-DEP-03** — Configuration parity: a single `conscience.yaml` (or equivalent flags/env vars) drives both Postgres and SQLite modes identically.
+3. **AC-DEP-03** — Configuration parity: a single `consensus.yaml` (or equivalent flags/env vars) drives both Postgres and SQLite modes identically.
 4. **AC-DEP-04** — Horizontal scaling: multiple binary instances sharing one Postgres backend use `FOR UPDATE SKIP LOCKED` for exclusive task claiming without coordination.
 5. **AC-DEP-05** — Deployment mode scripts/documentation exist for all six topologies: local SQLite, local Postgres, Supabase Cloud, self-hosted Supabase, production Postgres+VM, and horizontal scaling.
-6. **AC-DEP-06** — CLI management commands (`conscience init`, `conscience migrate status/up/down`, `conscience session`, `conscience approve`, `conscience config`) function correctly.
+6. **AC-DEP-06** — CLI management commands (`consensus init`, `consensus migrate status/up/down`, `consensus session`, `consensus approve`, `consensus config`) function correctly.
 
 ### SPEC-013 — Webhooks & External Events
 
@@ -39,14 +39,14 @@ axiom:trace work_item=deployment-ops-01 spec=specs/004-subagents.md,specs/009-de
 15. **AC-HITL-01** — `approval_requests` rows created for all six `request_type` values: `tool_execution`, `destructive_action`, `budget_override`, `schema_change`, `sub_agent_spawn`, `custom`.
 16. **AC-HITL-02** — `hitl_configuration` supports `scope = 'global'` and `scope = 'session'` with cascading precedence (session overrides global).
 17. **AC-HITL-03** — No auto-approval rule: every `pending` approval requires explicit human action; `expires_at` causes automatic `expired` status — never `approved`.
-18. **AC-HITL-04** — Reviewer authorization: only users with `alt_mode_role` can call `review_approval()`; identity checked via `current_setting('conscience.user_id')`.
+18. **AC-HITL-04** — Reviewer authorization: only users with `alt_mode_role` can call `review_approval()`; identity checked via `current_setting('consensus.user_id')`.
 19. **AC-HITL-05** — Approval expiry cron: expired `pending` approval requests set themselves to `expired`, and sessions paused solely on expired approvals are transitioned to `failed`.
 20. **AC-HITL-06** — Notification channels fire on approval request creation: dashboard SSE, email, Slack webhook, and generic webhook; each logged in `notification_log`.
 
 ### SPEC-004 — Subagent Orchestration
 
 21. **AC-SUB-01** — Memory forking clones only `display_modes.mode = 'compressed'` memory events from parent to child in a single atomic `INSERT … SELECT`; child memory is fully isolated post-fork.
-22. **AC-SUB-02** — RLS isolation enforces `session_id = current_setting('conscience.session_id')` on `memory_events`, `tasks`, and tool access; sub-agents cannot read or modify other agents' data.
+22. **AC-SUB-02** — RLS isolation enforces `session_id = current_setting('consensus.session_id')` on `memory_events`, `tasks`, and tool access; sub-agents cannot read or modify other agents' data.
 23. **AC-SUB-03** — `wake_parent_on_completion` trigger transitions parent from `waiting_sub` to `idle` when any child session reaches `completed` status.
 24. **AC-SUB-04** — Error propagation: failed sub-agent sets task `status = 'failed'`; parent receives error via `result` column; parent chooses retry, replace, or escalate.
 25. **AC-SUB-05** — Sub-agent depth limit enforced at 5 (default, configurable via `system_settings`); `spawn_subagent()` rejects spawns exceeding the limit.

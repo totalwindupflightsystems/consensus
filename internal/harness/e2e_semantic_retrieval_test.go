@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/memory"
+	"github.com/wojons/consensus/internal/memory"
 )
 
 // ============================================================================

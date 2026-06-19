@@ -1,6 +1,6 @@
 openapi: "3.1.0"
 info:
-  title: Conscience Agent Runtime
+  title: Consensus Agent Runtime
   description: |
     Database-native cognitive architecture for AI agents.
 
@@ -26,8 +26,8 @@ info:
     Keys are SHA-256 hashed before storage. The full key is only returned at creation time.
   version: "0.1.0"
   contact:
-    name: Conscience
-    url: https://github.com/wojons/conscientiousness
+    name: Consensus
+    url: https://github.com/wojons/consensus
 
 servers:
   - url: http://localhost:8090

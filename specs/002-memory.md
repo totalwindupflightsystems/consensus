@@ -14,7 +14,7 @@ The Cognitive Memory Engine is the subsystem that manages what an agent **rememb
 
 The core analogy is virtual memory from operating systems:
 
-| Concept | OS Equivalent | Conscience Mechanism |
+| Concept | OS Equivalent | Consensus Mechanism |
 |---|---|---|
 | Working memory (context window) | RAM | `active_context_view` (SQL VIEW) |
 | Long-term storage | Hard Drive | `memory_events` (append-only ledger) |
@@ -94,7 +94,7 @@ CREATE OR REPLACE VIEW active_context_view AS
 WITH active_ids AS (
     SELECT unnest(active_pointers) AS ptr_id
     FROM iteration_commits
-    WHERE session_id = current_setting('conscience.session_id')::UUID
+    WHERE session_id = current_setting('consensus.session_id')::UUID
     ORDER BY iteration_id DESC
     LIMIT 1
 )
@@ -114,7 +114,7 @@ FROM memory_events me
 JOIN active_ids ai ON me.id = ai.ptr_id
 LEFT JOIN display_modes dm ON dm.memory_id = me.id
 WHERE COALESCE(dm.mode, 'full') != 'hidden'
-    AND me.session_id = current_setting('conscience.session_id')::UUID
+    AND me.session_id = current_setting('consensus.session_id')::UUID
 ORDER BY me.iteration_created, me.id;
 ```
 
@@ -261,14 +261,14 @@ WITH direct_ids AS (
     SELECT unnest(target_ids) AS ptr_id
     FROM memory_pages
     WHERE name = ANY(ARRAY['api_research', 'ui_context'])
-      AND session_id = current_setting('conscience.session_id')::UUID
+      AND session_id = current_setting('consensus.session_id')::UUID
 ),
 linked_ids AS (
     SELECT unnest(mp.target_ids) AS ptr_id
     FROM memory_pages mp
     JOIN memory_pages parent ON mp.id = ANY(parent.linked_page_ids)
     WHERE parent.name = ANY(ARRAY['api_research', 'ui_context'])
-      AND parent.session_id = current_setting('conscience.session_id')::UUID
+      AND parent.session_id = current_setting('consensus.session_id')::UUID
 )
 SELECT DISTINCT ptr_id FROM (
     SELECT ptr_id FROM direct_ids
@@ -309,7 +309,7 @@ WITH page_ids AS (
     SELECT unnest(target_ids) AS ptr_id
     FROM memory_pages
     WHERE name = ANY(ARRAY['api_research', 'ui_context'])
-      AND session_id = current_setting('conscience.session_id')::UUID
+      AND session_id = current_setting('consensus.session_id')::UUID
 )
 -- Union with directly referenced IDs
 -- Then DISTINCT to deduplicate overlapping pages
@@ -414,7 +414,7 @@ SELECT string_agg(
     ORDER BY me.iteration_created, me.id
 ) AS markdown_prompt
 FROM active_context_view me
-WHERE me.session_id = current_setting('conscience.session_id')::UUID;
+WHERE me.session_id = current_setting('consensus.session_id')::UUID;
 ```
 
 The harness receives a single string: a perfectly formatted Markdown document ready to inject into the LLM prompt.
@@ -613,7 +613,7 @@ CREATE TABLE order_tracking (
 -- Automatic RLS
 ALTER TABLE order_tracking ENABLE ROW LEVEL SECURITY;
 CREATE POLICY isolate_session ON order_tracking
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 -- Automatic soft-delete trigger (intercept DELETE → UPDATE deleted_at)
 CREATE TRIGGER soft_delete_order_tracking

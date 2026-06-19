@@ -1,15 +1,15 @@
-# Architecture — Conscience
+# Architecture — Consensus
 
 ## Context
-Conscience is a **database-native cognitive architecture** for AI agents. Instead of running agents in a Bash terminal with filesystem state, the database (PostgreSQL or SQLite) IS the runtime environment — the memory ledger, security sandbox, event bus, and cognitive loop.
+Consensus is a **database-native cognitive architecture** for AI agents. Instead of running agents in a Bash terminal with filesystem state, the database (PostgreSQL or SQLite) IS the runtime environment — the memory ledger, security sandbox, event bus, and cognitive loop.
 
-The LLM is inherently non-deterministic. It must be paired with the most deterministic system in computing: a relational database. Conscience replaces the Bash/file-system execution layer with SQL as the agent's native language for state management, memory, and self-improvement.
+The LLM is inherently non-deterministic. It must be paired with the most deterministic system in computing: a relational database. Consensus replaces the Bash/file-system execution layer with SQL as the agent's native language for state management, memory, and self-improvement.
 
 The system is a single Go binary that embeds the full harness loop, REST API, MCP server, CLI, and dual database drivers (Postgres + SQLite). There is no external state — the database is the single source of truth.
 
 ## Components
 
-### 1. Go Binary (`conscience`)
+### 1. Go Binary (`consensus`)
 Single statically-linked binary containing all subsystems:
 - **Harness Loop**: Reads `active_context_view`, sends Markdown to LLM, receives JSON payload, executes SQL in transactions, handles rollback/retry
 - **REST API**: Session CRUD, approval review, event streaming, health checks
@@ -58,17 +58,17 @@ Background goroutine that:
 - Circuit breaker integration — trips on budget overrun, error storms, or approval timeout
 
 ### 7. OpenCode Shim
-Adapter layer that makes Conscience sessions appear as OpenCode agents:
-- Service adapter mapping Conscience session lifecycle to OpenCode agent protocol
+Adapter layer that makes Consensus sessions appear as OpenCode agents:
+- Service adapter mapping Consensus session lifecycle to OpenCode agent protocol
 - HTTP server shim for OpenCode-compatible endpoints
-- Enables Axiom and Hermes to drive Conscience agents as if they were OpenCode instances
+- Enables Axiom and Hermes to drive Consensus agents as if they were OpenCode instances
 
 ## Data
 - **Primary store**: PostgreSQL (production) or SQLite (local dev) — database IS the state machine
 - **Event sourcing**: Append-only `memory_events` table with sequential IDs, never modified or deleted
 - **Snapshots**: `iteration_commits` table provides time-travel rollback points
 - **Context windows**: `active_context_view` — a SQL VIEW that dynamically assembles the LLM's working memory from recent events + compressed summaries
-- **Config**: `conscience.yaml` (default), overridable via env vars (`CONSCIENCE_*`)
+- **Config**: `consensus.yaml` (default), overridable via env vars (`CONSENSUS_*`)
 
 ## Interfaces
 - **REST API**: `POST /v1/sessions` (create), `GET /v1/sessions/:id` (status), `POST /v1/sessions/:id/messages` (send), `GET /v1/sessions/:id/stream` (SSE), `POST /v1/approvals/:id` (review), `GET /health`
@@ -85,11 +85,11 @@ Adapter layer that makes Conscience sessions appear as OpenCode agents:
 - **Cross-session leakage**: RLS at Postgres kernel level, API Rules + Go hook middleware at PocketBase level. Session A cannot read Session B's data.
 
 ## Operational Notes
-- **Start**: `./conscience serve` starts REST API + harness loop
-- **Init**: `./conscience init` creates SQLite database + runs migrations
-- **Migrate**: `./conscience migrate up` applies pending migrations (1-15)
-- **Build**: `go build -o conscience ./cmd/conscience` produces ~18MB binary
+- **Start**: `./consensus serve` starts REST API + harness loop
+- **Init**: `./consensus init` creates SQLite database + runs migrations
+- **Migrate**: `./consensus migrate up` applies pending migrations (1-15)
+- **Build**: `go build -o consensus ./cmd/consensus` produces ~18MB binary
 - **Test**: `go test ./...` — 27 packages, all passing
-- **Config**: `conscience.yaml` in working directory or `CONSCIENCE_CONFIG` env var
+- **Config**: `consensus.yaml` in working directory or `CONSENSUS_CONFIG` env var
 - **Database**: Default `sqlite://dev.db`, switch to Postgres via `database.url: postgres://...`
-- **LLM**: Default provider/model in config, overridable via `CONSCIENCE_LLM_PROVIDER`, `CONSCIENCE_LLM_BASE_URL`, etc.
+- **LLM**: Default provider/model in config, overridable via `CONSENSUS_LLM_PROVIDER`, `CONSENSUS_LLM_BASE_URL`, etc.

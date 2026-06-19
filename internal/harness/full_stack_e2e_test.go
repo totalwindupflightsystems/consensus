@@ -1,5 +1,5 @@
 // Package harness: comprehensive end-to-end integration test spanning all
-// Conscience subsystems: schema → harness → API → HITL → subagents.
+// Consensus subsystems: schema → harness → API → HITL → subagents.
 //
 // This test proves the full platform works as an integrated whole with a
 // real SQLite in-memory database. It exercises every architectural seam
@@ -23,16 +23,16 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wojons/conscientiousness/internal/api"
-	"github.com/wojons/conscientiousness/internal/hitl"
-	"github.com/wojons/conscientiousness/internal/session"
-	"github.com/wojons/conscientiousness/internal/subagent"
+	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/session"
+	"github.com/wojons/consensus/internal/subagent"
 )
 
 // ============================================================================
 // TestFullStackE2E_AllSubsystems
 //
-// Master integration test that proves every Conscience subsystem works together:
+// Master integration test that proves every Consensus subsystem works together:
 //
 //   1. SCHEMA    — migration creates all tables, verify table existence
 //   2. API       — create session, get session, send message, RLS, health

@@ -3,14 +3,14 @@
 ## Problem Space
 Bash/CLI AI agents are structurally flawed: non-deterministic state, no durable memory, escapable sandboxes, no rollback. Every tool call mutates the filesystem with no transaction boundary. Agents cannot guarantee they follow their own rules.
 
-Conscience pairs the LLM with the most deterministic system available (a relational database) to create agents that physically cannot break their own rules.
+Consensus pairs the LLM with the most deterministic system available (a relational database) to create agents that physically cannot break their own rules.
 
 ## User Experience Goals
 - **Supabase one-click deploy**: Sign up → run SQL script → system is live
 - **Local binary**: Download → double-click → agent running locally
-- **CLI-first management**: All operations via `conscience` CLI
+- **CLI-first management**: All operations via `consensus` CLI
 - **opencode TUI via shim**: `opencode attach` gives users a polished terminal chat interface
-- **MCP tool access**: Any MCP-compatible client can use Conscience as a tool provider
+- **MCP tool access**: Any MCP-compatible client can use Consensus as a tool provider
 - **Web admin UI**: Future phase
 
 ## How It Works
@@ -22,7 +22,7 @@ Conscience pairs the LLM with the most deterministic system available (a relatio
 - All state lives in the database — no filesystem, no Redis, no message broker
 
 ## Key Differentiators vs LangChain/AutoGen
-| Feature | LangChain/AutoGen | Conscience |
+| Feature | LangChain/AutoGen | Consensus |
 |---|---|---|
 | State | External stores, lost between sessions | Append-only ledger with time-travel |
 | Context | Monolithic prompt strings | Dynamic SQL VIEW with paging |

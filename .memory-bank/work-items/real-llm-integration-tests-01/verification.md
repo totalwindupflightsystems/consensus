@@ -24,7 +24,7 @@ go test -short -run TestRealLLMIntegration ./internal/harness/ 2>&1
 
 ### Limitations
 - Requires LM Studio to be running on :1234
-- Requires `conscience` binary to be built (`go build -o conscience ./cmd/conscience`)
+- Requires `consensus` binary to be built (`go build -o consensus ./cmd/consensus`)
 - Test uses SQLite (local), not Postgres
 
 ## Trace Refs

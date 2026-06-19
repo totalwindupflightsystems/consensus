@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Conscience framework assumes the LLM is an untrusted runtime. Every output is treated as potentially malformed, malicious, or hallucinated. Security is enforced at the database level through Row-Level Security, soft-delete semantics, content quarantine, and zero-knowledge secret handling.
+The Consensus framework assumes the LLM is an untrusted runtime. Every output is treated as potentially malformed, malicious, or hallucinated. Security is enforced at the database level through Row-Level Security, soft-delete semantics, content quarantine, and zero-knowledge secret handling.
 
 ## Row-Level Security
 
@@ -17,7 +17,7 @@ ALTER TABLE memory_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY session_isolation ON memory_events
   FOR ALL
-  USING (session_id = current_setting('conscience.session_id')::UUID);
+  USING (session_id = current_setting('consensus.session_id')::UUID);
 ```
 
 Applied consistently across all tables:
@@ -188,19 +188,19 @@ The agent knows *that* it used a secret, but never *what* the secret is. If the 
 An agent impersonates the security clearance of the user who owns the session. RLS policies evaluate queries as if the human ran them directly.
 
 ```sql
--- Sessions table: user context is set via conscience.user_id (SPEC-011 §9), not a direct user_id FK
+-- Sessions table: user context is set via consensus.user_id (SPEC-011 §9), not a direct user_id FK
 CREATE TABLE sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  -- user context provided via SET LOCAL conscience.user_id; no direct user_id FK
+  -- user context provided via SET LOCAL consensus.user_id; no direct user_id FK
   -- ...
 );
 
 -- At harness startup, set the session context
-SET LOCAL conscience.session_id = 'session-uuid';
-SET LOCAL conscience.user_id = 'user-uuid-here';
+SET LOCAL consensus.session_id = 'session-uuid';
+SET LOCAL consensus.user_id = 'user-uuid-here';
 ```
 
-RLS policies then use `current_setting('conscience.user_id')` to enforce the same access rules that apply to the human:
+RLS policies then use `current_setting('consensus.user_id')` to enforce the same access rules that apply to the human:
 
 ```sql
 CREATE POLICY user_data_scope ON project_resources
@@ -208,7 +208,7 @@ CREATE POLICY user_data_scope ON project_resources
   USING (
     project_id IN (
       SELECT project_id FROM user_project_access
-      WHERE user_id = current_setting('conscience.user_id')::UUID
+      WHERE user_id = current_setting('consensus.user_id')::UUID
     )
   );
 ```
@@ -225,7 +225,7 @@ Agents cannot modify tool definitions owned by other agents:
 ```sql
 CREATE POLICY enforce_ownership ON tool_files
   FOR UPDATE
-  USING (session_id = current_setting('conscience.session_id')::UUID);
+  USING (session_id = current_setting('consensus.session_id')::UUID);
 ```
 
 This prevents:

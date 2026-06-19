@@ -21,22 +21,22 @@ phases:
         spec_ref: specs/022-library-research.md
         actions:
           - "Change main.go:112-114 from Warn+fallback to fatal error"
-          - "If provider=mock and CONSCIENCE_MOCK_LLM not set, return error"
+          - "If provider=mock and CONSENSUS_MOCK_LLM not set, return error"
         verification:
           - "grep for NewMockClient in main.go — must not be called as fallback"
           - "go build ./... passes"
-        evidence: cmd/conscience/main.go
-        rollback: "git checkout -- cmd/conscience/main.go"
+        evidence: cmd/consensus/main.go
+        rollback: "git checkout -- cmd/consensus/main.go"
 
       - id: task-2
-        title: "Add CONSCIENCE_MOCK_LLM env var in NewClient factory"
+        title: "Add CONSENSUS_MOCK_LLM env var in NewClient factory"
         spec_ref: specs/022-library-research.md
         actions:
-          - "In NewClient(), check os.Getenv('CONSCIENCE_MOCK_LLM')"
+          - "In NewClient(), check os.Getenv('CONSENSUS_MOCK_LLM')"
           - "Only allow ProviderMock when env var is '1' (or config explicitly says mock)"
           - "If provider=mock and env not set, return error"
         verification:
-          - "Unit test: CONSCIENCE_MOCK_LLM=1 → NewClient returns MockClient"
+          - "Unit test: CONSENSUS_MOCK_LLM=1 → NewClient returns MockClient"
           - "Unit test: no env var + ProviderMock → error"
           - "go test ./internal/llm/..."
         evidence: internal/llm/client.go

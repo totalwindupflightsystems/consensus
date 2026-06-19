@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Focus
-All specs updated to the Go-first unified binary model. The architecture is now: one Go binary (`conscience`) containing harness, REST API, MCP server, and CLI. Two database backends (Postgres via pgx, SQLite via modernc.org/sqlite). No Deno, no Edge Functions, no TypeScript in the runtime.
+All specs updated to the Go-first unified binary model. The architecture is now: one Go binary (`consensus`) containing harness, REST API, MCP server, and CLI. Two database backends (Postgres via pgx, SQLite via modernc.org/sqlite). No Deno, no Edge Functions, no TypeScript in the runtime.
 
 ## Recent Changes
 1. **SPEC-008 fully rewritten** — Harness loop rewritten in Go. Removed all Deno/Edge Function references. Added deployment model section explaining Go binary + `--db` flag.
@@ -30,7 +30,7 @@ All specs updated to the Go-first unified binary model. The architecture is now:
 
 ## Next Steps
 1. Draft consolidated SQL schema file (all CREATE TABLE statements)
-2. Start Go project structure (`cmd/conscience/main.go`, `internal/harness/`, etc.)
+2. Start Go project structure (`cmd/consensus/main.go`, `internal/harness/`, etc.)
 3. Implement database driver interface
 4. Build harness loop prototype
 5. Implement MCP server (SPEC-015 §5)
@@ -41,6 +41,6 @@ All specs updated to the Go-first unified binary model. The architecture is now:
 - Sub-agent depth limit
 - Embedding model migration procedure
 - opencode version compatibility
-- File system mismatch (server-side Conscience, local codebase)
+- File system mismatch (server-side Consensus, local codebase)
 - Partial commit semantics in interactive transactions (SPEC-020 Q5)
 - Turn-level vs iteration-level billing for multi-turn planning (SPEC-020 Q6)

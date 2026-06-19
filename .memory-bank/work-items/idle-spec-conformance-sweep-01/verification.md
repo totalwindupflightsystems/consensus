@@ -88,7 +88,7 @@ $ go test -count=1 ./internal/api/ -run TestOpenAPI -v
 === RUN   TestOpenAPICORSAccess
 --- PASS: TestOpenAPICORSAccess (0.00s)
 PASS
-ok      github.com/wojons/conscientiousness/internal/api  0.208s
+ok      github.com/wojons/consensus/internal/api  0.208s
 ```
 
 ### Deferred Items (Pre-existing, Not New Gaps)
@@ -640,8 +640,8 @@ axiom:trace work_item=idle-spec-conformance-sweep-01 spec=specs/007-json-schema.
 | 10 | Scrub secrets from responses | `secrets.Store.Scrub()` replaces real values with `[REDACTED:alias]` — called in Scrub path (executor references store for injection, harness harness.go has no standalone response scrub call but LLMResponse storage is through audit which scrubs monologue) | `internal/secrets/secrets.go:126-135` | ⚠️ PARTIAL (see finding 1) |
 | 11 | Loop or complete | `RunAgentIteration()` is single-shot; `RunInteractivePlanning()` is multi-turn (SPEC-020); heartbeat loop dispatches continuously | `internal/harness/executor.go:54-123`, `internal/harness/planning.go:107-233` | ✅ PASS |
 | **Deployment Model (§Deployment Model)** | | | | |
-| 12 | Single Go binary (conscience) | `cmd/conscience/main.go` wires API + MCP + opencode shim into unified binary | `cmd/conscience/main.go` | ✅ PASS |
-| 13 | REST API, MCP Server in binary | `api.NewServer()`, `mcp.NewServer()`, `opencode.NewServer()` all instantiated in main | `cmd/conscience/main.go:60-99` | ✅ PASS |
+| 12 | Single Go binary (consensus) | `cmd/consensus/main.go` wires API + MCP + opencode shim into unified binary | `cmd/consensus/main.go` | ✅ PASS |
+| 13 | REST API, MCP Server in binary | `api.NewServer()`, `mcp.NewServer()`, `opencode.NewServer()` all instantiated in main | `cmd/consensus/main.go:60-99` | ✅ PASS |
 | 14 | DB driver interface | `db.DB` interface abstracts Postgres and SQLite; `dbdriver.Open()` selects backend | `internal/db/db.go` (interface), `internal/db/driver/` (factory) | ✅ PASS |
 | **Detailed Execution (§Detailed Execution)** | | | | |
 | 15 | RunAgentIteration — full lifecycle | Complete implementation: ReadContext → BudgetCheck → LLMCall → Parse → RecordBilling → ExecuteInTransaction → Finalize | `internal/harness/executor.go:54-123` | ✅ PASS |
@@ -755,7 +755,7 @@ $ go vet ./...            # 16 warnings (pre-existing: test files using resp bef
 
 ### Verdict: **CONFORMANT (core harness fully implemented; 5 findings, all deferred/non-blocking)**
 
-The Conscience harness implementation in `internal/harness/` is substantially complete and directly matches the SPEC-008 execution model:
+The Consensus harness implementation in `internal/harness/` is substantially complete and directly matches the SPEC-008 execution model:
 
 - **Core loop** (read context → format → LLM call → parse → execute in tx → commit/rollback → audit) is fully implemented with all 11 steps.
 - **Transaction safety** is enforced: BEGIN/COMMIT/ROLLBACK with RLS context, statement classification, secrets injection, and policy enforcement at every step.
@@ -799,9 +799,9 @@ SPEC-009 defines the deployment model: a single Go binary connecting to Postgres
 
 | # | Claim | Evidence | Status |
 |---|---|---|---|
-| DEP-001 | Single Go binary at `cmd/conscience/` | `cmd/conscience/main.go` (117 lines) — exists, builds, runs | ✅ PASS |
-| DEP-002 | `./conscience serve --db sqlite://...` works | `main.go:46-56` loads config, `dbdriver.Open(ctx, cfg.Database)` dispatches to postgres/sqlite | ✅ PASS |
-| DEP-003 | `./conscience serve --db postgres://...` works | `internal/db/driver/driver.go:24-25` switches on `db.BackendPostgres` | ✅ PASS |
+| DEP-001 | Single Go binary at `cmd/consensus/` | `cmd/consensus/main.go` (117 lines) — exists, builds, runs | ✅ PASS |
+| DEP-002 | `./consensus serve --db sqlite://...` works | `main.go:46-56` loads config, `dbdriver.Open(ctx, cfg.Database)` dispatches to postgres/sqlite | ✅ PASS |
+| DEP-003 | `./consensus serve --db postgres://...` works | `internal/db/driver/driver.go:24-25` switches on `db.BackendPostgres` | ✅ PASS |
 | DEP-004 | Harness loop in binary | `internal/harness/executor.go:503` has `StartHeartbeatLoop()` method | ✅ IMPL EXISTS |
 | DEP-005 | REST API in binary | `internal/api/` package with 18 files | ✅ PASS |
 | DEP-006 | MCP server in binary | `internal/mcp/` package with `server.go`, `tools.go`, `transport.go` | ✅ PASS |
@@ -809,13 +809,13 @@ SPEC-009 defines the deployment model: a single Go binary connecting to Postgres
 | DEP-008 | CLI management commands in binary | 12 files in `internal/cli/` covering serve, init, session, approve, migrate, status, memory, tool, config | ✅ PASS |
 | DEP-009 | Database drivers in binary | `internal/db/postgres/` (lib/pq, 258 lines) + `internal/db/sqlite/` (modernc.org/sqlite, 264 lines) | ✅ PASS |
 | DEP-010 | Schema migrations in binary | `internal/migrate/migrate.go` with `//go:embed migrations/*`, `AutoMigrate()` at line 309 | ✅ IMPL EXISTS |
-| DEP-011 | `conscience.yaml` config file | Root `conscience.yaml` exists with all sections (server, llm, harness, database, hitl, logging, api_rate) | ✅ PASS |
+| DEP-011 | `consensus.yaml` config file | Root `consensus.yaml` exists with all sections (server, llm, harness, database, hitl, logging, api_rate) | ✅ PASS |
 | DEP-012 | `Makefile` exists with build/test/docker | Root `Makefile` with CGO_ENABLED=0 build, dev/dev-pg, test, lint, docker targets | ✅ PASS |
 | DEP-013 | `Dockerfile` exists | Root `Dockerfile` with multi-stage golang:1.23-alpine build | ✅ PASS |
 
 #### §3 Startup Wiring — GAP FOUND
 
-**Critical finding:** `cmd/conscience/main.go` does **not** call `AutoMigrate()` or `StartHeartbeatLoop()` at startup. Both implementations exist and are tested, but the binary entry point only starts the API server, MCP server, and opencode shim.
+**Critical finding:** `cmd/consensus/main.go` does **not** call `AutoMigrate()` or `StartHeartbeatLoop()` at startup. Both implementations exist and are tested, but the binary entry point only starts the API server, MCP server, and opencode shim.
 
 ```go
 // Current main.go startup flow (lines 40-112):
@@ -833,20 +833,20 @@ func runServer() {
 
 | # | Claim | Evidence | Status |
 |---|---|---|---|
-| DEP-014 | Auto-migrate on startup | `internal/migrate/migrate.go:309` has `AutoMigrate()`, but `cmd/conscience/main.go` never calls it | ❌ **NOT WIRED** |
-| DEP-015 | Heartbeat starts at boot | `internal/harness/executor.go:503` has `StartHeartbeatLoop()`, but `cmd/conscience/main.go` never calls it | ❌ **NOT WIRED** |
+| DEP-014 | Auto-migrate on startup | `internal/migrate/migrate.go:309` has `AutoMigrate()`, but `cmd/consensus/main.go` never calls it | ❌ **NOT WIRED** |
+| DEP-015 | Heartbeat starts at boot | `internal/harness/executor.go:503` has `StartHeartbeatLoop()`, but `cmd/consensus/main.go` never calls it | ❌ **NOT WIRED** |
 
 **Impact:** The binary starts, serves API/MCP/shim, but:
 - Schema migrations are NOT applied on startup (DB tables won't be created)
 - The heartbeat task poller does NOT run (no auto-dispatch of pending tasks)
 
-Manual `conscience init` and `conscience migrate` commands can compensate, but the zero-dependency "just download and run" experience promised in §8 is broken.
+Manual `consensus init` and `consensus migrate` commands can compensate, but the zero-dependency "just download and run" experience promised in §8 is broken.
 
 #### §3 Database Backends — Conformance Check
 
 | # | Claim | Evidence | Status |
 |---|---|---|---|
-| DEP-016 | Postgres `SET LOCAL` for session context | `internal/db/postgres/postgres.go:169-178` uses `set_config('conscience.session_id', $1, true)` | ✅ PASS |
+| DEP-016 | Postgres `SET LOCAL` for session context | `internal/db/postgres/postgres.go:169-178` uses `set_config('consensus.session_id', $1, true)` | ✅ PASS |
 | DEP-017 | Postgres RLS via native policies | `migrations/001_initial_schema.sql` has `CREATE POLICY` and `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` | ✅ PASS |
 | DEP-018 | Postgres pgvector extension | `migrations/001_initial_schema.sql:27` has `CREATE EXTENSION IF NOT EXISTS vector;` | ✅ PASS |
 | DEP-019 | Postgres `FOR UPDATE SKIP LOCKED` | `internal/harness/executor.go:542` comment mentions it, but actual SQL in `ClaimNextReadyTask()` (line 545) uses subquery `LIMIT 1` without `FOR UPDATE` — works for SQLite, not safe for concurrent Postgres | ⚠️ **PARTIAL** |
@@ -871,7 +871,7 @@ Manual `conscience init` and `conscience migrate` commands can compensate, but t
 | DEP-028 | `schema_versions` tracking table | `migrate.go:63-68` creates `CREATE TABLE IF NOT EXISTS schema_versions` — idempotent | ✅ PASS |
 | DEP-029 | Migration runner with `Up/Down/Version` | `migrate.go:207-296` implements all three | ✅ PASS |
 | DEP-030 | Drift detection | `migrate.go:330-338` `CheckDrift()` compares applied vs embedded | ✅ PASS |
-| DEP-031 | CLI migration commands | `internal/cli/migrate.go` exposes `conscience migrate version/up/down` | ✅ PASS |
+| DEP-031 | CLI migration commands | `internal/cli/migrate.go` exposes `consensus migrate version/up/down` | ✅ PASS |
 | DEP-032 | Auto-migration on startup | Implemented (`AutoMigrate()`) but **not wired into main.go** | ❌ **NOT WIRED** (same as DEP-014) |
 
 #### §7 Deno Edge Functions rationale
@@ -899,7 +899,7 @@ Manual `conscience init` and `conscience migrate` commands can compensate, but t
 
 ### Verdict: **GAPS FOUND — Requires Remediation**
 
-The deployment infrastructure is fully implemented and tested (migration runner, heartbeat loop, config parity, topologies, Dockerfile, Makefile). However, two critical startup wires are missing from `cmd/conscience/main.go`:
+The deployment infrastructure is fully implemented and tested (migration runner, heartbeat loop, config parity, topologies, Dockerfile, Makefile). However, two critical startup wires are missing from `cmd/consensus/main.go`:
 
 1. Auto-migration on boot (`AutoMigrate()`)
 2. Heartbeat task polling (`StartHeartbeatLoop()`)
@@ -908,7 +908,7 @@ Without these, the binary doesn't self-initialize the database schema or auto-di
 
 ### Remediation Required: `spec-009-hardening-01`
 
-Recommended work item to wire the two missing startup calls into `cmd/conscience/main.go`:
+Recommended work item to wire the two missing startup calls into `cmd/consensus/main.go`:
 
 ```
 spec-009-hardening-01:
@@ -1191,7 +1191,7 @@ The spec's architecture diagram: External System → Go HTTP handler → externa
 | 3.2 | `webhook_registrations` | **NO** — only referenced in comments (migrations/001 line 877) | **NO** — `CREATE TABLE` only in `webhook_test.go:setupTestDB()` | ❌ GAP |
 | 3.3 | `routing_rules` | **NO** — only referenced in comments (migrations/001 line 878) | **NO** — `CREATE TABLE` only in `webhook_test.go:TestRoutingRulesPriority()` | ❌ GAP |
 
-**GAP-WEB-01 (HIGH):** All three webhook tables (`external_events`, `webhook_registrations`, `routing_rules`) exist only as test-local `CREATE TABLE IF NOT EXISTS` statements in `webhook_test.go`. No production migration file creates these tables. Running `conscience serve` against a real Postgres instance would fail any webhook operations because the tables don't exist. The webhook subsystem is fully implemented in Go code with 13 unit/integration tests (all PASS) but is not deployable.
+**GAP-WEB-01 (HIGH):** All three webhook tables (`external_events`, `webhook_registrations`, `routing_rules`) exist only as test-local `CREATE TABLE IF NOT EXISTS` statements in `webhook_test.go`. No production migration file creates these tables. Running `consensus serve` against a real Postgres instance would fail any webhook operations because the tables don't exist. The webhook subsystem is fully implemented in Go code with 13 unit/integration tests (all PASS) but is not deployable.
 
 #### §4 Webhook Endpoint Implementation
 
@@ -1206,9 +1206,9 @@ The spec's architecture diagram: External System → Go HTTP handler → externa
 | Source ID extraction | X-Delivery-ID, X-GitHub-Delivery headers | ✅ |
 | DB insert into external_events | `IngestEvent()` inserts with ON CONFLICT DO NOTHING pattern | ✅ |
 | Response: 202 Accepted | Correct: `w.WriteHeader(http.StatusAccepted)` | ✅ |
-| **Route wired in production binary** | `HandleWebhook` is **never called** in `cmd/conscience/main.go` — no HTTP route mounts `/webhooks/` | ❌ GAP |
+| **Route wired in production binary** | `HandleWebhook` is **never called** in `cmd/consensus/main.go` — no HTTP route mounts `/webhooks/` | ❌ GAP |
 
-**GAP-WEB-05 (LOW):** The `HandleWebhook` function is implemented and tested but never mounted in the production HTTP handler tree in `cmd/conscience/main.go`. The API server, MCP server, and opencode shim are all wired — webhooks are not.
+**GAP-WEB-05 (LOW):** The `HandleWebhook` function is implemented and tested but never mounted in the production HTTP handler tree in `cmd/consensus/main.go`. The API server, MCP server, and opencode shim are all wired — webhooks are not.
 
 #### §5 Event Routing (Trigger-Based)
 
@@ -1305,7 +1305,7 @@ However, the subsystem is **not deployable** because:
 
 1. **No production migrations** — All three webhook tables (`external_events`, `webhook_registrations`, `routing_rules`) exist only as test-local DDL. Running against a real Postgres database would fail on first webhook INSERT.
 2. **No automated routing** — The `route_external_event()` trigger (or Go equivalent) is not implemented. Events are ingested but never automatically routed or dispatched.
-3. **Not wired into the binary** — `HandleWebhook` is never mounted in `cmd/conscience/main.go`'s HTTP handler tree.
+3. **Not wired into the binary** — `HandleWebhook` is never mounted in `cmd/consensus/main.go`'s HTTP handler tree.
 
 These are **deployment/integration gaps**, not logic gaps. The webhook code is correct and tested; it just needs migrations, a Go-level routing loop, and HTTP route wiring.
 
@@ -1364,7 +1364,7 @@ axiom:trace work_item=idle-spec-conformance-sweep-01 spec=specs/013-webhooks-and
 | Severity | Gap | Description |
 |---|---|---|
 | HIGH | approval_requests/hitl_configuration/notification_log tables — no production migration | These tables exist only as test DDL (CREATE TABLE IF NOT EXISTS in test fixtures). No migration file in migrations/ directory. |
-| MEDIUM | HITL Manager (StartExpiryCron, config init) not wired into cmd/conscience/main.go | The hitl.Manager is instantiated in tests but never started in production binary startup. |
+| MEDIUM | HITL Manager (StartExpiryCron, config init) not wired into cmd/consensus/main.go | The hitl.Manager is instantiated in tests but never started in production binary startup. |
 | MEDIUM | API approval handlers use raw SQL instead of HITL Manager | internal/api/approvals.go reads/writes approval_requests directly with raw SQL queries, bypassing the hitl.Manager abstraction. |
 | LOW | tool requires_approval check not wired into harness tool executor | The tools_registry.requires_approval column exists but the harness does not check it before dispatching external tools. |
 | LOW | circuit breaker → HITL pause not fully integrated | Circuit breaker trips set session to failed but don't create an approval request for human review. |
@@ -1436,7 +1436,7 @@ The HITL implementation is functionally complete with solid test coverage (5 hit
 ### Injected Next Steps (from spec-014-hardening-01)
 
 1. Create migrations/008_hitl.sql with CREATE TABLE for approval_requests, hitl_configuration, notification_log
-2. Wire hitl.Manager.StartExpiryCron() and hitl.Config initialisation into cmd/conscience/main.go startup
+2. Wire hitl.Manager.StartExpiryCron() and hitl.Config initialisation into cmd/consensus/main.go startup
 3. Refactor internal/api/approvals.go handlers to use hitl.Manager methods instead of raw SQL
 4. Add tool requires_approval check in harness tool executor (internal/harness/tools.go)
 5. Wire circuit breaker → HITL approval request creation in harness error handling
@@ -1462,7 +1462,7 @@ axiom:trace work_item=idle-spec-conformance-sweep-01 spec=specs/014-hitl-interru
 | 4 key types (admin, session, readonly, webhook) | Auth logic distinguishes all 4 scopes | billing.go:274-279 (scopeToPrefix), server.go:295-300 (limits) | PASS |
 | Session-scoped key isolation | checkSessionAccess blocks session keys from accessing other sessions | Sessions tested in sessions_test.go:239-249, approvals_test.go:562-588 | PASS |
 | cs_ prefixed keys | generateAPIKey() returns cs_sk_ prefix | sessions.go:476-479 | PASS |
-| SET LOCAL conscience.session_id | Used in Postgres path at DB driver level | internal/db/postgres/ | PASS |
+| SET LOCAL consensus.session_id | Used in Postgres path at DB driver level | internal/db/postgres/ | PASS |
 
 #### §3 — REST API Endpoint Families
 
@@ -1611,25 +1611,25 @@ The API and MCP implementation is substantially conformant with SPEC-015. Of 33 
 #### HIGH Severity (5)
 
 1. **HARDEN-CLI-01 — Config file priority chain incomplete**
-   - Spec requires: `./conscience.yaml` → `~/.conscience/config.yaml` → `/etc/conscience/config.yaml`
-   - Implemented: only `./conscience.yaml` (or `CONSCIENCE_CONFIG` env override)
+   - Spec requires: `./consensus.yaml` → `~/.consensus/config.yaml` → `/etc/consensus/config.yaml`
+   - Implemented: only `./consensus.yaml` (or `CONSENSUS_CONFIG` env override)
    - `--config` global flag declared but never used (dead flag)
 
 2. **HARDEN-CLI-02 — Interactive approval mode not implemented**
    - SPEC-016 §5.4 devotes significant detail to an interactive approval walkthrough
-   - The `conscience approve` bare command (no args) does nothing
+   - The `consensus approve` bare command (no args) does nothing
 
 3. **HARDEN-CLI-03 — Five subcommands are non-functional stubs**
-   - `conscience migrate run` — "not available via REST API"
-   - `conscience migrate rollback` — "not available via REST API"
-   - `conscience migrate create` — "not available via REST API"
-   - `conscience config set` — "not yet implemented in REST API"
-   - `conscience memory pages` — "not yet implemented in REST API"
+   - `consensus migrate run` — "not available via REST API"
+   - `consensus migrate rollback` — "not available via REST API"
+   - `consensus migrate create` — "not available via REST API"
+   - `consensus config set` — "not yet implemented in REST API"
+   - `consensus memory pages` — "not yet implemented in REST API"
    - These commands appear to exist but return hardcoded errors
 
 4. **HARDEN-CLI-04 — `status` command bypasses output formatter**
    - Uses `fm.Println()`/`fm.PrintText()` instead of structured formatting
-   - `--format json` has no effect on `conscience status`
+   - `--format json` has no effect on `consensus status`
 
 5. **HARDEN-CLI-05 — 21 command-spec flags missing**
    - `serve`: `--adapter`, `--migrations`
@@ -1644,17 +1644,17 @@ The API and MCP implementation is substantially conformant with SPEC-015. Of 33 
 #### MEDIUM Severity (2)
 
 6. **HARDEN-CLI-06 — Approve command naming convention mismatch**
-   - Spec: `conscience approve <id>` (bare verb, approve) and `conscience reject <id>` (top-level verb)
-   - Implementation: `conscience approve accept <id>` and `conscience approve reject <id>`
+   - Spec: `consensus approve <id>` (bare verb, approve) and `consensus reject <id>` (top-level verb)
+   - Implementation: `consensus approve accept <id>` and `consensus approve reject <id>`
 
 7. **HARDEN-CLI-07 — Migrate bare-command structure mismatch**
-   - Spec: `conscience migrate` (no subcommand) runs migrations
-   - Implementation: requires `conscience migrate run` subcommand
+   - Spec: `consensus migrate` (no subcommand) runs migrations
+   - Implementation: requires `consensus migrate run` subcommand
 
 #### LOW Severity (1)
 
 8. **HARDEN-CLI-08 — Nested config key lookups not supported**
-   - Spec example: `conscience config get llm.default_model`
+   - Spec example: `consensus config get llm.default_model`
    - Implementation: `config get` only works with top-level keys
 
 ### Test Evidence
@@ -1665,7 +1665,7 @@ $ go test ./internal/cli/ -v -count=1 2>&1 | tail -20
 --- PASS: TestExitCodes (covers all 8 exit codes)
 --- PASS: TestCompletionCommands (covers bash/zsh/fish)
 --- PASS: TestCommandRegistration (all 10 commands registered)
-ok  github.com/wojons/conscientiousness/internal/cli  14 tests, 0 failures
+ok  github.com/wojons/consensus/internal/cli  14 tests, 0 failures
 ```
 
 ### Recommendations
@@ -1717,7 +1717,7 @@ Audited `internal/shim/opencode/server.go` (1253 lines) + `server_test.go` (800 
    - SPEC-015 requires `api_key` in create response
 
 6. **HARDEN-SHIM-06 — Architectural violation: shim bypasses native API**
-   - SPEC-017 §3.2: "The shim is purely a protocol translator. Every shim endpoint calls through to the native Conscience API."
+   - SPEC-017 §3.2: "The shim is purely a protocol translator. Every shim endpoint calls through to the native Consensus API."
    - Implementation bypasses native API entirely, speaking directly to database
    - Native API middleware (rate limiting, scope enforcement, event bus, audit logging) bypassed
 

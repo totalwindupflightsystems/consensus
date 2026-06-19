@@ -1,8 +1,8 @@
 // Package webhook implements webhook ingestion, HMAC verification, and event
-// routing for Conscience (SPEC-013).
+// routing for Consensus (SPEC-013).
 //
 // Webhooks are the primary mechanism for external systems to push events into
-// the Conscience runtime. The database IS the event bus — no Kafka, no Redis.
+// the Consensus runtime. The database IS the event bus — no Kafka, no Redis.
 // Webhooks write rows to external_events; a Go-level routing loop routes them
 // to agents.
 //
@@ -32,7 +32,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================

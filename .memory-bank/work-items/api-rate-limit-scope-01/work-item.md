@@ -28,7 +28,7 @@ The `checkRateLimit` function in `internal/api/server.go` had a bug: it hardcode
    - Modified `checkRateLimit(ctx, prefix, scope)` to accept scope and look up the correct limit
    - Moved scope extraction before the rate limit check in `authMiddleware`
 
-2. **`cmd/conscience/main.go`** — Config wiring:
+2. **`cmd/consensus/main.go`** — Config wiring:
    - Pass `cfg.APIRate` fields to `api.ServerConfig` when creating the API server
 
 3. **`internal/api/server_test.go`** — Tests:
@@ -51,7 +51,7 @@ The `checkRateLimit` function in `internal/api/server.go` had a bug: it hardcode
 | readonly | 200               |
 | webhook  | 500               |
 
-Config overrides via `conscience.yaml` (`api_rate.*`) or CLI flags.
+Config overrides via `consensus.yaml` (`api_rate.*`) or CLI flags.
 
 ## Verification
 
@@ -64,6 +64,6 @@ Config overrides via `conscience.yaml` (`api_rate.*`) or CLI flags.
 ```
 axiom:trace work_item=api-rate-limit-scope-01
   spec=specs/015-api-and-mcp.md
-  impl=internal/api/server.go,cmd/conscience/main.go
+  impl=internal/api/server.go,cmd/consensus/main.go
   test=internal/api/server_test.go
 ```

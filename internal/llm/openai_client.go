@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/harness"
+	"github.com/wojons/consensus/internal/harness"
 )
 
 // ============================================================================
@@ -174,8 +174,8 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 	}
 
 	// OpenRouter-specific headers (harmless on OpenAI)
-	req.Header.Set("HTTP-Referer", "https://github.com/wojons/conscientiousness")
-	req.Header.Set("X-Title", "Conscience")
+	req.Header.Set("HTTP-Referer", "https://github.com/wojons/consensus")
+	req.Header.Set("X-Title", "Consensus")
 
 	slog.Info("llm: calling provider", "url", url, "model", c.model, "messages", len(reqBody.Messages))
 
@@ -280,7 +280,7 @@ func (c *openaiClient) buildResponseFormat() (*openaiResponseFmt, error) {
 			Type: "json_schema",
 			JSONSchema: &openaiJSONSchema{
 				Name:        "agent_output",
-				Description: "Structured output from the Conscience agent cognition loop",
+				Description: "Structured output from the Consensus agent cognition loop",
 				Schema:      schemaBytes,
 				Strict:      true,
 			},

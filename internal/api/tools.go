@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================

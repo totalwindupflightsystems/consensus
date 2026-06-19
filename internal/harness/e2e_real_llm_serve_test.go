@@ -1,6 +1,6 @@
 // Package harness: real end-to-end test using the serve binary + live LLM.
 //
-// This test starts conscience serve, creates a session, sends a message,
+// This test starts consensus serve, creates a session, sends a message,
 // and verifies the harness completes the agent loop with real model calls.
 //
 // axiom:trace work_item=e2e-real-llm-serve spec=specs/008-harness.md
@@ -21,7 +21,7 @@ import (
 
 // TestE2ERealLLMServe validates the full production path:
 //  1. Build binary
-//  2. Start conscience serve on random port
+//  2. Start consensus serve on random port
 //  3. Create session via API
 //  4. Send message to trigger harness loop
 //  5. Poll for completion (status=idle with committed work)
@@ -76,7 +76,7 @@ api_rate:
   readonly_per_min: 200
 `, port, apiKey, dbPath)
 
-	configPath := filepath.Join(tmpDir, "conscience.yaml")
+	configPath := filepath.Join(tmpDir, "consensus.yaml")
 	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

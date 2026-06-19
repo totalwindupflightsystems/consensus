@@ -1,4 +1,4 @@
-// serve command — start the Conscience server.
+// serve command — start the Consensus server.
 //
 // axiom:trace work_item=spec-016-hardening-01 spec=specs/016-cli-interface.md plan=phase-1/task-3/step-3-1 impl=internal/cli/serve.go
 package cli
@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/wojons/conscientiousness/internal/config"
+	"github.com/wojons/consensus/internal/config"
 )
 
 // ServerFunc is set by the main package to enable the serve command to start
@@ -21,24 +21,24 @@ var ServerFunc func()
 func newServeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Start the Conscience server",
-		Long: `Start the Conscience server with the harness loop, REST API, MCP server,
+		Short: "Start the Consensus server",
+		Long: `Start the Consensus server with the harness loop, REST API, MCP server,
 and protocol shims. Connects to PostgreSQL or SQLite depending on
 database configuration.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Push CLI flags into environment for config.Load() to pick up
 			// (preserves the priority chain: flags > env > config file > defaults).
 			if port, _ := cmd.Flags().GetInt("port"); port != 8090 {
-				os.Setenv("CONSCIENCE_PORT", strconv.Itoa(port))
+				os.Setenv("CONSENSUS_PORT", strconv.Itoa(port))
 			}
 			if hostname, _ := cmd.Flags().GetString("hostname"); hostname != "127.0.0.1" {
-				os.Setenv("CONSCIENCE_HOSTNAME", hostname)
+				os.Setenv("CONSENSUS_HOSTNAME", hostname)
 			}
 			if dbURL, _ := cmd.Flags().GetString("db-url"); dbURL != "" {
-				os.Setenv("CONSCIENCE_DB_URL", dbURL)
+				os.Setenv("CONSENSUS_DB_URL", dbURL)
 			}
 			if logLevel, _ := cmd.Flags().GetString("log-level"); logLevel != "info" {
-				os.Setenv("CONSCIENCE_LOG_LEVEL", logLevel)
+				os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
 			}
 			// Wire the --config flag to config.Load() via SetConfigPath.
 			if optConfig != "" {

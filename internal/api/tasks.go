@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================

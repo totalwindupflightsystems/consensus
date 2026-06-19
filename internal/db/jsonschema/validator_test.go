@@ -3,7 +3,7 @@ package jsonschema_test
 import (
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/db/jsonschema"
+	"github.com/wojons/consensus/internal/db/jsonschema"
 )
 
 // axiom:trace work_item=WI-003 spec=specs/003-database.md#4 plan=phase-2/task-1 test=internal/db/jsonschema/validator_test.go

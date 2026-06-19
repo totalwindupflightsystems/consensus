@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/harness"
+	"github.com/wojons/consensus/internal/harness"
 )
 
 // ============================================================================
@@ -137,7 +137,7 @@ func TestDefaultConfig(t *testing.T) {
 // ============================================================================
 
 func TestNewClient_Mock(t *testing.T) {
-	t.Setenv("CONSCIENCE_MOCK_LLM", "1")
+	t.Setenv("CONSENSUS_MOCK_LLM", "1")
 	client, err := NewClient(&Config{
 		Provider: ProviderMock,
 		Model:    "test-model",
@@ -152,16 +152,16 @@ func TestNewClient_Mock(t *testing.T) {
 
 func TestNewClient_MockRejectsWithoutEnv(t *testing.T) {
 	// Ensure no env var is set for this test
-	t.Setenv("CONSCIENCE_MOCK_LLM", "")
+	t.Setenv("CONSENSUS_MOCK_LLM", "")
 	_, err := NewClient(&Config{
 		Provider: ProviderMock,
 		Model:    "test-model",
 	})
 	if err == nil {
-		t.Fatal("expected error when CONSCIENCE_MOCK_LLM is not set")
+		t.Fatal("expected error when CONSENSUS_MOCK_LLM is not set")
 	}
-	if !strings.Contains(err.Error(), "CONSCIENCE_MOCK_LLM") {
-		t.Errorf("error should mention CONSCIENCE_MOCK_LLM: %v", err)
+	if !strings.Contains(err.Error(), "CONSENSUS_MOCK_LLM") {
+		t.Errorf("error should mention CONSENSUS_MOCK_LLM: %v", err)
 	}
 }
 

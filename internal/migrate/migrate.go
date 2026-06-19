@@ -1,4 +1,4 @@
-// Package migrate implements the schema migration runner for Conscience.
+// Package migrate implements the schema migration runner for Consensus.
 //
 // Migration SQL files are embedded in the binary and auto-applied on startup.
 // A schema_versions table tracks which migrations have been applied.
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 //go:embed migrations/*

@@ -26,7 +26,7 @@ func TestServerRestartPersistence(t *testing.T) {
 
 	binPath := findConscienceBinary(t)
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "conscience-test.db")
+	dbPath := filepath.Join(tmpDir, "consensus-test.db")
 	port := randomPort(t)
 
 	// Write config
@@ -56,13 +56,13 @@ database:
 logging:
   level: debug
 `, port, apiKey, dbPath)
-	if err := os.WriteFile(filepath.Join(tmpDir, "conscience.yaml"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(config), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
 	// --- PHASE 1: Start server, create session ---
 	t.Log("starting server (phase 1)...")
-	cmd1 := exec.Command(binPath, "--config", filepath.Join(tmpDir, "conscience.yaml"), "serve")
+	cmd1 := exec.Command(binPath, "--config", filepath.Join(tmpDir, "consensus.yaml"), "serve")
 	cmd1.Dir = tmpDir
 	stdout1, _ := cmd1.StdoutPipe()
 	cmd1.Stderr = os.Stderr
@@ -110,7 +110,7 @@ logging:
 
 	// --- PHASE 3: Restart server with SAME db ---
 	t.Log("restarting server (phase 2)...")
-	cmd2 := exec.Command(binPath, "--config", filepath.Join(tmpDir, "conscience.yaml"), "serve")
+	cmd2 := exec.Command(binPath, "--config", filepath.Join(tmpDir, "consensus.yaml"), "serve")
 	cmd2.Dir = tmpDir
 	stdout2, _ := cmd2.StdoutPipe()
 	cmd2.Stderr = os.Stderr

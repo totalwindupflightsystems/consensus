@@ -19,7 +19,7 @@ func newApproveCmd() *cobra.Command {
 		Long: `List, show, approve, and reject pending HITL approval requests.
 
 Without a subcommand, runs interactive approval mode.`,
-		// Bare `conscience approve` enters interactive mode
+		// Bare `consensus approve` enters interactive mode
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// If an approval ID is given as arg, treat as approve+accept alias
 			if len(args) == 1 {
@@ -30,7 +30,7 @@ Without a subcommand, runs interactive approval mode.`,
 		},
 	}
 
-	// Flags for `conscience approve <id>` (SPEC-016 §5.4)
+	// Flags for `consensus approve <id>` (SPEC-016 §5.4)
 	cmd.Flags().String("notes", "", "Reviewer notes")
 	cmd.Flags().String("modified-sql", "", "Modified SQL (for 'modified' decision)")
 
@@ -44,7 +44,7 @@ Without a subcommand, runs interactive approval mode.`,
 	return cmd
 }
 
-// newRejectCmd creates the top-level `conscience reject` command (SPEC-016 §5.4).
+// newRejectCmd creates the top-level `consensus reject` command (SPEC-016 §5.4).
 func newRejectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reject <approval-id>",
@@ -76,7 +76,7 @@ func newRejectCmd() *cobra.Command {
 	return cmd
 }
 
-// approveApprove handles `conscience approve <id>` — alias for `conscience approve accept <id>`.
+// approveApprove handles `consensus approve <id>` — alias for `consensus approve accept <id>`.
 func approveApprove(cmd *cobra.Command, args []string) error {
 	client := newClient()
 	fm := newFormatter()

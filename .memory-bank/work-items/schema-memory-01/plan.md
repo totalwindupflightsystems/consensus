@@ -8,7 +8,7 @@ run_id: 2026-05-03-spec-align-fix-01
 
 # Plan — Schema + Memory Foundation
 
-Build the database first because Conscience treats the database as the runtime. The smallest safe slice is a migration draft that captures canonical tables/enums and can be verified before harness code exists.
+Build the database first because Consensus treats the database as the runtime. The smallest safe slice is a migration draft that captures canonical tables/enums and can be verified before harness code exists.
 
 axiom:trace work_item=schema-memory-01 spec=specs/002-memory.md,specs/003-database.md,specs/005-security.md,specs/007-json-schema.md,specs/011-canonical-definitions.md plan=phase-1 task-1 step-1 evidence=.memory-bank/work-items/schema-memory-01/verification.md
 
@@ -57,7 +57,7 @@ axiom:trace work_item=schema-memory-01 spec=specs/002-memory.md,specs/003-databa
 - CTE for active pointers from `iteration_commits`.
 - LEFT JOIN `display_modes`.
 - CASE for compressed/hidden/full rendering.
-- Session isolation via `current_setting('conscience.session_id')`.
+- Session isolation via `current_setting('consensus.session_id')`.
 - DISTINCT ON for page deduplication (SPEC-002 §3.6).
 - `string_agg()` Markdown aggregation query (SPEC-002 §7.3).
 
@@ -67,7 +67,7 @@ axiom:trace work_item=schema-memory-01 spec=specs/002-memory.md,specs/003-databa
 
 **Phase 2 Task 1:** Enable RLS on all core tables and create session-isolation policies.
 - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` for: `memory_events`, `display_modes`, `iteration_commits`, `memory_pages`, `tasks`, `tool_requests`, `tool_results`, `tool_files`, `external_quarantine`, `agent_billing`, `compression_queue`, `agent_messages`, `audit_logs`.
-- `CREATE POLICY session_isolate_*` with `FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID)`.
+- `CREATE POLICY session_isolate_*` with `FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID)`.
 
 **Phase 2 Task 2:** Implement the 4-role permission model (SPEC-011 §13, SPEC-003 §7.5).
 - `agent_role`: SELECT/INSERT on memory_events; SELECT/INSERT/UPDATE on display_modes; SELECT/INSERT on iteration_commits; limited UPDATE on sessions (status, heartbeat); SELECT/INSERT/UPDATE on tasks; SELECT/INSERT on tool_requests; SELECT on active_context_view; REVOKE all on vault.
@@ -129,7 +129,7 @@ axiom:trace work_item=schema-memory-01 spec=specs/002-memory.md,specs/003-databa
 ### Phase 5 — Verification & Evidence
 
 **Phase 5 Task 1:** Apply migration against Postgres (or SQLite if Postgres unavailable) and capture output.
-- Command: `psql -h localhost -U postgres -d conscience_test -f migrations/001_initial_schema.sql` (or `sqlite3 :memory: < migrations/001_initial_schema.sql`).
+- Command: `psql -h localhost -U postgres -d consensus_test -f migrations/001_initial_schema.sql` (or `sqlite3 :memory: < migrations/001_initial_schema.sql`).
 - Verify exit code 0.
 - Query `information_schema.tables` to confirm all expected tables exist.
 

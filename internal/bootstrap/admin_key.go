@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // DefaultBootstrapKeyTTLHours is the default expiry for first-admin bootstrap keys (90 days).
-// Override with CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS env var. Set to 0 to disable expiry.
+// Override with CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS env var. Set to 0 to disable expiry.
 //
 // axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-001 impl=internal/bootstrap/admin_key.go
 const DefaultBootstrapKeyTTLHours = 2160
@@ -40,13 +40,13 @@ type AdminKeyResult struct {
 	ExpiresAt string `json:"expires_at,omitempty"` // RFC 3339 or empty for no expiry
 }
 
-// GetBootstrapKeyTTL reads CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS from the environment
+// GetBootstrapKeyTTL reads CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS from the environment
 // and returns a time.Duration. Returns DefaultBootstrapKeyTTLHours * time.Hour if
 // unset or invalid. Returns 0 for value 0 (no expiry, backward compatible).
 //
 // axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-001 impl=internal/bootstrap/admin_key.go
 func GetBootstrapKeyTTL() time.Duration {
-	v := os.Getenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS")
+	v := os.Getenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
 	if v == "" {
 		return DefaultBootstrapKeyTTLHours * time.Hour
 	}
@@ -130,7 +130,7 @@ func EnsureFirstAdminKey(ctx context.Context, database db.DB, ttl time.Duration)
 // Output conforms to SPEC-016 §3 (scriptable, machine-parseable). For a
 // newly created key the first line emits "created=true key=<secret>"; for an
 // existing key "created=false prefix=<prefix>". Every line is prefixed with
-// "conscience:" so operators and scripts can grep for it.
+// "consensus:" so operators and scripts can grep for it.
 //
 // When Created is true and an expiry is set, the machine-parseable first line
 // includes expires_at=<RFC 3339> and a human-readable line describes the
@@ -140,7 +140,7 @@ func EnsureFirstAdminKey(ctx context.Context, database db.DB, ttl time.Duration)
 // axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.md#req-bootstrap-ttl-002 impl=internal/bootstrap/admin_key.go
 func FormatResult(r AdminKeyResult) []string {
 	if r.Created {
-		firstLine := fmt.Sprintf("conscience: first_admin_key created=true key=%s key_prefix=%s id=%s created_at=%s",
+		firstLine := fmt.Sprintf("consensus: first_admin_key created=true key=%s key_prefix=%s id=%s created_at=%s",
 			r.APIKey, r.KeyPrefix, r.ID, r.CreatedAt)
 		if r.ExpiresAt != "" {
 			firstLine += fmt.Sprintf(" expires_at=%s", r.ExpiresAt)
@@ -149,24 +149,24 @@ func FormatResult(r AdminKeyResult) []string {
 				remaining := time.Until(expiresTime).Round(time.Minute)
 				return []string{
 					firstLine,
-					fmt.Sprintf("conscience: this key expires at %s (%s from now)", r.ExpiresAt, remaining),
-					"conscience: save this key now; it is stored hashed and will not be printed again",
+					fmt.Sprintf("consensus: this key expires at %s (%s from now)", r.ExpiresAt, remaining),
+					"consensus: save this key now; it is stored hashed and will not be printed again",
 				}
 			}
 			return []string{
 				firstLine,
-				fmt.Sprintf("conscience: this key expires at %s", r.ExpiresAt),
-				"conscience: save this key now; it is stored hashed and will not be printed again",
+				fmt.Sprintf("consensus: this key expires at %s", r.ExpiresAt),
+				"consensus: save this key now; it is stored hashed and will not be printed again",
 			}
 		}
 		return []string{
 			firstLine,
-			"conscience: this key does not expire (TTL=0)",
-			"conscience: save this key now; it is stored hashed and will not be printed again",
+			"consensus: this key does not expire (TTL=0)",
+			"consensus: save this key now; it is stored hashed and will not be printed again",
 		}
 	}
 	return []string{
-		fmt.Sprintf("conscience: first_admin_key created=false key_prefix=%s id=%s created_at=%s",
+		fmt.Sprintf("consensus: first_admin_key created=false key_prefix=%s id=%s created_at=%s",
 			r.KeyPrefix, r.ID, r.CreatedAt),
 	}
 }

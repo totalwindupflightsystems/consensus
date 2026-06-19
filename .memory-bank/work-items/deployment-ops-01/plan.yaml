@@ -23,7 +23,7 @@ plan:
                 Includes drift detection that pauses all agents during migration.
               verification:
                 - type: command
-                  command: go build -o conscience ./cmd/conscience && ./conscience migrate status
+                  command: go build -o consensus ./cmd/consensus && ./consensus migrate status
                   required: true
                   timeout_seconds: 120
                 - type: command
@@ -36,24 +36,24 @@ plan:
               title: Configuration parity — single config surface for both backends
               spec_ref: specs/009-deployment.md#configuration
               description: >
-                conscience.yaml with db, listen, heartbeat_interval, llm, harness sections.
+                consensus.yaml with db, listen, heartbeat_interval, llm, harness sections.
                 Supports flags and env var overrides. Identical behavior for Postgres and SQLite.
               verification:
                 - type: command
-                  command: ./conscience serve --help | grep -E "db|config" && go test ./internal/config/... -v
+                  command: ./consensus serve --help | grep -E "db|config" && go test ./internal/config/... -v
                   required: true
                   timeout_seconds: 120
-              rollback: revert config.go and conscience.yaml template
+              rollback: revert config.go and consensus.yaml template
               on_fail: fix config parsing; retry
             - id: step-1-1-3
               title: CLI management commands
               spec_ref: specs/009-deployment.md#the-binary
               description: >
-                Implement conscience init, conscience migrate status/up/down, conscience session,
-                conscience approve, conscience config commands.
+                Implement consensus init, consensus migrate status/up/down, consensus session,
+                consensus approve, consensus config commands.
               verification:
                 - type: command
-                  command: ./conscience --help && ./conscience migrate --help && go test ./cmd/... -v
+                  command: ./consensus --help && ./consensus migrate --help && go test ./cmd/... -v
                   required: true
                   timeout_seconds: 120
               rollback: revert cmd/ additions
@@ -263,7 +263,7 @@ plan:
               title: Reviewer auth — enforce alt_mode_role
               spec_ref: specs/014-hitl-interrupt-state.md#reviewer-authorization
               description: >
-                review_approval() checks current_setting('conscience.user_id').
+                review_approval() checks current_setting('consensus.user_id').
                 Only users with alt_mode_role can approve. Unit test for unauthorized rejection.
               verification:
                 - type: command
@@ -314,7 +314,7 @@ plan:
               spec_ref: specs/004-subagents.md#row-level-security-isolation
               description: >
                 CREATE POLICY isolate_memories/tasks/tools USING session_id =
-                current_setting('conscience.session_id')::UUID.
+                current_setting('consensus.session_id')::UUID.
                 Unit tests confirm sub-agents cannot read/write other agents' data.
               verification:
                 - type: command

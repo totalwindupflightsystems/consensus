@@ -19,30 +19,30 @@ $ go test ./internal/harness/ -run "TestFullStackE2E_AllSubsystems|TestFullStack
 --- PASS: TestFullStackE2E_ErrorRecoveryFlows (0.00s)
 --- PASS: TestFullStackE2E_SessionLifecycle (0.00s)
 PASS
-ok  	github.com/wojons/conscientiousness/internal/harness	0.240s
+ok  	github.com/wojons/consensus/internal/harness	0.240s
 ```
 
 ## Full Suite Confirmation
 
 ```
 $ go test ./... -count=1
-ok  	github.com/wojons/conscientiousness/internal/api
-ok  	github.com/wojons/conscientiousness/internal/cli
-ok  	github.com/wojons/conscientiousness/internal/config
-ok  	github.com/wojons/conscientiousness/internal/db
-ok  	github.com/wojons/conscientiousness/internal/db/driver
-ok  	github.com/wojons/conscientiousness/internal/harness
-ok  	github.com/wojons/conscientiousness/internal/hitl
-ok  	github.com/wojons/conscientiousness/internal/llm
-ok  	github.com/wojons/conscientiousness/internal/mcp
-ok  	github.com/wojons/conscientiousness/internal/migrate
-ok  	github.com/wojons/conscientiousness/internal/secrets
-ok  	github.com/wojons/conscientiousness/internal/security
-ok  	github.com/wojons/conscientiousness/internal/session
-ok  	github.com/wojons/conscientiousness/internal/shim/opencode
-ok  	github.com/wojons/conscientiousness/internal/subagent
-ok  	github.com/wojons/conscientiousness/internal/tools
-ok  	github.com/wojons/conscientiousness/internal/webhook
+ok  	github.com/wojons/consensus/internal/api
+ok  	github.com/wojons/consensus/internal/cli
+ok  	github.com/wojons/consensus/internal/config
+ok  	github.com/wojons/consensus/internal/db
+ok  	github.com/wojons/consensus/internal/db/driver
+ok  	github.com/wojons/consensus/internal/harness
+ok  	github.com/wojons/consensus/internal/hitl
+ok  	github.com/wojons/consensus/internal/llm
+ok  	github.com/wojons/consensus/internal/mcp
+ok  	github.com/wojons/consensus/internal/migrate
+ok  	github.com/wojons/consensus/internal/secrets
+ok  	github.com/wojons/consensus/internal/security
+ok  	github.com/wojons/consensus/internal/session
+ok  	github.com/wojons/consensus/internal/shim/opencode
+ok  	github.com/wojons/consensus/internal/subagent
+ok  	github.com/wojons/consensus/internal/tools
+ok  	github.com/wojons/consensus/internal/webhook
 ```
 => **22 packages, 0 failures**
 

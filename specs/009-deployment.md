@@ -4,7 +4,7 @@
 
 ## Overview
 
-Conscience is a **single Go binary** that contains the harness, REST API, and MCP server. It connects to any supported database backend via a driver interface. There is one deployment model — the binary — with two database options:
+Consensus is a **single Go binary** that contains the harness, REST API, and MCP server. It connects to any supported database backend via a driver interface. There is one deployment model — the binary — with two database options:
 
 1. **Postgres** — Supabase Cloud, self-hosted Supabase, or any Postgres provider
 2. **SQLite** — embedded in the binary, zero external dependencies
@@ -17,22 +17,22 @@ The user experience is identical regardless of database backend. The LLM doesn't
 
 ```bash
 # Build
-go build -o conscience ./cmd/conscience
+go build -o consensus ./cmd/consensus
 
 # Run with SQLite (local dev, zero dependencies)
-./conscience serve --db sqlite://conscience.db
+./consensus serve --db sqlite://consensus.db
 
 # Run with local Postgres
-./conscience serve --db postgres://localhost:5432/conscience
+./consensus serve --db postgres://localhost:5432/consensus
 
 # Run with self-hosted Supabase
-./conscience serve --db postgres://localhost:5432/postgres
+./consensus serve --db postgres://localhost:5432/postgres
 
 # Run with Supabase Cloud
-./conscience serve --db postgres://postgres:pass@db.xxx.supabase.co:5432/postgres
+./consensus serve --db postgres://postgres:pass@db.xxx.supabase.co:5432/postgres
 
 # Run with any Postgres provider (Neon, Railway, RDS, etc.)
-./conscience serve --db postgres://user:pass@your-postgres-host:5432/conscience
+./consensus serve --db postgres://user:pass@your-postgres-host:5432/consensus
 ```
 
 One binary. One flag. Same runtime.
@@ -52,8 +52,8 @@ One binary. One flag. Same runtime.
 ### Configuration
 
 ```yaml
-# conscience.yaml (or flags, or env vars)
-db: postgres://localhost:5432/conscience
+# consensus.yaml (or flags, or env vars)
+db: postgres://localhost:5432/consensus
 listen: ":8090"
 heartbeat_interval: 5s
 llm:
@@ -74,12 +74,12 @@ harness:
 
 ### Postgres (any provider)
 
-The full Conscience feature set is available on Postgres:
+The full Consensus feature set is available on Postgres:
 
 | Feature | Mechanism |
 |---|---|
 | Row-Level Security | Native RLS policies |
-| Session isolation | `SET LOCAL conscience.session_id` (auto-resets at COMMIT/ROLLBACK) |
+| Session isolation | `SET LOCAL consensus.session_id` (auto-resets at COMMIT/ROLLBACK) |
 | Triggers | Native `AFTER INSERT/UPDATE` triggers |
 | Stored procedures | `plpgsql` functions with `SECURITY DEFINER` |
 | Scheduling | `pg_cron` (if available) or Go-cron fallback |
@@ -139,7 +139,7 @@ SQLite runs inside the binary process. No external database to install or manage
 ### 1. Local Development (simplest)
 
 ```bash
-./conscience serve --db sqlite://dev.db
+./consensus serve --db sqlite://dev.db
 # Everything in one process. Zero dependencies.
 ```
 
@@ -147,17 +147,17 @@ SQLite runs inside the binary process. No external database to install or manage
 
 ```bash
 # Start Postgres (Docker, Homebrew, etc.)
-docker run -d -p 5432:5432 -e POSTGRES_DB=conscience postgres:16
+docker run -d -p 5432:5432 -e POSTGRES_DB=consensus postgres:16
 
 # Run binary
-./conscience serve --db postgres://localhost:5432/conscience
+./consensus serve --db postgres://localhost:5432/consensus
 ```
 
 ### 3. Supabase Cloud
 
 ```bash
 # Just point at the hosted Postgres
-./conscience serve --db postgres://postgres:pass@db.xxx.supabase.co:5432/postgres
+./consensus serve --db postgres://postgres:pass@db.xxx.supabase.co:5432/postgres
 # Binary runs on your machine, a VM, fly.io, Railway, anywhere.
 ```
 
@@ -168,7 +168,7 @@ docker run -d -p 5432:5432 -e POSTGRES_DB=conscience postgres:16
 docker compose up -d  # starts Postgres, Auth, Realtime, etc.
 
 # Point binary at the Postgres instance
-./conscience serve --db postgres://supabase_admin:pass@localhost:5432/postgres
+./consensus serve --db postgres://supabase_admin:pass@localhost:5432/postgres
 # Optionally use Supabase Auth, Realtime, Vault alongside the binary
 ```
 
@@ -176,13 +176,13 @@ docker compose up -d  # starts Postgres, Auth, Realtime, etc.
 
 ```bash
 # Deploy binary to fly.io
-fly deploy --app conscience-prod
+fly deploy --app consensus-prod
 
 # Or Railway
 railway up
 
 # Or bare metal / Kubernetes
-kubectl apply -f conscience-deployment.yaml
+kubectl apply -f consensus-deployment.yaml
 
 # Database can be anywhere the binary can reach via network
 ```
@@ -193,7 +193,7 @@ Multiple binary instances can share one Postgres backend:
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ conscience│  │ conscience│  │ conscience│
+│ consensus│  │ consensus│  │ consensus│
 │ worker 1  │  │ worker 2  │  │ worker 3  │
 └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
       │              │              │
@@ -244,13 +244,13 @@ Each migration is idempotent where possible (`IF NOT EXISTS`, `ON CONFLICT DO NO
 
 ```bash
 # Check current schema version
-./conscience migrate status
+./consensus migrate status
 
 # Apply pending migrations
-./conscience migrate up
+./consensus migrate up
 
 # Rollback last migration
-./conscience migrate down
+./consensus migrate down
 ```
 
 ### Drift Handling
@@ -270,7 +270,7 @@ No agent runs against an incompatible schema. Ever.
 | Step | With SQLite | With Any Postgres |
 |---|---|---|
 | 1 | Download binary | Download binary |
-| 2 | `./conscience serve` | `./conscience serve --db postgres://...` |
+| 2 | `./consensus serve` | `./consensus serve --db postgres://...` |
 | 3 | Enter API key | Enter API key |
 | 4 | System runs | System runs |
 
@@ -292,4 +292,4 @@ Edge Functions may still have a role for future webhook handlers or lightweight 
 
 ---
 
-*SPEC-009 — Deployment — Conscience Framework*
+*SPEC-009 — Deployment — Consensus Framework*

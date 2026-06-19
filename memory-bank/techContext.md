@@ -31,7 +31,7 @@
 ## Project Structure (Planned)
 ```
 cmd/
-  conscience/main.go         # Entry point
+  consensus/main.go         # Entry point
 internal/
   harness/                   # Agent iteration loop (SPEC-008, SPEC-020)
   api/                       # REST API handlers (SPEC-015)
@@ -51,7 +51,7 @@ migrations/
 - Go binary over Deno Edge Functions — harness is a persistent worker, not serverless
 - Direct SQL over ORM — database/sql + pgx simpler than Kysely/Drizzle for Go
 - SET LOCAL safe with Supavisor/PgBouncer transaction mode
-- Statement-level pooling NOT supported for Conscience
+- Statement-level pooling NOT supported for Consensus
 - sqlite-vec and sqlite-jsonschema load via Go driver config
 - Single binary can be deployed to fly.io, Railway, bare metal, Kubernetes
 - Multiple binary instances can share one Postgres backend via FOR UPDATE SKIP LOCKED

@@ -17,6 +17,6 @@ plan:
               title: Update code/docs/tests for init and serve key output
               spec_ref: specs/016-cli-interface.md
               verification:
-                - { type: command, command: "go test ./internal/cli ./cmd/conscience -v -count=1", required: false }
+                - { type: command, command: "go test ./internal/cli ./cmd/consensus -v -count=1", required: false }
                 - { type: command, command: "make test", required: true }
 axiom_trace: "axiom:trace work_item=bootstrap-output-stream-01 spec=specs/016-cli-interface.md plan=.memory-bank/work-items/bootstrap-output-stream-01/plan.yaml evidence=.memory-bank/work-items/bootstrap-output-stream-01/verification.md"

@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-Research findings for every external dependency in the Conscience Go binary. Each library was evaluated for: feature support, maintenance status, Go version requirements, known gotchas, and suitability for our architecture.
+Research findings for every external dependency in the Consensus Go binary. Each library was evaluated for: feature support, maintenance status, Go version requirements, known gotchas, and suitability for our architecture.
 
 ---
 
@@ -242,7 +242,7 @@ Go's `r.Context().Done()` fires automatically on client disconnect. No library n
 Viper pulls in 8+ dependencies for features we don't need (hot-reload, TOML, INI, remote config). For "load a YAML file into a struct":
 
 ```go
-data, _ := os.ReadFile("conscience.yaml")
+data, _ := os.ReadFile("consensus.yaml")
 var cfg Config
 yaml.Unmarshal(data, &cfg)
 ```
@@ -328,4 +328,4 @@ pgx v5.9.x requires Go 1.25+. If we need to support older Go versions, pin to v5
 
 ---
 
-*SPEC-022 — Library Research — Conscience Framework*
+*SPEC-022 — Library Research — Consensus Framework*

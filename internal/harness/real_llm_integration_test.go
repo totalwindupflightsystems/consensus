@@ -1,4 +1,4 @@
-// Package harness: real LLM integration test — proves Conscience works end-to-end
+// Package harness: real LLM integration test — proves Consensus works end-to-end
 // with LM Studio's qwen model.
 //
 // axiom:trace work_item=real-llm-integration-tests-01 spec=specs/008-harness.md,specs/015-api-and-mcp.md,specs/000-north-star.md plan=.memory-bank/work-items/real-llm-integration-tests-01/plan.yaml
@@ -47,8 +47,8 @@ func TestRealLLMIntegration(t *testing.T) {
 
 	// Write temp config with the selected provider
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "conscience-test-llm.db")
-	os.WriteFile(filepath.Join(tmpDir, "conscience.yaml"), []byte(fmt.Sprintf(`server:
+	dbPath := filepath.Join(tmpDir, "consensus-test-llm.db")
+	os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(fmt.Sprintf(`server:
   hostname: 127.0.0.1
   port: %d
 llm:
@@ -81,8 +81,8 @@ api_rate:
   webhook_per_min: 500
 `, port, model, baseURL, apiKey, dbPath)), 0644)
 
-	// Start conscience — capture stdout for bootstrap admin key
-	cmd := exec.Command(binPath, "--config", filepath.Join(tmpDir, "conscience.yaml"), "serve")
+	// Start consensus — capture stdout for bootstrap admin key
+	cmd := exec.Command(binPath, "--config", filepath.Join(tmpDir, "consensus.yaml"), "serve")
 	cmd.Dir = tmpDir
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -90,9 +90,9 @@ api_rate:
 	}
 	cmd.Stderr = os.Stderr
 
-	t.Logf("starting conscience on port %d...", port)
+	t.Logf("starting consensus on port %d...", port)
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start conscience: %v", err)
+		t.Fatalf("start consensus: %v", err)
 	}
 	defer func() {
 		cmd.Process.Signal(os.Interrupt)
@@ -110,9 +110,9 @@ api_rate:
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealth(t, serverURL, 15*time.Second) {
 		cmd.Process.Kill()
-		t.Fatal("conscience did not become healthy")
+		t.Fatal("consensus did not become healthy")
 	}
-	t.Logf("conscience healthy")
+	t.Logf("consensus healthy")
 
 	// Step 1: Create session
 	createResp := apiPost(t, serverURL+"/api/v1/sessions",
@@ -244,7 +244,7 @@ func parseBootstrapKey(t *testing.T, r io.Reader, timeout time.Duration) string 
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if strings.Contains(line, "conscience: first_admin_key created=true key=") {
+			if strings.Contains(line, "consensus: first_admin_key created=true key=") {
 				for _, p := range strings.Fields(line) {
 					if strings.HasPrefix(p, "key=") && !strings.HasPrefix(p, "key_prefix=") {
 						ch <- strings.TrimPrefix(p, "key=")
@@ -264,14 +264,14 @@ func parseBootstrapKey(t *testing.T, r io.Reader, timeout time.Duration) string 
 
 func findConscienceBinary(t *testing.T) string {
 	t.Helper()
-	for _, p := range []string{"../conscience", filepath.Join("..", "..", "conscience")} {
+	for _, p := range []string{"../consensus", filepath.Join("..", "..", "consensus")} {
 		if abs, _ := filepath.Abs(p); true {
 			if _, err := os.Stat(abs); err == nil {
 				return abs
 			}
 		}
 	}
-	t.Skip("binary not found — run 'go build -o conscience ./cmd/conscience'")
+	t.Skip("binary not found — run 'go build -o consensus ./cmd/consensus'")
 	return ""
 }
 

@@ -17,7 +17,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wojons/conscientiousness/internal/db"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================

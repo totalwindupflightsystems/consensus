@@ -40,7 +40,7 @@ plan:
                   required: true
                   timeout_seconds: 300
             - id: step-1-1-3
-              title: Implement session-scoped RLS via SET LOCAL conscience.session_id
+              title: Implement session-scoped RLS via SET LOCAL consensus.session_id
               command: /axiom-step
               spec_ref: specs/015-api-and-mcp.md
               inputs: {}
@@ -435,7 +435,7 @@ plan:
           subtasks: []
           steps:
             - id: step-4-2-1
-              title: Implement conscience serve (port, hostname, mcp, adapter, db-url, log-level flags)
+              title: Implement consensus serve (port, hostname, mcp, adapter, db-url, log-level flags)
               command: /axiom-step
               spec_ref: specs/016-cli-interface.md
               inputs: {}
@@ -445,7 +445,7 @@ plan:
                   required: true
                   timeout_seconds: 300
             - id: step-4-2-2
-              title: Implement conscience init (Supabase/PocketBase bootstrap, admin key, config save)
+              title: Implement consensus init (Supabase/PocketBase bootstrap, admin key, config save)
               command: /axiom-step
               spec_ref: specs/016-cli-interface.md
               inputs: {}
@@ -503,7 +503,7 @@ plan:
                   required: true
                   timeout_seconds: 300
             - id: step-4-4-2
-              title: Implement config file resolution (./conscience.yaml > ~/.conscience/ > /etc/)
+              title: Implement config file resolution (./consensus.yaml > ~/.consensus/ > /etc/)
               command: /axiom-step
               spec_ref: specs/016-cli-interface.md
               inputs: {}
@@ -659,7 +659,7 @@ plan:
                   required: true
                   timeout_seconds: 300
             - id: step-6-2-2
-              title: Implement event stream mapping (Conscience events → opencode event types)
+              title: Implement event stream mapping (Consensus events → opencode event types)
               command: /axiom-step
               spec_ref: specs/017-ui-adapter-layer.md
               inputs: {}
@@ -886,7 +886,7 @@ execution:
     note: "MCP Server Transport complete. 24 tests. 6 tools, 3 resources, 1 prompt, SSE transport, validation, auth."
   phase_4:
     status: complete
-    note: "CLI Command Surface complete per SPEC-016. 16 source files, 11 command groups, global flags, output formats, exit codes. 14 tests. Wired into cmd/conscience/main.go."
+    note: "CLI Command Surface complete per SPEC-016. 16 source files, 11 command groups, global flags, output formats, exit codes. 14 tests. Wired into cmd/consensus/main.go."
   phase_5:
     status: complete
     note: "OpenAPI Contract Pipeline complete. 6 tests. Split spec, bundled.yaml, Swagger UI at /doc, /openapi.yaml, /openapi.json."

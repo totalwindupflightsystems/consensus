@@ -1,12 +1,10 @@
-# Conscience — GoReleaser configuration
-# axiom:trace work_item=repo-bootstrap-01 spec=specs/021-repository-layout.md plan=phase-1/task-1/step-4
-
+# Consensus — GoReleaser configuration
 version: 2
 
 builds:
-  - id: conscience
-    main: ./cmd/conscience
-    binary: conscience
+  - id: consensus
+    main: ./cmd/consensus
+    binary: consensus
     env:
       - CGO_ENABLED=0
     goos:
@@ -21,7 +19,7 @@ builds:
 archives:
   - format: tar.gz
     name_template: >-
-      conscience_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      consensus_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
 checksum:
   name_template: checksums.txt

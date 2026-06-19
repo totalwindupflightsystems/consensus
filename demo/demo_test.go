@@ -2,7 +2,7 @@
 //
 // Run: DEEPSEEK_API_KEY=sk-... go test -v -run TestDemo -timeout 300s ./demo/
 //
-// This launches Conscience, creates sessions that the heartbeat picks up,
+// This launches Consensus, creates sessions that the heartbeat picks up,
 // waits for the planning loop to process them with real LLM calls, then
 // displays the results: memory events, session status, and audit trail.
 package demo
@@ -32,8 +32,8 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "FATAL: %v\n", err)
 		os.Exit(1)
 	}
-	tmpBin := filepath.Join(os.TempDir(), "conscience-demo")
-	build := exec.Command("go", "build", "-o", tmpBin, "./cmd/conscience/")
+	tmpBin := filepath.Join(os.TempDir(), "consensus-demo")
+	build := exec.Command("go", "build", "-o", tmpBin, "./cmd/consensus/")
 	build.Dir = projectRoot
 	if out, err := build.CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "BUILD FAILED: %v\n%s\n", err, out)
@@ -57,7 +57,7 @@ func TestDemo_FullAgentHarness(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "demo.db")
-	configPath := filepath.Join(tmpDir, "conscience.yaml")
+	configPath := filepath.Join(tmpDir, "consensus.yaml")
 
 	config := fmt.Sprintf(`server:
   port: %d

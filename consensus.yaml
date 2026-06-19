@@ -1,4 +1,4 @@
-# Conscience — Default configuration
+# Consensus — Default configuration
 # axiom:trace work_item=repo-bootstrap-01 spec=specs/016-cli-interface.md,specs/021-repository-layout.md plan=phase-1/task-1/step-2
 
 server:

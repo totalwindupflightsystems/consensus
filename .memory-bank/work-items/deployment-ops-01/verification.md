@@ -21,7 +21,7 @@ axiom:trace work_item=deployment-ops-01 spec=specs/009-deployment.md,specs/013-w
 |---|---|---|---|---|
 | AC-DEP-01 | Binary builds produce single statically-linked Go binary with embedded migration SQL | `go build ./...` + `go test ./internal/migrate/... -v` | **PASS** | 9 migrate tests, embedded migrations verified |
 | AC-DEP-02 | Embedded schema migrations auto-apply on startup; drift detection pauses agents | `go test ./internal/migrate/... -v` | **PASS** | Bootstrap idempotency, drift detection, up/down all tested |
-| AC-DEP-03 | Configuration parity: single conscience.yaml drives both backends identically | `go test ./internal/config/... -v` | **PASS** | Config package has existing tests |
+| AC-DEP-03 | Configuration parity: single consensus.yaml drives both backends identically | `go test ./internal/config/... -v` | **PASS** | Config package has existing tests |
 | AC-DEP-04 | Horizontal scaling: multiple instances use FOR UPDATE SKIP LOCKED | TestHorizontalScaling exists in plan; requires shared Postgres | **PENDING** | SQLite backend can't test this; Postgres-dependent |
 | AC-DEP-05 | Deployment mode scripts/documentation for all six topologies | `deploy/README.md` + `deploy/local-sqlite.sh` + `deploy/local-postgres.sh` | **PASS** | All 6 topologies documented; 2 executable scripts |
 | AC-DEP-06 | CLI management commands function correctly | `go test ./internal/cli/... -v` | **PASS** | CLI package has existing tests |

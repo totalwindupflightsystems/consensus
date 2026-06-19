@@ -33,7 +33,7 @@ phases:
           - "30s default timeout (configurable via tool_requests.timeout_ms)"
           - "1MB output size limit"
           - "Temp dir per execution (working directory isolation)"
-          - "Environment variable whitelist (CONSCIENCE_*, HOME, PATH, USER)"
+          - "Environment variable whitelist (CONSENSUS_*, HOME, PATH, USER)"
           - "Return ExternalToolResult with output, exit_code, duration, error"
         verification:
           - "go build ./... passes"
@@ -46,7 +46,7 @@ phases:
         actions:
           - "Add MaxConcurrentExecutions constant (10)"
           - "Add semaphore channel for limiting concurrent subprocesses"
-          - "Add NoNetwork flag to sandbox config (env: CONSCIENCE_TOOL_NETWORK=none)"
+          - "Add NoNetwork flag to sandbox config (env: CONSENSUS_TOOL_NETWORK=none)"
         verification:
           - "go build ./... passes"
         evidence: internal/tools/sandbox.go

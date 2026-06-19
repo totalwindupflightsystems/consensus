@@ -131,8 +131,8 @@ const swaggerUITemplate = `<!DOCTYPE html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Conscience API Documentation" />
-  <title>Conscience API — Swagger UI</title>
+  <meta name="description" content="Consensus API Documentation" />
+  <title>Consensus API — Swagger UI</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
     html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }

@@ -22,7 +22,7 @@ plan:
               inputs:
                 expected_outputs:
                   - go.mod
-                  - cmd/conscience/main.go
+                  - cmd/consensus/main.go
                   - internal/config/
                   - internal/db/
                   - internal/harness/
@@ -44,7 +44,7 @@ plan:
                   - migrations/
                   - Makefile
                   - Dockerfile
-                  - conscience.yaml
+                  - consensus.yaml
               verification:
                 - type: command
                   command: go test ./...
@@ -114,7 +114,7 @@ plan:
               timeout_seconds: 600
 execution:
   status: completed
-  notes: "All expected outputs verified: cmd/conscience/main.go, internal/config/, internal/db/, migrations/, +17 other packages exist."
+  notes: "All expected outputs verified: cmd/consensus/main.go, internal/config/, internal/db/, migrations/, +17 other packages exist."
   cursor:
     phase_id: phase-1
     task_id: task-1

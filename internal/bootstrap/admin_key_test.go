@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wojons/conscientiousness/internal/api"
-	"github.com/wojons/conscientiousness/internal/db"
-	dbdriver "github.com/wojons/conscientiousness/internal/db/driver"
-	"github.com/wojons/conscientiousness/internal/migrate"
+	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/db"
+	dbdriver "github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/migrate"
 )
 
 func TestEnsureFirstAdminKey_CreatesUsableHashedAdminKey(t *testing.T) {
@@ -149,8 +149,8 @@ func TestFormatResult_CreatedKeyHasMachineParseableOutput(t *testing.T) {
 	}
 
 	// Line 1: key=value pairs
-	if !strings.Contains(lines[0], "conscience: first_admin_key") {
-		t.Errorf("expected 'conscience: first_admin_key' prefix, got: %s", lines[0])
+	if !strings.Contains(lines[0], "consensus: first_admin_key") {
+		t.Errorf("expected 'consensus: first_admin_key' prefix, got: %s", lines[0])
 	}
 	if !strings.Contains(lines[0], "created=true") {
 		t.Errorf("expected created=true, got: %s", lines[0])
@@ -482,39 +482,39 @@ func TestFormatResult_NoExpiry_ShowsDoesNotExpire(t *testing.T) {
 
 func TestGetBootstrapKeyTTL_EnvVarParsing(t *testing.T) {
 	// Save and restore env var
-	orig := os.Getenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS")
-	defer os.Setenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS", orig)
+	orig := os.Getenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
+	defer os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", orig)
 
 	// Test: unset → default (2160h)
-	os.Unsetenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS")
+	os.Unsetenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
 	got := GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("unset: expected %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)
 	}
 
 	// Test: valid value
-	os.Setenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS", "48")
+	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "48")
 	got = GetBootstrapKeyTTL()
 	if got != 48*time.Hour {
 		t.Errorf("48: expected 48h, got %v", got)
 	}
 
 	// Test: 0 → returns 0 (no expiry)
-	os.Setenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS", "0")
+	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "0")
 	got = GetBootstrapKeyTTL()
 	if got != 0 {
 		t.Errorf("0: expected 0, got %v", got)
 	}
 
 	// Test: invalid value → default
-	os.Setenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS", "not-a-number")
+	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "not-a-number")
 	got = GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("invalid: expected default %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)
 	}
 
 	// Test: negative value → default
-	os.Setenv("CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS", "-1")
+	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "-1")
 	got = GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("negative: expected default %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)

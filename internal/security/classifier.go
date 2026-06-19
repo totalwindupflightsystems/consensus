@@ -1,5 +1,5 @@
 // Package security implements the SQL statement classifier and execution policy
-// enforcement for the Conscience runtime (SPEC-011 §8, SPEC-008 §SQL Execution Model).
+// enforcement for the Consensus runtime (SPEC-011 §8, SPEC-008 §SQL Execution Model).
 //
 // The classifier categorizes every SQL statement the LLM emits into a safety tier:
 //
@@ -214,7 +214,7 @@ func SplitStatements(statements []string) []string {
 
 // TableWhitelist holds the set of tables that agents are allowed to write to.
 type TableWhitelist struct {
-	// StaticTables are the core Conscience tables agents can write to.
+	// StaticTables are the core Consensus tables agents can write to.
 	StaticTables map[string]bool
 
 	// DynamicTables are runtime-created agent tables (loaded from information_schema).

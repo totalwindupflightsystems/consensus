@@ -1,4 +1,4 @@
-// Package secrets implements secret injection and scrubbing for the Conscience
+// Package secrets implements secret injection and scrubbing for the Consensus
 // harness (SPEC-008 §Secrets Injection & Scrubbing, SPEC-005).
 //
 // Secrets are sensitive values (API keys, tokens, credentials) that the agent

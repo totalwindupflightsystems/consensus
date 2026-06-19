@@ -91,7 +91,7 @@ phases:
             action: Add compression config to internal/config/config.go
             verification: Config loads with defaults
           - id: step-3-2-2
-            action: Start compression worker in cmd/conscience/main.go
+            action: Start compression worker in cmd/consensus/main.go
             verification: Worker starts and processes pending entries
 
   - id: phase-4

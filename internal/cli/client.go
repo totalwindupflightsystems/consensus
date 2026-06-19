@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Client is a thin REST client for the Conscience API (SPEC-015).
+// Client is a thin REST client for the Consensus API (SPEC-015).
 // CLI commands use this to interact with the running server.
 type Client struct {
 	baseURL string

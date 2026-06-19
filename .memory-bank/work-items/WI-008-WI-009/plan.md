@@ -63,7 +63,7 @@ Implement RBAC scope model (projects + project_id on sessions/tasks + scope inhe
 Work Item WI-008 + WI-009
   → Specs: SPEC-004 (§RBAC), SPEC-005 (§Contextual Permission), SPEC-015 (§4)
   → Migration: 014_projects_and_scope.sql
-  → Implementation: internal/api/events.go, internal/api/service.go, internal/subagent/subagent.go, internal/db/postgres/notify.go, cmd/conscience/main.go
+  → Implementation: internal/api/events.go, internal/api/service.go, internal/subagent/subagent.go, internal/db/postgres/notify.go, cmd/consensus/main.go
   → Tests: ./...
   → Evidence: .memory-bank/work-items/WI-008-WI-009/verification.md
 ```

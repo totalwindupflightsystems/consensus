@@ -103,7 +103,7 @@ plan:
                 CTE active_ids from iteration_commits via unnest(active_pointers).
                 LEFT JOIN display_modes on dm.memory_id = me.id.
                 CASE: compressed + summary_text IS NOT NULL → summary_text, hidden → NULL, else content.
-                Session isolation: current_setting('conscience.session_id')::UUID.
+                Session isolation: current_setting('consensus.session_id')::UUID.
                 DISTINCT ON (id) for page deduplication.
                 string_agg() Markdown aggregation query for prompt assembly.
               inputs: {}
@@ -162,9 +162,9 @@ plan:
               command: /axiom-step
               spec_ref: specs/005-security.md,specs/011-canonical-definitions.md
               description: |
-                FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID).
+                FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID).
                 Applied to each table from step-2-1-1.
-                Uses conscience.session_id namespace per SPEC-011 §9.
+                Uses consensus.session_id namespace per SPEC-011 §9.
                 hide_deleted policy on memory_events: FOR SELECT USING (deleted_at IS NULL) (SPEC-005 §Alt-Mode).
                 recovery sees all policy for agent_recovery_mode role (SPEC-005 §Agent Recovery Mode).
               inputs: {}
@@ -442,7 +442,7 @@ plan:
               title: Apply migration against Postgres or SQLite
               command: /axiom-step
               description: |
-                psql -h localhost -U postgres -d conscience_test -f migrations/001_initial_schema.sql
+                psql -h localhost -U postgres -d consensus_test -f migrations/001_initial_schema.sql
                 OR sqlite3 :memory: < migrations/001_initial_schema.sql
                 Capture stdout/stderr. Verify exit code 0.
                 Query information_schema.tables to confirm all expected tables exist.

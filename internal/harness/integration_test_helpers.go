@@ -12,9 +12,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wojons/conscientiousness/internal/db"
-	"github.com/wojons/conscientiousness/internal/db/driver"
-	"github.com/wojons/conscientiousness/internal/hitl"
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/hitl"
 )
 
 // testHarness wraps a Harness with a real SQLite in-memory database for
@@ -38,7 +38,7 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 	// share the same database. With :memory:, each connection gets its own
 	// private in-memory database, causing "no such table" errors when the
 	// harness opens a separate transaction connection.
-	tmpFile, err := os.CreateTemp("", "conscience-test-*.db")
+	tmpFile, err := os.CreateTemp("", "consensus-test-*.db")
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("test harness: create temp db: %w", err)

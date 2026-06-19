@@ -6,7 +6,7 @@ Fresh local startup currently proves the server runs but blocks testing protecte
 
 | AC | Verification |
 |---|---|
-| First admin key created on bootstrap | Fresh SQLite DB + `conscience init` creates one `api_keys` row with `scope='admin'`; fresh `conscience serve` also creates and prints a one-time key |
+| First admin key created on bootstrap | Fresh SQLite DB + `consensus init` creates one `api_keys` row with `scope='admin'`; fresh `consensus serve` also creates and prints a one-time key |
 | Secret handling safe | Logs/tests assert full key is not persisted or reprinted after creation |
 | Protected endpoint accessible | Start server, use generated/admin key, `GET /api/v1/sessions` is not `401` |
 | Docs/logs truthful | CLI output matches implemented behavior |

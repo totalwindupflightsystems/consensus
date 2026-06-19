@@ -1,4 +1,4 @@
-// Package quarantine implements the Cognitive Firewall for Conscience (SPEC-005).
+// Package quarantine implements the Cognitive Firewall for Consensus (SPEC-005).
 //
 // The cognitive firewall quarantines all untrusted external data before it enters
 // agent memory. External payloads (webhooks, API responses, user pastes) are

@@ -20,7 +20,7 @@
 - Update route registration to use chi's `Get`, `Post`, `Put`, `Patch`, `Delete`, `With`, `Route`, `Group`
 - Leverage chi middleware for auth, CORS, rate limiting
 - Update `Start()`, `Handler()`, route dispatching methods
-- Update `cmd/conscience/main.go` references to `*http.ServeMux` if needed
+- Update `cmd/consensus/main.go` references to `*http.ServeMux` if needed
 
 ### Step 2: Evaluate goose/v3
 - Review `internal/migrate/migrate.go` — 700+ line custom migration runner

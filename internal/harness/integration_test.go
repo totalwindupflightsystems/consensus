@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wojons/conscientiousness/internal/session"
+	"github.com/wojons/consensus/internal/session"
 )
 
 // ============================================================================
@@ -301,7 +301,7 @@ func TestIntegration_SystemPrompt_DynamicAssembly_WithRealDB(t *testing.T) {
 		needle string
 		source string
 	}{
-		{"Agent identity", "Conscience", systemPrompt},
+		{"Agent identity", "Consensus", systemPrompt},
 		{"Goal present", "prove the harness works", systemPrompt},
 		{"Tool listed", "test_tool", systemPrompt},
 		{"Tool description", "A test tool for integration", systemPrompt},

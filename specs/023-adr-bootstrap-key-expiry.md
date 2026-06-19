@@ -22,7 +22,7 @@ The key is SHA-256 hashed in the database and cannot be recovered after creation
 
 ## Decision
 
-Set the default bootstrap admin key TTL to **90 days** (2160 hours), configurable via `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS`. Setting the variable to `0` disables expiry (backward compatible).
+Set the default bootstrap admin key TTL to **90 days** (2160 hours), configurable via `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS`. Setting the variable to `0` disables expiry (backward compatible).
 
 ## Rationale
 
@@ -32,7 +32,7 @@ A permanent key means any leak at bootstrap time creates an immortal credential.
 
 ### Why 90 days, not 30 days
 
-30 days creates operational friction. Teams evaluating Conscience may not get around to creating replacement keys within a month, especially during proof-of-concept or trial deployments. A 30-day TTL would cause the bootstrap key to expire before the operator has finished onboarding, resulting in lockout and a bad first-run experience.
+30 days creates operational friction. Teams evaluating Consensus may not get around to creating replacement keys within a month, especially during proof-of-concept or trial deployments. A 30-day TTL would cause the bootstrap key to expire before the operator has finished onboarding, resulting in lockout and a bad first-run experience.
 
 ### Why 90 days, not 365 days
 
@@ -44,7 +44,7 @@ Different deployment topologies have different threat models. A single-developer
 
 ### Why `0` means no expiry (backward compat)
 
-Existing deployments were created with permanent keys. Changing the default to "key expires" without an escape hatch would break those deployments. Setting `0` to mean "no expiry" means operators who want the old behavior can set `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS=0` and be unaffected.
+Existing deployments were created with permanent keys. Changing the default to "key expires" without an escape hatch would break those deployments. Setting `0` to mean "no expiry" means operators who want the old behavior can set `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS=0` and be unaffected.
 
 ## Consequences
 
@@ -68,4 +68,4 @@ Existing deployments were created with permanent keys. Changing the default to "
 
 - Monitor whether operators find 90 days too short or too long in practice.
 - Consider adding a log warning at auth time when a bootstrap key is used past 30 days (advisory, not blocking).
-- Consider adding a startup warning when `CONSCIENCE_BOOTSTRAP_KEY_TTL_HOURS=0` is set, noting the security implications.
+- Consider adding a startup warning when `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS=0` is set, noting the security implications.

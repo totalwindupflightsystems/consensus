@@ -1,6 +1,6 @@
 # Backup & Restore Runbook
 
-**Purpose**: Backup and restore the Conscience database.
+**Purpose**: Backup and restore the Consensus database.
 **Severity**: Critical (data safety)
 **Estimated Time**: Backup: 5 min, Restore: 10-30 min (depends on size)
 
@@ -24,15 +24,15 @@ pg_dump -h <host> -p 5432 -U <user> \
   --format=custom \
   --compress=9 \
   --no-owner \
-  --dbname=conscience \
-  -f conscience_$(date +%Y%m%d_%H%M%S).dump
+  --dbname=consensus \
+  -f consensus_$(date +%Y%m%d_%H%M%S).dump
 
 # Plain SQL backup (portable, larger)
 pg_dump -h <host> -p 5432 -U <user> \
   --format=plain \
   --no-owner \
-  --dbname=conscience \
-  -f conscience_$(date +%Y%m%d_%H%M%S).sql
+  --dbname=consensus \
+  -f consensus_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### Schema-Only Backup (migration state)
@@ -40,8 +40,8 @@ pg_dump -h <host> -p 5432 -U <user> \
 ```bash
 pg_dump -h <host> -p 5432 -U <user> \
   --schema-only \
-  --dbname=conscience \
-  -f conscience_schema_$(date +%Y%m%d).sql
+  --dbname=consensus \
+  -f consensus_schema_$(date +%Y%m%d).sql
 ```
 
 ### Selective Backup (key tables)
@@ -55,8 +55,8 @@ pg_dump -h <host> -p 5432 -U <user> \
   --table=tasks \
   --table=audit_logs \
   --format=custom \
-  --dbname=conscience \
-  -f conscience_core_$(date +%Y%m%d).dump
+  --dbname=consensus \
+  -f consensus_core_$(date +%Y%m%d).dump
 ```
 
 ---
@@ -67,29 +67,29 @@ pg_dump -h <host> -p 5432 -U <user> \
 
 ```bash
 # Drop and recreate the database (requires admin privileges)
-dropdb -h <host> -p 5432 -U <user> conscience
-createdb -h <host> -p 5432 -U <user> conscience
+dropdb -h <host> -p 5432 -U <user> consensus
+createdb -h <host> -p 5432 -U <user> consensus
 
 # Restore from custom dump
 pg_restore -h <host> -p 5432 -U <user> \
-  --dbname=conscience \
+  --dbname=consensus \
   --no-owner \
   --verbose \
-  conscience_20260529_120000.dump
+  consensus_20260529_120000.dump
 ```
 
 ### Restore from SQL Dump
 
 ```bash
-psql -h <host> -p 5432 -U <user> -d conscience \
-  -f conscience_20260529_120000.sql
+psql -h <host> -p 5432 -U <user> -d consensus \
+  -f consensus_20260529_120000.sql
 ```
 
 ### Point-in-Time Recovery (if WAL archiving configured)
 
 ```bash
 # 1. Restore base backup
-pg_restore -h <host> -d conscience conscience_base.dump
+pg_restore -h <host> -d consensus consensus_base.dump
 
 # 2. Apply WAL up to target time
 # (Requires WAL archiving to be configured — see PostgreSQL docs)
@@ -128,13 +128,13 @@ cp backup_20260529.db dev.db
 
 ```bash
 # Verify the dump file is valid
-pg_restore --list conscience_20260529.dump | head -20
+pg_restore --list consensus_20260529.dump | head -20
 
 # Test restore to a separate database
-createdb conscience_restore_test
-pg_restore -d conscience_restore_test conscience_20260529.dump
-psql -d conscience_restore_test -c "SELECT count(*) FROM sessions;"
-dropdb conscience_restore_test
+createdb consensus_restore_test
+pg_restore -d consensus_restore_test consensus_20260529.dump
+psql -d consensus_restore_test -c "SELECT count(*) FROM sessions;"
+dropdb consensus_restore_test
 ```
 
 ---
@@ -156,11 +156,11 @@ dropdb conscience_restore_test
 
 ```bash
 # Grant required privileges
-psql -h <host> -U postgres -d conscience \
-  -c "GRANT CONNECT ON DATABASE conscience TO <backup_user>;"
-psql -h <host> -U postgres -d conscience \
+psql -h <host> -U postgres -d consensus \
+  -c "GRANT CONNECT ON DATABASE consensus TO <backup_user>;"
+psql -h <host> -U postgres -d consensus \
   -c "GRANT USAGE ON SCHEMA public TO <backup_user>;"
-psql -h <host> -U postgres -d conscience \
+psql -h <host> -U postgres -d consensus \
   -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO <backup_user>;"
 ```
 
@@ -177,7 +177,7 @@ df -h /var/lib/postgresql/
 # Use compressed dump format (already compressed above)
 # Or stream the restore directly
 pg_dump ... | gzip > dump.sql.gz
-gunzip -c dump.sql.gz | psql -d conscience
+gunzip -c dump.sql.gz | psql -d consensus
 ```
 
 ---

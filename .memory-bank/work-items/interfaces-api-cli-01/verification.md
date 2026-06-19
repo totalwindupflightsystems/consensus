@@ -24,7 +24,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 | AC-AUTH-02 | Four key scopes enforced (admin, session, readonly, webhook) | Scope enforcement integration test | PARTIAL | Scope stored in ctx, enforcement not yet tested per-endpoint |
 | AC-AUTH-03 | SHA-256 hash only stored; raw key never persisted | Key storage unit test | PASS (2026-05-04) | sha256Hash() used; key never stored in plaintext |
 | AC-AUTH-04 | Key prefix (cs_*, first 8 chars) in key_prefix for indexed lookup | Key generation unit test | PASS (2026-05-04) | Prefix extracted as first 8 chars in auth middleware |
-| AC-AUTH-05 | Session-scoped RLS via SET LOCAL conscience.session_id | Session RLS integration test | PARTIAL | Session ID stored in ctx; SET LOCAL not yet wired |
+| AC-AUTH-05 | Session-scoped RLS via SET LOCAL consensus.session_id | Session RLS integration test | PARTIAL | Session ID stored in ctx; SET LOCAL not yet wired |
 | AC-AUTH-06 | Expired keys rejected with 401 | Auth expiry contract test | PASS (2026-05-04) | TestAuthMiddleware_ExpiredKey_Returns401 passes |
 | AC-AUTH-07 | POST/GET/DELETE /api/v1/auth/keys operational | Auth management integration test | unverified | Stub not yet implemented |
 | AC-AUTH-08 | Rate limiting per key type (admin 1000/min etc.) | Rate limit unit test | PASS (2026-05-04) | Rate limit sliding window logic tested |
@@ -52,7 +52,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 | # | Criterion | Verification Path | Result | Notes |
 |---|---|---|---|---|
 | AC-MCP-01 | 6 MCP tools exposed and functional | MCP tool invocation tests | PASS (2026-05-04) | 24 tests in internal/mcp/server_test.go cover all 7 ACs |
-| AC-MCP-02 | 3 MCP resources readable | MCP resource read tests | PASS (2026-05-04) | conscience://sessions, conscience://tools, conscience://sessions/{id}/context |
+| AC-MCP-02 | 3 MCP resources readable | MCP resource read tests | PASS (2026-05-04) | consensus://sessions, consensus://tools, consensus://sessions/{id}/context |
 | AC-MCP-03 | agent_status prompt functional | MCP prompt execution test | PASS (2026-05-04) | List prompts + get prompt summary |
 | AC-MCP-04 | MCP auth via Bearer in _meta.authorization | MCP auth integration test | PASS (2026-05-04) | Missing auth, valid auth, invalid key tests |
 | AC-MCP-05 | SSE transport at /mcp/sse | MCP SSE transport test | PASS (2026-05-04) | Message method check, missing session, handler composition |
@@ -76,7 +76,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 | AC-CLI-02 | Output formats (table/json/yaml) + --quiet | CLI output format test | PASS (2026-05-04) | TestFormatter_JSONOutput, _YAMLOutput, _TableOutput, _QuietMode, _JSONArray (5 tests) |
 | AC-CLI-03 | Exit codes (0-7) | CLI exit code test | PASS (2026-05-04) | TestExitCode_Mapping covers 12 scenarios including all 8 exit codes |
 | AC-CLI-04 | All command groups operational (serve/init/session/approve/migrate/config/status/memory/tool/skill) | CLI command integration tests | PASS (2026-05-04) | 16 source files cover all 11 command groups; Cobra commands registered in root.go |
-| AC-CLI-05 | Config file resolution (./ > ~/.conscience/ > /etc/) | Config resolution test | PASS (2026-05-04) | Config priority chain implemented in internal/config/; integration tested |
+| AC-CLI-05 | Config file resolution (./ > ~/.consensus/ > /etc/) | Config resolution test | PASS (2026-05-04) | Config priority chain implemented in internal/config/; integration tested |
 | AC-CLI-06 | Shell completion (bash/zsh/fish) | Shell completion generation test | PASS (2026-05-04) | completion.go generates bash/zsh/fish; compiled and present |
 | AC-CLI-07 | All CLI commands are thin REST clients (no direct DB) | Architecture audit | PASS (2026-05-04) | client.go provides REST client; all commands use it; no DB imports in cli/ |
 | AC-CLI-08 | Interactive approval mode | Interactive approval test | PARTIAL (2026-05-04) | approve.go has accept/reject commands; interactive walkthrough deferred to Phase 7 user flows |
@@ -138,7 +138,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 
 ## Verifier Results
 
-- **Build is broken**: Builder added API+MCP wiring to cmd/conscience/main.go but forgot to add "net/http" to imports
+- **Build is broken**: Builder added API+MCP wiring to cmd/consensus/main.go but forgot to add "net/http" to imports
 - **Plan cursor updated**: phase-3 → phase-4 (CLI Command Surface)
 - **Verification AC table**: MCP ACs updated from "unverified" to PASS reflecting completed tests
 - **plan.md frontmatter**: status updated from "not-started" to "building" with build status note
@@ -153,7 +153,7 @@ axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md,specs/
 - [R1] OpenAPI drift must fail the work item if routes are added without contract updates.
 - [R2] opencode server API version must be pinned to prevent drift.
 - [R3] Rate limiting performance overhead must be measured and acceptable.
-- [R4] File system access through shim requires Conscience tools to be operational.
+- [R4] File system access through shim requires Consensus tools to be operational.
 
 ## Injected Work
 

@@ -15,7 +15,7 @@ specs_cited:
 
 # Meta-Planning — Schema + Memory Foundation
 
-Mission: turn the Conscience database and memory specs into a runnable schema foundation before any higher-level harness/API work depends on it. This work item owns the durable data model, append-only memory ledger, canonical enums, security constraints, and JSON validation rules.
+Mission: turn the Consensus database and memory specs into a runnable schema foundation before any higher-level harness/API work depends on it. This work item owns the durable data model, append-only memory ledger, canonical enums, security constraints, and JSON validation rules.
 
 axiom:trace work_item=schema-memory-01 spec=specs/002-memory.md,specs/003-database.md,specs/005-security.md,specs/007-json-schema.md,specs/011-canonical-definitions.md plan=phase-1/task-1/step-1 evidence=.memory-bank/work-items/schema-memory-01/verification.md prompt=.memory-bank/work-items/_prompt.md
 
@@ -57,7 +57,7 @@ All 18+ core tables from SPEC-003 §2 and SPEC-011 §12 are defined in a migrati
 A separate `display_modes` table exists with CHECK `mode IN ('full','compressed','hidden')`, PRIMARY KEY on `memory_id`, and full GRANT SELECT/INSERT/UPDATE to `agent_role`. Default (no row) = `'full'`. (SPEC-011 §3.2, SPEC-003 §2.2a)
 
 ### AC-MEM-004 — active_context_view
-`active_context_view` is defined as a SQL VIEW that JOINs `display_modes` via LEFT JOIN, applies CASE logic for compressed/hidden modes, enforces session isolation via `current_setting('conscience.session_id')`, and uses `DISTINCT ON (id)` for page deduplication. (SPEC-002 §3, SPEC-011 §3.4)
+`active_context_view` is defined as a SQL VIEW that JOINs `display_modes` via LEFT JOIN, applies CASE logic for compressed/hidden modes, enforces session isolation via `current_setting('consensus.session_id')`, and uses `DISTINCT ON (id)` for page deduplication. (SPEC-002 §3, SPEC-011 §3.4)
 
 ### AC-MEM-005 — memory_pages with Linked Page Support
 `memory_pages` table includes `linked_page_ids BIGINT[]` column. Resolution CTE in the view/query expands both `target_ids` and `linked_page_ids` with single-level nesting. (SPEC-002 §5, SPEC-003 §2.4)
@@ -69,7 +69,7 @@ A separate `display_modes` table exists with CHECK `mode IN ('full','compressed'
 `model_registry` exists with `tier INT CHECK (tier IN (1,2,3))`, `max_context`, `cost_per_m_in`, `cost_per_m_out`, `classifier_tags`, `enabled`. Routing queries (horizontal within tier, vertical escalation) are documented in comments or a helper function. (SPEC-002 §9, SPEC-003 §2.14)
 
 ### AC-MEM-008 — RLS Policies on All Core Tables
-All core tables have `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and a session-isolation policy (`FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID)`). The 4-role model is implemented with explicit GRANT/REVOKE statements: `agent_role` (INSERT/SELECT only on memory_events, no vault), `compression_worker` (UPDATE summary_text only), `alt_mode_role` (BYPASSRLS + ALL), `tool_executor` (tool_results + tool_requests status). (SPEC-003 §7.5, SPEC-005 §Row-Level Security, SPEC-011 §13)
+All core tables have `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and a session-isolation policy (`FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID)`). The 4-role model is implemented with explicit GRANT/REVOKE statements: `agent_role` (INSERT/SELECT only on memory_events, no vault), `compression_worker` (UPDATE summary_text only), `alt_mode_role` (BYPASSRLS + ALL), `tool_executor` (tool_results + tool_requests status). (SPEC-003 §7.5, SPEC-005 §Row-Level Security, SPEC-011 §13)
 
 ### AC-MEM-009 — external_quarantine (Cognitive Firewall)
 `external_quarantine` table exists with `CHECK (source_type IN (...))`, `validation_status CHECK`, `expires_at DEFAULT (now() + INTERVAL '1 hour')`, `promoted_memory_id FK → memory_events`. Index on `(session_id, validation_status) WHERE validation_status = 'pending'`. (SPEC-005 §Cognitive Firewall, SPEC-003 §2.13)
@@ -124,4 +124,4 @@ The migration file parses successfully against at least one backend (Postgres vi
 | R1 | SQLite parity may require different constraint enforcement | Medium | Explicit parity table; PocketBase hooks documented as equivalent |
 | R2 | pg_jsonschema extension may not be available in all Postgres deployments | Low | Conditional `CREATE EXTENSION IF NOT EXISTS`; app-layer fallback noted |
 | R3 | 18+ tables in a single migration may be hard to review | Low | Organize by subsystem (core → memory → security → billing); each section headed with spec refs |
-| R4 | `current_setting('conscience.session_id')` depends on harness setting it — not testable in isolation | Low | RLS policies included but marked as requiring harness context for live verification |
+| R4 | `current_setting('consensus.session_id')` depends on harness setting it — not testable in isolation | Low | RLS policies included but marked as requiring harness context for live verification |

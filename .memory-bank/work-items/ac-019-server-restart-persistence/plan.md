@@ -1,7 +1,7 @@
 # AC-019: Server survives restart — DB state persists
 
 ## Mission
-Killing and restarting the conscience server must preserve sessions, memory events, and config. SQLite WAL mode already handles this — just needs a test.
+Killing and restarting the consensus server must preserve sessions, memory events, and config. SQLite WAL mode already handles this — just needs a test.
 
 ## In Scope
 - Integration test: start server → create session → post message → kill server → restart server → verify session + memory events intact

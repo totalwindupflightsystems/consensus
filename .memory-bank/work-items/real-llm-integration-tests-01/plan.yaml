@@ -16,13 +16,13 @@ phases:
     steps:
     - id: step-1-1-1
       title: Create real_llm_integration_test.go
-      description: 'Integration test that proves Conscience works end-to-end with a real LLM.
+      description: 'Integration test that proves Consensus works end-to-end with a real LLM.
 
         Must be skippable with -short flag (don''t block CI if LM Studio unavailable).
 
         '
       acceptance_criteria:
-      - Starts ./conscience serve on random port, verifies health endpoint
+      - Starts ./consensus serve on random port, verifies health endpoint
       - Creates session via REST API, gets back session key
       - Sends prompt to session, waits for harness loop to complete iteration
       - Verifies harness executed the LLM's JSON output (memory events inserted, audit logged)
