@@ -35,7 +35,7 @@ persistence:
 # mode: "auto-branch" — Axiom creates a branch per work item and optionally opens a PR/merges on complete
 # mode: "worktree"  — repo uses git worktrees; branch setup is skipped
 git:
-  co_author: "Axiom Agent <svc_axiom@dexdat.ai>"
+  co_author: "Wojons Tech <wojonstech@gmail.com>"
   branching:
     mode: "off"
 

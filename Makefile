@@ -2,7 +2,7 @@
 # axiom:trace work_item=repo-bootstrap-01 spec=specs/021-repository-layout.md plan=phase-1/task-1/step-4
 # axiom:trace work_item=WI-016 spec=specs/018-openapi-contract.md plan=phase-5/task-5-2/step-5-2-1
 
-BINARY    := bin/conscience
+BINARY    := bin/consensus
 PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
@@ -12,15 +12,15 @@ CGO_FLAGS := CGO_ENABLED=0
 # --- Build ---
 
 build:
-	$(CGO_FLAGS) $(GO) build -o $(BINARY) ./cmd/conscience
+	$(CGO_FLAGS) $(GO) build -o $(BINARY) ./cmd/consensus
 
 # --- Development ---
 
 dev:
-	$(GO) run ./cmd/conscience serve --db sqlite://dev.db
+	$(GO) run ./cmd/consensus serve --db sqlite://dev.db
 
 dev-pg:
-	$(GO) run ./cmd/conscience serve --db postgres://localhost:5432/conscience
+	$(GO) run ./cmd/consensus serve --db postgres://localhost:5432/consensus
 
 # --- Test ---
 
@@ -44,7 +44,7 @@ clean:
 # --- Docker ---
 
 docker:
-	docker build -t conscience .
+	docker build -t consensus .
 
 # --- OpenAPI Spec (SPEC-018) ---
 
@@ -119,7 +119,7 @@ contract-test: build
 # Runs: Postgres-specific migration bootstrap test (skips gracefully when PG unavailable)
 .PHONY: test-pg
 test-pg:
-	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience_test_pw@localhost:5432/conscience_test?sslmode=disable \
+	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience_test_pw@localhost:5432/consensus_test?sslmode=disable \
 		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgres -v -count=1
 
 # Full Postgres integration test — applies all migrations, verifies tables/indexes/triggers,
@@ -128,7 +128,7 @@ test-pg:
 # axiom:trace work_item=WI-postgres-full-integration spec=specs/003-database.md plan=phase-1/task-1/step-1
 .PHONY: test-pg-full
 test-pg-full:
-	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience@localhost:5432/conscience?sslmode=disable \
+	CONSCIENCE_TEST_POSTGRES_URL=postgres://conscience:conscience@localhost:5432/consensus?sslmode=disable \
 		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgresFullIntegration -v -count=1
 
 # --- Run built binary ---
