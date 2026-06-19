@@ -9,7 +9,7 @@ llm:
   default_model: deepseek-chat
   provider: openai
   base_url: https://api.deepseek.com/v1
-  api_key: sk-5e64bd0e1d7f442a95a951b751e80d67
+  api_key: ${DEEPSEEK_API_KEY}
   max_context_tokens: 128000
   max_output_tokens: 16384
   # Alternative: LM Studio (local qwen models)

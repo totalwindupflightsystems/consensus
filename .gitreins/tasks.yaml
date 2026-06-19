@@ -1,0 +1,32 @@
+# GitReins Task Criteria — Consensus
+# These tasks are judged by the Tier 2 agentic evaluator.
+# Format: one task per file, or group related criteria here.
+# Run: make gitreins-eval TASK=build-gate
+
+tasks:
+  build-gate:
+    id: consensus-build-gate
+    title: "Consensus — Build and Test Gate"
+    criteria:
+      - "Project builds cleanly: CGO_ENABLED=0 go build ./cmd/consensus exits 0 and produces a binary"
+      - "Short tests pass: go test -short -count=1 ./... exits 0 with all packages passing"
+      - "Go vet passes: go vet ./... exits 0 with no warnings or errors"
+      - "No conscience references remain in Go source: grep -r conscience --include='*.go' . returns empty"
+
+  db-migrations:
+    id: consensus-db-migrations
+    title: "Consensus — Database Migrations"
+    criteria:
+      - "SQLite migrations apply cleanly: all migration files in internal/db/migrations/ are valid SQLite DDL"
+      - "Postgres migrations apply cleanly: all migration files work against Postgres 16 (skip if no PG available)"
+      - "Migration count matches expected: SQLite has 17 migrations, Postgres skips sqlite-specific ones"
+      - "No migration creates duplicate tables: each table name appears exactly once across all migration files"
+
+  secrets-hygiene:
+    id: consensus-secrets-hygiene
+    title: "Consensus — Secrets Hygiene"
+    criteria:
+      - "No real API keys in source outside test fixtures: sk- patterns in .go files are only in known test fixture files listed in .gitreins/secrets-ignore"
+      - ".gitignore covers sensitive files: .env, auth.json, and credential file patterns are gitignored"
+      - "README and docs use shell variables for API keys: DEEPSEEK_API_KEY=$VAR or placeholder text, not sk-..."
+      - "Config files use env var references: consensus.yaml has api_key: ${DEEPSEEK_API_KEY} not hardcoded keys"

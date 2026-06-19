@@ -5,10 +5,9 @@
 _tmp/
 .graph-harness/
 .morty/
-.memory-bank/work-items/make-conscience-fully-operational-end-to/
 
-# Conscience — generated / build artifacts
-/conscience
+# Build artifacts
+/consensus
 /bin/
 dev.db
 *.db-shm
@@ -18,4 +17,12 @@ dev.db
 **/runs/
 dev.db*
 .worktrees/
-consensus
+
+# Credentials — NEVER commit these
+.env
+.auth.json
+*_credentials.json
+*_secrets.yaml
+service-account*.json
+*.pem
+!*.pub.pem

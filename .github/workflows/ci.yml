@@ -98,6 +98,33 @@ jobs:
           version: latest
           args: check
 
+  # ── GitReins Evaluator (manual — costs LLM tokens) ────────────
+  gitreins-eval:
+    name: GitReins Evaluator
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Clone GitReins engine
+        run: |
+          git clone https://github.com/nousresearch/gitreins-poc.git /tmp/gitreins-poc
+          cd /tmp/gitreins-poc
+          pip install pyyaml requests mcp
+
+      - name: Run evaluator (all tasks)
+        env:
+          GITREINS_LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GITREINS_LLM_BASE_URL: https://api.deepseek.com/v1
+          GITREINS_LLM_MODEL: deepseek-chat
+        run: |
+          cd /tmp/gitreins-poc
+          PYTHONPATH=. python3 $GITHUB_WORKSPACE/.gitreins/eval-runner.py --all
+
   # ── Real LLM E2E Tests (manual / scheduled only — costs tokens) ─
   e2e-llm:
     name: E2E (Real LLM)

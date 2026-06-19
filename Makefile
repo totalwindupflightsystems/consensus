@@ -135,3 +135,11 @@ test-pg-full:
 
 run: build
 	$(BINARY)
+
+# --- GitReins Evaluator ---
+# Requires: gitreins-poc at ~/gitreins-poc, GITREINS_LLM_API_KEY in ~/.hermes/.env
+# Usage: make gitreins-eval TASK=build-gate
+.PHONY: gitreins-eval
+gitreins-eval:
+	@if [ -z "$(TASK)" ]; then echo "Usage: make gitreins-eval TASK=<task-id>"; echo "Tasks: build-gate, db-migrations, secrets-hygiene"; exit 1; fi
+	@cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK)

@@ -55,3 +55,24 @@ if [ -n "$GO_STAGED" ]; then
 else
   echo "✓ GitReins: Go test -short — SKIP (no Go changes)"
 fi
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 4: Tier 2 Evaluator — opt-in (GITREINS_EVAL=1)
+# ═══════════════════════════════════════════════════════════════
+if [ "${GITREINS_EVAL:-0}" = "1" ]; then
+  echo ""
+  echo "━━━ GitReins Tier 2: Agentic Evaluator ━━━"
+  if [ ! -d ~/gitreins-poc ]; then
+    echo "⚠ GitReins: Tier 2 — SKIP (gitreins-poc not found at ~/gitreins-poc)"
+  elif [ -z "${GITREINS_LLM_API_KEY:-}" ]; then
+    echo "⚠ GitReins: Tier 2 — SKIP (GITREINS_LLM_API_KEY not set)"
+  else
+    cd ~/gitreins-poc
+    PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py build-gate || {
+      echo ""
+      echo "⚠ GitReins Tier 2: build-gate FAILED (non-blocking)"
+      echo "   Run 'make gitreins-eval TASK=build-gate' for details"
+    }
+    cd - > /dev/null
+  fi
+fi
