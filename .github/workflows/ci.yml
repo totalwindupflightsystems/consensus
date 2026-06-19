@@ -27,6 +27,34 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+  # ── Cross-Platform Build Matrix ─────────────────────────────────
+  cross-build:
+    name: Build (${{ matrix.os }}/${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin, windows]
+        arch: [amd64, arm64]
+        # windows/arm64 doesn't have a standard Go builder
+        exclude:
+          - os: windows
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Cross-compile
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -o "consensus-${{ matrix.os }}-${{ matrix.arch }}" ./cmd/consensus
+          file "consensus-${{ matrix.os }}-${{ matrix.arch }}"
+
   # ── Postgres Integration Tests ──────────────────────────────────
   postgres:
     name: Postgres Integration
@@ -57,6 +85,18 @@ jobs:
         env:
           CONSENSUS_TEST_POSTGRES_URL: postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable
         run: make test-pg-full
+
+  # ── GoReleaser Config Check ─────────────────────────────────────
+  goreleaser-check:
+    name: GoReleaser Config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: check
 
   # ── Real LLM E2E Tests (manual / scheduled only — costs tokens) ─
   e2e-llm:
