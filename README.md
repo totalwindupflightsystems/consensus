@@ -76,7 +76,7 @@ Real LLM calls. Real agent output. Survives kill -9. Try that with LangChain.
 
 Run it yourself:
 ```bash
-DEEPSEEK_API_KEY=sk-... go test -v -run TestDemo -timeout 300s ./demo/
+DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo/
 ```
 
 ---
@@ -172,3 +172,4 @@ MIT
 ---
 
 **[Run the demo →](demo/)** &nbsp;|&nbsp; **[Specifications →](specs/)** &nbsp;|&nbsp; **[Deployment →](deploy/)**
+test change

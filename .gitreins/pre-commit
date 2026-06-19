@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# GitReins Tier 1 — Pre-Commit Hook for Consensus (Go)
+# 
+# Stage 1: Secrets scan — BLOCKING (no secret keys in commits, ever)
+# Stage 2: Go vet — non-blocking warning
+# Stage 3: Go test -short — non-blocking warning
+#
+# Install: cp .gitreins/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+set -e
+cd "$(git rev-parse --show-toplevel)"
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+PASS=1
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 1: Secrets scan — BLOCKING
+# ═══════════════════════════════════════════════════════════════
+SECRET_PATTERNS='sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI|MINIMAX|KIMI)_API_KEY\s*=\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'
+while IFS= read -r file; do
+  [ ! -f "$file" ] && continue
+  git check-ignore -q "$file" 2>/dev/null && continue
+  if grep -Pn "$SECRET_PATTERNS" "$file" 2>/dev/null; then
+    echo "╔══════════════════════════════════════════════════════════╗" >&2
+    echo "║  SECRET DETECTED in $file" >&2
+    echo "║  Remove secrets before committing." >&2
+    echo "╚══════════════════════════════════════════════════════════╝" >&2
+    PASS=0
+  fi
+done <<< "$STAGED"
+
+if [ $PASS -eq 0 ]; then
+  echo "" >&2
+  echo "COMMIT BLOCKED: secrets found in staged files." >&2
+  echo "Remove secrets or add files to .gitignore, then try again." >&2
+  exit 1
+fi
+echo "✓ GitReins: Secrets scan — PASS"
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 2: Go vet — non-blocking
+# ═══════════════════════════════════════════════════════════════
+GO_STAGED=$(echo "$STAGED" | grep '\.go$' || true)
+if [ -n "$GO_STAGED" ]; then
+  go vet ./... 2>&1 && echo "✓ GitReins: Go vet — PASS" || echo "⚠ GitReins: Go vet — WARNINGS (non-blocking)"
+else
+  echo "✓ GitReins: Go vet — SKIP (no Go changes)"
+fi
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 3: Go test -short — non-blocking
+# ═══════════════════════════════════════════════════════════════
+if [ -n "$GO_STAGED" ]; then
+  go test -short -count=1 ./... 2>&1 && echo "✓ GitReins: Go test -short — PASS" || echo "⚠ GitReins: Go test -short — FAIL (non-blocking)"
+else
+  echo "✓ GitReins: Go test -short — SKIP (no Go changes)"
+fi
