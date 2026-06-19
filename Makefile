@@ -136,10 +136,56 @@ test-pg-full:
 run: build
 	$(BINARY)
 
-# --- GitReins Evaluator ---
-# Requires: gitreins-poc at ~/gitreins-poc, GITREINS_LLM_API_KEY in ~/.hermes/.env
+# --- GitReins ---
+# One-command setup: pip install gitreins && make gitreins-install
+# Tier 1: make gitreins-guard     (secrets, vet, test-short — fast, no LLM)
+# Tier 2: make gitreins-eval       (LLM judge — costs tokens, takes 2-4 min)
+# Full:   make gitreins            (guard first, eval after — block on guard fail)
+
+.PHONY: gitreins-install gitreins-guard gitreins-eval gitreins
+
+# Install the pre-commit hook and verify setup
+gitreins-install:
+	@echo "==> Installing GitReins pre-commit hook..."
+	@if [ ! -f .git/hooks/pre-commit ]; then \
+		cp .gitreins/pre-commit .git/hooks/pre-commit && \
+		chmod +x .git/hooks/pre-commit && \
+		echo "✓ Hook installed — GitReins Tier 1 will run on every commit"; \
+	elif diff .gitreins/pre-commit .git/hooks/pre-commit > /dev/null 2>&1; then \
+		echo "✓ Hook already installed and up to date"; \
+	else \
+		cp .gitreins/pre-commit .git/hooks/pre-commit && \
+		chmod +x .git/hooks/pre-commit && \
+		echo "✓ Hook updated to latest version"; \
+	fi
+	@if [ -z "$$GITREINS_LLM_API_KEY" ]; then \
+		echo "⚠ GITREINS_LLM_API_KEY not set — Tier 2 evaluator won't run"; \
+		echo "  Set it in ~/.hermes/.env or export it for Tier 2"; \
+	fi
+	@echo "✓ GitReins installed — run 'make gitreins-guard' to verify"
+
+# Tier 1: Static guards only — fast, no LLM tokens
+gitreins-guard:
+	@echo "━━━ GitReins Tier 1: Static Guards ━━━"
+	@bash .gitreins/pre-commit
+
+# Tier 2: Agentic evaluator — LLM judges work against criteria
 # Usage: make gitreins-eval TASK=build-gate
-.PHONY: gitreins-eval
+#         make gitreins-eval TASK=all
 gitreins-eval:
-	@if [ -z "$(TASK)" ]; then echo "Usage: make gitreins-eval TASK=<task-id>"; echo "Tasks: build-gate, db-migrations, secrets-hygiene"; exit 1; fi
-	@cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK)
+	@if [ -z "$(TASK)" ]; then echo "Usage: make gitreins-eval TASK=<task-id|all>"; echo "Tasks: build-gate, db-migrations, secrets-hygiene, all"; exit 1; fi
+	@if [ ! -d ~/gitreins-poc ]; then \
+		echo "GitReins engine not found. Cloning..."; \
+		git clone https://github.com/totalwindupflightsystems/gitreins.git ~/gitreins-poc; \
+	fi
+	@if [ "$(TASK)" = "all" ]; then \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all; \
+	else \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK); \
+	fi
+
+# Full pipeline: guard first, then evaluate
+gitreins: gitreins-guard
+	@echo ""
+	@echo "━━━ GitReins Tier 2: Agentic Evaluator (all tasks) ━━━"
+	@cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all
