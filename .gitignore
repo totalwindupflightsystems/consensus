@@ -6,6 +6,9 @@ _tmp/
 .graph-harness/
 .morty/
 
+# Secrets — NEVER commit .env
+.env
+
 # Build artifacts
 /consensus
 /bin/
