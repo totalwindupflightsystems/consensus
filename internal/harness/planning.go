@@ -840,6 +840,7 @@ func (h *Harness) formatPlanningSystemPromptV2(ic *IterationContext, buffer *Sta
 	return fmt.Sprintf(`You are a Conscience agent in interactive multi-turn planning mode (SPEC-020).
 
 Goal: %s
+Session: %s
 Turn: %d / %d
 
 %s
@@ -848,34 +849,47 @@ You have an open database transaction. You can stage commands, execute them,
 see results, and decide what to do next — just like an engineer in an interactive
 psql session.
 
-**Command types:**
-- sql: SQL statement (SELECT, INSERT, UPDATE, DELETE)
-- memory_write: Write to memory_events (deferred to commit)
-- file_write: Write a file through tool_registry
-- file_edit: Edit a file through tool_registry  
-- file_delete: Delete a file through tool_registry
+**Rules:**
+- Write SQL to memory_state_changes: your persistent ledger of everything you do.
+- Use system_actions for session-level operations: ["commit"], ["rollback"], ["respond"], or ["respond", "end"].
+- Request external tools via tool_requests (transaction suspended while tools run).
+- All SQL is executed atomically. On failure, everything rolls back.
+- memory_events is append-only — you can INSERT but not UPDATE or DELETE.
+- Only access tables scoped to your session_id.
+- For schema changes (CREATE TABLE, ALTER TABLE), put the SQL directly in memory_state_changes.
+  The harness executes DDL immediately (before the transaction) and retries within the transaction.
+- If there's a SQL error, the harness injects the error into the next context for recovery.
+- **SQLite notes:** No gen_random_uuid() — the harness rewrites it. No ::type casts. No JSONB operators.
+  Use INTEGER PRIMARY KEY AUTOINCREMENT for auto-incrementing IDs (not SERIAL/BIGSERIAL).
+  DEFAULT (datetime('now')) for timestamps — parentheses required. CHECK constraints for validation.
+  **Use CREATE TABLE IF NOT EXISTS** — SQLite auto-commits DDL, so repeated CREATE TABLE fails.
+  **Use INSERT OR IGNORE** for idempotent inserts when you're unsure if rows already exist.
 
-**Action types:**
-- stage_and_execute: Stage commands and execute in transaction. See results next turn.
-- stage_only: Stage commands without executing. Queue for later.
-- commit: Commit transaction. All staged work becomes permanent.
-- rollback: Roll back transaction. Add end_iteration: true to give up.
-- respond: Reply to user without committing.
-- tool_call: Execute external tools (transaction suspended).
-
-Output as JSON:
+**Output format (valid JSON only):**
 {
-  "internal_monologue": "your reasoning",
-  "action": "stage_and_execute|stage_only|commit|rollback|respond|tool_call",
-  "staged_commands": [
-    {"type": "sql", "payload": "SELECT * FROM users WHERE id = 123", "description": "Check user record"}
+  "internal_monologue": "your reasoning — what you plan to do and why",
+  "memory_state_changes": [
+    "SQL statement 1",
+    "SQL statement 2"
   ],
-  "tool_requests": [{"tool_name": "name", "parameters": {...}}],
-  "memory_state_changes": ["INSERT INTO memory_events ..."],
-  "message_to_user": "reply text (for respond action)",
-  "end_iteration": false
+  "system_actions": [],
+  "tool_requests": [],
+  "sub_agent_spawns": []
 }
-`, ic.Goal, turn, config.MaxTurns, schemaSection)
+
+**memory_state_changes:** Each entry is a full SQL statement (CREATE TABLE, INSERT, SELECT, etc.).
+Put DDL (CREATE TABLE, ALTER TABLE) before DML (INSERT, UPDATE) in separate entries.
+**IMPORTANT:** memory_state_changes IS where SQL code goes — not text descriptions, not prose.
+Each entry is raw executable SQL. Example of creating a table (session_id is in the turn context):
+  "memory_state_changes": [
+    "CREATE TABLE IF NOT EXISTS my_table (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, created_at TEXT DEFAULT (datetime('now')))",
+    "INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Created my_table', '<your session id>', 0)"
+  ]
+**system_actions:** ["commit"] to finalize and end the session. ["rollback"] to undo.
+["respond"] to reply without committing. ["respond", "end"] to reply and end the session.
+Empty array [] means continue planning.
+**tool_requests:** [{"tool_name": "name", "parameters": {...}}] — external tool calls.
+**sub_agent_spawns:** [{"agent_name": "...", "goal": "...", "model": "..."}] — fork a sub-agent.`, ic.Goal, ic.SessionID, turn, config.MaxTurns, schemaSection)
 }
 
 // ============================================================================

@@ -529,3 +529,80 @@ func TestExtractJSONField_Empty(t *testing.T) {
 		t.Error("expected empty for empty JSON")
 	}
 }
+
+// ============================================================================
+// Regression: Prompt format MUST match AgentOutput struct JSON fields
+// ============================================================================
+
+func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
+	// Regression: formatPlanningSystemPromptV2 told the LLM to output
+	// {"action": "...", "staged_commands": [...], "message_to_user": "..."}
+	// but the AgentOutput parser reads:
+	// {"memory_state_changes": [...], "system_actions": [...], "tool_requests": [...]}
+	// The "action" and "staged_commands" fields were completely ignored,
+	// causing all turns to parse as ActionNoOp.
+	//
+	// This test verifies the prompt:
+	// 1. Includes "memory_state_changes" (what the parser reads)
+	// 2. Includes "system_actions" (what the parser reads for commit/rollback/respond)
+	// 3. Includes "tool_requests" (what the parser reads for tool calls)
+	// 4. Does NOT include "action" as a standalone field name (deprecated format)
+	// 5. Does NOT include "staged_commands" (deprecated format)
+	// 6. Does NOT include "message_to_user" (deprecated format)
+
+	h := &Harness{}
+
+	// Build a minimal IterationContext
+	ic := &IterationContext{
+		Goal:          "Create e2e_test_table with 3 rows",
+		SessionID:     "test-session",
+		Status:        "planning",
+		TrustLevel:    "high",
+		Iteration:     0,
+		MaxIterations: 10,
+	}
+
+	config := &PlanningConfig{
+		MaxTurns:         10,
+		MaxStagedCommands: 50,
+	}
+
+	// The prompt function uses coreTableNames and coreTableColumns (package vars)
+	prompt := h.formatPlanningSystemPromptV2(ic, nil, 1, config)
+
+	// Must include JSON fields that AgentOutput reads
+	requiredFields := []string{
+		`"memory_state_changes"`,
+		`"system_actions"`,
+		`"tool_requests"`,
+		`"internal_monologue"`,
+	}
+
+	// Must NOT include deprecated/alternative field names
+	deprecatedFields := []string{
+		`"action"`,            // deprecated — parser ignores this field
+		`"staged_commands"`,   // deprecated — parser reads memory_state_changes
+		`"message_to_user"`,   // deprecated — parser reads system_actions
+		`"end_iteration"`,     // deprecated — parser uses system_actions
+	}
+
+	for _, field := range requiredFields {
+		if !strings.Contains(prompt, field) {
+			t.Errorf("planning prompt MISSING required JSON field: %s", field)
+		}
+	}
+
+	for _, field := range deprecatedFields {
+		if strings.Contains(prompt, field) {
+			t.Errorf("planning prompt contains DEPRECATED JSON field: %s — the AgentOutput parser ignores this field, causing ActionNoOp for all turns", field)
+		}
+	}
+
+	// Verify the prompt includes schema info (not an empty template)
+	if !strings.Contains(prompt, "Database Schema") {
+		t.Error("prompt missing schema section")
+	}
+	if !strings.Contains(prompt, "memory_events") {
+		t.Error("prompt missing memory_events table info")
+	}
+}

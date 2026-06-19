@@ -278,6 +278,113 @@ func TestNoMigrationsLoaded_EmptyPending(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// Regression: filterForSQLite MUST preserve SQLite-compatible ALTER TABLE
+// ============================================================================
+
+func TestFilterForSQLite_PreservesAlterTableAddColumn(t *testing.T) {
+	// Regression: migration 013 (trust_level) was silently stripped by filterForSQLite
+	// because multi-line ALTER TABLE entered mAlterTable mode with no exit condition.
+	// The column was never added to sessions but migration was recorded as "applied".
+	//
+	// This test verifies that ALTER TABLE ADD COLUMN (SQLite-compatible) is preserved
+	// and that ALTER TABLE ADD CONSTRAINT FOREIGN KEY (PG-only) is stripped.
+	tests := []struct {
+		name       string
+		input      string
+		wantContains string
+		wantMissing  string
+	}{
+		{
+			name: "ALTER TABLE ADD COLUMN (SQLite-compatible — MUST be preserved)",
+			input: `BEGIN;
+ALTER TABLE sessions
+ADD COLUMN trust_level TEXT NOT NULL DEFAULT 'high'
+CHECK (trust_level IN ('low', 'medium', 'high'));
+COMMIT;`,
+			wantContains: "ALTER TABLE sessions",
+			wantMissing:  "",
+		},
+		{
+			name: "ALTER TABLE ADD COLUMN IF NOT EXISTS (SQLite-compatible)",
+			input: `ALTER TABLE tool_results ADD COLUMN IF NOT EXISTS exit_code INT;`,
+			wantContains: "ALTER TABLE tool_results",
+			wantMissing:  "",
+		},
+		{
+			name: "ALTER TABLE ADD COLUMN with REFERENCES (SQLite-compatible)",
+			input: `ALTER TABLE sessions ADD COLUMN project_id UUID REFERENCES projects(id);`,
+			wantContains: "ALTER TABLE sessions ADD COLUMN project_id",
+			wantMissing:  "",
+		},
+		{
+			name: "ALTER TABLE ADD CONSTRAINT FOREIGN KEY (PG-only — MUST be stripped)",
+			input: `ALTER TABLE sessions
+ADD CONSTRAINT fk_sessions_model
+FOREIGN KEY (model_id) REFERENCES model_registry(model_id);`,
+			wantContains: "",
+			wantMissing:  "ADD CONSTRAINT",
+		},
+		{
+			name: "ALTER TABLE ENABLE ROW LEVEL SECURITY (PG-only — MUST be stripped)",
+			input: `ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;`,
+			wantContains: "",
+			wantMissing:  "ENABLE ROW LEVEL SECURITY",
+		},
+		{
+			name: "ALTER TABLE with BYPASSRLS (PG-only — MUST be stripped)",
+			input: `ALTER TABLE sessions BYPASSRLS;`,
+			wantContains: "",
+			wantMissing:  "BYPASSRLS",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterForSQLite(tt.input)
+			if tt.wantContains != "" && !containsStr(result, tt.wantContains) {
+				t.Errorf("filterForSQLite should preserve %q\ngot: %s", tt.wantContains, result)
+			}
+			if tt.wantMissing != "" && containsStr(result, tt.wantMissing) {
+				t.Errorf("filterForSQLite should strip %q\ngot: %s", tt.wantMissing, result)
+			}
+			// Result must never be empty without reason
+			if result == "" && tt.wantContains != "" {
+				t.Errorf("filterForSQLite returned empty result but should have preserved content")
+			}
+		})
+	}
+}
+
+// containsStr is a case-insensitive substring check.
+func containsStr(s, substr string) bool {
+	return len(s) >= len(substr) && indexOfStr(s, substr) >= 0
+}
+
+func indexOfStr(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		match := true
+		for j := 0; j < len(substr); j++ {
+			sc := s[i+j]
+			pc := substr[j]
+			if sc >= 'A' && sc <= 'Z' {
+				sc += 32
+			}
+			if pc >= 'A' && pc <= 'Z' {
+				pc += 32
+			}
+			if sc != pc {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
 func TestUpBlockedByDrift(t *testing.T) {
 	// axiom:trace work_item=deployment-ops-01 spec=specs/009-deployment.md plan=phase-1/task-1-1/step-1-1-2
 	ctx := context.Background()
@@ -306,6 +413,50 @@ func TestUpBlockedByDrift(t *testing.T) {
 		_ = applied
 	}
 	t.Logf("Up correctly blocked: %v", err)
+}
+
+// ============================================================================
+// Regression: AutoMigrate MUST create all columns declared in migrations
+// ============================================================================
+
+func TestAutoMigrate_CreatesTrustLevelColumn(t *testing.T) {
+	// Regression: migration 013 (trust_level) was recorded as "applied" but the
+	// ALTER TABLE ADD COLUMN was silently stripped by filterForSQLite.
+	// This test verifies that after AutoMigrate on a fresh SQLite DB, the
+	// sessions table has a trust_level column.
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	_, err := runner.AutoMigrate(ctx)
+	if err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Verify trust_level exists on sessions table
+	rows, err := database.Query(ctx, "PRAGMA table_info('sessions')")
+	if err != nil {
+		t.Fatalf("PRAGMA table_info failed: %v", err)
+	}
+
+	found := false
+	for _, row := range rows {
+		if name, ok := row["name"].(string); ok && name == "trust_level" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		// Dump available columns for debugging
+		var cols []string
+		for _, row := range rows {
+			if name, ok := row["name"].(string); ok {
+				cols = append(cols, name)
+			}
+		}
+		t.Errorf("trust_level column MISSING from sessions after AutoMigrate. Available columns: %v", cols)
+	}
 }
 
 // ============================================================================

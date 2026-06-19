@@ -340,6 +340,16 @@ CREATE INDEX idx_test_messages_target ON agent_messages(target_session_id, read)
 CREATE INDEX idx_test_compression_pending ON compression_queue(status) WHERE status = 'pending';
 CREATE INDEX idx_test_tasks_locked ON tasks(locked_by_agent) WHERE locked_by_agent IS NOT NULL;
 
+-- event_embeddings — vector embeddings for semantic retrieval (016_embedding_model)
+CREATE TABLE event_embeddings (
+    event_id          INTEGER NOT NULL REFERENCES memory_events(id) ON DELETE CASCADE,
+    model             TEXT NOT NULL,
+    embedding         TEXT NOT NULL,  -- JSON array stored as text (SQLite-compatible)
+    dimensions        INTEGER NOT NULL DEFAULT 1536,
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id)
+);
+
 -- agent_circuit_breakers — circuit breaker persistence (SPEC-006 §Circuit Breakers)
 CREATE TABLE agent_circuit_breakers (
     session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

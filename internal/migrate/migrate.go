@@ -356,7 +356,32 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
+	// Repair: migration 013 had a bug (filterForSQLite stripped valid SQLite
+	// ALTER TABLE ADD COLUMN). DBs initialized before the fix have migration 013
+	// recorded but trust_level missing. Detect and repair silently.
+	if err := r.repairTrustLevel(ctx); err != nil {
+		// Non-fatal: the repair is best-effort. The harness will catch the
+		// missing column in its planning phase and report a clear error.
+	}
+
 	return len(applied) > 0, nil
+}
+
+// repairTrustLevel adds sessions.trust_level if missing (migration 013 filterForSQLite bug).
+// Safe to call on any DB: checks PRAGMA table_info before ALTER TABLE.
+func (r *Runner) repairTrustLevel(ctx context.Context) error {
+	cols, err := r.database.Query(ctx, "PRAGMA table_info(sessions)")
+	if err != nil {
+		// Table might not exist yet (first-run, not yet auto-migrated)
+		return nil
+	}
+	for _, row := range cols {
+		if name, ok := row["name"].(string); ok && name == "trust_level" {
+			return nil // Already present — nothing to repair
+		}
+	}
+	// Column missing — add it (migration 013 recorded but never executed)
+	return r.database.Exec(ctx, "ALTER TABLE sessions ADD COLUMN trust_level TEXT NOT NULL DEFAULT 'high' CHECK (trust_level IN ('low', 'medium', 'high'))")
 }
 
 // ============================================================================
@@ -473,11 +498,13 @@ func filterForSQLite(rawSQL string) string {
 	lines := strings.Split(rawSQL, "\n")
 	out := make([]string, 0, len(lines))
 
-	skipMode := 0           // 0=none, 1=function, 2=trigger, 3=policy, 4=cron, 5=rls, 6=extension, 7=doblock, 8=alterFk, 9=view, 10=alterTable, 11=createIndex, 12=comment
+	skipMode := 0           // 0=none, 1=function, 2=trigger, 3=policy, 4=cron, 5=rls, 6=extension, 7=doblock, 8=alterFk, 9=view, 10=index, 11=alterTable, 12=createIndex, 13=comment
 	skipUntilMarker := ""   // closing $$ tag
 	skipDepth := 0          // paren depth tracker
 	skipHasUsing := false   // tracks whether CREATE INDEX block contains USING (PG-specific)
 	createIndexBuf := make([]string, 0, 20) // buffer for multi-line CREATE INDEX statements
+	alterTableBuf := make([]string, 0, 10) // buffer for multi-line ALTER TABLE statements
+	alterTableHasPG := false               // true if buffered ALTER TABLE has PG-only keywords
 
 	const (
 		mNone        = 0
@@ -491,7 +518,7 @@ func filterForSQLite(rawSQL string) string {
 		mAlterFk     = 8
 		mView        = 9
 		mIndex       = 10
-		mAlterTable  = 11
+		mAlterTable  = 11 // multi-line ALTER TABLE: buffer, decide at semicolon
 		mCreateIndex = 12
 		mComment     = 13
 	)
@@ -569,7 +596,7 @@ func filterForSQLite(rawSQL string) string {
 						}
 					}
 				}
-		case mRLS, mExtension, mView, mAlterTable, mComment:
+		case mRLS, mExtension, mView, mComment:
 		case mAlterFk:
 			for _, ch := range trimmed {
 				if ch == '(' { skipDepth++ }
@@ -578,6 +605,42 @@ func filterForSQLite(rawSQL string) string {
 			if strings.HasSuffix(trimmed, ";") && skipDepth <= 0 {
 				skipMode = mNone
 				skipDepth = 0
+			}
+		case mAlterTable:
+			// Buffer multi-line ALTER TABLE; check for PG-only keywords.
+			// SQLite supports ADD COLUMN, DROP COLUMN, RENAME TO, RENAME COLUMN.
+			// Strip PG-only: ADD CONSTRAINT, ENABLE/DISABLE RLS, OWNER TO, SET SCHEMA, etc.
+			alterTableBuf = append(alterTableBuf, line)
+			upperTrimmed := strings.ToUpper(trimmed)
+			if strings.Contains(upperTrimmed, "ADD CONSTRAINT") ||
+				strings.Contains(upperTrimmed, "ENABLE ROW LEVEL SECURITY") ||
+				strings.Contains(upperTrimmed, "DISABLE ROW LEVEL SECURITY") ||
+				strings.Contains(upperTrimmed, "FORCE ROW LEVEL SECURITY") ||
+				strings.Contains(upperTrimmed, " NO FORCE ROW LEVEL SECURITY") ||
+				strings.Contains(upperTrimmed, "BYPASSRLS") ||
+				strings.Contains(upperTrimmed, "OWNER TO") ||
+				strings.Contains(upperTrimmed, "SET SCHEMA") ||
+				strings.Contains(upperTrimmed, "SET TABLESPACE") ||
+				strings.Contains(upperTrimmed, "ALTER COLUMN") ||
+				strings.Contains(upperTrimmed, "VALIDATE CONSTRAINT") ||
+				strings.Contains(upperTrimmed, "ENABLE TRIGGER") ||
+				strings.Contains(upperTrimmed, "DISABLE TRIGGER") ||
+				strings.Contains(upperTrimmed, "ENABLE REPLICA") ||
+				strings.Contains(upperTrimmed, "ENABLE ALWAYS") ||
+				strings.Contains(upperTrimmed, "CLUSTER ON") ||
+				strings.Contains(upperTrimmed, "SET WITHOUT CLUSTER") ||
+				strings.Contains(upperTrimmed, "INHERIT") ||
+				strings.Contains(upperTrimmed, "NOT OF") {
+				alterTableHasPG = true
+			}
+			if strings.HasSuffix(trimmed, ";") {
+				skipMode = mNone
+				if !alterTableHasPG {
+					// Valid SQLite ALTER TABLE — emit buffered lines
+					out = append(out, alterTableBuf...)
+				}
+				alterTableBuf = alterTableBuf[:0]
+				alterTableHasPG = false
 			}
 		case mCreateIndex:
 			// Buffer lines; check for USING; flush or discard at semicolon
@@ -673,9 +736,11 @@ func filterForSQLite(rawSQL string) string {
 			if strings.HasSuffix(trimmed, ";") { continue }
 			skipMode = mAlterFk; continue
 		// Multi-line ALTER TABLE statements (ADD CONSTRAINT, ENABLE RLS, etc.)
-		// If ALTER TABLE spans multiple lines, strip the entire block.
+		// Buffer and decide at semicolon whether to keep (SQLite-compatible) or strip (PG-only).
 		case strings.HasPrefix(upper, "ALTER TABLE"):
 			if !strings.HasSuffix(trimmed, ";") {
+				alterTableBuf = append(alterTableBuf[:0], line) // start buffer with first line
+				alterTableHasPG = false
 				skipMode = mAlterTable; continue
 			}
 			// Single-line ALTER TABLE: strip if it's PG-only
