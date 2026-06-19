@@ -1,4 +1,6 @@
-# Conscience
+# Consensus
+
+![CONSENSUS](docs/social-preview.png)
 
 **Stop building agents on sand. Your database is the runtime.**
 
@@ -31,7 +33,7 @@ You repeat yourself more than the model does.
 
 ## The Database *Is* The Agent
 
-Conscience flips the architecture. The database is not a sidecar bolted on
+Consensus flips the architecture. The database is not a sidecar bolted on
 after the fact to save artifacts. The database **is** the execution engine.
 
 - Agent context is a live SQL VIEW, not a Python dict
@@ -81,7 +83,7 @@ DEEPSEEK_API_KEY=sk-... go test -v -run TestDemo -timeout 300s ./demo/
 
 ## What Your Current Framework Can't Do
 
-| Your Framework | What Happens | Conscience |
+| Your Framework | What Happens | Consensus |
 |---------------|-------------|------------|
 | Agent computes a value, server restarts | Gone. Start over. Burn more tokens. | SQLite WAL. Heartbeat auto-resumes. Proven. |
 | Agent makes a bad decision | Good luck finding *why*. The reasoning was evicted 5 turns ago. | Append-only `memory_events` ledger. Full audit trail. Every thought, every tool call, permanently recorded. |
@@ -93,7 +95,7 @@ DEEPSEEK_API_KEY=sk-... go test -v -run TestDemo -timeout 300s ./demo/
 
 ### Your Coding Agent Has Amnesia
 
-| Tool | What It Can't Do | Conscience |
+| Tool | What It Can't Do | Consensus |
 |------|-----------------|------------|
 | Claude Code, OpenCode, Cursor, Copilot | Session starts from zero. Every. Single. Time. | Persistent sessions with append-only memory. Agent remembers what it did yesterday. |
 | pi-agent, Hermes, OpenClaw | "I already fixed this bug. Why am I fixing it again?" | Full audit trail. Every decision, every tool call, every fix — permanently recorded and queryable. |
@@ -120,9 +122,9 @@ across 4 topic clusters and verify the right events come back for every query.
 ## Quick Start
 
 ```bash
-go build -o bin/conscience ./cmd/conscience/
-./bin/conscience init
-./bin/conscience serve
+go build -o bin/consensus ./cmd/consensus/
+./bin/consensus init
+./bin/consensus serve
 ```
 
 Three commands. You have a running agent harness with:
@@ -139,7 +141,7 @@ Three commands. You have a running agent harness with:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                       Conscience                              │
+│                       Consensus                              │
 │                                                               │
 │  ┌──────────┐   ┌──────────┐   ┌───────────────────────┐    │
 │  │ REST API │   │ Harness  │   │ Compression Worker    │    │
