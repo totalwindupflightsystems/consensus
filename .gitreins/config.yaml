@@ -53,10 +53,11 @@ pipeline:
       max_iterations: 16
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
-# v0.3.0+ evaluator caps — budget-driven, not iteration-driven
+# v0.3.0+ evaluator caps — all separate, all optional
+# -1 = unlimited. Decimal notation supported: "0.2M" = 200k, "0.05M" = 50k
 evaluator:
-  max_iterations: 50
-  max_time: "5m"
-  max_input_tokens: -1      # unlimited (evaluator reads many files)
-  max_output_tokens: "200k"
-  tool_call_weight: 0.1
+  max_iterations: 50         # LLM turns (-1 = unlimited)
+  max_time: "5m"             # wall clock cap
+  max_input_tokens: -1       # unlimited — evaluator reads many source files
+  max_output_tokens: "0.2M"  # output budget (200k tokens)
+  tool_call_weight: 0.1      # tool calls cost 0.1 iterations (default)

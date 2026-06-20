@@ -16,8 +16,13 @@ import yaml
 # Add gitreins-poc to path (caller should be in that directory)
 sys.path.insert(0, os.getcwd())
 
-from engine.llm import LLMClient
-from engine.evaluator import AgenticEvaluator
+try:
+    from engine.llm import LLMClient
+    from engine.evaluator import AgenticEvaluator
+    from engine.eval_cap import parse_eval_cap
+except ImportError:
+    print("GitReins engine not found. Install: pip install gitreins==0.3.0")
+    sys.exit(1)
 
 TASKS_FILE = os.path.expanduser("~/consensus/.gitreins/tasks.yaml")
 WORKDIR = os.path.expanduser("~/consensus")
@@ -36,7 +41,6 @@ def run_evaluation(task_id, task_def, budget_override=None):
     # Budget override: pass eval_cap='200k' to cap output tokens, '100k/50k' for in/out
     kwargs = {"llm": llm, "workdir": WORKDIR}
     if budget_override:
-        from engine.eval_cap import parse_eval_cap
         kwargs["eval_cap"] = parse_eval_cap(budget_override)
         print(f"Budget override: {budget_override}")
     evaluator = AgenticEvaluator(**kwargs)
