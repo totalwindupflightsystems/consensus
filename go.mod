@@ -1,6 +1,10 @@
+// Consensus — the database IS the agent runtime
+// Specs: specs/README.md | Memory bank: .memory-bank/consensus/
+// AGENTS.md for agent rules, CI harness docs, adversarial agent reference
+
 module github.com/wojons/consensus
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/go-chi/chi/v5 v5.2.5

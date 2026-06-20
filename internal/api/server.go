@@ -428,6 +428,7 @@ func (s *Server) allowCORSMiddleware(next http.Handler) http.Handler {
 type APIError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Details string `json:"details,omitempty"`
 }
 
 // ErrorResponse is the JSON error response body.
@@ -438,7 +439,7 @@ type ErrorResponse struct {
 func writeError(w http.ResponseWriter, r *http.Request, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	data, _ := json.Marshal(ErrorResponse{Error: APIError{Code: code, Message: message}})
+	data, _ := json.Marshal(ErrorResponse{Error: APIError{Code: code, Message: message, Details: message}})
 	w.Write(data)
 	slog.Warn("api: error", "method", r.Method, "path", r.URL.Path, "status", status, "code", code)
 }

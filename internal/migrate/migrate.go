@@ -103,6 +103,15 @@ func (r *Runner) LoadMigrations() error {
 			}
 		}
 
+		// Skip Postgres-specific migrations when running on SQLite.
+		// Files named *_postgres_*.sql are Postgres-only schema additions
+		// (e.g., PL/pgSQL trigger functions, Postgres-specific extensions).
+		if r.database != nil && db.DetectBackendFromDB(r.database) == db.BackendSQLite {
+			if strings.Contains(strings.ToLower(entry.Name()), "_postgres_") {
+				continue
+			}
+		}
+
 		matches := filenamePattern.FindStringSubmatch(entry.Name())
 		if matches == nil {
 			continue // Skip files that don't match naming convention

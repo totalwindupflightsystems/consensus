@@ -389,48 +389,28 @@ func TestPostgresFullIntegration(t *testing.T) {
 	// SUBTEST 7 — Append-only: UPDATE/DELETE on memory_events must error
 	// =========================================================================
 	t.Run("AppendOnly", func(t *testing.T) {
-		// Migration 017 is SQLite-only trigger syntax.
-		// On Postgres, append-only is enforced via REVOKE UPDATE/DELETE in 001
-		// (applied to agent_role). Since the test connects as the default
-		// superuser, we install a Postgres-compatible trigger to verify the
-		// append-only invariant at the database level.
+		// Migration 017 (_sqlite_) is skipped on Postgres.
+		// Migration 018 (_postgres_) installs PL/pgSQL triggers that enforce
+		// append-only on memory_events at the database level.
 
-		// Create the trigger function (idempotent)
-		err := database.Exec(ctx, `
-			CREATE OR REPLACE FUNCTION enforce_memory_append_only()
-			RETURNS TRIGGER
-			LANGUAGE plpgsql
-			AS $$
-			BEGIN
-				RAISE EXCEPTION 'memory_events is append-only: % is not permitted', TG_OP;
-			END;
-			$$;
-		`)
-		if err != nil {
-			t.Fatalf("create append-only function: %v", err)
+		// Verify the trigger function exists.
+		funcRow, err := database.QueryRow(ctx,
+			`SELECT proname FROM pg_proc WHERE proname = 'enforce_memory_events_append_only'`)
+		if err != nil || funcRow == nil {
+			t.Fatalf("migration 018: trigger function not installed: %v", err)
 		}
+		t.Log("✓ enforce_memory_events_append_only function exists")
 
-		// Drop existing trigger if any, then create
-		_ = database.Exec(ctx,
-			`DROP TRIGGER IF EXISTS trg_memory_append_only_update ON memory_events`)
-		err = database.Exec(ctx,
-			`CREATE TRIGGER trg_memory_append_only_update
-			 BEFORE UPDATE ON memory_events
-			 FOR EACH ROW EXECUTE FUNCTION enforce_memory_append_only()`)
+		// Verify the triggers exist.
+		triggerRows, err := database.Query(ctx,
+			`SELECT tgname FROM pg_trigger WHERE tgname LIKE 'trg_memory_%' ORDER BY tgname`)
 		if err != nil {
-			t.Fatalf("create UPDATE trigger: %v", err)
+			t.Fatalf("query pg_trigger: %v", err)
 		}
-
-		_ = database.Exec(ctx,
-			`DROP TRIGGER IF EXISTS trg_memory_append_only_delete ON memory_events`)
-		err = database.Exec(ctx,
-			`CREATE TRIGGER trg_memory_append_only_delete
-			 BEFORE DELETE ON memory_events
-			 FOR EACH ROW EXECUTE FUNCTION enforce_memory_append_only()`)
-		if err != nil {
-			t.Fatalf("create DELETE trigger: %v", err)
+		if len(triggerRows) < 2 {
+			t.Fatalf("migration 018: expected 2 triggers, got %d", len(triggerRows))
 		}
-		t.Log("✓ installed Postgres append-only triggers on memory_events")
+		t.Logf("✓ %d append-only triggers installed on memory_events", len(triggerRows))
 
 		// Get a real memory event ID to attempt UPDATE/DELETE on
 		rows, err := database.Query(ctx,
