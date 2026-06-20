@@ -52,12 +52,12 @@ pipeline:
       type: ai_eval
       on: [pre-eval]
       condition: "true"
-      max_iterations: 35
+      max_iterations: -1    # unlimited — time cap is the real constraint
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
 # v0.6.0 evaluator caps — Go project (unlimited iter, 5m time, 200k out)
 evaluator:
-  max_iterations: -1          # unlimited — bounded by time + token caps
+  max_iterations: -1       # unlimited — time cap is the real constraint
   max_time: "5m"
   max_input_tokens: -1        # unlimited — evaluator reads many source files
   max_output_tokens: "200k"
@@ -66,6 +66,6 @@ evaluator:
 # v0.6.0 defaults
 defaults:
   model: deepseek-v4-flash
-  max_iterations: 100
+  max_iterations: -1        # unlimited — bounded by time + token caps
   check_for_updates: true
   update_check_ttl: "24h"
