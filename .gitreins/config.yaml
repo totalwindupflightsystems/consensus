@@ -52,7 +52,7 @@ pipeline:
       type: ai_eval
       on: [pre-eval]
       condition: "true"
-      max_iterations: 16
+      max_iterations: 25
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
 # v0.6.0 evaluator caps — Go project (~25 iter, 5m, 200k out)
