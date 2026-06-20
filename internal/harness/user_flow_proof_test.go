@@ -1235,12 +1235,20 @@ func TestUserFlowProof_ServerUnreachableRecovery(t *testing.T) {
 	t.Log("  Error: Connection refused at http://localhost:8090")
 	t.Log("")
 
-	// Test 2: Wrong port
+	// Test 2: Wrong port (use httptest server URL but replace port)
 	t.Log("--- Scenario: Wrong port ---")
-	badReq, _ := http.NewRequest("GET", e.apiTS.URL+":9999/api/v1/health", nil)
-	_, err := e.apiTS.Client().Do(badReq)
+	// Build a URL with a port that nothing is listening on — should get connection refused
+	badURL := e.apiTS.URL
+	// Replace port in URL: split on last colon after http://
+	if idx := strings.LastIndex(badURL, ":"); idx > 5 { // skip the colon in http://
+		badURL = badURL[:idx+1] + "9999"
+	}
+	resp, err := http.Get(badURL + "/api/v1/health")
 	if err != nil {
 		t.Logf("  Error: %v", err)
+	}
+	if resp != nil {
+		resp.Body.Close()
 	}
 	t.Log("")
 
@@ -1252,7 +1260,7 @@ func TestUserFlowProof_ServerUnreachableRecovery(t *testing.T) {
 
 	// Verify normal server still works
 	req, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/health", nil)
-	resp, err := e.apiTS.Client().Do(req)
+	resp, err = e.apiTS.Client().Do(req)
 	if err != nil {
 		t.Fatalf("normal health check failed: %v", err)
 	}
