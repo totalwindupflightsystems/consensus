@@ -5,11 +5,11 @@
 # v0.6.0+
 
 guards:
+  test_mode: "diff"
   secrets: true
   lint: true
   tests: true
   test_command: "go test -short -count=1 ./..."
-  test_mode: "diff"           # only test packages with staged changes
 
 pipeline:
   stages:
