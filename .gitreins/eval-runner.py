@@ -29,11 +29,17 @@ def load_tasks():
     return data.get("tasks", {})
 
 
-def run_evaluation(task_id, task_def):
+def run_evaluation(task_id, task_def, budget_override=None):
     llm = LLMClient()
-    evaluator = AgenticEvaluator(
-        llm, workdir=WORKDIR, max_iterations=30
-    )
+    # Caps are loaded from .gitreins/config.yaml (v0.3.0+):
+    #   evaluator.max_iterations, max_time, max_input_tokens, max_output_tokens
+    # Budget override: pass eval_cap='200k' to cap output tokens, '100k/50k' for in/out
+    kwargs = {"llm": llm, "workdir": WORKDIR}
+    if budget_override:
+        from engine.eval_cap import parse_eval_cap
+        kwargs["eval_cap"] = parse_eval_cap(budget_override)
+        print(f"Budget override: {budget_override}")
+    evaluator = AgenticEvaluator(**kwargs)
 
     task = {
         "id": task_def["id"],
@@ -71,24 +77,31 @@ def run_evaluation(task_id, task_def):
 def main():
     tasks = load_tasks()
 
+    # Parse budget override from argv (second argument, optional)
+    budget = None
+    args = [a for a in sys.argv[1:] if a and not a.startswith('-')]
+    if len(args) >= 2:
+        budget = args[1]
+    task_arg = args[0] if args else None
+
     if len(sys.argv) < 2 or sys.argv[1] == "--all":
         # Run all tasks
         exit_code = 0
         for task_id, task_def in tasks.items():
             try:
-                run_evaluation(task_id, task_def)
+                run_evaluation(task_id, task_def, budget_override=budget)
             except SystemExit as e:
                 if e.code != 0:
                     exit_code = e.code
         sys.exit(exit_code)
 
-    task_id = sys.argv[1]
+    task_id = task_arg
     if task_id not in tasks:
         print(f"Unknown task: {task_id}")
         print(f"Available: {', '.join(tasks.keys())}")
         sys.exit(2)
 
-    run_evaluation(task_id, tasks[task_id])
+    run_evaluation(task_id, tasks[task_id], budget_override=budget)
 
 
 if __name__ == "__main__":

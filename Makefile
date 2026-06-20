@@ -173,15 +173,15 @@ gitreins-guard:
 # Usage: make gitreins-eval TASK=build-gate
 #         make gitreins-eval TASK=all
 gitreins-eval:
-	@if [ -z "$(TASK)" ]; then echo "Usage: make gitreins-eval TASK=<task-id|all>"; echo "Tasks: build-gate, db-migrations, secrets-hygiene, all"; exit 1; fi
+	@if [ -z "$(TASK)" ]; then echo "Usage: make gitreins-eval TASK=<task-id|all> [BUDGET=200k]"; echo "Tasks: build-gate, db-migrations, secrets-hygiene, all"; exit 1; fi
 	@if [ ! -d ~/gitreins-poc ]; then \
 		echo "GitReins engine not found. Cloning..."; \
 		git clone https://github.com/totalwindupflightsystems/gitreins.git ~/gitreins-poc; \
 	fi
 	@if [ "$(TASK)" = "all" ]; then \
-		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all; \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all "$(BUDGET)"; \
 	else \
-		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK); \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK) "$(BUDGET)"; \
 	fi
 
 # Full pipeline: guard first, then evaluate

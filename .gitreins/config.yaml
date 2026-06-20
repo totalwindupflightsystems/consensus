@@ -53,5 +53,10 @@ pipeline:
       max_iterations: 16
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
+# v0.3.0+ evaluator caps — budget-driven, not iteration-driven
 evaluator:
-  max_iterations: 20
+  max_iterations: 50
+  max_time: "5m"
+  max_input_tokens: -1      # unlimited (evaluator reads many files)
+  max_output_tokens: "200k"
+  tool_call_weight: 0.1
