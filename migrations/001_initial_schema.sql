@@ -624,6 +624,24 @@ CREATE POLICY session_isolate_secrets ON secret_access_audit
 --   alt_mode_role      — Admin operations, bypasses RLS
 --   tool_executor      — Writes tool_results, subject to RLS
 
+-- Create roles BEFORE granting permissions to them.
+-- (Idempotent — uses IF NOT EXISTS.)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agent_role') THEN
+        CREATE ROLE agent_role;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'compression_worker') THEN
+        CREATE ROLE compression_worker;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'alt_mode_role') THEN
+        CREATE ROLE alt_mode_role;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tool_executor') THEN
+        CREATE ROLE tool_executor;
+    END IF;
+END $$;
+
 -- 10.1 agent_role — core agent operations.
 GRANT SELECT, INSERT ON memory_events TO agent_role;
 GRANT SELECT, INSERT, UPDATE ON display_modes TO agent_role;
