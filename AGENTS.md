@@ -20,7 +20,7 @@ gitreins guard
 - **lint** — go vet (WARNS on fail)
 - **tests** — runs tests for changed packages only (BLOCKS on fail)
 
-### Test mode: diff
+### Test mode: full
 Only packages with staged changes are tested. Pre-existing failures in
 untouched code will NOT block your commit. If you change pyproject.toml,
 Makefile, .gitreins/config.yaml, or a config file, the full suite runs

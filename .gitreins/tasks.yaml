@@ -1,32 +1,149 @@
-# GitReins Task Criteria — Consensus
-# These tasks are judged by the Tier 2 agentic evaluator.
-# Format: one task per file, or group related criteria here.
-# Run: make gitreins-eval TASK=build-gate
-
 tasks:
-  build-gate:
-    id: consensus-build-gate
-    title: "Consensus — Build and Test Gate"
-    criteria:
-      - "Project builds cleanly: CGO_ENABLED=0 go build ./cmd/consensus exits 0 and produces a binary"
-      - "Short tests pass: go test -short -count=1 ./... exits 0 with all packages passing"
-      - "Go vet passes: go vet ./... exits 0 with no warnings or errors"
-      - "No conscience references remain in Go source: grep -r conscience --include='*.go' . returns empty"
-
-  db-migrations:
-    id: consensus-db-migrations
-    title: "Consensus — Database Migrations"
-    criteria:
-      - "SQLite migrations apply cleanly: all migration files in internal/db/migrations/ are valid SQLite DDL"
-      - "Postgres migrations apply cleanly: all migration files work against Postgres 16 (skip if no PG available)"
-      - "Migration count matches expected: SQLite has 17 migrations, Postgres skips sqlite-specific ones"
-      - "No migration creates duplicate tables: each table name appears exactly once across all migration files"
-
-  secrets-hygiene:
-    id: consensus-secrets-hygiene
-    title: "Consensus — Secrets Hygiene"
-    criteria:
-      - "No real API keys in source outside test fixtures: sk- patterns in .go files are only in known test fixture files listed in .gitreins/secrets-ignore"
-      - ".gitignore covers sensitive files: .env, auth.json, and credential file patterns are gitignored"
-      - "README and docs use shell variables for API keys: DEEPSEEK_API_KEY=$VAR or placeholder text, not sk-..."
-      - "Config files use env var references: consensus.yaml has api_key: ${DEEPSEEK_API_KEY} not hardcoded keys"
+- id: spec-003-database
+  title: 'SPEC-003: Database Schema & Parity Layer'
+  criteria:
+  - 'Binary compiles: CGO_ENABLED=0 go build ./cmd/consensus exits 0'
+  - 'Append-only memory_events: grep for REVOKE UPDATE/DELETE on memory_events in
+    .sql/.go files'
+  - 'WAL mode enabled for SQLite: grep for journal_mode=WAL or PRAGMA journal_mode=WAL
+    in Go/SQL'
+  - 'display_modes table exists separate from memory_events: grep for CREATE TABLE
+    display_modes'
+  - 'Soft-delete intercept: grep for deleted_at TIMESTAMPTZ or BEFORE DELETE soft_delete
+    trigger'
+  status: pending
+  created_at: '2026-06-20T17:05:57.753213+00:00'
+- id: spec-005-security
+  title: "SPEC-005: Security \u2014 RLS, Secrets, Quarantine"
+  criteria:
+  - 'Row-Level Security policy: grep for current_setting or session_id session isolation
+    in SQL/Go'
+  - '{{SECRET.}} alias pattern in specs: grep for {{SECRET. in specs/ directory'
+  - 'Secret scrubbing in harness: grep for ScrubSecrets or secret scrubbing in Go
+    source'
+  - 'External quarantine CHECK constraints: grep for external_quarantine table with
+    validation_status'
+  - 'Alt-Mode soft-delete: grep for deleted_at IS NULL or hide_deleted in SQL/Go'
+  status: pending
+  created_at: '2026-06-20T17:05:58.766571+00:00'
+- id: spec-006-transactions
+  title: 'SPEC-006: Transactions, Circuit Breakers, Budgets'
+  criteria:
+  - 'Tests pass: go test -short -count=1 ./... exits 0'
+  - 'Circuit breaker table: grep for agent_circuit_breakers table in SQL/Go'
+  - 'Budget limits table: grep for agent_budget_limits table in SQL/Go'
+  - 'Stored procedures for destructive ops: grep for complete_task/cancel_task as
+    SECURITY DEFINER'
+  - 'Audit log with committed/rolled_back: grep for audit_logs table with result CHECK
+    constraint'
+  status: pending
+  created_at: '2026-06-20T17:05:59.771245+00:00'
+- id: spec-008-harness
+  title: 'SPEC-008: Execution Loop & Harness Runtime'
+  criteria:
+  - 'consensus serve starts: ./consensus serve --help exits 0'
+  - 'Heartbeat loop: grep for StartHeartbeat or heartbeat polling logic in Go'
+  - 'Three-tier SQL enforcement: grep for EnforceExecutionPolicy or ClassifyStatement
+    in Go'
+  - 'Secret injection before SQL: grep for InjectSecrets or {{SECRET.}} replacement
+    in Go'
+  - 'Two-phase execution: grep for cognition transaction + async tool execution separation'
+  status: pending
+  created_at: '2026-06-20T17:06:00.776550+00:00'
+- id: spec-015-api
+  title: 'SPEC-015: API & MCP Interface Layer'
+  criteria:
+  - 'Health endpoint: grep for /api/v1/health route registration in Go'
+  - 'Session creation endpoint: grep for POST /api/v1/sessions route in Go'
+  - 'MCP SSE endpoint: grep for /mcp/sse route or MCP server registration'
+  - 'API key hashing: grep for key_hash or sha256 of API keys (never plaintext)'
+  - 'Consistent error format: grep for error{code,message,details} JSON structure'
+  status: pending
+  created_at: '2026-06-20T17:06:01.784354+00:00'
+- id: spec-016-cli
+  title: 'SPEC-016: CLI Interface'
+  criteria:
+  - 'consensus serve --help: lists --port, --hostname, --db-url, --adapter flags'
+  - 'consensus init command: grep for init subcommand in cmd/ with --db-url, --llm-key
+    flags'
+  - 'Session management subcommands: grep for create/list/show/logs/pause/resume/cancel/cost
+    in cmd/session'
+  - 'Config file discovery: grep for consensus.yaml loading from cwd, ~/.consensus/,
+    /etc/consensus/'
+  - '--format json flag: grep for json output format flag on CLI commands'
+  status: pending
+  created_at: '2026-06-20T17:06:02.792705+00:00'
+- id: spec-009-deployment
+  title: 'SPEC-009: Deployment & Runtime Configuration'
+  criteria:
+  - 'Binary builds: CGO_ENABLED=0 go build ./cmd/consensus exits 0'
+  - 'Binary serves with SQLite: --db sqlite://consensus.db flag parses correctly'
+  - 'Postgres DSN accepted: --db postgres://... flag parses correctly'
+  - 'Migration CLI subcommands: grep for migrate status/up/down subcommands in cmd/'
+  - 'Config file shape: consensus.yaml or Go config struct has db, listen, heartbeat_interval,
+    llm keys'
+  status: pending
+  created_at: '2026-06-20T17:06:18.826357+00:00'
+- id: spec-010-tools
+  title: 'SPEC-010: Agent Tools, Skills & Registry'
+  criteria:
+  - 'custom_agent_tools table: grep for table with creator_session_id, name UNIQUE,
+    language CHECK constraint'
+  - 'tools_registry table: grep for table with hemisphere CHECK, handler_type CHECK,
+    requires_approval'
+  - 'skills_registry table: grep for table with metadata JSONB, instructions TEXT,
+    linked_tool_ids'
+  - 'RLS on custom_agent_tools: grep for enforce_ownership policy or Go-layer ownership
+    guard'
+  - 'test_results table: grep for table with tool_id FK, version, passed BOOLEAN,
+    output TEXT'
+  status: pending
+  created_at: '2026-06-20T17:06:19.835636+00:00'
+- id: spec-018-openapi
+  title: 'SPEC-018: OpenAPI Contract & Spec Bundling'
+  criteria:
+  - 'Root spec exists and valid: specs/openapi/openapi.yaml has openapi: ''3.1.0'''
+  - 'Bundled spec exists: specs/openapi/bundled.yaml is parseable YAML'
+  - 'Path component files: specs/openapi/paths/ has sessions, messages, tasks, tools,
+    approvals yaml'
+  - 'Component schema files: specs/openapi/components/ has schemas, responses, parameters,
+    security yaml'
+  - 'Runtime spec endpoints: GET /openapi.json and /openapi.yaml return 200'
+  status: pending
+  created_at: '2026-06-20T17:06:20.844968+00:00'
+- id: spec-019-flows
+  title: 'SPEC-019: User Interaction Flows'
+  criteria:
+  - 'consensus init --help: describes initialization options'
+  - 'consensus serve --help: flags for --port, --db, --adapter'
+  - 'consensus approve list: command exists (exits 0 even if empty)'
+  - 'consensus session: list, show, create, cancel, pause, resume, cost, logs subcommands'
+  - 'consensus status: references active sessions, pending approvals, schema version'
+  status: pending
+  created_at: '2026-06-20T17:06:21.853224+00:00'
+- id: spec-020-planning
+  title: 'SPEC-020: Multi-Turn Planning & Staging Buffer'
+  criteria:
+  - 'staging_buffer table: grep for table with session_id, iteration, turn, sequence,
+    type CHECK constraint'
+  - 'Index on staging_buffer: grep for CREATE INDEX on staging_buffer(session_id,
+    iteration)'
+  - 'Session status planning+executing: grep for ''planning'' and ''executing'' in
+    session status CHECK'
+  - 'Max-turns config: grep for max_turns default 10 in config or Go struct'
+  - 'Transaction timeout: grep for transaction_timeout_ms default 60000 in config'
+  status: pending
+  created_at: '2026-06-20T17:06:22.864532+00:00'
+- id: spec-014-hitl
+  title: 'SPEC-014: Human-in-the-Loop & Approval State Machine'
+  criteria:
+  - 'approval_requests table: grep for table with request_type CHECK, risk_level CHECK,
+    target_tool, target_sql'
+  - 'Pending approvals index: grep for CREATE INDEX on approval_requests WHERE status=''pending'''
+  - 'hitl_configuration table: grep for table with auto_pause_on_error_threshold,
+    approval_timeout_minutes'
+  - 'request_approval() function: grep for request_approval Go function or SQL procedure'
+  - 'Approval expiry mechanism: grep for cleanup logic that marks expired pending
+    approvals'
+  status: pending
+  created_at: '2026-06-20T17:06:23.874073+00:00'
