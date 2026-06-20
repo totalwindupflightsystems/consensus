@@ -26,9 +26,3 @@ CREATE TRIGGER trg_memory_events_append_only_delete
     BEFORE DELETE ON memory_events
     FOR EACH ROW
     EXECUTE FUNCTION enforce_memory_events_append_only();
-
--- Goose Down: remove triggers and function.
--- +goose Down
-DROP TRIGGER IF EXISTS trg_memory_events_append_only_update ON memory_events;
-DROP TRIGGER IF EXISTS trg_memory_events_append_only_delete ON memory_events;
-DROP FUNCTION IF EXISTS enforce_memory_events_append_only();
