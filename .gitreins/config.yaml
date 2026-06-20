@@ -2,12 +2,14 @@
 # 
 # Tier 1: Static guards — secrets, go vet, go test -short
 # Tier 2: Agentic evaluator — LLM judges work against task criteria
+# v0.6.0+
 
 guards:
   secrets: true
   lint: true
   tests: true
   test_command: "go test -short -count=1 ./..."
+  test_mode: "diff"           # only test packages with staged changes
 
 pipeline:
   stages:
@@ -53,11 +55,17 @@ pipeline:
       max_iterations: 16
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
-# v0.3.0+ evaluator caps — all separate, all optional
-# -1 = unlimited. Decimal notation supported: "0.2M" = 200k, "0.05M" = 50k
+# v0.6.0 evaluator caps — Go project (~25 iter, 5m, 200k out)
 evaluator:
-  max_iterations: 50         # LLM turns (-1 = unlimited)
-  max_time: "5m"             # wall clock cap
-  max_input_tokens: -1       # unlimited — evaluator reads many source files
-  max_output_tokens: "0.2M"  # output budget (200k tokens)
-  tool_call_weight: 0.1      # tool calls cost 0.1 iterations (default)
+  max_iterations: 25
+  max_time: "5m"
+  max_input_tokens: -1         # unlimited — evaluator reads many source files
+  max_output_tokens: "200k"
+  tool_call_weight: 0.1
+
+# v0.6.0 defaults
+defaults:
+  model: deepseek-v4-flash
+  max_iterations: 100
+  check_for_updates: true
+  update_check_ttl: "24h"
