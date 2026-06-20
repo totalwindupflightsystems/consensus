@@ -52,14 +52,14 @@ pipeline:
       type: ai_eval
       on: [pre-eval]
       condition: "true"
-      max_iterations: 25
+      max_iterations: 35
       tools: [read_file, run_command, search_pattern, read_diff, sandbox]
 
-# v0.6.0 evaluator caps — Go project (~25 iter, 5m, 200k out)
+# v0.6.0 evaluator caps — Go project (unlimited iter, 5m time, 200k out)
 evaluator:
-  max_iterations: 25
+  max_iterations: -1          # unlimited — bounded by time + token caps
   max_time: "5m"
-  max_input_tokens: -1         # unlimited — evaluator reads many source files
+  max_input_tokens: -1        # unlimited — evaluator reads many source files
   max_output_tokens: "200k"
   tool_call_weight: 0.1
 
