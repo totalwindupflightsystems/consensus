@@ -613,6 +613,27 @@ CREATE POLICY session_isolate_audit ON audit_logs
 CREATE POLICY session_isolate_secrets ON secret_access_audit
     FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
 
+-- 9.x Tools RLS — SPEC-010 §Row-Level Security: Ownership Enforcement
+ALTER TABLE custom_agent_tools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tools_registry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE skills_registry ENABLE ROW LEVEL SECURITY;
+
+-- Ownership enforcement on custom_agent_tools per SPEC-010.
+-- Agent A cannot modify Agent B's tool.
+CREATE POLICY enforce_ownership ON custom_agent_tools
+    FOR UPDATE USING (
+        current_setting('conscience.session_id')::UUID = creator_session_id
+    );
+
+CREATE POLICY session_isolate_tools ON custom_agent_tools
+    FOR ALL USING (creator_session_id = current_setting('conscience.session_id')::UUID);
+
+CREATE POLICY session_isolate_tools_registry ON tools_registry
+    FOR ALL USING (true);  -- tools_registry is shared; all sessions can read
+
+CREATE POLICY session_isolate_skills ON skills_registry
+    FOR ALL USING (true);  -- skills_registry is shared; all sessions can read
+
 -- ============================================================================
 -- SECTION 10 — 4-ROLE PERMISSION MODEL
 -- axiom:trace work_item=schema-memory-01 spec=specs/011-canonical-definitions.md,specs/003-database.md,specs/005-security.md plan=phase-2/task-2-2
