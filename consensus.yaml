@@ -6,7 +6,7 @@ server:
   port: 8094
 
 llm:
-  default_model: deepseek-chat
+  default_model: deepseek-v4-flash
   provider: openai
   base_url: https://api.deepseek.com/v1
   api_key: ${DEEPSEEK_API_KEY}
