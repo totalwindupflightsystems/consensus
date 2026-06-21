@@ -147,3 +147,106 @@ tasks:
     approvals'
   status: pending
   created_at: '2026-06-20T17:06:23.874073+00:00'
+- id: server-serve
+  title: Server startup and health
+  criteria:
+  - consensus serve starts and listens on specified port (verify with ss -tlnp)
+  - GET /api/v1/health returns 200 with JSON body {"status":"ok"}
+  - Server logs startup message with port and database backend
+  - "SIGTERM triggers graceful shutdown \u2014 in-flight requests complete"
+  - consensus serve --help lists all flags (--port, --hostname, --db-url, --adapter)
+  status: pending
+  created_at: '2026-06-21T12:03:50.814776+00:00'
+- id: api-sessions
+  title: "Session API CRUD \u2014 correct JSON shapes"
+  criteria:
+  - POST /api/v1/sessions returns 201 with JSON body containing id (UUID), status,
+    model fields
+  - "GET /api/v1/sessions lists sessions \u2014 returns JSON array, empty array is\
+    \ valid"
+  - GET /api/v1/sessions/{id} returns 200 with full session object including status,
+    iteration, created_at
+  - GET /api/v1/sessions/{nonexistent} returns 404 with {"error":{"code":"NOT_FOUND"}}
+  - "PATCH /api/v1/sessions/{id} returns updated session JSON \u2014 status change\
+    \ is persisted"
+  - "All session endpoints require Authorization header \u2014 missing returns 401"
+  - Invalid session ID (not UUID) returns 400 with error details
+  status: pending
+  created_at: '2026-06-21T12:03:57.245708+00:00'
+- id: append-only-guard
+  title: Append-only enforcement on memory_events
+  criteria:
+  - "UPDATE on memory_events is blocked at database level \u2014 returns SQL error,\
+    \ not success"
+  - "DELETE on memory_events is blocked at database level \u2014 returns SQL error,\
+    \ not success"
+  - INSERT on memory_events succeeds and auto-increments id
+  - Attempted UPDATE via harness executor is caught and logged without crashing server
+  - "Both SQLite and Postgres enforce append-only \u2014 triggers exist for SQLite\
+    \ (migration 017) and Postgres (migration 018)"
+  status: pending
+  created_at: '2026-06-21T12:04:07.968567+00:00'
+- id: error-format
+  title: Consistent error handling across API
+  criteria:
+  - All error responses use {"error":{"code":"...","message":"...","details":"..."}}
+    JSON shape
+  - 'HTTP status codes are correct: 400 for validation, 401 for auth, 403 for forbidden,
+    404 for not found, 500 for internal'
+  - Error code strings are ALL_CAPS_SNAKE_CASE (e.g., NOT_FOUND, INVALID_REQUEST,
+    UNAUTHENTICATED)
+  - No error response leaks stack traces, SQL queries, or internal paths
+  - Content-Type is application/json on all responses (success and error)
+  status: pending
+  created_at: '2026-06-21T12:04:09.332438+00:00'
+- id: harness-loop
+  title: "Harness execution loop \u2014 real agent workflow"
+  criteria:
+  - Creating a session and calling RunAgentIteration produces at least one LLM call
+    and memory event
+  - "Staging buffer accumulates commands per turn before execution \u2014 verified\
+    \ in test or code"
+  - "Session status transitions: created \u2192 planning \u2192 executing \u2192 completed\
+    \ (or error)"
+  - 'Max-turns enforcement: session auto-completes after max_turns iterations'
+  - "Heartbeat loop prevents zombie sessions \u2014 sessions stuck in 'planning' are\
+    \ detected and recovered"
+  status: pending
+  created_at: '2026-06-21T12:04:18.573102+00:00'
+- id: migrations-safety
+  title: "Migration system \u2014 apply, verify, rollback"
+  criteria:
+  - All migrations apply without errors on SQLite (go test -short -count=1 ./internal/migrate
+    exits 0)
+  - All non-_sqlite_ migrations apply without errors on Postgres
+  - 'Schema after full migration matches expected tables: sessions, memory_events,
+    iteration_commits, and 30+ more'
+  - "Migration version drift is detected \u2014 applied version without matching file\
+    \ blocks server start"
+  - Bootstrap creates schema_versions table before applying any migration
+  status: pending
+  created_at: '2026-06-21T12:04:19.863169+00:00'
+- id: audit-no-leaks
+  title: "Cross-cutting audit \u2014 no secrets or panics"
+  criteria:
+  - "No hardcoded API keys in Go source (sk-*, ghp_*, OPENROUTER_API_KEY=) \u2014\
+    \ all keys from env/config"
+  - "No panic() calls outside of init() or truly unrecoverable situations \u2014 errors\
+    \ use Go error returns"
+  - "No fmt.Println for errors \u2014 all logging uses structured logger (slog)"
+  - No PII (email addresses, real names) in log messages or error responses
+  - "Database queries use parameterized placeholders (, , ?) \u2014 no string concatenation\
+    \ for SQL"
+  status: pending
+  created_at: '2026-06-21T12:04:27.129443+00:00'
+- id: regression-details
+  title: 'Regression: ErrorResponse includes details field'
+  criteria:
+  - APIError struct has Details string field with json:"details,omitempty" tag
+  - writeError() includes Details field when marshaling ErrorResponse
+  - "Error responses actually contain details field in JSON output \u2014 verify with\
+    \ curl"
+  - "SPEC-015 \xA76 requires error{code, message, details} format \u2014 struct matches\
+    \ spec"
+  status: pending
+  created_at: '2026-06-21T12:04:28.623720+00:00'

@@ -1,5 +1,5 @@
 guards:
-  test_mode: "diff"          # only tests changed packages — fast pre-commit
+  test_mode: diff
   secrets: true
   lint: true
   tests: true
@@ -50,10 +50,10 @@ pipeline:
     - read_diff
     - sandbox
 evaluator:
-  max_iterations: 50         # LLM reasoning turns
-  max_time: "10m"             # wall-clock cap
-  max_input_tokens: "0.2M"   # input budget
-  max_output_tokens: "0.05M" # output budget
+  max_iterations: 50
+  max_time: 10m
+  max_input_tokens: 0.2M
+  max_output_tokens: 0.05M
   tool_call_weight: 0.1
 defaults:
   model: deepseek-v4-flash
