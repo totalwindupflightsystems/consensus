@@ -1917,7 +1917,7 @@ func TestInitCommand_OutputGoesToStdoutNotStderr(t *testing.T) {
 	prevInit := InitFunc
 	InitFunc = func(dbURL string) error {
 		// Simulate output that matches bootstrap.FormatResult for a new key
-		fmt.Println("consensus: first_admin_key created=true key=cs_ak_test123 key_prefix=cs_ak_te id=key-001 created_at=2026-05-28T12:00:00Z")
+		fmt.Println("consensus: first_admin_key created=true key=test-admin-key-12345678 key_prefix=test-adm id=key-001 created_at=2026-05-28T12:00:00Z")
 		fmt.Println("consensus: save this key now; it is stored hashed and will not be printed again")
 		return nil
 	}
@@ -1933,10 +1933,10 @@ func TestInitCommand_OutputGoesToStdoutNotStderr(t *testing.T) {
 	if !strings.Contains(stdout, "created=true") {
 		t.Errorf("expected created=true on stdout, got: %s", stdout)
 	}
-	if !strings.Contains(stdout, "key=cs_ak_test123") {
+	if !strings.Contains(stdout, "key=test-admin-key-12345678") {
 		t.Errorf("expected key= on stdout, got: %s", stdout)
 	}
-	if !strings.Contains(stdout, "key_prefix=cs_ak_te") {
+	if !strings.Contains(stdout, "key_prefix=test-adm") {
 		t.Errorf("expected key_prefix= on stdout, got: %s", stdout)
 	}
 	if !strings.Contains(stdout, "save this key now") {

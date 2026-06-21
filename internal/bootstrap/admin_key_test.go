@@ -158,7 +158,7 @@ func TestFormatResult_CreatedKeyHasMachineParseableOutput(t *testing.T) {
 	if !strings.Contains(lines[0], "key=test-admin-key-12345678") {
 		t.Errorf("expected key=test-admin-key-12345678, got: %s", lines[0])
 	}
-	if !strings.Contains(lines[0], "key_prefix=cs_ak_te") {
+	if !strings.Contains(lines[0], "key_prefix=test-adm") {
 		t.Errorf("expected key_prefix, got: %s", lines[0])
 	}
 	if !strings.Contains(lines[0], "id=key-001") {
