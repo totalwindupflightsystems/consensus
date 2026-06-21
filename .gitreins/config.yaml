@@ -1,71 +1,66 @@
-# GitReins Configuration — Consensus (Go)
-# 
-# Tier 1: Static guards — secrets, go vet, go test -short
-# Tier 2: Agentic evaluator — LLM judges work against task criteria
-# v0.6.0+
-
 guards:
-  test_mode: "full"
+  test_mode: "diff"          # only tests changed packages — fast pre-commit
   secrets: true
   lint: true
   tests: true
-  test_command: "go test -short -count=1 ./..."
-
+  test_command: go test -short -count=1 ./...
+  dead_code: false
+  go:
+    build: true
+    lint: true
+    tests: true
 pipeline:
   stages:
-    # Stage 1: Parallel static checks (pre-commit + pre-eval)
-    - id: tier1
-      parallel: true
-      on: [pre-commit, pre-eval]
-      steps:
-        - id: secrets
-          type: script
-          run: |
-            STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || echo "")
-            [ -z "$STAGED" ] && exit 0
-            SECRET_PATTERNS='sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI)_API_KEY\s*=\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'
-            PASS=1
-            while IFS= read -r file; do
-              [ ! -f "$file" ] && continue
-              git check-ignore -q "$file" 2>/dev/null && continue
-              if grep -Pn "$SECRET_PATTERNS" "$file" 2>/dev/null; then
-                echo "SECRET DETECTED in $file" >&2
-                PASS=0
-              fi
-            done <<< "$STAGED"
-            [ $PASS -eq 0 ] && exit 1
-            echo "✓ Secrets scan: PASS"
-          on_fail: block
-
-        - id: lint
-          type: script
-          run: "go vet ./..."
-          on_fail: continue
-
-        - id: tests
-          type: script
-          run: "go test -short -count=1 ./..."
-          on_fail: continue
-
-    # Stage 2: AI evaluation (LLM judges work against criteria)
-    - id: tier2
-      type: ai_eval
-      on: [pre-eval]
-      condition: "true"
-      max_iterations: -1    # unlimited — time cap is the real constraint
-      tools: [read_file, run_command, search_pattern, read_diff, sandbox]
-
-# v0.6.0 evaluator caps — Go project (unlimited iter, 5m time, 200k out)
+  - id: tier1
+    parallel: true
+    true:
+    - pre-commit
+    - pre-eval
+    steps:
+    - id: secrets
+      type: script
+      run: "STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null ||\
+        \ echo \"\")\n[ -z \"$STAGED\" ] && exit 0\nSECRET_PATTERNS='sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN\
+        \ (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI)_API_KEY\\\
+        s*=\\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'\nPASS=1\nwhile IFS= read\
+        \ -r file; do\n  [ ! -f \"$file\" ] && continue\n  git check-ignore -q \"\
+        $file\" 2>/dev/null && continue\n  if grep -Pn \"$SECRET_PATTERNS\" \"$file\"\
+        \ 2>/dev/null; then\n    echo \"SECRET DETECTED in $file\" >&2\n    PASS=0\n\
+        \  fi\ndone <<< \"$STAGED\"\n[ $PASS -eq 0 ] && exit 1\necho \"\u2713 Secrets\
+        \ scan: PASS\"\n"
+      on_fail: block
+    - id: lint
+      type: script
+      run: go vet ./...
+      on_fail: continue
+    - id: tests
+      type: script
+      run: go test -short -count=1 ./...
+      on_fail: continue
+  - id: tier2
+    type: ai_eval
+    true:
+    - pre-eval
+    condition: 'true'
+    max_iterations: 50
+    tools:
+    - read_file
+    - run_command
+    - search_pattern
+    - read_diff
+    - sandbox
 evaluator:
-  max_iterations: -1       # unlimited — time cap is the real constraint
-  max_time: "5m"
-  max_input_tokens: -1        # unlimited — evaluator reads many source files
-  max_output_tokens: "200k"
+  max_iterations: 50         # LLM reasoning turns
+  max_time: "10m"             # wall-clock cap
+  max_input_tokens: "0.2M"   # input budget
+  max_output_tokens: "0.05M" # output budget
   tool_call_weight: 0.1
-
-# v0.6.0 defaults
 defaults:
   model: deepseek-v4-flash
-  max_iterations: -1        # unlimited — bounded by time + token caps
+  max_iterations: -1
   check_for_updates: true
-  update_check_ttl: "24h"
+  update_check_ttl: 24h
+history:
+  enabled: true
+  storage: git
+  max_verdicts: 1000
