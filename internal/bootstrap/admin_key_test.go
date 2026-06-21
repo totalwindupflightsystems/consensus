@@ -138,8 +138,8 @@ func TestFormatResult_CreatedKeyHasMachineParseableOutput(t *testing.T) {
 	r := AdminKeyResult{
 		Created:   true,
 		ID:        "key-001",
-		APIKey:    "cs_ak_test123456",
-		KeyPrefix: "cs_ak_te",
+		APIKey:    "test-admin-key-12345678",
+		KeyPrefix: "test-adm",
 		CreatedAt: "2026-05-28T12:00:00Z",
 	}
 	lines := FormatResult(r)
@@ -155,8 +155,8 @@ func TestFormatResult_CreatedKeyHasMachineParseableOutput(t *testing.T) {
 	if !strings.Contains(lines[0], "created=true") {
 		t.Errorf("expected created=true, got: %s", lines[0])
 	}
-	if !strings.Contains(lines[0], "key=cs_ak_test123456") {
-		t.Errorf("expected key=cs_ak_test123456, got: %s", lines[0])
+	if !strings.Contains(lines[0], "key=test-admin-key-12345678") {
+		t.Errorf("expected key=test-admin-key-12345678, got: %s", lines[0])
 	}
 	if !strings.Contains(lines[0], "key_prefix=cs_ak_te") {
 		t.Errorf("expected key_prefix, got: %s", lines[0])

@@ -1,7 +1,0 @@
-step_retry_states:
-  task-1-1:step-1-1-1:
-    step_attempt: 3
-    tag_recovery_attempt: 1
-    failed_steps_in_task: 0
-    started_at: '2026-05-28T08:10:38.954484+00:00'
-task_retry_states: {}

@@ -2,6 +2,10 @@
 .worktrees/*/
 .axiom/sessions/
 .axiom/state/
+.axiom/
+.opencode/
+.hermes/
+.memory-bank/
 _tmp/
 .graph-harness/
 .morty/
