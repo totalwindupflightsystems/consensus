@@ -6,7 +6,8 @@ _tmp/
 .graph-harness/
 .morty/
 
-# Secrets — NEVER commit .env
+# GitReins — verdicts and history (contains evaluator output, not source)
+.gitreins/history/
 .env
 
 # Build artifacts
