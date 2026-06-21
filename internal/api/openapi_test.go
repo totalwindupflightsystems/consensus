@@ -130,7 +130,7 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Fatalf("failed to parse health response: %v", err)
 	}
 
-	if health.Status != "healthy" {
+	if health.Status != "ok" {
 		t.Errorf("expected status=healthy, got %q", health.Status)
 	}
 	if health.Version == "" {

@@ -105,7 +105,7 @@ func (e *flowTestEnv) createSessionViaAPI(t *testing.T, agentName, goal, modelID
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create session: HTTP %d: %s", resp.StatusCode, respBody)
 	}
 

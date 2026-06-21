@@ -64,7 +64,7 @@ func TestHealthEndpoint_ReturnsOK(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if !strings.Contains(body, "healthy") {
+	if !strings.Contains(body, "ok") {
 		t.Errorf("expected 'healthy' in body, got %q", body)
 	}
 }

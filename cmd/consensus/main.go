@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -59,7 +60,7 @@ func main() {
 }
 
 func runServer() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
@@ -332,7 +333,8 @@ func runServer() {
 		slog.Info("consensus: opencode shim enabled")
 	}
 
-	slog.Info("consensus: starting", "addr", addrString(cfg.Server))
+	backend, _ := db.DetectBackend(cfg.Database.URL)
+	slog.Info("consensus: starting", "addr", addrString(cfg.Server), "backend", backend)
 
 	// Start API server (which now serves both API and MCP routes)
 	go func() {
@@ -351,7 +353,7 @@ func runServer() {
 // Logs go to stderr.
 // axiom:trace work_item=WI-015 spec=specs/015-api-and-mcp.md plan=phase-5/task-5-1/step-5-1-1 impl=cmd/consensus/main.go
 func runMCPStdio() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))

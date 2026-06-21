@@ -24,6 +24,7 @@ type CreateSessionResponse struct {
 	ID        string    `json:"id"`
 	Status    string    `json:"status"`
 	APIKey    string    `json:"api_key"`
+	ModelID   string    `json:"model,omitempty"`
 	ProjectID string    `json:"project_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }

@@ -46,7 +46,7 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create session: %d %s", resp.StatusCode, string(body))
 	}
 	var created api.CreateSessionResponse

@@ -45,13 +45,17 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, CreateSessionResponse{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	data, _ := json.Marshal(CreateSessionResponse{
 		ID:        result.SessionID,
 		Status:    result.Status,
 		APIKey:    result.APIKey,
+		ModelID:   result.ModelID,
 		ProjectID: result.ProjectID,
 		CreatedAt: time.Now().UTC(),
 	})
+	w.Write(data)
 }
 
 // ============================================================================

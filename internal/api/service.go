@@ -69,6 +69,7 @@ type CreateSessionOutput struct {
 	SessionID string
 	Status    string
 	APIKey    string
+	ModelID   string
 	ProjectID string // empty = Global scope
 	CreatedAt string
 }
@@ -140,6 +141,7 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 		SessionID: sessionID,
 		Status:    "booting",
 		APIKey:    apiKey,
+		ModelID:   modelID,
 		ProjectID: input.ProjectID,
 		CreatedAt: now,
 	}, nil

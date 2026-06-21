@@ -670,7 +670,7 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	if resp["status"] != "healthy" {
-		t.Errorf("expected status 'healthy', got %v", resp["status"])
+	if resp["status"] != "ok" {
+		t.Errorf("expected status 'ok', got %v", resp["status"])
 	}
 }

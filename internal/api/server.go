@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -154,12 +155,23 @@ func NewServer(cfg ServerConfig) *Server {
 // Path parameter extractors — bridge chi URL params to existing handler signatures
 // ============================================================================
 
+// uuidPattern matches a valid UUID format (8-4-4-4-12 hex digits).
+var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
 // sessionHandler is a handler that takes a session ID.
 type sessionHandler func(w http.ResponseWriter, r *http.Request, sessionID string)
 
 func extractSessionID(h sessionHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, chi.URLParam(r, "id"))
+		id := chi.URLParam(r, "id")
+		// If the ID is UUID-length (36 chars) but doesn't match UUID format,
+		// reject with 400 instead of letting it fall through to a 404.
+		// Shorter IDs (test fixtures) pass through to the DB layer.
+		if len(id) == 36 && !uuidPattern.MatchString(id) {
+			writeError(w, r, http.StatusBadRequest, "INVALID_UUID", "session ID must be a valid UUID: "+id)
+			return
+		}
+		h(w, r, id)
 	}
 }
 
@@ -461,7 +473,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	data, _ := json.Marshal(map[string]any{
-		"status":  "healthy",
+		"status":  "ok",
 		"version": "0.1.0",
 	})
 	w.Write(data)

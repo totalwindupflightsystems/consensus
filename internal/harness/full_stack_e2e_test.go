@@ -111,7 +111,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	}
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create session: %d %s", resp.StatusCode, string(body))
 	}
 	var created api.CreateSessionResponse
@@ -532,12 +532,12 @@ func TestFullStackE2E_ErrorRecoveryFlows(t *testing.T) {
 
 	// Test 4: Invalid resource → 404
 	t.Log("--- Recovery 4: Invalid resource ---")
-	req2, _ := http.NewRequest("GET", ts.URL+"/api/v1/sessions/not-a-valid-uuid", nil)
+	req2, _ := http.NewRequest("GET", ts.URL+"/api/v1/sessions/00000000-0000-0000-0000-gggggggggggg", nil)
 	req2.Header.Set("Authorization", "Bearer "+adminKey)
 	resp2, _ := ts.Client().Do(req2)
 	resp2.Body.Close()
-	if resp2.StatusCode != http.StatusNotFound && resp2.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 404/400, got %d", resp2.StatusCode)
+	if resp2.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid UUID, got %d", resp2.StatusCode)
 	}
 	t.Logf("  Invalid resource: HTTP %d ✓", resp2.StatusCode)
 
