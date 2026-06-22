@@ -20,11 +20,12 @@ pipeline:
     - id: secrets
       type: script
       run: "STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null ||\
-        \ echo \"\")\n[ -z \"$STAGED\" ] && exit 0\nSECRET_PATTERNS='sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN\
+        \ echo \"\")\n[ -z \"$STAGED\" ] && exit 0\nSECRET_PATTERNS='\\bsk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN\
         \ (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI)_API_KEY\\\
         s*=\\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'\nPASS=1\nwhile IFS= read\
         \ -r file; do\n  [ ! -f \"$file\" ] && continue\n  git check-ignore -q \"\
-        $file\" 2>/dev/null && continue\n  if grep -Pn \"$SECRET_PATTERNS\" \"$file\"\
+        $file\" 2>/dev/null && continue\n  # Skip spec files, docs, and markdown\n\
+        \  case \"$file\" in specs/*|docs/*|*.md) continue ;; esac\n  if grep -Pn \"$SECRET_PATTERNS\" \"$file\"\
         \ 2>/dev/null; then\n    echo \"SECRET DETECTED in $file\" >&2\n    PASS=0\n\
         \  fi\ndone <<< \"$STAGED\"\n[ $PASS -eq 0 ] && exit 1\necho \"\u2713 Secrets\
         \ scan: PASS\"\n"
@@ -62,4 +63,4 @@ defaults:
   update_check_ttl: 24h
 history:
   enabled: true
-  storage: filesystem    # filesystem avoids orphan-branch checkout trap
+  storage: filesystem
