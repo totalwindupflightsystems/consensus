@@ -3,6 +3,11 @@ guards:
   secrets: true
   lint: true
   tests: true
+  lsp: true
+  lsp_tools:
+  - gopls
+  static_analysis: true
+  static_analysis_tools: {}
   test_command: go test -short -count=1 ./...
   dead_code: false
   go:
@@ -25,10 +30,10 @@ pipeline:
         s*=\\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'\nPASS=1\nwhile IFS= read\
         \ -r file; do\n  [ ! -f \"$file\" ] && continue\n  git check-ignore -q \"\
         $file\" 2>/dev/null && continue\n  # Skip spec files, docs, and markdown\n\
-        \  case \"$file\" in specs/*|docs/*|*.md) continue ;; esac\n  if grep -Pn \"$SECRET_PATTERNS\" \"$file\"\
-        \ 2>/dev/null; then\n    echo \"SECRET DETECTED in $file\" >&2\n    PASS=0\n\
-        \  fi\ndone <<< \"$STAGED\"\n[ $PASS -eq 0 ] && exit 1\necho \"\u2713 Secrets\
-        \ scan: PASS\"\n"
+        \  case \"$file\" in specs/*|docs/*|*.md) continue ;; esac\n  if grep -Pn\
+        \ \"$SECRET_PATTERNS\" \"$file\" 2>/dev/null; then\n    echo \"SECRET DETECTED\
+        \ in $file\" >&2\n    PASS=0\n  fi\ndone <<< \"$STAGED\"\n[ $PASS -eq 0 ]\
+        \ && exit 1\necho \"\u2713 Secrets scan: PASS\"\n"
       on_fail: block
     - id: lint
       type: script
@@ -56,6 +61,8 @@ evaluator:
   max_input_tokens: 0.2M
   max_output_tokens: 0.05M
   tool_call_weight: 0.1
+  lsp_diagnostics: true
+  static_analysis_diagnostics: true
 defaults:
   model: deepseek-v4-flash
   max_iterations: -1
