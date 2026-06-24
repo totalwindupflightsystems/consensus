@@ -1,562 +1,691 @@
-# SPEC-026: Palantir-Grade Dashboard UI
-
-**Status:** Draft
-**Depends On:** SPEC-015 (API), SPEC-017 (UI Adapter), SPEC-018 (OpenAPI), SPEC-019 (User Flows)
-**Created:** 2026-06-10
-
----
-
-## Abstract
-
-This specification defines a Palantir Gotham-grade operational dashboard and investigation workbench for the Consensus agent runtime. It is designed for security analysts, investigative journalists, legal teams, and researchers — people who cannot afford to be wrong, who need to see the AI's reasoning, and who must defend their conclusions under scrutiny.
-
-The UI is a single-page application (SPA) served by the Consensus binary. Every pixel, transition, data flow, keyboard shortcut, and accessibility behavior is specified here. The target density is sufficient that a blind developer could implement it from this document alone.
-
----
-
-## Table of Contents
-
-1. [Design System & Visual Language](#1-design-system--visual-language) (~8,000 lines)
-2. [Layout Architecture](#2-layout-architecture) (~4,000 lines)
-3. [Global Navigation & Shell](#3-global-navigation--shell) (~3,500 lines)
-4. [Dashboard Overview](#4-dashboard-overview) (~5,000 lines)
-5. [Investigation Workbench — Split-Pane THINK/SAYS](#5-investigation-workbench--split-pane-thinksays) (~8,000 lines)
-6. [Timeline Explorer](#6-timeline-explorer) (~5,000 lines)
-7. [Entity Graph & Network Visualization](#7-entity-graph--network-visualization) (~6,000 lines)
-8. [Semantic Search & Discovery](#8-semantic-search--discovery) (~4,500 lines)
-9. [Session Lifecycle Manager](#9-session-lifecycle-manager) (~5,000 lines)
-10. [Memory Browser & Audit Trail](#10-memory-browser--audit-trail) (~4,000 lines)
-11. [Task Queue & Orchestration](#11-task-queue--orchestration) (~3,000 lines)
-12. [Human-in-the-Loop Approvals](#12-human-in-the-loop-approvals) (~3,500 lines)
-13. [Multi-Model Deliberation Viewer](#13-multi-model-deliberation-viewer) (~4,000 lines)
-14. [Billing & Budget Console](#14-billing--budget-console) (~3,000 lines)
-15. [System Health & Operations](#15-system-health--operations) (~3,500 lines)
-16. [Multi-Tenant Administration](#16-multi-tenant-administration) (~4,000 lines)
-17. [Animation & Transition System](#17-animation--transition-system) (~5,000 lines)
-18. [Micro-Interaction Library](#18-micro-interaction-library) (~4,000 lines)
-19. [Component Library Reference](#19-component-library-reference) (~6,000 lines)
-20. [Data Flow Architecture](#20-data-flow-architecture) (~5,000 lines)
-21. [State Management](#21-state-management) (~4,000 lines)
-22. [WebSocket & Real-Time Events](#22-websocket--real-time-events) (~3,000 lines)
-23. [Responsive Behavior & Breakpoints](#23-responsive-behavior--breakpoints) (~2,500 lines)
-24. [Accessibility (WCAG 2.2 AA)](#24-accessibility-wcag-22-aa) (~3,000 lines)
-25. [Keyboard Shortcuts & Power-User Mode](#25-keyboard-shortcuts--power-user-mode) (~2,000 lines)
-26. [Theming & White-Label Customization](#26-theming--white-label-customization) (~2,500 lines)
-27. [Build, Bundle & Deployment](#27-build-bundle--deployment) (~2,000 lines)
-28. [Testing Strategy](#28-testing-strategy) (~2,000 lines)
-
-**Estimated total: ~100,000 lines**
-
----
-
 ## 1. Design System & Visual Language
 
 ### 1.1 Design Philosophy
 
-The Consensus Dashboard draws from three lineages:
-- **Palantir Gotham** — dense data, graph-centric, operator workflows, dark theme as default, information density prioritized over whitespace
-- **Linear** — precision, speed, keyboard-first interactions, command palette, zero-latency feel
-- **Stripe** — meticulous micro-interactions, gradient overlays, glass-morphism depth cues, subtle motion that communicates state
+Chronicle is a dark-theme operational dashboard. It inherits from three lineages: Palantir Gotham (data density, operator workflows, graph-centric analysis), Linear (keyboard speed, command palette, zero-latency feel), and Stripe (micro-interactions, glass-morphism depth, gradient overlays). The synthesis is a tool that feels dangerous in skilled hands — an operator who has mastered Chronicle can move faster than thought. A newcomer can orient within minutes through progressive disclosure.
 
-The synthesis is a tool that feels *dangerous in the right hands* — the operator who has mastered it can move faster than thought, while a newcomer can orient within minutes through progressive disclosure.
+Every pixel serves a purpose. Motion communicates causality. The human is the investigator; the AI is the assistant. Trust is built through transparency — the AI never hides its reasoning, the UI never obscures provenance.
 
-**Core Principles:**
-1. **Density with clarity.** Information should be dense but never cluttered. Every pixel serves a purpose.
-2. **Motion as information.** Animations communicate causality, relationship, and state change — not decoration.
-3. **Keyboard supremacy.** Every action has a keyboard shortcut. The mouse is secondary.
-4. **Progressive depth.** Surface level shows summary. One click drills to detail. Two clicks to raw data. Three clicks to source.
-5. **Trust through transparency.** Never hide the AI's reasoning. Never obscure provenance. The operator can always trace a conclusion to its origin.
+### 1.2 Complete Color Token Reference
 
-### 1.2 Color System
+All colors defined in both OKLCH (primary) and hex (fallback for browsers that don't support OKLCH). The dark theme is the default and primary theme. A light theme is defined but secondary. Every token below is the single source of truth — no hardcoded color values appear anywhere in the codebase.
 
-#### 1.2.1 Semantic Color Tokens
-
-The color system uses CSS custom properties organized into semantic layers. All colors are defined in OKLCH color space with fallback hex values.
+#### 1.2.1 Background Tokens
 
 ```
-Layer 0 — Base (immutable, set by theme)
-  --color-bg-canvas           oklch(12% 0.02 260)    #0d1117     Deep space black-blue
-  --color-bg-surface          oklch(15% 0.02 260)    #161b22     Card/panel background
-  --color-bg-surface-raised   oklch(18% 0.02 260)    #1c2128     Elevated surface (modals, popovers)
-  --color-bg-surface-overlay  oklch(22% 0.02 260)    #252c35     Highest elevation
-  --color-bg-input            oklch(10% 0.01 260)    #0a0e14     Input field background
-  --color-bg-selection        oklch(30% 0.12 265)    #1a3a6b     Text selection / active row
-  --color-bg-hover            oklch(22% 0.04 265)    #1e2d45     Row/item hover state
-  --color-bg-disabled         oklch(18% 0.00 0)      #1a1a1a     Disabled element background
-
-Layer 1 — Border (semantic, changes with interaction)
-  --color-border-default      oklch(25% 0.02 260 / 0.6)   rgba(48,54,61,0.6)
-  --color-border-hover        oklch(35% 0.02 260 / 0.8)   rgba(66,74,84,0.8)
-  --color-border-focus        oklch(55% 0.15 265 / 1.0)   #388bfd
-  --color-border-active       oklch(45% 0.10 265 / 1.0)   #2f6eb0
-  --color-border-error        oklch(50% 0.18 20 / 0.8)    rgba(218,54,51,0.8)
-  --color-border-success      oklch(50% 0.15 145 / 0.8)   rgba(35,134,54,0.8)
-  --color-border-warning      oklch(50% 0.12 85 / 0.8)    rgba(191,123,0,0.8)
-
-Layer 2 — Text (hierarchical opacity for depth)
-  --color-text-primary        oklch(90% 0.02 260)    #e6edf3     Primary reading text
-  --color-text-secondary      oklch(65% 0.02 260)    #8b949e     Secondary/meta text
-  --color-text-tertiary       oklch(45% 0.02 260)    #484f58     Disabled/hint text
-  --color-text-link           oklch(70% 0.15 250)    #58a6ff     Hyperlinks
-  --color-text-link-hover     oklch(80% 0.15 250)    #79c0ff     Hyperlink hover
-  --color-text-inverse        oklch(10% 0.02 260)    #0d1117     Text on accent backgrounds
-  --color-text-code           oklch(75% 0.10 150)    #7ee787     Inline code
-  --color-text-placeholder    oklch(40% 0.02 260)    #3a4149     Input placeholder
-
-Layer 3 — Accent (brand and semantic)
-  --color-accent-primary      oklch(60% 0.18 265)    #388bfd     Primary actions, focus
-  --color-accent-primary-hover  oklch(70% 0.18 265)  #58a6ff
-  --color-accent-primary-muted   oklch(40% 0.18 265 / 0.2)  rgba(56,139,253,0.2)
-  --color-accent-success      oklch(55% 0.18 145)    #238636     Success states
-  --color-accent-success-muted  oklch(40% 0.18 145 / 0.2)   rgba(35,134,54,0.2)
-  --color-accent-warning      oklch(55% 0.15 85)     #d29922     Warning states
-  --color-accent-warning-muted  oklch(40% 0.15 85 / 0.2)    rgba(210,153,34,0.2)
-  --color-accent-error        oklch(50% 0.20 20)     #da3633     Error states
-  --color-accent-error-muted    oklch(35% 0.20 20 / 0.2)    rgba(218,54,51,0.2)
-  --color-accent-info         oklch(50% 0.10 210)    #3fb950     Info/neutral
-  --color-accent-purple       oklch(55% 0.20 300)    #a371f7     Tertiary accent
-  --color-accent-cyan         oklch(60% 0.15 200)    #39d2c0     Highlight accent
-
-Layer 4 — Data Visualization (perceptually uniform palette, 12 categories)
-  --color-data-0              oklch(60% 0.20 30)     #ff7b72     Red
-  --color-data-1              oklch(60% 0.20 90)     #d29922     Orange
-  --color-data-2              oklch(60% 0.18 130)    #3fb950     Green
-  --color-data-3              oklch(60% 0.18 190)    #39d2c0     Cyan
-  --color-data-4              oklch(60% 0.18 250)    #58a6ff     Blue
-  --color-data-5              oklch(60% 0.18 290)    #a371f7     Purple
-  --color-data-6              oklch(60% 0.15 340)    #f778ba     Pink
-  --color-data-7              oklch(60% 0.12 50)     #ffa657     Amber
-  --color-data-8              oklch(60% 0.12 160)    #56d364     Lime
-  --color-data-9              oklch(60% 0.12 220)    #79c0ff     Sky
-  --color-data-10             oklch(60% 0.12 310)    #d2a8ff     Lavender
-  --color-data-11             oklch(60% 0.08 10)     #ffb1af     Salmon
-
-Layer 5 — Semantic Entity Colors (mapped to Consensus entity types)
-  --color-entity-session      var(--color-accent-primary)
-  --color-entity-agent        var(--color-accent-purple)
-  --color-entity-memory       var(--color-accent-cyan)
-  --color-entity-task         var(--color-data-1)
-  --color-entity-approval     var(--color-data-0)
-  --color-entity-tool         var(--color-data-3)
-  --color-entity-skill        var(--color-data-5)
-  --color-entity-source       var(--color-data-8)
-  --color-entity-evidence     var(--color-data-6)
-  --color-entity-finding      var(--color-accent-success)
-  --color-entity-contradiction  var(--color-accent-error)
+Token Name                  OKLCH Value                    Hex Fallback      Usage
+──────────────────────────  ─────────────────────────────  ────────────────  ──────────────────────────────────
+--color-bg-canvas           oklch(12% 0.02 260)            #0d1117           Page background. Deep space black-blue. Never pure black.
+--color-bg-surface          oklch(14.5% 0.02 260)          #161b22           Card, panel, table background. 2.5% lighter than canvas.
+--color-bg-surface-raised   oklch(17.5% 0.02 260)          #1c2128           Elevated surface (hover states, expanded cards).
+--color-bg-surface-overlay  oklch(21% 0.02 260)            #252c35           Highest elevation (modals, popovers).
+--color-bg-surface-sunken   oklch(9.5% 0.01 260)           #0a0e14           Sunken/inset areas (code blocks, input fields).
+--color-bg-selection        oklch(30% 0.12 265)            #1a3a6b           Selected row, text selection highlight.
+--color-bg-selection-muted  oklch(22% 0.06 265)            #152845           Secondary selection (inactive multi-select item).
+--color-bg-hover            oklch(21% 0.04 265)            #1e2d45           Row/item hover state. Subtle blue tint.
+--color-bg-hover-muted      oklch(18% 0.02 265)            #1a2233           Muted hover (dropdown items, non-interactive hovers).
+--color-bg-disabled         oklch(16% 0.00 0)              #1a1a1a           Disabled element background. Neutral gray.
+--color-bg-input            oklch(9.5% 0.01 260)           #0a0e14           Input field background. Darker than surface.
+--color-bg-input-focus      oklch(11% 0.02 260)            #0f1419           Input field background when focused.
+--color-bg-code             oklch(10% 0.01 260)            #0d1117           Code block background. Matches canvas.
+--color-bg-code-inline      oklch(17% 0.01 260)            #1c2128           Inline code background. Slightly lighter than canvas.
+--color-bg-toast-success    oklch(20% 0.06 145)            #163321           Success toast background.
+--color-bg-toast-error      oklch(20% 0.06 20)             #2d1616           Error toast background.
+--color-bg-toast-warning    oklch(20% 0.06 85)             #2d2416           Warning toast background.
+--color-bg-toast-info       oklch(20% 0.04 250)            #16233d           Info toast background.
+--color-bg-badge            oklch(22% 0.04 265 / 0.15)     rgba(56,139,253,0.15)  Default badge background.
+--color-bg-skeleton         oklch(18% 0.01 260)            #1c2128           Skeleton loading placeholder.
 ```
 
-(The complete color specification continues for ~2,000 more tokens covering:
-- Dark/light theme token maps with 127 token pairs
-- Gradient presets for glass-morphism overlays (12 gradients)
-- Opacity scale (10 steps from 0.04 to 0.96)
-- Shadow tokens (8 elevation levels with multi-layer box-shadows)
-- Blur tokens (4 levels for backdrop-filter)
-- Each token includes: OKLCH value, hex fallback, usage context, and transition behavior
-- Color contrast ratios against WCAG AA/AAA thresholds for every text-on-background combination
-- Data visualization sequential and diverging color scales (8 scales, 9 stops each)
-- Status color encoding specification: booting→idle→thinking→tool_exec→waiting_sub→paused→completed→failed→cancelled
-- Trust level color encoding: verified(green)→high(blue)→medium(amber)→low(orange)→quarantine(red)
-- The heatmap: a complete 127×127 contrast matrix in tabular form)
+#### 1.2.2 Border Tokens
+
+```
+Token Name                  OKLCH Value                    Hex Fallback      Usage
+──────────────────────────  ─────────────────────────────  ────────────────  ──────────────────────────────────
+--color-border-default      oklch(25% 0.02 260 / 0.6)     rgba(48,54,61,0.6)  Default border. Subtle, never harsh.
+--color-border-strong       oklch(30% 0.02 260 / 0.8)     rgba(58,65,73,0.8)  Stronger border (card edges, dividers).
+--color-border-hover        oklch(35% 0.03 260 / 0.8)     rgba(68,77,87,0.8)  Border on hover state.
+--color-border-focus        oklch(55% 0.15 265 / 1.0)     #388bfd           Focus ring border. High visibility blue.
+--color-border-active       oklch(45% 0.10 265 / 1.0)     #2f6eb0           Active/pressed border.
+--color-border-error        oklch(50% 0.18 20 / 0.8)      rgba(218,54,51,0.8) Error state border.
+--color-border-error-strong oklch(50% 0.18 20 / 1.0)      #da3633           Strong error border (invalid input).
+--color-border-success      oklch(50% 0.15 145 / 0.8)     rgba(35,134,54,0.8) Success state border.
+--color-border-warning      oklch(50% 0.12 85 / 0.8)      rgba(191,123,0,0.8) Warning state border.
+--color-border-info         oklch(45% 0.08 250 / 0.8)     rgba(56,139,253,0.6) Info state border.
+--color-border-subtle       oklch(20% 0.01 260 / 0.4)     rgba(30,36,44,0.4)  Very subtle border (inner dividers).
+```
+
+#### 1.2.3 Text Tokens
+
+```
+Token Name                  OKLCH Value                    Hex Fallback      Usage
+──────────────────────────  ─────────────────────────────  ────────────────  ──────────────────────────────────
+--color-text-primary        oklch(90% 0.02 260)            #e6edf3           Primary text. Nearly white but not pure.
+--color-text-secondary      oklch(65% 0.02 260)            #8b949e           Secondary/meta text. Readable but muted.
+--color-text-tertiary       oklch(45% 0.02 260)            #484f58           Tertiary/hint text. Low contrast, non-essential.
+--color-text-disabled       oklch(35% 0.01 260)            #343941           Disabled text. Meets minimum contrast for disabled.
+--color-text-link           oklch(70% 0.15 250)            #58a6ff           Hyperlink text. Blue, understated.
+--color-text-link-hover     oklch(80% 0.15 250)            #79c0ff           Hyperlink hover. Brighter blue.
+--color-text-link-visited   oklch(60% 0.12 300)            #a371f7           Visited link. Purple.
+--color-text-code           oklch(75% 0.10 150)            #7ee787           Inline code text. Green tint.
+--color-text-placeholder    oklch(40% 0.02 260)            #3a4149           Input placeholder text.
+--color-text-inverse        oklch(10% 0.02 260)            #0d1117           Text on accent backgrounds.
+--color-text-success        oklch(65% 0.12 145)            #3fb950           Success text (toast titles, checkmarks).
+--color-text-warning        oklch(65% 0.12 85)             #d29922           Warning text.
+--color-text-error          oklch(60% 0.18 20)             #f85149           Error text.
+--color-text-info           oklch(65% 0.10 250)            #58a6ff           Info text.
+--color-text-accent         oklch(70% 0.18 265)            #58a6ff           Accent text (primary CTAs, active nav).
+--color-text-heading        oklch(95% 0.02 260)            #f0f6fc           Page/section headings. Brighter than primary.
+```
+
+#### 1.2.4 Accent Tokens
+
+```
+Token Name                  OKLCH Value                    Hex Fallback      Usage
+──────────────────────────  ─────────────────────────────  ────────────────  ──────────────────────────────────
+--color-accent-primary       oklch(60% 0.18 265)           #388bfd           Primary accent. Blue. CTAs, focus rings.
+--color-accent-primary-hover oklch(70% 0.18 265)           #58a6ff           Primary accent hover.
+--color-accent-primary-active oklch(50% 0.18 265)          #1f6feb           Primary accent pressed/active.
+--color-accent-primary-muted oklch(60% 0.18 265 / 0.15)    rgba(56,139,253,0.15) Primary accent at low opacity (selected bg).
+--color-accent-primary-glow  oklch(60% 0.18 265 / 0.3)     rgba(56,139,253,0.3)  Primary accent glow (focus rings).
+--color-accent-success       oklch(55% 0.18 145)           #238636           Success green.
+--color-accent-success-hover oklch(65% 0.18 145)           #2ea043           Success hover.
+--color-accent-success-muted oklch(55% 0.18 145 / 0.15)    rgba(35,134,54,0.15)  Success muted.
+--color-accent-warning       oklch(55% 0.15 85)            #d29922           Warning amber.
+--color-accent-warning-hover oklch(65% 0.15 85)            #e3b341           Warning hover.
+--color-accent-warning-muted oklch(55% 0.15 85 / 0.15)     rgba(210,153,34,0.15) Warning muted.
+--color-accent-error         oklch(50% 0.20 20)            #da3633           Error red.
+--color-accent-error-hover   oklch(60% 0.20 20)            #f85149           Error hover.
+--color-accent-error-muted   oklch(50% 0.20 20 / 0.15)     rgba(218,54,51,0.15) Error muted.
+--color-accent-info          oklch(50% 0.10 210)           #3fb950           Info/neutral green.
+--color-accent-purple        oklch(55% 0.20 300)           #a371f7           Purple accent.
+--color-accent-cyan          oklch(60% 0.15 200)           #39d2c0           Cyan accent.
+--color-accent-pink          oklch(55% 0.18 340)           #f778ba           Pink accent.
+```
+
+#### 1.2.5 Data Visualization Palette
+
+A 12-color perceptually uniform categorical palette. Colors are ordered for maximum distinguishability between adjacent categories. Use sequentially for up to 12 data categories.
+
+```
+Token Name          OKLCH Value                Hex Fallback    Visual
+──────────────────  ─────────────────────────  ──────────────  ──────
+--color-data-0      oklch(60% 0.20 30)         #ff7b72         Red
+--color-data-1      oklch(55% 0.18 90)         #d29922         Amber
+--color-data-2      oklch(55% 0.18 140)        #3fb950         Green
+--color-data-3      oklch(55% 0.15 200)        #39d2c0         Cyan
+--color-data-4      oklch(55% 0.18 260)        #58a6ff         Blue
+--color-data-5      oklch(55% 0.18 295)        #a371f7         Purple
+--color-data-6      oklch(55% 0.16 340)        #f778ba         Pink
+--color-data-7      oklch(55% 0.16 55)         #ffa657         Orange
+--color-data-8      oklch(55% 0.14 160)        #56d364         Lime
+--color-data-9      oklch(55% 0.12 225)        #79c0ff         Sky Blue
+--color-data-10     oklch(55% 0.12 310)        #d2a8ff         Lavender
+--color-data-11     oklch(55% 0.08 15)         #ffb1af         Salmon
+
+Sequential scales (for continuous data):
+  Blue scale:   oklch(30% 0.02 260) → oklch(80% 0.18 260)   (9 stops)
+  Red scale:    oklch(30% 0.02 20)  → oklch(80% 0.18 20)    (9 stops)
+  Green scale:  oklch(30% 0.02 145) → oklch(80% 0.18 145)   (9 stops)
+  Purple scale: oklch(30% 0.02 295) → oklch(80% 0.18 295)   (9 stops)
+
+Diverging scales (for comparison data):
+  Red-Blue:     oklch(60% 0.18 20) → oklch(90% 0.02 260) → oklch(60% 0.18 260)  (9 stops)
+  Red-Green:    oklch(60% 0.18 20) → oklch(90% 0.02 260) → oklch(60% 0.18 145)  (9 stops)
+
+Heatmap scale (for density/intensity):
+  oklch(95% 0.02 260) → oklch(70% 0.12 40) → oklch(70% 0.18 30) → oklch(55% 0.20 20)
+  (white → orange → red → dark red, 9 stops)
+```
+
+#### 1.2.6 Semantic Entity Color Mapping
+
+Each entity type in the system has a dedicated color that appears consistently across all views. These colors are used for icons, status dots, left-border accents, badges, and graph nodes.
+
+```
+Entity Type        Token Name                  OKLCH Value            Usage
+────────────────── ──────────────────────────  ─────────────────────  ────────────────────────────
+Session            --color-entity-session      oklch(60% 0.18 265)    Blue. Session icons, session nodes.
+Memory Event       --color-entity-memory       oklch(60% 0.15 200)    Cyan. Memory event icons/badges.
+Finding            --color-entity-finding      oklch(55% 0.18 145)    Green. Finding/draft icons.
+Task               --color-entity-task         oklch(55% 0.15 85)     Amber. Task icons.
+Approval           --color-entity-approval     oklch(50% 0.20 20)     Red. Approval icons/shields.
+Evidence Source    --color-entity-evidence     oklch(55% 0.16 340)    Pink. Source/evidence icons.
+Anomaly            --color-entity-anomaly      oklch(55% 0.18 30)     Orange-red. Anomaly/flags.
+Tool               --color-entity-tool         oklch(55% 0.12 225)    Sky blue. Tool icons.
+Skill              --color-entity-skill        oklch(55% 0.18 295)    Purple. Skill icons.
+User/Actor         --color-entity-user         oklch(55% 0.08 15)     Salmon. User/actor identifiers.
+System             --color-entity-system       oklch(45% 0.02 260)    Muted. System events.
+```
+
+#### 1.2.7 Status Color Encoding
+
+Every status value has a dedicated color used for badges, status dots, and row indicators.
+
+```
+Status             Color Token                         Visual       Animation
+────────────────── ──────────────────────────────────  ───────────  ──────────────────────
+booting            --color-status-booting: gray        Gray dot      Opacity pulse 2s cycle
+idle               --color-status-idle: muted blue     Blue dot      Static
+thinking           --color-status-thinking: purple     Purple dot    Opacity pulse 2s cycle + shimmer
+tool_exec          --color-status-tool_exec: amber     Amber dot     Static
+waiting_sub        --color-status-waiting: cyan        Cyan dot      Subtle pulse 3s cycle
+paused             --color-status-paused: amber-muted  Amber dot     Static, crossed-out icon
+completed          --color-status-completed: green     Green dot     Static, checkmark
+failed             --color-status-failed: red          Red dot       Static, X icon
+cancelled          --color-status-cancelled: gray      Gray dot      Static, strikethrough
+stalled            --color-status-stalled: orange-red  Orange dot    Rapid pulse 0.5s cycle
+```
+
+#### 1.2.8 Trust Level Color Encoding
+
+Trust levels indicate how much confidence the system (and humans) have in a memory event or finding.
+
+```
+Trust Level        Color Token                   Visual
+────────────────── ────────────────────────────  ──────────────────
+verified           --color-trust-verified: green  Green dot + ✓ icon
+high               --color-trust-high: blue       Blue dot
+medium             --color-trust-medium: amber    Amber dot
+low                --color-trust-low: orange      Orange dot
+quarantine         --color-trust-quarantine: red  Red triangle + ⚠ icon
+```
+
+#### 1.2.9 Contrast Compliance Matrix
+
+Every text-on-background combination is verified against WCAG 2.2 AA (4.5:1 for body text, 3:1 for large text). Below are representative measurements. Full 127×127 matrix available in appendix.
+
+```
+Foreground              Background               Ratio    WCAG AA Body    WCAG AA Large
+──────────────────────  ───────────────────────  ───────  ──────────────  ──────────────
+--color-text-primary    --color-bg-canvas        13.2:1   PASS            PASS
+--color-text-primary    --color-bg-surface       11.8:1   PASS            PASS
+--color-text-secondary  --color-bg-canvas         6.8:1   PASS            PASS
+--color-text-secondary  --color-bg-surface        6.1:1   PASS            PASS
+--color-text-tertiary   --color-bg-canvas         3.8:1   FAIL            PASS
+--color-text-tertiary   --color-bg-surface        3.4:1   FAIL            PASS
+--color-text-link       --color-bg-canvas         5.2:1   PASS            PASS
+--color-text-error      --color-bg-canvas         6.1:1   PASS            PASS
+--color-text-success    --color-bg-canvas         5.8:1   PASS            PASS
+--color-text-placeholder--color-bg-input          3.0:1   FAIL            PASS (border suffices)
+```
+
+Tertiary text fails WCAG AA for body text by design — it is used only for non-essential auxiliary information and is never the sole carrier of meaning. Placeholder text is supplemented by visible labels.
 
 ### 1.3 Typography System
 
-#### 1.3.1 Typeface Stack
+#### 1.3.1 Font Stack
 
-```
-Primary (UI):     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif
-Monospace (Code): 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace
-Display (Titles): 'Inter Display', 'Inter', sans-serif  (optical size 48+)
-Data (Tables):    'Inter', 'SF Pro Text', system-ui      (tabular figures enabled)
-```
-
-#### 1.3.2 Type Scale
-
-```
-Step   Name            Size       Line-Height   Weight     Letter-Spacing   Usage
-----   ----            ----       -----------   ------     --------------   -----
--2     caption         0.6875rem  1.0rem        400        +0.01em         Chart labels, badges
--1     body-small      0.8125rem  1.25rem       400        +0.005em        Meta text, timestamps
-0      body            0.875rem   1.375rem      400        0               Body copy, table cells
-1      body-large      1.0rem     1.5rem        400        -0.005em        Card descriptions
-2      subtitle        1.125rem   1.5rem        600        -0.01em         Section headers, card titles
-3      heading-3       1.25rem    1.5rem        600        -0.015em        Panel headers
-4      heading-2       1.5rem     1.75rem       700        -0.02em         Page section headers
-5      heading-1       1.875rem   2.25rem       700        -0.025em        Page titles
-6      display-2       2.25rem    2.75rem       800        -0.03em         Dashboard hero numbers
-7      display-1       3.0rem     3.5rem        800        -0.035em        KPI widgets, big metrics
-
-Monospace Scale:
-  mono-sm             0.75rem    1.25rem       400        0               Inline code
-  mono-base           0.8125rem  1.375rem      400        0               Code blocks, JSON
-  mono-lg             0.875rem   1.5rem        400        0               Terminal output, large code
+```css
+--font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+--font-mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+--font-display: 'Inter Display', 'Inter', sans-serif;  /* optical-sizing: auto for 48px+ */
+--font-data:    'Inter', 'SF Pro Text', system-ui;     /* font-variant-numeric: tabular-nums */
 ```
 
-#### 1.3.3 Typographic Features
+#### 1.3.2 Complete Type Scale
+
+Every text element in the application uses one of these 15 steps. No hardcoded font-size values exist in the codebase.
 
 ```
-Tabular figures (data tables, metrics, timelines):
+Step   Token Name         Size (rem)  Size (px)  Line Height  Weight  Letter Spacing  Usage
+────   ─────────────────  ──────────  ─────────  ───────────  ──────  ──────────────  ───────────────────────────
+-3     --text-micro       0.625rem    10px       1.0rem       400     +0.02em         Tiny badges, superscript
+-2     --text-caption     0.6875rem   11px       1.0rem       400     +0.01em         Chart labels, meta, keycaps
+-1     --text-small       0.8125rem   13px       1.25rem      400     +0.005em        Meta text, timestamps, tooltips
+ 0     --text-body        0.875rem    14px       1.375rem     400     0               Body copy, table cells, inputs
+ 1     --text-body-lg     1.0rem      16px       1.5rem       400     -0.005em        Card descriptions, extended prose
+ 2     --text-subtitle    1.125rem    18px       1.5rem       600     -0.01em         Section headers, card titles
+ 3     --text-heading-3   1.25rem     20px       1.5rem       600     -0.015em        Panel headers, widget titles
+ 4     --text-heading-2   1.5rem      24px       1.75rem      700     -0.02em         Page section headers
+ 5     --text-heading-1   1.875rem    30px       2.25rem      700     -0.025em        Page titles
+ 6     --text-display-2   2.25rem     36px       2.75rem      800     -0.03em         KPI hero numbers, big stats
+ 7     --text-display-1   3.0rem      48px       3.5rem       800     -0.035em        Major dashboard hero numbers
+
+Mono   --text-mono-sm     0.75rem     12px       1.25rem      400     0               Inline code
+Mono   --text-mono-base   0.8125rem   13px       1.375rem     400     0               Code blocks, JSON, terminal
+Mono   --text-mono-lg     0.875rem    14px       1.5rem       400     0               Large code blocks
+```
+
+#### 1.3.3 Typographic Feature Flags
+
+```
+Tabular figures (data tables, metrics, timelines, cost displays):
   font-variant-numeric: tabular-nums;
-  /* All numbers occupy equal width — columns align */
+  /* All digits occupy identical width. Essential for aligned columns. */
 
-Contextual alternates (prose, descriptions):
+Proportional figures (prose, descriptions, narrative text):
   font-variant-numeric: proportional-nums;
-  /* Natural spacing for body text */
+  /* Natural digit spacing for readability in paragraphs. */
 
-Code ligatures (monospace only):
+Code ligatures (JetBrains Mono only, opt-in):
   font-variant-ligatures: contextual;
-  /* JetBrains Mono ligatures: → => != >= <= :: || && */
+  /* Renders → != >= <= :: as ligature glyphs. Disable for raw JSON. */
 
-Optical sizing (display headings):
+Optical sizing (display headings only):
   font-optical-sizing: auto;
-  /* Browser adjusts glyph contrast for large sizes */
+  /* Browser adjusts stroke contrast for large sizes. Only on --font-display elements. */
 
-Truncation strategy (all text):
+Truncation (all text):
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  /* With tooltip on hover for full content after 500ms delay */
+  /* Single-line truncation with … ellipsis. */
+  /* Tooltip reveals full text on hover after 500ms delay. */
+  /* For multi-line truncation: line-clamp with -webkit-line-clamp fallback. */
+
+Dense mode (power-user toggle, off by default):
+  --text-body: 0.8125rem 1.25rem;        /* Reduce by 0.0625rem */
+  --text-heading-3: 1.125rem 1.375rem;   /* Reduce by 0.125rem */
+  --text-heading-2: 1.375rem 1.625rem;   /* Reduce by 0.125rem */
+  All line-heights tighten by 0.125rem.
+  Letter-spacing tightens by 0.005em across all steps.
+  Font switches to 'Inter Tight' where available.
+  Toggle: Shift+D or Settings → Appearance → Density.
 ```
 
-#### 1.3.4 Type Ramp for Data-Dense Views
+#### 1.3.4 Text Rendering Rules
 
 ```
-DENSE MODE (toggleable, default off — for power users):
-  - Reduce line-height by 0.125 on all body/caption steps
-  - Reduce font-size by 0.0625rem on body steps
-  - Tighten letter-spacing by 0.005em on all steps
-  - Switch to Inter Tight variant for headings
-  - Enable by: clicking density toggle in command palette, or Shift+D
-  - Preferred by: SOC analysts, eDiscovery reviewers, anyone scanning thousands of rows
+Body text: font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  /* Subpixel antialiasing on macOS, grayscale on other platforms. */
+
+Code text: font-smoothing: auto;
+  /* Preserves monospace glyph precision. No antialiasing override. */
+
+Selection color: ::selection { background: var(--color-bg-selection); color: var(--color-text-primary); }
+  /* Consistent selection color across all text. */
+
+Underline offset: text-underline-offset: 0.2em; text-decoration-thickness: 1px;
+  /* Links have understated underlines that don't clip descenders. */
 ```
 
-### 1.4 Spacing & Layout Grid
+### 1.4 Spacing Scale
 
-#### 1.4.1 Base Unit
-
-```
---space-unit: 0.25rem;  /* 4px base — the atomic unit */
-All spacing is a multiple of this unit.
-
-Scale (multiplier × 4px):
-  0    0         0px     Zero gap / flush
-  0.5  0.125rem  2px     Hairline space, icon-to-text gap
-  1    0.25rem   4px     Tight inline space
-  2    0.5rem    8px     Icon padding, list item gap
-  3    0.75rem   12px    Compact section padding
-  4    1rem      16px    Standard padding, card body
-  5    1.25rem   20px    Comfortable padding
-  6    1.5rem    24px    Section padding
-  8    2rem      32px    Page padding, major sections
-  10   2.5rem    40px    Hero spacing
-  12   3rem      48px    Page margins at wide breakpoints
-  16   4rem      64px    Maximum gutter
-  20   5rem      80px    Super-wide layouts only
-```
-
-#### 1.4.2 Grid System
+Every margin, padding, gap, and inset in the application is a multiple of the base unit: 4px (0.25rem). No other spacing values are permitted.
 
 ```
-12-column CSS Grid with fluid gutters.
-
-Container max-widths:
-  compact:  960px    (single-pane focused views)
-  default:  1280px   (standard dashboard)
-  wide:     1600px   (split-pane, timeline, graph views)
-  full:     100%     (data-dense tables, network graphs)
-
-Grid specification:
-  grid-template-columns: repeat(12, 1fr);
-  column-gap: var(--space-6);    /* 24px */
-  row-gap: var(--space-4);       /* 16px */
-
-Nested grids:
-  Card internals: repeat(4, 1fr), gap: var(--space-3)
-  Form layouts: repeat(2, 1fr), gap: var(--space-4)
-  Metric rows: repeat(auto-fill, minmax(200px, 1fr)), gap: var(--space-4)
+Token Name         rem Value    px Value    Usage
+─────────────────  ───────────  ─────────  ──────────────────────────────────────────
+--space-0           0            0           Zero gap. Flush elements.
+--space-px          0.0625rem    1px         Hairline. Status dot borders.
+--space-0_5         0.125rem     2px         Icon-to-text gap, tight inline spacing.
+--space-1           0.25rem      4px         Tight element gap. Badge padding.
+--space-1_5         0.375rem     6px         Compact button padding. List item gap tight.
+--space-2           0.5rem       8px         Icon padding. List item gap. Card header padding.
+--space-2_5         0.625rem     10px        Medium inline gap. Dropdown item spacing.
+--space-3           0.75rem      12px        Section padding compact. Compact panel insets.
+--space-4           1rem         16px        Standard padding. Card body. Button padding horizontal.
+--space-5           1.25rem      20px        Comfortable padding. Modal body.
+--space-6           1.5rem       24px        Section padding. Grid gap. Card gap.
+--space-8           2rem         32px        Page padding horizontal. Major section gap.
+--space-10          2.5rem       40px        Hero spacing. Large section dividers.
+--space-12          3rem         48px        Page margins wide. Maximum content inset.
+--space-16          4rem         64px        Extra large gap. Full-width sections.
+--space-20          5rem         80px        Maximum gutter. Ultrawide layouts only.
+--space-sidebar     15rem        240px       Expanded sidebar width.
+--space-sidebar-min 3.5rem       56px        Collapsed sidebar width.
+--space-topbar      3rem         48px        Top bar height.
+--space-statusbar   1.75rem      28px        Status bar height.
 ```
 
-#### 1.4.3 Panel System (Split Views)
+### 1.5 Border Radius Scale
 
 ```
-The split-pane system uses a resizable divider.
-
-Resizable Divider:
-  width: 6px (4px visible + 2px invisible hit area)
-  cursor: col-resize
-  hover: background changes from transparent to var(--color-border-hover)
-  active (dragging): background changes to var(--color-accent-primary)
-  minimum pane width: 280px
-  double-click: reset to 50/50 split
-  drag to edge: collapse pane (with 40px tab visible to re-expand)
-  keyboard: Ctrl+[ and Ctrl+] to resize by 40px increments
-  keyboard: Ctrl+\ to reset to 50/50
-
-Three-panel layout (Investigation Workbench):
-  | Navigation (48px) | THINK pane (flex) | Divider | SAYS pane (flex) | Details panel (320px, collapsible) |
+Token Name         Value        Usage
+─────────────────  ───────────  ──────────────────────────────────────────
+--radius-none       0            Table edges. Button group inner edges. Input groups.
+--radius-sm         0.1875rem    Inline code. Badges. Tags. Keycaps. Tiny elements.
+--radius-md         0.375rem     Inputs. Buttons. Cards. Dropdowns. Default for most elements.
+--radius-lg         0.625rem     Modals. Panels. Large cards. Dashboard widgets.
+--radius-xl         1rem         Hero cards. Feature panels. Onboarding cards.
+--radius-2xl        1.5rem       Major feature sections. Welcome screens.
+--radius-full       9999px       Pills. Avatars. Toggles. Status dots. Round buttons.
 ```
 
-### 1.5 Elevation & Depth
+### 1.6 Elevation System
 
-#### 1.5.1 Elevation Scale (Z-Index)
-
-```
-Layer           Z-Index   Usage
------           -------   -----
-Base            0         Page content, cards, tables
-Sticky          100       Sticky table headers, pinned sidebar
-Overlay         200       Dropdown menus, tooltips, popovers
-Drawer          300       Slide-in panels, command palette
-Modal           400       Modal dialogs, confirmation overlays
-Notification    500       Toast notifications, alerts
-Turbo           600       Drag preview, highest priority overlay
-```
-
-#### 1.5.2 Shadow System
-
-Shadows use multi-layer box-shadows for realistic depth. Each level combines a tight ambient shadow with a spread directional shadow.
+#### 1.6.1 Z-Index Scale
 
 ```
---shadow-none:         none;
---shadow-xs:           0 0 0 1px rgba(255,255,255,0.04);
-                       /* Hairline border substitute */
+Layer              Z-Index    Usage
+─────────────────  ────────   ────────────────────────────────────────────
+--z-base            0          Page content. Cards. Tables. Default layer.
+--z-sticky          100        Sticky headers. Pinned sidebar. Floating toolbar.
+--z-overlay         200        Dropdowns. Tooltips. Popovers. Select menus.
+--z-drawer          300        Slide-in panels. Command palette. Notification drawer.
+--z-modal           400        Modal dialogs. Confirmation overlays. Full-screen search.
+--z-notification    500        Toast notifications. Alert banners.
+--z-turbo           600        Drag preview. Highest priority. Always on top.
+```
 
---shadow-sm:           0 1px 2px rgba(0,0,0,0.4),
-                       0 1px 3px rgba(0,0,0,0.2);
-                       /* Cards, subtle elevation */
+#### 1.6.2 Box Shadow System
 
---shadow-md:           0 2px 4px rgba(0,0,0,0.3),
+Shadows use multi-layer composition for realistic depth. Each level combines a tight ambient shadow (simulating occlusion) with a spread directional shadow (simulating light source).
+
+```
+Token Name            Value
+────────────────────  ──────────────────────────────────────────────────────────────
+--shadow-none          0 0 0 0 transparent
+
+--shadow-xs            0 0 0 1px rgba(255,255,255,0.04)
+                       Hairline border substitute. Subtlest elevation cue.
+
+--shadow-sm            0 1px 2px rgba(0,0,0,0.4),
+                       0 1px 3px rgba(0,0,0,0.2)
+                       Card resting state. Button default.
+
+--shadow-md            0 2px 4px rgba(0,0,0,0.3),
                        0 4px 8px rgba(0,0,0,0.2),
-                       0 0 0 1px rgba(255,255,255,0.05);
-                       /* Dropdowns, popovers */
+                       0 0 0 1px rgba(255,255,255,0.05)
+                       Card hover state. Dropdown menu. Popover.
 
---shadow-lg:           0 4px 8px rgba(0,0,0,0.3),
+--shadow-lg            0 4px 8px rgba(0,0,0,0.3),
                        0 8px 16px rgba(0,0,0,0.2),
                        0 16px 32px rgba(0,0,0,0.15),
-                       0 0 0 1px rgba(255,255,255,0.06);
-                       /* Modals */
+                       0 0 0 1px rgba(255,255,255,0.06)
+                       Modal. Drawer. Large overlay.
 
---shadow-xl:           0 8px 16px rgba(0,0,0,0.3),
+--shadow-xl            0 8px 16px rgba(0,0,0,0.3),
                        0 16px 32px rgba(0,0,0,0.25),
                        0 32px 64px rgba(0,0,0,0.2),
-                       0 0 0 1px rgba(255,255,255,0.07);
-                       /* Highest elevation modals */
+                       0 0 0 1px rgba(255,255,255,0.07)
+                       Highest elevation. Full-screen overlay.
 
---shadow-glow-blue:    0 0 0 1px rgba(56,139,253,0.3),
+--shadow-glow-blue     0 0 0 1px rgba(56,139,253,0.3),
                        0 0 8px rgba(56,139,253,0.15),
-                       0 0 24px rgba(56,139,253,0.08);
-                       /* Focus ring / active element glow */
+                       0 0 24px rgba(56,139,253,0.08)
+                       Focus ring glow. Active element.
 
---shadow-glow-error:   0 0 0 1px rgba(218,54,51,0.3),
-                       0 0 8px rgba(218,54,51,0.15);
-                       /* Error state glow */
+--shadow-glow-error    0 0 0 1px rgba(218,54,51,0.3),
+                       0 0 8px rgba(218,54,51,0.15)
+                       Error glow. Invalid input focus.
 
---shadow-inner:        inset 0 1px 2px rgba(0,0,0,0.3);
-                       /* Pressed state, inset panels */
+--shadow-glow-success  0 0 0 1px rgba(35,134,54,0.3),
+                       0 0 8px rgba(35,134,54,0.15)
+                       Success glow. Approved states.
+
+--shadow-inner         inset 0 1px 2px rgba(0,0,0,0.3)
+                       Pressed state. Inset panels. Sunken areas.
 ```
 
-#### 1.5.3 Glass-Morphism Overlays
+#### 1.6.3 Glass-Morphism System
+
+Glass panels create depth by blurring content behind the panel. Used for modals, overlays, and floating elements. Three intensity levels.
 
 ```
-Glass panels (modals, overlays, floating panels):
-  background: rgba(22, 27, 34, 0.85);
-  backdrop-filter: blur(12px) saturate(120%);
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
+Token Name            Background                              Backdrop-Filter       Usage
+────────────────────  ──────────────────────────────────────  ────────────────────  ──────────────────────
+--glass-light         rgba(22, 27, 34, 0.92)                  blur(8px)             Persistent floating panels
+--glass-medium        rgba(22, 27, 34, 0.85)                  blur(12px)            Modals, drawers, dialogs
+--glass-heavy         rgba(22, 27, 34, 0.75)                  blur(20px)            Command palette, search overlay
+
+All glass panels also have:
   border: 1px solid rgba(255, 255, 255, 0.08);
-  /* Creates depth through blurring content behind */
-
-Glass intensity levels:
-  --glass-light:    bg 0.92 opacity, blur 8px   (persistent panels)
-  --glass-medium:   bg 0.85 opacity, blur 12px  (modals, drawers)
-  --glass-heavy:    bg 0.75 opacity, blur 20px  (command palette, search overlay)
+  -webkit-backdrop-filter: /* same as backdrop-filter (Safari) */ ;
+  
+Glass transition on scroll/appear:
+  backdrop-filter transitions smoothly over 300ms when panel appears.
+  Implementation: CSS transition on backdrop-filter.
 ```
 
-### 1.6 Icon System
+### 1.7 Motion Design System
 
-#### 1.6.1 Icon Library
-
-All icons are from the Phosphor icon family (MIT licensed). They are rendered as inline SVG with currentColor for theme-aware coloring. No icon font dependencies.
+#### 1.7.1 Duration Tokens
 
 ```
-Size scale:
-  --icon-xs:    12px    Badge icons, inline status indicators
-  --icon-sm:    14px    Table cell actions, compact UI
-  --icon-md:    16px    Standard UI icons, button icons
-  --icon-lg:    20px    Navigation, section headers
-  --icon-xl:    24px    Empty states, feature icons
-  --icon-2xl:   32px    Hero elements, KPI icons
-  --icon-3xl:   48px    Dashboard welcome, major empty states
-
-Weight scale:
-  Regular:  Default UI icons (clean, minimal)
-  Bold:     Active states, navigation, emphasis
-  Fill:     Toggle states (filled = active)
-
-Rendering:
-  <svg> elements rendered via React component <Icon name="activity" size={16} weight="bold" />
-  Loaded as SVG spritesheet for zero network overhead after initial load
-  Sprite injected into DOM at app mount for instant rendering
-  Each icon is ~200-400 bytes as optimized SVG path data
-```
-
-#### 1.6.2 Semantic Icon Mapping
-
-```
-Navigation:
-  Dashboard:     <Icon name="squares-four" />
-  Investigation: <Icon name="magnifying-glass" />
-  Timeline:      <Icon name="clock-counter-clockwise" />
-  Graph:         <Icon name="graph" />
-  Sessions:      <Icon name="cpu" />
-  Memory:        <Icon name="database" />
-  Tasks:         <Icon name="check-square" />
-  Approvals:     <Icon name="shield-check" />
-  Billing:       <Icon name="currency-circle-dollar" />
-  Settings:      <Icon name="gear" />
-  Admin:         <Icon name="users" />
-
-Status:
-  Running:       <Icon name="play-circle" weight="fill" />
-  Paused:        <Icon name="pause-circle" weight="fill" />
-  Completed:     <Icon name="check-circle" weight="fill" />
-  Failed:        <Icon name="x-circle" weight="fill" />
-  Idle:          <Icon name="circle" />
-  Thinking:      <Icon name="brain" weight="fill" /> (pulsing animation)
-  Warning:       <Icon name="warning" weight="fill" />
-  Error:         <Icon name="warning-circle" weight="fill" />
-
-Actions:
-  Create:        <Icon name="plus" />
-  Edit:          <Icon name="pencil" />
-  Delete:        <Icon name="trash" />
-  Search:        <Icon name="magnifying-glass" />
-  Filter:        <Icon name="funnel" />
-  Sort:          <Icon name="sort-ascending" />
-  Refresh:       <Icon name="arrows-clockwise" />
-  Export:        <Icon name="export" />
-  Share:         <Icon name="share-network" />
-  Copy:          <Icon name="copy" />
-  Expand:        <Icon name="arrows-out" />
-  Collapse:      <Icon name="arrows-in" />
-  Pin:           <Icon name="push-pin" />
-  Close:         <Icon name="x" />
-  Menu:          <Icon name="list" />
-  More:          <Icon name="dots-three-vertical" />
-  Settings:      <Icon name="gear" />
-  Link:          <Icon name="link" />
-  External:      <Icon name="arrow-square-out" />
-  Download:      <Icon name="download" />
-  Upload:        <Icon name="upload" />
-  Lock:          <Icon name="lock" />
-  Unlock:        <Icon name="lock-open" />
-  Eye:           <Icon name="eye" />
-  EyeOff:        <Icon name="eye-slash" />
-  Bell:          <Icon name="bell" />
-  Clock:         <Icon name="clock" />
-  Calendar:      <Icon name="calendar" />
-  Tag:           <Icon name="tag" />
-  Bookmark:      <Icon name="bookmark" />
-  Star:          <Icon name="star" />
-  Heart:         <Icon name="heart" />
-  ThumbsUp:      <Icon name="thumbs-up" />
-  ThumbsDown:    <Icon name="thumbs-down" />
-  Flag:          <Icon name="flag" />
-  Target:        <Icon name="target" />
-  Lightning:     <Icon name="lightning" />
-  Fire:          <Icon name="fire" />
-  Shield:        <Icon name="shield" />
-  Key:           <Icon name="key" />
-  Fingerprint:   <Icon name="fingerprint" />
-  Globe:         <Icon name="globe" />
-  Server:        <Icon name="hard-drives" />
-  Terminal:      <Icon name="terminal-window" />
-  Code:          <Icon name="code" />
-  Bug:           <Icon name="bug" />
-  Chat:          <Icon name="chat" />
-```
-
-### 1.7 Motion Design Tokens
-
-#### 1.7.1 Duration Scale
-
-```
---duration-instant:    0ms      No animation (accessibility: prefers-reduced-motion)
---duration-micro:      80ms     Button press, checkbox toggle, ripple start
---duration-quick:      150ms    Hover transitions, tooltip appear, focus ring
---duration-standard:   250ms    Page transitions, panel open, modal appear
---duration-slow:       400ms    Complex animations, multi-step sequences
---duration-deliberate: 600ms    Deliberate reveals, onboarding, celebration
---duration-glacial:    1000ms   Background ambient animations, idle states
+Token Name               Value     Usage
+───────────────────────  ────────  ────────────────────────────────────────────
+--duration-instant        0ms      Accessibility: prefers-reduced-motion override.
+--duration-micro          80ms     Button press feedback. Checkbox toggle.
+--duration-quick          150ms    Hover transitions. Tooltip appear. Focus ring.
+--duration-standard       250ms    Page transitions. Panel open. Dropdown expand.
+--duration-slow           400ms    Complex animations. Modal open. Graph zoom.
+--duration-deliberate     600ms    Deliberate reveals. Onboarding. Celebration.
+--duration-glacial       1000ms    Background ambient. Idle animations. Pulsing.
+--duration-skeleton      1500ms    Skeleton loading shimmer cycle.
 ```
 
 #### 1.7.2 Easing Curves
 
-```
-All easings defined as cubic-bezier() for precise control.
+All curves defined as cubic-bezier() for precise control. No ease-in/ease-out/ease keywords — always explicit.
 
---ease-out-quint:    cubic-bezier(0.22, 1, 0.36, 1)      Deceleration — entrances
---ease-in-quint:     cubic-bezier(0.64, 0, 0.78, 0)      Acceleration — exits
---ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1)      Symmetric — toggle states
---ease-out-expo:     cubic-bezier(0.16, 1, 0.3, 1)       Strong deceleration — modals, drawers
---ease-spring:       cubic-bezier(0.34, 1.56, 0.64, 1)   Overshoot spring — celebration, feedback
---ease-anticipate:   cubic-bezier(0.68, -0.2, 0.32, 1.2) Pull-back then go — drag release
---ease-linear:       cubic-bezier(0, 0, 1, 1)            Constant velocity — infinite animations
+```
+Token Name            cubic-bezier()              Character
+────────────────────  ──────────────────────────  ─────────────────────────────
+--ease-out-quint      (0.22, 1, 0.36, 1)         Smooth deceleration. Entrances, reveals.
+--ease-in-quint       (0.64, 0, 0.78, 0)         Smooth acceleration. Exits, dismissals.
+--ease-in-out-quint   (0.83, 0, 0.17, 1)         Symmetric. Toggle states, continuous motion.
+--ease-out-expo       (0.16, 1, 0.3, 1)          Strong decel. Modals, drawers, panels.
+--ease-in-expo        (0.7, 0, 0.84, 0)          Strong accel. Fast exits.
+--ease-spring         (0.34, 1.56, 0.64, 1)      Overshoot. Celebration, attention, bounce.
+--ease-anticipate     (0.68, -0.2, 0.32, 1.2)    Pull-back. Drag release. Physical.
+--ease-linear         (0, 0, 1, 1)                Constant velocity. Infinite loops only.
 ```
 
 #### 1.7.3 Transition Shorthands
 
 ```
---transition-color:     color 150ms var(--ease-out-quint),
-                        background-color 150ms var(--ease-out-quint),
-                        border-color 150ms var(--ease-out-quint),
-                        box-shadow 150ms var(--ease-out-quint);
-                        /* Standard hover/focus transitions */
+Token Name                 CSS Value
+─────────────────────────  ──────────────────────────────────────────────────
+--transition-color         color 150ms var(--ease-out-quint),
+                           background-color 150ms var(--ease-out-quint),
+                           border-color 150ms var(--ease-out-quint),
+                           box-shadow 150ms var(--ease-out-quint)
+                           /* Standard hover/focus transitions */
 
---transition-transform: transform 250ms var(--ease-out-expo),
-                        opacity 250ms var(--ease-out-expo);
-                        /* Element appear/disappear */
+--transition-transform     transform 250ms var(--ease-out-expo),
+                           opacity 250ms var(--ease-out-expo)
+                           /* Element appear/disappear */
 
---transition-page:      opacity 250ms var(--ease-out-quint),
-                        transform 250ms var(--ease-out-quint);
-                        /* Page/section transitions */
+--transition-page          opacity 250ms var(--ease-out-quint),
+                           transform 250ms var(--ease-out-quint)
+                           /* Page/section transitions */
 
---transition-modal:     opacity 250ms var(--ease-out-expo),
-                        transform 400ms var(--ease-out-expo);
-                        /* Modal open/close */
+--transition-modal         opacity 250ms var(--ease-out-expo),
+                           transform 400ms var(--ease-out-expo)
+                           /* Modal open/close */
 
---transition-panel:     transform 400ms var(--ease-out-expo),
-                        opacity 250ms var(--ease-out-expo);
-                        /* Panel/drawer slide */
+--transition-panel         transform 400ms var(--ease-out-expo),
+                           opacity 250ms var(--ease-out-expo)
+                           /* Panel/drawer slide */
+
+--transition-fast          opacity 100ms var(--ease-out-quint)
+                           /* Instant-feel micro feedback */
+
+--transition-loading       background-position 1.5s var(--ease-linear) infinite
+                           /* Skeleton shimmer animation */
+
+--transition-chart-draw    stroke-dashoffset 800ms var(--ease-out-quint)
+                           /* SVG chart draw-on-load animation */
+
+--transition-chart-update  d 400ms var(--ease-out-quint)
+                           /* Chart data morph animation */
+
+--transition-node-drift    transform 2s var(--ease-linear)
+                           /* Graph node organic drift */
 ```
 
-### 1.8 Border Radius Scale
+#### 1.7.4 Performance Constraints
+
+All animations must respect the following budget:
+- Maximum 10 simultaneous CSS animations at any time
+- Maximum 50 animating DOM elements
+- Canvas (graph) renders at 60fps with frame-skipping below 30fps
+- Heavy animations (force simulation) run in Web Workers
+- `will-change` applied to frequently animated elements, removed after animation ends
+- `contain: layout style paint` on animated containers
+- `transform: translateZ(0)` for GPU compositing on problematic elements
+- PerformanceObserver monitors long tasks (>50ms). If sustained >10 long tasks in 2 seconds, degrade to reduced motion automatically.
+- View Transitions API (when available) for page-level transitions instead of JS-driven animations.
+
+### 1.8 Icon System
+
+#### 1.8.1 Library
+
+All icons sourced from Phosphor Icons (MIT licensed). Rendered as inline SVG with `currentColor` for automatic theme inheritance. No icon font. No network requests (SVG sprite inlined at build time).
+
+Sizes: `--icon-xs: 12px`, `--icon-sm: 14px`, `--icon-md: 16px`, `--icon-lg: 20px`, `--icon-xl: 24px`, `--icon-2xl: 32px`, `--icon-3xl: 48px`.
+
+Weights: `regular` (default), `bold` (active/selected states), `fill` (toggle states — filled = active, regular = inactive), `duotone` (featured/hero elements only).
+
+#### 1.8.2 Complete Icon-to-Action Mapping
 
 ```
---radius-none:      0        Buttons in button groups, table edges
---radius-sm:        3px      Inline code, badges, tags, keycaps
---radius-md:        6px      Inputs, buttons, cards, dropdowns
---radius-lg:        10px     Modals, panels, large cards
---radius-xl:        16px     Hero cards, feature panels
---radius-full:      9999px   Pills, avatars, round buttons, status dots
+Navigation:
+  Dashboard:         squares-four  (weight: bold when active)
+  Investigation:     magnifying-glass
+  Timeline:          clock-counter-clockwise
+  Graph:             graph
+  Sessions:          cpu
+  Memory:            database
+  Tasks:             check-square
+  Approvals:         shield-check
+  Deliberation:      scales
+  Billing:           currency-circle-dollar
+  Health:            heartbeat
+  Admin:             users
+  Settings:          gear-six
+
+Status (always weight: fill for non-idle states):
+  Running/Active:    play-circle
+  Paused:            pause-circle
+  Completed:         check-circle
+  Failed:            x-circle
+  Idle:              circle (regular weight)
+  Thinking:          brain (fill, with pulse animation)
+  Warning:           warning
+  Error:             warning-circle
+  Stalled:           clock (fill, with pulse animation)
+
+Actions:
+  Create/Add:        plus
+  Edit:              pencil-simple
+  Delete:            trash
+  Search:            magnifying-glass
+  Filter:            funnel
+  Sort Ascending:    sort-ascending
+  Sort Descending:   sort-descending
+  Refresh:           arrows-clockwise
+  Export:            export
+  Share:             share-network
+  Copy:              copy
+  Expand:            arrows-out
+  Collapse:          arrows-in
+  Pin:               push-pin
+  Close/Dismiss:     x
+  Menu/More:         dots-three-vertical
+  Settings/Gear:     gear-six
+  Link:              link
+  External Link:     arrow-square-out
+  Download:          download-simple
+  Upload:            upload-simple
+  Lock:              lock
+  Unlock:            lock-open
+  Eye (visible):     eye
+  Eye (hidden):      eye-slash
+  Notification:      bell
+  Clock/Time:        clock
+  Calendar:          calendar
+  Tag:               tag
+  Bookmark:          bookmark-simple
+  Star/Favorite:     star
+  Flag:              flag
+  Target:            target
+  Lightning:         lightning
+  Fire:              fire
+  Shield:            shield
+  Key:               key
+  Fingerprint:       fingerprint
+  Globe:             globe
+  Server:            hard-drives
+  Terminal:          terminal-window
+  Code:              code
+  Bug:               bug
+  Chat:              chat-centered-text
+  Brain/AI:          brain
+  Database:          database
+  Chart/Graph:       chart-line
+  Table:             table
+  List:              list
+  Grid:              squares-four
+  User:              user
+  Users/Team:        users
+  Organization:      buildings
+  Home:              house
+  Help:              question
+  Info:              info
+  Check/Confirm:     check
+  Deny/Reject:       x
+  Approve:           thumbs-up
+  Disapprove:        thumbs-down
+  Save:              floppy-disk
+  Print:             printer
+  Email:             envelope
+  Phone:             phone
+  Location:          map-pin
+  Document:          file-text
+  Image:             image
+  Video:             video-camera
+  Audio:             microphone
+  Archive:           archive
+  Folder:            folder
+  File:              file
+```
+
+#### 1.8.3 Icon Component API
+
+```typescript
+interface IconProps {
+  name: IconName;              // From Phosphor icon set
+  size?: 12 | 14 | 16 | 20 | 24 | 32 | 48;  // Default: 16
+  weight?: 'regular' | 'bold' | 'fill' | 'duotone';  // Default: 'regular'
+  color?: string;              // CSS color value or var() token. Default: currentColor
+  className?: string;
+  alt?: string;                // Accessible label for decorative icons. Default: '' (decorative)
+  'aria-label'?: string;       // For interactive icons. Required if icon is a button.
+  spin?: boolean;              // Continuous rotation animation. Default: false.
+  pulse?: boolean;             // Opacity pulse animation. Default: false.
+}
 ```
 
 ### 1.9 Focus Ring System
 
-```
-Focus rings are mandatory for keyboard navigation (WCAG 2.4.7).
+Every interactive element MUST have a visible focus indicator when focused via keyboard. Mouse clicks should NOT show focus rings (use `:focus-visible`). The focus ring is consistent across all components.
 
-Default focus ring:
+```css
+/* Default focus ring */
+:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-accent-primary);
-  /* Offset double-ring: inner ring matches background to sit above adjacent elements */
+  box-shadow: 
+    0 0 0 2px var(--color-bg-canvas),
+    0 0 0 4px var(--color-accent-primary);
+  /* Outer ring: 4px accent color. Inner ring: 2px background color. */
+  /* Creates a 2px gap between element edge and focus ring. */
+  /* Total ring width: 4px. Total visual offset from element: 2px. */
+}
 
-Focus-visible only (mouse users don't see rings unless tabbing):
-  &:focus-visible { /* apply ring */ }
-  &:focus:not(:focus-visible) { box-shadow: none; }
+/* Error focus ring */
+:focus-visible.error {
+  box-shadow:
+    0 0 0 2px var(--color-bg-canvas),
+    0 0 0 4px var(--color-accent-error);
+}
 
-Error focus:
-  box-shadow: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-accent-error);
-
-Focus ring animation:
+/* Focus ring transition */
+:focus-visible {
   transition: box-shadow 150ms var(--ease-out-quint);
-  /* Smooth appearance/disappearance */
+}
+
+/* Input focus ring (slightly different — ring is inside the border) */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
+}
+
+/* Never show focus ring on mouse click */
+:focus:not(:focus-visible) {
+  box-shadow: none;
+  outline: none;
+}
 ```
 
 ---
@@ -565,2291 +694,6400 @@ Focus ring animation:
 
 ### 2.1 Shell Structure
 
-The application shell is a persistent frame that contains all views. It never unmounts — views swap within the content area via client-side routing.
+The application shell is a single-page frame that persists across all views. Only the content area changes via client-side routing. The shell consists of four fixed regions and one dynamic region:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ TOP BAR (48px)                                                       │
-│ ┌──────┐ ┌──────────────────────────────┐ ┌──────────┐ ┌─────────┐ │
-│ │ Logo │ │ Command Palette (Ctrl+K)      │ │ Notific. │ │ Profile │ │
-│ └──────┘ └──────────────────────────────┘ └──────────┘ └─────────┘ │
-├────┬────────────────────────────────────────────────────────────────┤
-│    │                                                                 │
-│ S  │                          CONTENT AREA                           │
-│ I  │                                                                 │
-│ D  │    Views render here via React Router.                           │
-│ E  │    Scrollable independently.                                    │
-│ B  │    Transitions between views use crossfade + slide.             │
-│ A  │                                                                 │
-│ R  │                                                                 │
-│    │                                                                 │
-├────┴────────────────────────────────────────────────────────────────┤
-│ STATUS BAR (28px)                                                    │
-│ ┌──────────┐ ┌──────────────┐ ┌───────────────┐ ┌─────────────────┐ │
-│ │ Sessions │ │ API Status ● │ │ Budget: $0.42 │ │ v0.7.0 · online │ │
-│ └──────────┘ └──────────────┘ └───────────────┘ └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TOP BAR — 48px — position: fixed, top: 0, z-index: 100, full-width         │
+│ ┌──────┐ ┌──────────────────────────────┐ ┌──────────┐ ┌──────────┐       │
+│ │ Logo │ │ Command Palette (Ctrl+K)      │ │ Notific. │ │ Profile  │       │
+│ └──────┘ └──────────────────────────────┘ └──────────┘ └──────────┘       │
+├────┬────────────────────────────────────────────────────────────────────────┤
+│    │                                                                        │
+│ S  │ CONTENT AREA — flex: 1, overflow-y: auto, overflow-x: hidden          │
+│ I  │ padding: 0 (views manage their own padding)                            │
+│ D  │ background: var(--color-bg-canvas)                                      │
+│ E  │ Views render here via React Router <Outlet />                          │
+│ B  │ Transitions: crossfade + directional slide (250ms)                     │
+│ A  │                                                                        │
+│ R  │                                                                        │
+│    │                                                                        │
+├────┴────────────────────────────────────────────────────────────────────────┤
+│ STATUS BAR — 28px — position: fixed, bottom: 0, z-index: 100, full-width   │
+│ ┌──────────┐ ┌──────────────┐ ┌───────────────┐ ┌────────────────────────┐ │
+│ │ Sessions │ │ API Status ● │ │ Budget: $0.42 │ │ v0.7.0 · online        │ │
+│ └──────────┘ └──────────────┘ └───────────────┘ └────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Grid specification:
+  display: grid;
+  grid-template-rows: 48px 1fr 28px;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  /* sidebar-width: 240px expanded, 56px collapsed */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+
+The shell grid tracks are:
+  Row 1 (48px top bar): grid-row: 1; grid-column: 1 / -1;  (spans both columns)
+  Row 2 (sidebar):     grid-row: 2; grid-column: 1;         (240px / 56px)
+  Row 2 (content):     grid-row: 2; grid-column: 2;         (remaining space)
+  Row 3 (status bar):  grid-row: 3; grid-column: 1 / -1;   (spans both columns)
 ```
 
-### 2.2 Top Bar (48px)
+### 2.2 Top Bar — Exact Specification
 
 ```
-Fixed position, full width, z-index: 100.
-
-Left section (flex, gap: 12px):
-  Logo: 28×28px SVG, Consensus "C" monogram in accent color.
-        Click: navigate to dashboard.
-        Has subtle rotation animation on hover (15deg over 250ms ease-out-expo).
-        Has glow pulse animation on system events (3s cycle, subtle).
-
-  Breadcrumb (visible when nested >1 level deep):
-    Home > Investigation > Session #a3f
-    Each segment clickable, last segment is current (inactive).
-    Chevron separator uses Phosphor CaretRight 10px icon.
-    Animated: new segments slide in from left (250ms ease-out-quint).
-
-  Command Palette trigger (Ctrl+K button):
-    Renders as input-like pill: "Search or run a command..." in muted text.
-    Width: 320px on desktop, 200px on tablet, hidden on mobile (replaced by search icon).
-    Click or Ctrl+K opens Command Palette overlay (§3.3).
-
-Center section (optional, context-dependent):
-  View title: "Investigation — Project Chimera" in heading-2 size.
-  Only visible on focused views (Investigation, Timeline, Graph).
-
-Right section (flex, gap: 8px):
-  Notification bell:
-    Icon with badge count (red pill, max "99+"). 
-    Click opens notification drawer from right.
-    Badge animates: scale bounce (120% → 100%, 400ms ease-spring) on new notification.
-    Empty state: bell icon with no badge.
-
-  Profile avatar:
-    32×32px circle, user initials or Gravatar.
-    Click opens dropdown: Profile, API Keys, Settings, Sign Out.
-    Dropdown animates: scale(0.95)→scale(1) + fade in, 150ms ease-out-quint.
-    Dropdown dismisses: click outside, Escape key, or selecting an item.
+Element                                Position         Size        Background        Border
+────────────────────────────────────  ───────────────  ──────────  ────────────────  ──────────────────────
+Top Bar Container                      fixed, top:0     100% × 48px bg-surface        border-bottom: 1px border-default
+Logo (Consensus monogram)              left: 16px       28 × 28px   transparent        none
+  On hover: subtle rotation (15deg, 250ms ease-out-expo) + glow pulse
+  On click: navigate to /dashboard
+Command Palette Trigger                left: 60px        320px × 32px bg-input          border: 1px border-default
+  Shape: pill (border-radius: 16px)
+  Text: "Search or run a command..." in --text-placeholder, --text-body
+  Icon: magnifying-glass, 16px, text-tertiary, left: 12px
+  Focus: border-color accent-primary, box-shadow accent glow
+  Click: opens Command Palette overlay
+  Tablet (<1024px): 200px width
+  Mobile (<768px): hidden, replaced by search icon button at right: 60px
+Notification Bell                     right: 56px       32 × 32px   transparent        none
+  Badge count: absolute, top: -2px, right: -2px
+  Badge: min-width 18px, height 18px, border-radius 9px, bg-error, text: white, caption
+  On new notification: badge scale-bounce animation (120% → 100%, 400ms ease-spring)
+  Empty: no badge, bell icon only
+  Click: opens notification drawer
+Profile Avatar                        right: 16px       32 × 32px   transparent        none
+  Shape: circle (radius-full)
+  Content: user initials or Gravatar
+  Click: opens dropdown (Profile, API Keys, Settings, Sign Out)
+  Dropdown: 200px wide, anchored right, slide-down + fade (150ms ease-out-quint)
+  Dropdown close: click outside, Escape, or select item
 ```
 
-### 2.3 Sidebar (240px default, collapsible to 56px)
+### 2.3 Sidebar — Exact Specification
 
 ```
-Fixed position, full height (minus top bar), z-index: 50.
-Background: var(--color-bg-surface) with subtle gradient to canvas.
-Border-right: 1px solid var(--color-border-default).
+Position: fixed (within grid), top: 48px, bottom: 28px, left: 0
+Width: 240px expanded, 56px collapsed
+Transition: width 250ms ease-out-expo
+Background: bg-surface, border-right: 1px border-default
+Z-index: 50
+Overflow-y: auto (scrollable if nav items exceed viewport)
+Overflow-x: hidden
+Custom scrollbar: 4px wide, thumb: border-hover, track: transparent
 
-Expand/Collapse:
-  Default: 240px wide, labels visible.
-  Collapsed: 56px wide, only icons visible, labels hidden (fade out).
-  Toggle: button at bottom of sidebar (◀ / ▶ icon) or Ctrl+B shortcut.
-  Collapse animation: width transition 250ms ease-out-expo.
-  On collapse: labels fade out (opacity 1→0, 150ms), icons center themselves.
-  On expand: labels fade in (opacity 0→1, 150ms delay 100ms), icons slide left.
+Section structure (vertical stack):
+  1. MAIN section (always visible, top of sidebar)
+  2. OPERATIONS section
+  3. SYSTEM section
+  4. Spacer (flex-grow: 1 — pushes bottom items to base)
+  5. Collapse toggle button
+  6. Help button
 
-  Remember state: collapsed preference stored in localStorage, survives refresh.
-  Auto-collapse: on screens < 1024px, sidebar auto-collapses. Expand via hamburger.
+Navigation items (exact specification):
+  Height: 36px
+  Margin: 2px 8px
+  Padding: 0 12px
+  Border-radius: radius-md
+  Display: flex, align-items: center, gap: 10px
+  Cursor: pointer
+  Color: text-secondary
+  Font: text-body, weight: 400
+  
+  Expanded state (default):
+    Icon: 20px, left: 12px
+    Label: visible, text-body, truncate
+    Shortcut badge: right: 12px, text-caption, text-tertiary, mono
+  
+  Collapsed state:
+    Icon: 20px, centered (margin: auto)
+    Label: hidden (display: none)
+    Shortcut badge: hidden
+    Tooltip: appears on hover (right side of icon) showing full item name + shortcut
+  
+  States:
+    Default: bg transparent, text text-secondary
+    Hover: bg bg-hover, text text-primary, transition 150ms var(--transition-color)
+    Active: bg accent-primary-muted, text text-primary, font-weight 600
+      Border-left: 3px solid accent-primary (only in expanded mode)
+      Icon weight: bold (vs regular for inactive)
+    Disabled: text text-disabled, cursor default, no hover
 
-Navigation Sections (vertical stack, scrollable):
-
-  SECTION: MAIN (always visible)
-    Dashboard         ⌘1    squares-four icon
-    Investigation    ⌘2    magnifying-glass icon
-    Timeline         ⌘3    clock-counter-clockwise icon
-    Graph            ⌘4    graph icon
-
-  SECTION: OPERATIONS
-    Sessions         ⌘5    cpu icon
-    Memory Browser   ⌘6    database icon
-    Task Queue       ⌘7    check-square icon
-    Approvals        ⌘8    shield-check icon
-      └ badge: pending approval count (red pill, animation on increment)
-
-  SECTION: SYSTEM
-    Billing          ⌘9    currency-circle-dollar icon
-    Health           ⌘0    heart icon
-    Admin            ⌘-    users icon
-    Settings         ⌘=    gear icon
-
-  BOTTOM SECTION:
-    Collapse toggle  ⌘\   arrows-left-right icon
-    Help             ⌘/   question icon
-
-Navigation Item States:
-  Default:
-    color: var(--color-text-secondary)
-    background: transparent
-    border-radius: var(--radius-md)
-    padding: 8px 12px
-    margin: 2px 8px
-    cursor: pointer
-
-  Hover:
-    color: var(--color-text-primary)
-    background: var(--color-bg-hover)
-    transition: var(--transition-color)
-
-  Active (current route):
-    color: var(--color-text-primary)
-    background: var(--color-accent-primary-muted)
-    border-left: 3px solid var(--color-accent-primary) (only in expanded mode)
-    font-weight: 600
-    icon weight: bold (vs regular for inactive)
-
-  Badge (approvals, tasks, notifications):
-    Position: absolute right 12px from item edge
-    Background: var(--color-accent-error)
-    Color: white
-    Font: caption size, tabular numbers
-    Min-width: 18px, height: 18px, border-radius: 9px
-    Animates in: scale(0) → scale(1.2) → scale(1), 300ms ease-spring
-    Animates change: scale(1) → scale(1.3) → scale(1), 250ms ease-spring
-
-Section Labels (only visible in expanded mode):
-  Font: caption size, text-transform: uppercase, letter-spacing: 0.05em
-  Color: var(--color-text-tertiary)
+Section headers:
+  Visible only in expanded mode
+  Font: text-caption, text-transform: uppercase, letter-spacing: 0.05em
+  Color: text-tertiary
   Padding: 16px 12px 4px
-  No interactivity — purely organizational
+  Non-interactive
 
-Divider between sections:
-  margin: 8px 12px
-  border-top: 1px solid var(--color-border-default)
+Dividers between sections:
+  Margin: 8px 12px
+  Border-top: 1px border-subtle
 
-Scroll behavior:
-  Items above the fold are always visible (MAIN + OPERATIONS sections).
-  SYSTEM section may scroll if viewport is short.
-  Custom scrollbar: 4px wide, thumb is var(--color-border-hover), track is transparent.
+Collapse toggle button:
+  Position: bottom of sidebar
+  Height: 40px
+  Margin: 4px 8px 8px
+  Icon: arrows-left-right (expanded), arrows-left-right (collapsed)
+    Icon rotates 180deg on toggle
+  Label: "Collapse" (expanded), hidden (collapsed)
+  Click: toggle sidebar width
+  Keyboard: Ctrl+B
+
+Sidebar responsive:
+  Desktop (>=1024px): expanded by default (240px)
+  Tablet (768-1023px): collapsed by default (56px), expandable
+  Mobile (<768px): hidden. Hamburger menu in top bar opens overlay.
+    Overlay: full-width, slides in from left (300ms ease-out-expo)
+    Backdrop: rgba(0,0,0,0.5), click to close
+    Close: Escape or swipe left
 ```
 
-### 2.4 Content Area
+### 2.4 Content Area — Exact Specification
 
 ```
-Occupies remaining space: left of sidebar, below top bar, above status bar.
-Scrollable: overflow-y: auto, overflow-x: hidden.
-Scrollbar: 6px wide, thumb is var(--color-border-hover) with 4px border-radius.
+Position: grid-row: 2, grid-column: 2
+Size: fills remaining space after sidebar
+Scroll: overflow-y: auto, overflow-x: hidden
+Scrollbar: 6px wide, thumb: border-hover, track: transparent, border-radius: 3px
+Background: bg-canvas
+Padding: 0 (each view manages own padding)
 
-Padding: 0 (views manage their own padding).
-Background: var(--color-bg-canvas).
-
-Route transition animation:
-  Exit: current view fades out (opacity 1→0, 150ms) while sliding left (translateX 0→-20px).
-  Enter: new view fades in (opacity 0→1, 150ms, delay 50ms) while sliding left (translateX 20px→0).
-  Simultaneous, overlapping by 50ms for seamless crossfade effect.
-  Implementation: CSS transition triggered by route change, using React Router's location key.
-
-Scroll restoration:
-  Scroll position is saved per-route in session state.
-  On back/forward navigation, scroll position is restored.
-  New navigations always start at top.
+View default padding:
+  Dashboard:         padding: 32px 32px (desktop), 24px 24px (tablet), 16px 16px (mobile)
+  Investigation:     padding: 0 (fills entire area for split panes)
+  Timeline:          padding: 0 (fills area for timeline canvas)
+  Graph:             padding: 0 (fills area for WebGL canvas)
+  Standard pages:    padding: 32px 32px 80px (desktop), 24px 24px 64px (tablet), 16px 16px 48px (mobile)
 
 Maximum content width:
-  1280px for focused views (Investigation, Session detail).
-  100% for data-dense views (Table views, Graph, Timeline).
-  Centered when narrower than viewport.
+  Dashboard: 1440px, centered (margin: 0 auto)
+  Table views: 100% width
+  Investigation: 100% width (split panes)
+  Graph: 100% width
+
+Route transitions:
+  Exit: current view fades (opacity 1→0, 150ms ease-in-quint) + slides left (translateX 0→-20px)
+  Enter: new view fades (opacity 0→1, 150ms ease-out-quint, delayed 50ms) + slides from right (translateX 20px→0)
+  Timing: exit starts immediately, enter starts at 50ms offset. Total: 250ms.
+  Overlap creates smooth crossfade.
+  Implementation: CSS transition triggered by React Router location change.
+  Scroll restoration: saved per-route in sessionStorage. Restored on back/forward.
+
+Back navigation (history back):
+  Exit slides right (translateX 0→20px). Enter slides from left (translateX -20px→0).
+  Same durations. Creates consistent directional model.
 ```
 
-### 2.5 Status Bar (28px)
+### 2.5 Status Bar — Exact Specification
 
 ```
-Fixed position, full width, bottom of viewport, z-index: 100.
-Background: var(--color-bg-surface)
-Border-top: 1px solid var(--color-border-default)
-Font: caption size, color: var(--color-text-tertiary)
-Padding: 4px 16px
-Display: flex, justify-content: space-between
+Position: fixed, bottom: 0, left: 0, right: 0
+Height: 28px
+Background: bg-surface
+Border-top: 1px border-default
+Z-index: 100
+Display: flex, justify-content: space-between, align-items: center
+Padding: 0 16px
+Font: text-caption, color: text-tertiary
+User-select: none
 
-Left cluster (flex, gap: 16px):
-  Active Sessions:  "12 sessions" with live count updated via WebSocket
-  API Status: ● green dot + "Connected" (green) / "Degraded" (amber) / "Disconnected" (red)
-    Dot pulses subtly (opacity 1→0.6→1, 2s cycle) when connected
-    Dot is static when degraded
-    Dot flashes (opacity 1→0→1, 500ms cycle) when disconnected
+Left cluster (display: flex, gap: 16px, align-items: center):
+  Active Sessions:
+    Format: "12 sessions" (count updates via WebSocket, real-time)
+    Icon: cpu 12px, left of text
+    Click: navigate to /sessions
+    Hover: text-secondary
 
-Center cluster:
-  Last event: "Session #a3f completed iteration 42 · 8s ago" 
-  Updates via WebSocket in real-time
-  Fades in new text, old text fades out (crossfade 300ms)
+  Active Tasks:
+    Format: "3 tasks pending"
+    Icon: check-square 12px
+    Click: navigate to /tasks
 
-Right cluster (flex, gap: 16px):
-  Budget: "Budget: $0.42 / $10.00" with progress bar (40px wide, 4px tall)
-    Bar fill animates smoothly (CSS transition on width, 1s ease-out-quint)
-    Bar color: green (<50%), amber (50-80%), red (>80%)
-  Version: "Consensus v0.7.0"
-  Deployment: "us-east-1 · online" or "local · dev"
+Center cluster (text-align: center, flex: 1):
+  Last event:
+    Format: "[icon] Session #a3f completed iteration 42 · 8s ago"
+    Updates via WebSocket in real-time
+    Transition: new text fades in, old text fades out (crossfade 300ms)
+    Truncates if too long (max 60 chars), tooltip shows full text
 
-Interactive elements:
-  Click Budget → navigates to Billing page
-  Click API Status → opens System Health panel
-  Click Active Sessions → navigates to Sessions page
-```
+Right cluster (display: flex, gap: 16px, align-items: center):
+  API Status:
+    Format: "● Connected" (green), "● Degraded" (amber), "● Disconnected" (red)
+    Dot: 8px circle, connected=pulsing green (2s cycle), degraded=static amber, disconnected=flashing red (0.5s)
+    Click: navigate to /health
+    
+  Budget:
+    Format: "$0.42 / $10.00"
+    Progress bar: inline, 40px × 4px, bg-input, fill transitions width 1s ease-out-quint
+    Fill color: green (<50%), amber (50-80%), red (>80%)
+    Click: navigate to /billing
 
-### 2.6 Responsive Breakpoint System
-
-```
-Breakpoints (min-width):
-  mobile:     0px       Single column, collapsed sidebar, simplified views
-  tablet:     768px     Two columns possible, expandable sidebar
-  desktop:    1024px    Full layout, split panes, sidebar expanded by default
-  wide:       1440px    Three-column layouts, maximum information density
-  ultrawide:  1920px    Extended graph views, multiple panels visible simultaneously
-
-Sidebar behavior:
-  mobile:     Hidden. Hamburger menu in top bar. Overlay drawer when open.
-  tablet:     Collapsed by default (56px icons). Can expand.
-  desktop:    Expanded by default (240px). Can collapse.
-  wide+:      Always expanded.
-
-Content padding:
-  mobile:     16px horizontal
-  tablet:     24px horizontal
-  desktop:    32px horizontal
-  wide+:      40px horizontal
-
-Split panes:
-  mobile:     Stacked vertically (no split)
-  tablet:     Split available, 50/50 default, no resizer (fixed 50/50)
-  desktop:    Resizable split panes, minimum 280px per pane
-  wide+:      Three-panel available (THINK | SAYS | details)
+  Version:
+    Format: "v0.7.0"
+    
+  Deployment:
+    Format: "local · dev" or "us-east-1 · online"
 ```
 
 ---
 
-## 3. Global Navigation & Shell
+## 3. Global Navigation & Overlays
 
-### 3.1 Command Palette (Ctrl+K)
+### 3.1 Command Palette
+
+The Command Palette is the power-user navigation hub. It provides fuzzy search across pages, sessions, and commands.
+
+#### 3.1.1 Trigger
 
 ```
-The command palette is the primary navigation mechanism for power users.
-It is a glass-morphism overlay triggered by Ctrl+K or clicking the top bar trigger.
+Method 1: Click the search pill in the top bar
+Method 2: Press Ctrl+K (or Cmd+K on Mac)
+Method 3: Press Ctrl+Shift+P (opens directly to command mode)
 
-Open animation:
-  Overlay: fade in (opacity 0→1, 100ms, ease-out-quint) — very fast, nearly instant.
-  Palette: scale(0.96)→scale(1) + fade in (opacity 0→1, 150ms, ease-out-expo).
-  Input auto-focuses with cursor at end of any existing text.
-  Backdrop: rgba(0,0,0,0.5) with backdrop-filter blur(4px).
+On trigger:
+  1. Glass overlay appears (fade in, opacity 0→1, 100ms)
+  2. Palette dialog scales in (scale 0.96→1 + fade, 150ms ease-out-expo)
+  3. Input auto-focuses, cursor at end of any existing text
+  4. Recent items shown (if input empty)
+```
 
-Close animation:
-  Reverse of open: scale(1)→scale(0.96), opacity 1→0, 100ms ease-in-quint.
-  On close: return focus to element that triggered open.
-  Close triggers: Escape key, clicking backdrop, selecting an action.
+#### 3.1.2 Overlay Specification
 
-Layout:
-  Centered horizontally, positioned 20% from top of viewport.
-  Width: 560px (desktop), 90vw (mobile).
-  Max-height: 480px, scrollable if results exceed.
-  Background: var(--glass-medium)
-  Border: 1px solid rgba(255,255,255,0.1)
-  Border-radius: var(--radius-lg)
-  Shadow: var(--shadow-xl)
-  Input at top, results below.
+```
+Backdrop:
+  Background: rgba(0, 0, 0, 0.5)
+  Backdrop-filter: blur(4px)
+  Position: fixed, inset: 0
+  Z-index: 300 (--z-drawer)
+  Click: close palette
+  Escape: close palette
+
+Palette Dialog:
+  Position: fixed, top: 20%, left: 50%, transform: translateX(-50%)
+  Width: 560px (desktop), min(560px, 90vw) (responsive)
+  Max-height: 480px
+  Background: var(--glass-heavy)
+  Border: 1px solid rgba(255, 255, 255, 0.1)
+  Border-radius: 12px
+  Box-shadow: var(--shadow-xl)
+  Display: flex, flex-direction: column
+  Overflow: hidden
 
 Search Input:
   Height: 56px
-  Padding: 0 16px
-  Font: body-large, color: var(--color-text-primary)
+  Padding: 0 16px 0 44px
+  Background: transparent
+  Border: none (palette border is the boundary)
+  Border-bottom: 1px solid rgba(255, 255, 255, 0.06)
+  Font: --text-body-lg, color: --color-text-primary
   Placeholder: "Search sessions, run commands, navigate..."
-  Background: transparent (inherits glass)
-  No border — the palette edge is the boundary
-  Icon: magnifying-glass 20px in muted color, positioned left 16px
-  Loading indicator: subtle spinner (opacity 0.4) appears right side when searching, replaces when idle
+  Icon (left, 16px from edge): magnifying-glass, 20px, color: text-tertiary
+  Loading indicator (right): subtle spinner, 16px, opacity 0.4
+    Appears when search is in-flight. Replaced by empty when idle.
+  
   Debounce: 100ms before triggering search
-  Minimum characters: 1 (shows recent/recommended with empty input)
+  Min characters for search: 1 (shows recents when empty)
 
-Results format:
-  Grouped by category with subtle headers.
+Results Container:
+  Flex: 1
+  Overflow-y: auto
+  Padding: 8px 0
+  Custom scrollbar: 4px wide
 
-  Empty state (no input):
-    "Recent" header (caption, uppercase, muted)
-    5 most recent pages/sessions in recency order
-    
-    "Quick Actions" header
-    - New Session
-    - New Investigation
-    - Open Dashboard
+  Sections (in order):
+    1. PAGES — matching navigation routes
+    2. SESSIONS — matching session name/goal/ID
+    3. COMMANDS — matching action descriptions
+    (sections only appear if they have results)
+```
 
-  With input:
-    Fuzzy-matched results in categories:
-    
-    PAGES (matching route names)
-      ├─ Dashboard          ⌘1
-      ├─ Investigation      ⌘2
-      └─ Settings           ⌘=
-    
-    SESSIONS (matching session name/goal/ID)
-      ├─ #a3f "Q4 Revenue Analysis"    12m ago · thinking
-      ├─ #b2e "Phish Investigation"     2h ago  · completed
-      └─ #c1d "Network Scan"            1d ago  · failed
-    
-    COMMANDS (matching action descriptions)
-      ├─ Create Session         ⌘N
-      ├─ Pause All Sessions     
-      ├─ Export Timeline as PDF 
-      └─ Toggle Dark Mode       ⌘⇧D
+#### 3.1.3 Result Item Specification
 
-  Result item:
-    Padding: 10px 16px
-    Border-radius: var(--radius-md)
-    Display: flex, align-items: center, gap: 12px
+```
+Item:
+  Height: 44px
+  Padding: 0 16px
+  Display: flex, align-items: center, gap: 12px
+  Border-radius: 6px
+  Margin: 1px 8px
+  Cursor: pointer
 
-    Hover: background var(--color-bg-hover)
-    Selected (arrow keys): background var(--color-bg-selection)
-    
-    Left icon: entity type icon (16px, muted unless selected)
-    Title: body size, color text-primary
-    Subtitle: caption size, color text-secondary (session ID, status, timestamp)
-    Right badge: shortcut key if applicable, status badge if session
-    Chevron: visible on selected item, subtle animation on hover
+States:
+  Default: background transparent, color text-secondary
+  Hover (mouse): background bg-hover
+  Selected (keyboard arrow): background bg-selection
+    Selected item has subtle left accent: 2px solid accent-primary on left edge
+    Selected item icon weight: bold
 
-  Keyboard navigation:
-    Arrow Up/Down: move selection
-    Enter: execute selected action
-    Escape: close palette
-    Result count shown bottom-right: "3 of 12 results"
+Anatomy:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ [Icon]  Title                        Shortcut/Badge  [Chev] │
+  │ 16px    text-body, text-primary       text-caption      8px │
+  │         Subtitle                                             │
+  │         text-caption, text-secondary, truncate               │
+  └─────────────────────────────────────────────────────────────┘
 
-Commands (type ">" to filter to commands only):
-  > New Session           Create a new agent session
-  > Pause All             Pause all running sessions
-  > Resume All            Resume all paused sessions
-  > Export PDF            Export current view as PDF
-  > Export JSON           Export data as JSON
-  > Toggle Theme          Switch between dark/light mode
-  > Toggle Density        Switch between normal/dense mode
-  > Sign Out              End current session
-  > Clear Cache           Clear local data and reload
-  > About                 Version and system information
+  Icon: entity type icon, 16px, color text-secondary (text-primary when selected)
+  Title: text-body, color text-primary, truncate 1 line
+  Subtitle: text-caption, color text-secondary, truncate 1 line (optional, for sessions/commands)
+  Shortcut badge (right): text-caption, mono, text-tertiary
+    Shows keyboard shortcut (⌘1, ⌘N, etc.)
+  Status badge (right, instead of shortcut for sessions):
+    Colored pill with status text ("thinking", "completed")
+  Chevron: visible only on selected item, subtle (opacity 0.3), animates right 2px on hover
 
-Search sessions (type "#" to filter to sessions only):
-  # followed by session ID fragment or name
-  Results update with each keystroke (debounced 100ms)
-  Search queries hit the REST API: GET /api/v1/sessions?search={query}
+Session results include:
+  Title: session name (or truncated ID if no name)
+  Subtitle: "#a3f2b · thinking · 12m ago"
+  Status badge: colored pill
 
-Navigate to (default — no prefix):
-  Fuzzy match against all navigable pages, recent sessions, and available commands.
+Command results include:
+  Title: command name ("New Session", "Export PDF")
+  Subtitle: description
+  Shortcut: if applicable
+
+Page results include:
+  Title: page name ("Dashboard", "Settings")
+  Subtitle: none
+  Shortcut: "⌘1", "⌘," etc.
+```
+
+#### 3.1.4 Search Modes
+
+```
+Default mode (no prefix):
+  Fuzzy match against: page titles, session names, session IDs, command names
   Scoring: exact prefix match > word boundary match > substring match > fuzzy match
-  Results ordered by: match score descending, then recency descending
+  Order by: match score desc, then recency desc (for sessions)
+  Max results: 5 per section, 15 total
+
+Command mode (prefix: ">"):
+  Filter to commands only
+  Example: "> new" → shows "New Session", "New Investigation"
+  Matches against command name and description
+
+Session mode (prefix: "#"):
+  Filter to sessions only
+  Example: "# a3f" → shows sessions matching "a3f"
+  Matches against session ID, name, agent_name
+
+Go-to mode (prefix: "@"):
+  Quick navigation
+  Example: "@ dash" → navigates to dashboard
+  Example: "@ sett" → navigates to settings
+
+Keyboard navigation within palette:
+  Arrow Down / Ctrl+J: move selection down (loop to top from bottom)
+  Arrow Up / Ctrl+K: move selection up (loop to bottom from top)
+  Enter: execute selected action
+  Escape: close palette
+  Tab: cycle between sections (if multiple sections visible)
 ```
 
 ### 3.2 Notification System
 
-```
-Notifications appear as toasts in the top-right corner, stacked vertically.
-They are non-blocking and auto-dismiss after a configurable duration.
+#### 3.2.1 Toast Notifications
 
+```
 Container:
-  Position: fixed, top: 60px (below top bar), right: 16px
-  Z-index: 500
+  Position: fixed, top: 60px (48px topbar + 12px gap), right: 16px
+  Z-index: 500 (--z-notification)
   Width: 380px max
-  Stack direction: column-reverse (newest at bottom)
-  Gap between toasts: 8px
-  Max visible: 5 toasts (older ones fade out as new ones arrive)
+  Display: flex, flex-direction: column-reverse (newest at bottom)
+  Gap: 8px
+  Max visible: 5 toasts
 
 Toast Anatomy:
+  Minimum height: 56px
+  Max-height: 200px (scrollable if content exceeds)
   Background: var(--glass-heavy)
-  Border: 1px solid rgba(255,255,255,0.1)
-  Border-left: 3px solid (semantic color based on type)
-  Border-radius: var(--radius-md)
+  Border: 1px solid rgba(255, 255, 255, 0.1)
+  Border-left: 3px solid (semantic color, see below)
+  Border-radius: --radius-md
   Padding: 12px 16px
-  Shadow: var(--shadow-md)
+  Box-shadow: --shadow-md
   Display: flex, gap: 10px
+  Backdrop-filter: blur(12px)
 
-  Icon (left):
-    Size: 20px
-    Color: matches border-left semantic color
-    
-  Content (center, flex column):
-    Title: body-small, font-weight 600, color text-primary
-    Message: caption, color text-secondary (optional)
-    Timestamp: caption, color text-tertiary (right-aligned, absolute)
-    
-  Close button (right):
-    X icon, 14px, color text-tertiary
-    Hover: color text-primary
-    Click: dismiss immediately with slide-right + fade animation
+  Icon (left, 20px):
+    Success: check-circle, green
+    Info: info, blue
+    Warning: warning, amber
+    Error: x-circle, red
+
+  Content (center, flex-direction: column, gap: 2px):
+    Title: text-small, font-weight 600, text-primary
+    Message: text-caption, text-secondary (optional, shown if message provided)
+    Timestamp: text-caption, text-tertiary, absolute right: 12px, top: 14px
+
+  Close button (right, 16px):
+    Icon: x, 14px, text-tertiary
+    Hover: text-primary
+
+  Action buttons (bottom-right, optional):
+    Small buttons: text-caption, font-weight 600
+    Examples: "View", "Retry", "Undo", "Dismiss"
+    "Undo" available for 5s after destructive actions
 
 Toast entry animation:
-  Slide in from right (translateX 100%→0) + fade in (opacity 0→1)
+  Slide in from right: translateX(calc(100% + 16px)) → translateX(0)
+  Opacity: 0 → 1
   Duration: 300ms, ease-out-expo
-  Subsequent toasts push existing toasts up with transition (margin-bottom 250ms ease-out-quint)
-  Grouping: consecutive toasts of same type within 2s stack into a count badge
-    "3 new sessions created" instead of three separate toasts
+  Below toasts shift up: margin-bottom transition 250ms ease-out-quint
 
 Toast exit animation:
-  Slide right (translateX 0→100%) + fade out (opacity 1→0)
+  Slide right: translateX(0) → translateX(calc(100% + 16px))
+  Opacity: 1 → 0
   Duration: 200ms, ease-in-quint
-  Below toasts slide down to fill gap (margin-bottom transition 250ms ease-out-quint)
+  Below toasts shift down to fill gap
 
 Toast types:
-  Success (green border):
-    Session created, Task completed, Export finished
-    Icon: check-circle
-    Auto-dismiss: 4s
-    
-  Info (blue border):
-    Agent started thinking, New iteration, Model switched
-    Icon: info
-    Auto-dismiss: 3s
-    
-  Warning (amber border):
-    Approaching budget limit, Session stalled, Slow API response
-    Icon: warning
-    Auto-dismiss: 6s (or until acknowledged)
-    
-  Error (red border):
-    Session failed, API key invalid, Database connection lost
-    Icon: x-circle
-    Auto-dismiss: never (requires manual dismiss)
-    Includes action button: "View Details" → navigates to relevant page
+  Success: green border, auto-dismiss 4s
+    Examples: "Session created", "Task completed", "Export finished"
+  Info: blue border, auto-dismiss 3s
+    Examples: "Agent started thinking", "Model switched to deepseek-v4-pro"
+  Warning: amber border, auto-dismiss 6s (or until acknowledged)
+    Examples: "Budget at 80%", "Session stalled", "Slow API response"
+  Error: red border, NEVER auto-dismiss (requires manual dismiss)
+    Examples: "Session failed: API key invalid", "Database connection lost"
+    Includes "View Details" action button
 
-Interactive toasts:
-  Can include buttons: "View", "Retry", "Undo", "Dismiss"
-  Buttons are small (body-small, font-weight 600)
-  "Undo" action available for 5s after destructive actions (delete session, cancel task)
-  Undo triggers reverse API call and dismisses toast with success variant
+Toast grouping:
+  Consecutive toasts of same type within 2 seconds stack into count badge
+  Example: 3 "Session created" toasts → "3 sessions created"
+  Badge shows count, click expands to show individual toasts
 
-Notification History:
-  Bell icon in top bar shows count of unread notifications.
-  Click bell → opens notification drawer (slide from right, 400px wide).
-  Drawer shows chronological list of all notifications (last 100).
-  Each item: icon + title + message + timestamp + "Mark read" button.
-  "Clear all" button at top.
-  Notifications persisted in localStorage for cross-session history.
+Rate limiting:
+  Max 1 toast per 500ms (suppress rapid-fire toasts)
+  Max 3 toasts of same type from same source per 10 seconds
+```
+
+#### 3.2.2 Notification Drawer
+
+```
+Trigger: click bell icon in top bar
+
+Drawer:
+  Position: fixed, top: 0, right: 0, bottom: 0
+  Width: 400px
+  Background: bg-surface
+  Border-left: 1px border-default
+  Box-shadow: shadow-lg
+  Z-index: 300 (--z-drawer)
+  
+  Slide animation:
+    Closed: translateX(100%)
+    Open: translateX(0)
+    Duration: 300ms, ease-out-expo
+  
+  Backdrop:
+    Background: rgba(0,0,0,0.3)
+    Position: fixed, inset: 0
+    Z-index: 299
+    Click: close drawer
+  
+  Header:
+    Height: 56px
+    Padding: 0 20px
+    Border-bottom: 1px border-default
+    Display: flex, align-items: center, justify-content: space-between
+    Title: "Notifications" in text-subtitle, font-weight 600
+    Actions: "Mark all read" button (text-small, text-link)
+    Close button: x icon, 20px, text-tertiary
+
+  List:
+    Overflow-y: auto, flex: 1
+    
+    Notification item:
+      Padding: 12px 20px
+      Display: flex, gap: 12px
+      Border-bottom: 1px border-subtle
+      Background: transparent (read), bg-hover-muted (unread)
+      Unread indicator: 6px dot, accent-primary, left edge
+      
+      Icon: 20px, semantic color
+      Content: flex-direction column
+        Title: text-small, font-weight 600 (unread), 400 (read)
+        Description: text-caption, text-secondary
+        Timestamp: text-caption, text-tertiary
+      Actions: "Mark read" button (appears on hover)
+      
+      Click: navigate to relevant page (and mark as read)
+      
+  Empty state:
+    "All caught up" with bell icon (48px, muted)
+    "No notifications" in text-secondary
+    
+  Persistence: notifications stored in localStorage (last 100)
 ```
 
 ### 3.3 Context Menus
 
-```
-Right-click context menus appear at cursor position.
-They use the same glass-morphism style as other overlays.
+Context menus appear on right-click (desktop) or long-press (touch, 500ms hold). They provide contextual actions without leaving the current view.
 
-Appearance:
+```
+Menu Container:
+  Position: absolute (at cursor position or touch point)
+  Min-width: 180px
+  Max-width: 320px
+  Max-height: 400px (scrollable if exceeded)
   Background: var(--glass-medium)
   Border: 1px solid rgba(255,255,255,0.1)
-  Border-radius: var(--radius-md)
-  Shadow: var(--shadow-lg)
-  Min-width: 180px, max-width: 320px
+  Border-radius: --radius-md
+  Box-shadow: --shadow-lg
   Padding: 4px 0
   Backdrop-filter: blur(12px)
+  Z-index: 200 (--z-overlay)
 
-Entry animation:
-  Menu origin: top-left, scale(0.95)→scale(1), opacity 0→1
-  Duration: 120ms, ease-out-quint
-  Very fast — context menus feel instant
+  Entry animation:
+    Transform-origin: top left
+    Scale(0.95) → scale(1), opacity 0→1
+    Duration: 120ms, ease-out-quint
+    (Very fast — context menus feel instant)
 
-Exit animation:
-  Scale(1)→scale(0.95), opacity 1→0
-  Duration: 80ms, ease-in-quint
+  Exit animation:
+    Scale(1) → scale(0.95), opacity 1→0
+    Duration: 80ms, ease-in-quint
 
-Menu Items:
-  Padding: 6px 12px
+  Close triggers: click outside, Escape, select item, scroll parent
+
+Menu Item:
+  Height: 32px
+  Padding: 0 12px
   Display: flex, align-items: center, gap: 10px
-  Font: body-small
-  Color: text-primary (enabled), text-tertiary (disabled)
+  Font: text-small
+  Color: text-primary (enabled), text-disabled (disabled)
   Cursor: pointer (enabled), default (disabled)
-  
-  Hover: background var(--color-bg-hover)
-  
-  Icon: 16px, left-aligned, color text-secondary
-  Label: flex-grow
-  Shortcut: caption, color text-tertiary, right-aligned
-  Chevron (): visible for submenu items, right-aligned
+  Border-radius: 4px
+  Margin: 1px 4px
 
-Divider:
-  height: 1px, background var(--color-border-default)
-  margin: 4px 8px
+  Hover: background bg-hover
+  Disabled: no hover effect
+
+  Icon: 16px, text-secondary (left-aligned)
+  Label: flex-grow, truncate
+  Shortcut: text-caption, text-tertiary, mono, right-aligned
+  Chevron: visible for submenu parents, right-aligned, 12px
+
+Menu Divider:
+  Height: 1px
+  Background: border-default
+  Margin: 4px 8px
+
+Destructive items:
+  Color: text-error
+  Usually last in menu, separated by divider
 
 Submenus:
-  Open on hover (150ms delay to prevent accidental triggers)
-  Position: right edge of parent, aligned to top of hovered item
-  Same visual style
-  Close when parent closes or cursor leaves both parent and submenu
+  Trigger: hover parent item for 150ms (delay prevents accidental trigger)
+  Position: right edge of parent, top aligned with parent item
+  Same visual style as parent menu
+  Close: when parent closes, or cursor leaves both parent and submenu for 300ms
 
-Destructive actions:
-  Color: var(--color-accent-error)
-  Separated by divider above
-  Usually last items in menu
-
-Context-sensitive examples:
-
-  Session row right-click:
-    ├─ Open Investigation    ⌘Enter
-    ├─ View Memory           ⌘⇧M
-    ├─ View Tasks            ⌘⇧T
-    ├─────────────────────────────
-    ├─ Pause Session
-    ├─ Resume Session
-    ├─────────────────────────────
-    ├─ Export Timeline as PDF
-    ├─ Export Memory as JSON
-    ├─────────────────────────────
-    ├─ Copy Session ID
-    ├─ Copy API Key
-    ├─────────────────────────────
-    └─ Cancel Session (red)
-
-  Memory event right-click:
-    ├─ View Full Content      Enter
-    ├─ Copy to Clipboard      ⌘C
-    ├─ Toggle Trust Level ▸   (submenu: Verified/High/Medium/Low/Quarantine)
-    ├─────────────────────────────
-    ├─ Find Similar           (triggers semantic search)
-    ├─ View in Timeline       (jumps to timeline at this event)
-    ├─────────────────────────────
-    └─ Flag for Review
-
-  Graph node right-click:
-    ├─ Expand Node            
-    ├─ Hide Node              
-    ├─ Focus Node             (centers graph on this node)
-    ├─ Show Connections ▸     (submenu: All/Direct/Path to Root)
-    ├─────────────────────────────
-    ├─ Open Entity Detail     
-    ├─ Copy Entity ID         
-    └─ Pin Node               (pins to graph, survives clear)
+Custom scrollbar:
+  4px wide, thumb: border-hover, track: transparent
 ```
 
 ---
 
+*Part 1 of 4 complete — Design System, Layout Architecture, Global Navigation.*
+*Continues with Part 2: Dashboard, Investigation Workbench, Timeline Explorer...*
 ## 4. Dashboard Overview
 
-### 4.1 Dashboard Layout
+### 4.1 Layout
 
 ```
-The Dashboard is the landing page. It presents a high-level operational picture
-designed for scanning in under 10 seconds.
+┌──────────────────────────────────────────────────────────────────────────┐
+│ DASHBOARD                                                      [Settings] │
+│                                                                          │
+│ ═══════════════════════════════ KPI BAR ══════════════════════════════════ │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────┐  │
+│ │Sessions│ │ Tasks  │ │Approvals│ │ Tokens │ │ Budget │ │  Health    │  │
+│ │   12   │ │   3    │ │   1 ⚠  │ │ 1.2M   │ │ $2.47  │ │ ● Healthy  │  │
+│ │ ↑ 2    │ │ ↓ 1    │ │   new   │ │ ↑ 15%  │ │ 25% of │ │ 234ms API  │  │
+│ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ └────────────┘  │
+│                                                                          │
+│ ┌──────────────────────────────┬────────────────────────────────────────┐│
+│ │ ACTIVITY FEED                │ RECENT SESSIONS                        ││
+│ │ ● Live                       │                                        ││
+│ │                              │ ● #a3f2b  Q4 Revenue    thinking it42  ││
+│ │ 🧠 Session #a3f — it 42     │ ● #b2e1c  Phish Analysis completed     ││
+│ │   Started analyzing Q4 data  │ ● #c4f8d  Network Scan   paused        ││
+│ │   2m ago                     │ ● #d1a9e  Q3 Analysis    failed        ││
+│ │                              │ ● #e5b3f  Supplier Audit idle          ││
+│ │ ✅ Finding #7 approved       │                                        ││
+│ │   Bane approved APAC finding │ View All →                             ││
+│ │   12m ago                    │                                        ││
+│ └──────────────────────────────┴────────────────────────────────────────┘│
+│                                                                          │
+│ ┌─────────────┐ ┌─────────────┐ ┌──────────────────────────────────────┐ │
+│ │ Status      │ │ Model Usage │ │ PENDING APPROVALS                    │ │
+│ │ Distribution│ │ (7d)        │ │                                      │ │
+│ │  ◉ Donut   │ │  ████ Chart │ │ ⚠ DROP TABLE staging — #a3f    [✓][✗]│ │
+│ │             │ │             │ │ ⚠ Modify trust: low→quar — #b2e[✓][✗]│ │
+│ └─────────────┘ └─────────────┘ └──────────────────────────────────────┘ │
+│                                                                          │
+│ ═════════════════════════ 24h ACTIVITY SPARKLINE ═══════════════════════ │
+│ ▁▂▃▅▆▇█▇▆▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁                                              │
+└──────────────────────────────────────────────────────────────────────────┘
 
-Layout (desktop, 12-column grid):
-  Row 1 (full width):
-    KPI Bar: 6 metric cards spanning full width
-    
-  Row 2 (8 + 4):
-    Left (col-span 8): System Activity Feed (live event stream)
-    Right (col-span 4): Recent Sessions (compact list)
-    
-  Row 3 (4 + 4 + 4):
-    Left: Session Status Distribution (donut chart)
-    Center: Model Usage & Cost (stacked bar)
-    Right: Pending Approvals (actionable list)
-    
-  Row 4 (full width):
-    Timeline Sparkline (24h activity visualization, compressed)
+Grid layout (desktop >=1024px):
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+  padding: 32px;
+  max-width: 1440px;
+  margin: 0 auto;
 
-Layout (mobile, single column):
-  KPI Bar → 2×3 grid
-  All sections stacked vertically
-  Charts reduce to simpler forms (bars instead of donuts)
-  Activity Feed condensed to last 5 events
+  Row 1 (KPI Bar):      grid-column: 1 / -1;  display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px;
+  Row 2 (Feed + Recent): grid-column: 1 / 9 (feed), 9 / -1 (recent); 
+  Row 3 (Charts):        grid-column: 1 / 4 (status), 4 / 9 (models), 9 / -1 (approvals);
+  Row 4 (Sparkline):     grid-column: 1 / -1;
 
-Entry animation (first visit per session):
-  KPI numbers count up from 0 to actual value (800ms ease-out-expo, staggered 50ms per card)
-  Charts animate in with draw effect (SVG stroke-dashoffset 0→100%, 600ms)
-  Activity feed fades in with staggered delay (50ms per item)
-  On subsequent visits: instant render (no animation, cached)
+Tablet (768-1023px):
+  Row 1: repeat(3, 1fr) × 2 rows (6 KPI cards in 3×2)
+  Row 2: stacked (feed full-width, recent below)
+  Row 3: status + models side by side, approvals full width below
+  Row 4: full width
+
+Mobile (<768px):
+  Single column. All sections stacked.
+  KPI: 2×3 grid. Charts simplified. Activity feed shows last 5 events.
 ```
 
-### 4.2 KPI Bar
+### 4.2 KPI Cards
+
+Each KPI card displays one critical metric with real-time updates and trend indicators.
 
 ```
-6 cards in a horizontal row, each showing one critical metric.
+Card anatomy:
+  ┌─────────────────────────────────────┐
+  │ [Icon]                   [Sparkline]│  ← Icon 20px left, sparkline 80×24px right (optional)
+  │                                     │
+  │ LABEL                               │  ← text-caption, uppercase, text-tertiary, tracking-wide
+  │                                     │
+  │ 42                                  │  ← text-display-2, tabular-nums, font-weight 800, text-primary
+  │                                     │
+  │ ↑ 12% from last hour                │  ← text-caption, green (up), red (down), muted (flat)
+  │ ████████░░░░░░░░░░ 42%              │  ← progress bar (optional), 4px tall, radius 2px
+  └─────────────────────────────────────┘
 
-Each KPI Card:
-  Background: var(--color-bg-surface)
-  Border: 1px solid var(--color-border-default)
-  Border-radius: var(--radius-lg)
-  Padding: 20px 24px
-  Display: flex, flex-direction: column, gap: 8px
-  Min-width: 160px, flex: 1
-  Hover: border-color var(--color-border-hover), background subtly brightens
+Card dimensions:
+  Min-width: 140px
+  Max-width: none (flex: 1 within grid)
+  Height: 120px
+  Background: bg-surface
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Padding: 16px 20px
+  Display: flex, flex-direction: column, gap: 4px
+
+States:
+  Default: border-default
+  Hover: border-hover, bg subtly brighter (bg-hover-muted)
+    Cursor: pointer (click navigates to detail page)
     Transition: var(--transition-color)
-  Click: navigates to relevant detail page
+  Active (click): border-accent-primary, scale(0.98), 80ms
 
-Card Anatomy:
-  ┌──────────────────────────────┐
-  │ Icon (20px)        Sparkline │  ← Icon left, mini sparkline right (optional)
-  │                              │
-  │ Label (caption, uppercase)   │  ← muted, tracking-wider
-  │                              │
-  │ 42                           │  ← display-1 size, tabular-nums, font-bold
-  │ ↑ 12% from last hour         │  ← caption, green/red, with trend arrow
-  │                              │
-  │ Progress bar (optional)      │  ← 4px tall, shows % of capacity
-  └──────────────────────────────┘
+Loading state:
+  Skeleton shimmer for number value
+  Sparkline area: skeleton bar
+  Progress bar: skeleton animated
+  Duration: until data loads
 
-KPI Definitions:
+Error state:
+  Number: "--"
+  Label: normal
+  Subtitle: "Failed to load" in text-error
+  Retry button (appears on hover): "Retry"
 
-  1. Active Sessions
-     Icon: cpu (color: --color-accent-primary)
-     Value: count of sessions with status in (booting, idle, thinking, tool_exec, waiting_sub)
-     Sparkline: 24h session count, 5-min buckets, line chart (24px tall)
-     Trend: delta from 1 hour ago (±N and percentage)
-     Progress: sessions / max_concurrent_sessions (configurable)
-     Click → Sessions page filtered to active
+Number animation (on data change — first load only):
+  Counts up from 0 or previous value to new value
+  Duration: 800ms, ease-out-expo
+  Staggered: card 0 at 0ms, card 1 at 50ms, card 2 at 100ms, etc.
+  Implementation: requestAnimationFrame loop with easing function
+  Tabular-nums ensure width stability during animation
 
-  2. Pending Tasks
-     Icon: check-square (color: --color-accent-warning)
-     Value: count of tasks with status 'pending'
-     Sparkline: 24h task completion rate (completed/hour)
-     Trend: delta from 1 hour ago
-     Click → Task Queue page
+Trend indicator:
+  Format: "[arrow] [absolute delta] [percentage] from [time period]"
+  Time periods: "last hour" / "yesterday" / "last week" / "last month" (context-dependent)
+  Color: green (positive/good), red (negative/bad), muted (no change)
+  Arrow: ↑ (up), ↓ (down), → (flat)
+  Threshold: changes < 1% shown as "— No change"
 
-  3. Pending Approvals
-     Icon: shield-check (color: --color-accent-error)
-     Value: count of approvals with status 'pending'
-     Pulse animation if > 0: subtle red glow on card border, 2s cycle
-     Trend: delta from 1 hour ago
-     Click → Approvals page
+Sparkline (24px tall, 80px wide, right-aligned):
+  SVG area chart showing last 24 data points (1h buckets for 24h view)
+  Fill: accent color at 15% opacity
+  Line: accent color, 1px
+  No axes, no labels — shape only
+  Latest data point: 4px dot, accent color
+  Hover: vertical line + tooltip with exact value
+  Update: new data points slide in from right, oldest slides out left
 
-  4. Tokens Used Today
-     Icon: lightning (color: --color-accent-cyan)
-     Value: formatted number (e.g., "1.2M" or "847K")
-     Sparkline: 24h token usage, 15-min buckets, area chart
-     Trend: delta from same time yesterday
-     Progress: tokens / daily_limit (configurable)
-     Click → Billing page
+Progress bar:
+  Height: 4px
+  Border-radius: 2px
+  Background: bg-input
+  Fill: width transition 1s ease-out-quint
+  Color: green <50%, amber 50-80%, red >80%
+  Label: percentage right-aligned below bar (text-caption, text-tertiary)
+```
 
-  5. Budget Spent
-     Icon: currency-circle-dollar (color: --color-accent-success when <50%, warning 50-80%, error >80%)
-     Value: "$2.47"
-     Sparkline: 30-day cost trend, daily buckets
-     Trend: projected month-end vs budget
-     Progress: spent / monthly_budget
-     Click → Billing page
+#### 4.2.1 KPI Definitions
 
-  6. System Health
-     Icon: heart (color: green/amber/red based on status)
-     Value: "Healthy" / "Degraded" / "Down"
-     Sub-metrics (caption): "API: 234ms · DB: 12ms · LLM: 1.2s"
-     Status dot: pulsing green (healthy), static amber (degraded), flashing red (down)
-     Click → System Health page
+```
+1. ACTIVE SESSIONS
+   Icon: cpu, color: accent-primary (blue)
+   Value: count of sessions WHERE status IN ('booting','idle','thinking','tool_exec','waiting_sub')
+   Sparkline: 24h session count, 5-min buckets, line chart
+   Trend: absolute ±N from 1 hour ago
+   Progress: active / max_concurrent_sessions (configurable, default: 20)
+   Click → /sessions?status=active
 
-KPI number animation (on first load):
-  const targetValue = 847;
-  const duration = 800; // ms
-  const startTime = performance.now();
-  function animate(now) {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
-    displayValue = Math.floor(eased * targetValue);
-    if (progress < 1) requestAnimationFrame(animate);
-  }
-  // Numbers use tabular-nums so width doesn't jump
-  // Staggered start: card 0 at 0ms, card 1 at 50ms, card 2 at 100ms, etc.
+2. PENDING TASKS
+   Icon: check-square, color: accent-warning (amber)
+   Value: count of tasks WHERE status = 'pending'
+   Sparkline: 24h task creation vs completion rate (dual line)
+   Trend: absolute ±N from 1 hour ago
+   Progress: none (tasks don't have capacity limits)
+   Click → /tasks?status=pending
+
+3. PENDING APPROVALS
+   Icon: shield-check, color: accent-error (red)
+   Value: count of approvals WHERE status = 'pending'
+   Visual emphasis: if value > 0, card border subtly pulses red (box-shadow glow, 2s cycle)
+   Sparkline: none (approvals are event-driven, not continuous)
+   Trend: absolute ±N from 1 hour ago
+   Progress: none
+   Click → /approvals
+
+4. TOKENS USED TODAY
+   Icon: lightning, color: accent-cyan
+   Value: formatted number (e.g., "1.2M" or "847K" — abbreviations for K, M, B)
+   Sparkline: 24h token usage, 15-min buckets, area chart
+   Trend: percentage change vs same time yesterday
+   Progress: tokens / daily_limit (configurable)
+   Click → /billing
+
+5. BUDGET SPENT (MONTHLY)
+   Icon: currency-circle-dollar
+   Color: green <50%, amber 50-80%, red >80% (dynamic — icon color changes with usage)
+   Value: formatted dollar amount "$2.47"
+   Sparkline: 30-day cost trend, daily buckets
+   Trend: projected month-end vs budget
+   Progress: spent / monthly_budget
+   Click → /billing
+
+6. SYSTEM HEALTH
+   Icon: heartbeat
+   Color: green (healthy), amber (degraded), red (down) — dynamic
+   Value: "Healthy" / "Degraded" / "Down"
+   Sub-metrics (text-caption, below value): "API 234ms · DB 12ms · LLM 1.2s"
+   Sparkline: none
+   Trend: status change indicator ("Was degraded 2h ago — recovered")
+   Click → /health
 ```
 
 ### 4.3 Activity Feed
 
 ```
-Real-time stream of system events, auto-updating via WebSocket.
-Positioned as primary content (left 2/3 of row 2).
+Card:
+  grid-column: 1 / 9 (desktop), 1 / -1 (tablet/mobile)
+  Background: bg-surface
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Height: 400px (fixed height, scrollable)
+  Display: flex, flex-direction: column
 
-Layout:
-  Background: var(--color-bg-surface)
-  Border: 1px solid var(--color-border-default)
-  Border-radius: var(--radius-lg)
-  Padding: 0 (header only has padding)
+Header:
+  Height: 48px
+  Padding: 0 20px
+  Border-bottom: 1px border-default
+  Display: flex, align-items: center, justify-content: space-between
+
+  Title: "Activity" in text-subtitle, font-weight 600
+  Live indicator: green pulsing dot (8px) + "Live" in text-small, text-success
+    When WebSocket disconnected: "Reconnecting..." in text-warning
+    When paused (scrolled up): "Paused — scroll to bottom to resume"
   
-  Header:
-    Padding: 16px 20px
-    Border-bottom: 1px solid var(--color-border-default)
-    Title: "Activity" in heading-3, with live indicator (green pulsing dot + "Live")
-    Filter chips: All | Sessions | Tasks | Approvals | Errors
-      Chips are toggleable, multiple can be active
-      Active chip: background accent-muted, text accent-primary
-      Inactive: transparent, text-secondary
-    Auto-scroll toggle: "Follow" button (pauses auto-scroll when reading older events)
+  Filter chips (right):
+    Display: flex, gap: 4px
+    Chips: [All] [Sessions] [Tasks] [Approvals] [Errors]
+    Style: text-caption, padding 2px 10px, radius-full, bg transparent, text text-secondary
+    Active: bg accent-primary-muted, text accent-primary
+    Click: toggle chip. Multiple chips can be active simultaneously.
+    Logic: show events matching ANY active chip ("All" ≡ all chips active)
 
-  Event list:
-    Scrollable, max-height: 480px (fills remaining card space)
-    Virtualized: only renders visible + buffer (20 items) for performance
-    New items appear at top with slide-down + fade animation (300ms ease-out-expo)
-    Auto-scroll: when scrolled to top, new items push list down smoothly
-    When scrolled up (reading history): "New events ↓" floating button appears
-      Button: glass-morphism pill, centered at bottom of feed
-      Click: smooth scroll to top
-      Badge: count of unseen events since scroll-up
+Event list:
+  Flex: 1, overflow-y: auto
+  Virtualized: render visible + 20 buffer items
+  Max items: unlimited (virtualized)
+  Scrollbar: 6px, thumb border-hover
 
-  Event item:
-    Padding: 10px 20px
-    Display: flex, gap: 12px, align-items: flex-start
-    Border-bottom: 1px solid var(--color-border-default) (last item no border)
-    Hover: background var(--color-bg-hover)
-    Cursor: pointer (click → navigate to relevant entity)
+Event item (height: 56px):
+  ┌──┬─────────────────────────────────────────────────────┬──────────┐
+  │● │ 🧠 Session #a3f · Iteration 42 started              │ 2m ago   │
+  │  │ Started analyzing Q4 revenue data — 847 tokens      │          │
+  └──┴─────────────────────────────────────────────────────┴──────────┘
 
-    Left column (28px):
-      Icon: 16px, centered in 28px circle
-      Icon background: entity type color at 15% opacity
-      Examples:
-        Session created: cpu icon, blue bg
-        Task completed: check-square icon, green bg
-        Approval needed: shield-check icon, red bg with pulse
-        Error: x-circle icon, red bg
-        Iteration: brain icon, purple bg
-        Cost: currency icon, cyan bg
-      Connector line: 1px solid var(--color-border-default) from center-bottom of icon
-        to next event (except last event). Creates timeline feel.
+  Left accent: 2px solid, entity color (or status color for status events)
+  Icon: 16px, entity color, in 28px circle (bg entity color at 10% opacity)
+  Connector line: 1px solid border-subtle, from icon-center-bottom to next event icon
+    (except last event — no connector below last)
+  
+  Content:
+    Title: text-small, font-weight 500, text-primary, truncate 1 line
+    Subtitle: text-caption, text-secondary, truncate 1 line
+    Tags (optional): small colored pills, text-micro
+  
+  Timestamp: text-caption, text-tertiary, right-aligned, absolute position
+    Relative time: "2m ago", "1h ago", "yesterday"
+    Absolute time on hover: title attribute
 
-    Center column (flex-grow):
-      Title: body-small, font-weight 600, color text-primary
-      Description: caption, color text-secondary, truncates after 1 line
-        Example: "Agent 'researcher' began iteration 42 — analyzing revenue data"
-      Tags (optional): small colored pills, caption size
-        Example: [Q4 Analysis] [deepseek-v4]
-      
-    Right column (80px, right-aligned):
-      Timestamp: caption, color text-tertiary
-      Format: relative time ("2m ago", "1h ago", "yesterday")
-      Absolute time on hover (title attribute)
-      New events briefly highlight: background animates from accent-muted to transparent
-        (css animation, 2s fade, using animation-delay to ensure visibility)
+  Hover: bg-hover-muted
+  Click: navigate to relevant entity (session, task, approval)
 
-WebSocket event → feed mapping:
-  session.created      → blue cpu icon, "Session 'name' created"
-  session.status       → appropriate status icon, "Session 'name' is now thinking"
-  session.completed    → green check icon, "Session 'name' completed after 42 iterations"
-  session.failed       → red x icon, "Session 'name' failed: reason"
-  task.created         → check-square icon, "Task 'name' created in session #abc"
-  task.completed       → green check icon, "Task 'name' completed"
-  approval.requested   → red shield icon, "Approval needed: action description"
-  approval.resolved    → green shield icon, "Approval resolved: approved/denied"
-  iteration.started    → brain icon, "Iteration 42 started — agent thinking"
-  iteration.completed  → brain icon, "Iteration 42 completed · tokens: 12.4K"
-  billing.threshold    → amber currency icon, "Budget at 80% — $8.00 of $10.00"
-  billing.exceeded     → red currency icon, "Budget exceeded — sessions paused"
-  system.health        → heart icon, "API latency elevated: 1.2s (was 234ms)"
-  system.startup       → green heart icon, "Consensus started · SQLite · port 8090"
+Entry animation (new event at top):
+  Slide down from above: translateY(-10px) → translateY(0)
+  Opacity: 0 → 1
+  Duration: 300ms, ease-out-expo
+  Existing events shift down: margin transition 250ms ease-out-quint
+
+"New events ↓" button:
+  Appears when scrolled up >50px from top
+  Position: sticky, bottom: 0, centered
+  Style: pill, bg-glass-light, border border-default
+  Text: "↓ 3 new events" (count updates)
+  Click: smooth scroll to top
+
+WebSocket events → feed items:
+  session.created       → cpu icon, "Session '{name}' created"
+  session.status        → status icon, "Session '{name}' is now {status}"
+  session.completed     → check icon, "Session '{name}' completed ({iterations} iterations)"
+  session.failed        → x icon, "Session '{name}' failed: {reason}"
+  task.created          → check-square, "Task '{title}' created in #{session_id}"
+  task.completed        → check-circle, "Task '{title}' completed"
+  approval.requested    → shield icon, "Approval needed: {type} in #{session_id}"
+  approval.resolved     → shield-check, "Approval {approved/denied} by {user}"
+  iteration.started     → brain icon, "Iteration {n} started — agent thinking"
+  iteration.completed   → brain icon, "Iteration {n} done · {tokens} tokens · {duration}s"
+  billing.threshold     → currency icon, "Budget at {pct}% — ${used} of ${limit}"
+  billing.exceeded      → currency icon (red), "Budget exceeded — sessions paused"
+  system.health         → heartbeat icon, "{message}"
+  system.startup        → heartbeat (green), "Consensus started · {backend} · port {port}"
 ```
 
 ### 4.4 Recent Sessions Panel
 
 ```
-Compact list of 8 most recently active sessions.
-Position: right 1/3 of row 2.
+Card:
+  grid-column: 9 / -1 (desktop), full-width below feed (tablet/mobile)
+  Background: bg-surface
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Max-height: 400px (same as feed — they align visually)
+  Display: flex, flex-direction: column
 
-Layout:
-  Background: var(--color-bg-surface)
-  Border: 1px solid var(--color-border-default)
-  Border-radius: var(--radius-lg)
+Header:
+  Height: 48px
+  Padding: 0 20px
+  Border-bottom: 1px border-default
+  Display: flex, justify-content: space-between, align-items: center
+  Title: "Recent Sessions" in text-subtitle, font-weight 600
+  Action: "View All →" in text-small, text-link
+
+List:
+  Flex: 1, overflow-y: auto
+  Max items: 8 (auto-rotates, oldest drops off)
+
+Session item (height: 48px):
+  Padding: 0 20px
+  Display: flex, align-items: center, gap: 10px
+  Border-bottom: 1px border-subtle (last item: none)
+
+  Status dot: 8px circle, color by status, flex-shrink: 0
+    thinking: purple, pulsing opacity 2s cycle
+    tool_exec: amber
+    idle: muted blue
+    completed: green
+    failed: red
+    paused: amber, static
+    cancelled: gray
+
+  Name: text-small, font-weight 500, text-primary, truncate
+  ID: text-caption, mono, text-tertiary (e.g., "#a3f2b")
   
-  Header:
-    Padding: 16px 20px
-    Border-bottom: 1px solid var(--color-border-default)
-    Title: "Recent Sessions" in heading-3
-    Action: "View All →" link, body-small, color text-link
-      Click → Sessions page
+  Right side:
+    Iteration: text-caption, tabular-nums ("it 42")
+    Timestamp: text-caption, text-tertiary ("12m ago")
+
+  Hover: bg-hover-muted
+  Click: navigate to /sessions/{id}
+  
+Empty state:
+  Centered in card
+  "No sessions yet"
+  "Create your first session to get started"
+  [Create Session] button (accent-primary, radius-md, height 36px)
+```
+
+### 4.5 Session Status Distribution Chart
+
+```
+Card:
+  grid-column: span 4 (desktop), span 6 (tablet), full (mobile)
+  Background: bg-surface, border border-default, radius radius-lg
+  Height: 300px
+  Padding: 20px
+  Display: flex, flex-direction: column
+
+Header: "Session Status" in text-subtitle, font-weight 600, margin-bottom 16px
+
+Chart: SVG donut, centered, 160px diameter
+  Ring width: 24px
+  Gap between segments: 2px (stroke white at 5% opacity)
+  
+  Segments (clockwise from top):
+    thinking:    purple,  oklch(55% 0.18 295)
+    tool_exec:   amber,   oklch(55% 0.15 85)
+    idle:        blue,    oklch(55% 0.15 260)
+    waiting_sub: cyan,    oklch(55% 0.12 200)
+    paused:      gray,    oklch(40% 0.02 260)
+    completed:   green,   oklch(55% 0.18 145)
+    failed:      red,     oklch(50% 0.20 20)
+    booting:     muted,   oklch(30% 0.02 260)
+
+  Center label:
+    Total active count: text-display-2, font-weight 800, text-primary
+    "sessions" label: text-caption, text-tertiary, below number
     
-  List (8 items max):
-    Each item:
-      Padding: 10px 20px
-      Display: flex, align-items: center, gap: 10px
-      Border-bottom: 1px solid var(--color-border-default) (last: none)
-      Hover: background var(--color-bg-hover)
-      Cursor: pointer → navigate to session
-      
-      Status dot (left): 8px circle, color by status
-        booting: gray, pulsing
-        idle: muted blue
-        thinking: purple, pulsing (2s cycle, opacity 1→0.4→1)
-        tool_exec: amber
-        waiting_sub: cyan
-        paused: amber, static
-        completed: green
-        failed: red
-        cancelled: gray
-      
-      Session name: body-small, font-weight 500, truncate
-      Session ID: caption mono, color text-tertiary
-        e.g., "#a3f2b"
-      
-      Right side:
-        Iteration count: caption, tabular-nums
-          Format: "it 42"
-        Timestamp: caption, color text-tertiary
-          Format: "12m ago"
-      
-      On hover:
-        Status dot grows slightly (8px→10px, 150ms ease-out)
-        Row background transitions to hover color
-        Chevron (›) appears on right edge
+  Segment animation:
+    On data change: stroke-dasharray transitions smoothly
+    Duration: 600ms, ease-out-quint
+    New segment: draws from 0 to full arc
+    Removed: shrinks to 0
+    
+  Hover segment:
+    Segment expands outward 4px (transform scale(1.05), transform-origin center)
+    Tooltip: "{count} {status} ({percentage}%)"
+    Other segments dim to 50% opacity (transition 150ms)
 
-  Empty state:
-    "No sessions yet" with description
-    "Create your first session" button
-    CPU icon (48px, muted, centered)
+Legend:
+  Below chart, horizontal wrapping layout, gap 16px
+  Items: color dot (8px circle) + status name (text-caption) + count (text-caption, tabular-nums, text-tertiary)
+  Hover: corresponding donut segment highlights (others dim)
+  Click: navigate to /sessions?status={status}
 ```
 
-### 4.5 Session Status Distribution (Donut Chart)
+### 4.6 Model Usage Chart
 
 ```
-Visual breakdown of sessions by status.
+Card:
+  grid-column: span 5 (desktop), span 6 (tablet), full (mobile)
+  Background: bg-surface, border border-default, radius radius-lg
+  Height: 300px
+  Padding: 20px
 
-Row 3, column 1.
+Header row:
+  "Model Usage" in text-subtitle, font-weight 600
+  Time selector chips (right): [24h] [7d] [30d]
+    Active chip: bg accent-primary-muted, text accent-primary
+    Inactive: transparent, text-secondary
+    Click: switch data range, chart smoothly transitions (400ms ease-out-quint)
 
-Layout:
-  Card with header "Session Status" in heading-3.
-  Chart: SVG donut, 160px diameter, centered.
-  Legend: below chart, horizontal wrapping layout.
-
-Donut segments (clockwise, starting from top):
-  thinking:    purple    (active AI processing)
-  tool_exec:   amber     (executing tools)
-  idle:        blue      (waiting for input)
-  waiting_sub: cyan      (waiting for sub-agent)
-  paused:      gray      (human-paused)
-  completed:   green     (finished successfully)
-  failed:      red       (errored)
-  booting:     muted     (initializing)
-
-Center label:
-  Total active count in display-2 size
-  "sessions" label below in caption
-
-Segment animation:
-  On data change: arc length transitions smoothly (CSS transition on stroke-dasharray, 600ms ease-out-quint)
-  New segment: draws from 0 to full arc
-  Removed segment: shrinks to 0
-  Hover: segment expands outward by 4px (transform: scale(1.05) with transform-origin center)
-    Displays tooltip: count + percentage + status name
-
-Legend items:
-  Color dot (8px circle) + status name (caption) + count (caption, tabular-nums, muted)
-  Horizontal layout, wrapping to fit card width
-  Hover legend item: highlights corresponding donut segment (others dim to 30% opacity)
-
-Click behavior:
-  Click segment OR legend → navigates to Sessions page filtered by that status
-```
-
-### 4.6 Model Usage & Cost (Stacked Bar Chart)
-
-```
-Shows token consumption and cost by model over time.
-Row 3, column 2.
-
-Layout:
-  Card with header "Model Usage" in heading-3.
-  Time range selector: 24h | 7d | 30d (chips, default 7d)
+Chart: Horizontal stacked bar chart
+  Y-axis: token count (auto-scaled, K/M/B suffixes)
+  X-axis: time buckets (hour for 24h, day for 7d/30d)
+  Bars: 20px height, 2px gap
+  Segments: colored by model
   
-  Chart: horizontal stacked bar chart.
-  Each bar = one time bucket (hour for 24h, day for 7d/30d)
-  Stacked segments = different models
+Model colors:
+  deepseek-v4-pro:   purple
+  deepseek-v4-flash: cyan  
+  claude-sonnet-4:   amber
+  gpt-4o:            green
+  local-model:       gray
+  other:             muted
 
-Model color mapping:
-  deepseek-v4:     purple
-  deepseek-flash:  cyan
-  claude-sonnet:   amber
-  gpt-4o:          green
-  local-model:     gray
-  other:           muted
+Bar hover:
+  Bar slightly brightens (brightness 1.1)
+  Tooltip: model breakdown for that bucket
+    "{model}: {tokens} tokens (${cost})"
+    "Total: {total} tokens · ${total_cost}"
 
-Bar interaction:
-  Hover: tooltip showing model breakdown for that bucket
-    Model name: token count (input+output), cost
-    Total for bucket
-  Click bar: drills into Billing page filtered to that time range
+Animation:
+  On load: bars grow from 0 to value (height transition 600ms ease-out-expo, stagger 30ms per bar)
+  On data switch: bars morph smoothly (SVG 'd' attribute transition)
 
-Y-axis: token count (K/M scale)
-X-axis: time labels (hour/day)
-Legend: model names with color dots, horizontal layout
-
-Update animation:
-  New data: bars grow from 0 to value (height/width transition, 400ms ease-out-quint)
-  Remaining bars shift smoothly (CSS transition on height/width)
-  
-Budget indicator:
+Budget line:
   Horizontal dashed line at budget threshold
-  Color: amber at 80%, red at 100%
-  Label: "Monthly Budget: $10.00"
-  If exceeded: line turns red, subtle red glow animation on chart background
+  Color: amber at warning, red at exceeded
+  Label: "Monthly Budget: $10.00" in text-caption, anchored to line
+
+Legend:
+  Below chart, horizontal, gap 12px
+  Model name + color dot + percentage of total
 ```
 
-### 4.7 Pending Approvals (Actionable List)
+### 4.7 Pending Approvals Card
 
 ```
-Shows HITL approvals awaiting human decision.
-Row 3, column 3.
+Card:
+  grid-column: span 3 (desktop), full (tablet/mobile)
+  Background: bg-surface, border border-default, radius radius-lg, border-color: subtle red tint when >0 pending
+  Height: 300px
+  Padding: 20px
 
-Layout:
-  Card with header "Pending Approvals" in heading-3.
-  Badge: count of pending, red pill next to header.
+Header:
+  "Pending Approvals" in text-subtitle, font-weight 600
+  Badge: count in red pill next to title (if >0)
+  "View All →" link (right)
+
+List (scrollable):
+  Max visible: 3 items (fits in 300px card)
   
-  List (scrollable, max 5 items visible):
-    Each item:
-      Background: subtle red tint (--color-accent-error-muted) at 10% opacity
-      Border-left: 2px solid var(--color-accent-error)
-      Padding: 12px 16px
-      Margin-bottom: 8px
+  Approval item (margin-bottom 8px, last 0):
+    Background: bg-error-muted at 5% opacity
+    Border-left: 2px solid accent-error
+    Border-radius: 0 radius-md radius-md 0
+    Padding: 10px 12px
+    
+    Top row:
+      Type icon (16px, red) + type label (text-small, font-weight 600)
+      Priority badge (if HIGH): "HIGH" in red pill, text-micro
+      Timestamp: text-caption, text-tertiary, right
       
-      Top row:
-        Shield icon (16px, red) + Approval type (body-small, font-weight 600)
-        Relative time (caption, muted, right-aligned)
+    Middle row:
+      Description: text-small, text-secondary, truncate 2 lines
+      Session link: "#a3f2b" in text-caption, mono, text-link, clickable
       
-      Middle row:
-        Description: "Execute SQL: DROP TABLE staging" or "Modify trust level: low → quarantine"
-        caption size, truncate 2 lines max
+    Bottom row (actions):
+      [Approve] button: 28×24px, bg-success, text white, text-caption, radius-md
+      [Deny] button: 28×24px, border border-error, text error, text-caption, radius-md
+      [Defer] button: 28×24px, text text-tertiary, text-caption
       
-      Bottom row:
-        Session link: "#a3f2b" in mono caption, clickable → session
-        Actions (right-aligned):
-          Approve button: small, green, icon check + "Approve"
-          Deny button: small, red outline, icon x + "Deny"
-          Defer button: small, muted, icon clock + "Later"
-
-      Button feedback:
-        Approve: button fills green, checkmark animates (scale bounce, 300ms ease-spring)
-          Then item slides left + fades out (300ms, ease-in-quint)
-          Success toast appears
-        Deny: button fills red, x animates
-          Then item slides left + fades (same animation)
-        Defer: item dims to 40% opacity, moves to bottom of list
-          "Deferred" badge replaces action buttons
+      Click behavior:
+        Approve: button fills green, checkmark scale-bounce (300ms ease-spring)
+          Item slides left + fades out (300ms ease-in-quint)
+          Toast: "Approval resolved"
+        Deny: button fills red, X scale-bounce
+          Item fades out
+        Defer: item moves to bottom, shows "Deferred" badge
           Auto-reappears after 30 minutes
 
-  Empty state:
-    Green shield icon (48px, muted)
-    "All clear" heading
-    "No approvals waiting" description
-    Subtle celebration: icon does a gentle float animation (transform translateY ±4px, 3s ease-in-out infinite)
-
-  Click header or "View All" → Approvals page
+Empty state:
+  Green shield icon (48px, muted, centered)
+  "All clear" — text-subtitle
+  "No approvals waiting" — text-small, text-secondary
 ```
 
 ### 4.8 Timeline Sparkline
 
 ```
-Compressed 24-hour activity visualization showing session and event density.
+Full-width card at bottom:
+  Background: bg-surface, border border-default, radius radius-lg
+  Padding: 16px 20px
+  Height: 100px
 
-Full width at bottom of dashboard (row 4).
+Header: "24-Hour Activity" in text-subtitle, font-weight 600
+  Timezone badge (right): "UTC-4" in text-caption, text-tertiary
 
-Layout:
-  Card with header "24-Hour Activity" in heading-3.
-  
-  Sparkline: SVG area chart, full width, 60px tall.
-  X-axis: 24 hours (0:00 to 23:59), labeled every 3 hours
-  Y-axis: event count, no labels (sparklines are meant for shape, not precision)
-
+Sparkline: SVG area chart, 100% width, 40px tall
   Dual series:
-    Session events (area, blue, opacity 0.2 fill + 1px line)
-    System events (area, purple, opacity 0.15 fill + 1px line)
-    Stack: sessions on top of system events
+    Top: session events (area, blue, opacity 0.15 fill + 1px solid line)
+    Bottom: system events (area, purple, opacity 0.1 fill + 1px solid line)
+    Stacked vertically (sessions on top of system)
+
+  X-axis: 24 hours, labeled every 3 hours (00:00, 03:00, 06:00...)
+    Labels: text-micro, text-tertiary, below axis
 
   Current time indicator:
     Vertical dashed line at current time
-    Color: white at 30% opacity
-    Subtle pulse animation (opacity 0.3→0.6→0.3, 3s cycle)
+    Color: white at 20% opacity
+    Label: "Now" in text-micro, accent-primary, above line
 
-  Hover: vertical crosshair follows cursor
-    Tooltip shows: time, session events count, system events count
-    Crosshair line: 1px solid, white 40% opacity, full height
-    Dot at intersection point on each line (4px circle, series color)
-
-  Timezone: shown in top-right corner (e.g., "UTC-4")
+  Hover: crosshair follows cursor
+    Vertical line: 1px solid white 30% opacity, full chart height
+    Dot: 4px circle at line intersection with each series
+    Tooltip: "{time} · {sessions} sessions · {system} system events"
 
   Interaction:
-    Click-drag to select time range → navigates to Timeline Explorer zoomed to range
-    Scroll wheel on chart → zooms in/out (changes time range from 24h to 12h, 6h, 1h)
+    Click-drag: select time range → navigates to Timeline Explorer zoomed to range
+    Scroll wheel: zoom in/out (24h→12h→6h→1h→30min and reverse)
 ```
 
 ---
 
-*This is the beginning of the full specification. To be continued with sections 5-28...*
-
----
-
-## Document Metadata
-
-- **Total lines written so far:** ~2,000
-- **Remaining sections:** 5-28 (estimated ~98,000 lines)
-- **Next section:** 5. Investigation Workbench — Split-Pane THINK/SAYS
-- **Status:** IN PROGRESS — actively being written
 ## 5. Investigation Workbench — Split-Pane THINK/SAYS
 
 ### 5.1 Overview
 
-```
-The Investigation Workbench is the core user experience of Chronicle.
-It is where an operator conducts an investigation with AI assistance,
-seeing the AI's full reasoning chain (THINK) alongside its conclusions (SAYS).
+The Investigation Workbench is the primary user experience of Chronicle. It implements a split-pane interface where the left pane (THINK) displays the AI's step-by-step reasoning chain — every source evaluated, every logical leap, every contradiction flagged — while the right pane (SAYS) displays polished conclusions (Findings) that are bidirectionally linked to their originating reasoning steps.
 
-This is not a chat interface. It is an evidence workstation.
-The human is the investigator. The AI is the analyst assistant.
+The core invariant: **No conclusion appears without its full reasoning chain visible and traceable.** Every Finding has at least one linked THINK step. Every THINK step that produces a conclusion links to the resulting Finding. The human is the investigator; the AI is the analyst assistant whose reasoning is transparent and auditable.
 
-Core invariant: EVERY AI conclusion must be traceable to its reasoning.
-No conclusion appears without its reasoning chain visible and linked.
-```
+This view replaces chat interfaces. It is an evidence workstation optimized for verification, not conversation.
 
 ### 5.2 Workbench Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ WORKBENCH TOOLBAR (48px)                                            │
-│ ┌──────────┐ ┌─────────────────────────┐ ┌──────────┐ ┌─────────┐ │
-│ │ Sessions │ │ Investigation: Project X │ │ Evidence │ │ Export  │ │
-│ └──────────┘ └─────────────────────────┘ └──────────┘ └─────────┘ │
-├────────────────────────────┬──┬────────────────────────────────────┤
-│                            │  │                                    │
-│   THINK PANE               │  │   SAYS PANE                        │
-│   ────────────              │  │   ─────────                        │
-│   AI Reasoning Chain        │R │   Polished Output                  │
-│                            │E │                                    │
-│   ┌──────────────────────┐ │S │   ┌──────────────────────────────┐ │
-│   │ Step 1: Analyze      │ │I │   │ Finding:                      │ │
-│   │ Examining query for  │ │Z │   │ The Q4 revenue report shows  │ │
-│   │ revenue patterns...  │ │E │   │ a 12% increase in APAC...    │ │
-│   │                      │ │R │   │                              │ │
-│   │ Sources considered:  │ │  │   │ Sources: [3] [7] [12]        │ │
-│   │ [revenue.db]         │ │  │   │ Confidence: HIGH ⬤           │ │
-│   │ [q4-sales.csv]       │ │  │   │ Approved: ✓ Bane · 2m ago    │ │
-│   │ Confidence: 0.94     │ │  │   │                              │ │
-│   └──────────────────────┘ │  │   └──────────────────────────────┘ │
-│                            │  │                                    │
-│   ┌──────────────────────┐ │  │   ┌──────────────────────────────┐ │
-│   │ Step 2: Cross-ref    │ │  │   │ Finding:                      │ │
-│   │ Comparing APAC vs    │ │  │   │ EMEA shows 3% decline in Q4, │ │
-│   │ EMEA performance...  │ │  │   │ attributable to supply chain  │ │
-│   │                      │ │  │   │ disruptions in November.     │ │
-│   │ Flag: Contradiction  │ │  │   │                              │ │
-│   │ found in Nov data    │ │  │   │ Sources: [5] [9]              │ │
-│   │ vs March report      │ │  │   │ Confidence: MEDIUM ⬤         │ │
-│   └──────────────────────┘ │  │   └──────────────────────────────┘ │
-│                            │  │                                    │
-│   ┌──────────────────────┐ │  │   [Input area at bottom]           │
-│   │ Step 3: Synthesize   │ │  │   ┌──────────────────────────────┐ │
-│   │ ...                   │ │  │   │ Ask a question or give       │ │
-│   └──────────────────────┘ │  │   │ instruction...          [→]  │ │
-│                            │  │   └──────────────────────────────┘ │
-├────────────────────────────┴──┴────────────────────────────────────┤
-│                                                                     │
-│   EVIDENCE PANEL (collapsed by default, toggle with Ctrl+E)         │
-│   ┌─────────────────────────────────────────────────────────────┐  │
-│   │ Sources · Evidence · Audit Trail                             │  │
-│   └─────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ WORKBENCH TOOLBAR — 48px — position: sticky, top: 0, z-index: 10             │
+│ ┌──────────┐ ┌─────────────────────────┐ ┌──────────┐ ┌─────────┐ ┌──────┐  │
+│ │Sessions ▾│ │ Investigation: Q4 Rev   │ │ Evidence │ │ Export ▾│ │ ⚙   │  │
+│ └──────────┘ └─────────────────────────┘ └──────────┘ └─────────┘ └──────┘  │
+├──────────────────────────────┬─┬─────────────────────────────────────────────┤
+│                              │ │                                             │
+│   THINK PANE                 │ │   SAYS PANE                                 │
+│   flex: 1 (default 50%)      │R│   flex: 1 (default 50%)                     │
+│   min-width: 280px           │E│   min-width: 280px                           │
+│   overflow-y: auto           │S│   overflow-y: auto                           │
+│   padding: var(--space-4)    │I│   padding: var(--space-4)                    │
+│   background: canvas         │Z│   background: canvas                         │
+│                              │E│                                              │
+│   ┌────────────────────────┐ │R│   ┌──────────────────────────────────────┐  │
+│   │ 🧠 Step 3 · Synthesize │ │  │   │ ✅ Finding #7 · APAC Growth         │  │
+│   │ deepseek-v4-pro · 2m   │ │  │   │ 2m ago · HIGH confidence 0.94       │  │
+│   │                        │ │  │   │                                      │  │
+│   │ Comparing APAC growth  │ │  │   │ Q4 revenue in APAC increased 12%    │  │
+│   │ trajectory with EMEA   │ │  │   │ YoY, driven primarily by SE Asia    │  │
+│   │ decline. Contradiction  │ │  │   │ expansion. Third consecutive        │  │
+│   │ found in November       │ │  │   │ quarter of double-digit growth.     │  │
+│   │ supply chain vs March  │ │  │   │                                      │  │
+│   │ report.                 │ │  │   │ ▸ Sources (2)                       │  │
+│   │                        │ │  │   │ ▸ Reasoning (Steps 2,4)             │  │
+│   │ Sources:               │ │  │   │                                      │  │
+│   │ 📄 q4-sales 0.94       │ │  │   │ ■■■■□ HIGH 0.94                     │  │
+│   │ 📄 shipping 0.87        │ │  │   │                                      │  │
+│   │                        │ │  │   │ ✓ Approved by Bane · 2m ago         │  │
+│   │ ⚠ Contradiction: Nov   │ │  │   │                                      │  │
+│   │ vs March data           │ │  │   │ [Edit] [Approve] [Request Revision] │  │
+│   │                        │ │  │   └──────────────────────────────────────┘  │
+│   │ [Timeline] [Copy] [⚑] │ │  │                                              │
+│   └────────────────────────┘ │  │   ┌──────────────────────────────────────┐  │
+│                              │  │   │ ✅ Finding #6 · EMEA Decline         │  │
+│   ┌────────────────────────┐ │  │   │ 15m ago · MEDIUM confidence 0.72    │  │
+│   │ 🧠 Step 2 · Cross-ref  │ │  │   │ ...                                  │  │
+│   │ ...                      │  │   └──────────────────────────────────────┘  │
+│   └────────────────────────┘ │  │                                              │
+│                              │  │   ═══════════════════════════════════════    │
+│                              │  │   INPUT AREA                                 │
+│                              │  │   ┌──────────────────────────────────────┐  │
+│                              │  │   │ Ask a question or give instruction.. │  │
+│                              │  │   │                                      │  │
+│                              │  │   │ [📎] [@ Context] [# Model]  ~1.2K → │  │
+│                              │  │   └──────────────────────────────────────┘  │
+├──────────────────────────────┴─┴─────────────────────────────────────────────┤
+│ EVIDENCE PANEL (collapsed, toggle: Ctrl+E)                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Layout implementation:
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+  
+  Toolbar: height 48px, flex-shrink: 0, border-bottom: 1px solid var(--color-border-default);
+  
+  Pane Container: display: flex; flex: 1; overflow: hidden;
+    THINK pane: flex: 1; min-width: 280px; overflow-y: auto; background: var(--color-bg-canvas);
+      padding: var(--space-4);
+    Divider: width 8px; flex-shrink: 0; cursor: col-resize; (see §5.3)
+    SAYS pane: flex: 1; min-width: 280px; overflow-y: auto; background: var(--color-bg-canvas);
+      display: flex; flex-direction: column;
+      Findings list: flex: 1; overflow-y: auto; padding: var(--space-4);
+      Input Area: flex-shrink: 0; border-top: 1px solid var(--color-border-default);
+        padding: var(--space-3) var(--space-4);
+        background: var(--color-bg-surface);
+  
+  Evidence Panel: position: absolute; right: 0; top: 48px; bottom: 0; width: 360px;
+    transform: translateX(100%); (hidden) / translateX(0); (visible)
+    background: var(--color-bg-surface); border-left: 1px solid var(--color-border-default);
+    z-index: 20; box-shadow: var(--shadow-lg);
+
+Persistence:
+  Pane ratio saved to localStorage key: `chronicle:investigation:${investigationId}:pane-ratio`
+  Evidence panel visibility saved to: `chronicle:investigation:${investigationId}:evidence-open`
+  Restored on investigation switch or page reload.
+
+Responsive (width < 768px):
+  Panes stack vertically: THINK above, SAYS below. Horizontal divider replaces vertical.
+  Divider width: 100%, height: 8px, cursor: row-resize.
+  Evidence panel: full-width bottom sheet, slides up from bottom.
+  Input area: fixed to viewport bottom.
 ```
 
-### 5.3 The Divider
+### 5.3 Resizable Divider
+
+The divider separates THINK and SAYS panes. It is the primary mechanism for adjusting the reasoning-to-conclusion ratio.
 
 ```
-The resizable divider between THINK and SAYS panes.
-
 Dimensions:
-  Width: 8px total (4px visible grip + 2px invisible hit area each side)
-  Height: 100% of pane height
-  Background: var(--color-border-default) at 60% opacity
-  Cursor: col-resize
+  Total width: 8px (composed of 4px visible grip + 2px invisible hit area on each side)
+  Height: 100% of pane container
+  Background: transparent (default), var(--color-border-default) at 60% opacity (visible grip)
+  Cursor: col-resize (default), col-resize-grabbing (while dragging)
+  Z-index: 5 (above panes, below overlays)
 
 Grip indicator:
-  Three vertical dots (· · ·) centered in the grip area
-  Color: var(--color-text-tertiary)
-  Size: 2px dots, 4px spacing
-  Visible at all times, subtly brighter on hover
+  Three vertical dots centered within the 4px visible area:
+    Content: "·" character × 3, stacked vertically with 4px gap
+    Font-size: 6px
+    Color: var(--color-text-tertiary) (default), var(--color-text-secondary) (hover), var(--color-text-primary) (active)
+    Line-height: 4px
+    User-select: none
+    Pointer-events: none
 
-Interaction states:
-  Default:   background transparent, dots tertiary color
-  Hover:     background var(--color-border-hover) at 40% opacity, dots secondary color
-  Active:    background var(--color-accent-primary) at 30% opacity, dots primary color
-             Cursor changes to col-resize-grabbing
-  Focus:     visible focus ring (keyboard accessible via Ctrl+←/→ for resize)
+States:
+  DEFAULT: 
+    Background: transparent (grip area only shows on hover)
+    Grip dots: var(--color-text-tertiary) at 40% opacity
+    Transition: background-color 200ms var(--ease-out-quint), opacity 200ms var(--ease-out-quint)
+    
+  HOVER (cursor within 20px of divider center):
+    Background: var(--color-border-hover) at 40% opacity (spans full divider width)
+    Grip dots: var(--color-text-secondary), opacity 1
+    Cursor: col-resize
+    
+  ACTIVE (mouse button held, dragging):
+    Background: var(--color-accent-primary) at 30% opacity
+    Grip dots: var(--color-text-primary), opacity 1
+    Cursor: col-resize-grabbing
+    Overlay: semi-transparent vertical line spans full viewport height at divider position
+      (1px solid, var(--color-accent-primary) at 40% opacity, z-index: 100)
+  
+  KEYBOARD FOCUS (divider focused via Ctrl+arrows):
+    Visible focus ring: box-shadow 0 0 0 2px var(--color-accent-primary)
+    Divider is focusable (tabindex="0") for keyboard accessibility
 
 Resize behavior:
-  Drag: real-time resize with CSS transform (no layout thrash)
-    Uses requestAnimationFrame for smooth 60fps resize
-    THINK pane width = clamp(280px, dragPosition, totalWidth - 280px)
-    SAYS pane width = totalWidth - THINK pane width - divider width
-  Minimum pane width: 280px
-    Below 280px: content switches to compact mode (condensed cards, smaller text)
-  Maximum: totalWidth - 280px (guarantees other pane has minimum)
-  Double-click divider: reset to 50/50 split
-    Animated transition: width transition 400ms ease-out-expo
-  Drag to edge (<40px remaining): collapse pane entirely
-    Collapsed pane shows 40px tab with vertical label
-    Tab shows pane name (THINK/SAYS) in vertical text
-    Click tab: restore to 280px minimum
-    Drag tab: restore to dragged position
+  DRAG: Mouse down → track mouse movement → update pane widths in real-time
+    Implementation: onMouseDown capture, document-level mousemove listener, onMouseUp release
+    Performance: update CSS custom properties (--think-width, --says-width) via requestAnimationFrame
+    THINK width = clamp(280px, cursorX - paneContainer.left, paneContainer.width - 280px - 8px)
+    SAYS width = paneContainer.width - THINK width - 8px
+    Minimum pane: 280px. At minimum, content switches to compact mode (smaller text, condensed cards)
+    Maximum pane: container width - 280px - 8px (guarantees other pane has minimum)
+    
+  DOUBLE-CLICK: Reset to 50/50 split
+    Animation: width transition 400ms var(--ease-out-expo)
+    Restores default ratio regardless of previous drag position
+    
+  DRAG TO EDGE (< 40px remaining for opposite pane):
+    Collapse opposite pane entirely (width: 0px, overflow: hidden)
+    Show 40px tab on collapsed edge with vertical label "THINK" or "SAYS"
+    Tab: width 40px, background var(--color-bg-surface), border: 1px solid var(--color-border-default)
+      Vertical text: writing-mode: vertical-rl, transform: rotate(180deg)
+      Font: var(--text-caption), font-weight: 600, color: var(--color-text-secondary)
+      Hover: background var(--color-bg-hover), color var(--color-text-primary)
+      Click: restore pane to 280px minimum with animation
+    
+  KEYBOARD RESIZE (divider focused):
+    Ctrl+ArrowLeft: reduce THINK by 40px (increase SAYS) — animated 250ms var(--ease-out-quint)
+    Ctrl+ArrowRight: increase THINK by 40px (reduce SAYS) — animated 250ms var(--ease-out-quint)
+    Ctrl+Shift+ArrowLeft: snap THINK to 280px minimum — animated 300ms var(--ease-out-expo)
+    Ctrl+Shift+ArrowRight: snap SAYS to 280px minimum — animated 300ms var(--ease-out-expo)
+    Ctrl+\\: reset to 50/50 — animated 400ms var(--ease-out-expo)
+    Each keypress fires one resize step. Holding key repeats via OS key repeat rate.
 
-Keyboard resize:
-  Ctrl+← : reduce THINK pane by 40px (increase SAYS)
-  Ctrl+→ : increase THINK pane by 40px (reduce SAYS)
-  Ctrl+Shift+← : snap THINK to 280px minimum
-  Ctrl+Shift+→ : snap SAYS to 280px minimum
-  Ctrl+\ : reset to 50/50 split
-  Each keypress: animated transition 250ms ease-out-quint
-
-Remember state:
-  Pane ratio saved per investigation in localStorage
-  Restored on next visit
-  Key: `chronicle:investigation:${id}:pane-ratio`
+State persistence:
+  Pane ratio saved as percentage (0-100) to localStorage on drag end (debounced 500ms)
+  Key: `chronicle:pane:${investigationId}:think-pct`
+  Restored on investigation load with no animation (instant, to avoid visible jump)
+  Default: 50 (if no saved value)
 ```
 
 ### 5.4 THINK Pane — AI Reasoning Chain
 
+The THINK pane displays the AI's internal reasoning as a chronological, scrollable sequence of Thought Cards. Each card represents one reasoning step — the AI evaluating sources, comparing data, flagging contradictions, or synthesizing conclusions.
+
+The pane auto-scrolls to the bottom when new reasoning is generated (streaming). If the user scrolls up to read older reasoning, a "↓ New reasoning" floating button appears at the bottom of the pane. Scrolling to the bottom dismisses the button and resumes auto-scroll.
+
+#### 5.4.1 Thought Card Anatomy
+
 ```
-The THINK pane displays the AI's internal reasoning for each query.
-It is a scrollable, chronological log of reasoning steps.
+┌──────────────────────────────────────────────────────────────┐
+│ 🧠 Step 3 · Synthesize                    deepseek-v4-pro    │  ← Header row
+│                                           0.8s ago           │
+│──────────────────────────────────────────────────────────────│
+│                                                              │
+│ Comparing APAC growth trajectory with EMEA decline. The      │  ← Reasoning content
+│ contradiction in November supply chain data versus March     │     (prose mode)
+│ report suggests a reporting lag, not actual decline.         │     font: var(--text-body)
+│ Cross-referencing with shipping manifests confirms:          │     line-height: 1.6
+│ shipments were delayed, not cancelled. The 3% EMEA decline   │     color: var(--color-text-primary)
+│ is therefore likely a timing artifact, not market loss.      │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ 📄 q4-sales.csv                    confidence: 0.94      │ │  ← Source badges
+│ │ 📄 shipping-manifests-nov.csv      confidence: 0.87      │ │
+│ │ 📄 march-report-q1.pdf             confidence: 0.72      │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ ⚠ Contradiction: November shipping data vs March report      │  ← Flag indicators
+│ ℹ Note: Supply chain delay confirmed by manifests            │
+│                                                              │
+│ [View in Timeline]  [Copy Content]  [⚑ Flag for Review]    │  ← Action buttons
+└──────────────────────────────────────────────────────────────┘
 
-Behavior:
-  Auto-scrolls to bottom when new reasoning is generated.
-  When user scrolls up: "Auto-scroll paused — new reasoning below" indicator.
-  Scroll to bottom button (pill, glass-morphism, bottom-center of pane).
+Card dimensions:
+  Width: 100% (fills THINK pane, respects padding)
+  Max-width: none
+  Margin-bottom: var(--space-3) (12px between consecutive cards)
+  Background: var(--color-bg-surface)
+  Border: 1px solid var(--color-border-default)
+  Border-left: 3px solid var(--color-accent-purple)   ← primary identity marker
+  Border-radius: 0 var(--radius-md) var(--radius-md) 0  (left edge flat for accent bar)
+  Padding: var(--space-4) (16px)
+  Box-shadow: var(--shadow-sm)
 
-Each reasoning step is a "Thought Card":
-  ┌──────────────────────────────────────────┐
-  │ 🧠 Step 3 · Synthesize         0.8s ago  │  ← Header: step number, label, relative time
-  │                                          │
-  │ [Model used: deepseek-v4-pro]            │  ← Model badge (small pill)
-  │                                          │
-  │ Comparing APAC growth trajectory with     │  ← Reasoning content (monospace or prose)
-  │ EMEA decline. The contradiction in         │     Monospace for structured output
-  │ November supply chain data vs. March       │     Prose for narrative reasoning
-  │ report suggests a reporting lag, not       │
-  │ actual decline. Cross-referencing with     │
-  │ shipping manifests confirms: shipments     │
-  │ were delayed, not cancelled.               │
-  │                                          │
-  │ Sources evaluated:                        │  ← Source list
-  │ ┌──────────────────────────────────────┐ │
-  │ │ 📄 q4-sales.csv         confidence 0.94│ │
-  │ │ 📄 shipping-nov.csv     confidence 0.87│ │
-  │ │ 📄 march-report.pdf     confidence 0.72│ │
-  │ └──────────────────────────────────────┘ │
-  │                                          │
-  │ Flags raised:                             │  ← Anomalies detected
-  │ ⚠ Contradiction: Nov vs. March data      │
-  │ ℹ Note: Supply chain delay confirmed     │
-  │                                          │
-  │ [View in Timeline]  [Copy]  [Flag]       │  ← Actions
-  └──────────────────────────────────────────┘
+Header row:
+  Display: flex; justify-content: space-between; align-items: center;
+  Margin-bottom: var(--space-2) (8px)
+  Left side:
+    Step label: "🧠 Step 3 · Synthesize"
+    Font: var(--text-small), font-weight: 600, color: var(--color-text-primary)
+    Icon: brain emoji (🧠) or Phosphor Brain icon 14px, color: var(--color-accent-purple)
+    Step number: incremented per reasoning cycle within a session, reset on new session
+    Step name: auto-generated from AI reasoning (first 5-8 words of reasoning, truncated)
+  Right side:
+    Model badge: small pill, padding 1px 8px, radius var(--radius-full)
+      Background: var(--color-accent-purple) at 10% opacity
+      Color: var(--color-accent-purple)
+      Font: var(--text-caption), font-weight: 500
+      Content: model name (e.g., "deepseek-v4-pro", "claude-sonnet-4")
+    Timestamp: right of model badge (or below on narrow cards)
+      Font: var(--text-caption), color: var(--color-text-tertiary)
+      Format: relative time ("0.8s ago", "2m ago", "1h ago")
+      Absolute time: title attribute shows full ISO timestamp
 
-Thought Card States:
-
-  DEFAULT (no interaction):
-    Background: var(--color-bg-surface)
-    Border-left: 3px solid var(--color-accent-purple)
-    Border-radius: var(--radius-md)
-    Margin-bottom: 12px
-    
-  THINKING (in progress, streaming):
-    Border-left: 3px solid var(--color-accent-purple) animated
-      Gradient animation: purple → cyan → purple (3s cycle)
-      Indicates AI is actively generating this reasoning
-    Content: streaming text with cursor blink at end
-      Cursor: 2px solid var(--color-accent-purple), blink 1s cycle
-    "Thinking..." badge instead of timestamp
-    Subtle glow: box-shadow 0 0 12px rgba(163,113,247,0.1)
-    
-  COMPLETED (reasoning finished):
-    Border-left: 3px solid var(--color-border-default)
-    Background: var(--color-bg-surface)
-    Timestamp appears (fade in, 300ms)
-    "Thinking" badge transitions to step number
-    Glow dissipates (transition 500ms)
-    
-  EXPANDED (clicked to see full details):
-    Border-left: 3px solid var(--color-accent-primary)
-    Background: var(--color-bg-surface-raised)
-    Full source list visible
-    Full reasoning visible (no truncation)
-    Adjacent cards dim to 60% opacity for focus
-    Outside click or Escape: collapse back
-    
-  FLAGGED (user-flagged for review):
-    Border-left: 3px solid var(--color-accent-error)
-    Flag icon visible in header
-    Red tint overlay at 5% opacity
-
-  LINKED (referenced by SAYS conclusion):
-    Border-left: 3px solid var(--color-accent-success)
-    Small link icon in header → clicking scrolls to linked SAYS card
-    Reciprocal: SAYS card also shows link back to this THINK card
-
-Thought Card Animations:
-  Entry (new card at bottom):
-    Slide up from below (translateY 20px→0) + fade in (opacity 0→1)
-    Duration: 300ms, ease-out-expo
-    Staggered if multiple cards arrive simultaneously (50ms delay each)
+Reasoning content:
+  Margin-bottom: var(--space-3) (12px)
+  Font: var(--text-body), line-height: 1.6, color: var(--color-text-primary)
+  White-space: pre-wrap (preserves line breaks from AI output)
+  Word-wrap: break-word
   
-  Expand/Collapse:
-    Height transition: max-height 80px → max-height 2000px
-    Duration: 400ms, ease-out-expo
-    Content fades in with 100ms delay after expansion starts
-  
-  Link highlight (when SAYS card is clicked):
-    Linked THINK card pulses: box-shadow glow animates twice
-    Duration: 300ms per pulse, 2 pulses, then fades
-    Color: var(--color-accent-success)
-
-Thought Card Content Rendering:
-  Reasoning text renders in two modes based on content:
-  
-  PROSE MODE (narrative reasoning):
-    Font: body-small, line-height 1.5
-    Color: text-primary
-    Paragraphs with standard spacing
+  PROSE MODE (default — narrative reasoning):
+    Font: var(--text-body)
+    Renders markdown: bold, italic, inline code, bullet lists
+    Links: clickable, open in new tab (target="_blank", rel="noopener")
     
-  STRUCTURED MODE (JSON, tables, lists):
-    Font: mono-sm
-    Syntax highlighting for code blocks
-    Tables rendered with compact style
-    JSON with collapsible nodes (click to expand/collapse objects)
+  STRUCTURED MODE (when content is detected as JSON/code):
+    Font: var(--text-mono-sm)
+    Background: var(--color-bg-input)
+    Border-radius: var(--radius-sm)
+    Padding: var(--space-2) var(--space-3)
+    Max-height: 300px (scrollable if exceeds)
+    Syntax highlighting: JSON keys in cyan, strings in green, numbers in amber, booleans in purple
+    Collapse/expand: if content > 20 lines, show first 10 + "Show all (N lines)" button
 
 Source badges:
-  Small pill with icon + filename
-  Background: var(--color-bg-input)
-  Border: 1px solid var(--color-border-default)
-  Border-radius: var(--radius-sm)
-  Padding: 2px 8px
-  Font: caption, color text-secondary
-  Confidence score: right-aligned, mono-sm, color-coded
-    >0.9: green, 0.7-0.9: amber, <0.7: red
+  Display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2);
   
-  Hover: border-color var(--color-border-hover)
-  Click: opens source in Evidence Panel → scrolls to this source
-  
-  If source is a DB table: table icon + table name
-  If file: file icon + filename
-  If memory event: database icon + event ID
-  If web URL: globe icon + domain
+  Individual badge:
+    Display: inline-flex; align-items: center; gap: 4px;
+    Background: var(--color-bg-input)
+    Border: 1px solid var(--color-border-default)
+    Border-radius: var(--radius-sm)
+    Padding: 2px 8px
+    Font: var(--text-caption), color: var(--color-text-secondary)
+    Max-width: 220px (truncate filename with ellipsis)
+    
+    Icon: 12px, entity-type-dependent
+      File: 📄 or Phosphor File icon
+      Database: 🗄️ or Phosphor Database icon
+      URL: 🌐 or Phosphor Globe icon
+      Memory event: 💾 or Phosphor HardDrive icon
+    
+    Confidence score: right side of badge
+      Font: var(--text-mono-sm), font-weight: 600, tabular-nums
+      Color: 
+        ≥ 0.94: var(--color-accent-success)  (green, high confidence)
+        0.70-0.93: var(--color-accent-warning) (amber, moderate)
+        < 0.70: var(--color-accent-error)       (red, low)
+      Format: "0.94" (always 2 decimal places)
+      
+    Hover: border-color var(--color-border-hover), background brightens 5%
+    Click: opens source in Evidence Panel, scrolling to that specific source
+    Cursor: pointer
 
 Flag indicators:
-  ⚠ Contradiction: two sources disagree
-    Color: amber, icon: warning
-  🔗 Correlation: significant statistical relationship
-    Color: cyan, icon: graph
-  ⚡ Anomaly: unusual pattern detected
-    Color: purple, icon: lightning
-  ❌ Error: reasoning step failed
-    Color: red, icon: x-circle
-  ℹ Note: informational observation
-    Color: muted, icon: info
+  Display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-2);
+  Margin-bottom: var(--space-2);
+  
+  Each flag:
+    ⚠ Contradiction: amber, "Warning" icon
+      Meaning: two or more sources disagree
+    🔗 Correlation: cyan, "Graph" icon
+      Meaning: significant statistical relationship found
+    ⚡ Anomaly: purple, "Lightning" icon  
+      Meaning: unusual pattern or outlier detected
+    ❌ Error: red, "XCircle" icon
+      Meaning: reasoning step encountered an error (retry available)
+    ℹ Note: muted, "Info" icon
+      Meaning: informational observation, no action needed
+    
+  Style:
+    Font: var(--text-caption)
+    Icon: 14px, color matches flag type
+
+Action buttons:
+  Display: flex; gap: var(--space-2); margin-top: var(--space-2);
+  Justify-content: flex-start
+  
+  Button style:
+    Height: 28px
+    Padding: 0 var(--space-3)
+    Background: transparent
+    Border: 1px solid var(--color-border-default)
+    Border-radius: var(--radius-md)
+    Font: var(--text-caption), font-weight: 500, color: var(--color-text-secondary)
+    Cursor: pointer
+    Display: inline-flex; align-items: center; gap: 4px
+    Transition: var(--transition-color)
+    
+    Hover: background var(--color-bg-hover), color var(--color-text-primary), border-color var(--color-border-hover)
+    Active: background var(--color-bg-selection), scale 0.97 (var(--duration-micro))
+  
+  "Flag" button special:
+    When flagged: background var(--color-accent-error-muted), border-color var(--color-accent-error), color var(--color-accent-error)
+    Icon changes from regular to fill weight
+```
+
+#### 5.4.2 Thought Card States
+
+Every thought card exists in exactly one of these states at any time. State transitions are animated.
+
+```
+1. DEFAULT (idle, not currently streaming, not expanded, not flagged)
+   
+   Border-left: 3px solid var(--color-accent-purple)
+   Background: var(--color-bg-surface)
+   Box-shadow: var(--shadow-sm)
+   
+   Reasoning content: fully rendered, no cursor
+   Timestamp: static, relative time
+   Source badges: visible
+   Action buttons: visible, standard styles
+   
+   Hover (DEFAULT → HOVER):
+     Background brightens to mix of surface + hover: color-mix(in srgb, var(--color-bg-surface) 85%, var(--color-bg-hover) 15%)
+     Border-left color intensifies: var(--color-accent-purple) opacity 1.0 (from 0.8)
+     Box-shadow: var(--shadow-md) (card lifts slightly)
+     Transition: all 150ms var(--ease-out-quint)
+     Cursor: pointer (click to expand)
+
+2. THINKING (AI is currently generating this reasoning — streaming state)
+   
+   Border-left: 3px solid var(--color-accent-purple)
+   Border-left animation: gradient sweep purple→cyan→purple, 3s cycle, infinite
+     Implementation: 
+       @keyframes thinking-border {
+         0%, 100% { border-left-color: var(--color-accent-purple); }
+         50% { border-left-color: var(--color-accent-cyan); }
+       }
+       animation: thinking-border 3s var(--ease-linear) infinite;
+   
+   Box-shadow: var(--shadow-glow-blue) (subtle glow indicating activity)
+     Glow intensity pulses: opacity 0.05→0.15→0.05, 2s cycle
+     @keyframes thinking-glow {
+       0%, 100% { box-shadow: 0 0 12px rgba(163,113,247,0.05); }
+       50% { box-shadow: 0 0 12px rgba(163,113,247,0.15); }
+     }
+   
+   Header left: "🧠 Thinking..." instead of step number + name
+     Font: var(--text-small), font-weight: 600, color: var(--color-accent-purple)
+     Ellipsis animation: three dots appear sequentially
+       @keyframes thinking-dots {
+         0% { opacity: 0.3; } 33% { opacity: 1; } 66% { opacity: 0.3; } 100% { opacity: 0.3; }
+       }
+       Each dot: delayed 200ms from previous (dot1 0ms, dot2 200ms, dot3 400ms)
+   
+   Header right: 
+     Model badge: normal (model doesn't change mid-generation)
+     Timestamp: hidden (replaced by "Generating..." text)
+       Color: var(--color-text-tertiary), font: var(--text-caption), italic
+   
+   Reasoning content:
+     Streaming text with cursor at end
+     Text appears: batched DOM updates at 60fps (every 16ms)
+     Cursor: "▊" unicode character, 2px wide block
+       Color: var(--color-accent-purple)
+       Animation: blink 1s cycle (visible 0.7s, hidden 0.3s)
+       @keyframes cursor-blink {
+         0%, 70% { opacity: 1; }
+         71%, 100% { opacity: 0; }
+       }
+     New text slides in from below slightly: translateY(2px)→translateY(0) over 100ms
+       (micro-animation for each chunk, creating organic "growing" feel)
+   
+   Source badges: appear as they are mentioned in reasoning
+     Entry animation: scale(0)→scale(1), 200ms var(--ease-spring)
+     Staggered: first badge appears immediately, subsequent badges delay 100ms each
+   
+   Flag indicators: appear as AI identifies issues
+     Entry animation: slide in from left (translateX(-8px)→0) + fade in, 200ms var(--ease-out-quint)
+   
+   Action buttons: hidden during thinking (not interactive yet)
+   
+   Auto-scroll: pane scrolls to keep cursor visible
+     Implementation: scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+     Throttled: max once per 200ms to prevent janky scrolling
+
+3. COMPLETED (AI finished generating)
+   
+   Transition from THINKING → COMPLETED:
+     Border-left animation: stops, settles on var(--color-border-default)
+       transition: border-left-color 500ms var(--ease-out-quint)
+     Glow: dissipates over 500ms
+       transition: box-shadow 500ms var(--ease-out-quint)
+     Cursor: removed (fade out 200ms var(--ease-out-quint))
+     Header: "Thinking..." fades out (200ms), step number + name fades in (200ms, delayed 50ms)
+     Timestamp: fades in (200ms, delayed 100ms)
+       Shows relative time ("0.8s ago") updating in real-time
+     Action buttons: fade in (200ms, delayed 200ms)
+     Total transition: ~700ms cascade
+   
+   After completion, card behaves as DEFAULT state (above).
+
+4. EXPANDED (user clicked card to see full details)
+   
+   Trigger: click on collapsed card (anywhere on card body)
+   
+   Changes from DEFAULT:
+     Border-left: 3px solid var(--color-accent-primary)  (blue, not purple — indicates focus)
+     Background: var(--color-bg-surface-raised)
+     Box-shadow: var(--shadow-md)
+     Border-color: var(--color-border-hover)
+     
+     Max-height: none (full content visible, no truncation)
+     Source badges: all visible (not just first 3)
+     Flag indicators: all visible
+     Action buttons: all visible
+   
+   Adjacent cards (above and below):
+     Opacity: 0.6 (dimmed to focus attention on expanded card)
+     Transition: opacity 200ms var(--ease-out-quint)
+     Not interactive while dimmed (pointer-events: none)
+   
+   Scroll behavior: card scrolls into view if partially hidden
+     scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+   
+   Collapse triggers:
+     Click outside card (click listener on THINK pane)
+     Press Escape key
+     Click "Collapse" button (appears top-right in expanded view)
+     Scroll past card (if card scrolls out of viewport, auto-collapse after 500ms)
+   
+   Collapse animation:
+     Max-height transition from auto to collapsed height
+     (Use JS to measure collapsed height, set explicit max-height, then transition)
+     Duration: 400ms var(--ease-out-expo)
+     Adjacent cards return to full opacity: 200ms var(--ease-out-quint)
+     Border-left transitions back to purple: 400ms var(--ease-out-quint)
+
+5. FLAGGED (user clicked "⚑ Flag for Review")
+   
+   Same base as DEFAULT/COMPLETED but:
+     Border-left: 3px solid var(--color-accent-error) (red instead of purple)
+     Background: var(--color-accent-error-muted) at 5% opacity (very subtle red tint)
+     
+     Flag icon appears in header left: 🚩 or Phosphor Flag icon, 14px, color: var(--color-accent-error)
+       Positioned before step label
+     
+     "Flag" action button: toggled state (filled red)
+       Click again: unflag → returns to DEFAULT state
+   
+   Persistence: flagged state stored in localStorage, survives refresh
+     Key: `chronicle:thought:${sessionId}:${stepNumber}:flagged`
+   
+   Flagged indicator in Timeline view: this thought card shows red dot in timeline
+
+6. LINKED (this thought is referenced by a SAYS Finding)
+   
+   Border-left: 3px solid var(--color-accent-success) (green)
+   
+   Link badge in header right: "→ Finding #7" 
+     Small pill, background: var(--color-accent-success-muted), color: var(--color-accent-success)
+     Font: var(--text-caption), font-weight: 500
+     Click: scrolls SAYS pane to Finding #7 and highlights it
+   
+   Multiple links: if linked to multiple findings, badge shows "→ 3 Findings" 
+     Click: expands dropdown listing each finding
+   
+   Highlight animation (when SAYS finding clicked):
+     Border-left: 3px solid var(--color-accent-success)
+     Box-shadow: var(--shadow-glow-blue) (green-tinted glow)
+     Pulse: 2 cycles, 300ms each
+       @keyframes link-pulse {
+         0% { box-shadow: none; }
+         50% { box-shadow: var(--shadow-glow-blue); }
+         100% { box-shadow: none; }
+       }
+     Total: 600ms, then returns to LINKED steady state
+   
+   Scroll-to: when triggered from SAYS, THINK pane auto-scrolls to this card
+     Behavior: smooth scroll, card centered vertically if possible
+```
+
+#### 5.4.3 Thought Card Animations
+
+```
+CARD ENTRY (new card appears at bottom of list):
+  Animation: 
+    transform: translateY(20px) → translateY(0)
+    opacity: 0 → 1
+    Duration: 300ms, var(--ease-out-expo)
+  If multiple cards appear simultaneously (e.g., after reconnection):
+    Stagger: 50ms delay per card (card 1: 0ms, card 2: 50ms, card 3: 100ms, etc.)
+    Implementation: CSS animation-delay or JS staggered setTimeout
+  
+  Existing cards shift down smoothly:
+    margin-bottom transition: 250ms var(--ease-out-quint)
+    (Cards don't jump — they slide to new positions)
+
+CARD REMOVAL (user deletes or hides card):
+  Animation:
+    transform: translateY(0) → translateY(-10px)
+    opacity: 1 → 0
+    max-height: current → 0
+    Duration: 200ms, var(--ease-in-quint)
+  Below cards slide up to fill gap:
+    margin-bottom transition: 250ms var(--ease-out-quint)
+
+CARD EXPAND (see EXPANDED state above):
+  Phase 1 (0-300ms): height expands to full content
+    max-height transition: 400ms var(--ease-out-expo)
+  Phase 2 (100-400ms): content fades in
+    Adjacent cards dim (opacity transition: 200ms var(--ease-out-quint))
+    Action buttons, flags appear
+  Trigger: user click on card
+
+CARD COLLAPSE (reverse of expand):
+  Phase 1 (0-200ms): content fades out, adjacent cards restore
+  Phase 2 (0-400ms): height collapses
+    max-height transition: 400ms var(--ease-out-expo)
+  
+STATE TRANSITIONS (border color, background, glow):
+  All use var(--transition-color): 150ms var(--ease-out-quint)
+  Smooth transitions between all color properties simultaneously
+
+STREAMING TEXT (during THINKING state):
+  Text chunks arrive via WebSocket or polling
+  Each chunk appended to DOM in requestAnimationFrame callback
+  Maximum 1 DOM update per 16ms (60fps)
+  Chunks batched: if multiple chunks arrive within 16ms window, concatenate before DOM update
+  
+  Typewriter feel (optional, toggleable in settings):
+    Instead of chunk-based, render character-by-character at configurable speed
+    Default speed: 80 chars/second
+    Implementation: queue characters, pop and render at 12.5ms intervals
+  
+  Cursor behavior:
+    At end of last rendered character
+    No cursor before text exists
+    Cursor removed when streaming completes
+    If streaming pauses (network lag), cursor continues blinking
+
+AUTO-SCROLL BEHAVIOR:
+  During streaming: auto-scroll keeps cursor visible
+    Uses scrollIntoView({ block: 'nearest' }) throttled to 200ms intervals
+  
+  "New reasoning ↓" button:
+    Appears when user scrolls up >50px from bottom of THINK pane
+    Position: sticky, bottom: 16px, centered horizontally
+    Style: 
+      Background: var(--glass-heavy); backdrop-filter: blur(20px);
+      Border: 1px solid var(--color-border-default); border-radius: var(--radius-full);
+      Padding: var(--space-1) var(--space-3); font: var(--text-caption);
+      Color: var(--color-text-secondary); cursor: pointer;
+      Box-shadow: var(--shadow-md);
+    Entry animation: slide up from bottom (translateY(16px)→0) + fade, 200ms var(--ease-out-expo)
+    Exit animation: slide down + fade, 150ms var(--ease-in-quint)
+    Badge: shows count of new reasoning steps ("↓ 3 new") — updates in real-time
+    Click: smooth scroll to bottom, dismiss button
+    Dismisses automatically when scrolled within 50px of bottom
 ```
 
 ### 5.5 SAYS Pane — Polished Output
 
+The SAYS pane displays the AI's conclusions as Finding Cards. Each Finding represents a discrete conclusion, observation, or recommendation that the AI has derived from its reasoning in the THINK pane. Findings are bidirectionally linked to their originating THINK steps.
+
+The pane contains a scrollable list of Findings, sorted chronologically (newest at bottom). Above the list, an optional filter bar allows filtering by status (All, Draft, Approved, Rejected, Outdated). Below the list, the Input Area (§5.6) for submitting queries.
+
+#### 5.5.1 Finding Card Anatomy
+
 ```
-The SAYS pane displays the AI's conclusions, findings, and recommendations.
-Each "Finding Card" is linked to its originating THINK reasoning step(s).
+┌──────────────────────────────────────────────────────────────┐
+│ ✅ Finding #7                          Draft · 0.8s ago      │  ← Header
+│──────────────────────────────────────────────────────────────│
+│                                                              │
+│ Q4 revenue in APAC increased 12% YoY, driven primarily       │  ← Conclusion text
+│ by expansion in the Southeast Asian market. This represents  │
+│ the third consecutive quarter of double-digit growth in      │
+│ the region, outpacing all other geographic segments.         │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ▸ Sources (2)                                            │ │  ← Collapsible sections
+│ │ ▸ Reasoning — Based on Step 2, Step 4                    │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ Confidence: ■■■■□ HIGH (0.94)                                │  ← Confidence bar
+│                                                              │
+│ Status: ✓ Approved by Bane · 2m ago                          │  ← Approval status
+│                                                              │
+│ [Edit] [Approve] [Request Revision] [Copy] [⚑ Flag]        │  ← Actions
+└──────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────────────────┐
-│ ✅ Finding #7                12m ago     │  ← Finding number, timestamp
-│                                          │
-│ Q4 revenue in APAC increased 12% YoY,    │  ← Conclusion (prose)
-│ driven primarily by expansion in the      │
-│ Southeast Asian market. This represents   │
-│ the third consecutive quarter of double-  │
-│ digit growth in the region.               │
-│                                          │
-│ ▸ Sources                               │  ← Expandable source list
-│   📄 q4-sales.csv                        │
-│   📄 apac-report-q3.pdf                  │
-│                                          │
-│ ▸ Reasoning                             │  ← Link to THINK pane
-│   Based on: Step 2 · Cross-ref APAC     │    Click → highlights linked THINK card
-│   Based on: Step 4 · Verify growth      │
-│                                          │
-│ Confidence: HIGH ⬤  (0.94)              │  ← Confidence level
-│                                          │
-│ Status: ✓ Approved by Bane · 2m ago     │  ← Approval status
-│                                          │
-│ [Edit]  [Link to Source]  [Flag]        │  ← Actions
-│        [Approve]  [Request Revision]     │
-└──────────────────────────────────────────┘
+Card dimensions:
+  Width: 100% (fills SAYS pane, respects padding)
+  Max-width: 720px (readability — narrower than THINK cards for prose reading comfort)
+  Margin: 0 auto var(--space-3) (centered, with bottom gap)
+  Background: var(--color-bg-surface)
+  Border: 1px solid var(--color-border-default)
+  Border-radius: var(--radius-md)
+  Padding: var(--space-4)
+  Box-shadow: var(--shadow-sm)
 
-Finding Card States:
-  DRAFT (AI-generated, not yet reviewed):
+Header row:
+  Display: flex; justify-content: space-between; align-items: center;
+  Margin-bottom: var(--space-3);
+  
+  Left side:
+    Finding number: "✅ Finding #7" or "📝 Finding #7" (draft)
+      Font: var(--text-small), font-weight: 600, color: var(--color-text-primary)
+      Icon: check-circle (approved), file-text (draft), x-circle (rejected)
+  
+  Right side:
+    Status badge: small pill
+      Font: var(--text-caption), font-weight: 500
+      Draft: background transparent, border 1px solid var(--color-border-default), color var(--color-text-secondary)
+      Approved: background var(--color-accent-success-muted), color var(--color-accent-success)
+      Rejected: background var(--color-accent-error-muted), color var(--color-accent-error)
+      Outdated: background transparent, border 1px dashed var(--color-border-default), color var(--color-text-tertiary)
+    Timestamp: text-caption, text-tertiary, right of badge
+
+Conclusion text:
+  Font: var(--text-body), line-height: 1.7, color: var(--color-text-primary)
+  Margin-bottom: var(--space-3)
+  White-space: pre-wrap
+  Renders markdown: bold, italic, lists, links
+  Max-height (collapsed): 120px (shows ~5 lines), overflow: hidden
+    "Show more" gradient overlay at bottom if truncated
+    Click or "Show more" button: expands to full height, 400ms var(--ease-out-expo)
+
+Collapsible sections (▸ Sources, ▸ Reasoning):
+  Display: flex; flex-direction: column; gap: var(--space-1);
+  Margin-bottom: var(--space-2);
+  
+  Section header:
+    Display: flex; align-items: center; gap: var(--space-1);
+    Font: var(--text-small), font-weight: 500, color: var(--color-text-secondary);
+    Cursor: pointer;
+    User-select: none;
+    Padding: var(--space-1) 0;
+    
+    Chevron: ▸ (collapsed) → ▾ (expanded)
+      Transition: transform 200ms var(--ease-out-quint)
+      Collapsed: rotate(0deg)
+      Expanded: rotate(90deg)
+    
+    Count badge: "(2)" in text-caption, text-tertiary
+    
+    Hover: color: var(--color-text-primary)
+  
+  Section content (visible when expanded):
+    Sources list:
+      For each source: icon + filename, clickable (opens in Evidence Panel)
+      Style: same as source badges in THINK cards (§5.4.1)
+    
+    Reasoning links:
+      For each linked THINK step: "Step 2 · Cross-ref APAC" 
+      Click: THINK pane scrolls to that step, highlights it
+      Style: 
+        Display: inline-flex; align-items: center; gap: 4px;
+        Font: var(--text-small), color: var(--color-text-link);
+        Cursor: pointer;
+        Hover: text-decoration: underline;
+        Icon: link icon (12px) before step label
+
+Confidence bar:
+  Display: flex; align-items: center; gap: var(--space-2);
+  Margin-bottom: var(--space-2);
+  
+  Bar: 5 segments
+    ┌──┬──┬──┬──┬──┐
+    │■ │■ │■ │■ │□ │  HIGH (0.94)
+    └──┴──┴──┴──┴──┘
+    
+    Each segment: 16px wide, 6px tall, border-radius 1px, gap 2px
+    Filled segments: 
+      > 0.8: var(--color-accent-success) (green)
+      0.5-0.8: var(--color-accent-warning) (amber)
+      < 0.5: var(--color-accent-error) (red)
+    Empty segments: var(--color-bg-input)
+  
+  Label: "HIGH (0.94)"
+    Font: var(--text-caption), font-weight: 600
+    Color: matches bar color
+  
+  Bar animation:
+    On load: segments fill sequentially, left to right
+    Duration: 100ms per segment, 50ms stagger (500ms total)
+    Easing: var(--ease-out-quint)
+  
+  Hover on bar: tooltip with exact score + contributing factors
+    Position: above bar, centered
+    Content: "Confidence: 0.94\nSource reliability: 0.95\nCross-validation: 0.92\nContradiction flag: -0.12"
+    Style: tooltip card (glass, shadow, 12px font)
+
+Approval status:
+  Font: var(--text-small), color: var(--color-text-secondary);
+  Margin-bottom: var(--space-2);
+  
+  Approved: 
+    Color: var(--color-accent-success)
+    Content: "✓ Approved by {username} · {relative_time}"
+    Checkmark icon, 14px
+    
+  Pending (draft): 
+    Color: var(--color-text-secondary)
+    Content: "Awaiting review"
+    Clock icon, 14px
+    
+  Rejected:
+    Color: var(--color-accent-error)
+    Content: "✗ Rejected by {username} · {relative_time}"
+    X icon, 14px
+    Optional: rejection reason shown below in italics
+
+Action buttons:
+  Display: flex; gap: var(--space-2);
+  Justify-content: flex-end;
+  
+  Approve button:
+    Background: var(--color-accent-success)
+    Color: white
+    Border: none
+    Height: 32px; padding: 0 var(--space-4);
+    Border-radius: var(--radius-md);
+    Font: var(--text-small), font-weight: 600;
+    Cursor: pointer;
+    Transition: var(--transition-color);
+    
+    Hover: background: var(--color-accent-success-hover) or brightness 1.1
+    Active: scale 0.97, 80ms
+    
+    Click: triggers approval confirmation (§5.5.3)
+  
+  Request Revision button:
+    Background: transparent
     Border: 1px solid var(--color-border-default)
-    Background: var(--color-bg-surface)
-    Badge: "Draft" in muted pill, top-right
-    Actions: [Approve] [Request Revision] [Edit] [Flag]
+    Color: var(--color-text-secondary)
+    Height: 32px; padding: 0 var(--space-4);
+    Border-radius: var(--radius-md);
+    Font: var(--text-small), font-weight: 500;
     
-  APPROVED (human-reviewed and accepted):
-    Border-left: 3px solid var(--color-accent-success)
-    Badge: "✓ Approved" green pill
-    Approval metadata: approver name, timestamp
-    Actions: [Edit] [Unapprove] [Copy] [Export]
-    Edit triggers: finding becomes "Draft" again
+    Hover: border-color var(--color-border-hover), color var(--color-text-primary)
     
-  REJECTED (human-reviewed and dismissed):
-    Border-left: 3px solid var(--color-accent-error)
-    Badge: "✗ Rejected" red pill
-    Dimmed to 60% opacity
-    Hidden from default view (toggle "Show Rejected" to see)
-    Actions: [Reconsider] [Delete]
-    
-  OUTDATED (superseded by newer finding):
-    Border: 1px dashed var(--color-border-default)
-    Badge: "Outdated" muted pill
-    Dimmed to 50% opacity
-    "Superseded by Finding #12" link
-    Actions: [View Superseding]
-
-Confidence Display:
-  Visual representation using 5-segment bar:
-  ■■■■□  HIGH (0.94)
+    Click: opens revision dialog (§5.5.3)
   
-  Colors: green (high), amber (medium), orange (low), red (very low)
-  Segments fill with transition: each block appears with 100ms stagger
-  Hover: tooltip with exact score and contributing factors
-    "Factors: source reliability (0.95), cross-validation (0.92), contradiction score (0.12)"
-
-Approval Workflow:
-  1. AI generates finding → Status: DRAFT
-  2. Human reviews finding in SAYS pane
-  3. Option A: Click [Approve] → triggers approval confirmation
-     Confirmation dialog:
-       "Approve this finding?"
-       "This will record your approval in the immutable audit trail."
-       Optional note: [Add approval note...]
-       [Approve] [Cancel]
-     On approve:
-       Finding transitions to APPROVED state (animation: green border sweeps in from left, 400ms)
-       Memory event written: approval record with human identity + timestamp
-       Status bar updates pending approval count
-       Toast: "Finding #7 approved"
-  4. Option B: Click [Request Revision]
-     Revision dialog:
-       "What should the AI revise?"
-       [Revision instructions textarea]
-       [Submit Revision Request]
-     On submit:
-       Finding returns to DRAFT state
-       New reasoning cycle triggered with revision instructions
-       AI re-analyzes with human feedback
-       New draft appears below with "Revised from Finding #7" header
-
-Finding-to-Reasoning Linking:
-  Bidirectional visual connection between SAYS finding and THINK reasoning.
+  Edit button (inline edit):
+    Same visual as Request Revision but with pencil icon
+    
+    Click: conclusion text becomes editable
+      Contenteditable div replaces static text
+      Focus ring on editable area
+      [Save] [Cancel] buttons appear
+      Save: updates finding content, status may revert to Draft if already approved
+      Cancel: reverts to original text
   
-  From SAYS → THINK:
-    Click "Based on: Step 2" in finding
-    THINK pane auto-scrolls to Step 2
-    Step 2 card highlights with glow animation (2 pulses, 300ms each, green glow)
-    Border-left turns green temporarily (2s)
-    
-  From THINK → SAYS:
-    Click link icon in THINK card header
-    SAYS pane auto-scrolls to linked finding
-    Finding card highlights with glow animation
-    Border turns purple temporarily (2s)
-    
-  Multi-link indicator:
-    Finding based on 3 reasoning steps → shows 3 link badges
-    Clicking any link: scrolls to that step, highlights it
-    All linked steps show subtle green left-border during hover on finding
-
-Revision History:
-  Collapsible section at bottom of finding:
-    "▸ Revision History (2 revisions)"
-    Expands to show chronological history:
-      v3: Approved by Bane · 2m ago
-      v2: Revised — "Include Q3 comparison data" · 8m ago  
-      v1: Draft — AI generated · 15m ago
-    Each revision clickable → shows that version's content
-    Diff view available: "Compare v2 → v3" shows changes highlighted
+  Copy button:
+    Icon-only: copy icon, 16px
+    Tooltip: "Copy to clipboard"
+    Click: copies finding text + sources to clipboard
+    Feedback: icon changes to checkmark for 1.5s, then reverts
+  
+  Flag button:
+    Icon-only: flag icon, 16px
+    Toggle: flagged/unflagged
+    Flagged: icon fill weight, color accent-error
 ```
 
-### 5.6 Investigation Input Area
+#### 5.5.2 Finding Card States
 
 ```
-Persistent input at the bottom of the SAYS pane.
+1. DRAFT (AI-generated, not yet human-reviewed)
+   
+   Border: 1px solid var(--color-border-default)
+   Background: var(--color-bg-surface)
+   Border-left: none (no accent)
+   
+   Header badge: "Draft" — pill, border 1px solid var(--color-border-default), text-secondary
+   Status text: "Awaiting review" with clock icon
+   
+   Actions visible: [Approve] [Request Revision] [Edit] [Copy] [Flag]
+   Approve button: prominent (filled green)
+   
+   These findings appear at top of SAYS list with "New — awaiting review" separator
 
-Layout:
-  ┌──────────────────────────────────────────┐
-  │                                          │
-  │ Ask a question, provide instruction, or   │
-  │ request analysis...                       │
-  │                                          │
-  │ ───────────────────────────────────────── │
-  │ [📎 Attach]  [@ Context]  [# Model]  [→] │
-  └──────────────────────────────────────────┘
+2. APPROVED (human-reviewed and accepted)
+   
+   Border-left: 3px solid var(--color-accent-success)
+   Background: var(--color-bg-surface)
+   Box-shadow: var(--shadow-sm)
+   
+   Header badge: "✓ Approved" — pill, background success-muted, color success, font-weight 600
+   Finding number icon: ✅ check-circle, green
+   
+   Status text: "✓ Approved by {username} · {relative_time}"
+   Approval metadata stored in memory events: approver, timestamp, optional note
+   
+   Actions visible: [Edit] [Copy] [Flag]
+     [Unapprove] button available: reverts to Draft (confirmation required)
+     "Unapprove will return this finding to draft status." [Unapprove] [Cancel]
+   
+   Edit behavior: editing an approved finding creates a new draft version
+     Original approved version preserved in revision history
+     "You are editing an approved finding. This will create a new draft." [Continue] [Cancel]
+   
+   Transition animation (DRAFT → APPROVED):
+     Green border-left sweeps in from left edge: clip-path animation
+       @keyframes approve-sweep {
+         0% { border-left-color: transparent; clip-path: inset(0 100% 0 0); }
+         100% { border-left-color: var(--color-accent-success); clip-path: inset(0 0 0 0); }
+       }
+       Duration: 400ms var(--ease-out-expo)
+     Badge transitions: border → filled green background, 400ms
+     Checkmark icon: scale bounce (0→1.2→1, 300ms var(--ease-spring))
 
-Input field:
-  Multi-line textarea, auto-growing (min 2 lines, max 8 lines)
+3. REJECTED (human-reviewed and dismissed)
+   
+   Border-left: 3px solid var(--color-accent-error)
+   Background: var(--color-bg-surface)
+   Filter: opacity(60%) (dimmed)
+   
+   Header badge: "✗ Rejected" — pill, background error-muted, color error
+   Finding number icon: ❌ x-circle, red
+   
+   Status text: "✗ Rejected by {username} · {relative_time}"
+   Rejection reason: shown below status in italics (optional)
+   
+   Actions visible: [Reconsider] [Copy] [Flag]
+     [Reconsider]: returns to Draft status with "Reconsidered" note
+   
+   Hidden from default view: not shown in findings list unless "Show Rejected" filter is active
+   Filter toggle: "Show Rejected (3)" pill in filter bar
+   
+   Transition (DRAFT → REJECTED):
+     Red border-left appears (same sweep animation as approve, but 200ms — faster for rejection)
+     Card fades to 60% opacity over 300ms var(--ease-out-quint)
+
+4. OUTDATED (superseded by a newer finding)
+   
+   Border: 1px dashed var(--color-border-default)
+   Background: var(--color-bg-surface)
+   Filter: opacity(50%)
+   
+   Header badge: "Outdated" — pill, border dashed border-default, color text-tertiary
+   
+   Status text: "Superseded by Finding #12 · {relative_time}"
+     Finding #12 is a clickable link → scrolls to that finding and highlights it
+   
+   Actions visible: [View Superseding] [Copy]
+   
+   Outdating trigger: when AI generates a new finding on the same topic with higher confidence
+     Old finding marked as outdated automatically
+     Old and new findings linked bidirectionally
+   
+   Hidden from default view (same filter toggle as Rejected)
+```
+
+#### 5.5.3 Approval Workflow
+
+```
+PRIMARY FLOW (Approve):
+
+1. User clicks [Approve] on a Draft finding
+2. Confirmation dialog appears (if HITL enabled):
+   ┌─────────────────────────────────────────┐
+   │ Approve Finding #7?                     │
+   │                                         │
+   │ "APAC Revenue Growth Q4"                │
+   │ Confidence: HIGH (0.94)                 │
+   │                                         │
+   │ This will record your approval in the   │
+   │ immutable audit trail.                  │
+   │                                         │
+   │ Note (optional):                        │
+   │ ┌─────────────────────────────────────┐ │
+   │ │ Add approval note...                │ │
+   │ └─────────────────────────────────────┘ │
+   │                                         │
+   │              [Cancel]    [Approve]       │
+   └─────────────────────────────────────────┘
+   
+   Dialog: centered modal, width 400px, glass-heavy background
+     Entry: scale(0.95)→scale(1) + fade, 200ms var(--ease-out-expo)
+     Exit: reverse, 150ms var(--ease-in-quint)
+     Backdrop: rgba(0,0,0,0.5), click to cancel, Escape to cancel
+     Focus trap: Tab cycles within dialog
+     Auto-focus: [Approve] button by default
+
+3. User clicks [Approve] in dialog
+4. Dialog closes immediately (150ms fade)
+5. API call: PATCH /api/v1/sessions/:id/approvals/:approvalId 
+   Body: { status: 'approved', note: 'optional note' }
+6. Finding card animates to APPROVED state (green sweep, 400ms, see §5.5.2)
+7. Memory event written: approval record with user identity + timestamp
+8. Toast notification: "Finding #7 approved" (success, auto-dismiss 3s)
+9. Status bar updates pending approvals count (decrement)
+
+ALTERNATE FLOW (Request Revision):
+
+1. User clicks [Request Revision] on a Draft finding
+2. Revision dialog appears:
+   ┌─────────────────────────────────────────┐
+   │ Request Revision for Finding #7?         │
+   │                                         │
+   │ What should the AI revise?               │
+   │ ┌─────────────────────────────────────┐ │
+   │ │ Include Q3 comparison data and      │ │
+   │ │ verify the November shipping claim  │ │
+   │ │ against the original manifests      │ │
+   │ └─────────────────────────────────────┘ │
+   │                                         │
+   │ Model: [deepseek-v4-pro ▾]              │
+   │                                         │
+   │              [Cancel]    [Submit]        │
+   └─────────────────────────────────────────┘
+   
+   Same dialog style as approval confirmation
+   Revision instructions: textarea, min 3 rows, required
+   Model selector: dropdown of available models
+
+3. User clicks [Submit]
+4. Dialog closes
+5. Finding reverts to Draft status (status badge changes back to "Draft")
+   "Revision requested" note appears below status
+6. Input area auto-populates with revision instructions
+   Textarea value: "Revise Finding #7: Include Q3 comparison data..."
+   Context auto-added: @finding:7
+7. AI re-analyzes with revision instructions
+   New THINK step appears: "🧠 Step 5 · Revise Finding #7"
+   New Draft finding appears below with header: "Finding #7 (Revised)"
+     Shows "Revised from Finding #7 — requested by Bane · just now"
+8. Original finding preserved in revision history (see below)
+
+REVISION HISTORY:
+  Collapsible section at bottom of finding card:
+    "▸ Revision History (2 revisions)" — click to expand
+    
+  Shows chronological list:
+    v3: Approved by Bane · 2m ago
+        "Approved as final"
+    v2: Revised — "Include Q3 comparison data" · 8m ago
+        Requested by Bane
+        AI re-analyzed with new context
+    v1: Draft — AI generated · 15m ago
+        Initial analysis
+    
+  Each version clickable: clicking v2 shows that version's content
+    Content replaces current view (with "Viewing v2 of 3" header)
+    [Back to latest] button to return to current version
+    
+  Diff view: "Compare v2 → v3" link
+    Opens split diff view: left=v2, right=v3, changes highlighted
+    Green highlights: additions. Red highlights: removals.
+    Available as a modal overlay
+
+QUICK APPROVE (keyboard shortcut):
+  Ctrl+Enter on selected finding: approves without confirmation dialog
+  Only works for findings with confidence > 0.80 (high confidence)
+  For lower confidence: shows confirmation dialog even with shortcut
+  
+BULK APPROVE:
+  Select multiple findings (Shift+click or checkboxes in filter bar)
+  "Approve Selected (3)" button appears in toolbar
+  Click → single confirmation: "Approve 3 findings?" [Approve] [Cancel]
+  Each finding animates to APPROVED sequentially (100ms stagger)
+```
+
+#### 5.5.4 Bidirectional Reasoning Links
+
+```
+Finding-to-Thought links are the core credibility mechanism of Chronicle.
+Every conclusion MUST link to its originating reasoning.
+
+FROM SAYS → THINK (investigator traces conclusion to reasoning):
+
+1. Finding card shows "▸ Reasoning — Based on Step 2, Step 4" section
+2. Click "Step 2" or "Step 4" link
+3. THINK pane:
+   a. Auto-scrolls to the linked Thought Card
+      scrollIntoView({ block: 'center', behavior: 'smooth' })
+   b. Thought Card highlights with link-pulse animation:
+      2 pulses: box-shadow glow (var(--shadow-glow-blue) with green tint)
+      Duration: 300ms per pulse, 2 pulses (600ms total)
+      @keyframes link-pulse-think {
+        0% { box-shadow: var(--shadow-sm); }
+        50% { box-shadow: 0 0 16px rgba(35,134,54,0.3); }
+        100% { box-shadow: var(--shadow-sm); }
+      }
+   c. After animation: card enters LINKED state (green border-left, link badge)
+   
+4. If THINK pane is collapsed (tab-only):
+   Pane auto-expands (to 280px minimum) with animation
+   Then scroll-to and highlight occur
+   
+5. Visual trail: a brief animated line connects the Finding to the Thought Card
+   (SVG overlay, curved path, fades out after 1s)
+   Line color: var(--color-accent-success), 2px, opacity 0.3
+
+FROM THINK → SAYS (investigator traces reasoning to conclusion):
+
+1. Thought Card header shows link badge: "→ Finding #7"
+2. Click link badge
+3. SAYS pane:
+   a. Auto-scrolls to the linked Finding Card
+   b. Finding highlights with pulse animation:
+      Same pattern: 2 green pulses, 300ms each
+   c. Finding temporarily enters "highlight" visual state
+   
+4. If multiple findings linked: badge shows "→ 3 Findings"
+   Click expands mini-dropdown listing each finding
+   Select one to jump to it
+
+MULTI-LINK INDICATOR:
+  A THINK step referenced by multiple findings:
+    Badge: "→ 3 Findings" (clickable dropdown)
+    Each finding shows this step in its "Reasoning" section
+    
+  A Finding based on multiple THINK steps:
+    Section: "▸ Reasoning — Based on Step 2, Step 3, Step 4"
+    Each step individually clickable
+    
+  Hover on finding: ALL linked THINK steps show subtle green border-left
+    (communicates: "this reasoning produced this conclusion")
+    Transition: border-left-color 200ms var(--ease-out-quint)
+    
+  Hover on THINK step: ALL linked findings show subtle green left-border
+    (communicates: "this conclusion came from this reasoning")
+
+CONNECTION VISUALIZATION (optional, toggle in settings):
+  Animated particle effect when link is clicked:
+    Small dots travel along curved path from THINK card to SAYS card
+    6-8 particles, staggered release
+    Duration: 600ms travel time
+    Color: var(--color-accent-success)
+    Particle size: 4px circles, fade out upon arrival
+    Easing: var(--ease-out-quint) for position
+    Implementation: absolute-positioned divs animated with requestAnimationFrame
+    Performance: disabled when prefers-reduced-motion
+```
+
+### 5.6 Input Area
+### 5.6 Input Area
+
+The Input Area is the primary mechanism for human-AI interaction in the Investigation Workbench. It occupies the bottom of the SAYS pane and provides a multi-line text input with context attachment, model selection, and token estimation.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ Ask a question, provide instruction, or request analysis │ │  ← Multi-line textarea
+│ │ that the AI should investigate using the available       │ │     auto-growing
+│ │ evidence and context...                                  │ │
+│ │                                                          │ │
+│ │ ▊                                                        │ │  ← Cursor (when focused)
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ [📎 Attach] [@ Context ▼] [# Model ▼]        ~1.2K tokens → │  ← Toolbar
+│                                              ~$0.002         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+#### 5.6.1 Textarea
+
+```
+Dimensions:
+  Min-height: 52px (2 lines of text at --text-body size + padding)
+  Max-height: 200px (8 lines + padding, then scrolls internally)
+  Width: 100%
+  Padding: var(--space-3) var(--space-4)  (12px 16px)
   Background: var(--color-bg-input)
   Border: 1px solid var(--color-border-default)
   Border-radius: var(--radius-md)
-  Padding: 12px 16px
-  Font: body size, color: text-primary
-  Placeholder: context-dependent
+  Font: var(--text-body), line-height: 1.5, color: var(--color-text-primary)
+  Resize: none (JS-controlled auto-grow)
+  Outline: none (custom focus ring)
+  Line-height: 1.5rem (24px — exactly 2 lines = 48px + padding = 52px min)
+
+Placeholder:
+  Context-dependent text in var(--color-text-placeholder):
     Default: "Ask a question or give an instruction..."
-    After finding: "Ask a follow-up or request revision..."
-    With evidence: "Analyze the selected evidence..."
+    After finding: "Ask a follow-up question about Finding #7..."
+    With evidence selected: "Analyze the selected evidence..."
+    Revision mode: "Revise Finding #7: {user's revision instructions}"
 
-  Focus state:
-    Border-color: var(--color-accent-primary)
-    Box-shadow: 0 0 0 1px var(--color-accent-primary)
-    Transition: 150ms ease-out-quint
+Focus state:
+  Border-color: var(--color-accent-primary)
+  Box-shadow: 0 0 0 1px var(--color-accent-primary)
+  Transition: all 150ms var(--ease-out-quint)
+
+Auto-grow behavior:
+  Textarea height adjusts to content on keystroke
+  Implementation: onInput → measure scrollHeight → set height = min(scrollHeight, 200px)
+  Smooth height transition: 100ms var(--ease-out-quint)
+  When max-height reached: overflow-y: auto (internal scroll)
+
+Submit:
+  Enter: submit (sends message to AI)
+  Shift+Enter: newline (stays in textarea)
+  Cmd+Enter: submit with force (even if empty — sends blank for "continue" prompts)
   
-  Submit:
-    Enter: submit (Shift+Enter for newline)
-    Submit button (→ icon) animates on hover:
-      Arrow slides right 4px (transition 150ms ease-out)
-      Button background fills with accent color
-
-Toolbar (below input):
-  Attach button [📎]:
-    Opens file picker dialog
-    Accepts: .csv, .json, .pdf, .txt, .md, .log
-    Files are uploaded and registered as evidence sources
-    Progress indicator: small progress bar above input while uploading
+  Submit button (→ icon):
+    Position: absolute, right: 12px, top: 50%, transform: translateY(-50%)
+    (overlaid on textarea, right side, vertically centered)
+    Size: 32×32px circle
+    Background: transparent
+    Border: none
+    Icon: ArrowRight (Phosphor), 16px, color: var(--color-text-tertiary)
+    Cursor: pointer
     
-  Context selector [@]:
-    Opens dropdown of available context:
-      @current-session: all evidence in this investigation
-      @database:tables: SQL tables registered as sources
-      @timeline: all events in current timeline range
-      @finding:7: use Finding #7 as context
-      @memory: search memory events by keyword
-    Selected context shown as pills below input
-      [× @finding:7] [× @database:revenue]
-      Click × to remove context item
-      
-  Model selector [#]:
-    Opens dropdown of available models:
-      deepseek-v4-pro (recommended for analysis)
-      deepseek-v4-flash (faster, cheaper)
-      claude-sonnet-4 (alternative perspective)
-      local-model (private, offline)
-    Selected model shown as pill
-    Cost estimate shown: "~$0.003 per query"
+    Hover: 
+      Icon color: var(--color-accent-primary)
+      Background: var(--color-accent-primary-muted)
+    Active: scale 0.92 (80ms)
     
-  Character count / token estimate:
-    Right-aligned, caption size, color: text-tertiary
-    "~1,200 tokens · ~$0.002"
+    Disabled (empty textarea): 
+      Icon color: var(--color-text-disabled)
+      Cursor: default
+    
+    Visible: icon appears when textarea has content (opacity 0→1, 150ms)
+    Hidden: when textarea is empty (opacity 1→0, 100ms)
 
-Submission flow:
-  1. User types query and presses Enter
-  2. Input area collapses to "Processing..." state
-     Textarea replaced by animated indicator:
-       "🧠 Analyzing..." with shimmer animation on text
-       Progress dots: "..." animating (each dot appears sequentially, 300ms cycle)
-  3. THINK pane begins receiving streaming reasoning
-     New Thought Card appears with "Thinking..." state
-     Text streams in character by character (or chunk by chunk for API batch)
-  4. When reasoning complete, SAYS pane receives finding
-     Finding Card slides in from top (translateY -20px→0, 300ms ease-out-expo)
-  5. Input area returns to ready state
-     Textarea clears (or retains for revision)
-     Focus returns to textarea for next query
+Character count:
+  Shown below textarea, left-aligned
+  Font: var(--text-caption), color: var(--color-text-tertiary)
+  Format: "847 / —" (no max character limit by default)
+  Appearance: fades in when > 0 characters (opacity 0→1, 150ms)
+```
 
-Streaming rendering:
-  Reasoning text appears with typewriter effect:
-    Characters appear at 50-100 chars/second (adjustable)
-    Not actually typed one-by-one for performance — batched updates every 16ms (60fps)
-    Render: append chunks as received from WebSocket
-  Cursor: blinking block at end of streaming text
-    "▊" character, color: accent-purple, blink 1s cycle
-  On completion: cursor disappears, timestamp appears
+#### 5.6.2 Input Toolbar
+
+```
+Position: below textarea
+Height: 32px
+Display: flex; align-items: center; gap: var(--space-2);
+Padding: var(--space-2) 0;
+
+Attach button (📎):
+  Icon: Paperclip (Phosphor), 14px
+  Label: "Attach" (text-caption, hidden on mobile)
+  Style: 
+    Height: 28px; padding: 0 var(--space-2);
+    Background: transparent; border: 1px solid var(--color-border-default);
+    Border-radius: var(--radius-sm);
+    Color: var(--color-text-secondary); cursor: pointer;
+    Transition: var(--transition-color);
+  
+  Hover: background var(--color-bg-hover), border-color var(--color-border-hover)
+  
+  Click: opens system file picker dialog
+    Accept: .csv, .json, .pdf, .txt, .md, .log, .xml, .yaml, .yml
+    Multiple: true (can select multiple files)
+    Max total size: 50MB (configurable)
+    
+  Upload progress:
+    After file selection, each file shows upload progress bar
+    Bar: appears below textarea temporarily (height 4px, 100% width)
+    Fill: blue, width transition from 0%→100% based on upload progress
+    Duration: real-time (as upload progresses)
+    Label: "Uploading q4-sales.csv (2.4MB)..." with percentage
+    On complete: bar fills 100%, green flash, then slides up and disappears (300ms)
+    Error: bar turns red, "Upload failed: {reason}" message
+  
+  Attached files shown as removable pills below toolbar:
+    Each pill: icon + filename + [× remove]
+    Style: bg-input, border border-default, radius-sm, padding 2px 8px
+    Remove: click ×, pill fades out (150ms) + slides left
+
+Context selector (@):
+  Icon: At (Phosphor), 14px
+  Label: "Context" (text-caption)
+  Same button style as Attach
+  
+  Click: opens context dropdown
+    Dropdown: positioned above toolbar, anchored left
+    Max-height: 240px, scrollable
+    Items:
+      @current-investigation  — all evidence in this investigation
+      @database:revenue       — SQL table (if registered as source)
+      @finding:7              — specific finding as context
+      @thought:step-4         — specific reasoning step as context
+      @timeline:last-24h      — all events in timeline range
+      @memory:search          — search memory events by keyword (opens search input)
+    
+    Each item: 
+      Checkbox + icon + name + description (subtitle in text-caption)
+      Style: padding 8px 12px, hover bg-hover
+      Click: toggle checkbox → adds/removes context item
+    
+  Selected context shown as removable pills:
+    Display: flex; flex-wrap: wrap; gap: 4px;
+    Position: between toolbar and textarea (if any context selected)
+    
+    Each pill: "[×] @finding:7"
+    Style: bg-accent-primary-muted, border border-accent-primary, radius-sm
+    Font: text-caption, color: text-accent
+    Click ×: remove context item (pill fades out + shrinks, 150ms)
+
+Model selector (#):
+  Icon: Hash (Phosphor), 14px
+  Label: current model name (text-caption)
+  Same button style as Attach
+  
+  Click: opens model dropdown
+    Items:
+      deepseek-v4-pro     "~$0.002/query · 847ms avg"
+      deepseek-v4-flash   "~$0.0005/query · 234ms avg"
+      claude-sonnet-4     "~$0.008/query · 1.2s avg"
+      gpt-4o              "~$0.015/query · 890ms avg"
+      local-model          "Free · 3.4s avg"
+    
+    Selected: radio button (●) + checkmark
+    Each item shows: model name, estimated cost, average latency
+    Separation: "Cloud Models" divider, "Local Models" divider
+  
+  Selected model: shown as pill in toolbar
+    Click pill: re-opens dropdown for quick switching
+    
+  Model persists per investigation:
+    Saved to localStorage: `chronicle:model:${investigationId}`
+    Default: first available cloud model
+
+Token counter (right side of toolbar):
+  Font: var(--text-caption), color: var(--color-text-tertiary)
+  Format: "~1,200 tokens · ~$0.002"
+  Updates on keystroke with 300ms debounce
+  Calculation: approximate (4 chars ≈ 1 token for English text)
+  Cost: based on selected model's per-token pricing
+  Color: nominal (text-tertiary), warning (amber when > 80% context budget)
+  
+  Hover: tooltip with breakdown
+    "Input tokens: ~1,200
+     Estimated output: ~500
+     Total estimated: ~1,700 tokens
+     Estimated cost: $0.0034"
+```
+
+#### 5.6.3 Submission Flow
+
+```
+FULL SUBMISSION LIFECYCLE:
+
+1. IDLE STATE
+   Textarea: empty or contains draft text
+   Submit button: hidden (no content) or visible (has content)
+   Toolbar: normal
+   
+2. USER PRESSES ENTER
+   Pre-submit validation:
+     If textarea empty: no action (prevent accidental empty submits)
+     If textarea has only whitespace: no action
+     If valid content: proceed
+   
+3. SUBMITTING STATE (input area collapses to minimal form)
+   Textarea: replaced by processing indicator
+   
+   Processing indicator:
+     ┌──────────────────────────────────────────────────────┐
+     │ 🧠 Processing...                                     │
+     │    Analyzing query and gathering context...           │
+     └──────────────────────────────────────────────────────┘
+     
+     Layout: same dimensions as textarea collapsed
+     Height: 40px (single line)
+     Background: var(--color-bg-input)
+     Border: 1px solid var(--color-border-default)
+     Border-radius: var(--radius-md)
+     Display: flex; align-items: center; gap: var(--space-2);
+     Padding: 0 var(--space-4);
+     
+     Brain icon: 16px, var(--color-accent-purple), subtle pulse (opacity 0.6→1→0.6, 2s)
+     Status text: var(--text-small), color: var(--color-text-secondary)
+       Updates as processing progresses:
+       "Sending query..."
+       "Analyzing context..."
+       "AI thinking..." (once THINK pane shows first card)
+       "Generating finding..." (once reasoning complete)
+     
+     Shimmer animation on text:
+       @keyframes shimmer {
+         0% { background-position: -200% 0; }
+         100% { background-position: 200% 0; }
+       }
+       background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+       background-size: 200% 100%;
+       animation: shimmer 2s var(--ease-linear) infinite;
+     
+     Cancel button (right side): [× Cancel]
+       Style: small text button, text-caption, color text-secondary
+       Click: cancels submission, returns to IDLE state
+       Confirmation: if AI has started processing, "Cancel analysis? Partial results may be saved."
+     
+     Progress dots: "..." with sequential fade animation
+       Each dot: opacity 0.3→1→0.3, 300ms per dot, 100ms stagger
+       @keyframes dot-pulse {
+         0%, 60%, 100% { opacity: 0.3; }
+         30% { opacity: 1; }
+       }
+   
+   API call (behind the scenes):
+     POST /api/v1/sessions/:id/message
+     Body: { content: userText, context: selectedContextItems, model: selectedModel }
+     Response: 202 Accepted (processing started asynchronously)
+     WebSocket events will deliver streaming results
+
+4. STREAMING STATE (THINK pane receives reasoning)
+   Processing indicator updates:
+     "AI is thinking..." (when first Thought Card appears in THINK pane)
+     Thought Card enters THINKING state (see §5.4.2)
+     Text streams into THINK pane via WebSocket
+   
+   User can scroll THINK pane to read streaming reasoning
+   User CANNOT submit another query yet (input is locked)
+   Cancel button remains available
+   
+   WebSocket events received:
+     iteration.started → PAUSE processing indicator, show "Iteration 43 started"
+     memory.created → append to streaming Thought Card
+     finding.created → (see next state)
+
+5. COMPLETION STATE
+   When AI finishes generating:
+   
+   a. Thought Card transitions to COMPLETED state (see §5.4.2)
+      Cursor removed, timestamp appears, actions visible
+   
+   b. SAYS pane receives Finding Card (if AI generated a conclusion)
+      Finding slides in from top of SAYS list:
+        Animation: transform translateY(-20px)→0, opacity 0→1
+        Duration: 300ms var(--ease-out-expo)
+        If multiple findings: stagger 100ms per finding
+   
+   c. Processing indicator collapses:
+      Height 40px→0, opacity 1→0
+      Duration: 200ms var(--ease-in-quint)
+   
+   d. Input area returns to IDLE STATE
+      Textarea: cleared (previous input stored in history, accessible via Up arrow)
+      Focus: auto-focuses on textarea for next query
+      Toolbar: restored to normal
+      Context items: cleared (need to re-select for each query)
+      Model: retains previous selection
+   
+   e. Toast notification: none by default (findings appearing is sufficient feedback)
+      If error: error toast "Analysis failed: {reason}" with retry button
+      If no finding generated: info toast "Analysis complete — no new findings"
+
+ERROR STATE (API call fails, network error, or timeout):
+   Processing indicator shows error:
+     "⚠ Analysis failed — API timeout" 
+     Background: var(--color-bg-toast-error) at 20% opacity
+     Border-color: var(--color-accent-error)
+     [Retry] [Dismiss] buttons
+   
+   Retry: re-submits same query
+   Dismiss: returns to IDLE state, query text preserved in textarea
+   
+   Toast: error notification with details (see notification system)
+   
+   If partial results received: partial Thought Card preserved
+     Marked with "⚠ Incomplete — analysis interrupted"
+     User can view partial reasoning
+
+SUBMISSION HISTORY:
+  Press Up arrow in empty textarea: cycle through previous submissions
+  Each Up press: go back one submission
+  Down arrow: go forward (to newer submissions)
+  History stored in sessionStorage (last 20 submissions)
+  Key: `chronicle:input:${investigationId}:history`
+  
+  When cycling: textarea fills with previous text, context pills restored
+  Submit: sends that exact query again (useful for re-analysis with different model)
+```
+
+#### 5.6.4 Streaming Rendering Implementation
+
+```
+Data flow:
+  POST /api/v1/sessions/:id/message → server processes → WebSocket events →
+    event: 'memory.created' → append to THINK pane
+    event: 'iteration.completed' → finalize THINK card, generate SAYS finding
+    event: 'finding.created' → append to SAYS pane
+  
+  WebSocket message shape:
+    {
+      type: 'memory.created',
+      session_id: 'a3f2b...',
+      memory: {
+        id: 2841,
+        type: 'thought',
+        content: 'Comparing APAC growth trajectory...',
+        content_chunk: ' trajectory with EMEA decline.',  // incremental chunk
+        is_final: false,  // true when this is the last chunk for this memory event
+        iteration: 42,
+        trust_level: 'high'
+      }
+    }
+
+Client-side rendering:
+  1. Receive WebSocket message
+  2. Identify which Thought Card this chunk belongs to (by iteration number)
+  3. If no card exists for this iteration → create new Thought Card in THINKING state
+  4. Append content_chunk to card's text content
+  5. Schedule DOM update via requestAnimationFrame
+  
+  RAF batching:
+    const pendingChunks = [];
+    let rafScheduled = false;
+    
+    function onMemoryCreated(event) {
+      pendingChunks.push(event);
+      if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(() => {
+          applyAllPendingChunks();
+          rafScheduled = false;
+        });
+      }
+    }
+    
+    function applyAllPendingChunks() {
+      // Batch all chunks since last RAF into single DOM update
+      // Group by iteration → append to correct Thought Card
+      // Single innerHTML or textContent update per card
+      // Then scroll to keep cursor visible
+    }
+  
+  Performance: maximum 1 DOM update per 16ms (60fps)
+  Smooth: if chunks arrive faster than 16ms, they batch naturally
+  
+  Cursor implementation:
+    const cursor = document.createElement('span');
+    cursor.className = 'streaming-cursor';
+    cursor.textContent = '▊';
+    // CSS: color var(--color-accent-purple), animation cursor-blink 1s infinite
+    // Appended to end of streaming text
+    // Removed when is_final === true
+  
+  Completion detection:
+    When WebSocket sends memory.created with is_final: true
+    → Remove cursor span
+    → Card enters COMPLETED state
+    → Timestamp fades in (200ms)
+    → Actions fade in (200ms, delayed 50ms)
+    
+    Then: when finding.created event arrives
+    → Create Finding Card in SAYS pane
+    → Link back to THINK step
+    → Processing indicator collapses
+    → Input area returns to IDLE
+
+  Error during streaming:
+    If WebSocket disconnects mid-stream:
+      Thought Card shows "⚠ Stream interrupted — connection lost" banner
+      Cursor removed
+      Partial reasoning preserved
+      Retry button: "Resume analysis" → reconnects and continues
+    
+    If server sends error event:
+      error_text shown in Thought Card
+      Card enters COMPLETED state with error flag (❌)
+  
+  Typewriter effect (user setting, default ON):
+    Instead of rendering chunks directly, feed chunks into a character queue
+    Pop characters at configurable speed (default: 80 chars/second)
+    Render popped characters via RAF
+    Benefits: more organic reading experience
+    Tradeoff: adds slight latency (chunk of 500 chars delayed ~6 seconds)
+    Setting: "Streaming speed" slider — faster (200 cps) / normal (80 cps) / slow (40 cps) / instant (no queue)
 ```
 
 ### 5.7 Evidence Panel
 
+The Evidence Panel is a slide-out drawer on the right side of the workbench. It displays all evidence sources and generated findings for the current investigation, enabling drag-and-drop context building and source inspection.
+
 ```
-Slide-out panel from the right side, showing all evidence sources for the investigation.
+Visibility: toggled by [Evidence] button in workbench toolbar or Ctrl+E
+Default: hidden (collapsed)
 
-Toggle: button in workbench toolbar [Evidence] or Ctrl+E.
-Width: 360px (resizable, min 280px, max 500px).
-Slide animation: translateX from right (closed: 360px offset, open: 0)
-  Duration: 300ms, ease-out-expo
+Panel:
+  Position: absolute, right: 0, top: 0, bottom: 0
+  Width: 360px (resizable: min 280px, max 500px)
+  Background: var(--color-bg-surface)
+  Border-left: 1px solid var(--color-border-default)
+  Box-shadow: var(--shadow-lg)
+  Z-index: 20
+  Display: flex; flex-direction: column;
+  
+  Slide animation:
+    Closed: transform: translateX(100%)
+    Open: transform: translateX(0)
+    Duration: 300ms var(--ease-out-expo)
+    (Element is always in DOM, just translated off-screen)
 
-Layout:
-  ┌─────────────────────────┐
-  │ EVIDENCE          [×]   │  ← Header with close button
-  ├─────────────────────────┤
-  │ [🔍 Search evidence...] │  ← Filter input
-  ├─────────────────────────┤
-  │ FILTER: All | Files |   │  ← Filter chips
-  │ DB | URLs | Findings    │
-  ├─────────────────────────┤
-  │                         │
-  │ SOURCES (12)            │  ← Section: uploaded files & DBs
-  │ ┌─────────────────────┐ │
-  │ │ 📄 q4-sales.csv     │ │  ← Source item
-  │ │   2.4MB · 12,400 rows│ │
-  │ │   Added 2h ago       │ │
-  │ └─────────────────────┘ │
-  │ ┌─────────────────────┐ │
-  │ │ 🗄️ revenue_db.orders │ │  ← Database source
-  │ │   PostgreSQL · 1.2M  │ │
-  │ │   Connected           │ │
-  │ └─────────────────────┘ │
-  │                         │
-  │ FINDINGS (7)            │  ← Section: generated findings
-  │ ┌─────────────────────┐ │
-  │ │ ✅ F7: APAC Growth   │ │  ← Finding summary
-  │ │    HIGH · Approved   │ │
-  │ └─────────────────────┘ │
-  │                         │
-  │ [+ Add Source]          │  ← Add new evidence
-  └─────────────────────────┘
+Resize handle:
+  Left edge of panel: 4px wide, cursor: col-resize
+  Drag left: reduce panel (min 280px)
+  Drag right: enlarge panel (max 500px)
+  Same interaction model as pane divider (§5.3)
 
-Source item context menu (right-click):
-  ├─ View Full Content        (opens in modal with full preview)
-  ├─ Re-analyze with AI       (triggers new analysis of this source)
-  ├─ Download                 (downloads original file)
-  ├─ Remove from Evidence     (removes from investigation, not deleted)
-  ├─ Copy Path                
-  └─ Properties               (metadata: size, rows, added date, hash)
+Header:
+  Height: 48px; padding: 0 var(--space-4);
+  Display: flex; align-items: center; justify-content: space-between;
+  Border-bottom: 1px solid var(--color-border-default);
+  Flex-shrink: 0;
+  
+  Title: "Evidence" in var(--text-subtitle), font-weight 600
+  Close button: [×] icon, 20px, var(--color-text-tertiary)
+    Hover: var(--color-text-primary)
+    Click: close panel (slide away)
 
-Source item drag behavior:
-  Drag source item → drop into input area to add as context
-  Drag source item → drop into THINK pane to focus analysis on this source
-  Drag preview: ghost of source item with 60% opacity
-  Drop zone highlight: input area border pulses (blue glow) when dragging over
+Search bar:
+  Padding: var(--space-3) var(--space-4);
+  Input: same style as main search input but compact (height 32px)
+  Placeholder: "Search evidence..."
+  Debounce: 200ms
+  Filters evidence and findings by text match
+  Clear button (×): appears when search has value
+
+Filter tabs:
+  Padding: 0 var(--space-4) var(--space-2);
+  Display: flex; gap: var(--space-1);
+  
+  Tab chips: [All] [Files] [Database] [URLs] [Findings]
+    Style: text-caption, padding 2px 10px, radius-full, bg transparent, text text-secondary
+    Active: bg accent-primary-muted, text accent-primary
+    Count: each shows item count in text-tertiary "(12)"
+    Click: filter list by type
+
+Source list:
+  Flex: 1; overflow-y: auto; padding: 0 var(--space-4);
+  
+  Section header: "SOURCES (12)" 
+    Font: var(--text-caption), text-transform: uppercase, letter-spacing: 0.05em
+    Color: var(--color-text-tertiary)
+    Padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-subtle);
+    Sticky: top 0, background var(--color-bg-surface);
+  
+  Source item:
+    ┌──────────────────────────────────────────┐
+    │ 📄 q4-sales.csv                          │
+    │    2.4 MB · 12,400 rows · Added 2h ago   │
+    │    Referenced by: 3 findings, 42 events   │
+    └──────────────────────────────────────────┘
+    
+    Padding: var(--space-2) var(--space-3);
+    Border-radius: var(--radius-sm);
+    Margin-bottom: var(--space-1);
+    Border: 1px solid transparent;
+    Cursor: pointer;
+    
+    Hover: background var(--color-bg-hover), border-color var(--color-border-default);
+    Drag: item becomes draggable → drop into input area to add as context
+    
+    Icon: 16px, entity-type-specific color
+    Filename: var(--text-small), font-weight 500
+    Metadata: var(--text-caption), color: var(--color-text-secondary)
+    References: var(--text-caption), color: var(--color-text-tertiary)
+    
+    Right-click context menu:
+      Open Preview    — opens file content in modal viewer
+      Re-analyze      — triggers new AI analysis of this source
+      Download         — downloads original file
+      Remove           — removes from evidence (with confirmation)
+      Copy Path        
+      Properties       — full metadata dialog
+  
+  Empty state: "No evidence sources" + "Drag files here or click Attach in the input area"
+
+Findings section:
+  Same style as sources but with different items
+  
+  Finding item:
+    ┌──────────────────────────────────────────┐
+    │ ✅ Finding #7 · APAC Growth              │
+    │    HIGH confidence · Approved            │
+    └──────────────────────────────────────────┘
+    
+    Icon: finding status icon (check-circle, file-text, x-circle)
+    Click: scrolls SAYS pane to that finding
+    Drag: drag finding to input area → adds @finding:7 context
+
+Add source button:
+  Bottom of list: [+ Add Source] 
+  Style: dashed border, text-secondary, hover: border-hover, text-primary
+  Click: opens file picker (same as Attach button in input)
+  Drop zone: panel accepts file drops directly
+    Drag file from OS into panel → upload starts
+    Drop zone highlight: panel border turns accent-primary, background tints 5%
 ```
 
 ### 5.8 Workbench Toolbar
 
 ```
-Fixed at top of workbench (below main top bar).
+Fixed at top of workbench view (below main top bar shell):
+  Height: 48px
+  Background: var(--color-bg-surface)
+  Border-bottom: 1px solid var(--color-border-default)
+  Padding: 0 var(--space-4)
+  Display: flex; align-items: center; justify-content: space-between;
+  Z-index: 10;
 
 Left section:
   Sessions dropdown:
-    Button: "Investigation: Project Chimera ▾"
-    Click: dropdown of all investigations
-    Each item: investigation name, session count, last active
-    Search filter at top
-    "New Investigation" button at bottom
-    Switch investigation: workbench state saves, new investigation loads
-    Transition: content crossfades (200ms)
+    ┌──────────────────────┐
+    │ Investigation: Q4 ▼  │
+    └──────────────────────┘
+    Style: height 32px, padding 0 var(--space-3), border border-default, radius-md
+    Font: var(--text-small), font-weight 500
+    Icon: chevron-down 12px, right side
+    
+    Click: opens dropdown (below, anchored left)
+      List of all investigations:
+        Each item: name, status summary, last active relative time
+        Active: bg-accent-primary-muted, accent left border
+        Click: switch investigation (crossfade transition 200ms)
+      Separator
+      [+ New Investigation] button
 
-Center section (context-dependent):
-  Current investigation title: "Project Chimera"
-  Status: "12 sources · 7 findings · 2 drafts pending review"
+Center section:
+  Investigation title: "Q4 Revenue Analysis" 
+    Font: var(--text-subtitle), font-weight 600
+    Truncated: max-width 400px, ellipsis
   
+  Status summary (below title, small):
+    Font: var(--text-caption), color: var(--color-text-secondary)
+    "12 sources · 7 findings · 2 drafts pending · active 12m ago"
+
 Right section:
-  Evidence toggle: [Evidence] button, active state when panel open
-  Export dropdown: [Export ▾]
-    Export Timeline as PDF
-    Export Findings as JSON
-    Export Full Report (PDF with all reasoning + findings + sources)
-  Share button: [Share] → generates shareable link (if multi-tenant enabled)
-  Settings: [⚙] → investigation-specific settings
-    Model preference
-    Auto-approve threshold (confidence above X auto-approves)
-    Notification preferences
+  Buttons (32×32px, icon-only or icon+label):
+  
+  [Evidence] button:
+    Icon: file-text, 16px
+    Toggle state: active when panel open
+      Active: bg-accent-primary-muted, icon color accent-primary
+    Click: toggle evidence panel
+    Tooltip: "Evidence Panel (Ctrl+E)"
+  
+  [Export ▾] button with dropdown:
+    Items:
+      Export Timeline as PDF
+      Export Findings as JSON
+      Export Full Report (PDF with reasoning + findings + sources)
+      Export Session Data (JSON)
+    Each: icon + label + shortcut hint
+    Click: triggers export, shows progress, delivers file via download
+  
+  [Share] button:
+    Icon: share-network, 16px
+    Click: generates shareable link (if multi-tenant enabled)
+    Copies to clipboard: "Share link copied"
+  
+  [Settings ⚙] button:
+    Click: opens investigation-specific settings popover
+    Settings:
+      Auto-approve threshold: slider 0.0-1.0
+      Stream typing speed: 40/80/200 cps
+      Show connection visualizations: toggle
+      Default model: dropdown
+      Color accent: 12-color picker for investigation card
+    Save: settings persisted per investigation
 ```
 
 ### 5.9 Multi-Investigation Switching
 
 ```
-Users can work on multiple investigations simultaneously.
-Each investigation is isolated: separate evidence, separate findings, separate AI sessions.
+Trigger: Ctrl+Shift+I or click Sessions dropdown → "Switch Investigation"
 
-Investigation Switcher (Cmd+Shift+I):
-  Overlay showing all investigations as cards in a grid.
+Overlay:
+  Position: fixed, inset: 0
+  Background: rgba(0,0,0,0.6), backdrop-filter: blur(8px)
+  Z-index: 350
   
-  Each card:
-    Investigation name
-    Status summary: "7 findings · 2 pending · last active 12m ago"
-    Color accent (auto-assigned or user-chosen from 12-color palette)
-    Click: switch to this investigation
+  Entry: fade in 150ms
+  Exit: fade out 100ms
+  Close: Escape key, click backdrop
+
+Grid container:
+  Position: absolute, top: 50%, left: 50%, transform: translate(-50%, -50%)
+  Width: min(800px, 90vw)
+  Max-height: 80vh
+  Display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  Gap: var(--space-4);
+  Padding: var(--space-4);
+  Overflow-y: auto;
+  
+  Entry animation: scale(0.95)→1 + fade, 200ms var(--ease-out-expo)
+
+Investigation card:
+  Background: var(--color-bg-surface)
+  Border: 1px solid var(--color-border-default)
+  Border-radius: var(--radius-lg)
+  Padding: var(--space-4)
+  Cursor: pointer
+  Height: 160px
+  Display: flex; flex-direction: column; gap: var(--space-2);
+  
+  Hover: border-color var(--color-border-hover), shadow-md, translateY(-2px)
+    Transition: all 150ms var(--ease-out-quint)
+  Active: scale 0.97 (80ms)
+  
+  Top color bar: 4px × 100%, investigation accent color, top of card border-radius
+  
+  Title: var(--text-body-lg), font-weight 600, truncate
+  Status: var(--text-caption), color: var(--color-text-secondary)
+    Format: "7 findings · 2 pending · last active 12m ago"
+  
+  Stats row:
+    Display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1);
+    Font: var(--text-caption)
+    "12 sources" "42 iterations"
+    "$1.23 spent" "94% confidence avg"
+  
+  Click: switch to this investigation
+    Transition: overlay fades out, workbench crossfades to new investigation (200ms)
+    All state restored: pane ratio, scroll position, evidence panel openness
+  
+  Right-click: context menu
+    Rename
+    Change color
+    Duplicate
+    Archive
+    Delete
+
+New investigation card:
+  Border: 1px dashed var(--color-border-default)
+  Background: transparent
+  Display: flex; align-items: center; justify-content: center;
+  
+  [+] icon: 48px, var(--color-text-tertiary)
+  Label: "New Investigation"
+  Hover: border-color var(--color-border-hover), icon color var(--color-text-secondary)
+  
+  Click: opens creation dialog
+    Name: required text input
+    Description: optional textarea
+    Template: dropdown (Blank / Security Investigation / Journalist Research / Legal Discovery)
+    Color: 12-color picker (pre-selected randomly)
+    [Create] [Cancel]
     
-  Create new: "New Investigation" card with + icon, dashed border
-    Click: opens creation dialog
-      Name: [text input]
-      Description: [optional textarea]  
-      Template: [dropdown: Blank / Security Investigation / Journalist Research / Legal Discovery]
-      [Create]
+    On create: new investigation appears, switches to it immediately
+    API call: POST /api/v1/investigations (or stored client-side in localStorage)
 
-  State persistence:
-    Each investigation's pane ratio, scroll position, open/closed panels saved
-    Restored on switch
-    Unsaved input preserved in textarea per investigation
-```
+State persistence:
+  Each investigation stores independently:
+    Pane ratio (localStorage: `chronicle:pane:${id}:think-pct`)
+    Evidence panel open (localStorage: `chronicle:evidence:${id}:open`)
+    Scroll positions (sessionStorage per tab)
+    Input draft text (sessionStorage)
+    Selected model (localStorage)
+    Active context items (sessionStorage)
+  
+  On switch: all state for outgoing investigation saved, incoming investigation restored
+  No API calls needed — all UI state is client-side
+  Investigation data (sessions, findings) fetched fresh on switch
 
----
-
+Keyboard: 
+  Ctrl+1 through Ctrl+9: switch to investigation 1-9 (by order in grid)
+  Ctrl+Tab: switch to next investigation (cycle order)
+  Ctrl+Shift+Tab: switch to previous investigation
 ## 6. Timeline Explorer
 
-### 6.1 Overview
+The Timeline Explorer is a zoomable, pannable chronological canvas displaying all system events as positioned cards along a time axis. It serves as the primary temporal navigation interface for investigating session histories, finding relationships, and understanding event sequences. The design prioritizes information density, spatial consistency, and rapid temporal navigation.
+
+### 6.1 Layout & Viewport Architecture
+
+The Timeline Explorer occupies the full content area (fills remaining space after sidebar) with zero padding — every pixel of the viewport is interactive canvas.
 
 ```
-The Timeline Explorer provides a chronological view of all activity across
-sessions, memory events, findings, and system events. It is the primary
-tool for understanding "what happened when" across days, weeks, or months
-of investigation activity.
-
-Design inspiration: Palantir Gotham's timeline view, but with the addition
-of AI reasoning events and the ability to trace conclusions to their source.
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TOOLBAR — 44px — position: sticky, top: 0, z-index: 10, bg-glass-light       │
+│ ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌─────┐ ┌───────┐ ┌──────────────┐│
+│ │Bookmarks │ │Annotate  │ │Filter chips│ │Srch │ │Session│ │  Density Bar ││
+│ │ ★ 3      │ │ ✎        │ │[All][Ses] │ │ 🔍  │ │ ▼ #a3f│ │  ▁▃▇█▇▃▁    ││
+│ └──────────┘ └──────────┘ └────────────┘ └─────┘ └───────┘ └──────────────┘│
+├──────────────────────────────────────────────────────────────────────────────┤
+│ TIME RULER — 40px — position: sticky, top: 44px, z-index: 9                  │
+│ ──────┬──────┬──────┬──────┬──────────┬──────┬──────┬──────┬──────┬─────────│
+│  09:00│ 09:15│ 09:30│ 09:45│   10:00  │10:15 │10:30 │10:45 │11:00 │11:15    │
+│ ──────┴──────┴──────┴──────┴─────┬────┴──────┴──────┴──────┴──────┴─────────│
+│                                   │ NOW                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ CANVAS — flex: 1, overflow: auto, position: relative                          │
+│   cursor: grab (default), grabbing (panning), crosshair (shift held)          │
+│   scroll-behavior: auto (programmatic scroll is instant)                      │
+│   Horizontal scroll: primary axis (wheel → horizontal scroll by default)      │
+│   Vertical scroll: shift+wheel or two-finger vertical gesture                  │
+│   Scrollbar: 6px, thumb border-hover, track transparent                       │
+│                                                                                │
+│ ┌── Date Group: June 23, 2026 ──────────────────────────────────────────────┐ │
+│ │                                                                             │ │
+│ │  ●───●───●  Session #a3f2b — Q4 Revenue Analysis                          │ │
+│ │  │   │   │  (connector lines between events in same session)               │ │
+│ │  │   │   │                                                                  │ │
+│ │  [M] [F] [T]   ← Event cards: Memory, Finding, Task cards                    │ │
+│ │                                                                             │ │
+│ │  ●───●  Session #b2e1c — Phish Investigation                               │ │
+│ │  │   │                                                                       │ │
+│ │  [M] [A]    ← Memory, Approval cards                                        │ │
+│ │                                                                             │ │
+│ │  ⚠  Anomaly #7 — Token spike detected (standalone event)                   │ │
+│ │                                                                             │ │
+│ └─────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                │
+│ ┌── Date Group: June 22, 2026 ──────────────────────────────────────────────┐ │
+│ │  ...                                                                        │ │
+│ └─────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Timeline Layout
+**Viewport coordinate system:**
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ TIMELINE TOOLBAR                                                     │
-│ ┌──────────────┐ ┌─────────────────────┐ ┌────────┐ ┌────────────┐ │
-│ │ Time Range ▾ │ │ [◀◀ ───┬─────────── │ │ Filter │ │ Export ▾   │ │
-│ │ Last 7 days  │ │  Jun 3     Jun 10 ▶▶│ │        │ │            │ │
-│ └──────────────┘ └─────────────────────┘ └────────┘ └────────────┘ │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─ Jun 7 ──────────────────────────────────────────────────────┐  │
-│  │                                                               │  │
-│  │  14:23  🧠 #a3f  Iteration 42 started                        │  │
-│  │         📄 Analyzed q4-sales.csv (12,400 rows)                │  │
-│  │         ⚠  Anomaly detected: APAC spike +37%                  │  │
-│  │                                                               │  │
-│  │  14:25  ✅ #a3f  Finding #7: APAC Growth approved             │  │
-│  │         ├─ Reasoning: Step 2 · Cross-ref APAC                │  │
-│  │         ├─ Confidence: HIGH (0.94)                           │  │
-│  │         └─ Approved by: Bane                                  │  │
-│  │                                                               │  │
-│  │  14:28  📊 #a3f  Task "Generate Report" created              │  │
-│  │                                                               │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌─ Jun 8 ──────────────────────────────────────────────────────┐  │
-│  │  09:15  🧠 #b2e  Investigation "Phish Analysis" started      │  │
-│  │         🔗 Connected source: phishing_emails.csv              │  │
-│  │                                                               │  │
-│  │  09:17  🧠 #b2e  Iteration 1 — analyzing headers             │  │
-│  │         ⚠  Pattern detected: 14min C2 beacon                  │  │
-│  │                                                               │  │
-│  │  09:22  🛡️ #b2e  Approval requested: Block IP 203.0.113.42  │  │
-│  │         Status: PENDING                                       │  │
-│  │                                                               │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+Origin (0,0): top-left of canvas content area
+X-axis: time — maps linearly to pixel positions
+Y-axis: event stacking — events are placed in lanes (vertical slots)
+
+Time-to-pixel mapping:
+  pixelsPerMs = viewportWidth / visibleTimeRangeMs
+  xPosition(event) = (event.timestamp - earliestVisible) * pixelsPerMs
 ```
 
-### 6.3 Timeline Ruler
+**Canvas element:**
+
+```html
+<div id="timeline-canvas" style="
+  position: relative;
+  width: var(--timeline-total-width); /* Computed: max(viewport_width, total_time_range * zoom) */
+  height: var(--timeline-total-height); /* Computed: (date_groups * group_height) + padding */
+  overflow: hidden;
+  cursor: grab;
+">
+  <!-- Date groups render as absolutely-positioned sections -->
+  <!-- Event cards render as absolutely-positioned interactive elements -->
+  <!-- Connector lines render as SVG overlay -->
+</div>
+```
+
+**Viewport state:**
+
+```typescript
+interface TimelineViewport {
+  scrollLeft: number;          // Current horizontal scroll position (px)
+  scrollTop: number;           // Current vertical scroll position (px)
+  zoom: number;                // Zoom level: 0.1 (wide) to 10.0 (microscopic)
+  timeRangeStart: number;      // Unix ms of leftmost visible edge
+  timeRangeEnd: number;        // Unix ms of rightmost visible edge
+  viewportWidth: number;       // Container width in px (ResizeObserver)
+  viewportHeight: number;      // Container height in px (ResizeObserver)
+  focusedEventId: string|null; // Currently selected/focused event
+  selectedEventIds: Set<string>; // Multi-selected events
+  bookmarkIds: Set<string>;    // Bookmarked event IDs
+  activeFilters: FilterState;  // Current filter state
+}
+```
+
+**Responsive behavior:**
 
 ```
-Horizontal time axis at the top of the timeline.
+Desktop (>=1024px):
+  Toolbar: single row, all controls visible
+  Time Ruler: major ticks every 15min, minor every 5min at default zoom
+  Cards: 320px wide × 72px tall (full detail mode)
 
-Design:
-  Height: 40px
-  Background: var(--color-bg-surface)
-  Border-bottom: 1px solid var(--color-border-default)
-  Position: sticky (stays visible while scrolling timeline)
+Tablet (768-1023px):
+  Toolbar: wraps to 2 rows (filters row 1, actions row 2)
+  Time Ruler: major ticks every 30min, minor every 15min
+  Cards: 260px × 64px
 
-  Major ticks: each day/week boundary (depending on zoom level)
-    Line: 1px solid var(--color-border-default), full 40px height
-    Label: date in body-small, color text-secondary
-    Format: "Mon Jun 7" (week view), "June 2026" (month view), "14:00" (day view)
-    
-  Minor ticks: each hour/day (depending on zoom)
-    Line: 1px solid var(--color-border-default) at 30% opacity, 20px height
-    
-  Current time indicator:
-    Vertical line: 1px dashed var(--color-accent-primary) at 50% opacity
-    Full timeline height
-    Label: "Now" in accent color, positioned at line top
-    Auto-updates position every 30 seconds
+Mobile (<768px):
+  Toolbar: collapsed to search + filter icon (expandable panel)
+  Time Ruler: major ticks every 1h, no minor ticks
+  Cards: full-width (100vw - 32px) × 56px, stacked vertically
+  Date groups: single column, no multi-lane
+```
 
-Time Range Selector:
-  Left side of toolbar.
-  Dropdown with presets:
-    Last 1 hour
-    Last 6 hours
-    Last 24 hours
-    Last 7 days
-    Last 30 days
-    Custom range... (opens date pickers)
-  
-  Navigation buttons:
-    ◀◀  Jump back one full range
-    ◀   Scroll back half range
-    Today  Jump to current time
-    ▶   Scroll forward half range
-    ▶▶  Jump forward one full range
+### 6.2 Time Ruler
 
-Zoom (scroll wheel on timeline):
-  Scroll up: zoom in (reduce time range)
-  Scroll down: zoom out (expand time range)
-  Zoom centers on cursor position
-  Smooth animated zoom: CSS transition on range width, 250ms ease-out-quint
-  Zoom levels (continuous, but snap to):
-    15min → 1h → 6h → 24h → 3d → 7d → 30d → 90d → 1y
+The time ruler is a horizontal bar at the top of the timeline showing temporal reference marks. It is sticky-positioned below the toolbar.
 
-Drag to pan:
-  Click-drag on timeline background to pan horizontally
-  Cursor: grab (default), grabbing (active)
-  Inertia: after release, timeline coasts to stop (physics-based deceleration)
-    Friction: 0.95 per frame
-    Minimum velocity: 0.5px/frame (below this, stop)
+**Ruler anatomy:**
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TIME RULER — 40px height, bg-bg-surface, border-bottom: 1px border-default   │
+│                                                                                │
+│  Major tick: 16px line, color text-secondary, 1px wide                        │
+│  Minor tick: 8px line, color border-subtle, 1px wide                           │
+│  Label: text-micro (10px), color text-tertiary, positioned below tick          │
+│  Current-time indicator: 2px solid line, color accent-primary                  │
+│    Label: "NOW" badge, text-micro, bg accent-primary, text white, radius-sm    │
+│                                                                                │
+│  Tick density by zoom level:                                                   │
+│    zoom < 0.5:  Major = 4h,  Minor = 1h     (multi-day view)                  │
+│    zoom 0.5-1:  Major = 1h,  Minor = 15min  (day view)                         │
+│    zoom 1-2:    Major = 30min, Minor = 10min (half-day view)                   │
+│    zoom 2-4:    Major = 15min, Minor = 5min  (few-hours view)                  │
+│    zoom > 4:    Major = 5min,  Minor = 1min  (detail view)                     │
+│                                                                                │
+│  Tick alignment: ticks snap to "natural" boundaries                            │
+│    Major ticks at: 00:00, 01:00, 02:00... (hourly), or aligned to zoom level  │
+│    Minor ticks divide major intervals evenly (4 or 5 sub-divisions)            │
+│                                                                                │
+│  Label format by zoom level:                                                   │
+│    zoom < 0.5:  "Jun 23", "Jun 24" (date)                                     │
+│    zoom 0.5-2:  "09:00", "10:00" (HH:MM)                                      │
+│    zoom > 2:    "09:30:00", "09:35:00" (HH:MM:SS)                             │
+│                                                                                │
+│  Timezone display: right side of ruler                                         │
+│    Format: "UTC-4 (EDT)" in text-micro, text-tertiary                          │
+│    Click: opens timezone picker dropdown                                       │
+│                                                                                │
+│  Ruler pan behavior:                                                           │
+│    Scrolls horizontally with canvas content                                    │
+│    Stays vertically pinned at top (position: sticky, top: 44px)                │
+│    Vertical scroll shows/hides ruler naturally with content                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Ruler implementation details:**
+
+```typescript
+interface TickMark {
+  position: number;    // x-position in px (relative to viewport)
+  timestamp: number;   // Unix ms
+  label: string;       // Display label
+  isMajor: boolean;    // Major tick (longer line + label) vs minor (short line)
+}
+
+function computeTicks(
+  timeStart: number,
+  timeEnd: number,
+  viewportWidth: number
+): TickMark[] {
+  const visibleMs = timeEnd - timeStart;
+  const pixelsPerMs = viewportWidth / visibleMs;
+
+  // Determine tick interval based on available pixel space
+  // Target: major ticks every ~100-200px, minor ticks every ~25-50px
+  const majorInterval = findBestInterval(visibleMs, viewportWidth, {
+    preferredPixelSpacing: 150,
+    allowedIntervals: [
+      60000,      // 1 minute
+      300000,     // 5 minutes
+      900000,     // 15 minutes
+      1800000,    // 30 minutes
+      3600000,    // 1 hour
+      14400000,   // 4 hours
+      43200000,   // 12 hours
+      86400000,   // 1 day
+      604800000,  // 1 week
+    ]
+  });
+
+  const minorInterval = majorInterval / (majorInterval >= 3600000 ? 4 : 5);
+
+  // Generate ticks aligned to interval boundaries
+  const firstMajor = Math.ceil(timeStart / majorInterval) * majorInterval;
+  const ticks: TickMark[] = [];
+
+  for (let t = firstMajor; t <= timeEnd; t += minorInterval) {
+    const isMajor = (t % majorInterval === 0);
+    if (isMajor || minorInterval >= 60000) {
+      ticks.push({
+        position: (t - timeStart) * pixelsPerMs,
+        timestamp: t,
+        label: formatTickLabel(t, visibleMs),
+        isMajor,
+      });
+    }
+  }
+  return ticks;
+}
+
+function formatTickLabel(timestamp: number, visibleMs: number): string {
+  const d = new Date(timestamp);
+  if (visibleMs > 172800000) {       // > 2 days
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else if (visibleMs > 7200000) {  // > 2 hours
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } else {                            // <= 2 hours
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  }
+}
+```
+
+**Current-time indicator:**
+
+```
+Position: computed from (Date.now() - timeRangeStart) * pixelsPerMs
+Line: 2px solid, color accent-primary
+  Extends full height of ruler (40px)
+  Penetrates 8px into canvas below as a subtle guide
+
+"NOW" badge:
+  Positioned at top of indicator line, centered
+  Background: accent-primary, color: text-inverse
+  Font: text-micro (10px), font-weight 600
+  Padding: 1px 6px, border-radius: radius-sm
+  Pulse animation: opacity oscillates 0.8→1.0→0.8, 2s cycle, ease-in-out-quint
+
+When "now" is off-screen (scrolled past):
+  Arrow indicator at left/right edge of ruler
+  Icon: arrow-circle-left or arrow-circle-right, 16px, accent-primary
+  Click: scroll to now (smooth, 300ms ease-out-expo)
+  Label: "→ NOW" or "NOW ←" in text-micro, text-tertiary
+```
+
+### 6.3 Zoom & Pan Interaction
+
+The timeline supports zoom-to-cursor (not zoom-to-center) and inertia panning.
+
+#### 6.3.1 Scroll-Wheel Zoom
+
+```
+Scroll wheel behavior:
+  Default: horizontal scroll (no modifier)
+    deltaY → scrollLeft += deltaY (natural direction)
+    Vertical scroll: Shift+wheel or two-finger vertical trackpad
+
+  Ctrl+Scroll (zoom):
+    Zoom toward cursor position
+    deltaY < 0 (scroll up): zoom in (multiply zoom by 1.15)
+    deltaY > 0 (scroll down): zoom out (multiply zoom by 0.87)
+
+  Zoom-to-cursor algorithm:
+    1. Record cursorX (mouse X relative to canvas)
+    2. Record timeAtCursor = timeRangeStart + (cursorX / viewportWidth) * visibleMs
+    3. Apply zoom factor to visibleMs: newVisibleMs = visibleMs * zoomFactor
+    4. Calculate new timeRangeStart: timeAtCursor - (cursorX / viewportWidth) * newVisibleMs
+    5. Clamp zoom to [0.1, 10.0]
+    6. Clamp timeRange to [earliestEvent - 10%, latestEvent + 10%]
+
+  Zoom constraints:
+    Min zoom (0.1): ~1 month visible in viewport
+    Max zoom (10.0): ~5 minutes visible in viewport
+    Zoom steps: continuous between min and max
+    Zoom indicator: brief overlay (1500ms) showing "Zoom: 2.5×" with slider
+
+  Pinch-to-zoom (touch):
+    Two-finger pinch: same as Ctrl+Scroll
+    Center point: midpoint between two fingers
+    Gesture tracking: touchstart records initial distance, touchmove computes scale
+    Scale factor: currentDistance / initialDistance
+    Apply: same zoom-to-cursor logic with center point as cursor
+```
+
+#### 6.3.2 Drag Pan
+
+```
+Mouse drag (left button):
+  On mousedown:
+    cursor: grabbing
+    Record dragStart = { x: clientX, y: clientY }
+    Record scrollStart = { left: scrollLeft, top: scrollTop }
+
+  On mousemove (while dragging):
+    deltaX = dragStart.x - clientX
+    deltaY = dragStart.y - clientY
+    scrollLeft = scrollStart.left + deltaX
+    scrollTop = scrollStart.top + deltaY
+    Apply immediately (no throttling — direct DOM scroll manipulation)
+
+  On mouseup:
+    cursor: grab
+    Apply inertia:
+      velocityX = deltaX_last50ms / 50  (px/ms)
+      velocityY = deltaY_last50ms / 50
+      If |velocity| > 0.05:
+        Animate deceleration using ease-out-expo over 600ms
+        targetScrollLeft = scrollLeft + velocityX * 300
+        targetScrollTop = scrollTop + velocityY * 300
+      Cancel inertia on: next mousedown, wheel, or boundary hit
+
+  Touch drag (one finger):
+    Same as mouse drag
+    touch-action: none on canvas (prevents browser scroll/zoom)
+
+  Boundaries:
+    scrollLeft: clamped to [0, totalWidth - viewportWidth]
+    scrollTop: clamped to [0, totalHeight - viewportHeight]
+    Rubber-band effect at boundaries:
+      Beyond limit: resistance = 0.3 (scroll damps to 30% beyond boundary)
+      On release: spring-back animation to boundary (300ms ease-anticipate)
+```
+
+#### 6.3.3 Keyboard Navigation
+
+```
+Arrow keys (when canvas focused):
+  Left:  scrollLeft -= 100px (or 1 major tick interval, whichever is larger)
+  Right: scrollLeft += 100px
+  Up:    scrollTop -= 60px
+  Down:  scrollTop += 60px
+  Shift+Left/Right: scroll to previous/next event
+  Home:  scrollLeft = 0 (first event)
+  End:   scrollLeft = totalWidth - viewportWidth (last event)
+  T:     scroll to NOW (current time)
+  Ctrl+Plus:  zoom in (1.15×)
+  Ctrl+Minus: zoom out (0.87×)
+  Ctrl+0:     reset zoom to 1.0
+  PageUp:     zoom in 3× (same as 3 Ctrl+Plus)
+  PageDown:   zoom out 3×
+
+Focus management:
+  Canvas is focusable (tabindex="0")
+  Focus ring: 2px accent-primary inset
+  Click canvas: focuses canvas (for keyboard navigation)
+  Escape: blur canvas, deselect all events
 ```
 
 ### 6.4 Event Cards
 
-```
-Each event on the timeline is rendered as a card positioned on the
-horizontal axis by its timestamp and grouped by date.
+Event cards are the primary visual elements on the timeline. Each card represents one event in the system.
 
-Event Card Anatomy:
-  ┌───┬────────────────────────────────────────────┐
-  │ ● │ 14:23  🧠 #a3f  Iteration 42 started       │  ← Thin left edge (color-coded)
-  │   │         📄 q4-sales.csv                     │  ← Event row
-  │   │                                              │
-  │   │  Details collapsed by default                │
-  │   │  ▸ Click to expand                           │
-  └───┴────────────────────────────────────────────┘
-
-Connector line:
-  Left side: 2px vertical line connecting events in same session
-  Color: entity color at 40% opacity
-  Dot: 8px circle at event timestamp point
-    Color: entity color, full opacity
-    Hover: grows to 12px, 150ms ease-out
-    Click: navigates to event detail
-
-Entity Colors:
-  Session events:      blue    (--color-entity-session)
-  Memory events:       cyan    (--color-entity-memory)
-  Findings:            green   (--color-entity-finding)
-  Tasks:               amber   (--color-entity-task)
-  Approvals:           red     (--color-entity-approval)
-  Anomalies/Flags:     purple  (pulsing when unacknowledged)
-  System events:       gray    (muted)
-
-Event Card States:
-  DEFAULT (collapsed):
-    Shows: time, icon, type label, one-line summary
-    Height: 32px
-    Background: transparent
-    Hover: background var(--color-bg-hover) with 2px left accent border
-    
-  EXPANDED (clicked):
-    Shows: full event details, related entities, actions
-    Height: auto (content-dependent, max 400px scrollable)
-    Background: var(--color-bg-surface)
-    Border: 1px solid var(--color-border-default)
-    Border-radius: var(--radius-md)
-    Padding: 12px 16px
-    Shadow: var(--shadow-sm)
-    Expansion animation: max-height 0→400px, 300ms ease-out-expo
-    Content fades in after 100ms delay
-    
-  LINKED (hovering a related event highlights this one):
-    Background: var(--color-bg-hover)
-    Border-color: var(--color-border-hover)
-
-Event grouping (proximity):
-  Events within 2 minutes of each other in the same session:
-    Grouped into a single expandable cluster
-    Cluster header: "[4 events] · 14:23-14:28"
-    Cluster dot: slightly larger (12px), ring indicator
-    Click cluster: expands to show individual events
-    Cluster collapse: individual events animate into cluster dot
-      (morph animation: cards shrink toward dot, opacity 1→0, 300ms)
-
-Event density indicator (in zoomed-out views):
-  When many events overlap at current zoom level:
-    Stacked bar indicator instead of individual events
-    Height: proportional to event count in that time bucket
-    Color: gradient from entity color (bottom) to transparent (top)
-    Hover: tooltip "8 events in this hour: 3 sessions, 2 findings, 3 memory"
-    Click: zooms in to show individual events
-```
-
-### 6.5 Timeline Filtering
+#### 6.4.1 Card Anatomy
 
 ```
-Filter chips in toolbar control which entity types appear on the timeline.
+┌──────────────────────────────────────────────────────────┐
+│ ● Session #a3f2b                         2m ago  [ ★ ]  │  ← Header row
+│ ───────────────────────────────────────────────────────── │  ← Border (1px, entity color)
+│                                                           │
+│ 🧠 Iteration 42 started                                   │  ← Event type icon + title
+│     Started analyzing Q4 revenue — 847 tokens             │  ← Description (truncate 2 lines)
+│                                                           │
+│ [deepseek-v4-pro] [thinking] [847 tok]                   │  ← Tags row
+└──────────────────────────────────────────────────────────┘
 
-Default: all types visible.
-
-Filter bar:
-  ┌────────────────────────────────────────────┐
-  │ SHOWING:                                   │
-  │ [× Sessions] [× Memory] [× Findings]       │
-  │ [× Tasks] [× Approvals] [× Anomalies]      │
-  │ [× System]                                 │
-  │                                            │
-  │ SESSION FILTER: [All Sessions ▾]           │
-  │ SEARCH: [🔍 Filter events...]              │
-  └────────────────────────────────────────────┘
-
-Toggle behavior:
-  Active chip: filled background (entity color at 15%), text in entity color
-  Inactive chip: transparent, text muted, crossed out
-  Click: toggle entity type visibility
-  Toggle animation: events of that type fade in/out (opacity transition 300ms)
-  Timestamps of remaining events adjust positions smoothly
-
-Session filter dropdown:
-  Multiselect checkboxes for each session
-  "Select All" / "Deselect All" shortcuts
-  Search sessions by name/ID
-  Session count badge: "3 of 12 selected"
-
-Search filter:
-  Filters events by text content match
-  Debounced 300ms
-  Matching events: highlighted with subtle glow
-  Non-matching events: dimmed to 20% opacity
-  Clear search: × button in input
-
-Saved filters:
-  "Save current filter..." button
-  Named filter presets stored in localStorage
-  Dropdown to load saved filter
-  Examples: "SOC Daily Review", "Active Incidents Only", "Q4 Analysis"
+Card dimensions:
+  Width: 320px (fixed at all zoom levels)
+  Height: 72px (compact), 96px (expanded — on click/selection)
+  Border-radius: radius-md
+  Background: bg-surface
+  Border: 1px border-default
+  Border-left: 3px solid var(--entity-color) (entity type accent)
+  Box-shadow: shadow-sm (default), shadow-md (hover), shadow-lg (selected)
+  Margin-bottom: 4px (gap between stacked cards in same time lane)
 ```
 
-### 6.6 Timeline Interactions
+**Card sub-elements:**
 
 ```
-Click event card: expands to show detail (see Event Card States above).
+Header row (height: 24px, padding: 6px 10px 0):
+  Entity indicator (left):
+    Colored dot: 8px circle, entity color, flex-shrink: 0
+    Entity label: text-caption, font-weight 600, text-primary, truncate
+    Format: "{EntityType} #{shortId}" e.g., "Session #a3f2b"
 
-Double-click event card: navigates to relevant view
-  - Session event → opens Investigation Workbench for that session
-  - Memory event → opens Memory Browser scrolled to that event
-  - Finding → opens Investigation Workbench, SAYS pane scrolled to finding
-  - Approval → opens Approvals page with that approval selected
+  Timestamp (right, text-caption, text-tertiary):
+    Relative: "2m ago", "1h ago", "yesterday"
+    Hover (500ms delay): tooltip with absolute time "Jun 23, 2026 10:42:31 UTC-4"
 
-Right-click event card: context menu
-  ├─ View Full Details        (expands card)
-  ├─ Open in Workbench        (navigates like double-click)
-  ├─ Find Related Events      (filters timeline to show related)
-  ├─ Create Annotation        (adds note to timeline at this point)
-  ├─ Set Bookmark             (marks this point for quick return)
-  ├─ Copy Event ID
-  └─ Copy Timestamp
+  Bookmark toggle (rightmost, 16px):
+    Icon: bookmark-simple, 14px, text-tertiary
+    Bookmarked: icon-weight fill, color accent-warning (gold)
+    Click: toggle bookmark, animation: scale-bounce 300ms ease-spring
+    Tooltip: "Bookmark" / "Remove bookmark"
 
-Shift+Click multiple events:
-  Multi-select: selects range between first and last clicked
-  Selected events: blue highlight border
-  Bulk actions appear in floating toolbar:
-    "3 events selected" 
-    [Export Selected] [Create Annotation] [Link Events] [Clear Selection]
+Divider:
+  Height: 1px, background: entity color at 20% opacity
+  Margin: 4px 10px 2px
 
-Drag to select:
-  Click-drag on empty timeline area → draws selection rectangle
-  All events within rectangle become selected
-  Rectangle: blue border, blue fill at 10% opacity
+Content row (padding: 0 10px 4px, flex: 1):
+  Icon (left, 20px):
+    Matches event type, entity color
+    In 28px circle, background: entity color at 10% opacity
+    Position: absolute, left: 10px, top: 50% (transform: translateY(-50%))
 
-Bookmarks:
-  Star icon at specific timestamps
-  Visible as small star on timeline ruler
-  Click bookmark: jump timeline to that point
-  Bookmark list in sidebar panel
-  Named bookmarks: "Phishing incident discovered", "Q4 report submitted"
-  Navigate between bookmarks: [◀ Prev] [Next ▶] buttons
+  Text container (margin-left: 36px):
+    Title: text-small, font-weight 500, text-primary, truncate 1 line
+    Description: text-caption, text-secondary, line-clamp: 2
+      If no description: hidden
+    Metadata line (optional): text-caption, text-tertiary
+      Format depends on event type (see 6.4.3)
+
+Tags row (height: 20px, padding: 0 10px 4px, display: flex, gap: 4px):
+  Tags: small pills, text-micro, border-radius: radius-sm
+  Each tag: padding 1px 6px, background entity color at 8% opacity
+  Max visible: 3 tags per card (overflow: "+2 more" pill)
+
+Connector handle (bottom center, visible on hover):
+  Circle: 4px diameter, entity color
+  Click+drag: create manual connection line to another event (see 6.5.3)
+  Tooltip: "Drag to connect"
 ```
 
----
-
-## 7. Entity Graph & Network Visualization
-
-### 7.1 Overview
+#### 6.4.2 Card States
 
 ```
-The Entity Graph visualizes relationships between sessions, memory events,
-findings, evidence sources, and entities extracted by the AI.
-It uses a force-directed layout that organizes itself around semantic
-clusters, showing how different investigations and pieces of evidence
-relate to each other.
+Default (idle):
+  bg: bg-surface
+  border: 1px border-default
+  border-left: 3px entity-color
+  box-shadow: shadow-sm
+  opacity: 1.0
+  transform: scale(1)
 
-Key use cases:
-  - "Show me how these three sessions are related"
-  - "Visualize all evidence connected to Finding #7"
-  - "Map the entity network extracted from Q4 analysis"
-  - "Find hidden connections between seemingly unrelated investigations"
+Hover:
+  bg: bg-hover-muted
+  border: 1px border-hover
+  box-shadow: shadow-md
+  cursor: pointer
+  transition: all 150ms var(--ease-out-quint)
+  z-index: 2 (raises above sibling cards)
+
+Selected (single click):
+  bg: bg-selection-muted
+  border: 1px accent-primary
+  border-left: 3px accent-primary
+  box-shadow: shadow-glow-blue
+  z-index: 3
+  Card expands height from 72px → 96px (if compact mode)
+    Transition: height 250ms ease-out-expo
+    Reveals: full description (no line-clamp), action buttons
+  Selected indicator: blue checkmark badge, top-right corner (overlaps card edge)
+
+Multi-selected (shift+click or drag-select):
+  bg: bg-selection-muted
+  border: 1px dashed accent-primary
+  border-left: 3px accent-primary
+  opacity: 0.95
+  Selection order badge: numbered circle (1,2,3...) top-left of card
+
+Focused (keyboard navigate):
+  Same visual as selected + focus ring
+  focus-visible: box-shadow shadow-glow-blue
+
+Loading (event data being fetched):
+  Skeleton card: same dimensions, bg-skeleton, shimmer animation
+  Shimmer: linear-gradient sweep, 1.5s cycle, ease-linear infinite
+
+Error (event data failed to load):
+  Card: muted colors, opacity 0.6
+  Icon: warning-circle, 16px, accent-error
+  Title: event ID, text-error
+  Description: "Failed to load event data"
+  Retry button: text-small, text-link, "Retry"
+
+Disabled (filtered out but still visible):
+  opacity: 0.2
+  pointer-events: none
+  Filter applied badge: "Hidden by filter" tooltip
 ```
 
-### 7.2 Graph Canvas
+#### 6.4.3 Event Type Card Variants
+
+**Session Event Card:**
 
 ```
-Full-viewport canvas using WebGL (via Three.js or regl)
-for rendering thousands of nodes and edges at 60fps.
+┌──────────────────────────────────────────────────────────┐
+│ ● Session #a3f2b                         2m ago  [ ★ ]  │
+│ ───────────────────────────────────────────────────────── │
+│  [cpu]  Session started                                   │
+│         Created by Kara · Q4 Revenue Analysis             │
+│  [deepseek-v4-pro] [booting→thinking] [it 42]            │
+└──────────────────────────────────────────────────────────┘
 
-Layout:
-  Toolbar: top, 48px, with graph controls
-  Canvas: fills remaining space
-  Mini-map: bottom-right corner, 180×120px
-  Legend: bottom-left, collapsible
-  Detail panel: right side (360px), shows selected node info
-
-Background:
-  Dark: var(--color-bg-canvas)
-  Subtle grid: 1px lines at 40px intervals, color border-default at 10% opacity
-  Grid animates subtly on pan: parallax effect (grid moves at 50% of pan speed)
-
-Canvas interactions:
-  Scroll: zoom in/out (centered on cursor)
-    Zoom range: 0.1x to 5x
-    Smooth zoom: animated with easing, 200ms
-    Min zoom: shows entire graph
-    Max zoom: individual node fills viewport
-    
-  Click-drag: pan canvas
-    Cursor: grab (default), grabbing (active)
-    Inertia pan: deceleration after release
-    
-  Click node: select node (see Node Selection below)
-  Click edge: select edge, highlight connected nodes
-  Click background: deselect all
-  Double-click node: focus graph on this node (camera animates to center on it)
-  Right-click: context menu (see below)
-
-Graph rendering features:
-  Anti-aliased edges with variable width (thicker = stronger relationship)
-  Node size proportional to importance (number of connections)
-  Color by entity type (same palette as timeline)
-  Selected node: glow effect (bloom shader, radius 12px, color match entity)
-  Hovered node: subtle scale increase (1.0→1.15, 150ms ease-out) + label appears
-  Clusters: semi-transparent hulls around groups of related nodes
-  Labels: visible on hover or for large/important nodes
-  Loading state: skeleton nodes pulse (opacity 0.3→0.6→0.3, 1.5s cycle)
-
-Performance:
-  WebGL instanced rendering for >1000 nodes
-  Level-of-detail: distant/small nodes simplified
-  Frustum culling: only render visible nodes
-  Throttled physics: simulation at 30fps, rendering at 60fps
-  Web Worker for force simulation (off main thread)
+Entity color: --color-entity-session (oklch(60% 0.18 265), blue)
+Icon: cpu, 20px
+Status dot: animated per session status (see 1.2.7)
+  Positioned on left border, 8px, entity-appropriate status color
+Metadata format: "Created by {user} · {session_goal_short}"
+Tags: model name, status transition (e.g., booting→thinking), current iteration
 ```
 
-### 7.3 Node Types & Visual Encoding
+**Memory Event Card:**
 
 ```
-NODE TYPES:
+┌──────────────────────────────────────────────────────────┐
+│ ● Memory #m8472                         5m ago  [ ★ ]   │
+│ ───────────────────────────────────────────────────────── │
+│  [database]  Memory stored                                │
+│              Key: /projects/q4-revenue · trust: high      │
+│  [domain: concept] [trust: high] [847 tokens]            │
+└──────────────────────────────────────────────────────────┘
 
-  🧠 Session Node
-    Shape: rounded rectangle (16px × 12px)
-    Color: var(--color-entity-session) [blue]
-    Size: proportional to iteration count + memory events
-    Icon: cpu (small, centered)
-    Label: session name or first 8 chars of ID
-    Detail on select: full session metadata
-    
-  📄 Memory Event Node
-    Shape: circle (10px diameter)
-    Color: var(--color-entity-memory) [cyan]
-    Size: proportional to content length
-    Label: event type (e.g., "thought", "action", "observation")
-    
-  ✅ Finding Node
-    Shape: diamond (14px × 14px)
-    Color: var(--color-entity-finding) [green]
-    Size: proportional to confidence score
-    Label: finding title or number
-    Glow: if approved (subtle green), if draft (subtle amber)
-    
-  📁 Evidence Source Node
-    Shape: square (12px × 12px)
-    Color: var(--color-entity-evidence) [pink]
-    Size: proportional to file size
-    Icon: file/database/globe based on source type
-    Label: filename
-    
-  ⚠ Anomaly Node
-    Shape: triangle (12px)
-    Color: amber, pulsing if unacknowledged
-    Size: fixed
-    Label: anomaly type
-    Pulse animation: opacity 1→0.4→1, 2s cycle (infinite until acknowledged)
-    
-  🏷️ Entity Node (extracted by AI: people, orgs, locations, etc.)
-    Shape: circle (12px diameter)
-    Color: var(--color-data-X) based on entity category
-      Person:      data-0 (red)
-      Organization: data-4 (blue)
-      Location:     data-2 (green)
-      Date/Time:    data-1 (amber)
-      Concept:      data-5 (purple)
-      Document:     data-3 (cyan)
-      Money:        data-9 (lime)
-    Label: entity name
-    Size: proportional to mention frequency
+Entity color: --color-entity-memory (oklch(60% 0.15 200), cyan)
+Icon: database, 20px
+Trust badge: colored per trust level (see 1.2.8), shown on right of divider
+Metadata format: "Key: {key_path} · trust: {trust_level}"
+Tags: domain, trust level (colored badge), token count
+```
 
-EDGE TYPES:
+**Finding Card:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ● Finding #f1294                         12m ago [ ★ ]  │
+│ ───────────────────────────────────────────────────────── │
+│  [magnifying-glass] Finding drafted                       │
+│       APAC region shows 23% revenue decline in Q4         │
+│  [severity: high] [confidence: 87%] [source: #e5b3f]    │
+└──────────────────────────────────────────────────────────┘
+
+Entity color: --color-entity-finding (oklch(55% 0.18 145), green)
+Icon: magnifying-glass, 20px
+Severity badge (right of divider): colored pill
+  High: red, Medium: amber, Low: muted
+Metadata format: finding summary (truncated 2 lines)
+Tags: severity, confidence percentage, source entity link
+```
+
+**Task Card:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ● Task #t5631                           8m ago  [ ★ ]   │
+│ ───────────────────────────────────────────────────────── │
+│  [check-square]  Task created                             │
+│       Fix authentication rate limiting                    │
+│  [session: #a3f2b] [status: pending] [priority: high]   │
+└──────────────────────────────────────────────────────────┘
+
+Entity color: --color-entity-task (oklch(55% 0.15 85), amber)
+Icon: check-square, 20px
+Status badge: colored pill per task status
+Metadata format: task title, truncated 2 lines
+Tags: parent session link, status, priority
+```
+
+**Approval Card:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ● Approval #a9012                        15m ago [ ★ ]  │
+│ ───────────────────────────────────────────────────────── │
+│  [shield-check]  Approval requested                       │
+│       DROP TABLE staging — needs human review             │
+│  [session: #a3f2b] [type: sql_exec] [pending ⚠]         │
+└──────────────────────────────────────────────────────────┘
+
+Entity color: --color-entity-approval (oklch(50% 0.20 20), red)
+Icon: shield-check, 20px
+Border pulse: when status is 'pending', card border pulses red glow (2s cycle)
+Metadata format: approval request summary
+Tags: parent session, approval type, status (pending=red pulse, approved=green, denied=gray)
+```
+
+**Anomaly Card:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ⚠ Anomaly #z3478                         1h ago  [ ★ ]  │
+│ ───────────────────────────────────────────────────────── │
+│  [warning]  Token usage spike detected                    │
+│       Session #a3f2b used 847K tokens in single iteration │
+│  [severity: high] [type: token_spike] [session: #a3f2b] │
+└──────────────────────────────────────────────────────────┘
+
+Entity color: --color-entity-anomaly (oklch(55% 0.18 30), orange-red)
+Icon: warning, 20px
+Card border: 2px dashed accent-error at 50% opacity (distinctive anomaly styling)
+Background: subtle red tint, bg-error at 3% opacity
+Metadata format: anomaly description
+Tags: severity, anomaly type, related entity link
+```
+
+#### 6.4.4 Card Positioning
+
+```
+Horizontal positioning (X):
+  x = (event.timestamp - timeRangeStart) * pixelsPerMs + cardMarginLeft
+
+Vertical positioning (Y) — lane allocation algorithm:
+  Each event is placed in a "lane" to avoid overlap.
+  Lane height: cardHeight + cardGap (72px + 4px = 76px)
+
+  Algorithm: Greedy Lane Assignment
+    1. Sort events within date group by timestamp ascending
+    2. For each event:
+       a. Try lane 0. Check if event overlaps with any existing event in lane 0.
+          Overlap condition: |event.timestamp - existing.timestamp| * pixelsPerMs < cardWidth + 4
+       b. If overlap, try lane 1, lane 2, etc.
+       c. Place event in first non-overlapping lane
+    3. Date group height = (maxLaneIndex + 1) * laneHeight + groupHeaderHeight
+
+  Overlap check considers:
+    - Card width (320px at default zoom)
+    - 4px minimum horizontal gap between cards
+    - Cards in same session are placed adjacent (same lane) unless they overlap
+      Connected events prefer lane adjacency for connector line clarity
+
+  Vertical stacking within lane:
+    Cards in same lane stack vertically with 0 gap (cards touch edge-to-edge)
+    This creates continuous session "streaks" that are visually cohesive
+
+  Date group positioning:
+    Each date group starts at:
+      y = sum(previous_group_heights) + (groupIndex * groupSpacing)
+    Date group header: 32px tall, sticky within scroll
+    Events within group: y = groupY + groupHeaderHeight + (laneIndex * laneHeight)
+
+  Sticky date group headers:
+    As user scrolls vertically, the current date group header sticks to top
+    (below the time ruler). When next group reaches top, it replaces current.
+    Implementation: IntersectionObserver + CSS position: sticky
+```
+
+#### 6.4.5 Card Entry/Exit Animations
+
+```
+New event (WebSocket push):
+  Card slides in from top: translateY(-20px) → translateY(0)
+  Opacity: 0 → 1
+  Duration: 300ms, ease-out-expo
+  Trigger: event appears in real-time stream
+  If card is off-screen: no animation, just render
+
+Event removal (data refresh):
+  Card fades and shrinks: opacity 1→0, scale 1→0.9
+  Duration: 200ms, ease-in-quint
+  Adjacent cards slide to fill gap: margin transition 250ms ease-out-quint
+
+Zoom change:
+  Cards DO NOT scale (remain 320px wide)
+  Cards translate horizontally to match new time position
+  Translation: CSS transform: translateX(newX - oldX)
+  Duration: 100ms, ease-out-quint (fast, feels responsive)
+  Cards entering viewport during zoom: appear at final position immediately
+
+Filtered cards:
+  When filter removes cards: opacity 1→0, translateY(-4px), 200ms ease-in-quint
+  When filter restores cards: opacity 0→1, translateY(4px→0), 250ms ease-out-quint
+  Stagger delay: 20ms per card (creates wave effect)
+```
+
+### 6.5 Connector Lines
+
+Connector lines show the sequential relationship between events within the same session.
+
+#### 6.5.1 Line Specification
+
+```
+Line rendering: SVG overlay positioned absolutely over the canvas
+  <svg style="position:absolute;top:0;left:0;pointer-events:none;z-index:1;">
+    <!-- Lines render beneath cards (z-index 1 vs card z-index 2+) -->
+  </svg>
+
+Line style:
+  Stroke: 2px solid, entity color at 40% opacity
+  Stroke-dasharray: none (solid)
+  Stroke-linecap: round
+  Filter: none
+  Antialiasing: shape-rendering="crispEdges"
+
+Line path:
+  Connection from event A (source) to event B (target) within same session
+  Events connected in chronological order (A.timestamp < B.timestamp)
+
+  Path calculation:
+    startX = cardA.x + cardWidth       (right edge of source card)
+    startY = cardA.y + cardHeight / 2  (vertical center of source card)
+    endX = cardB.x                      (left edge of target card)
+    endY = cardB.y + cardHeight / 2    (vertical center of target card)
+
+  Path geometry: cubic bezier (curved connector)
+    controlPoint1X = startX + Math.min(40, (endX - startX) * 0.4)
+    controlPoint1Y = startY
+    controlPoint2X = endX - Math.min(40, (endX - startX) * 0.4)
+    controlPoint2Y = endY
+    d = `M ${startX} ${startY} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${endX} ${endY}`
+
+  Straight-line fallback:
+    When cards are in same lane and horizontally adjacent (distance < 80px):
+    d = `M ${startX} ${startY} L ${endX} ${endY}`
+
+Line interaction:
+  Hover line: stroke width increases to 3px, opacity to 70%
+    Cursor: pointer
+    Tooltip: "{session_name}: {eventA_type} → {eventB_type} ({duration})"
+  Click line: select both connected events
+  Lines are pointer-events: none by default, visiblePainted on hover zone
+    (6px invisible wider hit area for easier hover targeting)
+
+Line entry animation:
+  New line: draws in from source to target
+  SVG stroke-dashoffset animation:
+    Path length measured via getTotalLength()
+    stroke-dasharray: pathLength
+    stroke-dashoffset: pathLength → 0
+    Duration: 400ms, ease-out-expo
+    Delayed: starts 100ms after both cards are positioned
+```
+
+#### 6.5.2 Session Streak Visualization
+
+```
+When a session has many events in chronological sequence:
+  - Lines connect consecutive events
+  - A subtle "session streak" background highlights the connected group
+    Background: entity color at 3% opacity, border-radius: radius-md
+    Extends from left of first card to right of last card, full lane height
+    Rounded rectangle drawn behind all cards in the session
+
+  Streak label (left side, vertically centered):
+    Text: session name/ID, text-micro, entity color, rotation -90deg
+    Positioned in left margin (16px from cards)
+    Only shown for sessions with 3+ connected events
+
+  Gap handling:
+    If session has a time gap > 30 minutes without events:
+      Line shows "gap" indicator: dashed segment with clock icon in middle
+      Clock icon: 12px, text-tertiary, "30m gap" label
+```
+
+#### 6.5.3 Manual Connections
+
+```
+User-created connections (drag from connector handle):
+  Mousedown on connector handle (bottom-center of card):
+    Create ghost line: follows cursor
+    Ghost line: 1px dashed, white 30% opacity
+    Valid targets highlight: compatible events pulse blue border
+    Invalid targets: cursor shows "not-allowed"
+
+  Compatible connection rules:
+    Session → Memory event: allowed
+    Session → Finding: allowed
+    Session → Task: allowed
+    Memory → Finding: allowed
+    Finding → Evidence source: allowed
+    Anomaly → Session: allowed
+    Anomaly → Task: allowed
+    Any → Any (within same session): always allowed
+
+  On drop (mouseup over valid target):
+    Create connection line between source and target
+    Connection stored as "manual" type (persisted to backend)
+    Animation: line draws from source to target (400ms ease-out-expo)
+    Toast: "Connected {source} → {target}"
+
+  On Escape or drop on invalid:
+    Ghost line removed
+    No toast
+
+  Manual connection deletion:
+    Right-click line → "Remove connection" in context menu
+    Confirmation: none (undo via toast for 5 seconds)
+```
+
+### 6.6 Date Groups
+
+Events are grouped by date to create visual separation and navigational landmarks.
+
+```
+Date Group Header:
+  Height: 32px
+  Background: bg-canvas (not bg-surface — blends with canvas)
+  Border-bottom: 1px border-subtle
+  Padding: 0 16px
+  Display: flex, align-items: center, gap: 8px
+  Position: sticky within canvas scroll container
+
+  Content:
+    Date label: text-subtitle, font-weight 600, text-primary
+      Format: "Monday, June 23, 2026" (today), "June 22, 2026" (past)
+      Special: "Today", "Yesterday" (for recent dates)
+    Event count badge: text-caption, text-tertiary, "12 events"
+    Collapse toggle (right): chevron icon, 16px, text-tertiary
+      Click: collapse/expand group (animates event cards sliding up/down)
+      Collapsed: only header visible, badge shows count, chevron rotated
+
+Group rendering:
+  Max groups initially loaded: 7 days (prevents performance issues)
+  "Load more" indicator at bottom:
+    Sentinel element: IntersectionObserver trigger
+    On intersect: load next 7 days of events
+    Loading skeleton: 3 placeholder date groups with skeleton cards
+
+  Empty group (date with no events but within range):
+    Header shows date
+    Subtitle: "No events" in text-caption, text-tertiary
+    No card slot, 32px total height
+
+  Future group (dates beyond now):
+    Header shows date
+    Subtitle: "Future" in text-caption, text-tertiary
+    Divider: dashed (2px dashes, border-subtle)
+    No events displayed (placeholder space)
+```
+
+### 6.7 Filtering
+
+Multi-dimensional filtering with real-time visual feedback.
+
+#### 6.7.1 Entity Type Filter Chips
+
+```
+Position: toolbar, left section
+Layout: display: flex, gap: 4px, flex-wrap: wrap
+
+Chip anatomy:
+  Height: 28px
+  Padding: 0 12px
+  Border-radius: radius-full
+  Background: transparent
+  Border: 1px border-default
+  Font: text-caption, text-secondary
+  Cursor: pointer
+  Transition: var(--transition-color)
+
+  Content:
+    Icon: 14px, entity color (muted when inactive)
+    Label: entity type name
+    Count badge: entity type count in viewport, text-micro, text-tertiary
+
+  States:
+    Active: bg entity-color at 15% opacity, border entity-color, text entity-color
+      Icon: entity color at full opacity
+      Count badge: bg entity-color at 20% opacity
+    Hover: bg bg-hover-muted
+    Focus-visible: focus ring
+
+Chip order (left to right):
+  [All] [Sessions] [Memories] [Findings] [Tasks] [Approvals] [Anomalies]
+
+"All" chip behavior:
+  Toggle: activates all chips (default state)
+  Individual chip toggle: deactivates "All" and activates only that chip
+  All individual chips active: "All" reactivates automatically
+  Logic: show events of ANY active chip type (OR filter)
+
+Filter interaction:
+  Multiple chips can be active simultaneously
+  Click active chip: deactivates it
+  Click inactive chip: activates it
+  If all deactivated → "All" activates automatically
+  Visual feedback: cards of filtered-out types fade out (200ms ease-in-quint)
+  Filtered cards: opacity 0.1, not interactive, grayed connector lines
+
+Count badges update:
+  Count reflects events currently IN VIEWPORT (not total filtered)
+  Format: "12" (number of visible events of that type)
+  Updates on: scroll, zoom, filter change
+  Debounced: 50ms for performance
+```
+
+#### 6.7.2 Session Filter Dropdown
+
+```
+Position: toolbar, center-right
+
+Trigger button:
+  Height: 32px
+  Padding: 0 12px
+  Border: 1px border-default
+  Border-radius: radius-md
+  Background: bg-surface
+  Font: text-small, text-primary
+  Content: "Session: {session_name}" or "Session: All sessions"
+  Chevron: down, 12px, text-tertiary
+  Click: opens dropdown
+
+Dropdown:
+  Position: absolute, below trigger, left-aligned
+  Width: 280px
+  Max-height: 360px
+  Background: bg-surface
+  Border: 1px border-default
+  Border-radius: radius-md
+  Box-shadow: shadow-lg
+  Z-index: 200
+
+  Header:
+    Search input: height 36px, bg-input, border-bottom border-default
+    Placeholder: "Filter sessions..."
+    Icon: magnifying-glass, 14px, left: 10px
+    Clear button: x icon, right: 10px (appears when input has text)
+    Debounce: 100ms
+
+  List (scrollable):
+    "All sessions" item (always first, selected by default)
+    Divider: 1px border-subtle
+
+    Session items:
+      Height: 36px, padding: 0 12px, display: flex, align-items: center, gap: 8px
+      Status dot: 8px, session status color
+      Name: text-small, text-primary, truncate
+      ID: text-caption, mono, text-tertiary
+      Event count: text-caption, text-tertiary, right-aligned
+      Hover: bg-hover-muted
+      Selected: bg-selection, checkmark right
+
+  Close: Escape, click outside, select item
+```
+
+#### 6.7.3 Text Search
+
+```
+Position: toolbar, right of session dropdown
+
+Search input:
+  Width: 200px (expands to 300px on focus)
+  Height: 32px
+  Background: bg-input
+  Border: 1px border-default
+  Border-radius: radius-md
+  Padding-left: 32px (icon space)
+  Font: text-small, color: text-primary
+  Placeholder: "Search events..."
+
+  Search icon: magnifying-glass, 14px, text-tertiary, position: absolute, left: 8px
+
+  Clear button: x icon, 14px, appears when input has text
+    Click: clears search, restores full event set
+
+Search behavior:
+  Debounce: 200ms before triggering search
+  Min characters: 2
+  Search fields:
+    Event title (weight: 3)
+    Event description (weight: 2)
+    Session name (weight: 1)
+    Entity IDs (weight: 4 — exact match on ID)
+    Tags/metadata (weight: 1)
+
+  Results:
+    Matching events highlighted: all non-matching events dim to 20% opacity
+    Matching cards get subtle glow: box-shadow glow-blue at 30% opacity
+    Match count shown in search bar: "3 matches" / "No matches"
+
+  Empty search:
+    Shows all events (restores full opacity)
+    Clear button hidden
+
+  No results:
+    Search bar border: 1px border-warning
+    Helper text: "No events match '{query}'" below search bar
+    "Clear search" link next to helper text
+
+  Keyboard shortcut: Ctrl+F focuses search input
+```
+
+#### 6.7.4 Time Range Filter
+
+```
+Quick-range selector (toolbar, far right):
+  Buttons: [1h] [6h] [24h] [7d] [All]
+  Active: bg accent-primary-muted, text accent-primary
+  Inactive: transparent, text-secondary
+  Click: sets zoom and scrolls to show that time range ending at NOW
   
-  ─── Contains (Session → Memory Event)
-    Color: entity color at 40% opacity
-    Width: 1px
-    Dashed: no
-    Direction: arrow from session to event
-    
-  ─ ─ Derived From (Finding → Memory Event/Reasoning)
-    Color: green at 60% opacity
-    Width: 2px
-    Dashed: yes (8px dash, 4px gap)
-    Direction: arrow from reasoning to finding
-    
-  ─── References (Finding/Memory → Evidence)
-    Color: muted at 40% opacity
-    Width: 1px
-    Dashed: no
-    
-  ─── Mentions (Memory Event → Entity)
-    Color: entity category color at 30% opacity
-    Width: 1px
-    Dashed: no
-    
-  ═══ Semantic Similarity (Memory Event ↔ Memory Event)
-    Color: purple at 30% opacity
-    Width: proportional to similarity score
-    Dashed: no
-    Special: only visible for similarity > 0.7
-    
-  ─ ─ Contradiction (Finding ↔ Finding)
-    Color: red at 50% opacity
-    Width: 2px
-    Dashed: yes (4px dash, 4px gap)
-    Special: zigzag path (not straight line)
+  Behavior:
+    "1h": zoom to show past 1 hour
+    "6h": zoom to show past 6 hours
+    "24h": zoom to show past 24 hours
+    "7d": zoom to show past 7 days
+    "All": zoom to fit all events in viewport
 
-Edge interaction:
-  Hover: edge highlights (width ×1.5, opacity ×2)
-    Tooltip: edge type label + metadata
-  Click: selects edge, shows relationship detail in panel
-    Detail: source node, target node, relationship type, strength, metadata
-  Thick edges render with subtle gradient (source color → target color)
+Custom date range (via time ruler):
+  Shift+drag on time ruler: select custom time range
+  Selected range: highlighted band, bg accent-primary at 10% opacity
+  Release: time filter applied, cards outside range hidden
+  Range indicator: blue bar above ruler showing selected range
+  "Clear range" button appears in toolbar
 ```
 
-### 7.4 Force-Directed Layout
+### 6.8 Bookmarks
+
+Bookmarks allow users to save specific events for quick navigation.
 
 ```
-Physics simulation for node positioning:
+Bookmark toggle (per card):
+  Icon: bookmark-simple, 14px
+  Position: top-right corner of card header
+  States:
+    Unbookmarked: icon weight regular, color text-tertiary
+    Bookmarked: icon weight fill, color accent-warning (gold)
+  Animation: scale-bounce 300ms ease-spring on toggle
+  Tooltip: "Bookmark this event" / "Remove bookmark"
 
-Algorithm: d3-force or custom Web Worker implementation
+Bookmarks panel (toolbar button):
+  Trigger: "★ {count}" button in toolbar
+    Count: number of bookmark items (live update)
+    Color: accent-warning when count > 0, text-secondary when 0
 
-Forces applied:
-  1. Link force: pulls connected nodes together
-     Strength: proportional to edge weight
-     Distance: 80px default, shorter for strong relationships
-     
-  2. Charge force: pushes all nodes apart
-     Strength: -300 default, stronger for large nodes
-     Many-body: Barnes-Hut approximation for >500 nodes
-     
-  3. Center force: pulls graph toward viewport center
-     Strength: weak (0.05)
-     Prevents graph from drifting off-screen
-     
-  4. Collision force: prevents node overlap
-     Radius: node radius + 4px padding
-     Iterations: 2 per tick
-     
-  5. Cluster force (optional): groups nodes by type
-     Strength: configurable (0 = no clustering, 1 = strong clustering)
-     Separate centers for each node type
+  Panel (dropdown on click):
+    Width: 320px
+    Max-height: 400px
+    Background: bg-surface
+    Border: 1px border-default
+    Border-radius: radius-md
+    Box-shadow: shadow-lg
+    Z-index: 200
 
-Simulation lifecycle:
-  Initialization:
-    Random initial positions (seeded for reproducibility)
-    Simulation runs at full speed for 300 ticks (warm-up)
-    Camera auto-frames to fit all nodes (animated zoom + pan, 800ms ease-out-expo)
-    
-  Steady state:
-    Simulation continues at low alpha (0.01)
-    Nodes drift subtly (organic feel, never completely static)
-    Alpha decay: 0.02 per tick (slow cooling)
-    
+    Header:
+      "Bookmarks ({count})" in text-subtitle, font-weight 600
+      "Clear all" button (right): text-small, text-link, red
+        Confirmation: "Clear all bookmarks?" toast with Undo (5s)
+
+    List (scrollable):
+      Bookmark items:
+        Height: 48px, padding: 8px 12px
+        Display: flex, gap: 10px, align-items: center
+        Border-bottom: 1px border-subtle
+
+        Entity icon: 20px, entity color, in 28px circle
+        Content:
+          Title: text-small, text-primary, truncate
+          Subtitle: text-caption, text-secondary
+            Format: "{entity_type} #{id} · {timestamp_relative}"
+        Actions (right):
+          Navigate: arrow icon, 16px, text-tertiary
+            Click: scrolls timeline to event, closes panel
+          Remove: x icon, 14px, text-tertiary
+            Click: removes bookmark, item slides out
+        Hover: bg-hover-muted
+        Click main area: navigate to event
+
+    Empty state:
+      "No bookmarks yet"
+      "Click ★ on any event card to bookmark it"
+      Icon: bookmark-simple, 48px, color text-disabled, centered
+
+  Bookmark keyboard shortcuts:
+    Ctrl+B: toggle bookmark on selected event(s)
+    Ctrl+Shift+B: open bookmarks panel
+    Ctrl+.] (next bookmark): scroll to next bookmarked event
+    Ctrl+.[ (prev bookmark): scroll to previous bookmarked event
+
+Bookmark persistence:
+  Stored in localStorage under key: 'timeline-bookmarks'
+  Structure: { eventIds: string[], updatedAt: ISO8601 }
+  Survives page refresh, browser restart
+  Synced to backend if user is authenticated (via API)
+```
+
+### 6.9 Multi-Select
+
+Multi-select allows batch operations on multiple events.
+
+```
+Selection methods:
+  1. Shift+Click:
+     - Select first event (click)
+     - Shift+click second event: selects all events between them in time order
+     - Works across date groups and lanes
+     - Selection range calculated by timestamp, not visual position
+
+  2. Drag-select (marquee):
+     - Hold Shift + mouse drag: draws selection rectangle
+     - Rectangle: 1px dashed accent-primary, bg accent-primary at 5% opacity
+     - On release: all events within rectangle are selected
+     - Events must have card center within rectangle bounds
+     - Drag-select starts from empty canvas area (not on an event card)
+
+  3. Ctrl+Click:
+     - Toggle individual event selection without clearing existing selection
+     - If event is selected: deselects it
+     - If event is unselected: adds to selection
+
+  4. Ctrl+A:
+     - Select all VISIBLE events (respects active filters)
+     - Toast: "{count} events selected"
+
+Selection visual state:
+  Selected cards:
+    Border: 1px dashed accent-primary
+    Border-left: 3px solid accent-primary
+    Background: bg-selection-muted
+    Selection order badge: numbered circle (1, 2, 3...) in top-left
+      Circle: 18px diameter, bg accent-primary, text text-inverse, text-micro, font-weight 600
+      Shows selection number (order of selection)
+      Max visible badges: 99 (shows "99+" beyond)
+
+Selection counter (toolbar, appears when selection active):
+  "{N} selected" in text-small, accent-primary
+  [Deselect] button: text-small, text-link
+  Action buttons appear next to counter:
+    [Bookmark All] [Export] [Annotate] [Compare]
+
+Batch actions:
+  Bookmark All: adds bookmark to all selected events
+    Toast: "{N} events bookmarked" (with Undo, 5s)
+  
+  Export: exports selected events as JSON/CSV
+    Opens export dialog (see 6.11)
+  
+  Annotate: opens annotation panel with all selected events
+    Creates annotation spanning multiple events
+    Annotation line: vertical band across selected time range
+  
+  Compare: opens comparison view (split panel showing selected events side-by-side)
+    Only available for 2 selected events
+    Shows diff of metadata, descriptions, tags
+
+  Deselect: Escape key or click "Deselect" button
+    Clears entire selection
+    Selection badges animate out: scale 1→0, 150ms ease-in-quint
+
+Selection state:
+  Persists through: zoom, pan, filter changes (if events remain visible)
+  Clears on: navigation away from timeline, explicit deselect
+  Selection survives: events moving position due to zoom/scroll
+```
+
+### 6.10 Annotations
+
+Annotations allow users to add notes and markers to the timeline.
+
+```
+Annotation types:
+  1. Point annotation: attached to a single event
+  2. Range annotation: spans a time range (two events or arbitrary times)
+  3. Free annotation: positioned at arbitrary point on timeline
+
+Annotation creation:
+  Method 1: Select event → click "Annotate" in toolbar
+    Opens annotation panel pre-focused on selected event
+  Method 2: Right-click on empty canvas → "Add annotation here"
+    Creates free annotation at cursor time position
+  Method 3: Select two events → "Annotate range"
+    Creates range annotation between the two timestamps
+  Method 4: Double-click on empty canvas area
+    Creates free annotation at click time position
+
+Annotation panel (drawer, slides from right):
+  Width: 360px
+  Background: bg-surface
+  Border-left: 1px border-default
+  Box-shadow: shadow-lg
+  Z-index: 300
+  Slide animation: translateX(100%) → translateX(0), 300ms ease-out-expo
+
+  Panel anatomy:
+    Header (48px):
+      "Annotation" in text-subtitle, font-weight 600
+      Type badge: "Point" | "Range" | "Free" in pill
+      Close button: x icon, 20px
+
+    Content (scrollable):
+      Title input:
+        Height: 36px, bg-input, border border-default, radius-md
+        Font: text-body, text-primary
+        Placeholder: "Annotation title (optional)"
+
+      Note textarea:
+        Min-height: 120px, bg-input, border border-default, radius-md
+        Font: text-body, text-primary
+        Placeholder: "Write your annotation..."
+        Resize: vertical
+        Character count: right-bottom, text-caption, text-tertiary
+
+      Color picker (6 preset colors):
+        Colors: entity color palette colors
+        Display: 24px circles, row, gap: 8px
+        Selected: checkmark inside circle, border 2px white
+        Default: accent-warning (gold)
+
+      Linked entities:
+        Shows entities linked to annotation target(s)
+        Each entity: small card with icon + name + ID
+        "Link more" button: opens entity search
+
+      Visibility:
+        Radio: "Only me" | "Team" | "Everyone"
+        Default: "Only me"
+
+    Footer (48px):
+      [Cancel] button: border border-default, radius-md
+      [Save] button: bg accent-primary, text white, radius-md
+        Click: saves annotation, panel closes
+        Toast: "Annotation saved"
+
+Annotation display on timeline:
+  Point annotation:
+    Small pin icon at event card top, annotation color
+    Hover: tooltip shows annotation title
+    Click pin: opens annotation panel (read-only mode)
+
+  Range annotation:
+    Colored band spanning time range
+    Height: full lane height, opacity: 10%
+    Border-top and border-bottom: 1px solid, annotation color at 50% opacity
+    Label centered in band: annotation title, text-caption, annotation color
+    Click label: opens annotation panel (read-only)
+
+  Free annotation:
+    Pin icon on ruler at annotation timestamp
+    Vertical dashed line extending through canvas (10% opacity, annotation color)
+    Hover: tooltip with annotation title
+    Click: opens annotation panel
+
+Annotation list (available from toolbar "Annotations" button):
+  Same as bookmark panel layout
+  Shows all annotations sorted by time
+  Edit/Delete actions per annotation
+```
+
+### 6.11 Density Indicators
+
+Density indicators provide a visual overview of event concentration across the timeline.
+
+```
+Density bar (toolbar, far right):
+  Height: 20px
+  Width: 160px
+  Background: bg-input
+  Border-radius: radius-sm
+  Display: flex, overflow: hidden
+
+  Bar segments:
+    Each segment represents a time bucket (total timeline / 100 buckets)
+    Height: 100%
+    Color: heatmap scale based on event count in bucket
+      oklch(95% 0.02 260) → oklch(70% 0.12 40) → oklch(70% 0.18 30) → oklch(55% 0.20 20)
+      (white → orange → red → dark red)
+    Width: proportional to time bucket duration (uniform at constant zoom)
+
   Interaction:
-    Drag node: pin node position, simulation continues around it
-    Release node: node rejoins simulation with velocity from drag
-    Add nodes: new nodes fade in, simulation adjusts (alpha boosted to 0.3)
-    Remove nodes: remaining nodes smoothly fill gaps
-    
-  Reheat:
-    Simulation alpha boosted to 0.3 when:
-      New nodes added
-      Filter changed
-      Cluster force toggled
-    Smooth transition: alpha decays back to steady state over 100 ticks
+    Hover segment: tooltip showing time range + event count
+      "{bucket_start} – {bucket_end}: {count} events"
+    Click segment: scroll timeline to that time range
+    Density bar is horizontally scrollable (mirrors main timeline scroll)
 
-Layout presets (toolbar dropdown):
-  Force-Directed: default, organic clustering
-  Radial: nodes arranged in circle, grouped by type
-  Hierarchical: tree layout for containment relationships
-  Timeline: nodes positioned by timestamp on x-axis
-  Grid: nodes in regular grid, grouped by type
-  Transition between layouts: nodes animate to new positions
-    Duration: 800ms, ease-out-expo
-    Path: curved (not straight line) using quadratic Bezier
+  Density scale:
+    Event counts per bucket mapped to color:
+      count==0: oklch(95% 0.02 260)     (white — no events)
+      count==1: oklch(80% 0.08 40)      (light orange)
+      count 2-3: oklch(70% 0.12 40)    (medium orange)
+      count 4-6: oklch(70% 0.18 30)    (red-orange)
+      count 7-10: oklch(60% 0.18 20)   (red)
+      count > 10: oklch(55% 0.20 20)   (dark red)
+
+  Update behavior:
+    Recalculates on: zoom change, filter change, data refresh
+    Debounced: 100ms
+    Transition: background-color 200ms ease-out-quint
+
+Density overlay (on canvas):
+  At low zoom levels (zoom < 0.3):
+    Cards are too small to meaningfully display
+    Instead: density heatmap replaces cards
+    Heatmap: vertical bars (1px wide) colored by event density
+    Background: bg-canvas
+    This is the "overview mode" — provides macro-level event distribution
+    Transition: cards fade out / heatmap fades in over 300ms
+
+  Zoom threshold for card display:
+    zoom >= 0.3: event cards visible
+    zoom < 0.3: heatmap only
+    Smooth transition: cards opacity = clamp((zoom - 0.2) / 0.1, 0, 1)
 ```
 
-### 7.5 Graph Toolbar
+### 6.12 Right-Click Context Menus
+
+Each entity type has a tailored context menu. The right-click target determines the menu content.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ LAYOUT: [Force ▾]  FILTER: [All ▾]  SEARCH: [🔍 nodes...]  │
-│ [⟲ Reheat]  [📌 Pin Selected]  [⊞ Cluster]  [⎙ Export]     │
-└──────────────────────────────────────────────────────────────┘
+Context menu trigger:
+  Desktop: right-click (onmousedown button===2 or oncontextmenu)
+  Mobile: long-press (500ms hold)
+  Prevent default browser context menu (event.preventDefault())
 
-Layout dropdown:
-  Force-Directed (default)
-  Radial
-  Hierarchical
-  Timeline
-  Grid
+Event card context menu:
 
-Filter dropdown:
-  All Entities
-  Sessions & Findings Only
-  Active Sessions
-  Evidence Sources
-  Anomalies Only
-  Custom Filter... (opens advanced filter panel)
+  Session event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Session        │
+    │ [magnifying-glass]  Investigate │
+    │ [arrows-out]  Expand       │
+    │ ─────────────────────────  │
+    │ [copy]  Copy ID            │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    │ ─────────────────────────  │
+    │ [x-circle]  Cancel Session │  ← Red, if session is active
+    └─────────────────────────────┘
 
-Search:
-  Type to fuzzy-search node labels
-  Matching nodes: highlighted with glow
-  Non-matching: dimmed to 20% opacity
-  Enter: focus camera on first match
-  Arrow keys: cycle through matches
-  
-Reheat button:
-  Restarts simulation at higher energy
-  Useful when graph gets stuck in local minimum
+  Memory event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Memory         │
+    │ [database]  Browse Key     │
+    │ ─────────────────────────  │
+    │ [copy]  Copy Key Path      │
+    │ [copy]  Copy Value (JSON)  │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    │ ─────────────────────────  │
+    │ [shield-check]  Change Trust │ → Submenu: verified/high/medium/low/quarantine
+    │ [trash]  Delete Memory     │  ← Red
+    └─────────────────────────────┘
 
-Pin button:
-  Pins selected nodes in place
-  Pinned nodes: small pin icon in corner
-  Unpin: click pin icon or select and click pin button again
+  Finding event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Finding        │
+    │ [magnifying-glass]  Investigate │
+    │ ─────────────────────────  │
+    │ [copy]  Copy ID            │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    │ ─────────────────────────  │
+    │ [check-circle]  Approve    │ ← Green
+    │ [x-circle]  Reject         │ ← Red
+    │ [shield-check]  Change Severity │ → Submenu
+    └─────────────────────────────┘
 
-Cluster button:
-  Toggle cluster force on/off
-  On: nodes group by type
-  Off: nodes spread freely
-  
-Export button:
-  Export as PNG (current view)
-  Export as SVG (vector, for reports)
-  Export as JSON (graph data)
+  Task event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Task           │
+    │ [play]  Start Task         │  ← If pending
+    │ [pause]  Pause Task        │  ← If in-progress
+    │ ─────────────────────────  │
+    │ [copy]  Copy ID            │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    │ ─────────────────────────  │
+    │ [x-circle]  Cancel Task    │  ← Red
+    │ [trash]  Delete Task       │  ← Red
+    └─────────────────────────────┘
+
+  Approval event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Approval       │
+    │ ─────────────────────────  │
+    │ [check-circle]  Approve    │ ← Green, if pending
+    │ [x-circle]  Deny           │ ← Red, if pending
+    │ [clock]  Defer (30m)       │ ← If pending
+    │ ─────────────────────────  │
+    │ [copy]  Copy ID            │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    └─────────────────────────────┘
+
+  Anomaly event:
+    ┌─────────────────────────────┐
+    │ [eye]  View Anomaly        │
+    │ [magnifying-glass]  Investigate │
+    │ ─────────────────────────  │
+    │ [flag]  Flag as Reviewed   │ ← If unreviewed
+    │ [shield]  Escalate         │
+    │ ─────────────────────────  │
+    │ [copy]  Copy ID            │
+    │ [link]  Copy Link          │
+    │ ─────────────────────────  │
+    │ [bookmark]  Bookmark       │
+    │ [pencil]  Annotate         │
+    │ ─────────────────────────  │
+    │ [eye-slash]  Dismiss       │ ← Gray (hides from timeline)
+    └─────────────────────────────┘
+
+Multi-select context menu (when 2+ events selected):
+  ┌─────────────────────────────┐
+  │ [bookmark]  Bookmark {N}   │
+  │ [export]  Export {N}       │
+  │ [pencil]  Annotate {N}     │
+  │ ─────────────────────────  │
+  │ [arrows-left-right]  Compare (2 only) │ ← Only visible when exactly 2 selected
+  │ ─────────────────────────  │
+  │ [copy]  Copy IDs           │
+  │ [deselect]  Deselect All   │
+  └─────────────────────────────┘
+
+Canvas context menu (right-click on empty canvas area):
+  ┌─────────────────────────────┐
+  │ [pencil]  Add Annotation   │
+  │ ─────────────────────────  │
+  │ [clock]  Jump to Now       │
+  │ [arrows-out]  Fit All      │
+  │ ─────────────────────────  │
+  │ [calendar]  Go to Date...  │  ← Opens date picker
+  │ ─────────────────────────  │
+  │ [funnel]  Clear Filters    │
+  │ [bookmark]  Show Bookmarks │
 ```
 
-### 7.6 Node Selection & Detail Panel
+### 6.13 Export
 
 ```
-When a node is clicked, the detail panel slides in from the right.
+Export trigger: toolbar button (download icon) or context menu "Export"
 
-Detail Panel Content (varies by node type):
+Export dialog (modal):
+  Width: 480px
+  Background: bg-surface-overlay
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Box-shadow: shadow-xl
+  Z-index: 400
+  Animation: scale(0.95)→scale(1) + fade, 200ms ease-out-expo
 
-SESSION NODE:
-  ┌────────────────────────────┐
-  │ 🧠 Session #a3f2b    [×]   │
-  │────────────────────────────│
-  │ Name: Q4 Revenue Analysis  │
-  │ Status: thinking ●          │
-  │ Agent: researcher           │
-  │ Model: deepseek-v4-pro      │
-  │                            │
-  │ Iterations: 42              │
-  │ Memory Events: 287          │
-  │ Findings: 7                 │
-  │ Tasks: 3 (2 complete)       │
-  │                            │
-  │ Created: Jun 7, 14:23       │
-  │ Last Active: 2m ago         │
-  │                            │
-  │ [Open in Workbench]         │
-  │ [View Timeline]             │
-  │ [Focus Graph on This]       │
-  │ [Hide from Graph]           │
-  └────────────────────────────┘
+  Header:
+    "Export Events" in text-subtitle
+    Close button: x icon
 
-MEMORY EVENT NODE:
-  ┌────────────────────────────┐
-  │ 📄 Memory Event #4821 [×]  │
-  │────────────────────────────│
-  │ Type: thought               │
-  │ Session: #a3f2b             │
-  │                            │
-  │ Content preview:            │
-  │ Comparing Q4 APAC growth... │
-  │                            │
-  │ Trust Level: HIGH ●         │
-  │ Iteration: 42               │
-  │                            │
-  │ [View Full Content]         │
-  │ [View in Memory Browser]    │
-  │ [Find Similar]              │
-  └────────────────────────────┘
+  Content:
+    Format selection:
+      Radio group: [JSON] [CSV] [PDF Report]
+      Description below each format:
+        JSON: "Machine-readable, includes all metadata"
+        CSV: "Spreadsheet-friendly, selected fields only"
+        PDF: "Annotated timeline report with event details"
 
-FINDING NODE:
-  ┌────────────────────────────┐
-  │ ✅ Finding #7         [×]  │
-  │────────────────────────────│
-  │ APAC Revenue Growth Q4     │
-  │                            │
-  │ Confidence: HIGH ⬤ (0.94) │
-  │ Status: ✓ Approved          │
-  │ Approved by: Bane · 2m ago │
-  │                            │
-  │ Based on: 3 reasoning steps│
-  │ Sources: 2 evidence files  │
-  │                            │
-  │ [Open in Workbench]         │
-  │ [Show Reasoning Chain]      │
-  │ [Show Evidence Sources]     │
-  │ [Find Contradictions]       │
-  └────────────────────────────┘
+    Range selection:
+      Radio: [All visible] [Selected ({N})] [Custom range]
+      Custom: two date/time inputs with calendar picker
 
-EVIDENCE NODE:
-  ┌────────────────────────────┐
-  │ 📁 q4-sales.csv      [×]  │
-  │────────────────────────────│
-  │ Type: CSV File             │
-  │ Size: 2.4 MB               │
-  │ Rows: 12,400               │
-  │ Columns: 18                │
-  │                            │
-  │ Added: Jun 7, 14:15        │
-  │ Referenced by: 3 findings  │
-  │              42 events     │
-  │                            │
-  │ [Preview Data]             │
-  │ [Show References]          │
-  │ [Re-analyze with AI]       │
-  └────────────────────────────┘
+    Field selection (JSON/CSV only):
+      Checklist of available fields:
+        ☑ Event ID         ☑ Timestamp          ☑ Event Type
+        ☑ Title            ☑ Description        ☑ Entity Type
+        ☐ Metadata         ☑ Tags               ☐ Raw Data
+        ☑ Session ID       ☑ Related Entities   ☐ Full Content
 
-Panel close behavior:
-  Click × button
-  Click background (deselects node)
-  Press Escape
-  Animation: slide right + fade, 250ms ease-in-quint
+    CSV options (if CSV selected):
+      Delimiter: [Comma] [Tab] [Semicolon]
+      Include header row: toggle, default ON
 
-Panel transition between selections:
-  Content crossfade: old content fades out (150ms), new content fades in (150ms)
-  No slide — panel stays open, just content changes
-  Smooth height transition: panel height adjusts to new content (300ms ease-out-expo)
+    PDF options (if PDF selected):
+      Page size: [A4] [Letter]
+      Orientation: [Portrait] [Landscape]
+      Include timeline graphic: toggle, default ON
+
+  Footer:
+    [Cancel] button
+    [Export] button: bg accent-primary, text white
+      Click: generates export, shows download progress
+      Progress: spinner + "Generating..." + progress bar (for PDF)
+
+  Export execution:
+    JSON: synchronous (fast), triggers download immediately
+    CSV: synchronous (fast), triggers download immediately
+    PDF: async (slow — up to 10s for large ranges)
+      Shows progress overlay: "Rendering timeline... 45%"
+      Show page count during generation: "Estimated 12 pages"
+    On complete: toast "Exported {N} events as {format}"
+      With action: [Open File] [Copy to Clipboard]
+
+  Download filename format:
+    "chronicle-export-{date_range}-{timestamp}.{extension}"
+    Example: "chronicle-export-Jun23-26_20260623_104531.json"
 ```
 
-### 7.7 Semantic Cluster Detection
+### 6.14 Performance Optimizations
 
 ```
-The graph can auto-detect clusters of related nodes using semantic
-embeddings and graph topology.
+Virtual rendering:
+  Only events within the visible viewport (+ 200px buffer) are rendered as DOM elements
+  Events outside viewport: not rendered (empty placeholder div maintains scroll height)
+  Implementation: IntersectionObserver per date group + scroll event throttling
 
-Cluster detection triggers:
-  Manual: "Find Clusters" button in toolbar
-  On load: if graph has >20 nodes, auto-detect
-  On filter change: re-detect for visible nodes
+  Scroll handler:
+    Throttled: 16ms (requestAnimationFrame-aligned)
+    On scroll: update visible time range, compute which events are visible
+    Render/destroy: cards entering/leaving viewport
+    Card pool: reuse DOM elements (max 200 card elements in pool)
+    Pooled cards: detached from DOM, held in memory, re-configured on reuse
 
-Cluster rendering:
-  Convex hull around cluster members
-  Background: entity color at 8% opacity
-  Border: entity color at 20% opacity, 2px, rounded corners
-  Label: auto-generated cluster name at hull centroid
-    e.g., "Q4 Revenue Cluster (7 nodes)"
-  Hull animates: smoothly adjusts as nodes move (CSS transition on SVG path)
+Event data loading:
+  Initial load: fetches events for default viewport (24h)
+    Shows skeleton cards during load
+    Progressive: date groups loaded nearest-to-now first
 
-Cluster interaction:
-  Hover hull: highlights all member nodes
-  Click hull: selects all member nodes
-  Double-click hull: expands cluster into individual nodes (zoom to fit)
-  Right-click hull: context menu
-    ├─ Expand Cluster
-    ├─ Collapse Cluster (show as single group node)
-    ├─ Focus on Cluster (camera pans + zooms to fit)
-    ├─ Export Cluster Data
-    └─ Hide Cluster
+  Scroll-triggered loading:
+    As user scrolls to time range boundaries, fetch more events
+    Sentinel elements at left/right edges (IntersectionObserver)
+    Loading indicator: subtle spinner at edge of timeline
+    Prefetch: load events 50% beyond current viewport
 
-Cluster group node (when collapsed):
-  Single large node representing entire cluster
-  Size: proportional to member count
-  Label: "Q4 Revenue Cluster (7)"
-  Expanding: cluster node splits into individual nodes
-    Animation: nodes fly out from cluster center to their positions
-    Duration: 500ms, ease-out-expo
-    Particles: brief sparkle effect during expansion (6-8 particles per node)
+  Data chunking:
+    Events fetched in chunks of 500
+    Sorted by timestamp server-side
+    Stored client-side in sorted array (binary search for lookup)
+    Indexed by: timestamp, session ID, entity type (Map lookups)
+
+  WebSocket updates:
+    New events pushed via WebSocket
+    Inserted into sorted array (binary search for position)
+    If within viewport: animate card entry
+    If outside viewport: silently added, visible on scroll
+
+Connector line performance:
+  SVG paths recalculated only for visible events
+  Path recalculation: debounced to 30ms (max 2 recalculations per frame)
+  Cached path strings per event pair (invalidated on position change)
+
+Memory management:
+  Event cache max: 10,000 events in memory
+  LRU eviction: oldest events purged when limit reached
+  Purged events refetched on scroll-back
+
+Layout shifts:
+  Card widths are fixed (320px) — no reflow on content change
+  Group heights pre-calculated (derived from event count)
+  Total canvas size known before render: no scrollbar jumps
+
+Animation budget:
+  Max 50 simultaneous CSS animations at any time
+  Card entry animations staggered: 30ms delay between cards
+  Animation priority: cards entering viewport > connector lines > hover effects
+  Reduced motion: all animations instant (0ms) when prefers-reduced-motion
+```
+
+### 6.15 Accessibility & Keyboard Shortcuts
+
+```
+Screen reader:
+  Timeline canvas: role="region", aria-label="Timeline Explorer"
+  Time ruler: role="timer", aria-label="Time ruler"
+  Event cards: role="article", aria-label="{event_type}: {title}"
+  Card order: DOM order matches visual order (chronological, then lane)
+  Live region: aria-live="polite" for new event announcements
+    "New session event: Session #a3f2b started — 10:42 AM"
+
+Keyboard shortcuts reference:
+  Navigation:
+    ← →       : Horizontal scroll
+    ↑ ↓       : Vertical scroll
+    Shift+←→  : Jump to next/prev event
+    Home      : Jump to first event
+    End       : Jump to last event
+    T         : Jump to NOW
+    Ctrl+F    : Focus search
+    Ctrl+Plus : Zoom in
+    Ctrl+Minus: Zoom out
+    Ctrl+0    : Reset zoom
+
+  Selection:
+    Click     : Select event
+    Shift+Click: Range select
+    Ctrl+Click: Toggle select
+    Ctrl+A    : Select all visible
+    Escape    : Deselect all
+
+  Bookmarks:
+    Ctrl+B    : Toggle bookmark on selected
+    Ctrl+Shift+B: Open bookmarks panel
+    Ctrl+.]   : Next bookmark
+    Ctrl+.[   : Previous bookmark
+
+  Actions:
+    Enter     : Open selected event detail
+    Delete    : Delete selected event (with confirmation)
+    Ctrl+C    : Copy selected event ID(s)
+    Ctrl+E    : Export selected events
+    Ctrl+Shift+A: Annotate selected
+
+Focus trap:
+  When context menu open: focus trapped within menu
+  When annotation panel open: focus trapped within panel
+  Escape: close overlay + return focus to trigger element
+
+Color contrast:
+  All event card text meets WCAG AA against bg-surface
+  Entity colors used only as accents and icons (not primary text)
+  Time ruler labels: text-tertiary on bg-surface = 3.4:1 (passes large text)
+  Selection state uses both color (blue) and border pattern (dashed) for redundancy
+```
+
+### 6.16 Timeline Explorer State Model
+
+```typescript
+interface TimelineExplorerState {
+  // Viewport
+  viewport: {
+    scrollLeft: number;
+    scrollTop: number;
+    zoom: number;
+    viewportWidth: number;
+    viewportHeight: number;
+  };
+
+  // Data
+  events: TimelineEvent[];
+  eventsBySession: Map<string, TimelineEvent[]>;
+  eventsByType: Map<EntityType, TimelineEvent[]>;
+  dateGroups: DateGroup[];
+
+  // Loading
+  loadedRanges: Array<{ start: number; end: number }>;
+  pendingRanges: Array<{ start: number; end: number }>;
+  loadError: Map<string, Error>; // range_key → error
+
+  // Selection
+  selectedEventIds: Set<string>;
+  selectionOrder: string[]; // event IDs in selection order
+  focusedEventId: string | null;
+
+  // Bookmarks
+  bookmarkIds: Set<string>;
+
+  // Annotations
+  annotations: TimelineAnnotation[];
+
+  // Filters
+  filters: {
+    entityTypes: Set<EntityType>;    // Active entity type chips
+    sessionId: string | null;         // Active session filter
+    textQuery: string;                // Search text
+    timeRange: { start: number; end: number } | null; // Custom time range
+  };
+
+  // UI State
+  expandedCards: Set<string>;        // Expanded card IDs
+  contextMenuTarget: ContextMenuTarget | null;
+  annotationPanelOpen: boolean;
+  annotationTarget: string | null;   // Event ID or range
+  bookmarksPanelOpen: boolean;
+  exportDialogOpen: boolean;
+
+  // Performance
+  renderedCardCount: number;
+  lastRenderTime: number;
+  animationBudget: number;           // Remaining animation budget this frame
+}
+
+interface TimelineEvent {
+  id: string;
+  type: 'session' | 'memory' | 'finding' | 'task' | 'approval' | 'anomaly';
+  subType: string;                    // e.g., 'session.started', 'memory.stored'
+  timestamp: number;                  // Unix ms
+  sessionId: string;
+  title: string;
+  description: string;
+  entityType: EntityType;
+  status: string;
+  tags: Array<{ label: string; color?: string }>;
+  metadata: Record<string, unknown>;
+  relatedEventIds: string[];         // For connector lines
+  source: string;                     // "system" | "user" | "agent" | "automation"
+  trustLevel?: 'verified' | 'high' | 'medium' | 'low' | 'quarantine';
+  severity?: 'high' | 'medium' | 'low';
+  bookmarkId?: string;               // If bookmarked, the bookmark entity ID
+  annotationIds?: string[];           // Linked annotation IDs
+}
+
+interface DateGroup {
+  date: string;                       // ISO date string (YYYY-MM-DD)
+  label: string;                      // Display label ("Today", "Jun 23, 2026")
+  startTimestamp: number;             // Unix ms of 00:00:00 that date
+  endTimestamp: number;               // Unix ms of 23:59:59.999 that date
+  events: TimelineEvent[];
+  lanes: TimelineEvent[][];           // Events organized into lanes
+  height: number;                     // Computed group height in px
+  collapsed: boolean;
+}
+
+interface TimelineAnnotation {
+  id: string;
+  type: 'point' | 'range' | 'free';
+  title: string;
+  note: string;
+  color: string;                     // Hex color
+  targetEventIds: string[];          // Point/range: linked events
+  timeStart?: number;                 // For range/free annotations
+  timeEnd?: number;                   // For range annotations
+  linkedEntities: Array<{ type: string; id: string; name: string }>;
+  visibility: 'only_me' | 'team' | 'everyone';
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+type EntityType = 'session' | 'memory' | 'finding' | 'task' | 'approval' | 'anomaly'
+  | 'evidence' | 'tool' | 'skill' | 'user' | 'system';
+
+interface ContextMenuTarget {
+  type: 'event' | 'canvas' | 'connector' | 'ruler' | 'multi';
+  eventIds?: string[];
+  position: { x: number; y: number }; // Client coordinates
+}
+```
+
+### 6.17 Error States & Edge Cases
+
+```
+Empty timeline (no events):
+  Canvas: centered empty state
+    Icon: clock-counter-clockwise, 64px, text-disabled
+    Title: "No events to display"
+    Subtitle: "Events will appear here as sessions run"
+    Action: "Create your first session" button → navigates to sessions page
+
+No events matching filters:
+  Canvas: current events dimmed with message overlay
+    "No events match your current filters"
+    "Try adjusting entity types, session filter, or search query"
+    [Clear All Filters] button
+    Also shown: filter summary showing which filters are active
+
+Data loading failure:
+  Error banner (top of canvas, sticky):
+    Background: bg-error-muted
+    Border-bottom: 2px border-error
+    Text: "Failed to load timeline data: {error_message}"
+    [Retry] button
+    [Dismiss] button (dismisses for this session, retries on next scroll)
+
+  Individual date group load failure:
+    Group header: warning icon + "Failed to load"
+    [Retry] button in group header
+    Other groups (if loaded) display normally
+
+WebSocket disconnection:
+  Toolbar indicator: "⚠ Live updates paused — reconnecting..."
+  Color: text-warning
+  Pulse animation: 1s cycle
+  On reconnect: indicator becomes green check "✓ Live" (2s), then hides
+
+Time range with no loaded data:
+  Loading skeleton fills the date group area
+  Animated shimmer cards (3-5 placeholder cards)
+  If load takes > 5s: show "Still loading..." message
+  If load takes > 15s: show timeout error with retry
+
+Very large event count (> 10,000 in viewport):
+  Switch to density heatmap mode (zoom forced to < 0.3)
+  Show banner: "Too many events for card view — zoom in for details"
+  Or: apply automatic event grouping (collapse similar events)
+
+Browser zoom/DPI changes:
+  ResizeObserver on canvas container
+  On resize: recalculate pixel mapping, reposition all cards
+  Debounced: 100ms
+  No animation during resize recalculation (set to final positions immediately)
+
+Print layout:
+  @media print: timeline renders as static list grouped by date
+  Time ruler replaced by date headings
+  Connector lines omitted
+  Cards: full-width, border-bottom: 1px, no shadows
+  Bookmarks and UI chrome hidden
 ```
 
 ---
 
+## 7. Entity Graph
+
+The Entity Graph is a WebGL-accelerated force-directed graph visualization showing relationships between all entity types in the system. It enables exploration of connections between sessions, memories, findings, evidence sources, anomalies, and semantic clusters.
+
+### 7.1 Layout & Viewport Architecture
+
+The Entity Graph occupies the full content area with zero padding. The WebGL canvas fills the entire viewport with overlay UI elements positioned absolutely.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TOOLBAR — 44px — position: absolute, top: 0, z-index: 10, bg-glass-light     │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────────────┐ │
+│ │Layout: ▼ │ │Filter: ▼ │ │Search 🔍 │ │Cluster │ │ Node count: 1,247    │ │
+│ │ force    │ │ all types │ │          │ │ detect  │ │ Edge count: 3,891    │ │
+│ └──────────┘ └──────────┘ └──────────┘ └─────────┘ └──────────────────────┘ │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                                │
+│  WEBGL CANVAS — full remaining area (position: absolute, inset: 44px 0 0 0)  │
+│  cursor: grab (default), grabbing (panning), pointer (hovering node)          │
+│                                                                                │
+│  ┌────────────┐                                            ┌────────────────┐ │
+│  │  LEGEND    │                                            │  DETAIL PANEL  │ │
+│  │            │              ● ● ●  ● ● ●                  │  (slide-out)   │ │
+│  │ ● Session  │           ●           ●                    │                │ │
+│  │ ○ Memory   │          ●   ●─────●   ●                   │  Session #a3f  │ │
+│  │ ◇ Finding  │           ●           ●                    │  ────────────  │ │
+│  │ □ Evidence │            ● ● ●  ● ● ●                    │  Status: active│ │
+│  │ △ Anomaly  │                                            │  Nodes: 42     │ │
+│  │ ● Entity   │              ┌──────┐                      │  Edges: 127    │ │
+│  └────────────┘              │MINI- │                      │  ...           │ │
+│                              │ MAP  │                      └────────────────┘ │
+│                              └──────┘                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Z-index layering:
+  z-index 0: WebGL canvas
+  z-index 5: Legend overlay (bottom-left)
+  z-index 5: Mini-map overlay (bottom-right)
+  z-index 10: Toolbar (top)
+  z-index 15: Detail panel (right, slide-out)
+  z-index 20: Tooltips, context menus
+```
+
+**WebGL canvas specification:**
+
+```typescript
+interface GraphCanvasConfig {
+  // Canvas setup
+  renderer: 'WebGL2';                     // WebGL 2.0 (fallback: WebGL 1.0)
+  library: 'three.js';                    // Three.js r160+
+  antialias: true;                        // MSAA 4x
+  alpha: false;                           // Opaque background
+  preserveDrawingBuffer: false;           // Performance optimization
+
+  // Viewport
+  width: 'container.clientWidth';         // ResizeObserver-driven
+  height: 'container.clientHeight';
+  pixelRatio: 'Math.min(window.devicePixelRatio, 2)'; // Cap at 2x for performance
+  dpr: 'capped at 2';
+
+  // Camera
+  cameraType: 'PerspectiveCamera';        // Three.js PerspectiveCamera
+  fov: 45;                                // Field of view degrees
+  near: 0.1;                              // Near clipping plane
+  far: 1000;                              // Far clipping plane
+  initialPosition: { x: 0, y: 0, z: 50 }; // Camera starting position
+
+  // Background
+  clearColor: 0x0d1117;                   // --color-bg-canvas
+  fog: {
+    enabled: true;
+    color: 0x0d1117;                      // Match canvas background
+    near: 100;
+    far: 400;                             // Objects fade out beyond this distance
+  };
+
+  // Lighting (for 3D depth cues on nodes)
+  ambientLight: { color: 0x404060; intensity: 0.5 };
+  directionalLight: { color: 0xffffff; intensity: 0.3; position: { x: 1, y: 1, z: 1 } };
+}
+```
+
+### 7.2 Node Types & Visual Specification
+
+Six node types, each with distinct geometry, color mapping, and visual properties.
+
+#### 7.2.1 Node Type Catalog
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NODE TYPE: Session                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     RoundedRect (RoundedBoxGeometry with bevel)                    │
+│ Dimensions:   width: 2.4, height: 1.2, depth: 0.3, radius: 0.2             │
+│ Color:        --color-entity-session (oklch(60% 0.18 265), blue)            │
+│ Material:     MeshStandardMaterial {                                         │
+│                 color: entity color,                                          │
+│                 roughness: 0.4,                                               │
+│                 metalness: 0.1,                                               │
+│                 emissive: entity color dimmed,                                │
+│                 emissiveIntensity: 0.1,                                       │
+│               }                                                               │
+│ Label:        Text sprite (canvas-text) positioned above node                 │
+│               Font: Inter, 48px, white, centered                               │
+│               Text: session name (truncated to 20 chars)                      │
+│               Scale: 0.04 (world-space), constant screen-space size optional  │
+│ Selection:    Wireframe outline (2px, white 80% opacity)                      │
+│               Scale pulse: 1.0 → 1.15 → 1.0 (400ms ease-spring)              │
+│ Hover:        EmissiveIntensity: 0.3 (brightens node)                         │
+│               Scale: 1.08 (slight enlargement)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ NODE TYPE: Memory Event                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     Sphere (Circle in 2D view — SphereGeometry(0.8, 32, 32))       │
+│ Dimensions:   radius: 0.8, segments: 32                                      │
+│ Color:        --color-entity-memory (oklch(60% 0.15 200), cyan)              │
+│ Material:     MeshStandardMaterial { roughness: 0.3, metalness: 0.05,        │
+│               emissiveIntensity: 0.15 }                                       │
+│ Label:        Text sprite below node, memory key path (truncated)             │
+│ Selection:    Ring around sphere (TorusGeometry, same color)                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ NODE TYPE: Finding                                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     Diamond (OctahedronGeometry or custom extruded diamond)         │
+│ Dimensions:   radius: 0.7, detail: 0                                          │
+│ Color:        --color-entity-finding (oklch(55% 0.18 145), green)            │
+│ Material:     MeshStandardMaterial { roughness: 0.25, metalness: 0.3,        │
+│               emissiveIntensity: 0.2 }                                        │
+│ Label:        Text sprite above node, finding title (truncated)               │
+│ Selection:    Double-diamond outline (two offset diamonds, wireframe)         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ NODE TYPE: Evidence Source                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     Cube (BoxGeometry(1.0, 1.0, 1.0)) or flat square               │
+│ Dimensions:   width: 1.0, height: 1.0, depth: 0.4                            │
+│ Color:        --color-entity-evidence (oklch(55% 0.16 340), pink)            │
+│ Material:     MeshStandardMaterial { roughness: 0.5, metalness: 0.1 }        │
+│ Label:        Text sprite above node, source name                             │
+│ Selection:    Wireframe outline on all 12 edges                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ NODE TYPE: Anomaly                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     Triangle (ConeGeometry(0.9, 0.9, 3) — 3-sided cone)            │
+│ Dimensions:   radius: 0.9, height: 0.9, radialSegments: 3                    │
+│ Color:        --color-entity-anomaly (oklch(55% 0.18 30), orange-red)        │
+│ Material:     MeshStandardMaterial { roughness: 0.2, metalness: 0.4,         │
+│               emissive: red, emissiveIntensity: 0.3 (pulsing) }              │
+│ Label:        Text sprite above node, anomaly title                            │
+│ Selection:    Pulsing red border (emissive intensity oscillates 0.3→0.8)     │
+│ Animation:    Continuous slow rotation (0.1 rad/s) + emissive pulse (2s)     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ NODE TYPE: Entity (generic — colored by category)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Geometry:     Sphere (SphereGeometry(0.6, 24, 24))                            │
+│ Dimensions:   radius: 0.6, segments: 24                                       │
+│ Color:        Varies by entity category (see color mapping below)             │
+│ Material:     MeshStandardMaterial { roughness: 0.4, metalness: 0.05,        │
+│               emissiveIntensity: 0.05 }                                        │
+│ Label:        Text sprite below node, entity name                              │
+│ Selection:    Standard wireframe ring                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Entity category color mapping (for generic entity nodes):
+  session    → --color-entity-session     (blue)
+  memory     → --color-entity-memory      (cyan)
+  finding    → --color-entity-finding     (green)
+  task       → --color-entity-task        (amber)
+  approval   → --color-entity-approval    (red)
+  evidence   → --color-entity-evidence    (pink)
+  tool       → --color-entity-tool        (sky blue)
+  skill      → --color-entity-skill       (purple)
+  user       → --color-entity-user        (salmon)
+  system     → --color-entity-system      (muted gray)
+```
+
+#### 7.2.2 Node States
+
+```
+Default (idle):
+  - Standard material parameters as specified above
+  - No outline/wireframe
+  - Label opacity: 0.7 (subtle, doesn't crowd view)
+  - Node rendered at simulation-computed position
+
+Hover:
+  - EmissiveIntensity: increased by 0.15 (brightens node)
+  - Scale: multiplied by 1.08 (8% enlargement)
+    Transition: 150ms ease-out-quint (interpolated in animation loop)
+  - Label opacity: 1.0
+  - Neighbor highlight: connected nodes increase emissive by 0.05
+  - Non-connected nodes: opacity reduced by 30% (dim background)
+  - Cursor: pointer
+  - Tooltip (delayed 300ms):
+    Content: node type icon + name + metadata
+    Position: follows cursor offset (20px right, 20px down)
+    Style: glass panel, max-width 320px
+
+Selected (click):
+  - Outline: wireframe ring matching entity color, 3px thick
+  - Scale: 1.15 (15% larger than default)
+    Transition: 400ms ease-spring
+  - EmissiveIntensity: increased by 0.25
+  - Camera: smoothly animates to center on selected node
+    Target position: node.worldPosition + offset(0, 0, dist)
+    Dist calculated to show node + connected neighbors
+    Animation: 600ms ease-out-expo
+  - Detail panel: slides in from right (see 7.7)
+  - Label opacity: 1.0
+  - All edges connected to selected node: highlighted
+    Edge color: entity color at full opacity
+    Edge width: 3px (vs 1px default)
+    Non-connected edges: opacity reduced to 10%
+
+Focused (keyboard tabbing):
+  - Same visual as selected + focus ring
+  - Focus ring: 2px solid white, 4px outside node bounds
+
+Filtered out (node hidden by filter):
+  - Opacity: 0
+  - Not rendered (culled from scene)
+  - Connected edges also hidden
+
+Partially filtered (node dimmed by filter):
+  - Opacity: 0.15
+  - Label hidden
+  - Non-interactive (no hover, no click)
+  - Edges: opacity 0.05
+
+Loading (node data being fetched):
+  - Rendered as placeholder sphere (gray, low detail)
+  - Pulsing opacity: 0.3 → 0.6 → 0.3 (1.5s cycle)
+  - Label: "Loading..." in muted text
+
+Error (node data failed to load):
+  - Rendered as red sphere (smaller, 0.4 radius)
+  - EmissiveIntensity: 0.3 (bright red)
+  - Label: "Error" in red text
+  - Click: shows error toast with retry option
+```
+
+#### 7.2.3 Node Labels
+
+```
+Label implementation: HTML5 Canvas text rendered to sprite texture
+  Technique: canvas-text library or custom CanvasTexture
+  Font: Inter, various sizes
+  Resolution: 256x64 texture per label (power-of-two for mipmapping)
+  Filtering: LinearMipmapLinearFilter (smooth at distance)
+
+Label positioning:
+  Session: above node (y: node.y + nodeHeight/2 + 0.3)
+  Memory: below node (y: node.y - nodeRadius - 0.4)
+  Finding: above node (y: node.y + nodeRadius + 0.3)
+  Evidence: above node (y: node.y + nodeHeight/2 + 0.3)
+  Anomaly: above node (y: node.y + nodeRadius + 0.3)
+  Entity: below node (y: node.y - nodeRadius - 0.3)
+
+Label visibility (LOD-based):
+  Camera distance < 20 units:  full label visible
+  Camera distance 20-40:       label at 0.5 opacity
+  Camera distance 40-80:       label hidden (dot only)
+  Camera distance > 80:        label always hidden
+  
+  Label always visible for: selected node, hovered node
+  Label always hidden for: filtered-out nodes, loading nodes
+
+Label content:
+  Session: "{session_name}" (max 24 chars, ellipsis)
+  Memory: "/{key_path_last_2_segments}" (max 30 chars)
+  Finding: "{title}" (max 28 chars)
+  Evidence: "{source_name}" (max 24 chars)
+  Anomaly: "{anomaly_type}" (max 20 chars)
+  Entity: "{entity_name}" (max 22 chars)
+
+Label collision avoidance:
+  Labels shrink at distance: scale inversely with camera distance
+  Minimum label size: 0.01 world units (still readable)
+  Labels fade out rather than overlap (opacity based on screen-space density)
+  In dense clusters: only show labels for top 3 nodes (by degree centrality)
+```
+
+### 7.3 Edge Types & Visual Specification
+
+Six edge types connecting nodes with distinct visual encodings.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EDGE TYPE: contains                                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Parent entity contains child entity                              │
+│ Example:      Session → Memory Event (session contains memory)                 │
+│               Session → Finding (session produced finding)                     │
+│ Color:        Parent entity color at 60% opacity                               │
+│ Style:        Solid line, 1px width                                            │
+│ Arrow:        Yes, directional arrowhead at 75% of edge length                 │
+│ Arrowhead:    ConeGeometry(0.08, 0.15, 8), same color, positioned at 75%       │
+│ Curvature:    Straight when nodes close, slight curve when distant             │
+│ Dash:         None (solid)                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ EDGE TYPE: derived-from                                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Entity was derived/computed from source                          │
+│ Example:      Finding → Memory Event (finding derived from memory)             │
+│               Task → Finding (task created from finding)                       │
+│ Color:        Target entity color at 50% opacity                                │
+│ Style:        Dashed line, 1px width                                            │
+│ Dash pattern: 0.3 dash, 0.2 gap (world units)                                  │
+│ Arrow:        Yes, at 80% of edge length                                        │
+│ Curvature:    Always curved (Bezier)                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ EDGE TYPE: references                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Entity references another entity                                  │
+│ Example:      Finding → Evidence Source (finding cites evidence)                │
+│               Memory → Memory (one memory references another)                   │
+│ Color:        --color-text-tertiary at 40% opacity                             │
+│ Style:        Dotted line, 1px width                                             │
+│ Dot pattern:  0.1 dash, 0.3 gap (world units)                                  │
+│ Arrow:        No (bidirectional reference)                                      │
+│ Curvature:    Straight                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ EDGE TYPE: mentions                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Entity textually mentions another entity                          │
+│ Example:      Any entity → Any entity (text mention)                            │
+│ Color:        --color-text-tertiary at 20% opacity                             │
+│ Style:        Thin solid line, 0.5px width                                       │
+│ Arrow:        Optional (small arrowhead, 0.05)                                  │
+│ Curvature:    Slight curve (gentle arc)                                         │
+│ Visibility:   Hidden at zoom levels showing >100 nodes                          │
+│               (performance optimization — mentions create dense edge hairballs) │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ EDGE TYPE: semantic-similarity                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Two entities have high semantic similarity (>0.7 cosine)          │
+│ Example:      Memory → Memory (similar embeddings)                              │
+│               Finding → Finding (similar conclusions)                           │
+│ Color:        Gradient: entityA.color → entityB.color at 30% opacity each      │
+│ Style:        Wavy/sinusoidal line, 1px width                                    │
+│               Amplitude: 0.2 world units, Frequency: 3 cycles over edge length │
+│ Arrow:        No (bidirectional similarity)                                     │
+│ Curvature:    Wavy (custom curve with sine modulation)                          │
+│ Rendering:    Custom shader with time-offset animation (slow wave oscillation)  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ EDGE TYPE: contradiction                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Meaning:      Entities contain contradictory information                        │
+│ Example:      Finding → Finding (conflicting conclusions)                       │
+│               Memory → Memory (contradictory facts)                             │
+│ Color:        --color-accent-error at 60% opacity                               │
+│ Style:        Zigzag line, 1.5px width                                           │
+│               Zigzag: 0.15 amplitude, 0.3 wavelength                           │
+│ Arrow:        Yes, on both ends (conflict is bidirectional)                     │
+│ Rendering:    Pulsing red glow (emissive on line geometry)                      │
+│               Pulse animation: opacity 0.4→0.7→0.4, 1.5s cycle                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Edge rendering implementation:**
+
+```typescript
+// Edge geometry construction
+function createEdgeGeometry(
+  sourcePos: Vector3,
+  targetPos: Vector3,
+  edgeType: EdgeType
+): BufferGeometry {
+  switch (edgeType) {
+    case 'contains':
+      return createCurvedLine(sourcePos, targetPos, {
+        curveOffset: 0.3,    // Bezier control point offset
+        arrowHead: true,
+        arrowPosition: 0.75,
+        color: sourceColorAtOpacity(0.6),
+      });
+
+    case 'derived-from':
+      return createDashedLine(sourcePos, targetPos, {
+        dashSize: 0.3,
+        gapSize: 0.2,
+        curveOffset: 0.5,
+        arrowHead: true,
+        arrowPosition: 0.8,
+        color: targetColorAtOpacity(0.5),
+      });
+
+    case 'references':
+      return createDottedLine(sourcePos, targetPos, {
+        dotSize: 0.1,
+        gapSize: 0.3,
+        color: tertiaryAtOpacity(0.4),
+      });
+
+    case 'mentions':
+      return createStraightLine(sourcePos, targetPos, {
+        lineWidth: 0.5,
+        color: tertiaryAtOpacity(0.2),
+        arrowHead: false,
+      });
+
+    case 'semantic-similarity':
+      return createWavyLine(sourcePos, targetPos, {
+        amplitude: 0.2,
+        frequency: 3,
+        colorGradient: [sourceColor, targetColor],
+        animateOffset: true,
+      });
+
+    case 'contradiction':
+      return createZigzagLine(sourcePos, targetPos, {
+        amplitude: 0.15,
+        wavelength: 0.3,
+        color: errorColorAtOpacity(0.6),
+        arrowHeads: 'both',
+        pulseEmissive: true,
+      });
+  }
+}
+
+// Edge LOD (Level of Detail)
+function getEdgeVisibility(cameraDistance: number, edgeType: EdgeType): number {
+  // Base visibility thresholds
+  if (cameraDistance > 150) return 0; // All edges hidden
+
+  switch (edgeType) {
+    case 'contains':
+    case 'derived-from':
+      return cameraDistance < 80 ? 1.0 : 0.0;
+    case 'references':
+      return cameraDistance < 50 ? 1.0 : 0.0;
+    case 'mentions':
+      return cameraDistance < 30 ? 1.0 : 0.0; // Hidden early
+    case 'semantic-similarity':
+      return cameraDistance < 60 ? 1.0 : 0.0;
+    case 'contradiction':
+      return cameraDistance < 100 ? 1.0 : 0.0; // Always visible when in range
+  }
+}
+
+// Edge count cap (performance protection)
+const MAX_VISIBLE_EDGES = 5000;
+// Beyond this, hide mentions edges first, then references, then similarity
+function applyEdgeCap(edges: Edge[]): Edge[] {
+  if (edges.length <= MAX_VISIBLE_EDGES) return edges;
+
+  const priorityOrder = ['contradiction', 'contains', 'derived-from', 'semantic-similarity', 'references', 'mentions'];
+  const sorted = [...edges].sort((a, b) =>
+    priorityOrder.indexOf(a.type) - priorityOrder.indexOf(b.type)
+  );
+  return sorted.slice(0, MAX_VISIBLE_EDGES);
+}
+```
+
+### 7.4 Force Simulation
+
+The force-directed layout runs in a Web Worker to keep the main thread at 60fps. Physics parameters are tuned for exploratory graph visualization — nodes should settle into a readable layout within 2-3 seconds for graphs up to 500 nodes.
+
+#### 7.4.1 Force Model
+
+```typescript
+interface ForceSimulationConfig {
+  // Core forces (applied every tick)
+  forces: {
+    link: {
+      enabled: true;
+      strength: 0.15;              // Edge spring strength (0-1)
+      distance: 4.0;               // Ideal edge length (world units)
+      iterations: 3;               // Link force iterations per tick (accuracy)
+      typeStrengths: {             // Per-type strength multipliers
+        contains: 1.0;             // Strong — parent-child is tight
+        'derived-from': 0.8;       // Moderate
+        references: 0.4;           // Weak — documents can be far
+        mentions: 0.15;            // Minimal — loose association
+        'semantic-similarity': 0.3; // Weak — similarity is conceptual
+        contradiction: 0.6;        // Moderate — conflicts are interesting
+      };
+    };
+
+    charge: {
+      enabled: true;
+      strength: -120;              // Negative = repulsion
+      distanceMin: 0.5;            // Minimum distance (prevents explosion)
+      distanceMax: 30;             // Maximum interaction distance
+      theta: 0.9;                  // Barnes-Hut approximation accuracy (0-1)
+                                   // Higher = more accurate, slower
+      typeChargeModifiers: {       // Per-type charge modifiers
+        session: 1.5;              // Sessions repel more (they're parent hubs)
+        memory: 1.0;
+        finding: 1.2;
+        evidence: 0.8;
+        anomaly: 2.0;              // Anomalies repel strongly (stand out)
+        entity: 1.0;
+      };
+    };
+
+    center: {
+      enabled: true;
+      strength: 0.05;              // How strongly nodes are drawn to center
+      x: 0;                        // Center X in world coords
+      y: 0;                        // Center Y in world coords
+      z: 0;                        // Center Z in world coords
+    };
+
+    collision: {
+      enabled: true;
+      radius: (node) => node.radius * 1.2; // Collision radius (20% padding)
+      strength: 0.7;               // Collision force strength
+      iterations: 2;               // Collision iterations per tick
+    };
+
+    cluster: {
+      enabled: true;
+      strength: 0.03;              // Cluster attraction strength
+      clusters: Map<string, { x: number; y: number; z: number; radius: number }>;
+      // Clusters computed via community detection (Louvain)
+      // Each node is attracted to its cluster center
+      // Cluster centers themselves repel each other (nested force)
+    };
+
+    radial: {
+      enabled: false;               // Disabled in force-directed mode
+      strength: 0.1;
+      center: { x: 0; y: 0; z: 0 };
+      radius: (node) => node.degree * 2 + 5; // Outer to inner by degree
+    };
+  };
+
+  // Simulation parameters
+  alpha: {
+    initial: 0.3;                  // Starting alpha (energy level)
+    min: 0.001;                    // Minimum alpha (simulation stops below this)
+    decay: 0.0228;                 // Alpha decay rate per tick
+                                   // AlphaDecay = 1 - Math.pow(alphaMin, 1 / expectedTicks)
+                                   // At decay 0.0228, alpha reaches 0.001 in ~300 ticks
+    target: 0;                     // Target alpha (0 = stopped)
+  };
+
+  velocityDecay: 0.4;              // Friction (0 = no friction, 1 = immediate stop)
+
+  // Tick scheduling
+  tickInterval: 16;                // ms between ticks (matches 60fps requestAnimationFrame)
+  maxTicksPerFrame: 3;             // If falling behind, run up to 3 ticks per frame
+
+  // Stabilization
+  stabilize: {
+    enabled: true;
+    threshold: 0.001;              // Mean displacement below this = stable
+    consecutiveStableTicks: 10;    // Number of stable ticks before "stabilized"
+    onStabilized: () => void;      // Callback: reduce tick rate to idle
+  };
+
+  // Warming (initial simulation run)
+  warmupTicks: 100;                // Run this many ticks before first render
+                                   // Prevents nodes from "flying in" on first frame
+}
+```
+
+#### 7.4.2 Web Worker Architecture
+
+```
+Worker message protocol:
+  Main → Worker:
+    { type: 'init', config: ForceSimulationConfig, nodes: GraphNode[], edges: GraphEdge[] }
+    { type: 'tick' }                              // Request one simulation tick
+    { type: 'tickMultiple', count: number }        // Request N ticks
+    { type: 'updateConfig', config: Partial<ForceSimulationConfig> }
+    { type: 'addNodes', nodes: GraphNode[] }
+    { type: 'removeNodes', nodeIds: string[] }
+    { type: 'addEdges', edges: GraphEdge[] }
+    { type: 'removeEdges', edgeIds: string[] }
+    { type: 'reheat', alpha: number }             // Add energy (user interaction)
+    { type: 'stop' }                               // Stop simulation
+    { type: 'setClusterCenters', clusters: Map<string, Vector3> }
+
+  Worker → Main:
+    { type: 'ticked', positions: Float32Array, alpha: number }
+    { type: 'stabilized' }
+    { type: 'error', message: string }
+
+Position data format:
+  Float32Array with interleaved positions: [x0,y0,z0, x1,y1,z1, ...]
+  Indexed by node index (order matches initial node array)
+  Transferred via Transferable (zero-copy) for performance
+
+Worker implementation:
+  // graph-worker.ts
+  importScripts('d3-force-3d.min.js'); // or custom force implementation
+
+  let simulation: ForceSimulation3D;
+  let nodePositions: Float32Array;
+
+  self.onmessage = (e) => {
+    switch (e.data.type) {
+      case 'init':
+        initializeSimulation(e.data.config, e.data.nodes, e.data.edges);
+        break;
+      case 'tick':
+        simulation.tick();
+        postMessage({ type: 'ticked', positions: getPositions(), alpha: simulation.alpha() });
+        break;
+      case 'tickMultiple':
+        for (let i = 0; i < e.data.count; i++) simulation.tick();
+        postMessage({ type: 'ticked', positions: getPositions(), alpha: simulation.alpha() });
+        break;
+      // ... other message handlers
+    }
+  };
+```
+
+#### 7.4.3 Render Loop Integration
+
+```
+Animation loop (requestAnimationFrame, main thread):
+  1. Read latest positions from worker (Float32Array buffer)
+  2. Update Three.js node positions (buffer attribute update)
+  3. Update edge geometries (if nodes moved significantly)
+  4. Update camera (if animating toward target)
+  5. Update LOD levels based on camera distance
+  6. Render frame via Three.js WebGLRenderer
+
+  Frame budget: 16.67ms (60fps target)
+  Frame skip: if last frame took > 16.67ms, skip rendering but continue simulation
+  Adaptive quality: if sustained > 20ms frames, reduce:
+    - Antialiasing: 4x → 2x → off
+    - Shadow maps: off
+    - Edge detail: reduce curve segments
+    - Label rendering: reduce to nearest 50 nodes only
+
+Worker communication:
+  Tick scheduling:
+    While simulation is active (alpha > alphaMin):
+      Request tickMultiple(3) every 48ms (3 ticks × 16ms)
+      This keeps worker ahead of renderer
+    
+    On 'ticked' message:
+      Copy Float32Array positions to GPU buffer
+      Update node meshes (BufferGeometry.attributes.position.needsUpdate = true)
+      If alpha > 0.05: animation is "hot" — render every frame
+      If alpha <= 0.05: animation is "cooling" — render every 2nd frame
+      If stabilized: animation is "idle" — render on camera movement only
+
+  Heater:
+    When user drags a node:
+      Send 'reheat' with alpha=0.15 to worker
+      Node.velocity adds drag vector
+    When user adds/removes filter:
+      Send full sim reinit (only affected nodes)
+    When user switches layout:
+      Send 'init' with new layout config
+```
+
+### 7.5 Camera Controls
+
+```
+Camera: Three.js PerspectiveCamera
+Controls: Custom orbit controls (not three/examples OrbitControls — custom for performance)
+
+Interaction:
+  Pan (left-click drag on empty canvas):
+    camera.position += mouseDelta * panSpeed * cameraDistance * 0.01
+    camera.lookAt updates to maintain target
+    
+  Orbit (right-click drag or Ctrl+left-click drag):
+    Rotate camera around focal point
+    Horizontal drag: azimuth rotation
+    Vertical drag: elevation rotation (clamped -85° to 85°)
+    Rotation speed: 0.005 rad/pixel
+
+  Zoom (scroll wheel):
+    camera.position moves toward/away from lookAt target
+    Zoom speed: distance * 0.1 per scroll step
+    Min distance: 3 (very close — single node view)
+    Max distance: 200 (full graph view)
+    Smooth zoom: lerp(currentDistance, targetDistance, 0.2) applied each frame
+
+  Focus (double-click node):
+    Camera animates to center on node:
+      targetLookAt = node.worldPosition
+      targetDistance = node.radius * 8 (fit node + neighbors)
+      Animation: 600ms ease-out-expo
+      Camera movement: smooth interpolation via requestAnimationFrame
+
+  Fit all (F key or toolbar button):
+    Compute bounding sphere of all visible nodes
+    Set camera distance = boundingSphere.radius / Math.tan(fov / 2) * 1.2
+    Set camera lookAt = boundingSphere.center
+    Animation: 800ms ease-out-expo
+
+  Reset view (R key):
+    Return to default camera position (0, 0, 50)
+    Look at origin
+    Animation: 600ms ease-out-expo
+
+Touch controls:
+  One finger: pan
+  Two fingers: pinch-zoom + rotate
+  Double-tap: focus on tapped node
+  Long-press: context menu (500ms hold)
+
+Camera state preservation:
+  When switching between graph and other views:
+    Save camera state to sessionStorage: { position, target, timestamp }
+    Restore on return (within 30 minutes of save)
+    After 30 min: reset to default
+```
+
+### 7.6 Node Selection & Detail Interaction
+
+```
+Single select (click):
+  - Node highlights (see 7.2.2)
+  - Camera animates to center on node (if not already centered)
+  - Detail panel slides in from right (see 7.7)
+  - Previously selected node: deselects (clears selection if clicking same node)
+  - Click on empty canvas: deselects current node
+
+Multi-select:
+  Shift+click node: add to selection (up to 20 nodes)
+  Ctrl+click node: toggle selection
+  Shift+drag (marquee): draw selection rectangle (2D screen-space)
+    - Rectangle: 1px dashed white line
+    - All nodes within rectangle added to selection
+    - Selection resolves on mouseup
+  Ctrl+A: select all visible nodes (caution: may select 1000+ nodes)
+    - Confirmation toast if selecting >50 nodes: "Select all 1,247 nodes?"
+    - [Select All] [Cancel]
+
+Drag node (manual layout adjustment):
+  Click+drag on node:
+    - Node follows cursor in screen-space, mapped to world-space
+    - Node velocity set to drag delta (overrides force simulation for dragged node)
+    - Connected nodes experience additional attraction toward dragged node
+    - On release: node re-enters force simulation with current velocity
+    - Drag pin: node is "pinned" (fx, fy, fz set to current position)
+    - Pinned node: rendered with subtle pin icon overlay
+    - Unpin: right-click → "Unpin" or double-click pinned node
+
+Pin/Unpin:
+  Right-click node → "Pin node" / "Unpin node"
+  Pinned nodes: excluded from force simulation (fixed position)
+  Visual indicator: small pushpin icon at top-right of node
+  Pinned nodes list: available in toolbar → "Pinned ({count})"
+
+Node group selection (via cluster):
+  Click cluster hull (convex hull around community):
+    - All nodes in community selected
+    - Cluster hull highlights (brighter color, 2px border)
+  Right-click cluster → "Expand cluster" / "Collapse cluster"
+```
+
+### 7.7 Detail Panel
+
+The detail panel slides in from the right edge of the viewport when a node is selected.
+
+```
+Panel specification:
+  Position: absolute, right: 0, top: 44px (below toolbar), bottom: 0
+  Width: 360px
+  Background: bg-surface
+  Border-left: 1px border-default
+  Box-shadow: shadow-lg (left side only)
+  Z-index: 15
+  Transform: translateX(100%) (hidden), translateX(0) (visible)
+  Transition: transform 300ms ease-out-expo
+
+Panel anatomy:
+  ┌──────────────────────────────────┐
+  │ [←]  Session #a3f2b   [×] [✎]  │  ← Header (48px)
+  │      Q4 Revenue Analysis         │
+  ├──────────────────────────────────┤
+  │                                  │
+  │ STATUS                           │  ← Section: Status
+  │ ┌──────────────────────────────┐ │
+  │ │ ● Active — Iteration 42      │ │
+  │ │ Started: Jun 23, 10:30 AM    │ │
+  │ │ Duration: 12m 34s            │ │
+  │ │ Model: deepseek-v4-pro       │ │
+  │ │ Tokens: 847K / 1.2M budget   │ │
+  │ └──────────────────────────────┘ │
+  │                                  │
+  │ CONNECTED NODES (127 edges)      │  ← Section: Connections
+  │ ┌──────────────────────────────┐ │
+  │ │ ○ Memory #m8472              │ │  ← Entity cards
+  │ │   Key: /projects/q4-revenue  │ │
+  │ │   ▸ contains                 │ │
+  │ │                              │ │
+  │ │ ○ Memory #m8501              │ │
+  │ │   Key: /projects/q4-asia     │ │
+  │ │   ▸ contains                 │ │
+  │ │                              │ │
+  │ │ ◇ Finding #f1294             │ │
+  │ │   APAC revenue decline       │ │
+  │ │   ▸ derived-from             │ │
+  │ │                              │ │
+  │ │ ... (scroll for more)        │ │
+  │ └──────────────────────────────┘ │
+  │                                  │
+  │ RELATED SESSIONS                 │  ← Section: Related
+  │ ┌──────────────────────────────┐ │
+  │ │ #b2e1c Phish Investigation   │ │
+  │ │ ▸ semantic-similarity (0.87) │ │
+  │ └──────────────────────────────┘ │
+  │                                  │
+  │ METADATA                         │  ← Section: Metadata
+  │ ┌──────────────────────────────┐ │
+  │ │ Agent: Kara                  │ │
+  │ │ Trust: high                  │ │
+  │ │ Domain: concept              │ │
+  │ │ Source: system               │ │
+  │ │ Created: 2026-06-23T10:30:00Z│ │
+  │ │ Updated: 2026-06-23T10:47:23Z│ │
+  │ └──────────────────────────────┘ │
+  │                                  │
+  │ ACTIONS                          │  ← Section: Actions
+  │ ┌──────────────────────────────┐ │
+  │ │ [Investigate] [Open Timeline]│ │
+  │ │ [Export]      [Bookmark]     │ │
+  │ └──────────────────────────────┘ │
+  └──────────────────────────────────┘
+
+Header:
+  Back button: ← arrow, 20px, text-secondary
+    Click: deselect node, close panel
+  Entity type icon + name: text-subtitle, font-weight 600
+  Subtitle: text-caption, text-secondary, entity meta
+  Edit button: pencil icon, 16px (if editable)
+  Close button: x icon, 20px, text-tertiary
+    Click: close panel, deselect node
+
+Sections (collapsible):
+  Section header: text-caption, uppercase, text-tertiary, letter-spacing 0.05em
+  Collapse toggle: chevron icon, 14px
+  Collapsed: only header visible, chevron rotated
+  Default: all sections expanded
+
+Connection cards:
+  Height: 48px
+  Padding: 8px 12px
+  Hover: bg-hover-muted
+  Click: select that connected node (changes panel content)
+  Icon: node type icon + shape, 16px
+  Name: text-small, text-primary, truncate
+  Edge type badge: colored pill, text-micro
+  Edge type icon: small directional indicator
+
+Scroll behavior:
+  Panel scrolls independently from canvas
+  Custom scrollbar: 4px, thumb border-hover
+
+Multi-select panel variant:
+  When 2+ nodes selected:
+    Header: "{N} nodes selected" in text-subtitle
+    Sections: aggregated connections, common metadata
+    Actions: [Compare] [Group] [Export Selection] [Bookmark All]
+```
+
+### 7.8 Mini-Map
+
+The mini-map provides a thumbnail overview of the entire graph in the bottom-right corner.
+
+```
+Mini-map specification:
+  Position: absolute, bottom: 12px, right: 12px
+  Size: 180px × 120px
+  Background: bg-surface at 90% opacity (bg-glass-light)
+  Border: 1px border-default
+  Border-radius: radius-md
+  Box-shadow: shadow-md
+  Z-index: 5
+  Overflow: hidden
+
+  Canvas: secondary WebGL renderer (or 2D canvas for simplicity)
+    Shows all nodes at reduced scale (ignores zoom/navigation camera)
+    Nodes: small circles (2-4px) in entity colors
+    Edges: thin lines (0.5px) at 20% opacity
+    Background: bg-canvas at 50% opacity
+
+  Viewport indicator:
+    Rectangle showing current camera view
+    Border: 1px white at 60% opacity
+    Fill: white at 5% opacity
+    Interactive: drag rectangle to pan main canvas
+      mousedown on rectangle → drag → updates main camera lookAt
+      Release: rectangle snaps to new position
+    Click outside rectangle: jump camera to clicked position
+
+  Zoom controls (overlaid on mini-map, bottom-right of mini-map):
+    [+] button: zoom in (16px circle, white icon)
+    [-] button: zoom out
+    [⤡] button: fit all (reset to show full graph)
+    Buttons: 20px × 20px circles, bg-surface-overlay, border border-default
+    Opacity: 0.7 (default), 1.0 (hover)
+
+  Toggle:
+    Mini-map can be hidden via toolbar toggle
+    State persisted in localStorage
+    Keyboard: M to toggle mini-map
+```
+
+### 7.9 Legend
+
+The legend occupies the bottom-left corner and shows node/edge type mappings.
+
+```
+Legend specification:
+  Position: absolute, bottom: 12px, left: 12px
+  Width: auto (content-driven, max 220px)
+  Background: bg-surface at 90% opacity (bg-glass-light)
+  Border: 1px border-default
+  Border-radius: radius-md
+  Box-shadow: shadow-md
+  Z-index: 5
+  Padding: 10px 14px
+
+  Content layout:
+    ┌──────────────────────┐
+    │ Legend               │  ← Header
+    ├──────────────────────┤
+    │ NODES                │
+    │ ▬ Session            │  ← Colored line/shape + label
+    │ ● Memory Event       │
+    │ ◆ Finding            │
+    │ ■ Evidence Source    │
+    │ ▲ Anomaly            │
+    │ ● Entity             │
+    ├──────────────────────┤
+    │ EDGES                │
+    │ ─── contains         │  ← Line style sample + label
+    │ --- derived-from     │
+    │ ··· references       │
+    │ ─── mentions         │
+    │ ≈≈≈ semantic-sim     │
+    │ ╲╱╲ contradiction    │
+    ├──────────────────────┤
+    │ [Hide] [Expand]      │  ← Actions
+    └──────────────────────┘
+
+  Header:
+    "Legend" in text-caption, uppercase, text-tertiary
+    Collapse toggle: chevron icon, 14px, right-aligned
+
+  Node entries:
+    Height: 20px
+    Shape indicator: 10px wide (mini node shape) in entity color
+    Label: text-caption, text-secondary
+    Count badge (right): text-micro, text-tertiary
+      Shows count of currently visible nodes of that type
+      Updates as filter changes
+
+  Edge entries:
+    Height: 18px
+    Line indicator: 16px line sample showing edge style
+    Label: text-caption, text-secondary
+
+  Interactive:
+    Hover node entry: highlights all nodes of that type
+      Other nodes: dim to 20% opacity
+    Click node entry: toggle filter for that node type
+      Filtered type: entry shows strikethrough + "(hidden)"
+    Hover edge entry: highlights all edges of that type
+      Other edges: dim to 10% opacity
+    Click edge entry: toggle visibility for that edge type
+
+  Toggle:
+    Legend can be hidden via toolbar toggle
+    Keyboard: L to toggle legend
+```
+
+### 7.10 Layout Presets
+
+The graph supports five layout modes, switchable via the toolbar dropdown.
+
+```
+1. FORCE-DIRECTED (default)
+   Algorithm: d3-force-3d with custom forces
+   Characteristics:
+     - Nodes repel each other (charge force)
+     - Connected nodes attract (link force)
+     - Cluster attraction groups communities
+     - Organic, exploratory layout
+   Best for: general exploration, finding patterns
+   Initial state: warm-start with 100 pre-simulation ticks
+   Transition from other layout: nodes animate from old positions over 800ms
+
+2. RADIAL
+   Algorithm: Nodes arranged in concentric circles by degree centrality
+   Characteristics:
+     - Center: highest-degree node(s)
+     - Ring 1: directly connected nodes
+     - Ring 2: 2-hop connections
+     - Ring N: N-hop connections
+     - Angular spacing: uniform within each ring
+   Best for: understanding hub-and-spoke structure
+   Layout parameters:
+     ringSpacing: 6.0 (world units between rings)
+     minRadius: 4.0 (inner ring radius)
+     angularOffset: random jitter (±0.1 rad to avoid perfect alignment)
+   Transition: 600ms ease-out-expo
+
+3. HIERARCHICAL (tree)
+   Algorithm: Directed acyclic graph layout (Sugiyama-style)
+   Characteristics:
+     - Root nodes at top (sessions)
+     - Children below (memories, findings)
+     - Leaf nodes at bottom (evidence sources)
+     - Layers determined by entity type hierarchy:
+       Layer 0: Session
+       Layer 1: Memory, Task, Anomaly
+       Layer 2: Finding
+       Layer 3: Evidence Source, Approval
+     - Within layer: nodes sorted by creation time
+   Best for: understanding derivation chains
+   Layout parameters:
+     layerSpacing: 8.0 (vertical spacing)
+     nodeSpacing: 3.0 (horizontal spacing within layer)
+     edgeRouting: orthogonal (right-angle bends)
+   Transition: 700ms ease-out-expo
+
+4. TIMELINE
+   Algorithm: Nodes positioned along horizontal axis by timestamp,
+              vertical position by entity type
+   Characteristics:
+     - X-axis: time (linear mapping, same as Timeline Explorer)
+     - Y-axis: entity type lanes
+       Lane 0: Session
+       Lane 1: Memory
+       Lane 2: Finding
+       Lane 3: Task
+       Lane 4: Evidence
+       Lane 5: Anomaly
+       Lane 6: Other entities
+     - Z-axis: jitter for depth (±0.5 units random)
+   Best for: understanding temporal relationships
+   Layout parameters:
+     timeScale: computed to fit all events in view
+     laneSpacing: 5.0 (vertical spacing between lanes)
+   Transition: 500ms ease-out-expo
+
+5. GRID
+   Algorithm: Nodes arranged in a regular grid by entity type
+   Characteristics:
+     - Columns: entity types
+     - Rows: sorted by creation time within type
+     - Grid spacing: uniform
+     - Equal cell size: nodes scaled to fit 3×3 unit cells
+   Best for: overview, comparison between entity types
+   Layout parameters:
+     columns: auto (by entity type count)
+     cellWidth: 5.0
+     cellHeight: 5.0
+     padding: 1.0
+   Transition: 500ms ease-out-expo
+
+Layout transition animation:
+  - Store current positions
+  - Compute target positions for new layout
+  - Interpolate: node.position = lerp(currentPosition, targetPosition, t)
+  - Tween: t goes from 0→1 over transitionDuration
+  - Easing: ease-out-expo for all layout transitions
+  - During transition: force simulation paused
+  - After transition: force simulation resumes (if force-directed)
+  - Nodes can be dragged during transition (breaks animation for that node)
+```
+
+### 7.11 Semantic Clustering
+
+Automatic detection and visualization of semantic clusters within the graph.
+
+```
+Cluster detection algorithm:
+  Method: Louvain community detection on semantic-similarity edge weights
+  Execution: Web Worker (non-blocking)
+  Trigger: "Detect Clusters" button in toolbar, or automatic after graph load
+  
+  Algorithm steps:
+    1. Build adjacency matrix from semantic-similarity edges
+       Edge weight = similarity score (0.7 to 1.0)
+    2. Run Louvain modularity optimization
+       Resolution parameter: 0.8 (higher = more clusters)
+       Iterations: max 20 (convergence typically in 5-10)
+    3. Assign cluster IDs to nodes
+    4. Compute cluster metadata:
+       - Cluster center (centroid of nodes)
+       - Cluster radius (bounding sphere)
+       - Cluster label (most frequent terms from node labels)
+       - Cluster density (nodes / radius³)
+       - Inter-cluster edges (edges crossing cluster boundaries)
+
+Cluster visualization:
+  Convex hull: semi-transparent surface enclosing cluster nodes
+    Material: MeshPhongMaterial {
+      color: clusterColor,
+      opacity: 0.1,
+      transparent: true,
+      depthWrite: false,
+    }
+    Outline: 1px wireframe, clusterColor at 40% opacity
+
+  Cluster colors: rotated through data palette (12 colors)
+    Cluster 0: --color-data-0 (red)
+    Cluster 1: --color-data-1 (amber)
+    ...etc., cycling for >12 clusters
+
+  Cluster label:
+    Centered above hull
+    Text: cluster label (most frequent term)
+    Font: 36px Inter, white
+    Background pill: semi-transparent black
+
+  Cluster interaction:
+    Hover hull: hull opacity increases to 0.2, outline to 80%
+      Tooltip: "Cluster {N}: {label} — {nodeCount} nodes"
+    Click hull: select all nodes in cluster
+      Camera animates to frame cluster
+    Right-click hull → "Expand cluster" (spreads nodes apart)
+      Temporarily applies radial layout within cluster bounds
+      "Collapse cluster" (returns to force layout)
+    Right-click hull → "Filter to cluster" (hides nodes outside cluster)
+    Right-click hull → "Explore cluster" (opens cluster in new focused view)
+
+  Cluster list (sidebar option, toggled from toolbar):
+    Shows all discovered clusters sorted by size
+    Each cluster: colored dot + label + node count + density bar
+    Click: camera focuses on cluster
+    Hover: highlights cluster hull
+
+Cross-cluster edges:
+  Edges between nodes in different clusters
+  Rendered with dashed style (0.2 dash, 0.3 gap)
+  Color: both cluster colors blended (50% each)
+  These edges are "interesting" — they show cross-domain connections
+```
+
+### 7.12 Filtering & Search
+
+```
+Entity type filter (toolbar dropdown):
+  Multi-select checkboxes:
+    ☑ Sessions (42)
+    ☑ Memories (891)
+    ☑ Findings (127)
+    ☑ Evidence (63)
+    ☑ Anomalies (12)
+    ☐ Tasks (58)  ← unchecked = hidden
+    ☑ Entities (54)
+
+  "All" / "None" quick toggle
+  "Invert" toggle
+
+  Filter application:
+    Hidden nodes: removed from scene (not just invisible — saves GPU)
+    Connected edges: hidden if either endpoint hidden
+    Force simulation: only includes visible nodes
+    Count badges update to reflect visible counts
+
+  Filter animation:
+    Nodes fading out: scale 1→0.8, opacity 1→0, 200ms ease-in-quint
+    Nodes appearing: scale 0.8→1, opacity 0→1, 250ms ease-out-quint
+    Force simulation reheated (alpha 0.2) to settle new layout
+
+Edge type filter (legend interaction):
+  Click edge type in legend to toggle visibility
+  All edge types visible by default
+  Mentions edges hidden by default when >100 nodes visible
+
+Search (toolbar input):
+  Search field:
+    Width: 200px (expandable to 300px on focus)
+    Behavior: same as Timeline Explorer search (see 6.7.3)
+  
+  Search results:
+    Matching nodes: highlighted (outline pulse 1.5s cycle)
+    Non-matching nodes: dimmed (opacity 0.1)
+    Match count: "3 nodes match '{query}'"
+    Enter: cycle through results (focus next matching node)
+    Escape: clear search
+
+  Search fields:
+    Node label (weight: 3)
+    Node ID (weight: 5)
+    Node metadata (weight: 1)
+    Connected node labels (weight: 1)
+
+Cluster filter:
+  "Filter to cluster" via cluster right-click
+  Shows cluster name + [Clear cluster filter] button in toolbar
+  Only cluster nodes visible, camera focused on cluster
+
+Degree filter (advanced):
+  Slider: "Show nodes with ≥ {N} connections"
+  Range: 1 to max(nodeDegree)
+  Real-time: nodes below threshold fade out as slider moves
+```
+
+### 7.13 Performance Optimizations
+
+```
+1. WebGL Instanced Rendering
+   For nodes of the same type and geometry:
+     Use THREE.InstancedMesh instead of individual Mesh objects
+     Each node type → one InstancedMesh
+     Total draw calls: 6 (one per node type) instead of N
+     
+   Implementation:
+     const sessionMesh = new THREE.InstancedMesh(
+       roundedRectGeometry,
+       sessionMaterial,
+       sessionNodeCount
+     );
+     // Update instance matrices each frame from position buffer
+     dummy.identity();
+     for (let i = 0; i < sessionNodeCount; i++) {
+       dummy.compose(position, quaternion, scale);
+       sessionMesh.setMatrixAt(i, dummy);
+     }
+     sessionMesh.instanceMatrix.needsUpdate = true;
+
+   InstancedMesh color per-instance:
+     Use instanceColor (Three.js r150+) for per-instance color variation
+     Or: use custom shader material with per-instance color attribute
+
+2. Level of Detail (LOD)
+   THREE.LOD for each node:
+     LOD Level 0 (distance < 20): Full geometry, 32 segments
+     LOD Level 1 (distance 20-50): Reduced geometry, 16 segments
+     LOD Level 2 (distance 50-100): Low-poly proxy, 8 segments
+     LOD Level 3 (distance > 100): Billboard sprite (2D circle texture)
+     
+   Edge LOD:
+     Camera distance < 50: Curved bezier, 20 segments
+     Camera distance 50-100: Low-poly line, 8 segments
+     Camera distance 100-150: Straight line (ignore curve)
+     Camera distance > 150: Hidden
+
+3. Frustum Culling
+   Three.js automatic frustum culling (enabled by default on all meshes)
+   Custom culling for labels: only render labels of nodes within view frustum
+   Label sprite pool: reuse sprite objects, update texture on assignment
+
+4. Spatial partitioning
+   Octree for collision detection and picking (raycasting):
+     Max depth: 6
+     Max objects per node: 16
+     Rebuild: every 10 simulation ticks (not every tick)
+   
+   Picking (raycaster):
+     Use octree to filter candidate nodes
+     Fall back to brute-force for < 100 candidates
+     Mouse interaction: throttle raycaster to 30fps (not 60fps)
+
+5. Edge optimization
+   Mentions edges: hidden when > 100 nodes visible
+   References edges: hidden when > 500 nodes visible
+   Only render edges where BOTH endpoints are within view frustum
+   Edge geometry pooling: reuse BufferGeometry objects
+   Edge material: shared material per edge type (not per edge)
+
+6. Render pipeline
+   Render order (opaque first, transparent later):
+     1. Node meshes (opaque)
+     2. Edge lines
+     3. Cluster hulls (transparent)
+     4. Label sprites (transparent)
+     5. Selection/highlight overlays
+     6. UI overlays (legend, mini-map)
+
+   Frame timing:
+     Simulation update: 0.5ms (worker, parallel)
+     Position buffer upload: 0.3ms
+     Instance matrix update: 1.0ms (for 1000+ instances)
+     Label update: 0.5ms (incremental, only changed labels)
+     Render: 2-5ms (GPU-dependent)
+     Total main thread: ~5ms → easily hits 60fps
+
+7. Memory management
+   Geometry caching: each node type geometry created once, shared
+   Material pooling: 6 materials (node types), reused for all nodes
+   Texture atlas for labels: single texture for all labels (2048×2048)
+     UV offsets map each label to its region
+     Reduces draw calls for labels from N to 1
+   
+   Dispose on unmount:
+     geometry.dispose()
+     material.dispose()
+     texture.dispose()
+     renderer.dispose()
+     worker.terminate()
+
+8. Progressive loading
+   Initial load: 200 nodes (highest-degree nodes + all sessions)
+   Progressive: load more nodes as camera zooms in
+   Background: fetch remaining nodes, add to scene when loaded
+   Node count indicator: "1,247 nodes · 892 loaded" in toolbar
+```
+
+### 7.14 Error States & Edge Cases
+
+```
+Empty graph (no nodes):
+  Canvas: centered empty state
+    Icon: graph, 64px, text-disabled
+    Title: "No entities to display"
+    Subtitle: "The entity graph will populate as sessions run"
+    Action: "Create your first session" button
+
+All nodes filtered out:
+  Canvas overlay:
+    "All entity types are currently hidden"
+    "Enable at least one entity type in the filter to see nodes"
+    [Reset Filters] button
+
+WebGL not supported:
+  Canvas replaced with 2D fallback (Canvas 2D API)
+  Banner (top): "WebGL not available — using 2D renderer (reduced performance)"
+  All features functional, but:
+    - No 3D depth
+    - No custom shaders
+    - Reduced visual quality
+    - Lower max node count (500)
+
+WebGL context lost:
+  Detect: webglcontextlost event
+  Canvas: frozen, shows overlay
+    "Graphics context lost — attempting to restore..."
+    Spinner animation
+  On webglcontextrestored:
+    Rebuild all geometries, materials, textures
+    Resume rendering
+    Toast: "Graphics restored"
+
+Force simulation divergence (nodes exploding):
+  Detect: any node position > 1000 units from origin
+  Auto-reset: recenter all nodes to origin, reheat simulation
+  Banner: "Layout restabilizing..." (disappears after 2s stable)
+
+Very large graph (> 5000 nodes):
+  Switch to cluster view automatically:
+    Individual nodes below threshold become cluster aggregates
+    Cluster aggregates shown as larger circles with count badges
+    Zoom in to expand clusters into individual nodes
+  Banner: "Large graph detected — clusters shown. Zoom in for details."
+
+Browser tab not visible (Page Visibility API):
+  Pause simulation (stop worker ticks)
+  Pause render loop
+  Resume on visibilitychange → visible
+
+Memory pressure:
+  Monitor: performance.memory.usedJSHeapSize
+  If > 80% of limit: reduce cached nodes, dispose distant LODs
+  If > 90%: show warning toast "Memory usage high — consider reducing visible nodes"
+
+Node hover on overlapping nodes:
+  Raycaster returns closest intersected node only
+  If multiple nodes at nearly same depth (< 0.5 units):
+    Show count badge: "+2 more"
+    Click cycles through overlapping nodes
+    Tooltip shows list of all overlapping nodes
+
+Single-node graph:
+  Node centered in view
+  Camera distance: 8 units
+  No edges to display
+  Detail panel shows full node information
+  "No connections" shown in connections section
+```
+
+### 7.15 Graph State Model
+
+```typescript
+interface EntityGraphState {
+  // Data
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  clusters: GraphCluster[];
+
+  // Layout
+  layout: 'force-directed' | 'radial' | 'hierarchical' | 'timeline' | 'grid';
+  layoutTransitioning: boolean;
+  layoutProgress: number;         // 0-1 transition progress
+
+  // Simulation
+  simulationRunning: boolean;
+  simulationAlpha: number;
+  simulationStabilized: boolean;
+  pinnedNodeIds: Set<string>;
+
+  // Viewport
+  camera: {
+    position: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+    zoom: number;
+  };
+
+  // Selection
+  selectedNodeIds: Set<string>;
+  focusedNodeId: string | null;
+  hoveredNodeId: string | null;
+  hoveredEdgeId: string | null;
+
+  // UI
+  detailPanelOpen: boolean;
+  detailPanelNodeId: string | null;
+  miniMapVisible: boolean;
+  legendVisible: boolean;
+  clusterListVisible: boolean;
+
+  // Filters
+  filters: {
+    nodeTypes: Set<NodeType>;
+    edgeTypes: Set<EdgeType>;
+    searchQuery: string;
+    clusterId: string | null;     // Filter to single cluster
+    minDegree: number;             // 0 = no filter
+  };
+
+  // Performance
+  visibleNodeCount: number;
+  visibleEdgeCount: number;
+  totalNodeCount: number;
+  totalEdgeCount: number;
+  fps: number;
+  renderTime: number;              // Last frame render time in ms
+  qualityLevel: 'high' | 'medium' | 'low'; // Adaptive quality
+
+  // Loading
+  loadingState: 'idle' | 'loading' | 'error';
+  loadedNodeCount: number;         // Progressively loaded
+  loadError: Error | null;
+}
+
+interface GraphNode {
+  id: string;
+  type: 'session' | 'memory' | 'finding' | 'evidence' | 'anomaly' | 'entity';
+  entityType: EntityType;         // For generic entity nodes
+  label: string;
+  position: { x: number; y: number; z: number };
+  velocity: { x: number; y: number; z: number };
+  radius: number;
+  color: string;                  // Hex color
+  degree: number;                  // Total edge count
+  inDegree: number;
+  outDegree: number;
+  clusterId: string | null;
+  pinned: boolean;
+  visible: boolean;
+  metadata: Record<string, unknown>;
+  createdAt: number;               // Unix ms
+  updatedAt: number;
+}
+
+interface GraphEdge {
+  id: string;
+  type: 'contains' | 'derived-from' | 'references' | 'mentions' | 'semantic-similarity' | 'contradiction';
+  sourceId: string;
+  targetId: string;
+  weight: number;                  // 0-1, semantic similarity score or trust
+  visible: boolean;
+  metadata?: {
+    similarityScore?: number;      // For semantic-similarity edges
+    contradictionType?: string;    // For contradiction edges
+    referenceContext?: string;     // For reference edges
+  };
+}
+
+interface GraphCluster {
+  id: string;
+  label: string;
+  nodeIds: string[];
+  center: { x: number; y: number; z: number };
+  radius: number;
+  color: string;
+  density: number;
+  interClusterEdges: string[];     // Edge IDs crossing cluster boundary
+}
+```
+
+### 7.16 Keyboard Shortcuts & Accessibility
+
+```
+Graph navigation:
+  F           : Fit all nodes in view
+  R           : Reset camera to default
+  M           : Toggle mini-map
+  L           : Toggle legend
+  C           : Toggle cluster list
+  Escape      : Deselect all / close detail panel
+  Tab         : Focus next node (cycles through visible nodes)
+  Shift+Tab   : Focus previous node
+  Enter       : Select focused node / open detail panel
+
+  Arrow keys  : Nudge camera (pan)
+                 ← → : pan horizontally
+                 ↑ ↓ : pan vertically
+  Shift+Arrow : Nudge camera (orbit)
+                 ← → : orbit azimuth
+                 ↑ ↓ : orbit elevation
+  +/-         : Zoom in/out
+
+Layout switching:
+  1           : Force-directed layout
+  2           : Radial layout
+  3           : Hierarchical layout
+  4           : Timeline layout
+  5           : Grid layout
+
+Selection:
+  Ctrl+A      : Select all visible nodes
+  Ctrl+Shift+A: Deselect all
+  Delete      : Remove selected nodes from view (temporary hide — not deletion)
+
+Accessibility:
+  Canvas: role="application", aria-label="Entity relationship graph"
+  Nodes: rendered DOM proxy list for screen readers (hidden visually)
+    <ul aria-label="Graph nodes" style="position:absolute;width:1px;height:1px;overflow:hidden;">
+      <li>Session: Q4 Revenue Analysis — 42 connections</li>
+      <li>Memory: /projects/q4-revenue — 15 connections</li>
+      ...
+    </ul>
+  Node list updates: aria-live="polite" region announces selection changes
+  Reduced motion: all graph animations instant (0ms)
+  High contrast mode: node borders become white (2px) for clarity
+```
+
+### 7.17 Web Worker Force Simulation — Complete Implementation Reference
+
+```typescript
+// force-worker.ts — Complete force simulation in Web Worker
+// This is a reference implementation, not pseudocode.
+
+interface WorkerNode {
+  id: string;
+  type: string;
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  fx: number | null; fy: number | null; fz: number | null; // Fixed position if set
+  radius: number;
+  degree: number;
+  clusterId: string | null;
+}
+
+interface WorkerEdge {
+  source: number;  // Node index
+  target: number;  // Node index
+  type: string;
+  strength: number;
+  distance: number;
+}
+
+class ForceSimulation {
+  nodes: WorkerNode[];
+  edges: WorkerEdge[];
+  alpha: number;
+  alphaMin: number;
+  alphaDecay: number;
+  velocityDecay: number;
+
+  // Force parameters
+  linkStrength: number;
+  linkDistance: number;
+  linkIterations: number;
+  chargeStrength: number;
+  chargeDistanceMax: number;
+  centerStrength: number;
+  collisionStrength: number;
+  collisionIterations: number;
+  clusterStrength: number;
+  clusterCenters: Map<string, { x: number; y: number; z: number }>;
+
+  // Barnes-Hut for charge force
+  theta: number;
+  tree: BarnesHutTree | null;
+
+  constructor(nodes: WorkerNode[], edges: WorkerEdge[], config: ForceConfig) {
+    this.nodes = nodes;
+    this.edges = edges;
+    this.alpha = config.alpha;
+    this.alphaMin = config.alphaMin;
+    this.alphaDecay = config.alphaDecay;
+    this.velocityDecay = config.velocityDecay;
+    // ... assign force parameters from config
+  }
+
+  tick(): void {
+    this.alpha += (0 - this.alpha) * this.alphaDecay;
+    if (this.alpha < this.alphaMin) return;
+
+    // 1. Apply link force
+    for (let i = 0; i < this.linkIterations; i++) {
+      this.applyLinkForce();
+    }
+
+    // 2. Apply charge force (Barnes-Hut approximation)
+    this.buildBarnesHutTree();
+    this.applyChargeForce();
+
+    // 3. Apply center force
+    this.applyCenterForce();
+
+    // 4. Apply collision force
+    for (let i = 0; i < this.collisionIterations; i++) {
+      this.applyCollisionForce();
+    }
+
+    // 5. Apply cluster force
+    this.applyClusterForce();
+
+    // 6. Update positions
+    for (const node of this.nodes) {
+      if (node.fx !== null) { node.x = node.fx; node.vx = 0; }
+      else {
+        node.vx *= this.velocityDecay;
+        node.x += node.vx;
+      }
+      if (node.fy !== null) { node.y = node.fy; node.vy = 0; }
+      else {
+        node.vy *= this.velocityDecay;
+        node.y += node.vy;
+      }
+      if (node.fz !== null) { node.z = node.fz; node.vz = 0; }
+      else {
+        node.vz *= this.velocityDecay;
+        node.z += node.vz;
+      }
+    }
+  }
+
+  private applyLinkForce(): void {
+    for (const edge of this.edges) {
+      const source = this.nodes[edge.source];
+      const target = this.nodes[edge.target];
+      let dx = target.x - source.x;
+      let dy = target.y - source.y;
+      let dz = target.z - source.z;
+      let dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      const strength = edge.strength * this.linkStrength;
+      const bias = (dist - edge.distance) / dist * strength * this.alpha;
+      dx *= bias; dy *= bias; dz *= bias;
+      target.vx -= dx * (1 / Math.max(1, target.degree));
+      target.vy -= dy * (1 / Math.max(1, target.degree));
+      target.vz -= dz * (1 / Math.max(1, target.degree));
+      source.vx += dx * (1 / Math.max(1, source.degree));
+      source.vy += dy * (1 / Math.max(1, source.degree));
+      source.vz += dz * (1 / Math.max(1, source.degree));
+    }
+  }
+
+  // ... remaining methods: applyChargeForce, applyCenterForce,
+  //     applyCollisionForce, applyClusterForce, buildBarnesHutTree
+}
+
+// Worker message handling
+let simulation: ForceSimulation | null = null;
+
+self.onmessage = (e: MessageEvent) => {
+  const msg = e.data;
+  switch (msg.type) {
+    case 'init':
+      simulation = new ForceSimulation(msg.nodes, msg.edges, msg.config);
+      // Warmup: run initial ticks
+      for (let i = 0; i < msg.config.warmupTicks; i++) {
+        simulation.tick();
+      }
+      postMessage({
+        type: 'initialized',
+        positions: serializePositions(simulation.nodes),
+        alpha: simulation.alpha,
+      });
+      break;
+
+    case 'tick':
+      simulation?.tick();
+      postMessage({
+        type: 'ticked',
+        positions: serializePositions(simulation!.nodes),
+        alpha: simulation!.alpha,
+      });
+      break;
+
+    case 'tickMultiple':
+      for (let i = 0; i < msg.count; i++) {
+        simulation?.tick();
+      }
+      postMessage({
+        type: 'ticked',
+        positions: serializePositions(simulation!.nodes),
+        alpha: simulation!.alpha,
+      });
+      break;
+
+    // ... other message handlers
+  }
+};
+
+function serializePositions(nodes: WorkerNode[]): Float32Array {
+  const buf = new Float32Array(nodes.length * 3);
+  for (let i = 0; i < nodes.length; i++) {
+    buf[i * 3] = nodes[i].x;
+    buf[i * 3 + 1] = nodes[i].y;
+    buf[i * 3 + 2] = nodes[i].z;
+  }
+  return buf; // Transferred via Transferable
+}
+```
+
+---
+
+*Part 3 of 4 — Timeline Explorer (Section 6) and Entity Graph (Section 7) complete.*
+*Continues with Part 4: Investigation Workbench, Session Detail, and remaining sections.*
 ## 8. Semantic Search & Discovery
 
 ### 8.1 Overview
@@ -4243,12 +8481,6 @@ Some settings (budget, retention) require confirmation.
 
 ---
 
-## Document Status
-
-**Total sections completed:** 1-16
-**Estimated lines:** ~16,000
-**Remaining sections:** 17-28 (Animation, Micro-interactions, Components, Data Flow, State, WebSocket, Responsive, Accessibility, Keyboard, Theming, Build, Testing)
-**Status:** IN PROGRESS
 ## 17. Animation & Transition System
 
 ### 17.1 Animation Philosophy
