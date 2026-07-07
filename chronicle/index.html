@@ -5,216 +5,278 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Chronicle — Investigation Workbench</title>
 <link rel="stylesheet" href="/chronicle/css/design-system.css"/>
-<style>
-  /* Chronicle shell — minimal for Phase 1.1 */
-  .chronicle-shell {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-  .chronicle-header {
-    height: var(--header-height);
-    background: var(--color-bg-surface);
-    border-bottom: 1px solid var(--color-border-default);
-    display: flex;
-    align-items: center;
-    padding: 0 var(--space-4);
-    gap: var(--space-3);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  .chronicle-header .logo {
-    font-size: var(--text-body-lg);
-    font-weight: var(--weight-bold);
-    color: var(--color-text-heading);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  .chronicle-header .logo-icon {
-    color: var(--color-accent-primary);
-    font-size: 18px;
-  }
-  .chronicle-header .badge-alpha {
-    font-size: var(--text-caption);
-    padding: 2px 6px;
-    border-radius: var(--radius-full);
-    background: var(--color-accent-purple);
-    color: var(--color-text-inverse);
-    font-weight: var(--weight-semibold);
-    text-transform: uppercase;
-  }
-  .chronicle-nav {
-    display: flex;
-    gap: var(--space-1);
-    margin-left: auto;
-  }
-  .chronicle-nav a {
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-md);
-    font-size: var(--text-small);
-    font-weight: var(--weight-medium);
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    transition: var(--transition-hover);
-  }
-  .chronicle-nav a:hover,
-  .chronicle-nav a.active {
-    background: var(--color-bg-hover);
-    color: var(--color-text-primary);
-  }
-  .chronicle-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-8);
-  }
-  .chronicle-placeholder {
-    text-align: center;
-    max-width: 520px;
-  }
-  .chronicle-placeholder h1 {
-    font-size: var(--text-display-2);
-    font-weight: var(--weight-extrabold);
-    color: var(--color-text-heading);
-    letter-spacing: var(--tracking-display);
-    margin-bottom: var(--space-3);
-  }
-  .chronicle-placeholder p {
-    color: var(--color-text-secondary);
-    font-size: var(--text-body-lg);
-    line-height: var(--leading-body-lg);
-    margin-bottom: var(--space-6);
-  }
-  .chronicle-status-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-3);
-    margin-bottom: var(--space-6);
-  }
-  .chronicle-status-card {
-    background: var(--color-bg-surface);
-    border: 1px solid var(--color-border-default);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    text-align: center;
-  }
-  .chronicle-status-card .stat-value {
-    font-size: var(--text-heading-2);
-    font-weight: var(--weight-bold);
-    color: var(--color-text-heading);
-  }
-  .chronicle-status-card .stat-label {
-    font-size: var(--text-small);
-    color: var(--color-text-tertiary);
-    margin-top: var(--space-1);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-wider);
-  }
-  .chronicle-shortcuts {
-    display: flex;
-    gap: var(--space-4);
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .chronicle-shortcuts kbd {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    background: var(--color-bg-surface);
-    border: 1px solid var(--color-border-default);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--color-text-secondary);
-  }
-  .chronicle-shortcuts kbd .key {
-    color: var(--color-text-primary);
-    font-weight: var(--weight-semibold);
-  }
-  .chronicle-footer {
-    height: var(--footer-height);
-    background: var(--color-bg-surface);
-    border-top: 1px solid var(--color-border-subtle);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--space-4);
-    font-size: var(--text-caption);
-    color: var(--color-text-tertiary);
-  }
-  .chronicle-footer .status-indicator {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
-</style>
+<link rel="stylesheet" href="/chronicle/css/layout.css"/>
 </head>
 <body>
+<!-- Mobile sidebar backdrop -->
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
 <div class="chronicle-shell">
-  <header class="chronicle-header">
-    <div class="logo">
+  <!-- 2.1 / 2.2: Top Bar (48px, spans full width) -->
+  <header class="chronicle-topbar" role="banner">
+    <!-- Hamburger (mobile only) -->
+    <button class="topbar-hamburger" id="hamburger-btn" aria-label="Toggle navigation menu" onclick="toggleMobileSidebar()">☰</button>
+
+    <!-- Logo -->
+    <a href="#" class="topbar-logo" onclick="navigateTo('dashboard')">
       <span class="logo-icon">◈</span>
       Chronicle
-      <span class="badge-alpha">Alpha</span>
+    </a>
+
+    <!-- Command Palette Trigger -->
+    <div class="topbar-command-palette" role="button" tabindex="0" onclick="openCommandPalette()" onkeydown="if(event.key==='Enter')openCommandPalette()">
+      <span class="search-icon">🔍</span>
+      <span class="search-text">Search or run a command...</span>
+      <span class="kbd-hint"><kbd>⌘K</kbd></span>
     </div>
-    <nav class="chronicle-nav">
-      <a href="#" class="active" title="Dashboard ⌘1">⌘1 Dashboard</a>
-      <a href="#" title="Investigation ⌘2">⌘2 Investigate</a>
-      <a href="#" title="Timeline ⌘3">⌘3 Timeline</a>
-      <a href="#" title="Entity Graph ⌘4">⌘4 Graph</a>
-      <a href="#" title="Sessions ⌘5">⌘5 Sessions</a>
-      <a href="#" title="Memory ⌘6">⌘6 Memory</a>
-    </nav>
+
+    <!-- Right cluster -->
+    <div class="topbar-actions">
+      <button class="topbar-notification-btn" id="notif-btn" aria-label="Notifications" onclick="toggleNotificationDrawer()">
+        🔔
+        <span class="notification-badge" id="notif-badge">3</span>
+      </button>
+      <button class="topbar-profile" aria-label="User profile" onclick="toggleProfileMenu()">KA</button>
+    </div>
   </header>
 
-  <main class="chronicle-main">
-    <div class="chronicle-placeholder">
-      <h1>Chronicle</h1>
-      <p>Palantir-grade dark-theme operational dashboard for AI-powered investigations. Dense data, transparent reasoning, operator-first workflows.</p>
+  <!-- 2.3: Sidebar (collapsible, 260px / 48px) -->
+  <nav class="chronicle-sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-scroll">
+      <!-- MAIN section -->
+      <div class="sidebar-section-header">Main</div>
+      <a href="#" class="sidebar-nav-item active" data-tooltip="Dashboard ⌘1" onclick="navigateTo('dashboard')">
+        <span class="sidebar-nav-icon">📊</span>
+        <span class="sidebar-nav-label">Dashboard</span>
+        <span class="sidebar-nav-shortcut">⌘1</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Investigate ⌘2" onclick="navigateTo('investigate')">
+        <span class="sidebar-nav-icon">🔬</span>
+        <span class="sidebar-nav-label">Investigate</span>
+        <span class="sidebar-nav-shortcut">⌘2</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Timeline ⌘3" onclick="navigateTo('timeline')">
+        <span class="sidebar-nav-icon">📋</span>
+        <span class="sidebar-nav-label">Timeline</span>
+        <span class="sidebar-nav-shortcut">⌘3</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Entity Graph ⌘4" onclick="navigateTo('entity-graph')">
+        <span class="sidebar-nav-icon">🕸</span>
+        <span class="sidebar-nav-label">Entity Graph</span>
+        <span class="sidebar-nav-shortcut">⌘4</span>
+      </a>
 
-      <div class="chronicle-status-grid">
-        <div class="chronicle-status-card">
-          <div class="stat-value">—</div>
-          <div class="stat-label">Active Sessions</div>
+      <div class="sidebar-divider"></div>
+
+      <!-- OPERATIONS section -->
+      <div class="sidebar-section-header">Operations</div>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Sessions ⌘5" onclick="navigateTo('sessions')">
+        <span class="sidebar-nav-icon">💬</span>
+        <span class="sidebar-nav-label">Sessions</span>
+        <span class="sidebar-nav-shortcut">⌘5</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Memory ⌘6" onclick="navigateTo('memory')">
+        <span class="sidebar-nav-icon">🧠</span>
+        <span class="sidebar-nav-label">Memory</span>
+        <span class="sidebar-nav-shortcut">⌘6</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Findings" onclick="navigateTo('findings')">
+        <span class="sidebar-nav-icon">📌</span>
+        <span class="sidebar-nav-label">Findings</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" data-tooltip="Evidence Sources" onclick="navigateTo('evidence')">
+        <span class="sidebar-nav-icon">📎</span>
+        <span class="sidebar-nav-label">Evidence</span>
+      </a>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- SYSTEM section -->
+      <div class="sidebar-section-header">System</div>
+      <a href="#" class="sidebar-nav-item" onclick="navigateTo('health')">
+        <span class="sidebar-nav-icon">❤️</span>
+        <span class="sidebar-nav-label">Health</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" onclick="navigateTo('billing')">
+        <span class="sidebar-nav-icon">💰</span>
+        <span class="sidebar-nav-label">Billing</span>
+      </a>
+      <a href="#" class="sidebar-nav-item" onclick="navigateTo('settings')">
+        <span class="sidebar-nav-icon">⚙️</span>
+        <span class="sidebar-nav-label">Settings</span>
+      </a>
+    </div>
+
+    <!-- Bottom: collapse toggle -->
+    <div class="sidebar-bottom">
+      <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+        <span class="collapse-icon">⇄</span>
+        <span class="collapse-label">Collapse</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- 2.4: Content Area -->
+  <main class="chronicle-content" id="content-area" role="main">
+    <div class="content-view" id="dashboard-view">
+      <!-- Dashboard Overview (§5) placeholder -->
+      <h1 style="font-size:var(--text-display-2);font-weight:var(--weight-extrabold);color:var(--color-text-heading);letter-spacing:var(--tracking-display);margin-bottom:var(--space-3);">Chronicle</h1>
+      <p style="color:var(--color-text-secondary);font-size:var(--text-body-lg);line-height:var(--leading-body-lg);margin-bottom:var(--space-6);max-width:520px;">
+        Palantir-grade dark-theme operational dashboard for AI-powered investigations.
+        Dense data, transparent reasoning, operator-first workflows.
+      </p>
+
+      <!-- Status cards -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-6);max-width:600px;">
+        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
+          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
+          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">Active Sessions</div>
         </div>
-        <div class="chronicle-status-card">
-          <div class="stat-value">—</div>
-          <div class="stat-label">Pending Tasks</div>
+        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
+          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
+          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">Pending Tasks</div>
         </div>
-        <div class="chronicle-status-card">
-          <div class="stat-value">—</div>
-          <div class="stat-label">System Health</div>
+        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
+          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
+          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">System Health</div>
         </div>
       </div>
 
-      <p class="text-small" style="color: var(--color-text-tertiary); margin-bottom: var(--space-4);">
-        Keyboard shortcuts — press <kbd><span class="key">⌘K</span></kbd> for command palette
+      <p style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-bottom:var(--space-4);">
+        Press <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘K</span></kbd> for command palette
       </p>
 
-      <div class="chronicle-shortcuts">
-        <kbd><span class="key">⌘1</span> Dashboard</kbd>
-        <kbd><span class="key">⌘2</span> Investigate</kbd>
-        <kbd><span class="key">⌘3</span> Timeline</kbd>
-        <kbd><span class="key">⌘4</span> Graph</kbd>
-        <kbd><span class="key">⌘5</span> Sessions</kbd>
-        <kbd><span class="key">⌘K</span> Commands</kbd>
+      <!-- Keyboard shortcuts -->
+      <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
+        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘1</span> Dashboard</kbd>
+        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘2</span> Investigate</kbd>
+        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘K</span> Commands</kbd>
       </div>
     </div>
   </main>
 
-  <footer class="chronicle-footer">
-    <span>Chronicle &middot; Consensus v0.1.0</span>
-    <span class="status-indicator">
-      <span class="status-dot status-idle"></span>
-      Design System Phase 1.1
-    </span>
+  <!-- 2.5: Status Bar (32px, spans full width) -->
+  <footer class="chronicle-statusbar" role="contentinfo">
+    <div class="statusbar-left">
+      <span class="statusbar-item" onclick="navigateTo('sessions')">
+        <span>💬</span>
+        <span id="status-sessions">0 sessions</span>
+      </span>
+    </div>
+    <div class="statusbar-right">
+      <span class="statusbar-item" onclick="navigateTo('health')">
+        <span class="status-dot connected" id="status-dot"></span>
+        <span id="status-api">Connected</span>
+      </span>
+      <span class="statusbar-item budget-bar" onclick="navigateTo('billing')">
+        <span class="budget-track">
+          <span class="budget-fill safe" id="budget-fill" style="width:0%"></span>
+        </span>
+        <span id="status-budget">$0.00 / $10.00</span>
+      </span>
+      <span class="statusbar-item">
+        <span id="status-version">v0.1.0</span>
+      </span>
+      <span class="statusbar-item" id="status-deployment">
+        <span>local · dev</span>
+      </span>
+    </div>
   </footer>
 </div>
+
+<!-- Inline JS for shell interactions -->
+<script>
+(function() {
+  'use strict';
+
+  // --- 2.3 Sidebar collapse ---
+  window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('chronicle-sidebar-collapsed', isCollapsed ? 'true' : 'false');
+  };
+
+  // Restore sidebar state
+  (function restoreSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (localStorage.getItem('chronicle-sidebar-collapsed') === 'true') {
+      sidebar.classList.add('collapsed');
+    }
+  })();
+
+  // --- Mobile sidebar ---
+  window.toggleMobileSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const isOpen = sidebar.classList.toggle('mobile-open');
+    backdrop.classList.toggle('active');
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  };
+
+  // Close mobile sidebar on backdrop click
+  document.getElementById('sidebar-backdrop').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    this.classList.remove('active');
+    document.body.style.overflow = '';
+  });
+
+  // --- 2.5 (simulated) Keyboard shortcut: ⌘K opens command palette ---
+  window.openCommandPalette = function() {
+    // Placeholder — Phase 2 will wire full command palette
+    alert('Command Palette (⌘K) — coming in Phase 1.3');
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openCommandPalette();
+    }
+  });
+
+  // --- Notification drawer placeholder ---
+  window.toggleNotificationDrawer = function() {
+    alert('Notification drawer — coming in Phase 1.3');
+  };
+
+  // --- Profile menu placeholder ---
+  window.toggleProfileMenu = function() {
+    alert('Profile menu — coming in Phase 1.3');
+  };
+
+  // --- 2.5 (simulated) Navigation (SPA routing placeholder) ---
+  window.navigateTo = function(view) {
+    // Phase 1.4+ will wire actual SPA routing
+    // For now, just highlight the active nav item
+    document.querySelectorAll('.sidebar-nav-item').forEach(function(item) {
+      item.classList.remove('active');
+    });
+
+    // Find the matching nav item by data attribute or text
+    const navItems = document.querySelectorAll('.sidebar-nav-item');
+    for (let i = 0; i < navItems.length; i++) {
+      if (navItems[i].textContent.trim().toLowerCase().includes(view)) {
+        navItems[i].classList.add('active');
+        break;
+      }
+    }
+
+    // Close mobile sidebar after navigation
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar.classList.contains('mobile-open')) {
+      sidebar.classList.remove('mobile-open');
+      document.getElementById('sidebar-backdrop').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  };
+
+  // --- Sidebar keyboard shortcut: Ctrl+B toggles collapse ---
+  document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      e.preventDefault();
+      toggleSidebar();
+    }
+  });
+})();
+</script>
 </body>
 </html>

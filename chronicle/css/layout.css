@@ -1,0 +1,736 @@
+/* ============================================================================
+   Chronicle Layout Architecture — §2
+   Spec: specs/026-dashboard-ui.md §2 Layout Architecture
+   ============================================================================
+   CSS Grid shell: top bar + sidebar + content + status bar.
+   Responsive: desktop (expanded sidebar), tablet (collapsed), mobile (hidden).
+   ============================================================================ */
+
+/* ==========================================================================
+   2.1 Shell Grid
+   ========================================================================== */
+
+.chronicle-shell {
+  display: grid;
+  grid-template-rows: var(--header-height) 1fr var(--footer-height);
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+/* Grid placement */
+.chronicle-topbar {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  z-index: 100;
+}
+
+.chronicle-sidebar {
+  grid-row: 2;
+  grid-column: 1;
+  z-index: 50;
+}
+
+.chronicle-content {
+  grid-row: 2;
+  grid-column: 2;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-bg-canvas);
+}
+
+.chronicle-statusbar {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  z-index: 100;
+}
+
+/* ==========================================================================
+   2.2 Top Bar (48px)
+   ========================================================================== */
+
+.chronicle-topbar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Logo */
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--color-text-heading);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+}
+
+.topbar-logo .logo-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent-primary);
+  font-size: 20px;
+  transition: transform 250ms ease-out-expo;
+}
+
+.topbar-logo:hover .logo-icon {
+  transform: rotate(15deg);
+}
+
+/* Command palette trigger */
+.topbar-command-palette {
+  flex: 1;
+  max-width: 320px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--color-text-placeholder);
+  font-size: var(--text-body);
+  transition: border-color 150ms, box-shadow 150ms;
+  user-select: none;
+  margin: 0 var(--space-3);
+}
+
+.topbar-command-palette:hover {
+  border-color: var(--color-border-hover);
+}
+
+.topbar-command-palette:focus,
+.topbar-command-palette:focus-within {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-primary-glow);
+  outline: none;
+}
+
+.topbar-command-palette .search-icon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  font-size: 16px;
+}
+
+.topbar-command-palette .search-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-command-palette .kbd-hint {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/* Top bar right cluster */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Notification bell */
+.topbar-notification-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  transition: color 150ms, background 150ms;
+}
+
+.topbar-notification-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--color-accent-error);
+  color: white;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  line-height: 18px;
+  text-align: center;
+  display: none;
+}
+
+.notification-badge.has-count {
+  display: block;
+  animation: badge-bounce 400ms ease-spring;
+}
+
+@keyframes badge-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Profile avatar */
+.topbar-profile {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-primary-muted);
+  color: var(--color-text-accent);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background 150ms;
+  border: none;
+}
+
+.topbar-profile:hover {
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+}
+
+/* Mobile hamburger (hidden on desktop) */
+.topbar-hamburger {
+  display: none;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+/* ==========================================================================
+   2.3 Sidebar (240px expanded, 48px collapsed)
+   ========================================================================== */
+
+.chronicle-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border-default);
+  overflow: hidden;
+  transition: width 250ms ease-out-expo;
+  width: var(--sidebar-width);
+}
+
+.chronicle-sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+}
+
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-2) 0;
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 2px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Sidebar sections */
+.sidebar-section-header {
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  padding: var(--space-4) var(--space-3) var(--space-1);
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-section-header {
+  display: none;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  margin: 2px var(--space-2);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  text-decoration: none;
+  transition: background 150ms var(--transition-hover), color 150ms;
+  white-space: nowrap;
+  position: relative;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebar-nav-item.active {
+  background: var(--color-accent-primary-muted);
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.sidebar-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--color-accent-primary);
+  border-radius: 2px;
+}
+
+.sidebar-nav-item.disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.sidebar-nav-item.disabled:hover {
+  background: transparent;
+}
+
+.sidebar-nav-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.sidebar-nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar.collapsed .sidebar-nav-label {
+  display: none;
+}
+
+.sidebar-nav-shortcut {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+.sidebar.collapsed .sidebar-nav-shortcut {
+  display: none;
+}
+
+/* Sidebar divider */
+.sidebar-divider {
+  margin: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Sidebar bottom area — collapse toggle */
+.sidebar-bottom {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-1) 0;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  margin: var(--space-1) var(--space-2) var(--space-2);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: var(--text-body);
+  width: calc(100% - var(--space-4));
+  transition: color 150ms, background 150ms;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebar-collapse-btn .collapse-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  transition: transform 250ms ease-out-expo;
+}
+
+.sidebar.collapsed .sidebar-collapse-btn .collapse-icon {
+  transform: rotate(180deg);
+}
+
+.sidebar.collapsed .sidebar-collapse-btn .collapse-label {
+  display: none;
+}
+
+/* Sidebar tooltip (collapsed mode) */
+.sidebar.collapsed .sidebar-nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .sidebar-nav-item .sidebar-nav-icon {
+  margin: 0;
+}
+
+.sidebar-tooltip {
+  display: none;
+  position: fixed;
+  left: calc(var(--sidebar-collapsed) + 4px);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-surface-overlay);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 200;
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar.collapsed .sidebar-nav-item:hover .sidebar-tooltip {
+  display: block;
+}
+
+/* ==========================================================================
+   2.4 Content Area
+   ========================================================================== */
+
+.chronicle-content {
+  padding: 0;
+}
+
+.content-view {
+  padding: var(--space-8);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.content-view-full {
+  padding: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* Route transitions */
+.content-view-enter {
+  animation: view-enter 250ms ease-out-quint;
+}
+
+.content-view-exit {
+  animation: view-exit 150ms ease-in-quint;
+}
+
+@keyframes view-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes view-exit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+/* ==========================================================================
+   2.5 Status Bar (28px / 32px)
+   ========================================================================== */
+
+.chronicle-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-default);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  user-select: none;
+  height: var(--footer-height);
+}
+
+.statusbar-left,
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  transition: color 150ms;
+}
+
+.statusbar-item:hover {
+  color: var(--color-text-secondary);
+}
+
+.statusbar-item .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.statusbar-item .status-dot.connected {
+  background: var(--color-accent-success);
+  animation: dot-pulse 2s infinite;
+}
+
+.statusbar-item .status-dot.degraded {
+  background: var(--color-accent-warning);
+}
+
+.statusbar-item .status-dot.disconnected {
+  background: var(--color-accent-error);
+  animation: dot-flash 0.5s infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes dot-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* Budget progress bar */
+.budget-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.budget-track {
+  width: 40px;
+  height: 4px;
+  background: var(--color-bg-input);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.budget-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s ease-out-quint;
+}
+
+.budget-fill.safe {
+  background: var(--color-accent-success);
+}
+
+.budget-fill.moderate {
+  background: var(--color-accent-warning);
+}
+
+.budget-fill.high {
+  background: var(--color-accent-error);
+}
+
+/* ==========================================================================
+   2.7 Responsive Breakpoints
+   ========================================================================== */
+
+/* Tablet: 768-1023px — collapsed sidebar by default */
+@media (max-width: 1023px) {
+  .chronicle-shell {
+    grid-template-columns: var(--sidebar-collapsed) 1fr;
+  }
+
+  .chronicle-sidebar {
+    width: var(--sidebar-collapsed);
+  }
+
+  .sidebar-section-header,
+  .sidebar-nav-label,
+  .sidebar-nav-shortcut,
+  .sidebar.collapsed .sidebar-collapse-btn .collapse-label {
+    display: none;
+  }
+
+  .sidebar-nav-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar-nav-item .sidebar-nav-icon {
+    margin: 0;
+  }
+
+  .sidebar-collapse-btn {
+    justify-content: center;
+  }
+
+  .sidebar-collapse-btn .collapse-icon {
+    transform: rotate(180deg);
+  }
+
+  .sidebar-divider {
+    margin: var(--space-1) var(--space-2);
+  }
+
+  /* Top bar command palette narrower */
+  .topbar-command-palette {
+    max-width: 200px;
+  }
+
+  .content-view {
+    padding: var(--space-6);
+  }
+}
+
+/* Mobile: <768px — sidebar hidden, overlay menu */
+@media (max-width: 767px) {
+  .chronicle-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .chronicle-sidebar {
+    display: none;
+  }
+
+  .chronicle-sidebar.mobile-open {
+    display: flex;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    bottom: var(--footer-height);
+    width: 100%;
+    z-index: 200;
+    border-right: none;
+  }
+
+  /* Hamburger icon visible */
+  .topbar-hamburger {
+    display: flex;
+  }
+
+  /* Mobile sidebar backdrop */
+  .sidebar-backdrop {
+    display: none;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
+  }
+
+  /* Command palette hidden on mobile, replaced by search icon */
+  .topbar-command-palette {
+    display: none;
+  }
+
+  .content-view {
+    padding: var(--space-4);
+  }
+}
+
+/* Desktop: >=1024px — expanded sidebar by default */
+@media (min-width: 1024px) {
+  .chronicle-sidebar {
+    width: var(--sidebar-width);
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+/* Scrollbar styles for content area */
+.chronicle-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chronicle-content::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.chronicle-content::-webkit-scrollbar-track {
+  background: transparent;
+}
