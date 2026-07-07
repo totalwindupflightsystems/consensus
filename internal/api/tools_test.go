@@ -463,7 +463,7 @@ func TestExecuteTool_SessionScoped(t *testing.T) {
 	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('sess-sc', 'mine', 'gpt-4o', 'idle', 'Scope', $1, $1)`, now)
 	_ = srv.conn.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, status, enabled) VALUES ('tool-sc', 'scoped_tool', 'Scoped', 'internal', 'sql_function', 'fn_sc', 'active', 1)`)
 
-	sessionKey := "cs_sk_scoped_test_key_123456"
+	sessionKey := "test-scoped-key-not-a-secret"
 	hash := sha256Hash(sessionKey)
 	prefix := sessionKey[:min(8, len(sessionKey))]
 	_ = srv.conn.Exec(ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, session_id, created_at) VALUES ('key-sc', $1, $2, 'session', 'sess-sc', datetime('now'))`, hash, prefix)

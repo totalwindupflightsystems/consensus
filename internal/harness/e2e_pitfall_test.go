@@ -55,7 +55,7 @@ func TestE2E_CircuitBreakerTripsOnConsecutiveErrors(t *testing.T) {
 
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-5e64bd0e1d7f442a95a951b751e80d67"
+		apiKey = "test-fake-key-not-a-real-secret"
 	}
 
 	// Configure aggressive circuit breaker: 1 error → trip
@@ -202,7 +202,7 @@ func TestE2E_TransactionAtomicity_PartialStateNotCommitted(t *testing.T) {
 
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-5e64bd0e1d7f442a95a951b751e80d67"
+		apiKey = "test-fake-key-not-a-real-secret"
 	}
 
 	configYAML := fmt.Sprintf(`server:
@@ -344,7 +344,7 @@ func TestE2E_CrashRecovery_ServerRestartResumesCleanly(t *testing.T) {
 
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-5e64bd0e1d7f442a95a951b751e80d67"
+		apiKey = "test-fake-key-not-a-real-secret"
 	}
 
 	configYAML := fmt.Sprintf(`server:

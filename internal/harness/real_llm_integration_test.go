@@ -32,7 +32,7 @@ func TestRealLLMIntegration(t *testing.T) {
 	baseURL := "https://api.deepseek.com/v1"
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-5e64bd0e1d7f442a95a951b751e80d67" // fallback from config
+		apiKey = "test-fake-key-not-a-real-secret" // fallback from config
 	}
 	if !apiReachable(t, baseURL, apiKey) {
 		// Fall back to LM Studio

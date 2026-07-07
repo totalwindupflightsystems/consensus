@@ -42,7 +42,7 @@ func TestE2ERealLLMServe(t *testing.T) {
 	// Write config
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
-		apiKey = "sk-5e64bd0e1d7f442a95a951b751e80d67"
+		apiKey = "test-fake-key-not-a-real-secret"
 	}
 	configYAML := fmt.Sprintf(`server:
   hostname: 127.0.0.1
