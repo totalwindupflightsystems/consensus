@@ -1087,3 +1087,662 @@ textarea.cmp-input {
     flex: 1;
   }
 }
+
+
+/* ==========================================================================
+   3.10 Data Table — .cmp-table
+   Spec: specs/026-dashboard-ui.md §3.4
+   Features: sortable, paginated, selectable, striped
+   ========================================================================== */
+
+.cmp-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  background: transparent;
+}
+
+/* Header */
+.cmp-table thead {
+  background: var(--color-bg-surface-raised);
+}
+
+.cmp-table th {
+  padding: 10px 16px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+  position: relative;
+  border-bottom: 1px solid var(--color-border-default);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default);
+}
+
+.cmp-table th:hover {
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+.cmp-table th.sorted-asc,
+.cmp-table th.sorted-desc {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-bold);
+}
+
+.cmp-table th.sorted-asc::after {
+  content: ' ↑';
+  font-size: 10px;
+  opacity: 1;
+}
+
+.cmp-table th.sorted-desc::after {
+  content: ' ↓';
+  font-size: 10px;
+  opacity: 1;
+}
+
+.cmp-table th:not(.sorted-asc):not(.sorted-desc)::after {
+  content: ' ↕';
+  font-size: 10px;
+  opacity: 0.3;
+}
+
+/* Header checkbox */
+.cmp-table th .cmp-table-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  display: block;
+  accent-color: var(--color-accent-primary);
+  cursor: pointer;
+}
+
+/* Body */
+.cmp-table tbody tr {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background var(--duration-fast) var(--ease-default);
+  height: 52px;
+}
+
+.cmp-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.cmp-table tbody tr:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.cmp-table tbody tr.selected {
+  background: var(--color-bg-selection);
+}
+
+.cmp-table tbody tr.selected:hover {
+  background: var(--color-bg-selection-muted);
+}
+
+/* Striped */
+.cmp-table-striped tbody tr:nth-child(even) {
+  background: rgba(30, 45, 75, 0.15);
+}
+
+.cmp-table-striped tbody tr:nth-child(even):hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.cmp-table-striped tbody tr.selected:nth-child(even) {
+  background: var(--color-bg-selection);
+}
+
+/* Cells */
+.cmp-table td {
+  padding: 0 16px;
+  color: var(--color-text-primary);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cmp-table td.numeric,
+.cmp-table th.numeric {
+  text-align: right;
+  font-feature-settings: 'tnum' 1;
+}
+
+.cmp-table td.wrap {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Status dot cell */
+.cmp-table td.status-cell {
+  width: 32px;
+  padding: 0 8px;
+  text-align: center;
+}
+
+.cmp-table .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+/* Checkbox cell */
+.cmp-table td.checkbox-cell {
+  width: 48px;
+  padding: 0;
+  text-align: center;
+}
+
+.cmp-table .cmp-table-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent-primary);
+  cursor: pointer;
+  margin: 0 auto;
+  display: block;
+}
+
+/* Compact variant */
+.cmp-table-compact tbody tr {
+  height: 40px;
+}
+
+.cmp-table-compact th,
+.cmp-table-compact td {
+  padding: 6px 12px;
+  font-size: var(--text-small);
+}
+
+/* Comfortable variant */
+.cmp-table-comfortable tbody tr {
+  height: 64px;
+}
+
+.cmp-table-comfortable th,
+.cmp-table-comfortable td {
+  padding: 12px 20px;
+}
+
+/* Table footer / pagination */
+.cmp-table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--color-bg-surface-raised);
+  border-top: 1px solid var(--color-border-default);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.cmp-table-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cmp-table-footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cmp-table-page-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--text-caption);
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default);
+}
+
+.cmp-table-page-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.cmp-table-page-btn.active {
+  background: var(--color-bg-selection);
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  font-weight: var(--weight-bold);
+}
+
+.cmp-table-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cmp-table-page-btn:disabled:hover {
+  background: transparent;
+  border-color: var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+
+.cmp-table-page-info {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-2);
+}
+
+/* Empty state */
+.cmp-table-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--color-text-secondary);
+}
+
+.cmp-table-empty-icon {
+  font-size: 32px;
+  margin-bottom: var(--space-2);
+  opacity: 0.5;
+}
+
+.cmp-table-empty-text {
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.cmp-table-empty-hint {
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+/* Loading state */
+.cmp-table-loading tbody tr {
+  height: 44px;
+  border-bottom: none;
+}
+
+.cmp-table-loading .cmp-skeleton-text {
+  margin-bottom: 0;
+  height: 14px;
+}
+
+/* Responsive: horizontal scroll */
+@media (max-width: 1023px) {
+  .cmp-table-wrapper {
+    min-width: 600px;
+  }
+}
+
+@media (max-width: 767px) {
+  .cmp-table-wrapper {
+    min-width: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  .cmp-table-card-view thead {
+    display: none;
+  }
+
+  .cmp-table-card-view tbody tr {
+    display: block;
+    height: auto;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .cmp-table-card-view td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    white-space: normal;
+  }
+
+  .cmp-table-card-view td::before {
+    content: attr(data-label);
+    font-size: var(--text-small);
+    color: var(--color-text-tertiary);
+    font-weight: var(--weight-semibold);
+    margin-right: var(--space-2);
+  }
+
+  .cmp-table-card-view td.checkbox-cell {
+    width: auto;
+    text-align: left;
+  }
+}
+
+
+/* ==========================================================================
+   3.11 CodeBlock — .cmp-codeblock
+   Spec: specs/026-dashboard-ui.md §3.5
+   Features: syntax highlighting, copy button, line numbers, word wrap
+   ========================================================================== */
+
+.cmp-codeblock {
+  background: var(--color-bg-code);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1.5;
+  overflow: hidden;
+  position: relative;
+}
+
+.cmp-codeblock-header {
+  height: 36px;
+  background: var(--color-bg-surface-raised);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cmp-codeblock-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cmp-codeblock-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cmp-codeblock-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+}
+
+.cmp-codeblock-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.cmp-codeblock-btn.copied {
+  color: var(--color-accent-success);
+}
+
+.cmp-codeblock-body {
+  padding: 16px;
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: pre;
+  tab-size: 2;
+  max-height: 400px;
+}
+
+.cmp-codeblock-body.wrap {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Line numbers */
+.cmp-codeblock-lines .cmp-codeblock-body {
+  counter-reset: line;
+}
+
+.cmp-codeblock-lines .cmp-codeblock-line {
+  display: block;
+  counter-increment: line;
+}
+
+.cmp-codeblock-lines .cmp-codeblock-line::before {
+  content: counter(line);
+  display: inline-block;
+  width: 36px;
+  text-align: right;
+  padding-right: 12px;
+  margin-right: 12px;
+  color: var(--color-text-tertiary);
+  opacity: 0.5;
+  user-select: none;
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+/* Syntax highlighting tokens */
+.cb-comment    { color: #8b949e; font-style: italic; }
+.cb-keyword    { color: #ff7b72; }
+.cb-string     { color: #a5d6ff; }
+.cb-number     { color: #79c0ff; }
+.cb-boolean    { color: #ffa657; }
+.cb-null       { color: #ffa657; }
+.cb-type       { color: #ffa657; }
+.cb-function   { color: #d2a8ff; }
+.cb-variable   { color: #ffa657; }
+.cb-operator   { color: #ff7b72; }
+.cb-punctuation { color: #e6edf3; }
+.cb-tag        { color: #7ee787; }
+.cb-attr       { color: #79c0ff; }
+.cb-attr-value { color: #a5d6ff; }
+.cb-diff-add   { background: rgba(35,134,54,0.15); color: #3fb950; display: inline-block; width: 100%; }
+.cb-diff-remove { background: rgba(218,54,51,0.15); color: #f85149; display: inline-block; width: 100%; }
+
+/* Copy feedback */
+.cmp-codeblock-copy-feedback {
+  position: absolute;
+  top: 36px;
+  right: 12px;
+  font-size: var(--text-caption);
+  color: var(--color-accent-success);
+  background: rgba(35,134,54,0.15);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.cmp-codeblock-copy-feedback.show {
+  opacity: 1;
+}
+
+/* Empty/error states */
+.cmp-codeblock-empty,
+.cmp-codeblock-error {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+}
+
+.cmp-codeblock-error {
+  color: var(--color-text-error);
+}
+
+
+/* ==========================================================================
+   3.12 JSONViewer — .cmp-jsonviewer
+   Spec: specs/026-dashboard-ui.md §3.6
+   Features: expandable tree, syntax coloring, copy path, search
+   ========================================================================== */
+
+.cmp-jsonviewer {
+  background: var(--color-bg-code);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1.6;
+  overflow-x: auto;
+  padding: 12px 16px;
+  min-height: 40px;
+}
+
+.cmp-jsonviewer-header {
+  height: 36px;
+  background: var(--color-bg-surface-raised);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -12px -16px 8px;
+}
+
+.cmp-jsonviewer-header .cmp-jsonviewer-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.cmp-jsonviewer-header .cmp-jsonviewer-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.cmp-jsonviewer-header .cmp-codeblock-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+}
+
+.cmp-jsonviewer-header .cmp-codeblock-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+/* JSON tree entries */
+.cmp-json-entry {
+  padding-left: 0;
+}
+
+.cmp-json-entry-level {
+  padding-left: 16px;
+}
+
+.cmp-json-key {
+  color: var(--color-text-code);
+  font-weight: var(--weight-medium);
+}
+
+.cmp-json-colon {
+  color: var(--color-text-tertiary);
+  margin-right: 4px;
+}
+
+.cmp-json-comma {
+  color: var(--color-text-tertiary);
+}
+
+/* Value colors */
+.cmp-json-string {
+  color: #7ee787;
+}
+
+.cmp-json-number {
+  color: #79c0ff;
+}
+
+.cmp-json-boolean {
+  color: #ffa657;
+}
+
+.cmp-json-null {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.cmp-json-bracket {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-bold);
+}
+
+/* Toggle */
+.cmp-json-toggle {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  user-select: none;
+  margin-right: 2px;
+  font-size: 10px;
+  transition: transform 150ms ease;
+}
+
+.cmp-json-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+/* Collapsed preview */
+.cmp-json-preview {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Hover highlight */
+.cmp-json-entry:hover {
+  background: rgba(48, 54, 61, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+/* Empty / error states */
+.cmp-jsonviewer-empty,
+.cmp-jsonviewer-error {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+}
+
+.cmp-jsonviewer-error {
+  color: var(--color-text-error);
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .cmp-codeblock-body {
+    max-height: 250px;
+  }
+
+  .cmp-jsonviewer {
+    font-size: var(--text-caption);
+  }
+}

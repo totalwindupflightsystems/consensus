@@ -127,6 +127,250 @@
         Dense data, transparent reasoning, operator-first workflows.
       </p>
 
+      <!-- Data Display Demo: Table (§3.4) -->
+      <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);margin-top:var(--space-6);">Data Table — §3.4</h2>
+      <div class="cmp-table-wrapper">
+        <table class="cmp-table cmp-table-striped" id="demo-table">
+          <thead>
+            <tr>
+              <th class="numeric" style="width:48px;"><input type="checkbox" class="cmp-table-checkbox" id="select-all" onchange="toggleAllRows()" aria-label="Select all rows"></th>
+              <th class="sorted-asc">Session</th>
+              <th>Status</th>
+              <th>Model</th>
+              <th class="numeric">Iterations</th>
+              <th class="numeric">Tokens</th>
+              <th class="numeric">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="toggleRow(this)" data-id="a3f2b">
+              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session a3f2b"></td>
+              <td><strong>#a3f2b</strong> Q4 Revenue Analysis</td>
+              <td><span class="cmp-badge cmp-badge-info cmp-badge-sm">Thinking</span></td>
+              <td>deepseek-v4-pro</td>
+              <td class="numeric">42</td>
+              <td class="numeric">847K</td>
+              <td class="numeric">$0.42</td>
+            </tr>
+            <tr onclick="toggleRow(this)" data-id="b2e1c">
+              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session b2e1c"></td>
+              <td><strong>#b2e1c</strong> Phishing Analysis</td>
+              <td><span class="cmp-badge cmp-badge-success cmp-badge-sm">Completed</span></td>
+              <td>gpt-5.5</td>
+              <td class="numeric">18</td>
+              <td class="numeric">234K</td>
+              <td class="numeric">$0.18</td>
+            </tr>
+            <tr onclick="toggleRow(this)" data-id="c4f8d">
+              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session c4f8d"></td>
+              <td><strong>#c4f8d</strong> Network Scan Analysis</td>
+              <td><span class="cmp-badge cmp-badge-warning cmp-badge-sm">Paused</span></td>
+              <td>kimi-k2.7-code</td>
+              <td class="numeric">7</td>
+              <td class="numeric">89K</td>
+              <td class="numeric">$0.06</td>
+            </tr>
+            <tr onclick="toggleRow(this)" data-id="d1a9e">
+              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session d1a9e"></td>
+              <td><strong>#d1a9e</strong> Q3 Anomaly Detection</td>
+              <td><span class="cmp-badge cmp-badge-error cmp-badge-sm">Failed</span></td>
+              <td>glm-5.2</td>
+              <td class="numeric">3</td>
+              <td class="numeric">12K</td>
+              <td class="numeric">$0.01</td>
+            </tr>
+            <tr onclick="toggleRow(this)" data-id="e5b3f">
+              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session e5b3f"></td>
+              <td><strong>#e5b3f</strong> Supplier Audit</td>
+              <td><span class="cmp-badge cmp-badge-default cmp-badge-sm">Idle</span></td>
+              <td>minimax-m3</td>
+              <td class="numeric">0</td>
+              <td class="numeric">—</td>
+              <td class="numeric">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="cmp-table-footer">
+          <div class="cmp-table-footer-left">
+            <span id="selected-count">0 selected</span>
+          </div>
+          <div class="cmp-table-footer-right">
+            <button class="cmp-table-page-btn" disabled aria-label="Previous page">‹</button>
+            <button class="cmp-table-page-btn active" aria-label="Page 1">1</button>
+            <button class="cmp-table-page-btn" aria-label="Page 2">2</button>
+            <button class="cmp-table-page-btn" aria-label="Page 3">3</button>
+            <button class="cmp-table-page-btn" aria-label="Next page">›</button>
+            <span class="cmp-table-page-info">Page 1 of 3 · Showing 1–5 of 12 results</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Display Demo: CodeBlock (§3.5) + JSONViewer (§3.6) side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-top:var(--space-4);">
+        <!-- CodeBlock -->
+        <div>
+          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">CodeBlock — §3.5</h2>
+          <div class="cmp-codeblock">
+            <div class="cmp-codeblock-header">
+              <span class="cmp-codeblock-label">📄 session_a3f2b_tool_result.json</span>
+              <div class="cmp-codeblock-actions">
+                <button class="cmp-codeblock-btn" onclick="copyCodeBlock(this)" aria-label="Copy code" title="Copy">📋</button>
+                <button class="cmp-codeblock-btn" onclick="toggleCodeBlockWrap(this)" aria-label="Toggle word wrap" title="Wrap">↻</button>
+              </div>
+            </div>
+            <div class="cmp-codeblock-body" id="demo-codeblock">
+<span class="cmp-codeblock-line"><span class="cb-punctuation">{</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"session_id"</span><span class="cb-punctuation">:</span> <span class="cb-string">"a3f2b"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"query"</span><span class="cb-punctuation">:</span> <span class="cb-string">"Analyze Q4 revenue data for anomalies"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"status"</span><span class="cb-punctuation">:</span> <span class="cb-string">"thinking"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"iterations"</span><span class="cb-punctuation">:</span> <span class="cb-number">42</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"tokens_used"</span><span class="cb-punctuation">:</span> <span class="cb-number">847321</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"findings"</span><span class="cb-punctuation">:</span> <span class="cb-punctuation">[</span></span>
+<span class="cmp-codeblock-line">    <span class="cb-punctuation">{</span></span>
+<span class="cmp-codeblock-line">      <span class="cb-keyword">"id"</span><span class="cb-punctuation">:</span> <span class="cb-string">"F-001"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">      <span class="cb-keyword">"type"</span><span class="cb-punctuation">:</span> <span class="cb-string">"anomaly"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">      <span class="cb-keyword">"confidence"</span><span class="cb-punctuation">:</span> <span class="cb-number">0.87</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">      <span class="cb-keyword">"description"</span><span class="cb-punctuation">:</span> <span class="cb-string">"Revenue spike detected in APAC region — 312% above baseline"</span></span>
+<span class="cmp-codeblock-line">    <span class="cb-punctuation">}</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-punctuation">],</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-keyword">"metadata"</span><span class="cb-punctuation">:</span> <span class="cb-punctuation">{</span></span>
+<span class="cmp-codeblock-line">    <span class="cb-keyword">"model"</span><span class="cb-punctuation">:</span> <span class="cb-string">"deepseek-v4-pro"</span><span class="cb-punctuation">,</span></span>
+<span class="cmp-codeblock-line">    <span class="cb-keyword">"started_at"</span><span class="cb-punctuation">:</span> <span class="cb-string">"2026-07-07T14:30:00Z"</span></span>
+<span class="cmp-codeblock-line">  <span class="cb-punctuation">}</span></span>
+<span class="cmp-codeblock-line"><span class="cb-punctuation">}</span></span>
+            </div>
+          </div>
+        </div>
+        <!-- JSONViewer -->
+        <div>
+          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">JSONViewer — §3.6</h2>
+          <div class="cmp-jsonviewer">
+            <div class="cmp-jsonviewer-header">
+              <span class="cmp-jsonviewer-label">📊 Session #a3f2b Metadata</span>
+              <div class="cmp-jsonviewer-actions">
+                <button class="cmp-codeblock-btn" onclick="copyJsonContent()" aria-label="Copy JSON" title="Copy JSON">📋</button>
+              </div>
+            </div>
+            <div id="demo-jsonviewer">
+              <div class="cmp-json-entry">
+                <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
+                <span class="cmp-json-key">"session"</span>
+                <span class="cmp-json-colon">:</span>
+                <span class="cmp-json-bracket">{</span>
+                <span class="cmp-json-preview"> 5 keys</span>
+                <span class="cmp-json-comma"></span>
+              </div>
+              <div class="cmp-json-entry" style="display:none;">
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"id"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-string">"a3f2b"</span>
+                  <span class="cmp-json-comma">,</span>
+                </div>
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"name"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-string">"Q4 Revenue Analysis"</span>
+                  <span class="cmp-json-comma">,</span>
+                </div>
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"status"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-string">"thinking"</span>
+                  <span class="cmp-json-comma">,</span>
+                </div>
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"iterations"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-number">42</span>
+                  <span class="cmp-json-comma">,</span>
+                </div>
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"model"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-string">"deepseek-v4-pro"</span>
+                  <span class="cmp-json-comma"></span>
+                </div>
+                <div class="cmp-json-entry">
+                  <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
+                  <span class="cmp-json-key">"cost_breakdown"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-bracket">{</span>
+                  <span class="cmp-json-preview"> 3 keys</span>
+                  <span class="cmp-json-comma"></span>
+                </div>
+                <div class="cmp-json-entry" style="display:none;">
+                  <div class="cmp-json-entry-level">
+                    <span class="cmp-json-key">"input_tokens"</span>
+                    <span class="cmp-json-colon">:</span>
+                    <span class="cmp-json-number">612000</span>
+                    <span class="cmp-json-comma">,</span>
+                  </div>
+                  <div class="cmp-json-entry-level">
+                    <span class="cmp-json-key">"output_tokens"</span>
+                    <span class="cmp-json-colon">:</span>
+                    <span class="cmp-json-number">235321</span>
+                    <span class="cmp-json-comma">,</span>
+                  </div>
+                  <div class="cmp-json-entry-level">
+                    <span class="cmp-json-key">"total_cost"</span>
+                    <span class="cmp-json-colon">:</span>
+                    <span class="cmp-json-number">0.42</span>
+                    <span class="cmp-json-comma"></span>
+                  </div>
+                </div>
+                <div class="cmp-json-entry">
+                  <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
+                  <span class="cmp-json-key">"findings"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-bracket">[</span>
+                  <span class="cmp-json-preview"> 1 item</span>
+                  <span class="cmp-json-comma"></span>
+                </div>
+                <div class="cmp-json-entry" style="display:none;">
+                  <div class="cmp-json-entry-level">
+                    <span class="cmp-json-bracket">{</span>
+                  </div>
+                  <div class="cmp-json-entry">
+                    <div class="cmp-json-entry-level">
+                      <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)" style="display:none;"></span>
+                      <span class="cmp-json-key">"id"</span>
+                      <span class="cmp-json-colon">:</span>
+                      <span class="cmp-json-string">"F-001"</span>
+                      <span class="cmp-json-comma">,</span>
+                    </div>
+                    <div class="cmp-json-entry-level">
+                      <span class="cmp-json-key">"type"</span>
+                      <span class="cmp-json-colon">:</span>
+                      <span class="cmp-json-string">"anomaly"</span>
+                      <span class="cmp-json-comma">,</span>
+                    </div>
+                    <div class="cmp-json-entry-level">
+                      <span class="cmp-json-key">"confidence"</span>
+                      <span class="cmp-json-colon">:</span>
+                      <span class="cmp-json-number">0.87</span>
+                      <span class="cmp-json-comma"></span>
+                    </div>
+                    <div class="cmp-json-entry-level">
+                      <span class="cmp-json-bracket">}</span>
+                    </div>
+                  </div>
+                  <div class="cmp-json-entry-level">
+                    <span class="cmp-json-bracket">]</span>
+                  </div>
+                </div>
+                <div class="cmp-json-entry-level">
+                  <span class="cmp-json-key">"completed_at"</span>
+                  <span class="cmp-json-colon">:</span>
+                  <span class="cmp-json-null">null</span>
+                  <span class="cmp-json-comma"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Status cards -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-6);max-width:600px;">
         <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
@@ -644,6 +888,102 @@
       toggleSidebar();
     }
   });
+
+  // ==========================================================================
+  // Data Display — §3.4 Table, §3.5 CodeBlock, §3.6 JSONViewer
+  // ==========================================================================
+
+  // Table row selection
+  window.toggleRow = function(row) {
+    var selected = row.classList.toggle('selected');
+    var checkbox = row.querySelector('.cmp-table-checkbox');
+    if (checkbox) checkbox.checked = selected;
+    updateSelectedCount();
+  };
+
+  window.toggleAllRows = function() {
+    var selectAll = document.getElementById('select-all');
+    var checkboxes = document.querySelectorAll('#demo-table tbody .cmp-table-checkbox');
+    checkboxes.forEach(function(cb) {
+      cb.checked = selectAll.checked;
+      var row = cb.closest('tr');
+      if (row) row.classList.toggle('selected', selectAll.checked);
+    });
+    updateSelectedCount();
+  };
+
+  function updateSelectedCount() {
+    var count = document.querySelectorAll('#demo-table tbody tr.selected').length;
+    document.getElementById('selected-count').textContent = count + ' selected';
+  }
+
+  // CodeBlock copy
+  window.copyCodeBlock = function(btn) {
+    var body = document.getElementById('demo-codeblock');
+    if (!body) return;
+    var text = body.textContent || body.innerText;
+    navigator.clipboard.writeText(text).then(function() {
+      btn.classList.add('copied');
+      btn.textContent = '✓';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.textContent = '📋';
+      }, 1500);
+    });
+  };
+
+  // CodeBlock word wrap toggle
+  window.toggleCodeBlockWrap = function(btn) {
+    var body = document.getElementById('demo-codeblock');
+    if (!body) return;
+    body.classList.toggle('wrap');
+  };
+
+  // JSONViewer entry toggle
+  window.toggleJsonEntry = function(toggle) {
+    var entry = toggle.closest('.cmp-json-entry');
+    if (!entry) return;
+    var next = entry.nextElementSibling;
+    if (next && next.style.display !== 'none') {
+      // Collapse — hide all children until next entry at same or shallower depth
+      var depth = countDepth(entry);
+      var sibling = entry.nextElementSibling;
+      while (sibling && countDepth(sibling) > depth) {
+        var nextSibling = sibling.nextElementSibling;
+        sibling.style.display = 'none';
+        sibling = nextSibling;
+      }
+      toggle.textContent = '▶';
+    } else if (next) {
+      // Expand
+      var depth = countDepth(entry);
+      var sibling = next;
+      while (sibling && countDepth(sibling) > depth) {
+        var nextSibling = sibling.nextElementSibling;
+        sibling.style.display = '';
+        sibling = nextSibling;
+      }
+      toggle.textContent = '▼';
+    }
+  };
+
+  function countDepth(el) {
+    var depth = 0;
+    var current = el;
+    while (current) {
+      if (current.classList && current.classList.contains('cmp-json-entry-level')) depth++;
+      current = current.previousElementSibling;
+    }
+    return depth;
+  }
+
+  // JSON copy
+  window.copyJsonContent = function() {
+    var container = document.getElementById('demo-jsonviewer');
+    if (!container) return;
+    var text = container.textContent || container.innerText;
+    navigator.clipboard.writeText(text);
+  };
 })();
 </script>
 </body>

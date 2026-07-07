@@ -1293,7 +1293,327 @@ Custom scrollbar:
 
 ---
 
-*Part 1 of 4 complete — Design System, Layout Architecture, Global Navigation.*
+### 3.4 Data Table — .cmp-table
+
+A sortable, paginated, selectable data table for displaying structured investigation data (sessions, findings, evidence sources, memory entries).
+
+```
+Table Container:
+  Width: 100%
+  Background: transparent
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Overflow: hidden (rounds corners of header)
+
+Table Header:
+  Background: bg-surface-raised
+  Border-bottom: 1px border-default
+
+  Header Cell:
+    Padding: 10px 16px
+    Font: text-small, weight-semibold, text-secondary
+    Text-align: left (default)
+    White-space: nowrap
+    User-select: none
+    Position: relative
+
+    Sort indicator (asc/desc):
+      Display: inline-block, margin-left 4px
+      Font-size: 10px, opacity 0 (hidden by default)
+      Visible when column is sorted, or on header hover
+      Ascending: ↑ (or ▼), Descending: ↓ (or ▲)
+      Content: sort icon via ::after pseudo-element
+
+    Hover: bg-hover-muted (subtle highlight)
+    Cursor: pointer (indicates sortable)
+    Active sort: color text-primary, font-weight 600
+
+    Resize handle (future, not implemented now):
+      Absolute right: 0, width: 4px, cursor: col-resize
+
+Table Body:
+  Background: transparent
+
+  Row:
+    Height: 48px (compact), 56px (default), 64px (comfortable) — set via .cmp-table-compact / .cmp-table-comfortable
+    Border-bottom: 1px border-subtle
+    Transition: background 100ms
+
+    Hover: bg-hover-muted
+    Selected: bg-selection (blue tint)
+    Selected hover: bg-selection-muted
+
+    Striped (alternating): every-other row gets bg slightly different
+    (.cmp-table-striped tbody tr:nth-child(even) { background: bg-hover-muted at 30% opacity })
+
+  Cell:
+    Padding: 0 16px
+    Font: text-body, tabular-nums (numeric columns)
+    Color: text-primary
+    Vertical-align: middle
+    White-space: nowrap (default), wrap (.cmp-table-wrap)
+
+  Checkbox column (selectable mode):
+    Width: 48px (fixed)
+    Centered checkbox: 16px, accent-primary when checked, border-default when unchecked
+    Header checkbox: select/deselect all
+    Checkbox margin: 0 auto, display: block
+
+  Status dot cell:
+    Width: 32px (fixed), centered dot
+
+Selection model:
+  Single select: clicking row selects it, deselects previous
+  Multi select: checkbox column, Shift+click for range, Ctrl+click for toggle
+  Selected rows: tracked via data-selected attribute or JS array
+  Event: onSelectionChange(selectedIds)
+
+Table Footer (optional):
+  Background: bg-surface-raised
+  Border-top: 1px border-default
+  Padding: 10px 16px
+  Display: flex, justify-content: space-between, align-items: center
+  Font: text-small, text-secondary
+
+  Pagination controls:
+    Display: flex, align-items: center, gap: 4px
+
+    Page button:
+      Width: 28px, height: 28px
+      Border: 1px border-default
+      Border-radius: radius-sm
+      Background: transparent
+      Font: text-caption, tabular-nums
+      Color: text-secondary
+      Cursor: pointer
+
+      Hover: bg-hover, border-hover
+      Active (current page): bg-accent-primary-muted, color accent-primary, border accent-primary
+      Disabled: opacity 0.4, cursor default
+
+    Prev/Next buttons:
+      Icon: ‹ / ›
+      Width: 28px, height: 28px
+      Same styling as page buttons
+
+    Page info:
+      "Page 3 of 12 · Showing 25–36 of 286 results"
+      Font: text-caption, text-tertiary, margin-left 8px
+
+    Page size selector:
+      Select element, text-caption
+      Options: 10, 25, 50, 100
+
+  Selected count (left side):
+    "3 selected"
+    Font: text-small, text-secondary
+
+Table states:
+  Loading:
+    Each row: cmp-skeleton-text × column count
+    No border-bottom on skeleton rows
+
+  Empty:
+    Centered message, 80px min-height
+    Icon (48px, muted) + "No data" + "No findings match your criteria"
+    CTA button: "Create Session" or "Clear Filters"
+
+  Error:
+    Centered error message
+    Icon: warning, color text-error
+    Message: text-secondary
+    Retry button
+
+Responsive:
+  Tablet (<1024px): horizontal scroll wrapper, min-width 600px
+  Mobile (<768px): card view — each row becomes a card
+    Switch: add .cmp-table-card-view class
+    Each card: padding 16px, border-bottom 1px border-subtle
+    Labels shown for each value (data-label attribute on cells)
+
+Accessibility:
+  <table> with <thead>, <tbody>, <tfoot>
+  <th scope="col"> for header cells
+  aria-sort="ascending|descending|none" on sorted columns
+  aria-selected on selected rows
+  role="checkbox" on selection checkboxes
+  aria-label on pagination buttons
+```
+
+### 3.5 CodeBlock — .cmp-codeblock
+
+A syntax-highlighted code display block for showing investigation artifacts, tool outputs, log snippets, and raw data.
+
+```
+CodeBlock Container:
+  Background: bg-code (matches canvas, very dark)
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Font-family: font-mono
+  Font-size: text-small (13px)
+  Line-height: leading-code (1.5)
+  Overflow: hidden
+
+Header bar (optional):
+  Height: 36px
+  Background: bg-surface-raised
+  Border-bottom: 1px border-subtle
+  Padding: 0 12px
+  Display: flex, align-items: center, justify-content: space-between
+
+  File name / language label:
+    Font: text-caption, weight-semibold, text-secondary
+    Icon: file type icon (optional)
+
+  Actions (right):
+    Copy button: 28px, text-caption, text-tertiary
+      Hover: text-primary, bg-hover
+      Click: copies content to clipboard
+      Feedback: "Copied!" text for 1.5s, then reverts
+      Icon: 📋 (copy) / ✓ (copied)
+
+    Collapse/expand: toggle button, 28px
+      Icon: ▼ (collapsed) / ▲ (expanded)
+
+    Word wrap: toggle
+      Icon: ↻ wrap indicator
+      Toggles overflow behavior
+
+Code body:
+  Padding: 16px
+  Overflow-x: auto (horizontal scroll for long lines)
+  White-space: pre (default), pre-wrap (when word wrap enabled)
+  Tab-size: 2
+
+  Line numbers (optional, .cmp-codeblock-lines):
+    Display: inline-block, width: 40px
+    Text-align: right, padding-right: 16px
+    Color: text-tertiary at 50% opacity
+    User-select: none
+    Border-right: 1px border-subtle
+    Margin-right: 12px
+
+Syntax highlighting classes:
+  .cb-comment    { color: #8b949e; font-style: italic }
+  .cb-keyword    { color: #ff7b72 }     — function, return, if, for, const, let, class
+  .cb-string     { color: #a5d6ff }     — "string content"
+  .cb-number     { color: #79c0ff }     — 42, 3.14, 0xff
+  .cb-boolean    { color: #ffa657 }     — true, false
+  .cb-null       { color: #ffa657 }     — null, undefined, nil
+  .cb-type       { color: #ffa657 }     — Type annotations, generics
+  .cb-function   { color: #d2a8ff }     — function names
+  .cb-variable   { color: #ffa657 }     — variables, params
+  .cb-operator   { color: #ff7b72 }     — +, -, *, /, =>, ->
+  .cb-punctuation { color: #e6edf3 }    — { }, [ ], ( ), ;, .
+  .cb-tag        { color: #7ee787 }     — HTML tags
+  .cb-attr       { color: #79c0ff }     — HTML attributes
+  .cb-attr-value { color: #a5d6ff }     — HTML attribute values
+  .cb-diff-add   { background: rgba(35,134,54,0.15); color: #3fb950 }
+  .cb-diff-remove { background: rgba(218,54,51,0.15); color: #f85149 }
+
+Copy indicator CSS animation:
+  Click → "Copied" text fades in for 1.5s → fades out
+  Transition: opacity 200ms ease
+
+States:
+  Empty: "No code to display" centered, muted
+  Error: "Failed to load source" centered, red
+
+Accessibility:
+  role="code" or role="region" with aria-label
+  tabindex="0" for scrollable regions
+  Copy button: aria-label="Copy code to clipboard"
+```
+
+### 3.6 JSONViewer — .cmp-jsonviewer
+
+An interactive, expandable JSON tree viewer for structured data exploration (API responses, configuration, memory entries, tool call results).
+
+```
+JSONViewer Container:
+  Background: bg-code
+  Border: 1px border-default
+  Border-radius: radius-lg
+  Font-family: font-mono
+  Font-size: text-small (13px)
+  Line-height: leading-code (1.5)
+  Overflow-x: auto
+  Padding: 12px 16px
+  Min-height: 40px
+
+Header bar (optional, same pattern as CodeBlock):
+  Height: 36px
+  Same styling as CodeBlock header
+  Actions: Copy (full JSON), Collapse All, Expand All
+
+Tree structure:
+  Indentation: 16px per level
+  Each level: padding-left: 16px * depth
+
+  Key-value entry:
+    Key: text-small, color text-code (green-tint)
+    Colon: color text-tertiary
+    Value: text-small, color by type
+    Comma: color text-tertiary (hidden on last item in object/array)
+
+  Toggle icon (for objects and arrays):
+    Display: inline-block, width: 12px, text-align: center
+    Content: ▸ (collapsed) or ▾ (expanded)
+    Color: text-tertiary
+    Cursor: pointer
+    User-select: none
+    Margin-right: 4px
+
+  Collapsed object preview:
+    { … } or { 3 keys }
+    Color: text-tertiary, font-style: italic
+    On hover: show full preview tooltip
+
+  Collapsed array preview:
+    [ … ] or [ 5 items ]
+    Same style as object preview
+
+Value coloring:
+  String:    color text-code (green-tint), e.g., #7ee787
+  Number:    color #79c0ff (blue)
+  Boolean:   color #ffa657 (orange)
+  Null:      color text-tertiary, font-style: italic
+  Object:    color text-primary, bold for braces
+  Array:     color text-primary, bold for brackets
+
+Copy path:
+  Right-click entry: context menu "Copy path" → copies JSON path to clipboard
+    Example: "$.data.attributes[0].name"
+
+  Hover entry: subtle highlight (bg-hover at 50%)
+    Click on key area: selects the value
+    Double-click value: opens in modal for full editing/viewing
+
+Search:
+  Ctrl+F within viewer: filter keys
+  Matching keys highlighted: bg-selection at 50%
+  Next/prev match: arrow buttons in mini toolbar
+
+States:
+  Loading: skeleton placeholder, same dimensions as expected content
+  Empty: "null" or "{}" displayed centered
+  Error: "Failed to parse JSON" centered, text-error
+  Truncated: "… (3 more items collapsed)" at bottom of each collapsed section
+
+Responsive:
+  Horizontal scroll for deeply nested structures
+  Max-width: 100% of container
+  On mobile: collapse all by default, tap to expand
+
+Accessibility:
+  role="tree" for the JSON tree
+  role="treeitem" for each expandable node
+  aria-expanded on toggled nodes
+  aria-label on copy buttons
+  Keyboard: ← collapse, → expand, ↑↓ navigation, Enter toggle
+```
+
+*Part 1 of 4 complete — Design System, Layout Architecture, Global Navigation, Shared Components.*
 *Continues with Part 2: Dashboard, Investigation Workbench, Timeline Explorer...*
 ## 4. Dashboard Overview
 

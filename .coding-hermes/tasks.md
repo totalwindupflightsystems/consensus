@@ -17,7 +17,7 @@
 ### 1.3 Shared Components
 - [x] Build component library: Button, Input, Select, Badge, Card, Modal, Toast, Tooltip, Skeleton — §3
   → chronicle/css/components.css (1,089 lines, 9 components, 30+ variants, responsive)
-- [ ] Data display: Table (sortable, paginated, selectable), CodeBlock, JSONViewer — §3.5-3.6
+- [x] Data display: Table (sortable, paginated, selectable), CodeBlock, JSONViewer — §3.5-3.6
 - [ ] Status indicators: status dots, trust badges, entity type icons — §3.7
 
 ### 1.4 Investigation Workbench
