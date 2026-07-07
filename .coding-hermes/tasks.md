@@ -11,7 +11,7 @@
 - [x] Build layout shell: app chrome (header, nav sidebar, main panel area, footer status) — §2
   → layout.css (CSS Grid shell, collapsible sidebar, status bar, responsive 3-tier breakpoints)
   → index.html (rewritten with proper top bar, sidebar nav sections, status bar, keyboard shortcuts)
-- [ ] Implement command palette (⌘K) with fuzzy search, keyboard shortcuts — §2.5
+- [x] Implement command palette (⌘K) with fuzzy search, keyboard shortcuts — §2.5
 - [ ] Responsive breakpoints (sidebar collapses, panels stack) — §2.7
 
 ### 1.3 Shared Components

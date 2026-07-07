@@ -184,10 +184,390 @@
   </footer>
 </div>
 
+<!-- Command Palette Backdrop + Dialog — §3.1 -->
+<div class="chronicle-palette-backdrop" id="palette-backdrop" onclick="closeCommandPalette()"></div>
+<div class="chronicle-palette" id="palette-dialog" role="dialog" aria-label="Command palette">
+  <div class="palette-input-wrapper">
+    <span class="palette-search-icon">🔍</span>
+    <input class="palette-input" id="palette-input" type="text"
+           placeholder="Search sessions, run commands, navigate..."
+           autocomplete="off" spellcheck="false"
+           oninput="onPaletteInput(this.value)">
+    <div class="palette-loading" id="palette-loading"></div>
+  </div>
+  <div class="palette-results" id="palette-results"></div>
+  <div class="palette-footer">
+    <span class="palette-footer-hint">
+      <kbd>↑↓</kbd> navigate <kbd>↵</kbd> select <kbd>esc</kbd> close
+    </span>
+    <span class="palette-footer-hint" style="margin-left:auto;">
+      <kbd><span style="font-weight:var(--weight-bold);color:var(--color-text-primary);">&gt;</span></kbd> cmds
+      <kbd><span style="font-weight:var(--weight-bold);color:var(--color-text-primary);">#</span></kbd> sessions
+      <kbd><span style="font-weight:var(--weight-bold);color:var(--color-text-primary);">@</span></kbd> go-to
+    </span>
+  </div>
+</div>
+
 <!-- Inline JS for shell interactions -->
 <script>
 (function() {
   'use strict';
+
+  // ==========================================================================
+  // Command Palette — §3.1
+  // ==========================================================================
+
+  // Data sources
+  var PALETTE_PAGES = [
+    { id: 'dashboard',    title: 'Dashboard',      icon: '📊', shortcut: '\u23181' },
+    { id: 'investigate',  title: 'Investigate',    icon: '🔬', shortcut: '\u23182' },
+    { id: 'timeline',     title: 'Timeline',       icon: '📋', shortcut: '\u23183' },
+    { id: 'entity-graph', title: 'Entity Graph',   icon: '🕸', shortcut: '\u23184' },
+    { id: 'sessions',     title: 'Sessions',       icon: '💬', shortcut: '\u23185' },
+    { id: 'memory',       title: 'Memory',         icon: '🧠', shortcut: '\u23186' },
+    { id: 'findings',     title: 'Findings',       icon: '📌' },
+    { id: 'evidence',     title: 'Evidence',       icon: '📎' },
+    { id: 'health',       title: 'Health',         icon: '❤️' },
+    { id: 'billing',      title: 'Billing',        icon: '💰' },
+    { id: 'settings',     title: 'Settings',       icon: '⚙️' }
+  ];
+
+  var PALETTE_COMMANDS = [
+    { id: 'new-session',   title: 'New Session',         desc: 'Start a new investigation',          icon: '➕' },
+    { id: 'export-pdf',    title: 'Export as PDF',       desc: 'Export current view as PDF',         icon: '📄' },
+    { id: 'export-json',   title: 'Export as JSON',      desc: 'Export session data as JSON',        icon: '📊' },
+    { id: 'toggle-sidebar',title: 'Toggle Sidebar',      desc: 'Collapse/expand sidebar (\u2303B)', icon: '⇄' },
+    { id: 'toggle-theme',  title: 'Toggle Theme',        desc: 'Switch between dark and light mode', icon: '🌓' },
+    { id: 'clear-filters', title: 'Clear All Filters',    desc: 'Reset all active filters',          icon: '✕' }
+  ];
+
+  var PALETTE_SESSION_PLACEHOLDERS = [];
+
+  var selectedIndex = -1;
+  var currentResults = [];
+
+  // Fuzzy score a query against a target string
+  function fuzzyScore(query, target) {
+    if (!query) return 0;
+    var q = query.toLowerCase();
+    var t = target.toLowerCase();
+
+    if (t === q) return 100;                         // exact match
+    if (t.startsWith(q)) return 80;                  // prefix match
+    if (t.indexOf(' ' + q) !== -1) return 70;        // word boundary
+    if (t.indexOf(q) !== -1) return 50;              // substring
+
+    // Character-by-character fuzzy matching
+    var qi = 0;
+    for (var ti = 0; ti < t.length && qi < q.length; ti++) {
+      if (t[ti] === q[qi]) qi++;
+    }
+    if (qi === q.length) return 30 + (q.length / t.length) * 20; // fuzzy match, bonus for density
+    return 0;
+  }
+
+  // Parse search mode from query prefix
+  function parseMode(query) {
+    if (query.startsWith('>'))  return { mode: 'command', query: query.slice(1).trim() };
+    if (query.startsWith('#'))  return { mode: 'session', query: query.slice(1).trim() };
+    if (query.startsWith('@'))  return { mode: 'goto',    query: query.slice(1).trim() };
+    return { mode: 'default', query: query.trim() };
+  }
+
+  // Execute search
+  function searchPalette(rawQuery) {
+    var parsed = parseMode(rawQuery);
+    var q = parsed.query;
+    var mode = parsed.mode;
+
+    if (!q && mode === 'default') return { recents: true, pages: getRecentPages(), commands: [] };
+
+    var results = [];
+
+    if (mode === 'default' || mode === 'goto') {
+      // Search pages
+      var scored = PALETTE_PAGES.map(function(p) {
+        return { item: p, type: 'page', score: fuzzyScore(q, p.title) };
+      }).filter(function(s) { return s.score > 0; });
+      scored.sort(function(a, b) { return b.score - a.score; });
+      if (scored.length > 0) results.push({ section: 'Pages', items: scored.slice(0, 5) });
+    }
+
+    if (mode === 'default' || mode === 'session') {
+      // Search session placeholders
+      var scoredSessions = PALETTE_SESSION_PLACEHOLDERS.map(function(s) {
+        return { item: s, type: 'session', score: Math.max(fuzzyScore(q, s.title), fuzzyScore(q, s.id)) };
+      }).filter(function(s) { return s.score > 0; });
+      scoredSessions.sort(function(a, b) { return b.score - a.score; });
+      if (scoredSessions.length > 0) results.push({ section: 'Sessions', items: scoredSessions.slice(0, 5) });
+    }
+
+    if (mode === 'default' || mode === 'command') {
+      var scoredCmds = PALETTE_COMMANDS.map(function(c) {
+        return { item: c, type: 'command', score: Math.max(fuzzyScore(q, c.title), fuzzyScore(q, c.desc)) };
+      }).filter(function(s) { return s.score > 0; });
+      scoredCmds.sort(function(a, b) { return b.score - a.score; });
+      if (scoredCmds.length > 0) results.push({ section: 'Commands', items: scoredCmds.slice(0, 5) });
+    }
+
+    // Flatten for keyboard navigation
+    currentResults = [];
+    results.forEach(function(section) {
+      section.items.forEach(function(item) {
+        currentResults.push({ item: item, section: section.section });
+      });
+    });
+
+    return { sections: results };
+  }
+
+  function getRecentPages() {
+    // Show recently visited pages from localStorage
+    var stored = localStorage.getItem('chronicle-recent-pages');
+    if (stored) {
+      try {
+        var recent = JSON.parse(stored);
+        return PALETTE_PAGES.filter(function(p) { return recent.indexOf(p.id) !== -1; }).slice(0, 5);
+      } catch(e) {}
+    }
+    // Default: first 4 nav items
+    return PALETTE_PAGES.slice(0, 4);
+  }
+
+  function recordPageVisit(pageId) {
+    var stored = localStorage.getItem('chronicle-recent-pages');
+    var recent = stored ? JSON.parse(stored) : [];
+    recent = recent.filter(function(id) { return id !== pageId; });
+    recent.unshift(pageId);
+    if (recent.length > 10) recent.pop();
+    localStorage.setItem('chronicle-recent-pages', JSON.stringify(recent));
+  }
+
+  // Render results
+  function renderPalette(searchResult) {
+    var container = document.getElementById('palette-results');
+    var loading = document.getElementById('palette-loading');
+    loading.classList.remove('active');
+
+    // Show recents if query is empty and in default mode
+    if (searchResult.recents) {
+      var html = '<div class="palette-section-header">Recent</div>';
+      searchResult.pages.forEach(function(page) {
+        html += renderItemHtml(page, 'page', false);
+      });
+      container.innerHTML = html;
+      selectedIndex = -1;
+      return;
+    }
+
+    var sections = searchResult.sections;
+    if (!sections || sections.length === 0) {
+      container.innerHTML =
+        '<div class="palette-empty">' +
+        '<div class="palette-empty-icon">🔍</div>' +
+        '<div class="palette-empty-text">No results found</div>' +
+        '<div class="palette-empty-hint">Try a different search or use <kbd>&gt;</kbd> for commands, <kbd>#</kbd> for sessions</div>' +
+        '</div>';
+      currentResults = [];
+      selectedIndex = -1;
+      return;
+    }
+
+    var html = '';
+    sections.forEach(function(section) {
+      html += '<div class="palette-section-header">' + section.section + '</div>';
+      section.items.forEach(function(scored) {
+        html += renderItemHtml(scored.item, scored.type, false);
+      });
+    });
+    container.innerHTML = html;
+  }
+
+  function renderItemHtml(item, type, isSelected) {
+    var icon = item.icon || '📄';
+    var title = item.title;
+    var subtitle = '';
+    var badge = item.shortcut || '';
+    var rightContent = '';
+
+    if (type === 'session') {
+      subtitle = item.subtitle || '';
+      var statusClass = item.status || 'idle';
+      rightContent = '<span class="palette-status-badge ' + statusClass + '">' + statusClass + '</span>';
+    } else if (type === 'command' && item.desc) {
+      subtitle = item.desc;
+    }
+
+    return '<div class="palette-item' + (isSelected ? ' selected' : '') + '" data-type="' + type + '" data-id="' + item.id + '" onclick="selectPaletteItem(\'' + type + '\', \'' + item.id + '\')" onmouseenter="paletteHover(this)">' +
+      '<span class="palette-item-icon">' + icon + '</span>' +
+      '<div class="palette-item-body">' +
+      '<div class="palette-item-title">' + escapeHtml(title) + '</div>' +
+      (subtitle ? '<div class="palette-item-subtitle">' + escapeHtml(subtitle) + '</div>' : '') +
+      '</div>' +
+      '<div class="palette-item-meta">' +
+      (badge ? '<span class="palette-item-badge">' + badge + '</span>' : '') +
+      rightContent +
+      '<span class="palette-item-chevron">›</span>' +
+      '</div>' +
+      '</div>';
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  // Open/close
+  window.openCommandPalette = function() {
+    document.getElementById('palette-backdrop').classList.add('open');
+    document.getElementById('palette-dialog').classList.add('open');
+    var input = document.getElementById('palette-input');
+    input.value = '';
+    input.focus();
+    selectedIndex = -1;
+    currentResults = [];
+    // Show recents
+    onPaletteInput('');
+  };
+
+  window.closeCommandPalette = function() {
+    document.getElementById('palette-backdrop').classList.remove('open');
+    document.getElementById('palette-dialog').classList.remove('open');
+    document.getElementById('palette-input').blur();
+    selectedIndex = -1;
+    currentResults = [];
+  };
+
+  // Input handler with debounce
+  var paletteDebounceTimer = null;
+  window.onPaletteInput = function(value) {
+    var loading = document.getElementById('palette-loading');
+    loading.classList.add('active');
+
+    if (paletteDebounceTimer) clearTimeout(paletteDebounceTimer);
+    paletteDebounceTimer = setTimeout(function() {
+      var result = searchPalette(value);
+      renderPalette(result);
+    }, 100);
+  };
+
+  // Item selection
+  window.selectPaletteItem = function(type, id) {
+    if (type === 'page') {
+      recordPageVisit(id);
+      window.navigateTo(id);
+      closeCommandPalette();
+    } else if (type === 'command') {
+      executePaletteCommand(id);
+    } else if (type === 'session') {
+      // Placeholder — will wire to session view
+      closeCommandPalette();
+    }
+  };
+
+  function executePaletteCommand(id) {
+    closeCommandPalette();
+    switch (id) {
+      case 'toggle-sidebar': toggleSidebar(); break;
+      case 'toggle-theme':
+        var theme = document.documentElement.getAttribute('data-theme');
+        document.documentElement.setAttribute('data-theme', theme === 'light' ? 'dark' : 'light');
+        break;
+      case 'clear-filters': break; // No-op until filters exist
+      case 'new-session':
+        // Will wire to real session creation in Phase 1.4
+        break;
+      default: break;
+    }
+  }
+
+  // Mouse hover in palette
+  window.paletteHover = function(el) {
+    var items = document.querySelectorAll('.palette-item');
+    items.forEach(function(item, i) {
+      item.classList.toggle('selected', item === el);
+      if (item === el) selectedIndex = i;
+    });
+  };
+
+  // Update visual selection
+  function updatePaletteSelection() {
+    var items = document.querySelectorAll('.palette-item');
+    items.forEach(function(item, i) {
+      item.classList.toggle('selected', i === selectedIndex);
+    });
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    // Open palette
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      if (document.getElementById('palette-dialog').classList.contains('open')) {
+        // Ctrl+K while open: if in default mode with query, select first item
+        if (selectedIndex < 0 && currentResults.length > 0) {
+          selectedIndex = 0;
+          updatePaletteSelection();
+        }
+        return;
+      }
+      openCommandPalette();
+    }
+
+    // Ctrl+Shift+P: open in command mode
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'p') {
+      e.preventDefault();
+      openCommandPalette();
+      var input = document.getElementById('palette-input');
+      input.value = '>';
+      onPaletteInput('>');
+    }
+
+    // Palette-specific navigation
+    var paletteOpen = document.getElementById('palette-dialog').classList.contains('open');
+    if (!paletteOpen) return;
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        closeCommandPalette();
+        break;
+
+      case 'ArrowDown':
+      case 'ArrowUp':
+        e.preventDefault();
+        if (currentResults.length === 0) return;
+        if (selectedIndex < 0) selectedIndex = e.key === 'ArrowDown' ? 0 : currentResults.length - 1;
+        else selectedIndex += (e.key === 'ArrowDown' ? 1 : -1);
+        if (selectedIndex >= currentResults.length) selectedIndex = 0;
+        if (selectedIndex < 0) selectedIndex = currentResults.length - 1;
+        updatePaletteSelection();
+        // Ensure visible
+        var items = document.querySelectorAll('.palette-item');
+        if (items[selectedIndex]) {
+          items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+        break;
+
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < currentResults.length) {
+          var result = currentResults[selectedIndex];
+          selectPaletteItem(result.item.type, result.item.item.id);
+        }
+        break;
+
+      case 'Tab':
+        e.preventDefault();
+        // Select first item
+        if (currentResults.length > 0) {
+          selectedIndex = 0;
+          updatePaletteSelection();
+        }
+        break;
+    }
+  });
 
   // --- 2.3 Sidebar collapse ---
   window.toggleSidebar = function() {
@@ -218,19 +598,6 @@
     document.getElementById('sidebar').classList.remove('mobile-open');
     this.classList.remove('active');
     document.body.style.overflow = '';
-  });
-
-  // --- 2.5 (simulated) Keyboard shortcut: ⌘K opens command palette ---
-  window.openCommandPalette = function() {
-    // Placeholder — Phase 2 will wire full command palette
-    alert('Command Palette (⌘K) — coming in Phase 1.3');
-  };
-
-  document.addEventListener('keydown', function(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      openCommandPalette();
-    }
   });
 
   // --- Notification drawer placeholder ---
