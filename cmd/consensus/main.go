@@ -26,6 +26,7 @@ import (
 	"github.com/wojons/consensus/internal/api"
 	"github.com/wojons/consensus/internal/billing"
 	"github.com/wojons/consensus/internal/bootstrap"
+	"github.com/wojons/consensus/internal/chronicle"
 	"github.com/wojons/consensus/internal/cli"
 	"github.com/wojons/consensus/internal/compression"
 	"github.com/wojons/consensus/internal/config"
@@ -47,7 +48,7 @@ func main() {
 	// Wire CLI stubs to actual server functions (SPEC-016 §5.1, §5.2).
 	cli.InitFunc = runInit // alias for server startup (also runs auto-migrate)
 	cli.ServerFunc = runServer
-	cli.MigrateFunc = runMigrate // direct DB migration mode
+	cli.MigrateFunc = runMigrate   // direct DB migration mode
 	cli.MCPStdioFunc = runMCPStdio // MCP stdio transport (SPEC-015 §5.4)
 
 	// Route: if subcommands provided, use CLI client mode.
@@ -297,6 +298,13 @@ func runServer() {
 	// Served at /ui/ — the UI proxies API calls through its own /api/ path.
 	webUI := web.NewServer("http://" + addrString(cfg.Server))
 	apiMux.Handle("/ui/", http.StripPrefix("/ui", webUI.Handler()))
+
+	// Chronicle Investigation Workbench (SPEC-026) — dark-theme operational
+	// dashboard for AI-powered investigations. Served at /chronicle/.
+	chronicleUI := chronicle.NewServer("http://" + addrString(cfg.Server))
+	apiMux.Route("/chronicle", func(r chi.Router) {
+		r.Handle("/*", http.StripPrefix("/chronicle", chronicleUI.Handler()))
+	})
 
 	// opencode Protocol Shim (SPEC-017) — translates opencode server protocol
 	// into native Consensus API calls. Enabled by default.
