@@ -1,0 +1,1089 @@
+/* ============================================================================
+   Chronicle Component Library — §3
+   Spec: specs/026-dashboard-ui.md
+   ============================================================================
+   Reusable component classes built on top of design-system.css tokens.
+   Naming: .cmp-<component>-<variant> (consistent, composable).
+   ============================================================================ */
+
+
+/* ==========================================================================
+   3.1 Button — .cmp-btn
+   Variants: primary, secondary, ghost, danger, link
+   Sizes:    sm, md, lg
+   States:   hover, active, disabled, loading
+   ========================================================================== */
+
+.cmp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default),
+              opacity var(--duration-fast) var(--ease-default);
+  /* Default size: md */
+  height: 36px;
+  padding: var(--button-padding-y) var(--button-padding-x);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.cmp-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* --- Sizes --- */
+
+.cmp-btn-sm {
+  height: 28px;
+  padding: 2px var(--space-2);
+  font-size: var(--text-small);
+  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+}
+
+.cmp-btn-sm .cmp-btn-icon {
+  font-size: 12px;
+}
+
+.cmp-btn-lg {
+  height: 44px;
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--text-body-lg);
+  border-radius: var(--radius-lg);
+}
+
+/* --- Variants --- */
+
+/* Primary — filled accent */
+.cmp-btn-primary {
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  border-color: transparent;
+}
+
+.cmp-btn-primary:hover {
+  background: var(--color-accent-primary-hover);
+}
+
+.cmp-btn-primary:active {
+  background: var(--color-accent-primary-active);
+  transform: scale(0.98);
+}
+
+/* Secondary — outlined */
+.cmp-btn-secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
+}
+
+.cmp-btn-secondary:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+}
+
+.cmp-btn-secondary:active {
+  background: var(--color-bg-hover-muted);
+}
+
+/* Ghost — transparent, no border */
+.cmp-btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+
+.cmp-btn-ghost:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.cmp-btn-ghost:active {
+  background: var(--color-bg-hover-muted);
+}
+
+/* Danger — red action */
+.cmp-btn-danger {
+  background: var(--color-accent-error);
+  color: white;
+  border-color: transparent;
+}
+
+.cmp-btn-danger:hover {
+  background: var(--color-accent-error-hover);
+}
+
+.cmp-btn-danger:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+/* Link — text-only button */
+.cmp-btn-link {
+  background: transparent;
+  color: var(--color-text-link);
+  border-color: transparent;
+  padding: 0;
+  height: auto;
+  font-weight: var(--weight-medium);
+}
+
+.cmp-btn-link:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+
+/* --- Icon-only buttons --- */
+
+.cmp-btn-icon-only {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+.cmp-btn-icon-only.cmp-btn-sm {
+  width: 28px;
+}
+
+.cmp-btn-icon-only.cmp-btn-lg {
+  width: 44px;
+}
+
+/* --- Disabled --- */
+
+.cmp-btn:disabled,
+.cmp-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Loading state --- */
+
+.cmp-btn-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.cmp-btn-loading .cmp-btn-label {
+  visibility: hidden;
+}
+
+.cmp-btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--radius-full);
+  animation: cmp-spin 0.6s linear infinite;
+}
+
+@keyframes cmp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Button groups --- */
+
+.cmp-btn-group {
+  display: inline-flex;
+  gap: 0;
+}
+
+.cmp-btn-group .cmp-btn {
+  border-radius: 0;
+}
+
+.cmp-btn-group .cmp-btn:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.cmp-btn-group .cmp-btn:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.cmp-btn-group .cmp-btn + .cmp-btn {
+  margin-left: -1px;
+}
+
+
+/* ==========================================================================
+   3.2 Input — .cmp-input
+   Variants: default, error
+   Sizes:    sm, md, lg
+   States:   hover, focus, disabled, with-icon
+   ========================================================================== */
+
+.cmp-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.cmp-input {
+  width: 100%;
+  height: 36px;
+  padding: var(--input-padding-y) var(--input-padding-x);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  transition: border-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+  outline: none;
+}
+
+.cmp-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.cmp-input:hover {
+  border-color: var(--color-border-hover);
+}
+
+.cmp-input:focus,
+.cmp-input:focus-within {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-accent-primary-glow);
+  background: var(--color-bg-input-focus);
+}
+
+/* --- Sizes --- */
+
+.cmp-input-sm {
+  height: 28px;
+  padding: 2px var(--space-2);
+  font-size: var(--text-small);
+}
+
+.cmp-input-lg {
+  height: 44px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-body-lg);
+}
+
+/* --- Error state --- */
+
+.cmp-input-error {
+  border-color: var(--color-border-error);
+}
+
+.cmp-input-error:focus {
+  border-color: var(--color-accent-error);
+  box-shadow: 0 0 0 3px var(--color-accent-error-muted);
+}
+
+.cmp-input-error-msg {
+  font-size: var(--text-caption);
+  color: var(--color-text-error);
+  margin-top: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* --- With icon --- */
+
+.cmp-input-icon {
+  position: absolute;
+  left: var(--space-3);
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.cmp-input-wrapper .cmp-input-icon ~ .cmp-input {
+  padding-left: calc(var(--space-3) + 20px + var(--space-1));
+}
+
+.cmp-input-clear {
+  position: absolute;
+  right: var(--space-2);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.cmp-input-clear.visible {
+  opacity: 1;
+}
+
+/* --- Disabled --- */
+
+.cmp-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-bg-disabled);
+}
+
+/* --- Textarea variant --- */
+
+textarea.cmp-input {
+  height: auto;
+  min-height: 80px;
+  resize: vertical;
+  padding: var(--space-2);
+  line-height: var(--leading-body-lg);
+}
+
+
+/* ==========================================================================
+   3.3 Select — .cmp-select
+   Styled native select with custom dropdown arrow
+   ========================================================================== */
+
+.cmp-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+}
+
+.cmp-select {
+  width: 100%;
+  height: 36px;
+  padding: var(--input-padding-y) calc(var(--input-padding-x) + 20px) var(--input-padding-y) var(--input-padding-x);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.cmp-select:hover {
+  border-color: var(--color-border-hover);
+}
+
+.cmp-select:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-accent-primary-glow);
+}
+
+/* Custom arrow */
+.cmp-select-wrapper::after {
+  content: '▾';
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.cmp-select-sm {
+  height: 28px;
+  padding: 2px calc(var(--space-2) + 16px) 2px var(--space-2);
+  font-size: var(--text-small);
+}
+
+.cmp-select-lg {
+  height: 44px;
+  padding: var(--space-2) calc(var(--space-4) + 24px) var(--space-2) var(--space-4);
+  font-size: var(--text-body-lg);
+}
+
+
+/* ==========================================================================
+   3.4 Badge — .cmp-badge
+   Variants: default, success, warning, error, info, outline
+   Sizes:    sm, md (default)
+   ========================================================================== */
+
+.cmp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-caption);
+  white-space: nowrap;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.cmp-badge-sm {
+  font-size: var(--text-micro);
+  padding: 1px var(--space-1);
+  gap: 2px;
+}
+
+/* Variants */
+.cmp-badge-default {
+  background: var(--color-bg-badge);
+  color: var(--color-text-secondary);
+}
+
+.cmp-badge-success {
+  background: var(--color-accent-success-muted);
+  color: var(--color-text-success);
+  border-color: var(--color-border-success);
+}
+
+.cmp-badge-warning {
+  background: var(--color-accent-warning-muted);
+  color: var(--color-text-warning);
+  border-color: var(--color-border-warning);
+}
+
+.cmp-badge-error {
+  background: var(--color-accent-error-muted);
+  color: var(--color-text-error);
+  border-color: var(--color-border-error);
+}
+
+.cmp-badge-info {
+  background: var(--color-accent-info-muted);
+  color: var(--color-text-info);
+  border-color: var(--color-border-info);
+}
+
+.cmp-badge-outline {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-default);
+}
+
+/* Dot variant — just a colored circle */
+.cmp-badge-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  min-width: 8px;
+}
+
+.cmp-badge-dot.cmp-badge-success { background: var(--color-accent-success); }
+.cmp-badge-dot.cmp-badge-warning { background: var(--color-accent-warning); }
+.cmp-badge-dot.cmp-badge-error   { background: var(--color-accent-error); }
+.cmp-badge-dot.cmp-badge-info    { background: var(--color-accent-info); }
+
+
+/* ==========================================================================
+   3.5 Card — .cmp-card
+   Variants: default, interactive, elevated, bordered
+   ========================================================================== */
+
+.cmp-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+  transition: border-color var(--duration-fast) var(--ease-default),
+              box-shadow var(--duration-fast) var(--ease-default),
+              transform var(--duration-fast) var(--ease-default);
+}
+
+.cmp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.cmp-card-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+.cmp-card-body {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.cmp-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Interactive — hover raises */
+.cmp-card-interactive {
+  cursor: pointer;
+}
+
+.cmp-card-interactive:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.cmp-card-interactive:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Elevated — stronger shadow */
+.cmp-card-elevated {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--color-border-strong);
+}
+
+/* Bordered accent — left accent border */
+.cmp-card-bordered {
+  border-left: 3px solid var(--color-accent-primary);
+}
+
+.cmp-card-bordered-success {
+  border-left-color: var(--color-accent-success);
+}
+
+.cmp-card-bordered-warning {
+  border-left-color: var(--color-accent-warning);
+}
+
+.cmp-card-bordered-error {
+  border-left-color: var(--color-accent-error);
+}
+
+/* Compact card — less padding */
+.cmp-card-compact {
+  padding: var(--space-3);
+}
+
+.cmp-card-compact .cmp-card-header {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-1);
+}
+
+
+/* ==========================================================================
+   3.6 Modal — .cmp-modal
+   Sizes: sm, md (default), lg, fullscreen
+   ========================================================================== */
+
+.cmp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal, 400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-normal) var(--ease-out),
+              visibility var(--duration-normal);
+  padding: var(--space-8);
+}
+
+.cmp-modal-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cmp-modal {
+  background: var(--color-glass-medium);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  width: 480px;
+  z-index: calc(var(--z-modal, 400) + 1);
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-spring),
+              width var(--duration-fast) var(--ease-default);
+  position: relative;
+}
+
+.cmp-modal-backdrop.open .cmp-modal {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Sizes */
+.cmp-modal-sm {
+  width: 360px;
+}
+
+.cmp-modal-lg {
+  width: 640px;
+}
+
+.cmp-modal-fullscreen {
+  width: 90vw;
+  max-height: 90vh;
+}
+
+/* Modal parts */
+.cmp-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6) 0;
+  flex-shrink: 0;
+}
+
+.cmp-modal-title {
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+.cmp-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 18px;
+  transition: color var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+  flex-shrink: 0;
+}
+
+.cmp-modal-close:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.cmp-modal-body {
+  padding: var(--space-5) var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading-body-lg);
+}
+
+.cmp-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+
+/* ==========================================================================
+   3.7 Toast — .cmp-toast
+   Spec §3.2.1 — Toast Notifications
+   Types: success, info, warning, error
+   ========================================================================== */
+
+.cmp-toast-container {
+  position: fixed;
+  top: 60px; /* 48px topbar + 12px gap */
+  right: var(--space-4);
+  z-index: var(--z-notification, 500);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  max-width: 380px;
+  pointer-events: none;
+}
+
+.cmp-toast {
+  display: flex;
+  gap: var(--space-2);
+  min-height: 56px;
+  max-height: 200px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-glass-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--color-text-tertiary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: auto;
+  transform: translateX(calc(100% + var(--space-4)));
+  opacity: 0;
+  transition: transform var(--duration-slow) var(--ease-out-expo, 0.16, 1, 0.3, 1),
+              opacity var(--duration-slow) var(--ease-out),
+              margin-bottom var(--duration-normal) var(--ease-default);
+}
+
+.cmp-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.cmp-toast.exiting {
+  transform: translateX(calc(100% + var(--space-4)));
+  opacity: 0;
+  transition: transform 200ms var(--ease-in, 0.4, 0, 1, 1),
+              opacity 200ms var(--ease-in);
+}
+
+/* Toast icon */
+.cmp-toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+/* Toast content */
+.cmp-toast-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cmp-toast-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--leading-small);
+}
+
+.cmp-toast-message {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-caption);
+}
+
+.cmp-toast-timestamp {
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/* Toast close */
+.cmp-toast-close {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 2px;
+  padding: 2px;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+
+.cmp-toast-close:hover {
+  color: var(--color-text-primary);
+}
+
+/* Toast action buttons */
+.cmp-toast-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.cmp-toast-action {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-accent-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+
+.cmp-toast-action:hover {
+  color: var(--color-accent-primary-hover);
+}
+
+/* Toast type variants */
+.cmp-toast-success { border-left-color: var(--color-accent-success); }
+.cmp-toast-info    { border-left-color: var(--color-accent-info); }
+.cmp-toast-warning { border-left-color: var(--color-accent-warning); }
+.cmp-toast-error   { border-left-color: var(--color-accent-error); }
+
+.cmp-toast-success .cmp-toast-icon { color: var(--color-accent-success); }
+.cmp-toast-info    .cmp-toast-icon { color: var(--color-accent-info); }
+.cmp-toast-warning .cmp-toast-icon { color: var(--color-accent-warning); }
+.cmp-toast-error   .cmp-toast-icon { color: var(--color-accent-error); }
+
+
+/* ==========================================================================
+   3.8 Tooltip — .cmp-tooltip
+   Positions: top (default), bottom, left, right
+   Pure CSS — uses ::before and ::after pseudo-elements
+   ========================================================================== */
+
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms var(--ease-default);
+  z-index: 200;
+}
+
+[data-tooltip]::before {
+  content: '';
+  border: 4px solid transparent;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-overlay);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transition-delay: 500ms;
+}
+
+/* Top (default) */
+[data-tooltip]:not([data-tooltip-pos])::before,
+[data-tooltip-pos="top"]::before {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  border-top-color: var(--color-bg-surface-overlay);
+  border-bottom: none;
+}
+
+[data-tooltip]:not([data-tooltip-pos])::after,
+[data-tooltip-pos="top"]::after {
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Bottom */
+[data-tooltip-pos="bottom"]::before {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  border-bottom-color: var(--color-bg-surface-overlay);
+  border-top: none;
+}
+
+[data-tooltip-pos="bottom"]::after {
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Left */
+[data-tooltip-pos="left"]::before {
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-left-color: var(--color-bg-surface-overlay);
+  border-right: none;
+}
+
+[data-tooltip-pos="left"]::after {
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Right */
+[data-tooltip-pos="right"]::before {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-right-color: var(--color-bg-surface-overlay);
+  border-left: none;
+}
+
+[data-tooltip-pos="right"]::after {
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+
+/* ==========================================================================
+   3.9 Skeleton Variants — .cmp-skeleton
+   Base .skeleton class defined in design-system.css
+   ========================================================================== */
+
+.cmp-skeleton-text {
+  height: var(--leading-body);
+  width: 100%;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.cmp-skeleton-text:last-child {
+  width: 70%;
+}
+
+.cmp-skeleton-text-sm {
+  height: var(--leading-small);
+  width: 60%;
+}
+
+.cmp-skeleton-heading {
+  height: var(--leading-h3);
+  width: 45%;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-sm);
+}
+
+.cmp-skeleton-circle {
+  border-radius: var(--radius-full);
+  aspect-ratio: 1;
+}
+
+.cmp-skeleton-circle-sm { width: 28px; }
+.cmp-skeleton-circle-md { width: 40px; }
+.cmp-skeleton-circle-lg { width: 56px; }
+
+.cmp-skeleton-card {
+  height: 120px;
+  border-radius: var(--radius-lg);
+}
+
+.cmp-skeleton-avatar-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cmp-skeleton-avatar-line .cmp-skeleton-circle {
+  flex-shrink: 0;
+}
+
+.cmp-skeleton-avatar-line .cmp-skeleton-lines {
+  flex: 1;
+}
+
+
+/* ==========================================================================
+   Responsive adjustments for components
+   ========================================================================== */
+
+/* Tablet: tighter modals, compact cards */
+@media (max-width: 1023px) {
+  .cmp-modal {
+    width: min(480px, 85vw);
+  }
+
+  .cmp-modal-sm {
+    width: min(360px, 75vw);
+  }
+
+  .cmp-card {
+    padding: var(--space-3);
+  }
+}
+
+/* Mobile: full-width components, full-screen modals */
+@media (max-width: 767px) {
+  .cmp-modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .cmp-modal {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    transform: translateY(100%);
+    margin-top: auto;
+  }
+
+  .cmp-modal-backdrop.open .cmp-modal {
+    transform: translateY(0);
+  }
+
+  .cmp-toast-container {
+    left: var(--space-2);
+    right: var(--space-2);
+    max-width: none;
+  }
+
+  .cmp-card {
+    border-radius: var(--radius-md);
+  }
+
+  .cmp-btn-group .cmp-btn {
+    flex: 1;
+  }
+}
