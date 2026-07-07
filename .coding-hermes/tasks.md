@@ -3,9 +3,9 @@
 ## Phase 1: Ship the Product (Chronicle UI)
 
 ### 1.1 Design System Foundation
-- [ ] Create Chronicle design system CSS (color tokens §1.2, typography §1.3, spacing §1.4, iconography §1.5, animation tokens §1.6, theme support §1.7) — from specs/026-dashboard-ui.md §1
-- [ ] Create internal/chronicle/ Go package with server, /chronicle/ route wired in cmd/consensus/main.go
-- [ ] Serve CSS + minimal placeholder page at /chronicle/ with Chronicle header/nav
+- [x] Create Chronicle design system CSS (color tokens §1.2, typography §1.3, spacing §1.4, iconography §1.5, animation tokens §1.6, theme support §1.7) — from specs/026-dashboard-ui.md §1
+- [x] Create internal/chronicle/ Go package with server, /chronicle/ route wired in cmd/consensus/main.go
+- [x] Serve CSS + minimal placeholder page at /chronicle/ with Chronicle header/nav
 
 ### 1.2 Layout Architecture
 - [ ] Build layout shell: app chrome (header, nav sidebar, main panel area, footer status) — §2
