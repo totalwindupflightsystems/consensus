@@ -12,7 +12,8 @@
   → layout.css (CSS Grid shell, collapsible sidebar, status bar, responsive 3-tier breakpoints)
   → index.html (rewritten with proper top bar, sidebar nav sections, status bar, keyboard shortcuts)
 - [x] Implement command palette (⌘K) with fuzzy search, keyboard shortcuts — §2.5
-- [ ] Responsive breakpoints (sidebar collapses, panels stack) — §2.7
+- [x] Responsive breakpoints (sidebar collapses, panels stack) — §2.7
+  → Already implemented: tablet collapsed sidebar, mobile hamburger+overlay, desktop expanded
 
 ### 1.3 Shared Components
 - [ ] Build component library: Button, Input, Select, Badge, Card, Modal, Toast, Tooltip, Skeleton — §3
