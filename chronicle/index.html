@@ -368,10 +368,78 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+          </div>
 
-      <!-- Status cards -->
+          <!-- Status Indicators Demo — §3.7 -->
+          <div class="demo-section" style="margin-top:var(--space-6);max-width:900px;">
+          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Status Indicators — §3.7</h2>
+
+          <!-- 3.7.1 Status Dots -->
+          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-3);">
+          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Status Dots — .cmp-status-dot</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--booting"></span><span class="cmp-status-dot-label">booting</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--idle"></span><span class="cmp-status-dot-label">idle</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">thinking</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--tool_exec"></span><span class="cmp-status-dot-label">tool_exec</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--waiting_sub"></span><span class="cmp-status-dot-label">waiting_sub</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--paused"></span><span class="cmp-status-dot-label">paused</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--completed"></span><span class="cmp-status-dot-label">completed</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--failed"></span><span class="cmp-status-dot-label">failed</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--cancelled"></span><span class="cmp-status-dot-label">cancelled</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--stalled"></span><span class="cmp-status-dot-label">stalled</span></span>
+          </div>
+          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--sm cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">sm</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--lg cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">lg</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--completed cmp-status-dot--with-overlay"></span><span class="cmp-status-dot-label">overlay ✓</span></span>
+            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--failed cmp-status-dot--with-overlay"></span><span class="cmp-status-dot-label">overlay ✗</span></span>
+          </div>
+          </div>
+
+          <!-- 3.7.2 Trust Badges -->
+          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-3);">
+          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Trust Badges — .cmp-trust-badge</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:center;">
+            <span class="cmp-trust-badge cmp-trust-badge--verified"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">✓</span><span class="cmp-trust-label">verified</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--high"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">high</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--medium"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">medium</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--low"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">low</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--quarantine"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">⚠</span><span class="cmp-trust-label">quarantine</span></span>
+          </div>
+          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
+            <span class="cmp-trust-badge cmp-trust-badge--verified cmp-trust-badge--sm"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">verified</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--medium cmp-trust-badge--lg"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">●</span><span class="cmp-trust-label">medium</span></span>
+            <span class="cmp-trust-badge cmp-trust-badge--high cmp-trust-badge--dot-only"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">●</span><span class="cmp-trust-label">dot only</span></span>
+          </div>
+          </div>
+
+          <!-- 3.7.3 Entity Icons -->
+          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);">
+          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Entity Type Icons — .cmp-entity-icon</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:center;">
+            <span class="cmp-entity-icon cmp-entity-icon--session"><span class="entity-icon-emoji">💬</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--memory"><span class="entity-icon-emoji">🧠</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--finding"><span class="entity-icon-emoji">🔍</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--task"><span class="entity-icon-emoji">✓</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--approval"><span class="entity-icon-emoji">🛡</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--evidence"><span class="entity-icon-emoji">📎</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--anomaly"><span class="entity-icon-emoji">⚠</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--tool"><span class="entity-icon-emoji">⚙</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--skill"><span class="entity-icon-emoji">★</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--user"><span class="entity-icon-emoji">👤</span></span>
+            <span class="cmp-entity-icon cmp-entity-icon--system"><span class="entity-icon-emoji">⚡</span></span>
+          </div>
+          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
+            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--finding"><span class="entity-icon-emoji">🔍</span></span><span class="entity-label">Finding</span></span>
+            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--anomaly cmp-entity-icon--circled"><span class="entity-icon-emoji">⚠</span></span><span class="entity-label">Anomaly</span></span>
+            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--session cmp-entity-icon--sm"><span class="entity-icon-emoji">💬</span></span><span class="entity-label">Session</span></span>
+          </div>
+          </div>
+          </div>
+
+          <!-- Status cards -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-6);max-width:600px;">
         <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
           <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>

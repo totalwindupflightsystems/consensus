@@ -1746,3 +1746,271 @@ textarea.cmp-input {
     font-size: var(--text-caption);
   }
 }
+
+/* ==========================================================================
+   3.7 Status Indicators — .cmp-status-dot, .cmp-trust-badge, .cmp-entity-icon
+   Spec: specs/026-dashboard-ui.md §1.2.6-1.2.8, §3.7
+   ========================================================================== */
+
+/* ─── 3.7.1 Status Dot — .cmp-status-dot ─────────────────────────────── */
+
+.cmp-status-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Size variants */
+.cmp-status-dot--sm {
+  width: 6px;
+  height: 6px;
+}
+
+.cmp-status-dot--lg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Status color variants — with animations per spec §1.2.7 */
+.cmp-status-dot--booting {
+  background: var(--color-status-booting);
+  animation: var(--pulse-booting);
+}
+
+.cmp-status-dot--idle {
+  background: var(--color-status-idle);
+}
+
+.cmp-status-dot--thinking {
+  background: var(--color-status-thinking);
+  animation: var(--pulse-thinking);
+}
+
+.cmp-status-dot--tool_exec {
+  background: var(--color-status-tool_exec);
+}
+
+.cmp-status-dot--waiting_sub {
+  background: var(--color-status-waiting_sub);
+  animation: var(--pulse-waiting);
+}
+
+.cmp-status-dot--paused {
+  background: var(--color-status-paused);
+}
+
+.cmp-status-dot--completed {
+  background: var(--color-status-completed);
+}
+
+.cmp-status-dot--failed {
+  background: var(--color-status-failed);
+}
+
+.cmp-status-dot--cancelled {
+  background: var(--color-status-cancelled);
+}
+
+.cmp-status-dot--stalled {
+  background: var(--color-status-stalled);
+  animation: var(--pulse-stalled);
+}
+
+/* Status overlay icons (paused, completed, failed, cancelled) */
+.cmp-status-dot--with-overlay::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.cmp-status-dot--paused.cmp-status-dot--with-overlay::after {
+  content: '⏸';
+  color: var(--color-status-paused);
+}
+
+.cmp-status-dot--completed.cmp-status-dot--with-overlay::after {
+  content: '✓';
+  color: var(--color-status-completed);
+}
+
+.cmp-status-dot--failed.cmp-status-dot--with-overlay::after {
+  content: '✗';
+  color: var(--color-status-failed);
+}
+
+.cmp-status-dot--cancelled.cmp-status-dot--with-overlay::after {
+  content: '—';
+  color: var(--color-status-cancelled);
+}
+
+/* Status dot with label */
+.cmp-status-dot-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cmp-status-dot-label {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ─── 3.7.2 Trust Badge — .cmp-trust-badge ──────────────────────────── */
+
+.cmp-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cmp-trust-badge .cmp-trust-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.cmp-trust-badge .cmp-trust-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.cmp-trust-badge .cmp-trust-label {
+  font-size: var(--text-small);
+  text-transform: capitalize;
+}
+
+/* Trust level variants — per spec §1.2.8 */
+.cmp-trust-badge--verified .cmp-trust-dot { background: var(--color-trust-verified); }
+.cmp-trust-badge--verified .cmp-trust-icon { color: var(--color-trust-verified); }
+.cmp-trust-badge--verified .cmp-trust-label { color: var(--color-trust-verified); }
+
+.cmp-trust-badge--high .cmp-trust-dot { background: var(--color-trust-high); }
+.cmp-trust-badge--high .cmp-trust-icon { color: var(--color-trust-high); }
+.cmp-trust-badge--high .cmp-trust-label { color: var(--color-trust-high); }
+
+.cmp-trust-badge--medium .cmp-trust-dot { background: var(--color-trust-medium); }
+.cmp-trust-badge--medium .cmp-trust-icon { color: var(--color-trust-medium); }
+.cmp-trust-badge--medium .cmp-trust-label { color: var(--color-trust-medium); }
+
+.cmp-trust-badge--low .cmp-trust-dot { background: var(--color-trust-low); }
+.cmp-trust-badge--low .cmp-trust-icon { color: var(--color-trust-low); }
+.cmp-trust-badge--low .cmp-trust-label { color: var(--color-trust-low); }
+
+.cmp-trust-badge--quarantine .cmp-trust-dot { background: var(--color-trust-quarantine); }
+.cmp-trust-badge--quarantine .cmp-trust-icon { color: var(--color-trust-quarantine); }
+.cmp-trust-badge--quarantine .cmp-trust-label { color: var(--color-trust-quarantine); }
+
+/* Trust badge size variants */
+.cmp-trust-badge--sm { gap: 2px; }
+.cmp-trust-badge--sm .cmp-trust-label { font-size: var(--text-caption); }
+.cmp-trust-badge--sm .cmp-trust-dot { width: 4px; height: 4px; }
+
+.cmp-trust-badge--lg { gap: var(--space-2); }
+.cmp-trust-badge--lg .cmp-trust-label { font-size: var(--text-body); }
+.cmp-trust-badge--lg .cmp-trust-dot { width: 8px; height: 8px; }
+
+/* Trust badge — dot-only variant (no label) */
+.cmp-trust-badge--dot-only .cmp-trust-label,
+.cmp-trust-badge--dot-only .cmp-trust-icon {
+  display: none;
+}
+
+/* ─── 3.7.3 Entity Type Icon — .cmp-entity-icon ─────────────────────── */
+
+.cmp-entity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cmp-entity-icon .entity-icon-svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cmp-entity-icon .entity-icon-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cmp-entity-icon .entity-label {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+/* Size variants */
+.cmp-entity-icon--sm { font-size: 12px; }
+.cmp-entity-icon--sm .entity-icon-svg { width: 12px; height: 12px; }
+.cmp-entity-icon--sm .entity-icon-emoji { font-size: 11px; }
+
+.cmp-entity-icon--lg { font-size: 20px; }
+.cmp-entity-icon--lg .entity-icon-svg { width: 20px; height: 20px; }
+.cmp-entity-icon--lg .entity-icon-emoji { font-size: 18px; }
+
+/* Entity type icon with background circle */
+.cmp-entity-icon--circled {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface-raised);
+}
+
+.cmp-entity-icon--circled.cmp-entity-icon--sm {
+  width: 22px;
+  height: 22px;
+}
+
+.cmp-entity-icon--circled.cmp-entity-icon--lg {
+  width: 36px;
+  height: 36px;
+}
+
+/* Entity type color variants — per spec §1.2.6 */
+.cmp-entity-icon--session    { color: var(--color-entity-session); }
+.cmp-entity-icon--memory     { color: var(--color-entity-memory); }
+.cmp-entity-icon--finding    { color: var(--color-entity-finding); }
+.cmp-entity-icon--task       { color: var(--color-entity-task); }
+.cmp-entity-icon--approval   { color: var(--color-entity-approval); }
+.cmp-entity-icon--evidence   { color: var(--color-entity-evidence); }
+.cmp-entity-icon--anomaly    { color: var(--color-entity-anomaly); }
+.cmp-entity-icon--tool       { color: var(--color-entity-tool); }
+.cmp-entity-icon--skill      { color: var(--color-entity-skill); }
+.cmp-entity-icon--user       { color: var(--color-entity-user); }
+.cmp-entity-icon--system     { color: var(--color-entity-system); }
+
+/* Entity icon with label group */
+.cmp-entity-icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cmp-entity-icon-group .entity-label {
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}

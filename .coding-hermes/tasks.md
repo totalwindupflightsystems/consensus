@@ -18,7 +18,7 @@
 - [x] Build component library: Button, Input, Select, Badge, Card, Modal, Toast, Tooltip, Skeleton — §3
   → chronicle/css/components.css (1,089 lines, 9 components, 30+ variants, responsive)
 - [x] Data display: Table (sortable, paginated, selectable), CodeBlock, JSONViewer — §3.5-3.6
-- [ ] Status indicators: status dots, trust badges, entity type icons — §3.7
+- [x] Status indicators: status dots, trust badges, entity type icons — §3.7
 
 ### 1.4 Investigation Workbench
 - [ ] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
