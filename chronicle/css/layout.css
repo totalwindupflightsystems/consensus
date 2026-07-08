@@ -1087,3 +1087,272 @@
     transform: scale(1);
   }
 }
+
+/* ==========================================================================
+   5.2 Workbench Layout — Investigation Split Pane
+   Spec: specs/026-dashboard-ui.md §5.2-5.3
+   ========================================================================== */
+
+.chronicle-content {
+  position: relative;
+}
+
+.content-view {
+  display: none;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+.content-view.active {
+  display: block;
+}
+
+/* Investigation workbench */
+.workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+}
+
+/* Toolbar */
+.workbench-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  flex-shrink: 0;
+  padding: 0 var(--space-4);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.workbench-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.workbench-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.workbench-toolbar-title {
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+.workbench-toolbar-btn {
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default);
+}
+.workbench-toolbar-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+/* Pane container — flex row for THINK | divider | SAYS */
+.pane-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Individual panes */
+.pane {
+  flex: 1;
+  min-width: 280px;
+  overflow-y: auto;
+  background: var(--color-bg-canvas);
+  padding: var(--space-4);
+}
+.pane-think {
+  /* default flex: 1 */
+}
+.pane-says {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.pane-findings-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+/* Draggable divider */
+.pane-divider {
+  width: 8px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.pane-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 1px;
+  background: var(--color-border-default);
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.pane-divider:hover,
+.pane-divider--dragging {
+  background: var(--color-bg-hover);
+}
+.pane-divider:hover::after,
+.pane-divider--dragging::after {
+  background: var(--color-border-strong);
+}
+
+/* Input area at bottom of SAYS */
+.input-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border-default);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+}
+.input-area-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+.input-area-field {
+  flex: 1;
+  position: relative;
+}
+.input-area-field textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 120px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-default);
+}
+.input-area-field textarea:focus {
+  border-color: var(--color-border-focus);
+}
+.input-area-field textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+.input-area-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-1);
+  padding: 0 var(--space-1);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.input-area-tools {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.input-area-tool-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  transition: color var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default);
+}
+.input-area-tool-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+.input-area-send-btn {
+  height: 36px;
+  padding: 0 var(--space-4);
+  background: var(--color-accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-default),
+              opacity var(--duration-fast) var(--ease-default);
+}
+.input-area-send-btn:hover {
+  opacity: 0.9;
+}
+.input-area-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.input-area-send-btn--cancel {
+  background: var(--color-accent-error);
+}
+
+/* Responsive — stack panes vertically on mobile */
+@media (max-width: 768px) {
+  .pane-container {
+    flex-direction: column;
+  }
+  .pane-divider {
+    width: 100%;
+    height: 8px;
+    cursor: row-resize;
+  }
+  .pane-divider::after {
+    width: 32px;
+    height: 2px;
+  }
+}
+
+/* Keyboard shortcut label in toolbar */
+.kbd-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.kbd-toolbar kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  padding: 1px 4px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}

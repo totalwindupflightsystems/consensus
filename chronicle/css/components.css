@@ -2014,3 +2014,341 @@ textarea.cmp-input {
   color: var(--color-text-primary);
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   5.4 Thought Cards — THINK Pane Reasoning Chain
+   Spec: specs/026-dashboard-ui.md §5.4
+   ========================================================================== */
+
+/* Base card */
+.thought-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--color-accent-purple);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-sm);
+  transition: all 150ms var(--ease-out-quint);
+  animation: thought-entry 300ms var(--ease-out-expo) both;
+}
+
+@keyframes thought-entry {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.thought-card:hover {
+  background: color-mix(in srgb, var(--color-bg-surface) 85%, var(--color-bg-hover) 15%);
+  border-left-color: var(--color-accent-purple);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+/* Header row */
+.thought-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+.thought-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.thought-card-step-icon {
+  font-size: 14px;
+  color: var(--color-accent-purple);
+  flex-shrink: 0;
+}
+.thought-card-step-label {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.thought-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.thought-card-model-badge {
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent-purple) 10%, transparent);
+  color: var(--color-accent-purple);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+.thought-card-timestamp {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* Thinking state — streaming */
+.thought-card--thinking {
+  border-left-color: var(--color-accent-purple);
+  animation: thinking-border 3s var(--ease-linear) infinite, thinking-glow 2s var(--ease-linear) infinite, thought-entry 300ms var(--ease-out-expo) both;
+}
+@keyframes thinking-border {
+  0%, 100% { border-left-color: var(--color-accent-purple); }
+  50% { border-left-color: var(--color-accent-cyan); }
+}
+@keyframes thinking-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(163,113,247,0.05); }
+  50% { box-shadow: 0 0 12px rgba(163,113,247,0.15); }
+}
+.thought-card--thinking .thought-card-step-label {
+  color: var(--color-accent-purple);
+}
+.thought-card--thinking .thought-card-timestamp {
+  display: none;
+}
+.thought-card--thinking .thought-card-actions {
+  display: none;
+}
+
+/* Thinking dots */
+.thinking-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px;
+}
+.thinking-dot {
+  opacity: 0.3;
+  animation: thinking-dot 1.5s var(--ease-linear) infinite;
+}
+.thinking-dot:nth-child(1) { animation-delay: 0ms; }
+.thinking-dot:nth-child(2) { animation-delay: 200ms; }
+.thinking-dot:nth-child(3) { animation-delay: 400ms; }
+@keyframes thinking-dot {
+  0%, 100% { opacity: 0.3; }
+  33% { opacity: 1; }
+}
+
+/* Streaming cursor */
+.thought-streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--color-accent-purple);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s steps(1) infinite;
+}
+@keyframes cursor-blink {
+  0%, 70% { opacity: 1; }
+  71%, 100% { opacity: 0; }
+}
+
+/* Completed state transition */
+.thought-card--completed .thought-card-header-left .thought-card-step-label {
+  color: var(--color-text-primary);
+}
+
+/* Reasoning body */
+.thought-card-body {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-bottom: var(--space-3);
+}
+.thought-card-body code {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  background: var(--color-bg-code-inline);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+
+/* Source badges */
+.thought-card-source-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.thought-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  max-width: 220px;
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-default), background 150ms var(--ease-default);
+}
+.thought-source-badge:hover {
+  border-color: var(--color-border-hover);
+  background: color-mix(in srgb, var(--color-bg-input) 95%, var(--color-bg-hover) 5%);
+}
+.thought-source-badge .source-confidence {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.source-confidence--high   { color: var(--color-accent-success); }
+.source-confidence--medium { color: var(--color-accent-warning); }
+.source-confidence--low    { color: var(--color-accent-error); }
+
+/* Flag indicators */
+.thought-card-flags {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.thought-flag {
+  display: contents;
+  font-size: var(--text-caption);
+  color: var(--color-text-primary);
+}
+.thought-flag-icon {
+  font-size: 14px;
+}
+.thought-flag--contradiction .thought-flag-icon { color: var(--color-accent-warning); }
+.thought-flag--correlation   .thought-flag-icon { color: var(--color-accent-info); }
+.thought-flag--anomaly       .thought-flag-icon { color: var(--color-accent-purple); }
+.thought-flag--error         .thought-flag-icon { color: var(--color-accent-error); }
+.thought-flag--note          .thought-flag-icon { color: var(--color-text-tertiary); }
+
+/* Action buttons */
+.thought-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.thought-action-btn {
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default);
+}
+.thought-action-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+.thought-action-btn:active {
+  background: var(--color-bg-selection);
+  scale: 0.97;
+}
+.thought-action-btn--flagged {
+  background: color-mix(in srgb, var(--color-accent-error) 15%, transparent);
+  border-color: var(--color-accent-error);
+  color: var(--color-accent-error);
+}
+
+/* Expanded state */
+.thought-card--expanded {
+  border-left-color: var(--color-accent-primary) !important;
+  background: var(--color-bg-surface-raised);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-hover);
+}
+.thought-card--expanded ~ .thought-card {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Flagged state */
+.thought-card--flagged {
+  border-left-color: var(--color-accent-error) !important;
+  background: color-mix(in srgb, var(--color-accent-error) 5%, var(--color-bg-surface));
+}
+
+/* Linked state */
+.thought-card--linked {
+  border-left-color: var(--color-accent-success) !important;
+}
+.thought-card-link-badge {
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent-success) 15%, transparent);
+  color: var(--color-accent-success);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Empty state for THINK pane */
+.pane-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: var(--space-8);
+}
+.pane-empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-3);
+  opacity: 0.4;
+}
+.pane-empty-text {
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.pane-empty-hint {
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* New reasoning floating button */
+.new-reasoning-btn {
+  position: sticky;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  z-index: 5;
+  transition: transform var(--duration-fast) var(--ease-out-quint);
+}
+.new-reasoning-btn:hover {
+  transform: translateX(-50%) translateY(-1px);
+}
+.new-reasoning-btn.hidden {
+  display: none;
+}

@@ -117,10 +117,12 @@
     </div>
   </nav>
 
-  <!-- 2.4: Content Area -->
+  <!-- 2.4: Content Area with Views -->
   <main class="chronicle-content" id="content-area" role="main">
-    <div class="content-view" id="dashboard-view">
-      <!-- Dashboard Overview (§5) placeholder -->
+
+    <!-- ===== Dashboard View ===== -->
+    <div class="content-view active" id="dashboard-view">
+      <div style="padding:var(--space-4);overflow-y:auto;height:100%;">
       <h1 style="font-size:var(--text-display-2);font-weight:var(--weight-extrabold);color:var(--color-text-heading);letter-spacing:var(--tracking-display);margin-bottom:var(--space-3);">Chronicle</h1>
       <p style="color:var(--color-text-secondary);font-size:var(--text-body-lg);line-height:var(--leading-body-lg);margin-bottom:var(--space-6);max-width:520px;">
         Palantir-grade dark-theme operational dashboard for AI-powered investigations.
@@ -466,7 +468,78 @@
         <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘K</span> Commands</kbd>
       </div>
     </div>
-  </main>
+    </div>
+
+    <!-- ===== Investigate View (THINK/SAYS Split Pane) ===== -->
+    <div class="content-view" id="investigate-view">
+    <div class="workbench">
+      <!-- Toolbar -->
+      <div class="workbench-toolbar">
+        <div class="workbench-toolbar-left">
+          <button class="workbench-toolbar-btn" onclick="backToDashboard()" title="Back to Dashboard">← Dashboard</button>
+          <span class="workbench-toolbar-title" id="investigation-title">Investigation Workbench</span>
+        </div>
+        <div class="workbench-toolbar-right">
+          <button class="workbench-toolbar-btn" onclick="toggleEvidencePanel()" title="Toggle Evidence Panel (Ctrl+E)" id="evidence-toggle">📎 Evidence</button>
+          <span class="kbd-toolbar"><kbd>⌃←</kbd><kbd>⌃→</kbd> resize</span>
+        </div>
+      </div>
+
+      <!-- Pane Container -->
+      <div class="pane-container" id="pane-container">
+        <!-- THINK Pane -->
+        <div class="pane pane-think" id="think-pane">
+          <div class="pane-empty-state" id="think-empty">
+            <div class="pane-empty-icon">🧠</div>
+            <div class="pane-empty-text">No Investigation Active</div>
+            <div class="pane-empty-hint">Start a new session to begin your investigation. The AI's reasoning will appear here as streaming thought cards.</div>
+          </div>
+          <div id="thoughts-container" style="display:none;"></div>
+          <button class="new-reasoning-btn hidden" id="new-reasoning-btn" onclick="scrollThoughtsToBottom()">↓ New reasoning</button>
+        </div>
+
+        <!-- Divider -->
+        <div class="pane-divider" id="pane-divider" onmousedown="startPaneDrag(event)"></div>
+
+        <!-- SAYS Pane -->
+        <div class="pane pane-says" id="says-pane">
+          <div class="pane-findings-list">
+            <div class="pane-empty-state" id="says-empty">
+              <div class="pane-empty-icon">📋</div>
+              <div class="pane-empty-text">Findings Will Appear Here</div>
+              <div class="pane-empty-hint">As the AI reaches conclusions, they will be summarized as Findings in this pane — bidirectionally linked to their reasoning steps.</div>
+            </div>
+            <div id="findings-container" style="display:none;"></div>
+          </div>
+
+          <!-- Input Area -->
+          <div class="input-area" id="input-area">
+            <div class="input-area-row">
+              <div class="input-area-field">
+                <textarea id="input-textarea" rows="1"
+                  placeholder="Ask a question or give an instruction..."
+                  oninput="onInputChange(this)"
+                  onkeydown="onInputKeydown(event)"
+                  disabled></textarea>
+              </div>
+              <button class="input-area-send-btn" id="send-btn" onclick="sendMessage()" disabled>
+                Send →
+              </button>
+            </div>
+            <div class="input-area-meta">
+              <div class="input-area-tools">
+                <button class="input-area-tool-btn" title="Attach file" onclick="alert('File attachment — coming soon')">📎</button>
+                <button class="input-area-tool-btn" title="Context" onclick="alert('Context selection — coming soon')">@</button>
+              </div>
+              <span id="input-status">No active session</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    </main>
 
   <!-- 2.5: Status Bar (32px, spans full width) -->
   <footer class="chronicle-statusbar" role="contentinfo">
@@ -923,15 +996,24 @@
     alert('Profile menu — coming in Phase 1.3');
   };
 
-  // --- 2.5 (simulated) Navigation (SPA routing placeholder) ---
+  // --- 2.5 (simulated) Navigation (SPA routing) ---
   window.navigateTo = function(view) {
-    // Phase 1.4+ will wire actual SPA routing
-    // For now, just highlight the active nav item
+    // Show/hide views
+    document.querySelectorAll('.content-view').forEach(function(v) {
+      v.classList.remove('active');
+    });
+    var targetView = document.getElementById(view + '-view');
+    if (targetView) {
+      targetView.classList.add('active');
+    } else {
+      // Fallback: show dashboard
+      document.getElementById('dashboard-view').classList.add('active');
+    }
+
+    // Highlight matching nav item
     document.querySelectorAll('.sidebar-nav-item').forEach(function(item) {
       item.classList.remove('active');
     });
-
-    // Find the matching nav item by data attribute or text
     const navItems = document.querySelectorAll('.sidebar-nav-item');
     for (let i = 0; i < navItems.length; i++) {
       if (navItems[i].textContent.trim().toLowerCase().includes(view)) {
@@ -939,6 +1021,9 @@
         break;
       }
     }
+
+    // Record visit
+    recordPageVisit(view);
 
     // Close mobile sidebar after navigation
     const sidebar = document.getElementById('sidebar');
@@ -949,11 +1034,563 @@
     }
   };
 
+  window.backToDashboard = function() {
+    navigateTo('dashboard');
+  };
+
   // --- Sidebar keyboard shortcut: Ctrl+B toggles collapse ---
   document.addEventListener('keydown', function(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
       e.preventDefault();
       toggleSidebar();
+    }
+  });
+
+  // ==========================================================================
+  // Investigation Workbench — THINK/SAYS Pane (§5)
+  // ==========================================================================
+
+  // --- Session state ---
+  var currentSessionId = null;
+  var currentThoughts = [];
+  var thoughtCounter = 0;
+  var isStreaming = false;
+  var streamAbortController = null;
+  var autoScrollEnabled = true;
+  var scrollThrottleTimer = null;
+  var autoScrollObserver = null;
+
+  // --- Pane divider drag ---
+  var isDraggingDivider = false;
+  var dragStartX = 0;
+  var thinkStartFlex = 1;
+  var saysStartFlex = 1;
+
+  window.startPaneDrag = function(e) {
+    if (window.innerWidth <= 768) return; // No drag on mobile stacked layout
+    isDraggingDivider = true;
+    dragStartX = e.clientX;
+    var thinkPane = document.getElementById('think-pane');
+    var saysPane = document.getElementById('says-pane');
+    // Capture current flex values
+    thinkStartFlex = parseFloat(thinkPane.style.flex) || 1;
+    saysStartFlex = parseFloat(saysPane.style.flex) || 1;
+    document.getElementById('pane-divider').classList.add('pane-divider--dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDraggingDivider) return;
+    var container = document.getElementById('pane-container');
+    var rect = container.getBoundingClientRect();
+    var dx = e.clientX - dragStartX;
+    var containerWidth = rect.width - 8; // minus divider width
+    var flexTotal = thinkStartFlex + saysStartFlex;
+    var newThinkFlex = Math.max(0.3, (thinkStartFlex * containerWidth + dx) / containerWidth * flexTotal);
+    var newSaysFlex = Math.max(0.3, flexTotal - newThinkFlex);
+    document.getElementById('think-pane').style.flex = newThinkFlex;
+    document.getElementById('says-pane').style.flex = newSaysFlex;
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (!isDraggingDivider) return;
+    isDraggingDivider = false;
+    document.getElementById('pane-divider').classList.remove('pane-divider--dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    // Save pane ratio
+    if (currentSessionId) {
+      var thinkFlex = parseFloat(document.getElementById('think-pane').style.flex) || 1;
+      var saysFlex = parseFloat(document.getElementById('says-pane').style.flex) || 1;
+      try {
+        localStorage.setItem('chronicle:investigation:' + currentSessionId + ':pane-ratio', thinkFlex / saysFlex);
+      } catch(e) {}
+    }
+  });
+
+  // --- Keyboard shortcuts for pane sizing ---
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'ArrowLeft') {
+      // Reduce THINK by ~40px, increase SAYS
+      e.preventDefault();
+      var thinkPane = document.getElementById('think-pane');
+      var saysPane = document.getElementById('says-pane');
+      var thinkFlex = parseFloat(thinkPane.style.flex) || 1;
+      var saysFlex = parseFloat(saysPane.style.flex) || 1;
+      var flexTotal = thinkFlex + saysFlex;
+      var container = document.getElementById('pane-container');
+      var pxPerFlex = (container.offsetWidth - 8) / flexTotal;
+      var newThinkFlex = Math.max(0.3, thinkFlex - (40 / pxPerFlex));
+      var newSaysFlex = Math.min(flexTotal - 0.3, saysFlex + (40 / pxPerFlex));
+      thinkPane.style.flex = newThinkFlex;
+      saysPane.style.flex = newSaysFlex;
+    }
+    if (e.ctrlKey && e.key === 'ArrowRight') {
+      // Increase THINK by ~40px, reduce SAYS
+      e.preventDefault();
+      var thinkPane = document.getElementById('think-pane');
+      var saysPane = document.getElementById('says-pane');
+      var thinkFlex = parseFloat(thinkPane.style.flex) || 1;
+      var saysFlex = parseFloat(saysPane.style.flex) || 1;
+      var flexTotal = thinkFlex + saysFlex;
+      var container = document.getElementById('pane-container');
+      var pxPerFlex = (container.offsetWidth - 8) / flexTotal;
+      var newThinkFlex = Math.min(flexTotal - 0.3, thinkFlex + (40 / pxPerFlex));
+      var newSaysFlex = Math.max(0.3, saysFlex - (40 / pxPerFlex));
+      thinkPane.style.flex = newThinkFlex;
+      saysPane.style.flex = newSaysFlex;
+    }
+  });
+
+  // --- Auto-scroll behavior ---
+  var isUserScrolledUp = false;
+  var autoScrollCheckTimer = null;
+
+  function initAutoScroll() {
+    var thinkPane = document.getElementById('think-pane');
+    if (!thinkPane) return;
+
+    // Reset auto-scroll state when new thoughts arrive
+    autoScrollEnabled = true;
+    isUserScrolledUp = false;
+
+    // Listen for scroll events to detect user scrolling up
+    thinkPane.addEventListener('scroll', function() {
+      if (autoScrollCheckTimer) clearTimeout(autoScrollCheckTimer);
+      autoScrollCheckTimer = setTimeout(function() {
+        var threshold = 50;
+        var atBottom = (thinkPane.scrollHeight - thinkPane.scrollTop - thinkPane.clientHeight) < threshold;
+        if (!atBottom && isStreaming) {
+          isUserScrolledUp = true;
+          document.getElementById('new-reasoning-btn').classList.remove('hidden');
+        } else {
+          isUserScrolledUp = false;
+          document.getElementById('new-reasoning-btn').classList.add('hidden');
+        }
+      }, 200);
+    });
+  }
+
+  window.scrollThoughtsToBottom = function() {
+    var thinkPane = document.getElementById('think-pane');
+    if (thinkPane) {
+      thinkPane.scrollTop = thinkPane.scrollHeight;
+    }
+    isUserScrolledUp = false;
+    document.getElementById('new-reasoning-btn').classList.add('hidden');
+    autoScrollEnabled = true;
+  };
+
+  function autoScrollIfNeeded() {
+    if (!autoScrollEnabled) return;
+    if (scrollThrottleTimer) return;
+    scrollThrottleTimer = setTimeout(function() {
+      scrollThrottleTimer = null;
+      if (!isUserScrolledUp) {
+        window.scrollThoughtsToBottom();
+      }
+    }, 200);
+  }
+
+  // --- Thought card rendering ---
+  function renderThoughtCard(step) {
+    var isThinking = step.status === 'thinking';
+    var stateClass = isThinking ? 'thought-card--thinking' : 'thought-card--completed';
+
+    var timeStr = step.timestamp ? formatRelativeTime(step.timestamp) : '';
+    var content = '';
+
+    // Sources
+    var sourcesHtml = '';
+    if (step.sources && step.sources.length > 0) {
+      sourcesHtml = '<div class="thought-card-source-badges">';
+      step.sources.forEach(function(src) {
+        var confClass = 'source-confidence--medium';
+        if (src.confidence >= 0.94) confClass = 'source-confidence--high';
+        else if (src.confidence < 0.70) confClass = 'source-confidence--low';
+        sourcesHtml += '<div class="thought-source-badge" title="' + escapeHtml(src.name) + '">' +
+          '<span>' + escapeHtml(src.icon || '📄') + '</span>' +
+          '<span>' + escapeHtml(truncateStr(src.name, 24)) + '</span>' +
+          '<span class="source-confidence ' + confClass + '">' + src.confidence.toFixed(2) + '</span>' +
+          '</div>';
+      });
+      sourcesHtml += '</div>';
+    }
+
+    // Flags
+    var flagsHtml = '';
+    if (step.flags && step.flags.length > 0) {
+      flagsHtml = '<div class="thought-card-flags">';
+      step.flags.forEach(function(flag) {
+        var cls = 'thought-flag--' + (flag.type || 'note');
+        flagsHtml += '<div class="thought-flag ' + cls + '">' +
+          '<span class="thought-flag-icon">' + escapeHtml(flag.icon || 'ℹ') + '</span>' +
+          '<span>' + escapeHtml(flag.text || '') + '</span>' +
+          '</div>';
+      });
+      flagsHtml += '</div>';
+    }
+
+    // Body
+    var bodyHtml = '<div class="thought-card-body">';
+    if (isThinking) {
+      bodyHtml += escapeHtml(step.content || '') + '<span class="thought-streaming-cursor"></span>';
+    } else {
+      bodyHtml += escapeHtml(step.content || '');
+    }
+    bodyHtml += '</div>';
+
+    // Header
+    var headerHtml =
+      '<div class="thought-card-header">' +
+      '  <div class="thought-card-header-left">' +
+      '    <span class="thought-card-step-icon">🧠</span>' +
+      '    <span class="thought-card-step-label">' +
+      (isThinking
+        ? 'Thinking<span class="thinking-dots"><span class="thinking-dot">.</span><span class="thinking-dot">.</span><span class="thinking-dot">.</span></span>'
+        : 'Step ' + step.number + ' · ' + escapeHtml(step.name || 'Reasoning')) +
+      '    </span>' +
+      '  </div>' +
+      '  <div class="thought-card-header-right">' +
+      '    <span class="thought-card-model-badge">' + escapeHtml(step.model || 'AI') + '</span>' +
+      '    <span class="thought-card-timestamp" title="' + (step.absoluteTime || '') + '">' + timeStr + '</span>' +
+      '  </div>' +
+      '</div>';
+
+    // Actions
+    var actionsHtml = '';
+    if (!isThinking) {
+      actionsHtml = '<div class="thought-card-actions">' +
+        '<button class="thought-action-btn" onclick="scrollToFinding(\'' + (step.findingId || '') + '\')" ' +
+        (step.findingId ? '' : 'disabled style="opacity:0.4"') + '>🔗 View Finding</button>' +
+        '<button class="thought-action-btn" onclick="copyThoughtContent(this)">📋 Copy</button>' +
+        '<button class="thought-action-btn thought-action-btn--flag" onclick="toggleFlagThought(' + step.number + ')">⚑ Flag</button>' +
+        '</div>';
+    }
+
+    return '<div class="thought-card ' + stateClass + '" data-step="' + step.number + '" onclick="toggleExpandThought(this)">' +
+      headerHtml + bodyHtml + sourcesHtml + flagsHtml + actionsHtml +
+      '</div>';
+  }
+
+  function truncateStr(str, max) {
+    if (str.length <= max) return str;
+    return str.substring(0, max - 1) + '…';
+  }
+
+  function formatRelativeTime(isoString) {
+    var now = Date.now();
+    var then = new Date(isoString).getTime();
+    var diff = Math.floor((now - then) / 1000);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  // --- Add thought card ---
+  function addThought(step) {
+    thoughtCounter++;
+    if (!step.number) step.number = thoughtCounter;
+    if (!step.status) step.status = 'thinking';
+    if (!step.timestamp) step.timestamp = new Date().toISOString();
+    if (!step.model) step.model = document.getElementById('investigation-title').textContent.includes('deepseek') ? 'deepseek-v4-pro' : 'unknown';
+
+    currentThoughts.push(step);
+    var container = document.getElementById('thoughts-container');
+    var empty = document.getElementById('think-empty');
+    if (container && empty) {
+      container.style.display = '';
+      empty.style.display = 'none';
+    }
+    if (container) {
+      container.insertAdjacentHTML('beforeend', renderThoughtCard(step));
+      autoScrollIfNeeded();
+    }
+  }
+
+  // --- Complete a thinking card (mark as completed) ---
+  function completeThought(stepNumber, content, sources, flags) {
+    var cards = document.querySelectorAll('.thought-card');
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (parseInt(card.getAttribute('data-step')) === stepNumber) {
+        card.classList.remove('thought-card--thinking');
+        card.classList.add('thought-card--completed');
+        // Update the step label
+        var label = card.querySelector('.thought-card-step-label');
+        if (label) {
+          var step = currentThoughts.find(function(s) { return s.number === stepNumber; });
+          if (step) {
+            label.textContent = 'Step ' + stepNumber + ' · ' + (step.name || 'Reasoning');
+          }
+        }
+        // Remove cursor
+        var cursor = card.querySelector('.thought-streaming-cursor');
+        if (cursor) cursor.remove();
+        // Update timestamp
+        var ts = card.querySelector('.thought-card-timestamp');
+        if (ts) ts.textContent = formatRelativeTime(new Date().toISOString());
+        // Add actions
+        var body = card.querySelector('.thought-card-body');
+        if (body && !card.querySelector('.thought-card-actions')) {
+          card.insertAdjacentHTML('beforeend',
+            '<div class="thought-card-actions">' +
+            '<button class="thought-action-btn" onclick="copyThoughtContent(this)">📋 Copy</button>' +
+            '<button class="thought-action-btn thought-action-btn--flag" onclick="toggleFlagThought(' + stepNumber + ')">⚑ Flag</button>' +
+            '</div>'
+          );
+        }
+        break;
+      }
+    }
+  }
+
+  // --- Streaming append to current thinking card ---
+  function appendToCurrentThought(text) {
+    var cards = document.querySelectorAll('.thought-card');
+    var lastCard = cards[cards.length - 1];
+    if (!lastCard) return;
+    var body = lastCard.querySelector('.thought-card-body');
+    if (!body) return;
+    // Remove cursor, append text, re-add cursor
+    var cursor = body.querySelector('.thought-streaming-cursor');
+    var currentText = body.textContent || '';
+    if (cursor) {
+      cursor.remove();
+      body.appendChild(document.createTextNode(text));
+      body.appendChild(cursor);
+    } else {
+      body.appendChild(document.createTextNode(text));
+    }
+    autoScrollIfNeeded();
+  }
+
+  // --- Card interactions ---
+  window.toggleExpandThought = function(card) {
+    if (isStreaming) return;
+    card.classList.toggle('thought-card--expanded');
+  };
+
+  window.toggleFlagThought = function(stepNumber) {
+    var cards = document.querySelectorAll('.thought-card');
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (parseInt(card.getAttribute('data-step')) === stepNumber) {
+        card.classList.toggle('thought-card--flagged');
+        var flagBtn = card.querySelector('.thought-action-btn--flag');
+        if (flagBtn) {
+          flagBtn.classList.toggle('thought-action-btn--flagged');
+          flagBtn.textContent = flagBtn.classList.contains('thought-action-btn--flagged') ? '🚩 Flagged' : '⚑ Flag';
+        }
+        // Persist to localStorage
+        try {
+          var key = 'chronicle:thought:' + (currentSessionId || 'pending') + ':' + stepNumber + ':flagged';
+          if (card.classList.contains('thought-card--flagged')) {
+            localStorage.setItem(key, 'true');
+          } else {
+            localStorage.removeItem(key);
+          }
+        } catch(e) {}
+        break;
+      }
+    }
+  };
+
+  window.copyThoughtContent = function(btn) {
+    var card = btn.closest('.thought-card');
+    if (!card) return;
+    var body = card.querySelector('.thought-card-body');
+    if (!body) return;
+    var text = body.textContent || body.innerText;
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = '✓ Copied';
+      setTimeout(function() { btn.textContent = '📋 Copy'; }, 1500);
+    });
+  };
+
+  window.scrollToFinding = function(findingId) {
+    if (findingId) {
+      // Scroll to finding in SAYS pane (placeholder for now)
+      document.getElementById('says-pane').scrollTop = 0;
+    }
+  };
+
+  // --- New Session ---
+  window.startNewInvestigation = function() {
+    // Navigate to investigate view
+    navigateTo('investigate');
+    var title = document.getElementById('investigation-title');
+    title.textContent = 'Investigation: New Session';
+
+    // Reset state
+    currentThoughts = [];
+    thoughtCounter = 0;
+    isStreaming = false;
+    var container = document.getElementById('thoughts-container');
+    if (container) container.innerHTML = '';
+    var empty = document.getElementById('think-empty');
+    if (empty) empty.style.display = '';
+
+    // Enable input
+    var textarea = document.getElementById('input-textarea');
+    var sendBtn = document.getElementById('send-btn');
+    if (textarea) {
+      textarea.disabled = false;
+      textarea.placeholder = 'Ask a question or give an instruction...';
+      textarea.focus();
+    }
+    if (sendBtn) sendBtn.disabled = false;
+    document.getElementById('input-status').textContent = 'Ready';
+
+    // Generate a local session ID
+    currentSessionId = 'local-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+
+    // Initialize auto-scroll
+    initAutoScroll();
+
+    // Restore pane ratio if available
+    try {
+      var ratio = localStorage.getItem('chronicle:investigation:' + currentSessionId + ':pane-ratio');
+      if (ratio) {
+        var flex = parseFloat(ratio);
+        if (flex > 0) {
+          document.getElementById('think-pane').style.flex = flex;
+          document.getElementById('says-pane').style.flex = 1;
+        }
+      }
+    } catch(e) {}
+  };
+
+  // --- Input handling ---
+  window.onInputChange = function(textarea) {
+    // Auto-resize
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  };
+
+  window.onInputKeydown = function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  window.sendMessage = function() {
+    var textarea = document.getElementById('input-textarea');
+    var sendBtn = document.getElementById('send-btn');
+    if (!textarea || !textarea.value.trim()) return;
+    if (isStreaming) {
+      // Cancel streaming
+      if (streamAbortController) {
+        streamAbortController.abort();
+        streamAbortController = null;
+      }
+      isStreaming = false;
+      sendBtn.textContent = 'Send →';
+      sendBtn.classList.remove('input-area-send-btn--cancel');
+      textarea.disabled = false;
+      document.getElementById('input-status').textContent = 'Cancelled';
+      return;
+    }
+
+    var message = textarea.value.trim();
+    textarea.value = '';
+    textarea.style.height = 'auto';
+
+    // Demo: simulate AI response with streaming thought cards
+    isStreaming = true;
+    sendBtn.textContent = 'Cancel ✕';
+    sendBtn.classList.add('input-area-send-btn--cancel');
+    textarea.disabled = true;
+    document.getElementById('input-status').textContent = 'AI is thinking...';
+
+    // Create initial thinking card
+    addThought({
+      number: thoughtCounter + 1,
+      status: 'thinking',
+      name: message.split(' ').slice(0, 5).join(' '),
+      content: '',
+      model: 'deepseek-v4-flash',
+      sources: [],
+      flags: []
+    });
+
+    // Simulate streaming by appending text chunks
+    var demoResponses = [
+      "Analyzing the query...",
+      "Cross-referencing available data sources.",
+      "Found 3 relevant data points in the knowledge base.",
+      "Evaluating confidence levels for each source.",
+      "Synthesizing findings..."
+    ];
+    var chunkIndex = 0;
+    var chunkTimer = setInterval(function() {
+      if (chunkIndex < demoResponses.length) {
+        // Type each character
+        var chars = demoResponses[chunkIndex] + '\n';
+        var charIdx = 0;
+        var charTimer = setInterval(function() {
+          if (charIdx < chars.length) {
+            appendToCurrentThought(chars[charIdx]);
+            charIdx++;
+          } else {
+            clearInterval(charTimer);
+            chunkIndex++;
+            if (chunkIndex >= demoResponses.length) {
+              // Finish streaming
+              clearInterval(chunkTimer);
+              var stepNum = thoughtCounter;
+              completeThought(stepNum, '', [
+                { name: 'knowledge-base.json', confidence: 0.92, icon: '📄' },
+                { name: 'session-history.log', confidence: 0.85, icon: '📄' }
+              ], [
+                { type: 'note', icon: 'ℹ', text: 'Analysis based on available context' }
+              ]);
+              isStreaming = false;
+              sendBtn.textContent = 'Send →';
+              sendBtn.classList.remove('input-area-send-btn--cancel');
+              textarea.disabled = false;
+              document.getElementById('input-status').textContent = 'Ready';
+              textarea.focus();
+            }
+          }
+        }, 20);
+      }
+    }, 500);
+  };
+
+  // --- Evidence Panel ---
+  window.toggleEvidencePanel = function() {
+    // Placeholder — will build in §4.4
+    var btn = document.getElementById('evidence-toggle');
+    if (btn.textContent.includes('📎')) {
+      btn.textContent = '✕ Evidence';
+    } else {
+      btn.textContent = '📎 Evidence';
+    }
+  };
+
+  // --- Wire "New Session" from command palette ---
+  // Patch the existing new-session command
+  var origExecute = executePaletteCommand;
+  executePaletteCommand = function(id) {
+    if (id === 'new-session') {
+      closeCommandPalette();
+      startNewInvestigation();
+      return;
+    }
+    if (origExecute) origExecute(id);
+  };
+
+  // --- Enhance keyboard shortcut for Ctrl+E (evidence panel) ---
+  document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+      e.preventDefault();
+      toggleEvidencePanel();
     }
   });
 

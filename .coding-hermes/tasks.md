@@ -21,7 +21,7 @@
 - [x] Status indicators: status dots, trust badges, entity type icons — §3.7
 
 ### 1.4 Investigation Workbench
-- [ ] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
+- [x] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
 - [ ] Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject — §4.3
 - [ ] Build Input Area: message composer, model selector, budget display, send/cancel — §4.1
 - [ ] Build Evidence Panel: source list, citation preview, provenance chain — §4.4
