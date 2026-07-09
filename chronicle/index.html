@@ -480,7 +480,8 @@
           <span class="workbench-toolbar-title" id="investigation-title">Investigation Workbench</span>
         </div>
         <div class="workbench-toolbar-right">
-          <button class="workbench-toolbar-btn" onclick="toggleEvidencePanel()" title="Toggle Evidence Panel (Ctrl+E)" id="evidence-toggle">📎 Evidence</button>
+          <button class="workbench-toolbar-btn" onclick="toggleEvidencePanel()" title="Toggle Evidence Panel (⌃E)" id="evidence-toggle">📎 Evidence</button>
+          <button class="workbench-toolbar-btn" onclick="toggleDiscoveryPanel()" title="Toggle Discovery Panel (⌃⇧D)" id="discovery-toggle">🔍 Discovery</button>
           <span class="kbd-toolbar"><kbd>⌃←</kbd><kbd>⌃→</kbd> resize</span>
         </div>
       </div>
@@ -680,51 +681,103 @@
         </div>
       </div>
 
-      <!-- 5.7 Evidence Panel — slide-out drawer -->
-      <div class="evidence-panel" id="evidence-panel" role="dialog" aria-label="Evidence Panel">
+      <!-- §5.7 / §8.3: Side Panel (tabbed Evidence + Discovery) -->
+      <div class="evidence-panel" id="evidence-panel" role="dialog" aria-label="Side Panel">
         <!-- Resize handle (left edge) -->
         <div class="evidence-panel-resize-handle" id="evidence-resize-handle"
           onmousedown="startEvidenceResize(event)"></div>
 
-        <!-- Header -->
+        <!-- Header with tab bar -->
         <div class="evidence-panel-header">
-          <span class="evidence-panel-title">Evidence</span>
-          <button class="evidence-panel-close" onclick="toggleEvidencePanel()" aria-label="Close evidence panel">×</button>
+          <div class="evidence-panel-tabs" id="side-panel-tabs">
+            <button class="side-panel-tab active" data-tab="evidence" onclick="switchSidePanelTab('evidence')">Evidence</button>
+            <button class="side-panel-tab" data-tab="discovery" onclick="switchSidePanelTab('discovery')">Discovery</button>
+          </div>
+          <button class="evidence-panel-close" onclick="toggleEvidencePanel()" aria-label="Close panel">×</button>
         </div>
 
-        <!-- Search bar -->
-        <div class="evidence-panel-search">
-          <input type="text" id="evidence-search-input"
-            placeholder="Search evidence..."
-            oninput="onEvidenceSearch(this.value)"
-            autocomplete="off">
-        </div>
-
-        <!-- Filter tabs -->
-        <div class="evidence-panel-filters" id="evidence-filter-tabs">
-          <button class="evidence-filter-chip active" data-type="all" onclick="filterEvidence('all')">All <span class="evidence-filter-count" id="ev-count-all">0</span></button>
-          <button class="evidence-filter-chip" data-type="file" onclick="filterEvidence('file')">Files <span class="evidence-filter-count" id="ev-count-file">0</span></button>
-          <button class="evidence-filter-chip" data-type="database" onclick="filterEvidence('database')">Database <span class="evidence-filter-count" id="ev-count-database">0</span></button>
-          <button class="evidence-filter-chip" data-type="url" onclick="filterEvidence('url')">URLs <span class="evidence-filter-count" id="ev-count-url">0</span></button>
-          <button class="evidence-filter-chip" data-type="finding" onclick="filterEvidence('finding')">Findings <span class="evidence-filter-count" id="ev-count-finding">0</span></button>
-        </div>
-
-        <!-- Content area -->
-        <div class="evidence-panel-content" id="evidence-content">
-          <!-- Sources section -->
-          <div class="evidence-section-header">Sources</div>
-          <div class="evidence-list" id="evidence-sources-list">
-            <!-- Source items rendered by renderEvidenceSources() -->
+        <!-- ===== Evidence Tab Content ===== -->
+        <div class="side-panel-tab-content active" id="side-panel-tab-evidence">
+          <!-- Search bar -->
+          <div class="evidence-panel-search">
+            <input type="text" id="evidence-search-input"
+              placeholder="Search evidence..."
+              oninput="onEvidenceSearch(this.value)"
+              autocomplete="off">
           </div>
 
-          <!-- Findings section -->
-          <div class="evidence-section-header">Findings</div>
-          <div class="evidence-list" id="evidence-findings-list">
-            <!-- Findings rendered by renderEvidenceFindings() -->
+          <!-- Filter tabs -->
+          <div class="evidence-panel-filters" id="evidence-filter-tabs">
+            <button class="evidence-filter-chip active" data-type="all" onclick="filterEvidence('all')">All <span class="evidence-filter-count" id="ev-count-all">0</span></button>
+            <button class="evidence-filter-chip" data-type="file" onclick="filterEvidence('file')">Files <span class="evidence-filter-count" id="ev-count-file">0</span></button>
+            <button class="evidence-filter-chip" data-type="database" onclick="filterEvidence('database')">Database <span class="evidence-filter-count" id="ev-count-database">0</span></button>
+            <button class="evidence-filter-chip" data-type="url" onclick="filterEvidence('url')">URLs <span class="evidence-filter-count" id="ev-count-url">0</span></button>
+            <button class="evidence-filter-chip" data-type="finding" onclick="filterEvidence('finding')">Findings <span class="evidence-filter-count" id="ev-count-finding">0</span></button>
           </div>
 
-          <!-- Add source button -->
-          <button class="evidence-add-source" onclick="addEvidenceSource()">+ Add Source</button>
+          <!-- Content area -->
+          <div class="evidence-panel-content" id="evidence-content">
+            <!-- Sources section -->
+            <div class="evidence-section-header">Sources</div>
+            <div class="evidence-list" id="evidence-sources-list">
+              <!-- Source items rendered by renderEvidenceSources() -->
+            </div>
+
+            <!-- Findings section -->
+            <div class="evidence-section-header">Findings</div>
+            <div class="evidence-list" id="evidence-findings-list">
+              <!-- Findings rendered by renderEvidenceFindings() -->
+            </div>
+
+            <!-- Add source button -->
+            <button class="evidence-add-source" onclick="addEvidenceSource()">+ Add Source</button>
+          </div>
+        </div>
+
+        <!-- ===== Discovery Tab Content (§8.3) ===== -->
+        <div class="side-panel-tab-content" id="side-panel-tab-discovery">
+          <!-- Search bar -->
+          <div class="evidence-panel-search">
+            <input type="text" id="discovery-search-input"
+              placeholder="Search all evidence..."
+              oninput="onDiscoverySearch(this.value)"
+              autocomplete="off">
+          </div>
+
+          <div class="evidence-panel-content">
+            <!-- Suggested Queries — §8.3 Suggested Queries -->
+            <div class="evidence-section-header">Suggested Queries</div>
+            <div class="discovery-query-list" id="discovery-suggested-queries">
+              <!-- Rendered by renderDiscoveryQueries() -->
+            </div>
+            <div class="discovery-empty" id="discovery-queries-empty" style="display:none;">
+              <div class="evidence-empty-icon">💡</div>
+              <div class="evidence-empty-text">No suggestions yet</div>
+              <div class="evidence-empty-hint">Start an investigation for AI-generated query suggestions</div>
+            </div>
+
+            <!-- Related Sessions — §8.3 Related Sessions -->
+            <div class="evidence-section-header" style="margin-top:var(--space-4);">Related Sessions</div>
+            <div class="discovery-session-list" id="discovery-related-sessions">
+              <!-- Rendered by renderDiscoverySessions() -->
+            </div>
+            <div class="discovery-empty" id="discovery-sessions-empty" style="display:none;">
+              <div class="evidence-empty-icon">💬</div>
+              <div class="evidence-empty-text">No related sessions</div>
+              <div class="evidence-empty-hint">Sessions with semantic similarity will appear here</div>
+            </div>
+
+            <!-- Similar Findings — §8.3 Similar Findings -->
+            <div class="evidence-section-header" style="margin-top:var(--space-4);">Similar Findings</div>
+            <div class="discovery-finding-list" id="discovery-similar-findings">
+              <!-- Rendered by renderDiscoveryFindings() -->
+            </div>
+            <div class="discovery-empty" id="discovery-findings-empty" style="display:none;">
+              <div class="evidence-empty-icon">🔍</div>
+              <div class="evidence-empty-text">No similar findings</div>
+              <div class="evidence-empty-hint">Findings from other investigations that relate to your current work</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2733,26 +2786,6 @@
   // Initial UI sync (in case the page loaded already showing a session)
   applySessionInputState();
 
-  // --- Evidence Panel ---
-  window.toggleEvidencePanel = function() {
-    var panel = document.getElementById('evidence-panel');
-    var btn = document.getElementById('evidence-toggle');
-    if (!panel) return;
-    var isOpen = panel.classList.toggle('open');
-    if (btn) {
-      btn.innerHTML = isOpen ? '✕ Evidence' : '📎 Evidence';
-      btn.classList.toggle('active', isOpen);
-    }
-    // Persist to localStorage
-    try {
-      localStorage.setItem('chronicle:investigation:evidence-open', isOpen ? 'true' : 'false');
-    } catch(e) {}
-    // Focus search input when opening
-    if (isOpen) {
-      var searchInput = document.getElementById('evidence-search-input');
-      if (searchInput) setTimeout(function() { searchInput.focus(); }, 350);
-    }
-  };
 
   // Evidence data store (mock data for demo)
   var EVIDENCE_SOURCES = [
@@ -2954,7 +2987,278 @@
       e.preventDefault();
       toggleEvidencePanel();
     }
+    // ⌘⇧D (Cmd+Shift+D) — toggle Discovery Panel
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      toggleDiscoveryPanel();
+    }
   });
+
+  // ==========================================================================
+  // Discovery Panel — §8.3
+  // ==========================================================================
+
+  // Active side panel tab ('evidence' or 'discovery')
+  var activeSidePanelTab = 'evidence';
+
+  // Mock data for Discovery Panel
+  var DISCOVERY_QUERIES = [
+    { id: 'q-1', icon: '🔎', text: 'Find contradictions in current findings' },
+    { id: 'q-2', icon: '📊', text: 'Show similar patterns to Q3 analysis' },
+    { id: 'q-3', icon: '🔗', text: 'Find cross-session entity overlaps' },
+    { id: 'q-4', icon: '⚠️', text: 'Detect anomalous confidence drops' },
+    { id: 'q-5', icon: '🧠', text: 'Search for unverified claims' },
+  ];
+
+  var DISCOVERY_SESSIONS = [
+    { id: 'b2e', icon: '💬', name: 'Phish Analysis', meta: 'Completed · 18 iterations', score: 0.87, scoreClass: 'high' },
+    { id: 'c4f', icon: '💬', name: 'Network Scan', meta: 'Paused · 7 iterations', score: 0.74, scoreClass: 'medium' },
+    { id: 'd1a', icon: '💬', name: 'Q3 Revenue', meta: 'Failed · 31 iterations', score: 0.68, scoreClass: 'medium' },
+  ];
+
+  var DISCOVERY_FINDINGS = [
+    { id: 'find-cross-1', icon: '🔍', name: 'APAC Revenue Anomaly — 312% spike', session: 'Q3 Revenue (#d1a)', score: 0.87, scoreClass: 'high' },
+    { id: 'find-cross-2', icon: '🔍', name: 'Supplier invoice discrepancy pattern', session: 'Supplier Audit (#e5b)', score: 0.82, scoreClass: 'high' },
+    { id: 'find-cross-3', icon: '🔍', name: 'Spoofed domain email campaign', session: 'Phish Analysis (#b2e)', score: 0.71, scoreClass: 'medium' },
+  ];
+
+  var discoverySearchTimer = null;
+
+  function renderDiscoveryQueries(search) {
+    var list = document.getElementById('discovery-suggested-queries');
+    var empty = document.getElementById('discovery-queries-empty');
+    if (!list || !empty) return;
+    var items = DISCOVERY_QUERIES;
+    if (search) {
+      items = items.filter(function(q) {
+        return q.text.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      });
+    }
+    if (items.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    items.forEach(function(q) {
+      html += '<button class="discovery-query-pill" onclick="executeDiscoveryQuery(\'' + q.id + '\')" title="Click to search">';
+      html += '<span class="discovery-query-pill-icon">' + q.icon + '</span>';
+      html += '<span>' + q.text + '</span>';
+      html += '</button>';
+    });
+    list.innerHTML = html;
+  }
+
+  function renderDiscoverySessions(search) {
+    var list = document.getElementById('discovery-related-sessions');
+    var empty = document.getElementById('discovery-sessions-empty');
+    if (!list || !empty) return;
+    var items = DISCOVERY_SESSIONS;
+    if (search) {
+      items = items.filter(function(s) {
+        return s.name.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      });
+    }
+    if (items.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    items.forEach(function(s) {
+      html += '<div class="discovery-item" onclick="navigateToSession(\'' + s.id + '\')" title="Open session #' + s.id + '">';
+      html += '<span class="discovery-item-icon">' + s.icon + '</span>';
+      html += '<div class="discovery-item-body">';
+      html += '<div class="discovery-item-name">#' + s.id + ' · ' + s.name + '</div>';
+      html += '<div class="discovery-item-meta">' + s.meta + '</div>';
+      html += '</div>';
+      html += '<span class="discovery-item-score ' + s.scoreClass + '">' + Math.round(s.score * 100) + '%</span>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function renderDiscoveryFindings(search) {
+    var list = document.getElementById('discovery-similar-findings');
+    var empty = document.getElementById('discovery-findings-empty');
+    if (!list || !empty) return;
+    var items = DISCOVERY_FINDINGS;
+    if (search) {
+      items = items.filter(function(f) {
+        return f.name.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      });
+    }
+    if (items.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    items.forEach(function(f) {
+      html += '<div class="discovery-item" onclick="navigateToFinding(\'' + f.id + '\')" title="Open finding">';
+      html += '<span class="discovery-item-icon">' + f.icon + '</span>';
+      html += '<div class="discovery-item-body">';
+      html += '<div class="discovery-item-name">' + f.name + '</div>';
+      html += '<div class="discovery-item-meta">From: ' + f.session + '</div>';
+      html += '</div>';
+      html += '<span class="discovery-item-score ' + f.scoreClass + '">' + Math.round(f.score * 100) + '%</span>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function renderAllDiscovery(search) {
+    renderDiscoveryQueries(search);
+    renderDiscoverySessions(search);
+    renderDiscoveryFindings(search);
+  }
+
+  // Tab switching
+  window.switchSidePanelTab = function(tab) {
+    activeSidePanelTab = tab;
+
+    // Update tab buttons
+    var tabs = document.querySelectorAll('#side-panel-tabs .side-panel-tab');
+    tabs.forEach(function(t) {
+      t.classList.toggle('active', t.getAttribute('data-tab') === tab);
+    });
+
+    // Update content panels
+    var contents = document.querySelectorAll('#evidence-panel .side-panel-tab-content');
+    contents.forEach(function(c) {
+      c.classList.toggle('active', c.id === 'side-panel-tab-' + tab);
+    });
+
+    // Ensure panel is open
+    var panel = document.getElementById('evidence-panel');
+    if (panel && !panel.classList.contains('open')) {
+      panel.classList.add('open');
+    }
+
+    // Update toolbar buttons
+    var evBtn = document.getElementById('evidence-toggle');
+    var dsBtn = document.getElementById('discovery-toggle');
+    if (evBtn) {
+      evBtn.classList.toggle('active', tab === 'evidence' && panel && panel.classList.contains('open'));
+      evBtn.innerHTML = tab === 'evidence' ? '✕ Evidence' : '📎 Evidence';
+    }
+    if (dsBtn) {
+      dsBtn.classList.toggle('active', tab === 'discovery' && panel && panel.classList.contains('open'));
+      dsBtn.innerHTML = tab === 'discovery' ? '✕ Discovery' : '🔍 Discovery';
+    }
+
+    // Render discovery content when switching to discovery tab
+    if (tab === 'discovery') {
+      renderAllDiscovery();
+    }
+
+    // Persist tab preference
+    try {
+      localStorage.setItem('chronicle:investigation:side-panel-tab', tab);
+    } catch(e) {}
+  };
+
+  // Toggle Discovery Panel
+  window.toggleDiscoveryPanel = function() {
+    var panel = document.getElementById('evidence-panel');
+    if (!panel) return;
+
+    if (panel.classList.contains('open') && activeSidePanelTab === 'discovery') {
+      // Close panel
+      panel.classList.remove('open');
+      document.getElementById('evidence-toggle').classList.remove('active');
+      document.getElementById('evidence-toggle').innerHTML = '📎 Evidence';
+      document.getElementById('discovery-toggle').classList.remove('active');
+      document.getElementById('discovery-toggle').innerHTML = '🔍 Discovery';
+      try {
+        localStorage.setItem('chronicle:investigation:evidence-open', 'false');
+      } catch(e) {}
+      return;
+    }
+
+    // Switch to discovery tab and open panel
+    switchSidePanelTab('discovery');
+    try {
+      localStorage.setItem('chronicle:investigation:evidence-open', 'true');
+    } catch(e) {}
+  };
+
+  // Discovery search handler
+  window.onDiscoverySearch = function(query) {
+    if (discoverySearchTimer) clearTimeout(discoverySearchTimer);
+    discoverySearchTimer = setTimeout(function() {
+      renderAllDiscovery(query);
+    }, 200);
+  };
+
+  // Execute a discovery query (clicking a suggested query pill)
+  window.executeDiscoveryQuery = function(queryId) {
+    // Find the query
+    var query = DISCOVERY_QUERIES.find(function(q) { return q.id === queryId; });
+    if (!query) return;
+
+    // Switch to the investigate input and pre-fill it
+    navigateTo('investigate');
+    var textarea = document.getElementById('input-textarea');
+    if (textarea) {
+      textarea.value = query.text;
+      onInputChange(textarea);
+      textarea.focus();
+    }
+  };
+
+  // Navigate to session from discovery panel
+  window.navigateToSession = function(sessionId) {
+    navigateTo('sessions');
+  };
+
+  // Navigate to finding from discovery panel
+  window.navigateToFinding = function(findingId) {
+    navigateTo('findings');
+  };
+
+  // Update toggleEvidencePanel to handle tab switch
+  window.toggleEvidencePanel = function() {
+    var panel = document.getElementById('evidence-panel');
+    if (!panel) return;
+
+    if (panel.classList.contains('open') && activeSidePanelTab === 'evidence') {
+      // Close panel
+      panel.classList.remove('open');
+      document.getElementById('evidence-toggle').classList.remove('active');
+      document.getElementById('evidence-toggle').innerHTML = '📎 Evidence';
+      document.getElementById('discovery-toggle').classList.remove('active');
+      document.getElementById('discovery-toggle').innerHTML = '🔍 Discovery';
+      try {
+        localStorage.setItem('chronicle:investigation:evidence-open', 'false');
+      } catch(e) {}
+      return;
+    }
+
+    // Switch to evidence tab and open panel
+    switchSidePanelTab('evidence');
+    try {
+      localStorage.setItem('chronicle:investigation:evidence-open', 'true');
+    } catch(e) {}
+    // Focus search input when opening
+    var searchInput = document.getElementById('evidence-search-input');
+    if (searchInput) setTimeout(function() { searchInput.focus(); }, 350);
+  };
+
+  // Restore persisted tab on load
+  (function() {
+    try {
+      var persistedTab = localStorage.getItem('chronicle:investigation:side-panel-tab');
+      if (persistedTab === 'discovery') {
+        activeSidePanelTab = 'discovery';
+      }
+    } catch(e) {}
+    // Pre-render discovery data
+    renderAllDiscovery();
+  })();
 
   // ==========================================================================
   // Data Display — §3.4 Table, §3.5 CodeBlock, §3.6 JSONViewer
