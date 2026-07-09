@@ -274,3 +274,27 @@ tasks:
   status: complete
   created_at: '2026-07-09T03:24:38.742172+00:00'
   completed_at: '2026-07-09T03:40:46.782667+00:00'
+- id: chronicle-input-area
+  title: "Build Input Area \u2014 message composer, model selector, budget display\
+    \ (\xA75.6)"
+  criteria:
+  - "Textarea auto-grows from 52px to 200px max-height based on content (\xA75.6.1)"
+  - "Enter submits message, Shift+Enter adds newline, Cmd+Enter forces submit (\xA7\
+    5.6.1)"
+  - "Send button is a 32\xD732 circle arrow overlay on textarea, visible only when\
+    \ textarea has content (\xA75.6.1)"
+  - "Character count shown below textarea left-aligned, fades in when text has content\
+    \ (\xA75.6.1)"
+  - "Input toolbar has: Attach (\U0001F4CE), Context (@), Model selector (#), and\
+    \ token counter on right (\xA75.6.2)"
+  - "Model selector dropdown lists deepseek-v4-pro, deepseek-v4-flash, claude-sonnet-4,\
+    \ gpt-4o, local-model with cost/latency (\xA75.6.2)"
+  - "Token counter shows token estimate and cost, updates on keystroke with 300ms\
+    \ debounce (\xA75.6.2)"
+  - "sendMessage() calls POST /api/v1/sessions/{id}/message endpoint (\xA75.6.3)"
+  - "Context pills appear between toolbar and textarea when context items selected,\
+    \ with \xD7 remove button (\xA75.6.2)"
+  - "Model selection persists per investigation via localStorage (\xA75.6.2)"
+  status: complete
+  created_at: '2026-07-09T10:12:35.128314+00:00'
+  completed_at: '2026-07-09T10:32:36.965367+00:00'

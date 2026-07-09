@@ -519,26 +519,162 @@
             <div id="findings-container" style="display:none;"></div>
           </div>
 
-          <!-- Input Area -->
+          <!-- Input Area — §5.6 -->
           <div class="input-area" id="input-area">
+            <!-- Upload progress bar (4px, below textarea) — §5.6.2 -->
+            <div class="input-upload-progress" id="input-upload-progress" style="display:none;">
+              <div class="input-upload-progress-fill" id="input-upload-progress-fill"></div>
+              <div class="input-upload-progress-label" id="input-upload-progress-label">Uploading…</div>
+            </div>
+
+            <!-- Context pills (between toolbar and textarea, when context selected) — §5.6.2 -->
+            <div class="input-context-pills" id="input-context-pills" style="display:none;"></div>
+
+            <!-- Attached file pills (below toolbar) — §5.6.2 -->
+            <div class="input-attach-pills" id="input-attach-pills" style="display:none;"></div>
+
             <div class="input-area-row">
               <div class="input-area-field">
                 <textarea id="input-textarea" rows="1"
                   placeholder="Ask a question or give an instruction..."
                   oninput="onInputChange(this)"
-                  onkeydown="onInputKeydown(event)"
-                  disabled></textarea>
+                  onkeydown="onInputKeydown(event)"></textarea>
+                <!-- Submit button overlay (32x32 circle, right side) — §5.6.1 -->
+                <button class="input-send-overlay-btn" id="send-btn" type="button" onclick="sendMessage()" tabindex="-1" aria-label="Send message">
+                  <span class="input-send-overlay-btn-icon">→</span>
+                </button>
               </div>
-              <button class="input-area-send-btn" id="send-btn" onclick="sendMessage()" disabled>
-                Send →
+            </div>
+
+            <!-- Character count — §5.6.1 -->
+            <div class="input-char-count" id="input-char-count">0 / —</div>
+
+            <!-- Input Toolbar — §5.6.2 -->
+            <div class="input-toolbar">
+              <div class="input-toolbar-left">
+                <!-- Attach — §5.6.2 -->
+                <button class="input-tb-btn" id="input-attach-btn" type="button" title="Attach file" onclick="openFilePicker()" aria-haspopup="dialog">
+                  <span class="input-tb-btn-icon">📎</span>
+                  <span class="input-tb-btn-label">Attach</span>
+                </button>
+                <input type="file" id="input-attach-file" multiple
+                  accept=".csv,.json,.pdf,.txt,.md,.log,.xml,.yaml,.yml"
+                  style="display:none;" onchange="handleFileSelection(event)">
+
+                <!-- Context — §5.6.2 -->
+                <button class="input-tb-btn" id="input-context-btn" type="button" title="Add context" onclick="toggleContextDropdown(event)" aria-haspopup="menu" aria-expanded="false">
+                  <span class="input-tb-btn-icon">@</span>
+                  <span class="input-tb-btn-label">Context</span>
+                </button>
+
+                <!-- Model — §5.6.2 -->
+                <button class="input-tb-btn input-tb-btn--model" id="input-model-btn" type="button" title="Select model" onclick="toggleModelDropdown(event)" aria-haspopup="menu" aria-expanded="false">
+                  <span class="input-tb-btn-icon">#</span>
+                  <span class="input-tb-btn-label" id="input-model-label">deepseek-v4-pro</span>
+                  <span class="input-tb-btn-caret">▾</span>
+                </button>
+
+                <!-- Status — preserved for state messaging -->
+                <span class="input-toolbar-status" id="input-status">No active session</span>
+              </div>
+
+              <div class="input-toolbar-right">
+                <!-- Token counter — §5.6.2 -->
+                <span class="input-token-counter" id="input-token-counter" title="Token estimate">~0 tokens</span>
+              </div>
+            </div>
+
+            <!-- Context Dropdown (positioned above toolbar, anchored left) — §5.6.2 -->
+            <div class="input-dropdown input-context-dropdown" id="input-context-dropdown" role="menu" style="display:none;">
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="current-investigation" onclick="toggleContextItem(this, 'current-investigation')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">📂</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@current-investigation</span>
+                  <span class="input-dropdown-item-desc">All evidence in this investigation</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="database:revenue" onclick="toggleContextItem(this, 'database:revenue')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">🗄</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@database:revenue</span>
+                  <span class="input-dropdown-item-desc">SQL table</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="finding:7" onclick="toggleContextItem(this, 'finding:7')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">🔍</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@finding:7</span>
+                  <span class="input-dropdown-item-desc">Specific finding</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="thought:step-4" onclick="toggleContextItem(this, 'thought:step-4')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">🧠</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@thought:step-4</span>
+                  <span class="input-dropdown-item-desc">Specific reasoning step</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="timeline:last-24h" onclick="toggleContextItem(this, 'timeline:last-24h')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">🕒</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@timeline:last-24h</span>
+                  <span class="input-dropdown-item-desc">All events in time range</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item" type="button" role="menuitemcheckbox" data-context="memory:search" onclick="toggleContextItem(this, 'memory:search')">
+                <span class="input-dropdown-item-check"></span>
+                <span class="input-dropdown-item-icon">🔎</span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">@memory:search</span>
+                  <span class="input-dropdown-item-desc">Search memory events</span>
+                </span>
               </button>
             </div>
-            <div class="input-area-meta">
-              <div class="input-area-tools">
-                <button class="input-area-tool-btn" title="Attach file" onclick="alert('File attachment — coming soon')">📎</button>
-                <button class="input-area-tool-btn" title="Context" onclick="alert('Context selection — coming soon')">@</button>
-              </div>
-              <span id="input-status">No active session</span>
+
+            <!-- Model Dropdown (positioned above toolbar, anchored to model button) — §5.6.2 -->
+            <div class="input-dropdown input-model-dropdown" id="input-model-dropdown" role="menu" style="display:none;">
+              <div class="input-dropdown-section-header">Cloud Models</div>
+              <button class="input-dropdown-item input-dropdown-item--radio" type="button" role="menuitemradio" data-model="deepseek-v4-pro" data-cost="0.002" data-latency="847ms" onclick="selectModel(this, 'deepseek-v4-pro')">
+                <span class="input-dropdown-item-radio"></span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">deepseek-v4-pro</span>
+                  <span class="input-dropdown-item-desc">~$0.002/query · 847ms avg</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item input-dropdown-item--radio" type="button" role="menuitemradio" data-model="deepseek-v4-flash" data-cost="0.0005" data-latency="234ms" onclick="selectModel(this, 'deepseek-v4-flash')">
+                <span class="input-dropdown-item-radio"></span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">deepseek-v4-flash</span>
+                  <span class="input-dropdown-item-desc">~$0.0005/query · 234ms avg</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item input-dropdown-item--radio" type="button" role="menuitemradio" data-model="claude-sonnet-4" data-cost="0.008" data-latency="1.2s" onclick="selectModel(this, 'claude-sonnet-4')">
+                <span class="input-dropdown-item-radio"></span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">claude-sonnet-4</span>
+                  <span class="input-dropdown-item-desc">~$0.008/query · 1.2s avg</span>
+                </span>
+              </button>
+              <button class="input-dropdown-item input-dropdown-item--radio" type="button" role="menuitemradio" data-model="gpt-4o" data-cost="0.015" data-latency="890ms" onclick="selectModel(this, 'gpt-4o')">
+                <span class="input-dropdown-item-radio"></span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">gpt-4o</span>
+                  <span class="input-dropdown-item-desc">~$0.015/query · 890ms avg</span>
+                </span>
+              </button>
+              <div class="input-dropdown-section-header">Local Models</div>
+              <button class="input-dropdown-item input-dropdown-item--radio" type="button" role="menuitemradio" data-model="local-model" data-cost="0" data-latency="3.4s" onclick="selectModel(this, 'local-model')">
+                <span class="input-dropdown-item-radio"></span>
+                <span class="input-dropdown-item-body">
+                  <span class="input-dropdown-item-name">local-model</span>
+                  <span class="input-dropdown-item-desc">Free · 3.4s avg</span>
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -1774,14 +1910,12 @@
     // Revert to Draft status
     updateFindingStatus(findingNumber, 'draft', { revisionRequested: true });
     var textarea = document.getElementById('input-textarea');
-    var sendBtn = document.getElementById('send-btn');
     if (textarea) {
       var current = textarea.value || '';
       var prefix = current ? current + '\n\n' : '';
       textarea.value = prefix + 'Please revise Finding #' + findingNumber + ': ' + (note || '');
       textarea.focus();
       onInputChange(textarea);
-      if (sendBtn) sendBtn.disabled = false;
       document.getElementById('input-status').textContent = 'Revision requested';
     }
   };
@@ -1918,19 +2052,22 @@
       if (el) el.textContent = '0';
     });
 
-    // Enable input
-    var textarea = document.getElementById('input-textarea');
-    var sendBtn = document.getElementById('send-btn');
-    if (textarea) {
-      textarea.disabled = false;
-      textarea.placeholder = 'Ask a question or give an instruction...';
-      textarea.focus();
-    }
-    if (sendBtn) sendBtn.disabled = false;
-    document.getElementById('input-status').textContent = 'Ready';
-
-    // Generate a local session ID
+    // Enable input — generate the local session ID FIRST so the textarea
+    // enable logic sees a valid session.
     currentSessionId = 'local-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+
+    if (window.enableInputForActiveSession) {
+      window.enableInputForActiveSession();
+    } else {
+      // Fallback: set disabled=false directly if helper hasn't loaded yet.
+      var ta = document.getElementById('input-textarea');
+      if (ta) {
+        ta.disabled = false;
+        ta.placeholder = 'Ask a question or give an instruction...';
+        ta.focus();
+      }
+      document.getElementById('input-status').textContent = 'Ready';
+    }
 
     // Initialize auto-scroll
     initAutoScroll();
@@ -1948,72 +2085,237 @@
     } catch(e) {}
   };
 
-  // --- Input handling ---
+  // ==========================================================================
+  // Input Area — §5.6 (Textarea + Toolbar + Send Overlay + Submission Flow)
+  // ==========================================================================
+
+  // --- Input state ---
+  var selectedContextItems = [];   // ['current-investigation', 'finding:7', ...]
+  var attachedFiles = [];          // [{ name, size, file }]
+  var selectedModel = 'deepseek-v4-pro';
+  var selectedModelCost = 0.002;
+  var selectedModelLatency = '847ms';
+  var tokenCounterDebounceTimer = null;
+  var TOKEN_ESTIMATE_CHARS = 4;        // 4 chars ≈ 1 token
+  var CONTEXT_BUDGET_TOKENS = 128000;   // ~80% warn threshold = 102400, full budget = 128K
+
+  // --- Send-button label/icon helpers ---
+  function setSendBtnVisible(visible) {
+    var btn = document.getElementById('send-btn');
+    if (!btn) return;
+    btn.classList.toggle('is-visible', !!visible);
+    btn.setAttribute('aria-label', visible ? 'Send message' : '');
+  }
+
+  function setSendBtnCancelled(cancelled) {
+    var btn = document.getElementById('send-btn');
+    if (!btn) return;
+    if (cancelled) {
+      btn.classList.add('is-cancelled');
+      var icon = btn.querySelector('.input-send-overlay-btn-icon');
+      if (icon) icon.textContent = '✕';
+      btn.setAttribute('aria-label', 'Cancel');
+    } else {
+      btn.classList.remove('is-cancelled');
+      var icon2 = btn.querySelector('.input-send-overlay-btn-icon');
+      if (icon2) icon2.textContent = '→';
+      btn.setAttribute('aria-label', 'Send message');
+    }
+  }
+
+  // --- Character count ---
+  function updateCharCount() {
+    var textarea = document.getElementById('input-textarea');
+    var counter = document.getElementById('input-char-count');
+    if (!textarea || !counter) return;
+    var len = textarea.value.length;
+    counter.textContent = (len === 0 ? '0' : len.toLocaleString()) + ' / —';
+    counter.classList.toggle('is-visible', len > 0);
+  }
+
+  // --- Token counter + cost (debounced 300ms) ---
+  function updateTokenCounter() {
+    var textarea = document.getElementById('input-textarea');
+    var counter = document.getElementById('input-token-counter');
+    if (!textarea || !counter) return;
+
+    var chars = textarea.value.length;
+    var inputTokens = Math.max(1, Math.ceil(chars / TOKEN_ESTIMATE_CHARS));
+    var outputTokens = 500;                              // spec estimate
+    var totalTokens = inputTokens + outputTokens;
+    var cost = totalTokens * (selectedModelCost / 1000);  // cost is per-1K input est.
+
+    counter.textContent = '~' + totalTokens.toLocaleString() + ' tokens · ~$' + cost.toFixed(cost < 0.01 ? 4 : 3);
+    counter.classList.toggle('is-warn', totalTokens > CONTEXT_BUDGET_TOKENS * 0.8);
+
+    counter.setAttribute('data-breakdown',
+      'Input tokens: ~' + inputTokens.toLocaleString() + '\n' +
+      'Estimated output: ~' + outputTokens.toLocaleString() + '\n' +
+      'Total estimated: ~' + totalTokens.toLocaleString() + ' tokens\n' +
+      'Estimated cost: $' + cost.toFixed(4)
+    );
+  }
+
+  function scheduleTokenCounterUpdate() {
+    if (tokenCounterDebounceTimer) clearTimeout(tokenCounterDebounceTimer);
+    tokenCounterDebounceTimer = setTimeout(updateTokenCounter, 300);
+  }
+
+  // --- Auto-grow textarea — §5.6.1 ---
   window.onInputChange = function(textarea) {
-    // Auto-resize
+    // Auto-grow per spec: height = min(scrollHeight, 200px)
     textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    var newHeight = Math.min(textarea.scrollHeight, 200);
+    textarea.style.height = newHeight + 'px';
+    // Toggle send button visibility based on content
+    setSendBtnVisible(textarea.value.trim().length > 0 && !textarea.disabled);
+    // Character count + token counter
+    updateCharCount();
+    scheduleTokenCounterUpdate();
   };
 
+  // --- Keyboard handling — §5.6.1 ---
   window.onInputKeydown = function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    var textarea = document.getElementById('input-textarea');
+    if (!textarea || textarea.disabled) return;
+
+    // Enter: submit (Shift+Enter for newline stays default behaviour)
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
       sendMessage();
+      return;
+    }
+    // Cmd/Ctrl+Enter: force-submit (even if empty)
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      sendMessage({ force: true });
+      return;
     }
   };
 
-  window.sendMessage = function() {
+  // --- Submission flow — §5.6.3 ---
+  window.sendMessage = function(opts) {
+    opts = opts || {};
     var textarea = document.getElementById('input-textarea');
-    var sendBtn = document.getElementById('send-btn');
-    if (!textarea || !textarea.value.trim()) return;
+    var statusEl = document.getElementById('input-status');
+    if (!textarea) return;
+
+    // If streaming, treat this click as Cancel.
     if (isStreaming) {
-      // Cancel streaming
       if (streamAbortController) {
         streamAbortController.abort();
         streamAbortController = null;
       }
       isStreaming = false;
-      sendBtn.textContent = 'Send →';
-      sendBtn.classList.remove('input-area-send-btn--cancel');
-      textarea.disabled = false;
-      document.getElementById('input-status').textContent = 'Cancelled';
+      setSendBtnCancelled(false);
+      setSendBtnVisible(textarea.value.trim().length > 0);
+      textarea.disabled = !currentSessionId;
+      if (statusEl) statusEl.textContent = currentSessionId ? 'Cancelled' : 'No active session';
+      // Restore original local demo timer if it was running
+      if (window._chronicleDemoTimer) {
+        clearInterval(window._chronicleDemoTimer);
+        window._chronicleDemoTimer = null;
+      }
       return;
     }
 
-    var message = textarea.value.trim();
+    var text = textarea.value;
+    var hasContent = !!text.trim();
+
+    // Pre-submit validation per §5.6.3 step 2
+    if (!hasContent && !opts.force) return;
+    if (!currentSessionId) {
+      if (statusEl) statusEl.textContent = 'No active session';
+      return;
+    }
+
+    var payload = {
+      content: text,
+      type: 'user_instruction',
+      context: selectedContextItems.slice(),
+      model: selectedModel,
+      attachedFiles: attachedFiles.map(function(f) { return { name: f.name, size: f.size }; })
+    };
+
+    // Reset UI: clear textarea, reset height, hide send button
     textarea.value = '';
     textarea.style.height = 'auto';
+    setSendBtnVisible(false);
+    updateCharCount();
+    scheduleTokenCounterUpdate();
 
-    // Demo: simulate AI response with streaming thought cards
+    // Switch to "submitting" appearance
     isStreaming = true;
-    sendBtn.textContent = 'Cancel ✕';
-    sendBtn.classList.add('input-area-send-btn--cancel');
+    setSendBtnCancelled(true);
     textarea.disabled = true;
-    document.getElementById('input-status').textContent = 'AI is thinking...';
+    if (statusEl) statusEl.textContent = 'Sending query…';
 
-    // Create initial thinking card
+    // Try real API first; fall back to local demo simulation on failure
+    var apiUrl = '/api/v1/sessions/' + encodeURIComponent(currentSessionId) + '/message';
+    var aborted = false;
+    try {
+      if (streamAbortController) { try { streamAbortController.abort(); } catch(e){} }
+      streamAbortController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      };
+      if (streamAbortController) fetchOpts.signal = streamAbortController.signal;
+      fetch(apiUrl, fetchOpts).then(function(resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        if (statusEl) statusEl.textContent = 'AI is thinking…';
+        // The real backend would push WebSocket events; for this UI we still
+        // synthesise local thought/finding cards so the operator sees the flow.
+        runLocalDemoStreaming(text);
+      }).catch(function(err) {
+        if (err && err.name === 'AbortError') {
+          aborted = true;
+          return;
+        }
+        // API unavailable — show status, then fall back to local demo
+        if (statusEl) statusEl.textContent = 'API unavailable · simulating locally';
+        runLocalDemoStreaming(text);
+      });
+    } catch (e) {
+      // AbortController unavailable or other thrown error — local demo
+      if (statusEl) statusEl.textContent = 'API unavailable · simulating locally';
+      runLocalDemoStreaming(text);
+    }
+  };
+
+  // --- Local demo streaming (preserves previous UI demo behaviour) ---
+  function runLocalDemoStreaming(userMessage) {
+    var textarea = document.getElementById('input-textarea');
+    var statusEl = document.getElementById('input-status');
+
+    // Stop any existing demo
+    if (window._chronicleDemoTimer) {
+      clearInterval(window._chronicleDemoTimer);
+      window._chronicleDemoTimer = null;
+    }
+
     addThought({
       number: thoughtCounter + 1,
       status: 'thinking',
-      name: message.split(' ').slice(0, 5).join(' '),
+      name: userMessage ? userMessage.split(' ').slice(0, 5).join(' ') : '(continue)',
       content: '',
-      model: 'deepseek-v4-flash',
+      model: selectedModel,
       sources: [],
       flags: []
     });
+    if (statusEl) statusEl.textContent = 'AI is thinking…';
 
-    // Simulate streaming by appending text chunks
     var demoResponses = [
-      "Analyzing the query...",
-      "Cross-referencing available data sources.",
-      "Found 3 relevant data points in the knowledge base.",
-      "Evaluating confidence levels for each source.",
-      "Synthesizing findings..."
+      'Analyzing the query...',
+      'Cross-referencing available data sources.',
+      'Found 3 relevant data points in the knowledge base.',
+      'Evaluating confidence levels for each source.',
+      'Synthesizing findings...'
     ];
     var chunkIndex = 0;
     var chunkTimer = setInterval(function() {
       if (chunkIndex < demoResponses.length) {
-        // Type each character
         var chars = demoResponses[chunkIndex] + '\n';
         var charIdx = 0;
         var charTimer = setInterval(function() {
@@ -2024,7 +2326,6 @@
             clearInterval(charTimer);
             chunkIndex++;
             if (chunkIndex >= demoResponses.length) {
-              // Finish streaming
               clearInterval(chunkTimer);
               var stepNum = thoughtCounter;
               completeThought(stepNum, '', [
@@ -2034,15 +2335,16 @@
                 { type: 'note', icon: 'ℹ', text: 'Analysis based on available context' }
               ]);
               isStreaming = false;
-              sendBtn.textContent = 'Send →';
-              sendBtn.classList.remove('input-area-send-btn--cancel');
-              textarea.disabled = false;
-              document.getElementById('input-status').textContent = 'Ready';
-              textarea.focus();
-
-              // Demo: synthesize a finding card after the reasoning completes.
-              // Link the new finding to the just-completed thought so the
-              // bidirectional "View reasoning" link has something to scroll to.
+              setSendBtnCancelled(false);
+              if (currentSessionId) {
+                textarea.disabled = false;
+                if (statusEl) statusEl.textContent = 'Ready';
+                setSendBtnVisible(textarea.value.trim().length > 0);
+                textarea.focus();
+              } else {
+                textarea.disabled = true;
+                if (statusEl) statusEl.textContent = 'No active session';
+              }
               addFinding({
                 title: 'Revenue Growth Analysis',
                 content: 'Q4 revenue in APAC increased 12% YoY, driven primarily by expansion in the Southeast Asian market. This represents the **third consecutive quarter** of double-digit growth.\n\nKey drivers:\n- Logistics cost reduction (8% YoY)\n- New distributor onboarding (+24 accounts)\n- Improved fulfillment SLA',
@@ -2054,15 +2356,13 @@
                 linkedSteps: [thoughtCounter],
                 confidence: 0.94,
                 status: 'draft',
-                model: 'deepseek-v4-flash'
+                model: selectedModel
               });
-              // Link the thought card's "View Finding" button to the new finding
               var newFinding = currentFindings[currentFindings.length - 1];
               if (newFinding && newFinding.number) {
                 var step = currentThoughts.find(function(s) { return s.number === thoughtCounter; });
                 if (step) {
                   step.findingId = 'finding-' + newFinding.number;
-                  // Re-render thought card actions to enable the button
                   var card = document.querySelector('.thought-card[data-step="' + thoughtCounter + '"]');
                   if (card) {
                     var oldActions = card.querySelector('.thought-card-actions');
@@ -2083,7 +2383,307 @@
         }, 20);
       }
     }, 500);
+    window._chronicleDemoTimer = chunkTimer;
+  }
+
+  // ==========================================================================
+  // §5.6.2 — Attach (file picker + progress + pills)
+  // ==========================================================================
+  window.openFilePicker = function() {
+    var input = document.getElementById('input-attach-file');
+    if (input) input.click();
   };
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  // Synthesise an upload progress bar since there's no real endpoint.
+  // The bar appears below the textarea, fills 0→100%, holds ~600ms at 100%,
+  // then slides up and disappears. Attached files appear as removable pills.
+  function simulateUpload(file) {
+    var bar = document.getElementById('input-upload-progress');
+    var fill = document.getElementById('input-upload-progress-fill');
+    var label = document.getElementById('input-upload-progress-label');
+    if (!bar || !fill || !label) return;
+
+    bar.style.display = '';
+    bar.classList.add('is-active');
+    bar.classList.remove('is-complete', 'is-error');
+
+    var pct = 0;
+    label.textContent = 'Uploading ' + file.name + ' (' + formatBytes(file.size) + ')… 0%';
+    fill.style.width = '0%';
+
+    var tick = setInterval(function() {
+      // Pseudo-random non-linear progression
+      var step = 8 + Math.random() * 14;
+      pct = Math.min(99, pct + step);
+      fill.style.width = pct + '%';
+      label.textContent = 'Uploading ' + file.name + ' (' + formatBytes(file.size) + ')… ' + Math.floor(pct) + '%';
+    }, 90);
+
+    // Total ~1.5s of "uploading", then complete
+    setTimeout(function() {
+      clearInterval(tick);
+      pct = 100;
+      fill.style.width = '100%';
+      label.textContent = file.name + ' uploaded';
+      bar.classList.add('is-complete');
+
+      // Append the pill and hide the bar after a brief pause
+      attachedFiles.push({ name: file.name, size: file.size, file: file });
+      renderAttachPills();
+
+      setTimeout(function() {
+        bar.classList.remove('is-active', 'is-complete');
+        label.textContent = '';
+        fill.style.width = '0%';
+        bar.style.display = 'none';
+      }, 600);
+    }, 1500);
+  }
+
+  function renderAttachPills() {
+    var container = document.getElementById('input-attach-pills');
+    if (!container) return;
+    if (!attachedFiles.length) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+    container.style.display = '';
+    container.innerHTML = '';
+    attachedFiles.forEach(function(f, idx) {
+      var pill = document.createElement('div');
+      pill.className = 'input-attach-pill';
+      pill.innerHTML =
+        '<span>📄</span>' +
+        '<span class="input-attach-pill-name"></span>' +
+        '<span class="input-attach-pill-size"></span>' +
+        '<button class="input-attach-pill-remove" type="button" aria-label="Remove attachment">×</button>';
+      pill.querySelector('.input-attach-pill-name').textContent = f.name;
+      pill.querySelector('.input-attach-pill-size').textContent = ' · ' + formatBytes(f.size);
+      pill.querySelector('.input-attach-pill-remove').addEventListener('click', function() {
+        pill.classList.add('is-removing');
+        setTimeout(function() {
+          attachedFiles.splice(idx, 1);
+          renderAttachPills();
+        }, 150);
+      });
+      container.appendChild(pill);
+    });
+  }
+
+  window.handleFileSelection = function(evt) {
+    var files = (evt.target && evt.target.files) || [];
+    if (!files.length) return;
+    // Process sequentially; specs allow multiple files and 50MB total cap.
+    var totalSize = attachedFiles.reduce(function(s, f) { return s + f.size; }, 0);
+    var toProcess = [];
+    for (var i = 0; i < files.length; i++) {
+      if (totalSize + files[i].size > 50 * 1024 * 1024) {
+        var bar = document.getElementById('input-upload-progress');
+        var label = document.getElementById('input-upload-progress-label');
+        if (bar && label) {
+          bar.style.display = '';
+          bar.classList.add('is-error', 'is-active');
+          label.textContent = 'Upload failed: total size exceeds 50MB cap';
+        }
+        continue;
+      }
+      totalSize += files[i].size;
+      toProcess.push(files[i]);
+    }
+    if (toProcess.length === 0) return;
+    // Reset input value so selecting the same file again still triggers change
+    if (evt.target) evt.target.value = '';
+    // Show one progress bar at a time (chain)
+    var chain = function() {
+      var next = toProcess.shift();
+      if (!next) return;
+      simulateUpload(next);
+      // Wait until this upload finishes (the 1500ms setTimeout above) before next
+      setTimeout(chain, 2300);
+    };
+    chain();
+  };
+
+  // ==========================================================================
+  // §5.6.2 — Context dropdown + pills
+  // ==========================================================================
+  window.toggleContextDropdown = function(evt) {
+    if (evt) evt.stopPropagation();
+    var dropdown = document.getElementById('input-context-dropdown');
+    var btn = document.getElementById('input-context-btn');
+    var modelDropdown = document.getElementById('input-model-dropdown');
+    var modelBtn = document.getElementById('input-model-btn');
+    if (!dropdown || !btn) return;
+    var willOpen = dropdown.style.display === 'none';
+    // Close any other open dropdowns
+    if (modelDropdown) modelDropdown.style.display = 'none';
+    if (modelBtn) modelBtn.setAttribute('aria-expanded', 'false');
+    dropdown.style.display = willOpen ? '' : 'none';
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  };
+
+  window.toggleContextItem = function(itemEl, name) {
+    if (!itemEl) return;
+    var idx = selectedContextItems.indexOf(name);
+    if (idx >= 0) {
+      selectedContextItems.splice(idx, 1);
+      itemEl.classList.remove('is-selected');
+    } else {
+      selectedContextItems.push(name);
+      itemEl.classList.add('is-selected');
+    }
+    renderContextPills();
+  };
+
+  function renderContextPills() {
+    var container = document.getElementById('input-context-pills');
+    if (!container) return;
+    if (!selectedContextItems.length) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+    container.style.display = '';
+    container.innerHTML = '';
+    selectedContextItems.forEach(function(name) {
+      var pill = document.createElement('div');
+      pill.className = 'input-context-pill';
+      pill.innerHTML = '<span>@' + escapeHtml(name) + '</span><button class="input-context-pill-remove" type="button" aria-label="Remove ' + escapeHtml(name) + '">×</button>';
+      pill.querySelector('.input-context-pill-remove').addEventListener('click', function() {
+        pill.classList.add('is-removing');
+        var removeName = name;
+        setTimeout(function() {
+          var removeIdx = selectedContextItems.indexOf(removeName);
+          if (removeIdx >= 0) selectedContextItems.splice(removeIdx, 1);
+          // Sync the dropdown checkbox UI
+          var items = document.querySelectorAll('#input-context-dropdown .input-dropdown-item');
+          items.forEach(function(it) {
+            if (it.getAttribute('data-context') === removeName) it.classList.remove('is-selected');
+          });
+          renderContextPills();
+        }, 150);
+      });
+      container.appendChild(pill);
+    });
+  }
+
+  // ==========================================================================
+  // §5.6.2 — Model dropdown + persistence (localStorage)
+  // ==========================================================================
+  window.toggleModelDropdown = function(evt) {
+    if (evt) evt.stopPropagation();
+    var dropdown = document.getElementById('input-model-dropdown');
+    var btn = document.getElementById('input-model-btn');
+    var ctxDropdown = document.getElementById('input-context-dropdown');
+    var ctxBtn = document.getElementById('input-context-btn');
+    if (!dropdown || !btn) return;
+    var willOpen = dropdown.style.display === 'none';
+    if (ctxDropdown) ctxDropdown.style.display = 'none';
+    if (ctxBtn) ctxBtn.setAttribute('aria-expanded', 'false');
+    dropdown.style.display = willOpen ? '' : 'none';
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  };
+
+  window.selectModel = function(itemEl, modelName) {
+    if (!itemEl) return;
+    selectedModel = modelName;
+    selectedModelCost = parseFloat(itemEl.getAttribute('data-cost')) || 0;
+    selectedModelLatency = itemEl.getAttribute('data-latency') || '';
+    var items = document.querySelectorAll('#input-model-dropdown .input-dropdown-item');
+    items.forEach(function(it) { it.classList.remove('is-selected'); });
+    itemEl.classList.add('is-selected');
+    var label = document.getElementById('input-model-label');
+    if (label) label.textContent = modelName;
+    // Persist per investigation
+    try {
+      var key = 'chronicle:model:' + (currentSessionId || 'pending');
+      localStorage.setItem(key, modelName);
+    } catch (e) {}
+    // Close dropdown + recompute cost
+    var dropdown = document.getElementById('input-model-dropdown');
+    var btn = document.getElementById('input-model-btn');
+    if (dropdown) dropdown.style.display = 'none';
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    updateTokenCounter();
+  };
+
+  function restoreSelectedModel() {
+    var stored = null;
+    try { stored = localStorage.getItem('chronicle:model:' + (currentSessionId || 'pending')); } catch (e) {}
+    if (!stored) return;
+    var items = document.querySelectorAll('#input-model-dropdown .input-dropdown-item');
+    items.forEach(function(it) {
+      if (it.getAttribute('data-model') === stored) {
+        selectModel(it, stored);
+      }
+    });
+  }
+
+  // --- Close dropdowns on outside click / Escape ---
+  document.addEventListener('click', function(e) {
+    var ctxDrop = document.getElementById('input-context-dropdown');
+    var ctxBtn = document.getElementById('input-context-btn');
+    var modelDrop = document.getElementById('input-model-dropdown');
+    var modelBtn = document.getElementById('input-model-btn');
+    if (ctxDrop && ctxDrop.style.display !== 'none' && !ctxDrop.contains(e.target) && !(ctxBtn && ctxBtn.contains(e.target))) {
+      ctxDrop.style.display = 'none';
+      if (ctxBtn) ctxBtn.setAttribute('aria-expanded', 'false');
+    }
+    if (modelDrop && modelDrop.style.display !== 'none' && !modelDrop.contains(e.target) && !(modelBtn && modelBtn.contains(e.target))) {
+      modelDrop.style.display = 'none';
+      if (modelBtn) modelBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    ['input-context-dropdown', 'input-model-dropdown'].forEach(function(id) {
+      var d = document.getElementById(id);
+      if (d && d.style.display !== 'none') d.style.display = 'none';
+    });
+    var ctxBtn = document.getElementById('input-context-btn');
+    var modelBtn2 = document.getElementById('input-model-btn');
+    if (ctxBtn) ctxBtn.setAttribute('aria-expanded', 'false');
+    if (modelBtn2) modelBtn2.setAttribute('aria-expanded', 'false');
+  });
+
+  // --- Apply session-driven enable/disable of the textarea (called when
+  //     navigateTo('investigate') or palette selects a session).
+  function applySessionInputState() {
+    var textarea = document.getElementById('input-textarea');
+    var statusEl = document.getElementById('input-status');
+    if (!textarea) return;
+    if (currentSessionId) {
+      textarea.disabled = false;
+      textarea.placeholder = 'Ask a question or give an instruction...';
+      if (statusEl) statusEl.textContent = 'Ready';
+      restoreSelectedModel();
+    } else {
+      textarea.disabled = true;
+      textarea.placeholder = 'Ask a question or give an instruction...';
+      if (statusEl) statusEl.textContent = 'No active session';
+    }
+    // Sync send button visibility + counters
+    setSendBtnVisible(textarea.value.trim().length > 0 && !textarea.disabled);
+    updateCharCount();
+    updateTokenCounter();
+  }
+
+  // --- Enable hooks for callers that select a session (navigateTo / palette) ---
+  // Existing startNewInvestigation() and any future session-selection path can
+  // call window.enableInputForActiveSession() after setting currentSessionId.
+  window.enableInputForActiveSession = function() {
+    applySessionInputState();
+  };
+
+  // Initial UI sync (in case the page loaded already showing a session)
+  applySessionInputState();
 
   // --- Evidence Panel ---
   window.toggleEvidencePanel = function() {

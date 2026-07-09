@@ -1231,13 +1231,20 @@
   background: var(--color-border-strong);
 }
 
-/* Input area at bottom of SAYS */
+/* ============================================================================
+   Input Area — §5.6 (Textarea + Toolbar + Send Overlay)
+   ============================================================================ */
+
+/* Outer container (bottom of SAYS pane) */
 .input-area {
   flex-shrink: 0;
   border-top: 1px solid var(--color-border-default);
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg-surface);
+  position: relative;
 }
+
+/* Textarea row — single column now (send button is overlaid inside the field) */
 .input-area-row {
   display: flex;
   gap: var(--space-2);
@@ -1245,82 +1252,484 @@
 }
 .input-area-field {
   flex: 1;
-  position: relative;
+  position: relative;     /* anchoring context for the send button overlay */
 }
+
+/* Textarea — §5.6.1 */
 .input-area-field textarea {
   width: 100%;
-  min-height: 40px;
-  max-height: 120px;
-  padding: var(--space-2) var(--space-3);
+  min-height: 52px;                   /* 2 lines of text + padding */
+  max-height: 200px;                  /* 8 lines; beyond this, internal scroll */
+  padding: var(--space-3) var(--space-4);
+  padding-right: 44px;                /* room for the send button overlay */
   background: var(--color-bg-input);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
-  font-family: var(--font-sans);
+  font-family: inherit;
   font-size: var(--text-body);
-  line-height: var(--leading-body);
-  resize: vertical;
+  line-height: 1.5;                   /* 24px — 2 × 24px + padding = 52px min */
+  resize: none;                       /* JS-controlled auto-grow */
   outline: none;
-  transition: border-color var(--duration-fast) var(--ease-default);
+  overflow-y: auto;
+  transition: all 150ms var(--ease-out-quint);
 }
 .input-area-field textarea:focus {
-  border-color: var(--color-border-focus);
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
 }
 .input-area-field textarea::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-placeholder);
 }
-.input-area-meta {
+.input-area-field textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Send button overlay — §5.6.1 (32×32 circle, right side of textarea) */
+.input-send-overlay-btn {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;                  /* center vertically without transform: translateY (preserves :active scale) */
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: var(--space-1);
-  padding: 0 var(--space-1);
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;                 /* perfect circle */
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  opacity: 0;                         /* hidden when textarea empty */
+  pointer-events: none;               /* non-interactive when hidden */
+  transition: opacity var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default),
+              transform 80ms var(--ease-default);
+}
+.input-send-overlay-btn .input-send-overlay-btn-icon {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: var(--weight-semibold);
+}
+.input-send-overlay-btn.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.input-send-overlay-btn.is-visible:hover {
+  background: var(--color-accent-primary-muted);
+  color: var(--color-accent-primary);
+}
+.input-send-overlay-btn.is-visible:active {
+  transform: scale(0.92);
+}
+.input-send-overlay-btn.is-cancelled {
+  color: var(--color-accent-error);
+  opacity: 1;
+  pointer-events: auto;
+}
+.input-send-overlay-btn.is-cancelled:hover {
+  background: var(--color-accent-error-muted);
+}
+
+/* Cancel variant during streaming — single responsibility */
+.input-send-overlay-btn--cancel { /* retained for back-compat; superseded by .is-cancelled */
+  background: var(--color-accent-error);
+  color: white;
+}
+
+/* Character count — §5.6.1 (below textarea, fades in when > 0 chars) */
+.input-char-count {
   font-size: var(--text-caption);
   color: var(--color-text-tertiary);
+  padding: var(--space-1) var(--space-1);
+  margin-top: var(--space-1);
+  text-align: left;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-default);
+  font-variant-numeric: tabular-nums;
 }
-.input-area-tools {
+.input-char-count.is-visible {
+  opacity: 1;
+}
+
+/* Input Toolbar — §5.6.2 (height 32px, flex center, gap var(--space-2)) */
+.input-toolbar {
   display: flex;
-  gap: var(--space-2);
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: var(--space-2) 0;
 }
-.input-area-tool-btn {
+.input-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.input-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Toolbar button — §5.6.2 */
+.input-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-hover);
+}
+.input-tb-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+.input-tb-btn[aria-expanded="true"] {
+  background: var(--color-bg-hover);
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+}
+.input-tb-btn .input-tb-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.input-tb-btn .input-tb-btn-caret {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+}
+.input-tb-btn--model .input-tb-btn-label {
+  font-family: var(--font-mono, monospace);
+}
+
+/* Status text (left, after toolbar buttons) */
+.input-toolbar-status {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-1);
+}
+
+/* Token counter — §5.6.2 (right side of toolbar) */
+.input-token-counter {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  font-family: var(--font-mono, monospace);
+  transition: color var(--duration-fast) var(--ease-default);
+  position: relative;
+}
+.input-token-counter.is-warn {
+  color: var(--color-accent-warning);
+}
+/* Hover tooltip breakdown */
+.input-token-counter[data-breakdown]:hover::after {
+  content: attr(data-breakdown);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-1));
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-caption);
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  white-space: pre;
+  text-align: right;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Upload progress bar — §5.6.2 (4px tall, below textarea, only during upload) */
+.input-upload-progress {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.input-upload-progress-fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: var(--color-accent-primary);
+  transition: width 200ms var(--ease-default), background 200ms var(--ease-default);
+}
+.input-upload-progress.is-complete .input-upload-progress-fill {
+  background: var(--color-accent-success);
+}
+.input-upload-progress.is-error .input-upload-progress-fill {
+  background: var(--color-accent-error);
+}
+.input-upload-progress-label {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-default);
+}
+.input-upload-progress.is-active .input-upload-progress-label {
+  opacity: 1;
+}
+
+/* Context + attach pill containers — §5.6.2 */
+.input-context-pills,
+.input-attach-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+/* Context pills (between toolbar and textarea; accent primary) */
+.input-context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--color-accent-primary-muted);
+  border: 1px solid var(--color-accent-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption);
+  color: var(--color-accent-primary);
+  animation: input-pill-in 150ms var(--ease-default);
+}
+.input-context-pill.is-removing {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 150ms var(--ease-default), transform 150ms var(--ease-default);
+}
+.input-context-pill-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 var(--space-1);
+  opacity: 0.75;
+}
+.input-context-pill-remove:hover {
+  opacity: 1;
+}
+
+/* Attach file pills (below toolbar; neutral surface) */
+.input-attach-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  animation: input-pill-in 150ms var(--ease-default);
+}
+.input-attach-pill.is-removing {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 150ms var(--ease-default), transform 150ms var(--ease-default);
+}
+.input-attach-pill-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.input-attach-pill-size {
+  color: var(--color-text-tertiary);
+}
+.input-attach-pill-remove {
   background: none;
   border: none;
   color: var(--color-text-tertiary);
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-small);
-  transition: color var(--duration-fast) var(--ease-default),
-              background var(--duration-fast) var(--ease-default);
+  padding: 0 0 0 var(--space-1);
 }
-.input-area-tool-btn:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
+.input-attach-pill-remove:hover {
+  color: var(--color-accent-error);
 }
-.input-area-send-btn {
-  height: 36px;
-  padding: 0 var(--space-4);
-  background: var(--color-accent-primary);
-  color: white;
-  border: none;
+
+@keyframes input-pill-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Dropdowns — §5.6.2 (positioned above toolbar) */
+.input-dropdown {
+  position: absolute;
+  z-index: 30;
+  min-width: 280px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
-  font-size: var(--text-small);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: input-dropdown-in 150ms var(--ease-out-quint);
+}
+.input-context-dropdown {
+  left: var(--space-4);             /* anchored left, above toolbar */
+  bottom: calc(100% - var(--space-1));
+  margin-bottom: 4px;
+}
+.input-model-dropdown {
+  right: var(--space-4);            /* anchored to model button */
+  bottom: calc(100% - var(--space-1));
+  margin-bottom: 4px;
+  min-width: 320px;
+}
+@keyframes input-dropdown-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.input-dropdown-section-header {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider, 0.05em);
+}
+
+/* Dropdown item — generic (checkboxes for context) */
+.input-dropdown-item,
+.input-dropdown-item--radio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.input-dropdown-item:hover,
+.input-dropdown-item:focus-visible {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  outline: none;
+}
+.input-dropdown-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.input-dropdown-item-name {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-caption);
+}
+.input-dropdown-item-desc {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.input-dropdown-item-icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Checkbox indicator (context items) */
+.input-dropdown-item-check {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 3px;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--color-bg-input);
   transition: background var(--duration-fast) var(--ease-default),
-              opacity var(--duration-fast) var(--ease-default);
+              border-color var(--duration-fast) var(--ease-default);
 }
-.input-area-send-btn:hover {
-  opacity: 0.9;
+.input-dropdown-item.is-selected .input-dropdown-item-check {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
 }
-.input-area-send-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.input-dropdown-item.is-selected .input-dropdown-item-check::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
-.input-area-send-btn--cancel {
-  background: var(--color-accent-error);
+
+/* Radio indicator (model items) */
+.input-dropdown-item-radio {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-bg-input);
+  position: relative;
+  transition: border-color var(--duration-fast) var(--ease-default);
+}
+.input-dropdown-item.is-selected .input-dropdown-item-radio {
+  border-color: var(--color-accent-primary);
+}
+.input-dropdown-item.is-selected .input-dropdown-item-radio::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+}
+
+/* Hide labels on mobile per spec — §5.6.2 attach button */
+@media (max-width: 640px) {
+  .input-tb-btn-label {
+    display: none;
+  }
+  .input-tb-btn {
+    padding: 0 var(--space-1);
+  }
+  .input-toolbar-status {
+    display: none;
+  }
+  .input-model-dropdown {
+    min-width: 260px;
+  }
 }
 
 /* Responsive — stack panes vertically on mobile */
