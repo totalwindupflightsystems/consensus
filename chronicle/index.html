@@ -679,6 +679,54 @@
           </div>
         </div>
       </div>
+
+      <!-- 5.7 Evidence Panel — slide-out drawer -->
+      <div class="evidence-panel" id="evidence-panel" role="dialog" aria-label="Evidence Panel">
+        <!-- Resize handle (left edge) -->
+        <div class="evidence-panel-resize-handle" id="evidence-resize-handle"
+          onmousedown="startEvidenceResize(event)"></div>
+
+        <!-- Header -->
+        <div class="evidence-panel-header">
+          <span class="evidence-panel-title">Evidence</span>
+          <button class="evidence-panel-close" onclick="toggleEvidencePanel()" aria-label="Close evidence panel">×</button>
+        </div>
+
+        <!-- Search bar -->
+        <div class="evidence-panel-search">
+          <input type="text" id="evidence-search-input"
+            placeholder="Search evidence..."
+            oninput="onEvidenceSearch(this.value)"
+            autocomplete="off">
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="evidence-panel-filters" id="evidence-filter-tabs">
+          <button class="evidence-filter-chip active" data-type="all" onclick="filterEvidence('all')">All <span class="evidence-filter-count" id="ev-count-all">0</span></button>
+          <button class="evidence-filter-chip" data-type="file" onclick="filterEvidence('file')">Files <span class="evidence-filter-count" id="ev-count-file">0</span></button>
+          <button class="evidence-filter-chip" data-type="database" onclick="filterEvidence('database')">Database <span class="evidence-filter-count" id="ev-count-database">0</span></button>
+          <button class="evidence-filter-chip" data-type="url" onclick="filterEvidence('url')">URLs <span class="evidence-filter-count" id="ev-count-url">0</span></button>
+          <button class="evidence-filter-chip" data-type="finding" onclick="filterEvidence('finding')">Findings <span class="evidence-filter-count" id="ev-count-finding">0</span></button>
+        </div>
+
+        <!-- Content area -->
+        <div class="evidence-panel-content" id="evidence-content">
+          <!-- Sources section -->
+          <div class="evidence-section-header">Sources</div>
+          <div class="evidence-list" id="evidence-sources-list">
+            <!-- Source items rendered by renderEvidenceSources() -->
+          </div>
+
+          <!-- Findings section -->
+          <div class="evidence-section-header">Findings</div>
+          <div class="evidence-list" id="evidence-findings-list">
+            <!-- Findings rendered by renderEvidenceFindings() -->
+          </div>
+
+          <!-- Add source button -->
+          <button class="evidence-add-source" onclick="addEvidenceSource()">+ Add Source</button>
+        </div>
+      </div>
     </div>
     </div>
 
@@ -2687,13 +2735,205 @@
 
   // --- Evidence Panel ---
   window.toggleEvidencePanel = function() {
-    // Placeholder — will build in §4.4
+    var panel = document.getElementById('evidence-panel');
     var btn = document.getElementById('evidence-toggle');
-    if (btn.textContent.includes('📎')) {
-      btn.textContent = '✕ Evidence';
-    } else {
-      btn.textContent = '📎 Evidence';
+    if (!panel) return;
+    var isOpen = panel.classList.toggle('open');
+    if (btn) {
+      btn.innerHTML = isOpen ? '✕ Evidence' : '📎 Evidence';
+      btn.classList.toggle('active', isOpen);
     }
+    // Persist to localStorage
+    try {
+      localStorage.setItem('chronicle:investigation:evidence-open', isOpen ? 'true' : 'false');
+    } catch(e) {}
+    // Focus search input when opening
+    if (isOpen) {
+      var searchInput = document.getElementById('evidence-search-input');
+      if (searchInput) setTimeout(function() { searchInput.focus(); }, 350);
+    }
+  };
+
+  // Evidence data store (mock data for demo)
+  var EVIDENCE_SOURCES = [
+    { id: 'src-1', type: 'file',     icon: '📄', name: 'q4-sales.csv',        meta: '2.4 MB · 12,400 rows',      refs: 'Referenced by: 3 findings',   confidence: 0.94 },
+    { id: 'src-2', type: 'file',     icon: '📄', name: 'network-scan.pcap',   meta: '847 KB · 12,042 packets',    refs: 'Referenced by: 1 finding',     confidence: 0.78 },
+    { id: 'src-3', type: 'database', icon: '🗄️', name: 'user-db.sqlite',      meta: 'SQLite · 3 tables',          refs: 'Referenced by: 0 findings',    confidence: 0.92 },
+    { id: 'src-4', type: 'file',     icon: '📄', name: 'phishing_email.eml',  meta: '124 KB · 1 attachment',      refs: 'Referenced by: 2 findings',    confidence: 0.88 },
+    { id: 'src-5', type: 'url',      icon: '🌐', name: 'https://api.example.com/logs', meta: 'REST endpoint', refs: 'Referenced by: 1 finding', confidence: 0.65 },
+  ];
+
+  var EVIDENCE_FINDINGS = [
+    { id: 'find-1', title: 'APAC Revenue Anomaly — 312% spike above baseline', confidence: 0.87, status: 'draft' },
+    { id: 'find-2', title: 'Phishing Campaign — 142 suspicious emails from spoofed domain', confidence: 0.93, status: 'approved' },
+  ];
+
+  var evidenceSearchTimer = null;
+
+  function renderEvidenceSources(filter, search) {
+    var list = document.getElementById('evidence-sources-list');
+    if (!list) return;
+    var items = EVIDENCE_SOURCES.filter(function(s) {
+      if (filter && filter !== 'all' && s.type !== filter) return false;
+      if (search) return s.name.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      return true;
+    });
+    if (items.length === 0) {
+      list.innerHTML = '<div class="evidence-empty"><div class="evidence-empty-icon">📂</div><div class="evidence-empty-text">No evidence sources</div><div class="evidence-empty-hint">Drag files here or click Attach in the input area</div></div>';
+      return;
+    }
+    var html = '';
+    items.forEach(function(s) {
+      var confClass = s.confidence >= 0.94 ? 'evidence-confidence-high' : s.confidence >= 0.70 ? 'evidence-confidence-medium' : 'evidence-confidence-low';
+      html += '<div class="evidence-item evidence-source-item" data-source-id="' + s.id + '" data-type="' + s.type + '">';
+      html += '<span class="evidence-item-icon">' + s.icon + '</span>';
+      html += '<div class="evidence-item-body">';
+      html += '<div class="evidence-item-filename">' + s.name + '</div>';
+      html += '<div class="evidence-item-meta">' + s.meta + '</div>';
+      html += '<div class="evidence-item-refs">' + s.refs + '</div>';
+      html += '</div>';
+      html += '<span class="evidence-item-meta ' + confClass + '">' + s.confidence.toFixed(2) + '</span>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+    updateEvidenceCounts();
+  }
+
+  function renderEvidenceFindings(filter, search) {
+    var list = document.getElementById('evidence-findings-list');
+    if (!list) return;
+    var items = EVIDENCE_FINDINGS.filter(function(f) {
+      if (filter && filter !== 'all' && filter !== 'finding') return false;
+      if (search) return f.title.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      return true;
+    });
+    if (items.length === 0) {
+      list.innerHTML = '';
+      return;
+    }
+    var html = '';
+    items.forEach(function(f) {
+      var confClass = f.confidence >= 0.94 ? 'evidence-confidence-high' : f.confidence >= 0.70 ? 'evidence-confidence-medium' : 'evidence-confidence-low';
+      var statusClass = f.status === 'approved' ? 'evidence-status-approved' : f.status === 'draft' ? 'evidence-status-draft' : 'evidence-status-rejected';
+      var statusIcon = f.status === 'approved' ? '✅' : f.status === 'draft' ? '📝' : '❌';
+      html += '<div class="evidence-item evidence-finding-item" data-finding-id="' + f.id + '">';
+      html += '<span class="evidence-finding-icon">' + statusIcon + '</span>';
+      html += '<div class="evidence-finding-body">';
+      html += '<div class="evidence-finding-title">' + f.title + '</div>';
+      html += '<div class="evidence-finding-meta"><span class="' + confClass + '">' + (f.confidence >= 0.94 ? 'HIGH' : f.confidence >= 0.70 ? 'MEDIUM' : 'LOW') + ' confidence</span> · <span class="evidence-status-badge ' + statusClass + '">' + f.status + '</span></div>';
+      html += '</div>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+    updateEvidenceCounts();
+  }
+
+  function updateEvidenceCounts() {
+    var counts = { all: 0, file: 0, database: 0, url: 0, finding: 0 };
+    EVIDENCE_SOURCES.forEach(function(s) {
+      counts.all++;
+      if (counts.hasOwnProperty(s.type)) counts[s.type]++;
+    });
+    // Finding items in findings section
+    EVIDENCE_FINDINGS.forEach(function() { counts.finding++; counts.all++; });
+
+    var ids = ['ev-count-all', 'ev-count-file', 'ev-count-database', 'ev-count-url', 'ev-count-finding'];
+    var keys = ['all', 'file', 'database', 'url', 'finding'];
+    ids.forEach(function(id, i) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = counts[keys[i]] || 0;
+    });
+  }
+
+  window.filterEvidence = function(type) {
+    // Update active chip
+    var chips = document.querySelectorAll('#evidence-filter-tabs .evidence-filter-chip');
+    chips.forEach(function(c) { c.classList.remove('active'); });
+    var activeChip = document.querySelector('#evidence-filter-tabs .evidence-filter-chip[data-type="' + type + '"]');
+    if (activeChip) activeChip.classList.add('active');
+
+    var searchVal = document.getElementById('evidence-search-input').value;
+    // Use the active filter type
+    var activeType = type === 'all' ? null : type;
+    renderEvidenceSources(activeType, searchVal);
+    renderEvidenceFindings(type === 'finding' ? 'finding' : (type !== 'all' && type !== 'finding' ? null : null), searchVal);
+  };
+
+  window.onEvidenceSearch = function(query) {
+    if (evidenceSearchTimer) clearTimeout(evidenceSearchTimer);
+    evidenceSearchTimer = setTimeout(function() {
+      // Get current active filter
+      var activeChip = document.querySelector('#evidence-filter-tabs .evidence-filter-chip.active');
+      var type = activeChip ? activeChip.getAttribute('data-type') : 'all';
+      var activeType = type === 'all' ? null : type;
+      renderEvidenceSources(activeType, query);
+      renderEvidenceFindings(type === 'finding' ? 'finding' : (type !== 'all' && type !== 'finding' ? null : null), query);
+    }, 200);
+  };
+
+  window.startEvidenceResize = function(e) {
+    e.preventDefault();
+    var panel = document.getElementById('evidence-panel');
+    var handle = document.getElementById('evidence-resize-handle');
+    if (!panel) return;
+    var startX = e.clientX;
+    var startWidth = panel.offsetWidth;
+
+    function onMouseMove(ev) {
+      var delta = startX - ev.clientX;
+      var newWidth = startWidth + delta;
+      newWidth = Math.max(280, Math.min(500, newWidth));
+      panel.style.width = newWidth + 'px';
+      handle.classList.add('evidence-panel-resize-handle--dragging');
+    }
+
+    function onMouseUp() {
+      handle.classList.remove('evidence-panel-resize-handle--dragging');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  window.addEvidenceSource = function() {
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv,.json,.pdf,.txt,.md,.log,.xml,.yaml,.yml';
+    fileInput.style.display = 'none';
+    fileInput.onchange = function(ev) {
+      if (ev.target.files && ev.target.files.length > 0) {
+        var f = ev.target.files[0];
+        var sizeStr = (f.size / 1024).toFixed(1) + ' KB';
+        if (f.size > 1024 * 1024) sizeStr = (f.size / (1024 * 1024)).toFixed(1) + ' MB';
+        var ext = f.name.split('.').pop();
+        var icon = '📄';
+        if (ext === 'csv' || ext === 'json') icon = '📊';
+        if (ext === 'db' || ext === 'sqlite') icon = '🗄️';
+        EVIDENCE_SOURCES.unshift({
+          id: 'src-' + Date.now(),
+          type: 'file',
+          icon: icon,
+          name: f.name,
+          meta: sizeStr,
+          refs: 'Added just now',
+          confidence: 0.50
+        });
+        renderEvidenceSources();
+        renderEvidenceFindings();
+        updateEvidenceCounts();
+        // Ensure panel shows sources
+        filterEvidence('all');
+      }
+    };
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
   };
 
   // --- Wire "New Session" from command palette ---

@@ -24,7 +24,7 @@
 - [x] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
 - [x] Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject — §4.3
 - [x] Build Input Area: message composer, model selector, budget display, send/cancel — §5.6 (completed 2026-07-09)
-- [ ] Build Evidence Panel: source list, citation preview, provenance chain — §4.4
+- [x] Build Evidence Panel: source list, citation preview, provenance chain — §5.7
 - [ ] Build Discovery Panel: related sessions, similar findings, entity links — §4.5
 - [ ] Wire WebSocket for live streaming (THINK cards update at 60fps) — §4.6
 
