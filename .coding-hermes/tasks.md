@@ -40,14 +40,23 @@
 - [ ] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph)
 - [ ] E2E test: full investigation workflow through Chronicle UI → Consensus API → real LLM → results
 
-## Phase 2: Production Readiness
+## Phase 2: OpenCode Shim Health & Compatibility
+The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenCode HTTP → Consensus native API. Any tool speaking OpenCode protocol can use Consensus as a drop-in runtime.
+- [ ] Verify all 26 shim endpoints respond correctly (compare against OpenCode upstream contract, SPEC-017)
+- [ ] Add shim smoke test to CI: start `consensus serve --adapter opencode`, curl /global/health + /session
+- [ ] Document shim endpoints in openapi.yaml (shim-openai.yaml → /v1/chat/completions, shim-anthropic.yaml → /v1/messages)
+- [ ] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session)
+- [ ] Test: cursor/vscode opencode extension against Consensus shim
+- [ ] Keep shim_session_map migration current (002_shim_session_map.sql) — verify on both SQLite and Postgres
+
+## Phase 3: Production Readiness
 - [ ] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus)
 - [ ] Write deployment quickstart guide (README section: "5-Minute Setup")
 - [ ] Add docker-compose production profile (Consensus + Postgres + pgvector, no dev tools)
 - [ ] Verify Postgres agent_role connections in production scenario (are RLS roles actually used?)
 - [ ] Write SDK/client library (Go client for consensus serve API)
 
-## Phase 3: Hardened Testing
+## Phase 4: Hardened Testing
 - [ ] Test: provider failure mid-call (retry with backoff, fallback to LM Studio)
 - [ ] Test: 2+ concurrent sessions processing simultaneously
 - [ ] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls)
@@ -55,7 +64,7 @@
 - [ ] Test: schema migration under load (add column while sessions active, verify no data loss)
 - [ ] Test: 100+ iteration durability (long-running session stability)
 
-## Phase 4: AC Gap Closure
+## Phase 5: AC Gap Closure
 - [ ] AC-040: (verify acceptance criteria and implement/fix)
 - [ ] AC-053: (verify acceptance criteria and implement/fix)
 - [ ] AC-054: (verify acceptance criteria and implement/fix)
@@ -63,7 +72,7 @@
 - [ ] Update AC-056 to reflect Postgres verification results
 - [ ] Update AC-011 to reflect correct migration counts (17 SQLite, 19 Postgres)
 
-## Phase 5: Expand UI Spec (ongoing)
+## Phase 6: Expand UI Spec (ongoing)
 - [ ] Write Section 8 (Search & Query) of specs/026-dashboard-ui.md at blind-developer density
 - [ ] Write Section 9 (Reports & Export) at blind-developer density
 - [ ] Write Section 10 (Settings & Configuration) at blind-developer density
@@ -75,7 +84,7 @@
 ## Completed
 - [x] GitReins guards (secrets, lint, tests) — v0.7.9 configured, 20 tasks passing
 - [x] Build passes on current toolchain (Go 1.26)
-- [x] CI/CD pipeline (7 jobs green, cross-compile 5 platforms)
+- [x] CI/CD pipeline (8 jobs green, cross-compile 5 platforms)
 - [x] SQLite + Postgres dual-backend (17 + 19 migrations)
 - [x] E2E real LLM tests passing
 - [x] Semantic retrieval layer (internal/memory/retrieval.go)
@@ -83,7 +92,9 @@
 - [x] GitReins Tier 2 evaluator with speculative decoding
 - [x] 6 real bugs fixed from GitReins semantic evaluation
 - [x] consensus-watchdog cron running every 4h
+- [x] consensus-coding-foreman cron running every 30m (Phase 1.1–1.3 shipped: 9 Chronicle components)
 - [x] Admin UI (/ui/ route, 340-line Go HTML)
 - [x] DESIGN.md (Google format, WCAG compliant)
 - [x] docs/diagrams.md (11 Mermaid diagrams)
 - [x] chronicle.html product page on GitHub Pages
+- [x] OpenCode shim (internal/shim/opencode/, 1,836 lines, 26 endpoints) — builds clean
