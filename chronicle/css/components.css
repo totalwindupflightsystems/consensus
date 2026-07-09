@@ -2352,3 +2352,492 @@ textarea.cmp-input {
 .new-reasoning-btn.hidden {
   display: none;
 }
+
+/* ==========================================================================
+   5.5 Finding Cards — SAYS Pane Conclusion Chain
+   Spec: specs/026-dashboard-ui.md §5.5
+   ========================================================================== */
+
+/* Filter bar (above findings list) */
+.findings-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.findings-filter-bar-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  margin-right: var(--space-2);
+}
+.findings-filter-pill {
+  height: 26px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default);
+}
+.findings-filter-pill:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+.findings-filter-pill.active {
+  background: var(--color-accent-primary-muted);
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+}
+.findings-filter-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-weight: var(--weight-semibold);
+  margin-left: 2px;
+}
+
+/* Base card */
+.finding-card {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  animation: finding-entry 400ms var(--ease-out) both;
+}
+@keyframes finding-entry {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.finding-card:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+/* State variants */
+.finding-card--draft {
+  border-left-color: var(--color-border-default);
+}
+.finding-card--approved {
+  border-left-color: var(--color-accent-success);
+  background: color-mix(in srgb, var(--color-accent-success-muted) 20%, var(--color-bg-surface));
+}
+.finding-card--rejected {
+  border-left-color: var(--color-accent-error);
+  opacity: 0.6;
+}
+.finding-card--outdated {
+  border: 1px dashed var(--color-border-default);
+  opacity: 0.7;
+}
+.finding-card--outdated .finding-conclusion {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
+/* Header */
+.finding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+}
+.finding-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.finding-number {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.finding-number-icon {
+  font-size: 14px;
+  color: var(--color-entity-finding);
+}
+.finding-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Status badge */
+.finding-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  white-space: nowrap;
+}
+.finding-status-badge--draft {
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  background: transparent;
+}
+.finding-status-badge--approved {
+  background: var(--color-accent-success-muted);
+  color: var(--color-accent-success);
+  border: 1px solid var(--color-accent-success);
+}
+.finding-status-badge--rejected {
+  background: var(--color-accent-error-muted);
+  color: var(--color-accent-error);
+  border: 1px solid var(--color-accent-error);
+}
+.finding-status-badge--outdated {
+  border: 1px dashed var(--color-border-default);
+  color: var(--color-text-tertiary);
+  background: transparent;
+}
+
+.finding-timestamp {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* Conclusion */
+.finding-conclusion-wrapper {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+.finding-conclusion {
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 120px;
+  overflow: hidden;
+  transition: max-height 400ms var(--ease-out);
+}
+.finding-conclusion code {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  background: var(--color-bg-code-inline);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+.finding-conclusion strong { font-weight: var(--weight-semibold); }
+.finding-conclusion em     { font-style: italic; }
+.finding-conclusion ul,
+.finding-conclusion ol {
+  margin: var(--space-1) 0 var(--space-2);
+  padding-left: var(--space-5);
+}
+.finding-conclusion li { margin-bottom: 2px; }
+
+.finding-card--expanded .finding-conclusion {
+  max-height: 2000px;
+}
+
+.finding-conclusion-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(180deg, transparent, var(--color-bg-surface) 80%);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 200ms var(--ease-default);
+}
+.finding-card--expanded .finding-conclusion-fade {
+  opacity: 0;
+}
+
+.finding-show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-1);
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-link);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+.finding-show-more-btn:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+.finding-card--expanded .finding-show-more-btn .chevron {
+  transform: rotate(180deg);
+}
+.finding-show-more-btn .chevron {
+  display: inline-block;
+  transition: transform 200ms var(--ease-out);
+}
+
+/* Collapsible sections (sources, reasoning links) */
+.finding-collapsible {
+  margin-bottom: var(--space-2);
+}
+.finding-collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  user-select: none;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+.finding-collapsible-header:hover {
+  color: var(--color-text-primary);
+}
+.finding-collapsible-chevron {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  transition: transform 200ms var(--ease-out);
+  width: 10px;
+  text-align: center;
+}
+.finding-collapsible--expanded .finding-collapsible-chevron {
+  transform: rotate(90deg);
+}
+.finding-collapsible-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-1);
+}
+.finding-collapsible-body {
+  display: none;
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.finding-collapsible--expanded .finding-collapsible-body {
+  display: flex;
+}
+
+/* Reasoning links inside collapsible body */
+.finding-reasoning-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  color: var(--color-text-link);
+  font-size: var(--text-small);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+.finding-reasoning-link:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+.finding-reasoning-link-icon {
+  font-size: 12px;
+}
+
+/* Confidence bar */
+.finding-confidence {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.finding-confidence-segments {
+  display: inline-flex;
+  gap: 2px;
+}
+.finding-confidence-segment {
+  width: 16px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--color-bg-input);
+  transition: background 200ms var(--ease-default);
+}
+.finding-confidence-segment--filled--high {
+  background: var(--color-accent-success);
+}
+.finding-confidence-segment--filled--medium {
+  background: var(--color-accent-warning);
+}
+.finding-confidence-segment--filled--low {
+  background: var(--color-accent-error);
+}
+.finding-confidence-segment--filling {
+  animation: confidence-fill 100ms var(--ease-out) both;
+}
+@keyframes confidence-fill {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+.finding-confidence-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+.finding-confidence-label--high   { color: var(--color-accent-success); }
+.finding-confidence-label--medium { color: var(--color-accent-warning); }
+.finding-confidence-label--low    { color: var(--color-accent-error); }
+
+/* Approval status */
+.finding-approval-status {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.finding-approval-status--approved { color: var(--color-accent-success); }
+.finding-approval-status--rejected { color: var(--color-accent-error); }
+.finding-approval-status-reason {
+  display: block;
+  font-style: italic;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+  font-size: var(--text-caption);
+}
+
+/* Action buttons */
+.finding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.finding-action-btn {
+  height: 32px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default),
+              transform var(--duration-fast) var(--ease-out);
+}
+.finding-action-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+.finding-action-btn:active {
+  transform: scale(0.97);
+}
+.finding-action-btn--approve {
+  background: var(--color-accent-success);
+  color: white;
+  border-color: var(--color-accent-success);
+}
+.finding-action-btn--approve:hover {
+  background: var(--color-accent-success-hover);
+  border-color: var(--color-accent-success-hover);
+  color: white;
+}
+.finding-action-btn--reject {
+  background: transparent;
+  color: var(--color-accent-error);
+  border-color: var(--color-border-default);
+}
+.finding-action-btn--reject:hover {
+  background: var(--color-accent-error-muted);
+  color: var(--color-accent-error);
+  border-color: var(--color-accent-error);
+}
+.finding-action-btn--revision {
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+.finding-action-btn--icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* Approve sweep animation — green border-left slides in */
+@keyframes approve-sweep {
+  0%   { transform: scaleY(0); opacity: 0; }
+  60%  { transform: scaleY(1.05); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+.finding-card--approve-sweep::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-accent-success);
+  transform-origin: top;
+  animation: approve-sweep 400ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+/* Linked highlight pulse (used by scrollToFinding and scrollToThought) */
+@keyframes link-pulse-think {
+  0%, 100% { box-shadow: var(--shadow-sm); }
+  50%      { box-shadow: 0 0 0 3px var(--color-accent-primary-glow), var(--shadow-md); }
+}
+.finding-card--highlight,
+.thought-card--highlight {
+  animation: link-pulse-think 300ms var(--ease-out) 2;
+  border-color: var(--color-accent-primary) !important;
+}
+
+/* Checkmark bounce on approval */
+@keyframes checkmark-bounce {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.finding-approval-check {
+  display: inline-block;
+  animation: checkmark-bounce 300ms var(--ease-spring) both;
+}

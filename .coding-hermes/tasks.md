@@ -22,7 +22,7 @@
 
 ### 1.4 Investigation Workbench
 - [x] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
-- [ ] Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject — §4.3
+- [x] Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject — §4.3
 - [ ] Build Input Area: message composer, model selector, budget display, send/cancel — §4.1
 - [ ] Build Evidence Panel: source list, citation preview, provenance chain — §4.4
 - [ ] Build Discovery Panel: related sessions, similar findings, entity links — §4.5

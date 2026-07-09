@@ -250,3 +250,27 @@ tasks:
     \ spec"
   status: pending
   created_at: '2026-06-21T12:04:28.623720+00:00'
+- id: chronicle-says-pane
+  title: 'Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject'
+  criteria:
+  - Finding cards render in the SAYS pane with header (number, status badge, timestamp),
+    conclusion text (expandable), collapsible sources/reasoning links, confidence
+    bar (5 segments with color coding), approval status line, and action buttons
+  - "Finding card states work: DRAFT (default border, Awaiting review), APPROVED (green\
+    \ border-left, \u2713 badge, success-muted pill), REJECTED (red border-left, opacity\
+    \ 0.6, dimmed), OUTDATED (dashed border)"
+  - 'Approval workflow: clicking Approve shows confirmation, updates card to APPROVED
+    state with green sweep animation; Request Revision opens dialog and reverts to
+    Draft'
+  - 'Bidirectional reasoning links work: clicking a reasoning link in a finding scrolls
+    the THINK pane to the linked thought card with pulse animation; clicking View
+    Finding on a thought card scrolls the SAYS pane to the finding'
+  - 'Filter bar at top of SAYS pane: All, Draft, Approved, Rejected pills that show/hide
+    findings by status'
+  - 'Demo integration: after streaming completes in sendMessage(), a demo finding
+    card appears in the SAYS pane with sources linked to the last thought card step'
+  - 'Confidence bar animates on mount: segments fill sequentially left-to-right with
+    staggered timing and color coding based on confidence value'
+  status: complete
+  created_at: '2026-07-09T03:24:38.742172+00:00'
+  completed_at: '2026-07-09T03:40:46.782667+00:00'

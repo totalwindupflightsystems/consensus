@@ -504,6 +504,13 @@
         <!-- SAYS Pane -->
         <div class="pane pane-says" id="says-pane">
           <div class="pane-findings-list">
+            <div class="findings-filter-bar" id="findings-filter-bar" style="display:none;">
+              <span class="findings-filter-bar-label">Filter</span>
+              <button class="findings-filter-pill active" data-filter="all" onclick="setFindingsFilter('all')">All <span class="findings-filter-count" id="findings-count-all">0</span></button>
+              <button class="findings-filter-pill" data-filter="draft" onclick="setFindingsFilter('draft')">Draft <span class="findings-filter-count" id="findings-count-draft">0</span></button>
+              <button class="findings-filter-pill" data-filter="approved" onclick="setFindingsFilter('approved')">Approved <span class="findings-filter-count" id="findings-count-approved">0</span></button>
+              <button class="findings-filter-pill" data-filter="rejected" onclick="setFindingsFilter('rejected')">Rejected <span class="findings-filter-count" id="findings-count-rejected">0</span></button>
+            </div>
             <div class="pane-empty-state" id="says-empty">
               <div class="pane-empty-icon">📋</div>
               <div class="pane-empty-text">Findings Will Appear Here</div>
@@ -1413,10 +1420,470 @@
   };
 
   window.scrollToFinding = function(findingId) {
-    if (findingId) {
-      // Scroll to finding in SAYS pane (placeholder for now)
-      document.getElementById('says-pane').scrollTop = 0;
+    var num = typeof findingId === 'number' ? findingId : parseInt(findingId.toString().replace('finding-', ''), 10);
+    if (isNaN(num)) return;
+    var card = document.querySelector('.finding-card[data-number="' + num + '"]');
+    if (!card) return;
+    var list = document.querySelector('.pane-findings-list');
+    if (list) {
+      var cardTop = card.offsetTop;
+      var paneVisible = list.clientHeight;
+      var target = Math.max(0, cardTop - paneVisible / 2 + card.offsetHeight / 2);
+      list.scrollTo({ top: target, behavior: 'smooth' });
     }
+    card.classList.add('finding-card--highlight');
+    setTimeout(function() { card.classList.remove('finding-card--highlight'); }, 700);
+  };
+
+  // ==========================================================================
+  // SAYS Pane — Finding Cards (§5.5)
+  // ==========================================================================
+
+  // --- Findings state ---
+  var currentFindings = [];
+  var findingCounter = 0;
+  var findingsFilter = 'all';
+  var DEFAULT_REVIEWER = 'Operator';
+
+  // --- Basic markdown rendering (bold, italic, lists, inline code) ---
+  function renderMarkdownLite(text) {
+    if (text == null) return '';
+    var s = escapeHtml(String(text));
+    // Inline code: `code`
+    s = s.replace(/`([^`\n]+)`/g, function(m, c) {
+      return '<code>' + c + '</code>';
+    });
+    // Bold: **text**
+    s = s.replace(/\*\*([^*]+)\*\*/g, function(m, c) {
+      return '<strong>' + c + '</strong>';
+    });
+    // Italic: *text* (single asterisk, not preceded/followed by another asterisk)
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, function(m, p, c) {
+      return p + '<em>' + c + '</em>';
+    });
+    // Unordered list lines: leading "- " or "* "
+    s = s.replace(/(^|\n)((?:[-*] .+(?:\n|$))+)/g, function(m, prefix, block) {
+      var items = block.trim().split(/\n/).map(function(line) {
+        return line.replace(/^[-*]\s+/, '');
+      });
+      return prefix + '<ul>' + items.map(function(it) {
+        return '<li>' + renderMarkdownLite(it) + '</li>';
+      }).join('') + '</ul>';
+    });
+    return s;
+  }
+
+  // --- Confidence helpers ---
+  function confidenceBucket(c) {
+    if (c >= 0.8) return 'high';
+    if (c >= 0.5) return 'medium';
+    return 'low';
+  }
+
+  function confidenceColorClass(bucket) {
+    return 'finding-confidence-label--' + bucket;
+  }
+
+  function renderConfidenceBar(confidence, animate) {
+    var bucket = confidenceBucket(confidence);
+    var segments = '';
+    var filledCount = Math.round(confidence * 5);
+    for (var i = 0; i < 5; i++) {
+      var filled = i < filledCount;
+      var cls = 'finding-confidence-segment';
+      if (filled) cls += ' finding-confidence-segment--filled--' + bucket;
+      if (animate && filled) cls += ' finding-confidence-segment--filling';
+      var style = animate && filled ? ' style="animation-delay:' + (i * 50) + 'ms"' : '';
+      segments += '<span class="' + cls + '"' + style + '></span>';
+    }
+    return '<div class="finding-confidence-segments">' + segments + '</div>' +
+      '<span class="finding-confidence-label ' + confidenceColorClass(bucket) + '">' +
+      Math.round(confidence * 100) + '%</span>';
+  }
+
+  // --- Render a single finding card ---
+  function renderFindingCard(finding) {
+    var stateClass = 'finding-card--' + (finding.status || 'draft');
+    var statusLabel = (finding.status || 'draft');
+    var timeStr = finding.timestamp ? formatRelativeTime(finding.timestamp) : '';
+    var absoluteTime = finding.timestamp || '';
+
+    // Sources (re-uses thought-source-badge styles)
+    var sourcesHtml = '';
+    if (finding.sources && finding.sources.length > 0) {
+      sourcesHtml = '<div class="thought-card-source-badges">';
+      finding.sources.forEach(function(src) {
+        var confClass = 'source-confidence--medium';
+        if (src.confidence >= 0.94) confClass = 'source-confidence--high';
+        else if (src.confidence < 0.70) confClass = 'source-confidence--low';
+        sourcesHtml += '<div class="thought-source-badge" title="' + escapeHtml(src.name) + '">' +
+          '<span>' + escapeHtml(src.icon || '📄') + '</span>' +
+          '<span>' + escapeHtml(truncateStr(src.name, 24)) + '</span>' +
+          '<span class="source-confidence ' + confClass + '">' +
+            (typeof src.confidence === 'number' ? src.confidence.toFixed(2) : '—') +
+          '</span>' +
+          '</div>';
+      });
+      sourcesHtml += '</div>';
+    }
+
+    // Reasoning links — each linked step becomes a clickable link that scrolls to the thought card
+    var reasoningHtml = '';
+    if (finding.linkedSteps && finding.linkedSteps.length > 0) {
+      finding.linkedSteps.forEach(function(stepNumber) {
+        reasoningHtml += '<button class="finding-reasoning-link" onclick="scrollToThought(' + stepNumber + ')">' +
+          '<span class="finding-reasoning-link-icon">🧠</span>' +
+          '<span>View reasoning · Step ' + stepNumber + '</span>' +
+          '</button>';
+      });
+    } else if (finding.reasoning && finding.reasoning.length > 0) {
+      // Fallback: free-form reasoning notes
+      finding.reasoning.forEach(function(note) {
+        reasoningHtml += '<div style="font-size:var(--text-small);color:var(--color-text-secondary);">' +
+          escapeHtml(note) + '</div>';
+      });
+    }
+
+    // Header
+    var headerHtml =
+      '<div class="finding-header">' +
+      '  <div class="finding-header-left">' +
+      '    <span class="finding-number">' +
+      '      <span class="finding-number-icon">📌</span>' +
+      '      <span>Finding #' + finding.number + '</span>' +
+      '    </span>' +
+      '    <span class="finding-status-badge finding-status-badge--' + statusLabel + '">' + statusLabel + '</span>' +
+      '  </div>' +
+      '  <div class="finding-header-right">' +
+      '    <span class="finding-timestamp" title="' + escapeHtml(absoluteTime) + '">' + timeStr + '</span>' +
+      '  </div>' +
+      '</div>';
+
+    // Conclusion (with markdown lite + show-more)
+    var conclusionBody = renderMarkdownLite(finding.content || finding.title || '');
+    var conclusionHtml =
+      '<div class="finding-conclusion-wrapper">' +
+      '  <div class="finding-conclusion" data-original-text="' + escapeHtml(finding.content || finding.title || '') + '">' +
+             conclusionBody +
+      '  </div>' +
+      '  <div class="finding-conclusion-fade"></div>' +
+      '</div>' +
+      '<button class="finding-show-more-btn" onclick="toggleExpandFinding(this, event)" type="button">' +
+      '  <span class="show-more-label">Show more</span>' +
+      '  <span class="chevron">▾</span>' +
+      '</button>';
+
+    // Collapsibles
+    var collapsiblesHtml = '';
+    if (sourcesHtml) {
+      collapsiblesHtml +=
+        '<div class="finding-collapsible" data-collapsible="sources">' +
+        '  <div class="finding-collapsible-header" onclick="toggleFindingCollapsible(this)">' +
+        '    <span class="finding-collapsible-chevron">▸</span>' +
+        '    <span>Sources</span>' +
+        '    <span class="finding-collapsible-count">(' + finding.sources.length + ')</span>' +
+        '  </div>' +
+        '  <div class="finding-collapsible-body">' + sourcesHtml + '</div>' +
+        '</div>';
+    }
+    if (reasoningHtml) {
+      collapsiblesHtml +=
+        '<div class="finding-collapsible finding-collapsible--expanded" data-collapsible="reasoning">' +
+        '  <div class="finding-collapsible-header" onclick="toggleFindingCollapsible(this)">' +
+        '    <span class="finding-collapsible-chevron">▸</span>' +
+        '    <span>Reasoning</span>' +
+        '    <span class="finding-collapsible-count">(' + (finding.linkedSteps ? finding.linkedSteps.length : finding.reasoning.length) + ')</span>' +
+        '  </div>' +
+        '  <div class="finding-collapsible-body">' + reasoningHtml + '</div>' +
+        '</div>';
+    }
+
+    // Confidence
+    var confidenceHtml = '<div class="finding-confidence">' +
+      renderConfidenceBar(finding.confidence != null ? finding.confidence : 0.5, true) +
+      '</div>';
+
+    // Approval status
+    var approvalHtml = renderApprovalStatus(finding);
+
+    // Action buttons — vary by status
+    var actionsHtml = renderFindingActions(finding);
+
+    return '<div class="finding-card ' + stateClass + '" data-number="' + finding.number + '" data-status="' + statusLabel + '">' +
+      headerHtml + conclusionHtml + collapsiblesHtml + confidenceHtml + approvalHtml + actionsHtml +
+      '</div>';
+  }
+
+  function renderApprovalStatus(finding) {
+    var status = finding.status || 'draft';
+    if (status === 'approved') {
+      var approver = finding.approvedBy || DEFAULT_REVIEWER;
+      var approverTime = finding.approvedAt ? formatRelativeTime(finding.approvedAt) : '';
+      return '<div class="finding-approval-status finding-approval-status--approved">' +
+        '<span class="finding-approval-check">✓</span>' +
+        '<span>Approved by ' + escapeHtml(approver) + (approverTime ? ' · ' + approverTime : '') + '</span>' +
+        '</div>';
+    }
+    if (status === 'rejected') {
+      var rejecter = finding.rejectedBy || DEFAULT_REVIEWER;
+      var rejecterTime = finding.rejectedAt ? formatRelativeTime(finding.rejectedAt) : '';
+      var reason = finding.rejectionReason ? '<span class="finding-approval-status-reason">"' + escapeHtml(finding.rejectionReason) + '"</span>' : '';
+      return '<div class="finding-approval-status finding-approval-status--rejected">' +
+        '<span>✗ Rejected by ' + escapeHtml(rejecter) + (rejecterTime ? ' · ' + rejecterTime : '') + '</span>' +
+        reason +
+        '</div>';
+    }
+    if (status === 'outdated') {
+      return '<div class="finding-approval-status">' +
+        '<span>⏳ Superseded by a newer finding</span>' +
+        '</div>';
+    }
+    // Draft
+    return '<div class="finding-approval-status">' +
+      '<span>⏱ Awaiting review</span>' +
+      '</div>';
+  }
+
+  function renderFindingActions(finding) {
+    var status = finding.status || 'draft';
+    var num = finding.number;
+    var html = '<div class="finding-actions">';
+    if (status === 'draft') {
+      html +=
+        '<button class="finding-action-btn finding-action-btn--revision" onclick="requestRevision(' + num + ')">↻ Request Revision</button>' +
+        '<button class="finding-action-btn finding-action-btn--reject" onclick="rejectFinding(' + num + ')">✗ Reject</button>' +
+        '<button class="finding-action-btn finding-action-btn--approve" onclick="approveFinding(' + num + ')">✓ Approve</button>';
+    } else {
+      html +=
+        '<button class="finding-action-btn finding-action-btn--icon" onclick="copyFindingContent(' + num + ')" title="Copy">📋</button>' +
+        '<button class="finding-action-btn finding-action-btn--icon" onclick="editFinding(' + num + ')" title="Edit">✎</button>' +
+        '<button class="finding-action-btn finding-action-btn--icon" onclick="flagFinding(' + num + ')" title="Flag">⚑</button>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // --- Add finding to SAYS pane ---
+  function addFinding(finding) {
+    findingCounter++;
+    if (!finding.number) finding.number = findingCounter;
+    if (!finding.status) finding.status = 'draft';
+    if (!finding.timestamp) finding.timestamp = new Date().toISOString();
+    if (!finding.model) finding.model = 'deepseek-v4-flash';
+
+    currentFindings.push(finding);
+
+    var container = document.getElementById('findings-container');
+    var empty = document.getElementById('says-empty');
+    var filterBar = document.getElementById('findings-filter-bar');
+    if (container && empty) {
+      container.style.display = '';
+      empty.style.display = 'none';
+    }
+    if (filterBar) filterBar.style.display = '';
+    if (container) {
+      container.insertAdjacentHTML('beforeend', renderFindingCard(finding));
+    }
+
+    // Apply current filter
+    applyFindingsFilter();
+
+    // Scroll SAYS pane to bottom so the new card is visible
+    var list = document.querySelector('.pane-findings-list');
+    if (list) list.scrollTop = list.scrollHeight;
+  }
+
+  // --- Update a finding's status (draft / approved / rejected / outdated) ---
+  function updateFindingStatus(findingNumber, newStatus, meta) {
+    var card = document.querySelector('.finding-card[data-number="' + findingNumber + '"]');
+    if (!card) return;
+    // Remove all status classes
+    card.classList.remove('finding-card--draft', 'finding-card--approved', 'finding-card--rejected', 'finding-card--outdated');
+    card.classList.add('finding-card--' + newStatus);
+    card.setAttribute('data-status', newStatus);
+
+    // Update persisted state
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (finding) {
+      finding.status = newStatus;
+      if (meta) {
+        Object.keys(meta).forEach(function(k) { finding[k] = meta[k]; });
+      }
+    }
+
+    // Replace badge + approval-status + actions
+    var badge = card.querySelector('.finding-status-badge');
+    if (badge) {
+      badge.className = 'finding-status-badge finding-status-badge--' + newStatus;
+      badge.textContent = newStatus;
+    }
+    var approval = card.querySelector('.finding-approval-status');
+    if (approval) {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = renderApprovalStatus(finding || { status: newStatus });
+      var newApproval = tmp.firstChild;
+      if (newApproval) approval.parentNode.replaceChild(newApproval, approval);
+    }
+    var actions = card.querySelector('.finding-actions');
+    if (actions) {
+      var tmp2 = document.createElement('div');
+      tmp2.innerHTML = renderFindingActions(finding || { number: findingNumber, status: newStatus });
+      var newActions = tmp2.firstChild;
+      if (newActions) actions.parentNode.replaceChild(newActions, actions);
+    }
+
+    // Trigger approve-sweep if approved
+    if (newStatus === 'approved') {
+      card.classList.add('finding-card--approve-sweep');
+      setTimeout(function() { card.classList.remove('finding-card--approve-sweep'); }, 600);
+    }
+
+    // Re-apply filter (counts may change, hidden cards may need to reappear)
+    applyFindingsFilter();
+  }
+
+  // --- Approval workflow ---
+  window.approveFinding = function(findingNumber) {
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (!finding) return;
+    var ok = window.confirm('Approve Finding #' + findingNumber + '?\n\n"' + (finding.content || finding.title || '').substring(0, 120) + (finding.content && finding.content.length > 120 ? '…' : '') + '"');
+    if (!ok) return;
+    updateFindingStatus(findingNumber, 'approved', {
+      approvedBy: DEFAULT_REVIEWER,
+      approvedAt: new Date().toISOString()
+    });
+  };
+
+  window.rejectFinding = function(findingNumber) {
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (!finding) return;
+    var reason = window.prompt('Reject Finding #' + findingNumber + ' — reason (optional):', '');
+    if (reason === null) return; // cancelled
+    updateFindingStatus(findingNumber, 'rejected', {
+      rejectedBy: DEFAULT_REVIEWER,
+      rejectedAt: new Date().toISOString(),
+      rejectionReason: reason || ''
+    });
+  };
+
+  window.requestRevision = function(findingNumber) {
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (!finding) return;
+    var note = window.prompt('What needs revision on Finding #' + findingNumber + '?', '');
+    if (note === null) return;
+    // Revert to Draft status
+    updateFindingStatus(findingNumber, 'draft', { revisionRequested: true });
+    var textarea = document.getElementById('input-textarea');
+    var sendBtn = document.getElementById('send-btn');
+    if (textarea) {
+      var current = textarea.value || '';
+      var prefix = current ? current + '\n\n' : '';
+      textarea.value = prefix + 'Please revise Finding #' + findingNumber + ': ' + (note || '');
+      textarea.focus();
+      onInputChange(textarea);
+      if (sendBtn) sendBtn.disabled = false;
+      document.getElementById('input-status').textContent = 'Revision requested';
+    }
+  };
+
+  window.copyFindingContent = function(findingNumber) {
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (!finding) return;
+    var text = finding.content || finding.title || '';
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text);
+  };
+
+  window.editFinding = function(findingNumber) {
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (!finding) return;
+    var edited = window.prompt('Edit Finding #' + findingNumber + ':', finding.content || finding.title || '');
+    if (edited === null) return;
+    finding.content = edited;
+    var card = document.querySelector('.finding-card[data-number="' + findingNumber + '"]');
+    if (card) {
+      var conclusion = card.querySelector('.finding-conclusion');
+      if (conclusion) {
+        conclusion.innerHTML = renderMarkdownLite(edited);
+        conclusion.setAttribute('data-original-text', edited);
+      }
+    }
+  };
+
+  window.flagFinding = function(findingNumber) {
+    var card = document.querySelector('.finding-card[data-number="' + findingNumber + '"]');
+    if (!card) return;
+    card.classList.toggle('finding-card--flagged');
+    var finding = currentFindings.find(function(f) { return f.number === findingNumber; });
+    if (finding) finding.flagged = !finding.flagged;
+    try {
+      var key = 'chronicle:finding:' + (currentSessionId || 'pending') + ':' + findingNumber + ':flagged';
+      if (card.classList.contains('finding-card--flagged')) localStorage.setItem(key, 'true');
+      else localStorage.removeItem(key);
+    } catch(e) {}
+  };
+
+  // --- Expand / collapse ---
+  window.toggleExpandFinding = function(btn, evt) {
+    if (evt) evt.stopPropagation();
+    var card = btn.closest('.finding-card');
+    if (!card) return;
+    card.classList.toggle('finding-card--expanded');
+    var label = btn.querySelector('.show-more-label');
+    if (label) label.textContent = card.classList.contains('finding-card--expanded') ? 'Show less' : 'Show more';
+  };
+
+  window.toggleFindingCollapsible = function(header) {
+    var col = header.closest('.finding-collapsible');
+    if (!col) return;
+    col.classList.toggle('finding-collapsible--expanded');
+  };
+
+  // --- Filter bar ---
+  window.setFindingsFilter = function(filter) {
+    findingsFilter = filter;
+    var pills = document.querySelectorAll('.findings-filter-pill');
+    pills.forEach(function(p) {
+      p.classList.toggle('active', p.getAttribute('data-filter') === filter);
+    });
+    applyFindingsFilter();
+  };
+
+  function applyFindingsFilter() {
+    var cards = document.querySelectorAll('.finding-card');
+    cards.forEach(function(card) {
+      var status = card.getAttribute('data-status') || 'draft';
+      var show = findingsFilter === 'all' || status === findingsFilter;
+      card.style.display = show ? '' : 'none';
+    });
+    // Update counts
+    var counts = { all: 0, draft: 0, approved: 0, rejected: 0 };
+    cards.forEach(function(card) {
+      counts.all++;
+      var s = card.getAttribute('data-status') || 'draft';
+      if (counts[s] != null) counts[s]++;
+    });
+    ['all','draft','approved','rejected'].forEach(function(key) {
+      var el = document.getElementById('findings-count-' + key);
+      if (el) el.textContent = counts[key];
+    });
+  }
+
+  // --- Bidirectional scroll helpers ---
+  window.scrollToThought = function(stepNumber) {
+    var card = document.querySelector('.thought-card[data-step="' + stepNumber + '"]');
+    if (!card) return;
+    var thinkPane = document.getElementById('think-pane');
+    if (thinkPane) {
+      // Compute target scroll offset relative to the pane
+      var cardTop = card.offsetTop;
+      var paneVisible = thinkPane.clientHeight;
+      var target = Math.max(0, cardTop - paneVisible / 2 + card.offsetHeight / 2);
+      thinkPane.scrollTo({ top: target, behavior: 'smooth' });
+    }
+    // Highlight pulse
+    card.classList.add('thought-card--highlight');
+    setTimeout(function() { card.classList.remove('thought-card--highlight'); }, 700);
   };
 
   // --- New Session ---
@@ -1429,11 +1896,27 @@
     // Reset state
     currentThoughts = [];
     thoughtCounter = 0;
+    currentFindings = [];
+    findingCounter = 0;
     isStreaming = false;
     var container = document.getElementById('thoughts-container');
     if (container) container.innerHTML = '';
     var empty = document.getElementById('think-empty');
     if (empty) empty.style.display = '';
+    var findingsContainer = document.getElementById('findings-container');
+    if (findingsContainer) { findingsContainer.innerHTML = ''; findingsContainer.style.display = 'none'; }
+    var saysEmpty = document.getElementById('says-empty');
+    if (saysEmpty) saysEmpty.style.display = '';
+    var filterBar = document.getElementById('findings-filter-bar');
+    if (filterBar) filterBar.style.display = 'none';
+    findingsFilter = 'all';
+    // Reset filter pill active state
+    var pills = document.querySelectorAll('.findings-filter-pill');
+    pills.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-filter') === 'all'); });
+    ['all','draft','approved','rejected'].forEach(function(key) {
+      var el = document.getElementById('findings-count-' + key);
+      if (el) el.textContent = '0';
+    });
 
     // Enable input
     var textarea = document.getElementById('input-textarea');
@@ -1556,6 +2039,45 @@
               textarea.disabled = false;
               document.getElementById('input-status').textContent = 'Ready';
               textarea.focus();
+
+              // Demo: synthesize a finding card after the reasoning completes.
+              // Link the new finding to the just-completed thought so the
+              // bidirectional "View reasoning" link has something to scroll to.
+              addFinding({
+                title: 'Revenue Growth Analysis',
+                content: 'Q4 revenue in APAC increased 12% YoY, driven primarily by expansion in the Southeast Asian market. This represents the **third consecutive quarter** of double-digit growth.\n\nKey drivers:\n- Logistics cost reduction (8% YoY)\n- New distributor onboarding (+24 accounts)\n- Improved fulfillment SLA',
+                sources: [
+                  { name: 'q4-sales.csv', confidence: 0.94, icon: '📄' },
+                  { name: 'shipping-manifests.csv', confidence: 0.87, icon: '📄' },
+                  { name: 'distributor-registry.json', confidence: 0.81, icon: '📄' }
+                ],
+                linkedSteps: [thoughtCounter],
+                confidence: 0.94,
+                status: 'draft',
+                model: 'deepseek-v4-flash'
+              });
+              // Link the thought card's "View Finding" button to the new finding
+              var newFinding = currentFindings[currentFindings.length - 1];
+              if (newFinding && newFinding.number) {
+                var step = currentThoughts.find(function(s) { return s.number === thoughtCounter; });
+                if (step) {
+                  step.findingId = 'finding-' + newFinding.number;
+                  // Re-render thought card actions to enable the button
+                  var card = document.querySelector('.thought-card[data-step="' + thoughtCounter + '"]');
+                  if (card) {
+                    var oldActions = card.querySelector('.thought-card-actions');
+                    if (oldActions) {
+                      var findingNum = newFinding.number;
+                      var newActionsHtml = '<div class="thought-card-actions">' +
+                        '<button class="thought-action-btn" onclick="scrollToFinding(' + findingNum + ')">🔗 View Finding</button>' +
+                        '<button class="thought-action-btn" onclick="copyThoughtContent(this)">📋 Copy</button>' +
+                        '<button class="thought-action-btn thought-action-btn--flag" onclick="toggleFlagThought(' + thoughtCounter + ')">⚑ Flag</button>' +
+                        '</div>';
+                      oldActions.outerHTML = newActionsHtml;
+                    }
+                  }
+                }
+              }
             }
           }
         }, 20);
