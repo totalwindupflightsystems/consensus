@@ -26,7 +26,7 @@
 - [x] Build Input Area: message composer, model selector, budget display, send/cancel — §5.6 (completed 2026-07-09)
 - [x] Build Evidence Panel: source list, citation preview, provenance chain — §5.7
 - [x] Build Discovery Panel: related sessions, similar findings, entity links — §4.5 (completed 2026-07-09)
-- [ ] Wire WebSocket for live streaming (THINK cards update at 60fps) — §4.6
+- [x] Wire WebSocket for live streaming (THINK cards update at 60fps) — §4.6
 
 ### 1.5 Dashboard & Analytics
 - [ ] Build Overview Dashboard: active sessions, cost metrics, health status — §5
