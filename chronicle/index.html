@@ -1304,6 +1304,123 @@
   var scrollThrottleTimer = null;
   var autoScrollObserver = null;
 
+  // --- API key from URL param ---
+  var apiKey = null;
+  (function() {
+    var m = location.search.match(/[?&]api_key=([^&]+)/);
+    if (m) apiKey = decodeURIComponent(m[1]);
+  })();
+
+  // --- SSE + polling for real-time streaming ---
+  var _sseSource = null;
+  var _pollTimer = null;
+  var _lastMemoryID = 0;
+  var _pollFailures = 0;
+
+  function apiHeaders() {
+    var h = { 'Content-Type': 'application/json' };
+    if (apiKey) h['X-Api-Key'] = apiKey;
+    return h;
+  }
+
+  function connectSSE(sessionId) {
+    if (_sseSource) { _sseSource.close(); _sseSource = null; }
+    var url = '/api/v1/events?session_id=' + encodeURIComponent(sessionId);
+    _sseSource = new EventSource(url);
+    _sseSource.addEventListener('session_update', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (data.data && data.data.status === 'idle') {
+          stopStreaming('Streaming complete');
+        }
+      } catch(ex) {}
+    });
+    _sseSource.onerror = function() {
+      // EventSource auto-reconnects; polling is our fallback
+    };
+  }
+
+  function startMemoryPolling(sessionId) {
+    var POLL_MS = apiKey ? 500 : 2000;
+    _pollFailures = 0;
+    if (_pollTimer) clearInterval(_pollTimer);
+    _pollTimer = setInterval(function() {
+      if (!isStreaming) { clearInterval(_pollTimer); _pollTimer = null; return; }
+      var url = '/api/v1/sessions/' + encodeURIComponent(sessionId) + '/memory?limit=10';
+      var opts = { headers: apiHeaders() };
+      if (streamAbortController) opts.signal = streamAbortController.signal;
+      fetch(url, opts).then(function(resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      }).then(function(events) {
+        _pollFailures = 0;
+        if (!events || !events.length) return;
+        // Events come back newest-first; process in reverse (oldest first)
+        var newEvents = [];
+        for (var i = events.length - 1; i >= 0; i--) {
+          if (events[i].id > _lastMemoryID) {
+            newEvents.push(events[i]);
+            _lastMemoryID = events[i].id;
+          }
+        }
+        if (newEvents.length > 0) renderMemoryEvents(newEvents);
+      }).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        _pollFailures++;
+        if (_pollFailures > 5) stopStreaming('Connection lost — streaming interrupted');
+      });
+    }, POLL_MS);
+  }
+
+  function renderMemoryEvents(events) {
+    var statusEl = document.getElementById('input-status');
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (ev.type === 'thinking' || ev.type === 'text_block') {
+        // Update or create the thought card for this iteration
+        var iterKey = 'iter-' + (ev.iteration_created || 0);
+        var existing = document.querySelector('.thought-card[data-iter="' + iterKey + '"]');
+        if (!existing) {
+          addThought({
+            number: thoughtCounter + 1,
+            status: 'thinking',
+            name: 'Iteration ' + (ev.iteration_created || '?'),
+            content: ev.content || '',
+            model: selectedModel,
+            sources: [],
+            flags: [],
+            iterKey: iterKey
+          });
+        } else {
+          appendToCurrentThought(ev.content || '');
+        }
+        if (statusEl) statusEl.textContent = 'AI is thinking…';
+      } else if (ev.type === 'finding' || ev.type === 'conclusion') {
+        // Could render in SAYS pane — for now just track
+      }
+    }
+  }
+
+  function stopStreaming(reason) {
+    isStreaming = false;
+    setSendBtnCancelled(false);
+    var textarea = document.getElementById('input-textarea');
+    if (textarea) textarea.disabled = !currentSessionId;
+    if (_sseSource) { _sseSource.close(); _sseSource = null; }
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    if (window._chronicleDemoTimer) {
+      clearInterval(window._chronicleDemoTimer);
+      window._chronicleDemoTimer = null;
+    }
+    var statusEl = document.getElementById('input-status');
+    if (statusEl) statusEl.textContent = reason || 'Ready';
+    var lastCard = document.querySelector('.thought-card--thinking');
+    if (lastCard) {
+      var stepNum = parseInt(lastCard.getAttribute('data-step'));
+      if (stepNum) completeThought(stepNum, '', [], []);
+    }
+  }
+
   // --- Pane divider drag ---
   var isDraggingDivider = false;
   var dragStartX = 0;
@@ -1514,7 +1631,7 @@
         '</div>';
     }
 
-    return '<div class="thought-card ' + stateClass + '" data-step="' + step.number + '" onclick="toggleExpandThought(this)">' +
+    return '<div class="thought-card ' + stateClass + '" data-step="' + step.number + '" data-iter="' + (step.iterKey || '') + '" onclick="toggleExpandThought(this)">' +
       headerHtml + bodyHtml + sourcesHtml + flagsHtml + actionsHtml +
       '</div>';
   }
@@ -2359,16 +2476,16 @@
       streamAbortController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var fetchOpts = {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify(payload)
       };
       if (streamAbortController) fetchOpts.signal = streamAbortController.signal;
       fetch(apiUrl, fetchOpts).then(function(resp) {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         if (statusEl) statusEl.textContent = 'AI is thinking…';
-        // The real backend would push WebSocket events; for this UI we still
-        // synthesise local thought/finding cards so the operator sees the flow.
-        runLocalDemoStreaming(text);
+        // Real-time streaming: SSE + polling for live memory events
+        connectSSE(currentSessionId);
+        startMemoryPolling(currentSessionId);
       }).catch(function(err) {
         if (err && err.name === 'AbortError') {
           aborted = true;

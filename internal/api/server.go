@@ -93,6 +93,9 @@ func NewServer(cfg ServerConfig) *Server {
 	// Health (no auth)
 	r.Get("/api/v1/health", s.handleHealth)
 
+	// SSE event stream (no auth — session isolation via query param)
+	r.Get("/api/v1/events", s.HandleSSE)
+
 	// Authenticated API routes
 	r.Group(func(r chi.Router) {
 		r.Use(s.authMiddleware)
