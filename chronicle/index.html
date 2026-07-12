@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/chronicle/css/design-system.css"/>
 <link rel="stylesheet" href="/chronicle/css/layout.css"/>
 <link rel="stylesheet" href="/chronicle/css/components.css"/>
+<link rel="stylesheet" href="/chronicle/css/dashboard.css"/>
 </head>
 <body>
 <!-- Mobile sidebar backdrop -->
@@ -122,352 +123,182 @@
 
     <!-- ===== Dashboard View ===== -->
     <div class="content-view active" id="dashboard-view">
-      <div style="padding:var(--space-4);overflow-y:auto;height:100%;">
-      <h1 style="font-size:var(--text-display-2);font-weight:var(--weight-extrabold);color:var(--color-text-heading);letter-spacing:var(--tracking-display);margin-bottom:var(--space-3);">Chronicle</h1>
-      <p style="color:var(--color-text-secondary);font-size:var(--text-body-lg);line-height:var(--leading-body-lg);margin-bottom:var(--space-6);max-width:520px;">
-        Palantir-grade dark-theme operational dashboard for AI-powered investigations.
-        Dense data, transparent reasoning, operator-first workflows.
-      </p>
-
-      <!-- Data Display Demo: Table (§3.4) -->
-      <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);margin-top:var(--space-6);">Data Table — §3.4</h2>
-      <div class="cmp-table-wrapper">
-        <table class="cmp-table cmp-table-striped" id="demo-table">
-          <thead>
-            <tr>
-              <th class="numeric" style="width:48px;"><input type="checkbox" class="cmp-table-checkbox" id="select-all" onchange="toggleAllRows()" aria-label="Select all rows"></th>
-              <th class="sorted-asc">Session</th>
-              <th>Status</th>
-              <th>Model</th>
-              <th class="numeric">Iterations</th>
-              <th class="numeric">Tokens</th>
-              <th class="numeric">Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr onclick="toggleRow(this)" data-id="a3f2b">
-              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session a3f2b"></td>
-              <td><strong>#a3f2b</strong> Q4 Revenue Analysis</td>
-              <td><span class="cmp-badge cmp-badge-info cmp-badge-sm">Thinking</span></td>
-              <td>deepseek-v4-pro</td>
-              <td class="numeric">42</td>
-              <td class="numeric">847K</td>
-              <td class="numeric">$0.42</td>
-            </tr>
-            <tr onclick="toggleRow(this)" data-id="b2e1c">
-              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session b2e1c"></td>
-              <td><strong>#b2e1c</strong> Phishing Analysis</td>
-              <td><span class="cmp-badge cmp-badge-success cmp-badge-sm">Completed</span></td>
-              <td>gpt-5.5</td>
-              <td class="numeric">18</td>
-              <td class="numeric">234K</td>
-              <td class="numeric">$0.18</td>
-            </tr>
-            <tr onclick="toggleRow(this)" data-id="c4f8d">
-              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session c4f8d"></td>
-              <td><strong>#c4f8d</strong> Network Scan Analysis</td>
-              <td><span class="cmp-badge cmp-badge-warning cmp-badge-sm">Paused</span></td>
-              <td>kimi-k2.7-code</td>
-              <td class="numeric">7</td>
-              <td class="numeric">89K</td>
-              <td class="numeric">$0.06</td>
-            </tr>
-            <tr onclick="toggleRow(this)" data-id="d1a9e">
-              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session d1a9e"></td>
-              <td><strong>#d1a9e</strong> Q3 Anomaly Detection</td>
-              <td><span class="cmp-badge cmp-badge-error cmp-badge-sm">Failed</span></td>
-              <td>glm-5.2</td>
-              <td class="numeric">3</td>
-              <td class="numeric">12K</td>
-              <td class="numeric">$0.01</td>
-            </tr>
-            <tr onclick="toggleRow(this)" data-id="e5b3f">
-              <td class="checkbox-cell"><input type="checkbox" class="cmp-table-checkbox" onclick="event.stopPropagation()" aria-label="Select session e5b3f"></td>
-              <td><strong>#e5b3f</strong> Supplier Audit</td>
-              <td><span class="cmp-badge cmp-badge-default cmp-badge-sm">Idle</span></td>
-              <td>minimax-m3</td>
-              <td class="numeric">0</td>
-              <td class="numeric">—</td>
-              <td class="numeric">$0.00</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="cmp-table-footer">
-          <div class="cmp-table-footer-left">
-            <span id="selected-count">0 selected</span>
+      <div class="dash-container">
+        <!-- Row 1: KPI Bar -->
+        <div class="dash-kpi-bar" id="kpi-bar">
+          <!-- 1. ACTIVE SESSIONS -->
+          <div class="dash-kpi-card" data-kpi="sessions">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">💬</span>
+              <span class="dash-kpi-sparkline" id="kpi-sparkline-sessions">
+                <svg viewBox="0 0 80 24"><path d="M0,24 L2,20 L4,22 L6,18 L8,16 L10,14 L12,15 L14,12 L16,10 L18,11 L20,8 L22,9 L24,6 L26,7 L28,4 L30,5 L32,3 L34,4 L36,2 L38,3 L40,1 L42,2 L44,4 L46,3 L48,5 L50,4 L52,6 L54,5 L56,7 L58,6 L60,8 L62,7 L64,9 L66,8 L68,10 L70,9 L72,11 L74,10 L76,12 L78,11 L80,13 L80,24 Z" fill="var(--color-accent-primary)" opacity="0.15"/><path d="M0,24 L2,20 L4,22 L6,18 L8,16 L10,14 L12,15 L14,12 L16,10 L18,11 L20,8 L22,9 L24,6 L26,7 L28,4 L30,5 L32,3 L34,4 L36,2 L38,3 L40,1 L42,2 L44,4 L46,3 L48,5 L50,4 L52,6 L54,5 L56,7 L58,6 L60,8 L62,7 L64,9 L66,8 L68,10 L70,9 L72,11 L74,10 L76,12 L78,11 L80,13" fill="none" stroke="var(--color-accent-primary)" stroke-width="1"/><circle cx="80" cy="13" r="2" fill="var(--color-accent-primary)"/></svg>
+              </span>
+            </div>
+            <div class="dash-kpi-label">Active Sessions</div>
+            <div class="dash-kpi-value"><span class="dash-kpi-value--skeleton"></span></div>
+            <div class="dash-kpi-trend" id="kpi-trend-sessions"></div>
+            <div class="dash-kpi-progress" id="kpi-progress-sessions"><div class="dash-kpi-progress-fill" style="width:0%"></div></div>
           </div>
-          <div class="cmp-table-footer-right">
-            <button class="cmp-table-page-btn" disabled aria-label="Previous page">‹</button>
-            <button class="cmp-table-page-btn active" aria-label="Page 1">1</button>
-            <button class="cmp-table-page-btn" aria-label="Page 2">2</button>
-            <button class="cmp-table-page-btn" aria-label="Page 3">3</button>
-            <button class="cmp-table-page-btn" aria-label="Next page">›</button>
-            <span class="cmp-table-page-info">Page 1 of 3 · Showing 1–5 of 12 results</span>
+
+          <!-- 2. PENDING TASKS -->
+          <div class="dash-kpi-card" data-kpi="tasks">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">✅</span>
+              <span class="dash-kpi-sparkline" id="kpi-sparkline-tasks">
+                <svg viewBox="0 0 80 24"><path d="M0,24 L4,22 L8,23 L12,20 L16,21 L20,18 L24,19 L28,16 L32,17 L36,14 L40,15 L44,12 L48,13 L52,10 L56,11 L60,8 L64,9 L68,6 L72,7 L76,4 L80,5 L80,24 Z" fill="var(--color-accent-warning)" opacity="0.15"/><path d="M0,24 L4,22 L8,23 L12,20 L16,21 L20,18 L24,19 L28,16 L32,17 L36,14 L40,15 L44,12 L48,13 L52,10 L56,11 L60,8 L64,9 L68,6 L72,7 L76,4 L80,5" fill="none" stroke="var(--color-accent-warning)" stroke-width="1"/><circle cx="80" cy="5" r="2" fill="var(--color-accent-warning)"/></svg>
+              </span>
+            </div>
+            <div class="dash-kpi-label">Pending Tasks</div>
+            <div class="dash-kpi-value"><span class="dash-kpi-value--skeleton"></span></div>
+            <div class="dash-kpi-trend" id="kpi-trend-tasks"></div>
+            <div class="dash-kpi-progress" style="visibility:hidden"></div>
+          </div>
+
+          <!-- 3. PENDING APPROVALS -->
+          <div class="dash-kpi-card" data-kpi="approvals" id="kpi-card-approvals">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">🛡</span>
+              <span class="dash-kpi-sparkline"></span>
+            </div>
+            <div class="dash-kpi-label">Pending Approvals</div>
+            <div class="dash-kpi-value"><span class="dash-kpi-value--skeleton"></span></div>
+            <div class="dash-kpi-trend" id="kpi-trend-approvals"></div>
+            <div class="dash-kpi-progress" style="visibility:hidden"></div>
+          </div>
+
+          <!-- 4. TOKENS TODAY -->
+          <div class="dash-kpi-card" data-kpi="tokens">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">⚡</span>
+              <span class="dash-kpi-sparkline"></span>
+            </div>
+            <div class="dash-kpi-label">Tokens Today</div>
+            <div class="dash-kpi-value">—</div>
+            <div class="dash-kpi-trend" id="kpi-trend-tokens"></div>
+            <div class="dash-kpi-progress" style="visibility:hidden"></div>
+          </div>
+
+          <!-- 5. BUDGET SPENT -->
+          <div class="dash-kpi-card" data-kpi="budget">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">💰</span>
+              <span class="dash-kpi-sparkline"></span>
+            </div>
+            <div class="dash-kpi-label">Budget Spent</div>
+            <div class="dash-kpi-value"><span class="dash-kpi-value--skeleton"></span></div>
+            <div class="dash-kpi-trend" id="kpi-trend-budget"></div>
+            <div class="dash-kpi-progress" id="kpi-progress-budget"><div class="dash-kpi-progress-fill" style="width:0%"></div></div>
+          </div>
+
+          <!-- 6. SYSTEM HEALTH -->
+          <div class="dash-kpi-card" data-kpi="health" id="kpi-card-health">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-icon">❤️</span>
+              <span class="dash-kpi-sparkline"></span>
+            </div>
+            <div class="dash-kpi-label">System Health</div>
+            <div class="dash-kpi-value"><span class="dash-kpi-value--skeleton"></span></div>
+            <div class="dash-kpi-trend" id="kpi-trend-health"></div>
+            <div class="dash-kpi-progress" style="visibility:hidden"></div>
+          </div>
+        </div>
+
+        <!-- Row 2: Activity Feed + Recent Sessions -->
+        <div class="dash-row-2">
+          <!-- Activity Feed -->
+          <div class="dash-feed" id="dash-feed">
+            <div class="dash-feed-header">
+              <div class="dash-feed-header-left">
+                <span class="dash-feed-header-title">Activity</span>
+                <span class="dash-feed-live-indicator">
+                  <span class="dash-feed-live-dot"></span>
+                  <span>Live</span>
+                </span>
+              </div>
+            </div>
+            <div class="dash-feed-list" id="dash-feed-list">
+              <div class="dash-feed-empty">
+                <div class="dash-feed-empty-icon">📡</div>
+                <div>Loading activity...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Sessions -->
+          <div class="dash-sessions-panel">
+            <div class="dash-sessions-header">
+              <span class="dash-sessions-title">Recent Sessions</span>
+              <a class="dash-sessions-view-all" onclick="navigateTo('sessions')">View All →</a>
+            </div>
+            <div class="dash-sessions-list" id="dash-sessions-list">
+              <div class="dash-sessions-empty">
+                <div class="dash-sessions-empty-icon">💬</div>
+                <div class="dash-sessions-empty-text">Loading sessions...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Charts -->
+        <div class="dash-row-3">
+          <!-- Donut: Session Status Distribution -->
+          <div class="dash-donut-card" id="dash-donut-card">
+            <div class="dash-chart-header">
+              <span class="dash-section-title">Session Status</span>
+            </div>
+            <div class="dash-chart-body">
+              <svg class="dash-donut-svg" id="dash-donut-svg" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="68" fill="none" stroke="var(--color-border-subtle)" stroke-width="24"/>
+                <text x="80" y="76" text-anchor="middle" class="dash-donut-center" id="dash-donut-center">—</text>
+                <text x="80" y="94" text-anchor="middle" class="dash-donut-center-label">sessions</text>
+              </svg>
+              <div class="dash-donut-legend" id="dash-donut-legend"></div>
+            </div>
+          </div>
+
+          <!-- Model Usage -->
+          <div class="dash-model-card" id="dash-model-card">
+            <div class="dash-chart-header">
+              <span class="dash-section-title">Model Usage</span>
+            </div>
+            <div class="dash-chart-body">
+              <div class="dash-model-bars" id="dash-model-bars"></div>
+            </div>
+          </div>
+
+          <!-- Pending Approvals -->
+          <div class="dash-approvals-card" id="dash-approvals-card">
+            <div class="dash-chart-header">
+              <span class="dash-section-title">Pending Approvals</span>
+              <span id="dash-approval-badge" style="display:none;background:var(--color-accent-error-muted);color:var(--color-text-error);font-size:var(--text-caption);padding:0 var(--space-2);border-radius:var(--radius-full);font-weight:var(--weight-semibold);"></span>
+            </div>
+            <div class="dash-chart-body">
+              <div class="dash-approvals-list" id="dash-approvals-list">
+                <div class="dash-approvals-empty">
+                  <div class="dash-approvals-empty-icon">🛡</div>
+                  <div class="dash-approvals-empty-text">All clear</div>
+                  <div style="font-size:var(--text-small);color:var(--color-text-tertiary);">No approvals waiting</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4: Timeline Sparkline -->
+        <div class="dash-row-4">
+          <div class="dash-sparkline-card">
+            <div class="dash-sparkline-header">
+              <span class="dash-sparkline-title">24-Hour Activity</span>
+              <span class="dash-sparkline-tz" id="dash-sparkline-tz">UTC</span>
+            </div>
+            <div class="dash-sparkline-body" id="dash-sparkline-body">
+              <div class="dash-feed-empty" style="height:auto;padding:0;">
+                <div style="font-size:var(--text-small);color:var(--color-text-tertiary);">▁▂▃▅▆▇█▇▆▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Data Display Demo: CodeBlock (§3.5) + JSONViewer (§3.6) side by side -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-top:var(--space-4);">
-        <!-- CodeBlock -->
-        <div>
-          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">CodeBlock — §3.5</h2>
-          <div class="cmp-codeblock">
-            <div class="cmp-codeblock-header">
-              <span class="cmp-codeblock-label">📄 session_a3f2b_tool_result.json</span>
-              <div class="cmp-codeblock-actions">
-                <button class="cmp-codeblock-btn" onclick="copyCodeBlock(this)" aria-label="Copy code" title="Copy">📋</button>
-                <button class="cmp-codeblock-btn" onclick="toggleCodeBlockWrap(this)" aria-label="Toggle word wrap" title="Wrap">↻</button>
-              </div>
-            </div>
-            <div class="cmp-codeblock-body" id="demo-codeblock">
-<span class="cmp-codeblock-line"><span class="cb-punctuation">{</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"session_id"</span><span class="cb-punctuation">:</span> <span class="cb-string">"a3f2b"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"query"</span><span class="cb-punctuation">:</span> <span class="cb-string">"Analyze Q4 revenue data for anomalies"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"status"</span><span class="cb-punctuation">:</span> <span class="cb-string">"thinking"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"iterations"</span><span class="cb-punctuation">:</span> <span class="cb-number">42</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"tokens_used"</span><span class="cb-punctuation">:</span> <span class="cb-number">847321</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"findings"</span><span class="cb-punctuation">:</span> <span class="cb-punctuation">[</span></span>
-<span class="cmp-codeblock-line">    <span class="cb-punctuation">{</span></span>
-<span class="cmp-codeblock-line">      <span class="cb-keyword">"id"</span><span class="cb-punctuation">:</span> <span class="cb-string">"F-001"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">      <span class="cb-keyword">"type"</span><span class="cb-punctuation">:</span> <span class="cb-string">"anomaly"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">      <span class="cb-keyword">"confidence"</span><span class="cb-punctuation">:</span> <span class="cb-number">0.87</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">      <span class="cb-keyword">"description"</span><span class="cb-punctuation">:</span> <span class="cb-string">"Revenue spike detected in APAC region — 312% above baseline"</span></span>
-<span class="cmp-codeblock-line">    <span class="cb-punctuation">}</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-punctuation">],</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-keyword">"metadata"</span><span class="cb-punctuation">:</span> <span class="cb-punctuation">{</span></span>
-<span class="cmp-codeblock-line">    <span class="cb-keyword">"model"</span><span class="cb-punctuation">:</span> <span class="cb-string">"deepseek-v4-pro"</span><span class="cb-punctuation">,</span></span>
-<span class="cmp-codeblock-line">    <span class="cb-keyword">"started_at"</span><span class="cb-punctuation">:</span> <span class="cb-string">"2026-07-07T14:30:00Z"</span></span>
-<span class="cmp-codeblock-line">  <span class="cb-punctuation">}</span></span>
-<span class="cmp-codeblock-line"><span class="cb-punctuation">}</span></span>
-            </div>
-          </div>
-        </div>
-        <!-- JSONViewer -->
-        <div>
-          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">JSONViewer — §3.6</h2>
-          <div class="cmp-jsonviewer">
-            <div class="cmp-jsonviewer-header">
-              <span class="cmp-jsonviewer-label">📊 Session #a3f2b Metadata</span>
-              <div class="cmp-jsonviewer-actions">
-                <button class="cmp-codeblock-btn" onclick="copyJsonContent()" aria-label="Copy JSON" title="Copy JSON">📋</button>
-              </div>
-            </div>
-            <div id="demo-jsonviewer">
-              <div class="cmp-json-entry">
-                <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
-                <span class="cmp-json-key">"session"</span>
-                <span class="cmp-json-colon">:</span>
-                <span class="cmp-json-bracket">{</span>
-                <span class="cmp-json-preview"> 5 keys</span>
-                <span class="cmp-json-comma"></span>
-              </div>
-              <div class="cmp-json-entry" style="display:none;">
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"id"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-string">"a3f2b"</span>
-                  <span class="cmp-json-comma">,</span>
-                </div>
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"name"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-string">"Q4 Revenue Analysis"</span>
-                  <span class="cmp-json-comma">,</span>
-                </div>
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"status"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-string">"thinking"</span>
-                  <span class="cmp-json-comma">,</span>
-                </div>
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"iterations"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-number">42</span>
-                  <span class="cmp-json-comma">,</span>
-                </div>
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"model"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-string">"deepseek-v4-pro"</span>
-                  <span class="cmp-json-comma"></span>
-                </div>
-                <div class="cmp-json-entry">
-                  <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
-                  <span class="cmp-json-key">"cost_breakdown"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-bracket">{</span>
-                  <span class="cmp-json-preview"> 3 keys</span>
-                  <span class="cmp-json-comma"></span>
-                </div>
-                <div class="cmp-json-entry" style="display:none;">
-                  <div class="cmp-json-entry-level">
-                    <span class="cmp-json-key">"input_tokens"</span>
-                    <span class="cmp-json-colon">:</span>
-                    <span class="cmp-json-number">612000</span>
-                    <span class="cmp-json-comma">,</span>
-                  </div>
-                  <div class="cmp-json-entry-level">
-                    <span class="cmp-json-key">"output_tokens"</span>
-                    <span class="cmp-json-colon">:</span>
-                    <span class="cmp-json-number">235321</span>
-                    <span class="cmp-json-comma">,</span>
-                  </div>
-                  <div class="cmp-json-entry-level">
-                    <span class="cmp-json-key">"total_cost"</span>
-                    <span class="cmp-json-colon">:</span>
-                    <span class="cmp-json-number">0.42</span>
-                    <span class="cmp-json-comma"></span>
-                  </div>
-                </div>
-                <div class="cmp-json-entry">
-                  <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)">▶</span>
-                  <span class="cmp-json-key">"findings"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-bracket">[</span>
-                  <span class="cmp-json-preview"> 1 item</span>
-                  <span class="cmp-json-comma"></span>
-                </div>
-                <div class="cmp-json-entry" style="display:none;">
-                  <div class="cmp-json-entry-level">
-                    <span class="cmp-json-bracket">{</span>
-                  </div>
-                  <div class="cmp-json-entry">
-                    <div class="cmp-json-entry-level">
-                      <span class="cmp-json-toggle" onclick="toggleJsonEntry(this)" style="display:none;"></span>
-                      <span class="cmp-json-key">"id"</span>
-                      <span class="cmp-json-colon">:</span>
-                      <span class="cmp-json-string">"F-001"</span>
-                      <span class="cmp-json-comma">,</span>
-                    </div>
-                    <div class="cmp-json-entry-level">
-                      <span class="cmp-json-key">"type"</span>
-                      <span class="cmp-json-colon">:</span>
-                      <span class="cmp-json-string">"anomaly"</span>
-                      <span class="cmp-json-comma">,</span>
-                    </div>
-                    <div class="cmp-json-entry-level">
-                      <span class="cmp-json-key">"confidence"</span>
-                      <span class="cmp-json-colon">:</span>
-                      <span class="cmp-json-number">0.87</span>
-                      <span class="cmp-json-comma"></span>
-                    </div>
-                    <div class="cmp-json-entry-level">
-                      <span class="cmp-json-bracket">}</span>
-                    </div>
-                  </div>
-                  <div class="cmp-json-entry-level">
-                    <span class="cmp-json-bracket">]</span>
-                  </div>
-                </div>
-                <div class="cmp-json-entry-level">
-                  <span class="cmp-json-key">"completed_at"</span>
-                  <span class="cmp-json-colon">:</span>
-                  <span class="cmp-json-null">null</span>
-                  <span class="cmp-json-comma"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
-          </div>
-
-          <!-- Status Indicators Demo — §3.7 -->
-          <div class="demo-section" style="margin-top:var(--space-6);max-width:900px;">
-          <h2 style="font-size:var(--text-heading-3);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Status Indicators — §3.7</h2>
-
-          <!-- 3.7.1 Status Dots -->
-          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-3);">
-          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Status Dots — .cmp-status-dot</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--booting"></span><span class="cmp-status-dot-label">booting</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--idle"></span><span class="cmp-status-dot-label">idle</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">thinking</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--tool_exec"></span><span class="cmp-status-dot-label">tool_exec</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--waiting_sub"></span><span class="cmp-status-dot-label">waiting_sub</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--paused"></span><span class="cmp-status-dot-label">paused</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--completed"></span><span class="cmp-status-dot-label">completed</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--failed"></span><span class="cmp-status-dot-label">failed</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--cancelled"></span><span class="cmp-status-dot-label">cancelled</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--stalled"></span><span class="cmp-status-dot-label">stalled</span></span>
-          </div>
-          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--sm cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">sm</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--lg cmp-status-dot--thinking"></span><span class="cmp-status-dot-label">lg</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--completed cmp-status-dot--with-overlay"></span><span class="cmp-status-dot-label">overlay ✓</span></span>
-            <span class="cmp-status-dot-group"><span class="cmp-status-dot cmp-status-dot--failed cmp-status-dot--with-overlay"></span><span class="cmp-status-dot-label">overlay ✗</span></span>
-          </div>
-          </div>
-
-          <!-- 3.7.2 Trust Badges -->
-          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-3);">
-          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Trust Badges — .cmp-trust-badge</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:center;">
-            <span class="cmp-trust-badge cmp-trust-badge--verified"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">✓</span><span class="cmp-trust-label">verified</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--high"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">high</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--medium"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">medium</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--low"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">low</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--quarantine"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">⚠</span><span class="cmp-trust-label">quarantine</span></span>
-          </div>
-          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
-            <span class="cmp-trust-badge cmp-trust-badge--verified cmp-trust-badge--sm"><span class="cmp-trust-dot"></span><span class="cmp-trust-label">verified</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--medium cmp-trust-badge--lg"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">●</span><span class="cmp-trust-label">medium</span></span>
-            <span class="cmp-trust-badge cmp-trust-badge--high cmp-trust-badge--dot-only"><span class="cmp-trust-dot"></span><span class="cmp-trust-icon">●</span><span class="cmp-trust-label">dot only</span></span>
-          </div>
-          </div>
-
-          <!-- 3.7.3 Entity Icons -->
-          <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);">
-          <h3 style="font-size:var(--text-subtitle);font-weight:var(--weight-semibold);color:var(--color-text-heading);margin-bottom:var(--space-3);">Entity Type Icons — .cmp-entity-icon</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:center;">
-            <span class="cmp-entity-icon cmp-entity-icon--session"><span class="entity-icon-emoji">💬</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--memory"><span class="entity-icon-emoji">🧠</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--finding"><span class="entity-icon-emoji">🔍</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--task"><span class="entity-icon-emoji">✓</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--approval"><span class="entity-icon-emoji">🛡</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--evidence"><span class="entity-icon-emoji">📎</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--anomaly"><span class="entity-icon-emoji">⚠</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--tool"><span class="entity-icon-emoji">⚙</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--skill"><span class="entity-icon-emoji">★</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--user"><span class="entity-icon-emoji">👤</span></span>
-            <span class="cmp-entity-icon cmp-entity-icon--system"><span class="entity-icon-emoji">⚡</span></span>
-          </div>
-          <div style="margin-top:var(--space-3);display:flex;flex-wrap:wrap;gap:var(--space-4);align-items:center;">
-            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--finding"><span class="entity-icon-emoji">🔍</span></span><span class="entity-label">Finding</span></span>
-            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--anomaly cmp-entity-icon--circled"><span class="entity-icon-emoji">⚠</span></span><span class="entity-label">Anomaly</span></span>
-            <span class="cmp-entity-icon-group"><span class="cmp-entity-icon cmp-entity-icon--session cmp-entity-icon--sm"><span class="entity-icon-emoji">💬</span></span><span class="entity-label">Session</span></span>
-          </div>
-          </div>
-          </div>
-
-          <!-- Status cards -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-6);max-width:600px;">
-        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
-          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
-          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">Active Sessions</div>
-        </div>
-        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
-          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
-          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">Pending Tasks</div>
-        </div>
-        <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:var(--space-4);text-align:center;">
-          <div style="font-size:var(--text-heading-2);font-weight:var(--weight-bold);color:var(--color-text-heading);">—</div>
-          <div style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--tracking-wider);">System Health</div>
-        </div>
-      </div>
-
-      <p style="font-size:var(--text-small);color:var(--color-text-tertiary);margin-bottom:var(--space-4);">
-        Press <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘K</span></kbd> for command palette
-      </p>
-
-      <!-- Keyboard shortcuts -->
-      <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
-        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘1</span> Dashboard</kbd>
-        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘2</span> Investigate</kbd>
-        <kbd style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:var(--text-caption);color:var(--color-text-secondary);"><span style="color:var(--color-text-primary);font-weight:var(--weight-semibold);">⌘K</span> Commands</kbd>
-      </div>
-    </div>
     </div>
 
     <!-- ===== Investigate View (THINK/SAYS Split Pane) ===== -->
@@ -3472,6 +3303,615 @@
     var text = container.textContent || container.innerText;
     navigator.clipboard.writeText(text);
   };
+
+  // ==========================================================================
+  // Dashboard Overview (§4) — Data Fetching & Rendering
+  // ==========================================================================
+
+  // --- apiFetch helper ---
+  function apiFetch(path) {
+    return fetch(path, { headers: apiHeaders() }).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  // --- Dashboard state ---
+  var dashMetrics = null;
+  var dashSessions = null;
+  var dashHealth = null;
+  var dashRefreshTimer = null;
+  var DASHBOARD_REFRESH_MS = 30000;
+
+  // Donut chart segment config
+  var DONUT_SEGMENTS = [
+    { status: 'thinking',    color: '#a371f7', label: 'Thinking' },
+    { status: 'tool_exec',   color: '#d29922', label: 'Tool Exec' },
+    { status: 'idle',        color: '#58a6ff', label: 'Idle' },
+    { status: 'waiting_sub', color: '#39d2c0', label: 'Waiting Sub' },
+    { status: 'paused',      color: '#8b949e', label: 'Paused' },
+    { status: 'completed',   color: '#3fb950', label: 'Completed' },
+    { status: 'failed',      color: '#da3633', label: 'Failed' },
+    { status: 'booting',     color: '#484f58', label: 'Booting' }
+  ];
+
+  // Activity icons per status
+  var ACTIVITY_ICONS = {
+    thinking:    '🧠',
+    tool_exec:   '⚙',
+    'waiting_sub': '⏳',
+    completed:   '✅',
+    failed:      '❌',
+    cancelled:   '🚫',
+    paused:      '⏸',
+    idle:        '💤',
+    booting:     '🔌'
+  };
+
+  // Model color mapping
+  var MODEL_COLORS = {};
+  var MODEL_COLOR_NAMES = [
+    'dash-model-color-0', 'dash-model-color-1', 'dash-model-color-2',
+    'dash-model-color-3', 'dash-model-color-4', 'dash-model-color-5',
+    'dash-model-color-6', 'dash-model-color-7', 'dash-model-color-8',
+    'dash-model-color-9', 'dash-model-color-other'
+  ];
+
+  function getModelColor(modelName) {
+    if (MODEL_COLORS[modelName]) return MODEL_COLORS[modelName];
+    var idx = Object.keys(MODEL_COLORS).length % MODEL_COLOR_NAMES.length;
+    MODEL_COLORS[modelName] = MODEL_COLOR_NAMES[idx];
+    return MODEL_COLORS[modelName];
+  }
+
+  // --- Format helpers ---
+  function formatTimeAgo(isoString) {
+    if (!isoString) return '';
+    var now = Date.now();
+    var then = new Date(isoString).getTime();
+    if (isNaN(then)) return '';
+    var diff = Math.floor((now - then) / 1000);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function truncateId(id) {
+    return (id || '').substring(0, 8);
+  }
+
+  function abbreviateNumber(n) {
+    if (n == null || isNaN(n)) return '—';
+    if (n >= 1000000000) return (n / 1000000000).toFixed(1) + 'B';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  // --- Main dashboard load ---
+  function loadDashboardData() {
+    Promise.all([
+      apiFetch('/api/v1/metrics').then(function(m) { dashMetrics = m; }).catch(function() { dashMetrics = null; }),
+      apiFetch('/api/v1/sessions').then(function(s) {
+        // Ensure sessions is always an array
+        if (Array.isArray(s)) {
+          dashSessions = s;
+        } else if (s && typeof s === 'object' && Array.isArray(s.data)) {
+          dashSessions = s.data;
+        } else if (s && typeof s === 'object' && Array.isArray(s.sessions)) {
+          dashSessions = s.sessions;
+        } else if (s && typeof s === 'object' && !Array.isArray(s)) {
+          // Try to extract sessions from response object
+          var found = s.sessions || s.data || s.results || [];
+          dashSessions = Array.isArray(found) ? found : [];
+        } else {
+          dashSessions = [];
+        }
+      }).catch(function() { dashSessions = []; }),
+      apiFetch('/api/v1/health').then(function(h) { dashHealth = h; }).catch(function() { dashHealth = null; })
+    ]).then(function() {
+      renderDashboard();
+    });
+  }
+
+  function renderDashboard() {
+    renderKPIBar();
+    renderActivityFeed();
+    renderRecentSessions();
+    renderDonutChart();
+    renderModelUsage();
+    renderApprovals();
+    renderSparkline();
+  }
+
+  // --- 1. KPI Bar ---
+  function renderKPIBar() {
+    var m = dashMetrics;
+
+    // 1. Active Sessions
+    var activeSessions = (m && m.active_sessions != null) ? m.active_sessions : '—';
+    setKpiValue('[data-kpi="sessions"]', activeSessions);
+    if (m && m.active_sessions != null) {
+      var pct = Math.min(100, (m.active_sessions / 20) * 100);
+      setKpiProgress('kpi-progress-sessions', pct, m.active_sessions + ' / 20');
+    }
+
+    // 2. Pending Tasks
+    var pendingTasks = (m && m.pending_tasks != null) ? m.pending_tasks : '—';
+    setKpiValue('[data-kpi="tasks"]', pendingTasks);
+
+    // 3. Pending Approvals
+    var pendingApprovals = (m && m.pending_approvals != null) ? m.pending_approvals : '—';
+    setKpiValue('[data-kpi="approvals"]', pendingApprovals);
+    var approvalsCard = document.getElementById('kpi-card-approvals');
+    if (approvalsCard && m && m.pending_approvals > 0) {
+      approvalsCard.classList.add('dash-kpi-card--pulse');
+    } else if (approvalsCard) {
+      approvalsCard.classList.remove('dash-kpi-card--pulse');
+    }
+
+    // 4. Tokens Today — always "—" (no endpoint)
+    // Already set to "—" in HTML
+
+    // 5. Budget Spent
+    if (m && m.total_cost_usd != null) {
+      var cost = parseFloat(m.total_cost_usd);
+      var costStr = '$' + cost.toFixed(2);
+      setKpiValue('[data-kpi="budget"]', costStr);
+      var budgetPct = Math.min(100, (cost / 50) * 100);
+      setKpiProgress('kpi-progress-budget', budgetPct, costStr + ' / $50.00');
+    } else if (m && m.total_cost_usd == null && m.total_cost_usd !== undefined) {
+      setKpiValue('[data-kpi="budget"]', '—');
+    }
+
+    // 6. System Health
+    var healthCard = document.getElementById('kpi-card-health');
+    if (dashHealth && dashHealth.status) {
+      var statusText = dashHealth.status === 'ok' ? 'Healthy' : (dashHealth.status.charAt(0).toUpperCase() + dashHealth.status.slice(1));
+      setKpiValue('[data-kpi="health"]', statusText);
+      var subMetrics = '';
+      if (dashHealth.latency) {
+        subMetrics = 'API ' + (dashHealth.latency.api || '—') + 'ms · DB ' + (dashHealth.latency.db || '—') + 'ms · LLM ' + (dashHealth.latency.llm || '—') + 's';
+      }
+      if (subMetrics) {
+        var trendEl = document.getElementById('kpi-trend-health');
+        if (trendEl) trendEl.textContent = subMetrics;
+      }
+    } else if (dashHealth === null) {
+      setKpiValue('[data-kpi="health"]', 'Failed to load', true);
+    }
+
+    // Version info
+    if (dashHealth && dashHealth.version) {
+      var statusVersion = document.getElementById('status-version');
+      if (statusVersion) statusVersion.textContent = 'v' + dashHealth.version;
+    }
+  }
+
+  function setKpiValue(selector, value, isError) {
+    var card = document.querySelector(selector);
+    if (!card) return;
+    var valueEl = card.querySelector('.dash-kpi-value');
+    if (!valueEl) return;
+    // Remove skeleton if present
+    var skeleton = valueEl.querySelector('.dash-kpi-value--skeleton');
+    if (skeleton) skeleton.remove();
+    valueEl.classList.toggle('dash-kpi-value--error', !!isError);
+    valueEl.textContent = value;
+  }
+
+  function setKpiProgress(progressId, pct, label) {
+    var container = document.getElementById(progressId);
+    if (!container) return;
+    var fill = container.querySelector('.dash-kpi-progress-fill');
+    if (fill) {
+      fill.style.width = pct + '%';
+      fill.classList.remove('dash-kpi-progress-fill--warn', 'dash-kpi-progress-fill--danger');
+      if (pct > 80) fill.classList.add('dash-kpi-progress-fill--danger');
+      else if (pct > 50) fill.classList.add('dash-kpi-progress-fill--warn');
+    }
+  }
+
+  // --- 2. Activity Feed ---
+  function renderActivityFeed() {
+    var list = document.getElementById('dash-feed-list');
+    if (!list) return;
+
+    if (!dashSessions || dashSessions.length === 0) {
+      list.innerHTML =
+        '<div class="dash-feed-empty">' +
+        '<div class="dash-feed-empty-icon">📡</div>' +
+        '<div>No recent activity</div>' +
+        '</div>';
+      return;
+    }
+
+    // Generate activities from sessions (newest first, max 10)
+    var activities = [];
+    var sessionsCopy = dashSessions.slice().sort(function(a, b) {
+      var aTime = a.created_at || a.started_at || a.timestamp || '';
+      var bTime = b.created_at || b.started_at || b.timestamp || '';
+      return bTime.localeCompare(aTime);
+    });
+
+    for (var i = 0; i < Math.min(sessionsCopy.length, 10); i++) {
+      var s = sessionsCopy[i];
+      var status = s.status || 'idle';
+      var icon = ACTIVITY_ICONS[status] || '💬';
+      var sessionId = truncateId(s.id || s.session_id || '');
+      var name = s.name || s.title || 'Session';
+      var agentName = s.agent_name || '';
+      var subtitle = '';
+      if (status === 'thinking') {
+        subtitle = 'Iteration ' + (s.iteration || '?') + ' — agent processing';
+      } else if (status === 'completed' && s.iteration) {
+        subtitle = 'Completed in ' + s.iteration + ' iteration' + (s.iteration !== 1 ? 's' : '');
+      } else if (status === 'failed') {
+        subtitle = 'Failed';
+      } else {
+        subtitle = status.charAt(0).toUpperCase() + status.slice(1);
+      }
+      var createdTime = s.created_at || s.started_at || s.timestamp;
+      activities.push({
+        icon: icon,
+        title: (sessionId ? '#' + sessionId + ' ' : '') + (agentName || name),
+        subtitle: subtitle,
+        time: formatTimeAgo(createdTime),
+        status: status
+      });
+    }
+
+    if (activities.length === 0) {
+      list.innerHTML =
+        '<div class="dash-feed-empty">' +
+        '<div class="dash-feed-empty-icon">📡</div>' +
+        '<div>No recent activity</div>' +
+        '</div>';
+      return;
+    }
+
+    var html = '';
+    activities.forEach(function(a) {
+      var borderColor = '';
+      if (a.status === 'thinking') borderColor = 'border-left-color: var(--color-accent-purple, #a371f7);';
+      else if (a.status === 'completed') borderColor = 'border-left-color: var(--color-accent-success);';
+      else if (a.status === 'failed') borderColor = 'border-left-color: var(--color-accent-error);';
+      else if (a.status === 'paused') borderColor = 'border-left-color: var(--color-accent-warning);';
+      else borderColor = 'border-left-color: var(--color-border-default);';
+
+      html +=
+        '<div class="dash-feed-item" style="' + borderColor + '">' +
+        '<div class="dash-feed-icon">' + a.icon + '</div>' +
+        '<div class="dash-feed-body">' +
+        '<div class="dash-feed-title">' + escapeHtml(a.title) + '</div>' +
+        '<div class="dash-feed-subtitle">' + escapeHtml(a.subtitle) + '</div>' +
+        '</div>' +
+        '<div class="dash-feed-time">' + a.time + '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  // --- 3. Recent Sessions ---
+  function renderRecentSessions() {
+    var list = document.getElementById('dash-sessions-list');
+    if (!list) return;
+
+    if (!dashSessions || dashSessions.length === 0) {
+      list.innerHTML =
+        '<div class="dash-sessions-empty">' +
+        '<div class="dash-sessions-empty-icon">💬</div>' +
+        '<div class="dash-sessions-empty-text">No sessions yet</div>' +
+        '</div>';
+      return;
+    }
+
+    // Most recent 5
+    var recent = dashSessions.slice().sort(function(a, b) {
+      var aTime = a.created_at || a.started_at || a.timestamp || '';
+      var bTime = b.created_at || b.started_at || b.timestamp || '';
+      return bTime.localeCompare(aTime);
+    }).slice(0, 5);
+
+    var html = '';
+    recent.forEach(function(s) {
+      var status = s.status || 'idle';
+      var sessionId = truncateId(s.id || s.session_id || '');
+      var name = s.name || s.title || s.agent_name || '';
+      var iter = s.iteration || s.iterations || 0;
+      var createdTime = s.created_at || s.started_at || s.timestamp;
+
+      html +=
+        '<div class="dash-session-row">' +
+        '<span class="dash-session-status-dot dash-session-status-dot--' + status + '"></span>' +
+        '<div class="dash-session-info">' +
+        '<span class="dash-session-id">#' + escapeHtml(sessionId) + '</span>' +
+        '<span class="dash-session-name">' + escapeHtml(name) + '</span>' +
+        '</div>' +
+        '<div class="dash-session-meta">' +
+        '<span class="dash-session-iter">it ' + iter + '</span>' +
+        '<span class="dash-session-time">' + formatTimeAgo(createdTime) + '</span>' +
+        '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  // --- 4. Donut Chart ---
+  function renderDonutChart() {
+    var svg = document.getElementById('dash-donut-svg');
+    var legend = document.getElementById('dash-donut-legend');
+    if (!svg || !legend) return;
+
+    if (!dashSessions || dashSessions.length === 0) {
+      var center = document.getElementById('dash-donut-center');
+      if (center) center.textContent = '0';
+      legend.innerHTML = '<div style="font-size:var(--text-small);color:var(--color-text-tertiary);">No sessions yet</div>';
+      return;
+    }
+
+    // Count sessions per status
+    var counts = {};
+    var total = 0;
+    dashSessions.forEach(function(s) {
+      var status = s.status || 'idle';
+      counts[status] = (counts[status] || 0) + 1;
+      total++;
+    });
+
+    // Update center
+    var center = document.getElementById('dash-donut-center');
+    if (center) center.textContent = total;
+
+    // Calculate segments (only ones with count > 0)
+    var segments = [];
+    DONUT_SEGMENTS.forEach(function(seg) {
+      var count = counts[seg.status] || 0;
+      if (count > 0) {
+        segments.push({
+          status: seg.status,
+          color: seg.color,
+          label: seg.label,
+          count: count,
+          pct: (count / total) * 100
+        });
+      }
+    });
+
+    if (segments.length === 0) {
+      legend.innerHTML = '<div style="font-size:var(--text-small);color:var(--color-text-tertiary);">No session data</div>';
+      return;
+    }
+
+    // SVG donut
+    var cx = 80, cy = 80, r = 68, w = 24;
+    var circum = 2 * Math.PI * r;
+    var offset = -circum * 0.25; // start from top
+    var dashArray = '';
+    var currentOffset = offset;
+
+    // Remove old segments
+    var oldSegments = svg.querySelectorAll('.dash-donut-segment');
+    oldSegments.forEach(function(el) { el.remove(); });
+
+    segments.forEach(function(seg) {
+      var length = (seg.pct / 100) * circum;
+      // Add a small gap (2px) between segments
+      var gapPct = 0.5 / circum;
+      var gapLength = 0.5;
+      var actualLength = Math.max(length - gapLength, 0);
+      var ns = 'http://www.w3.org/2000/svg';
+      var circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('class', 'dash-donut-segment');
+      circle.setAttribute('cx', cx);
+      circle.setAttribute('cy', cy);
+      circle.setAttribute('r', r);
+      circle.setAttribute('fill', 'none');
+      circle.setAttribute('stroke', seg.color);
+      circle.setAttribute('stroke-width', w);
+      circle.setAttribute('stroke-dasharray', actualLength + ' ' + (circum - actualLength));
+      circle.setAttribute('stroke-dashoffset', currentOffset);
+      circle.setAttribute('style', 'transition: stroke-dasharray 600ms ease-out-quint; cursor: pointer;');
+      svg.insertBefore(circle, svg.querySelector('text'));
+      currentOffset -= actualLength + gapLength;
+    });
+
+    // Legend
+    var legendHtml = '';
+    segments.forEach(function(seg) {
+      legendHtml +=
+        '<div class="dash-donut-legend-item">' +
+        '<span class="dash-donut-legend-dot" style="background:' + seg.color + '"></span>' +
+        '<span class="dash-donut-legend-label">' + seg.label + '</span>' +
+        '<span class="dash-donut-legend-count">' + seg.count + '</span>' +
+        '</div>';
+    });
+    legend.innerHTML = legendHtml;
+  }
+
+  // --- 5. Model Usage Chart ---
+  function renderModelUsage() {
+    var container = document.getElementById('dash-model-bars');
+    if (!container) return;
+
+    if (!dashSessions || dashSessions.length === 0) {
+      container.innerHTML =
+        '<div class="dash-chart-empty">' +
+        '<div class="dash-chart-empty-icon">📊</div>' +
+        '<div>No sessions</div>' +
+        '</div>';
+      return;
+    }
+
+    // Count sessions per model
+    var modelCounts = {};
+    var maxCount = 0;
+    dashSessions.forEach(function(s) {
+      var model = s.model || s.agent_name || 'unknown';
+      modelCounts[model] = (modelCounts[model] || 0) + 1;
+      if (modelCounts[model] > maxCount) maxCount = modelCounts[model];
+    });
+
+    // Sort by count descending
+    var models = Object.keys(modelCounts).sort(function(a, b) {
+      return modelCounts[b] - modelCounts[a];
+    });
+
+    var html = '';
+    models.forEach(function(model) {
+      var count = modelCounts[model];
+      var pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+      var colorClass = getModelColor(model);
+      html +=
+        '<div class="dash-model-bar-row">' +
+        '<span class="dash-model-bar-label" title="' + escapeHtml(model) + '">' + escapeHtml(model) + '</span>' +
+        '<div class="dash-model-bar-track">' +
+        '<div class="dash-model-bar-fill ' + colorClass + '" style="width:' + pct + '%"></div>' +
+        '</div>' +
+        '<span class="dash-model-bar-count">' + count + '</span>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  // --- 6. Pending Approvals ---
+  function renderApprovals() {
+    var list = document.getElementById('dash-approvals-list');
+    var badge = document.getElementById('dash-approval-badge');
+    if (!list) return;
+
+    // Try fetching /api/v1/approvals
+    apiFetch('/api/v1/approvals').then(function(approvals) {
+      var items = Array.isArray(approvals) ? approvals : (approvals.data || approvals.approvals || []);
+      if (items.length > 0) {
+        var html = '';
+        items.slice(0, 5).forEach(function(a) {
+          var sessionId = truncateId(a.session_id || a.sessionId || '');
+          var desc = a.description || a.title || a.reason || 'Approval required';
+          html +=
+            '<div class="dash-approval-item">' +
+            '<div class="dash-approval-top">' +
+            '<span class="dash-approval-type"><span>🛡</span> ' + escapeHtml(a.type || 'Approval') + '</span>' +
+            '<span class="dash-approval-desc" style="font-size:var(--text-caption);color:var(--color-text-tertiary);">' + formatTimeAgo(a.created_at || a.timestamp) + '</span>' +
+            '</div>' +
+            '<div class="dash-approval-desc">' + escapeHtml(desc) + '</div>' +
+            (sessionId ? '<span class="dash-approval-session-link">#' + escapeHtml(sessionId) + '</span>' : '') +
+            '<div class="dash-approval-actions">' +
+            '<button class="dash-approval-btn dash-approval-btn--approve" onclick="this.textContent=\'✓ Approved\';this.style.opacity=\'0.5\'">✓ Approve</button>' +
+            '<button class="dash-approval-btn dash-approval-btn--deny" onclick="this.textContent=\'✗ Denied\';this.style.opacity=\'0.5\'">✗ Deny</button>' +
+            '</div>' +
+            '</div>';
+        });
+        list.innerHTML = html;
+        // Update badge
+        if (badge) {
+          badge.textContent = items.length;
+          badge.style.display = '';
+        }
+        // Pulse KPI if pending approvals
+        var approvalsCard = document.getElementById('kpi-card-approvals');
+        if (approvalsCard) approvalsCard.classList.add('dash-kpi-card--pulse');
+      } else {
+        showApprovalsEmpty();
+      }
+    }).catch(function() {
+      showApprovalsEmpty();
+    });
+  }
+
+  function showApprovalsEmpty() {
+    var list = document.getElementById('dash-approvals-list');
+    if (list) {
+      list.innerHTML =
+        '<div class="dash-approvals-empty">' +
+        '<div class="dash-approvals-empty-icon">🛡</div>' +
+        '<div class="dash-approvals-empty-text">All clear</div>' +
+        '<div style="font-size:var(--text-small);color:var(--color-text-tertiary);">No approvals waiting</div>' +
+        '</div>';
+    }
+  }
+
+  // --- 7. Timeline Sparkline ---
+  function renderSparkline() {
+    var body = document.getElementById('dash-sparkline-body');
+    if (!body) return;
+
+    // Set timezone
+    var tzEl = document.getElementById('dash-sparkline-tz');
+    if (tzEl) {
+      try {
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        tzEl.textContent = tz;
+      } catch(e) {}
+    }
+
+    if (!dashSessions || dashSessions.length === 0) {
+      body.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">' +
+        '<span style="font-size:var(--text-small);color:var(--color-text-tertiary);">▁▂▃▅▆▇█▇▆▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁</span>' +
+        '</div>';
+      return;
+    }
+
+    // Create 24-hour buckets (24 buckets)
+    var now = Date.now();
+    var buckets = new Array(24).fill(0);
+    var maxVal = 0;
+
+    dashSessions.forEach(function(s) {
+      var timeStr = s.created_at || s.started_at || s.timestamp;
+      if (!timeStr) return;
+      var t = new Date(timeStr).getTime();
+      if (isNaN(t)) return;
+      var hoursAgo = Math.floor((now - t) / (1000 * 60 * 60));
+      if (hoursAgo >= 0 && hoursAgo < 24) {
+        buckets[23 - hoursAgo]++;
+        if (buckets[23 - hoursAgo] > maxVal) maxVal = buckets[23 - hoursAgo];
+      }
+    });
+
+    // Render as colored bars
+    var html = '';
+    var maxHeight = 40; // px
+    for (var i = 0; i < 24; i++) {
+      var height = maxVal > 0 ? (buckets[i] / maxVal) * maxHeight : 2;
+      var opacity = 0.3 + (buckets[i] / (maxVal || 1)) * 0.5;
+      html += '<div class="dash-sparkline-bar dash-sparkline-bar--anim" style="height:' + height + 'px;opacity:' + opacity + ';animation-delay:' + (i * 30) + 'ms;"></div>';
+    }
+
+    // Add a "now" indicator
+    body.innerHTML = html + '<div style="width:2px;height:100%;background:rgba(255,255,255,0.2);border-radius:1px;flex-shrink:0;position:relative;"><span style="position:absolute;top:-16px;left:-6px;font-size:9px;color:var(--color-text-tertiary);white-space:nowrap;">Now</span></div>';
+  }
+
+  // --- Auto-refresh ---
+  function startDashboardRefresh() {
+    if (dashRefreshTimer) clearInterval(dashRefreshTimer);
+    dashRefreshTimer = setInterval(function() {
+      loadDashboardData();
+    }, DASHBOARD_REFRESH_MS);
+  }
+
+  // --- Navigate to dashboard triggers data load ---
+  var origNavigateTo = window.navigateTo;
+  window.navigateTo = function(view) {
+    if (origNavigateTo) origNavigateTo(view);
+    if (view === 'dashboard') {
+      loadDashboardData();
+      startDashboardRefresh();
+    }
+  };
+
+  // Initial load if dashboard is visible
+  (function() {
+    var dashView = document.getElementById('dashboard-view');
+    if (dashView && dashView.classList.contains('active')) {
+      loadDashboardData();
+      startDashboardRefresh();
+    }
+  })();
+
 })();
 </script>
 </body>

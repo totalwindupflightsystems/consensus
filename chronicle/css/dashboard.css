@@ -1,0 +1,1019 @@
+/* ============================================================================
+   Chronicle Dashboard (§4) — Overview Dashboard Styles
+   Spec: specs/026-dashboard-ui.md §4
+   ============================================================================
+   All dashboard-specific component styles. Uses design-system custom properties.
+   ============================================================================ */
+
+/* ==========================================================================
+   4.1 Layout — Main Dashboard Grid
+   ========================================================================== */
+
+.dash-container {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-6);
+  padding: var(--space-8);
+  max-width: 1440px;
+  margin: 0 auto;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Row 1: KPI Bar */
+.dash-kpi-bar {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-4);
+}
+
+/* Row 2: Activity Feed + Recent Sessions */
+.dash-row-2 {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 8fr 4fr;
+  gap: var(--space-6);
+}
+
+/* Row 3: Charts Row */
+.dash-row-3 {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 4fr 4fr 4fr;
+  gap: var(--space-6);
+}
+
+/* Row 4: Sparkline */
+.dash-row-4 {
+  grid-column: 1 / -1;
+}
+
+/* ==========================================================================
+   4.2 KPI Cards
+   ========================================================================== */
+
+.dash-kpi-card {
+  min-width: 140px;
+  height: 120px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  position: relative;
+  cursor: pointer;
+  transition: var(--transition-color);
+  overflow: hidden;
+}
+
+.dash-kpi-card:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-hover-muted);
+}
+
+.dash-kpi-card:active {
+  border-color: var(--color-accent-primary);
+  transform: scale(0.98);
+  transition: transform 80ms var(--ease-out-quint);
+}
+
+/* Pulsing red glow for pending approvals > 0 */
+.dash-kpi-card--pulse {
+  animation: kpi-pulse-glow 2s ease-in-out infinite;
+  border-color: var(--color-accent-error) !important;
+}
+
+@keyframes kpi-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(218, 54, 51, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(218, 54, 51, 0.3);
+  }
+}
+
+.dash-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dash-kpi-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.dash-kpi-sparkline {
+  width: 80px;
+  height: 24px;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+.dash-kpi-sparkline svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dash-kpi-label {
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  letter-spacing: var(--tracking-wider);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-kpi-value {
+  font-size: var(--text-display-2);
+  font-weight: var(--weight-extrabold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.dash-kpi-value--skeleton {
+  display: inline-block;
+  width: 60px;
+  height: 28px;
+  background: var(--color-bg-skeleton);
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.dash-kpi-value--error {
+  color: var(--color-text-error);
+}
+
+.dash-kpi-trend {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-kpi-trend--up {
+  color: var(--color-accent-success);
+}
+
+.dash-kpi-trend--down {
+  color: var(--color-accent-error);
+}
+
+.dash-kpi-trend--flat {
+  color: var(--color-text-tertiary);
+}
+
+.dash-kpi-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-bg-input);
+  overflow: hidden;
+  margin-top: auto;
+}
+
+.dash-kpi-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s var(--ease-out-quint);
+  background: var(--color-accent-success);
+}
+
+.dash-kpi-progress-fill--warn {
+  background: var(--color-accent-warning);
+}
+
+.dash-kpi-progress-fill--danger {
+  background: var(--color-accent-error);
+}
+
+.dash-kpi-progress-label {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  line-height: 1;
+  text-align: right;
+}
+
+/* ==========================================================================
+   4.3 Activity Feed
+   ========================================================================== */
+
+.dash-feed {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-feed-header {
+  height: 48px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--color-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.dash-feed-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dash-feed-header-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+}
+
+.dash-feed-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--color-text-success);
+}
+
+.dash-feed-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-success);
+  animation: feed-live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes feed-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.dash-feed-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) transparent;
+}
+
+.dash-feed-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dash-feed-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.dash-feed-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  min-height: 56px;
+  align-items: center;
+  border-left: 2px solid transparent;
+  transition: var(--transition-color);
+  cursor: pointer;
+}
+
+.dash-feed-item:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.dash-feed-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.dash-feed-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  background: var(--color-bg-hover);
+}
+
+.dash-feed-body {
+  overflow: hidden;
+}
+
+.dash-feed-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-feed-subtitle {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-feed-time {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dash-feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.dash-feed-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+/* ==========================================================================
+   4.4 Recent Sessions Panel
+   ========================================================================== */
+
+.dash-sessions-panel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-sessions-header {
+  height: 48px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--color-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.dash-sessions-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+}
+
+.dash-sessions-view-all {
+  font-size: var(--text-small);
+  color: var(--color-text-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-color);
+}
+
+.dash-sessions-view-all:hover {
+  color: var(--color-text-link-hover);
+}
+
+.dash-sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) transparent;
+}
+
+.dash-sessions-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dash-sessions-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.dash-session-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2_5);
+  padding: 0 var(--space-5);
+  height: 48px;
+  cursor: pointer;
+  transition: var(--transition-color);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.dash-session-row:last-child {
+  border-bottom: none;
+}
+
+.dash-session-row:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.dash-session-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-session-status-dot--thinking {
+  background: var(--color-accent-purple, #a371f7);
+  animation: dot-thinking-pulse 2s ease-in-out infinite;
+}
+
+.dash-session-status-dot--tool_exec {
+  background: var(--color-accent-warning);
+}
+
+.dash-session-status-dot--idle {
+  background: var(--color-accent-primary);
+}
+
+.dash-session-status-dot--completed {
+  background: var(--color-accent-success);
+}
+
+.dash-session-status-dot--failed {
+  background: var(--color-accent-error);
+}
+
+.dash-session-status-dot--paused {
+  background: var(--color-accent-warning);
+  opacity: 0.6;
+}
+
+.dash-session-status-dot--cancelled,
+.dash-session-status-dot--booting {
+  background: var(--color-text-tertiary);
+}
+
+@keyframes dot-thinking-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.dash-session-info {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dash-session-id {
+  font-size: var(--text-caption);
+  font-family: var(--font-mono);
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.dash-session-name {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-session-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.dash-session-iter {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+}
+
+.dash-session-time {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.dash-sessions-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.dash-sessions-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+.dash-sessions-empty-text {
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   4.5 Section Title (shared)
+   ========================================================================== */
+
+.dash-section-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+}
+
+/* ==========================================================================
+   4.5 Donut Chart Card
+   ========================================================================== */
+
+.dash-donut-card,
+.dash-model-card,
+.dash-approvals-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  height: 300px;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.dash-chart-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.dash-donut-svg {
+  width: 160px;
+  height: 160px;
+}
+
+.dash-donut-center {
+  font-size: var(--text-display-2);
+  font-weight: var(--weight-extrabold);
+  font-variant-numeric: tabular-nums;
+  fill: var(--color-text-primary);
+}
+
+.dash-donut-center-label {
+  font-size: var(--text-caption);
+  fill: var(--color-text-tertiary);
+}
+
+.dash-donut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: center;
+  margin-top: var(--space-3);
+  flex-shrink: 0;
+}
+
+.dash-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  transition: opacity 150ms var(--ease-out-quint);
+}
+
+.dash-donut-legend-item:hover {
+  opacity: 0.7;
+}
+
+.dash-donut-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-donut-legend-label {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.dash-donut-legend-count {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+}
+
+.dash-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.dash-chart-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+/* ==========================================================================
+   4.6 Model Usage Chart
+   ========================================================================== */
+
+.dash-model-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) 0;
+}
+
+.dash-model-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dash-model-bar-label {
+  width: 30%;
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.dash-model-bar-track {
+  flex: 1;
+  height: 20px;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.dash-model-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 600ms var(--ease-out-expo);
+  min-width: 2px;
+}
+
+.dash-model-bar-count {
+  width: 40px;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Model color classes */
+.dash-model-color-0 { background: var(--color-data-0, #ff7b72); }
+.dash-model-color-1 { background: var(--color-data-1, #d29922); }
+.dash-model-color-2 { background: var(--color-data-2, #3fb950); }
+.dash-model-color-3 { background: var(--color-data-3, #39d2c0); }
+.dash-model-color-4 { background: var(--color-data-4, #58a6ff); }
+.dash-model-color-5 { background: var(--color-data-5, #a371f7); }
+.dash-model-color-6 { background: var(--color-data-6, #f778ba); }
+.dash-model-color-7 { background: var(--color-data-7, #ffa657); }
+.dash-model-color-8 { background: var(--color-data-8, #56d364); }
+.dash-model-color-9 { background: var(--color-data-9, #79c0ff); }
+.dash-model-color-other { background: var(--color-text-tertiary); }
+
+/* ==========================================================================
+   4.7 Pending Approvals Card
+   ========================================================================== */
+
+.dash-approvals-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) transparent;
+}
+
+.dash-approvals-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dash-approvals-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.dash-approval-item {
+  background: oklch(20% 0.06 20 / 0.08);
+  border-left: 2px solid var(--color-accent-error);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--space-2_5) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dash-approval-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-approval-type {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.dash-approval-desc {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.dash-approval-session-link {
+  font-size: var(--text-caption);
+  font-family: var(--font-mono);
+  color: var(--color-text-link);
+  cursor: pointer;
+}
+
+.dash-approval-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.dash-approval-btn {
+  height: 28px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-caption);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition: var(--transition-color);
+}
+
+.dash-approval-btn--approve {
+  background: var(--color-accent-success);
+  color: var(--color-text-inverse);
+  border-color: transparent;
+}
+
+.dash-approval-btn--approve:hover {
+  background: var(--color-accent-success-hover);
+}
+
+.dash-approval-btn--deny {
+  background: transparent;
+  color: var(--color-text-error);
+  border-color: var(--color-border-error);
+}
+
+.dash-approval-btn--deny:hover {
+  background: var(--color-accent-error-muted);
+}
+
+.dash-approvals-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.dash-approvals-empty-icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.dash-approvals-empty-text {
+  font-size: var(--text-subtitle);
+  color: var(--color-text-primary);
+}
+
+/* ==========================================================================
+   4.8 Timeline Sparkline
+   ========================================================================== */
+
+.dash-sparkline-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-sparkline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
+.dash-sparkline-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+}
+
+.dash-sparkline-tz {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+.dash-sparkline-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  overflow: hidden;
+}
+
+.dash-sparkline-bar {
+  flex: 1;
+  min-width: 6px;
+  max-width: 24px;
+  background: var(--color-accent-primary);
+  border-radius: 1px 1px 0 0;
+  opacity: 0.5;
+  transition: height 300ms var(--ease-out-quint);
+  height: 0;
+}
+
+/* Animation: bars appear left to right */
+.dash-sparkline-bar--anim {
+  animation: sparkline-grow 400ms var(--ease-out-expo) forwards;
+}
+
+@keyframes sparkline-grow {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   Skeleton loading
+   ========================================================================== */
+
+@keyframes skeleton-shimmer {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+
+.dash-skeleton {
+  background: var(--color-bg-skeleton);
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.dash-skeleton-text {
+  display: inline-block;
+  height: 12px;
+  width: 80px;
+  background: var(--color-bg-skeleton);
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.dash-skeleton-value {
+  display: inline-block;
+  height: 28px;
+  width: 60px;
+  background: var(--color-bg-skeleton);
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Responsive: Tablet (768-1023px)
+   ========================================================================== */
+
+@media (max-width: 1023px) {
+  .dash-container {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .dash-kpi-bar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dash-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-row-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dash-feed,
+  .dash-sessions-panel {
+    max-height: 320px;
+  }
+}
+
+/* ==========================================================================
+   Responsive: Mobile (<768px)
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .dash-container {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .dash-kpi-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dash-kpi-card {
+    min-width: 0;
+    height: 100px;
+    padding: var(--space-3);
+  }
+
+  .dash-kpi-sparkline {
+    display: none;
+  }
+
+  .dash-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-row-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-row-4 {
+    display: none;
+  }
+
+  .dash-feed,
+  .dash-sessions-panel {
+    max-height: 280px;
+  }
+
+  .dash-donut-card,
+  .dash-model-card,
+  .dash-approvals-card {
+    height: 260px;
+  }
+}
