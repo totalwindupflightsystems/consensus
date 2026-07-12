@@ -30,7 +30,7 @@
 
 ### 1.5 Dashboard & Analytics
 - [x] Build Overview Dashboard: active sessions, cost metrics, health status — §4 (completed 2026-07-12: chronicle/css/dashboard.css + chronicle/index.html — 6 KPI cards, activity feed, recent sessions, donut chart, model usage, sparkline)
-- [ ] Build Status Dashboard: system health, LLM availability, DB stats — §5.3
+- [x] Build Status Dashboard: system health, LLM availability, DB stats — §5.3 (completed 2026-07-12: health.css + enhanced /api/v1/health — 604 lines CSS, 1284 total insertions, Go types + handler)
 
 ### 1.6 Timeline Explorer + Entity Graph
 - [ ] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6
