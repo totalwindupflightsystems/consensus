@@ -203,6 +203,37 @@ type UpdateTaskRequest struct {
 }
 
 // ============================================================================
+// Health Endpoint Types
+// ============================================================================
+
+// HealthResponse is the response body for GET /api/v1/health.
+type HealthResponse struct {
+	Status            string            `json:"status"`
+	Version           string            `json:"version"`
+	UptimeSeconds     int64             `json:"uptime_seconds"`
+	APILatencyMs      float64           `json:"api_latency_ms"`
+	DBLatencyMs       float64           `json:"db_latency_ms"`
+	LLMLatencyMs      float64           `json:"llm_latency_ms"`
+	ErrorRatePct      float64           `json:"error_rate_pct"`
+	DBBackend         string            `json:"db_backend"`
+	DBPath            string            `json:"db_path"`
+	DBSizeMB          float64           `json:"db_size_mb"`
+	DBTables          int               `json:"db_tables"`
+	DBMigrations      int               `json:"db_migrations"`
+	ActiveConnections ActiveConnections `json:"active_connections"`
+	SystemLog         []string          `json:"system_log"`
+}
+
+// ActiveConnections describes current connection counts.
+type ActiveConnections struct {
+	WebSocket         int `json:"websocket"`
+	DBPoolActive      int `json:"db_pool_active"`
+	DBPoolMax         int `json:"db_pool_max"`
+	LLMActive         int `json:"llm_active"`
+	APIRequestsLastMin int `json:"api_requests_last_min"`
+}
+
+// ============================================================================
 // Approval Endpoint Types (SPEC-015 §3.5)
 // ============================================================================
 

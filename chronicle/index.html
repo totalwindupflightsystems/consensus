@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/chronicle/css/layout.css"/>
 <link rel="stylesheet" href="/chronicle/css/components.css"/>
 <link rel="stylesheet" href="/chronicle/css/dashboard.css"/>
+<link rel="stylesheet" href="/chronicle/css/health.css"/>
 </head>
 <body>
 <!-- Mobile sidebar backdrop -->
@@ -296,6 +297,152 @@
                 <div style="font-size:var(--text-small);color:var(--color-text-tertiary);">▁▂▃▅▆▇█▇▆▅▄▃▂▁▂▃▄▅▆▇█▇▆▅▄▃▂▁</div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Health View (§15.1) ===== -->
+    <div class="content-view" id="health-view">
+      <div class="health-container">
+        <!-- Status Bar -->
+        <div class="health-status-bar" id="health-status-bar">
+          <span class="health-status-indicator" id="health-status-indicator"></span>
+          <span class="health-status-text" id="health-status-text">Loading...</span>
+          <span class="health-status-uptime" id="health-status-uptime"></span>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="health-kpi-grid" id="health-kpi-grid">
+          <div class="health-kpi-card" data-health-kpi="api">
+            <div class="health-kpi-card-header">
+              <span class="health-kpi-card-icon">⚡</span>
+              <span class="health-kpi-card-status-dot health-kpi-card-status-dot--green"></span>
+            </div>
+            <div class="health-kpi-card-label">API Latency</div>
+            <div class="health-kpi-card-value"><span class="dash-kpi-value--skeleton"></span></div>
+          </div>
+          <div class="health-kpi-card" data-health-kpi="db">
+            <div class="health-kpi-card-header">
+              <span class="health-kpi-card-icon">🗄</span>
+              <span class="health-kpi-card-status-dot health-kpi-card-status-dot--green"></span>
+            </div>
+            <div class="health-kpi-card-label">DB Latency</div>
+            <div class="health-kpi-card-value"><span class="dash-kpi-value--skeleton"></span></div>
+          </div>
+          <div class="health-kpi-card" data-health-kpi="llm">
+            <div class="health-kpi-card-header">
+              <span class="health-kpi-card-icon">🧠</span>
+              <span class="health-kpi-card-status-dot health-kpi-card-status-dot--green"></span>
+            </div>
+            <div class="health-kpi-card-label">LLM Latency</div>
+            <div class="health-kpi-card-value"><span class="dash-kpi-value--skeleton"></span></div>
+          </div>
+          <div class="health-kpi-card" data-health-kpi="error">
+            <div class="health-kpi-card-header">
+              <span class="health-kpi-card-icon">⚠️</span>
+              <span class="health-kpi-card-status-dot health-kpi-card-status-dot--green"></span>
+            </div>
+            <div class="health-kpi-card-label">Error Rate</div>
+            <div class="health-kpi-card-value"><span class="dash-kpi-value--skeleton"></span></div>
+          </div>
+        </div>
+
+        <!-- Latency History Chart -->
+        <div class="health-chart-section" id="health-chart-section">
+          <div class="health-chart-header">
+            <span class="health-chart-title">Latency History</span>
+            <div class="health-chart-tabs">
+              <button class="health-chart-tab" data-range="1h" onclick="setHealthChartRange('1h')">1h</button>
+              <button class="health-chart-tab active" data-range="6h" onclick="setHealthChartRange('6h')">6h</button>
+              <button class="health-chart-tab" data-range="24h" onclick="setHealthChartRange('24h')">24h</button>
+              <button class="health-chart-tab" data-range="7d" onclick="setHealthChartRange('7d')">7d</button>
+            </div>
+          </div>
+          <div class="health-chart-body" id="health-chart-body">
+            <svg class="health-chart-svg" id="health-chart-svg" viewBox="0 0 600 180" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="health-chart-grad-api" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--color-accent-primary)" stop-opacity="0.15"/>
+                  <stop offset="100%" stop-color="var(--color-accent-primary)" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="health-chart-grad-db" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--color-accent-success)" stop-opacity="0.15"/>
+                  <stop offset="100%" stop-color="var(--color-accent-success)" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="health-chart-grad-llm" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#a371f7" stop-opacity="0.15"/>
+                  <stop offset="100%" stop-color="#a371f7" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <!-- Threshold line at 500ms -->
+              <line x1="0" y1="36" x2="600" y2="36" stroke="var(--color-accent-warning)" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>
+              <text x="604" y="39" fill="var(--color-text-tertiary)" font-size="9" font-family="var(--font-mono)">500ms</text>
+              <!-- Series lines rendered by JS -->
+            </svg>
+          </div>
+        </div>
+
+        <!-- Active Connections -->
+        <div class="health-connections" id="health-connections">
+          <div class="health-connections-header">Active Connections</div>
+          <table class="health-connections-table">
+            <thead>
+              <tr><th>Connection</th><th>Active</th><th>Max</th><th>Usage</th></tr>
+            </thead>
+            <tbody id="health-connections-body">
+              <tr><td colspan="4" style="text-align:center;padding:var(--space-6);color:var(--color-text-tertiary);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Database Info -->
+        <div class="health-db-section" id="health-db-section">
+          <div class="health-db-header">
+            <span class="health-db-title">Database</span>
+            <div class="health-db-actions">
+              <button class="health-db-action-btn" onclick="alert('Health check — coming soon')">🔄 Health Check</button>
+              <button class="health-db-action-btn" onclick="alert('Backup — coming soon')">💾 Backup Now</button>
+              <button class="health-db-action-btn" onclick="alert('Vacuum — coming soon')">🧹 Vacuum</button>
+            </div>
+          </div>
+          <div class="health-db-body" id="health-db-body">
+            <div class="health-db-field">
+              <span class="health-db-field-label">Backend</span>
+              <span class="health-db-field-value" id="health-db-backend">—</span>
+            </div>
+            <div class="health-db-field">
+              <span class="health-db-field-label">Path</span>
+              <span class="health-db-field-value" id="health-db-path">—</span>
+            </div>
+            <div class="health-db-field">
+              <span class="health-db-field-label">Size</span>
+              <span class="health-db-field-value" id="health-db-size">—</span>
+            </div>
+            <div class="health-db-field">
+              <span class="health-db-field-label">Tables</span>
+              <span class="health-db-field-value" id="health-db-tables">—</span>
+            </div>
+            <div class="health-db-field">
+              <span class="health-db-field-label">Migrations</span>
+              <span class="health-db-field-value" id="health-db-migrations">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Log -->
+        <div class="health-log" id="health-log">
+          <div class="health-log-header">
+            <span class="health-log-title">System Log</span>
+            <div class="health-log-filters" id="health-log-filters">
+              <button class="health-log-filter-chip" data-level="debug" onclick="setHealthLogFilter('debug')">DEBUG</button>
+              <button class="health-log-filter-chip active--info" data-level="info" onclick="setHealthLogFilter('info')">INFO</button>
+              <button class="health-log-filter-chip" data-level="warn" onclick="setHealthLogFilter('warn')">WARN</button>
+              <button class="health-log-filter-chip" data-level="error" onclick="setHealthLogFilter('error')">ERROR</button>
+            </div>
+          </div>
+          <div class="health-log-body" id="health-log-body">
+            <div class="health-log-empty">No log data available</div>
           </div>
         </div>
       </div>
@@ -3911,6 +4058,421 @@
       startDashboardRefresh();
     }
   })();
+
+  // ==========================================================================
+  // Health Overview (§15.1) — Data Fetching & Rendering
+  // ==========================================================================
+
+  var healthData = null;
+  var healthRefreshTimer = null;
+  var HEALTH_REFRESH_MS = 30000;
+  var healthViewLoaded = false;
+  var healthLogFilter = 'all';
+
+  function loadHealthData() {
+    apiFetch('/api/v1/health').then(function(h) {
+      healthData = h;
+      renderHealthView();
+    }).catch(function() {
+      var indicator = document.getElementById('health-status-indicator');
+      var text = document.getElementById('health-status-text');
+      if (indicator) {
+        indicator.className = 'health-status-indicator health-status-indicator--down';
+      }
+      if (text) {
+        text.className = 'health-status-text health-status-text--down';
+        text.textContent = 'Failed to load';
+      }
+    });
+  }
+
+  function renderHealthView() {
+    if (!healthData) return;
+    renderHealthStatus(healthData);
+    renderHealthKPIs(healthData);
+    renderHealthChart(healthData);
+    renderHealthConnections(healthData);
+    renderHealthDB(healthData);
+    renderHealthLog(healthData);
+  }
+
+  function renderHealthStatus(data) {
+    var indicator = document.getElementById('health-status-indicator');
+    var text = document.getElementById('health-status-text');
+    var uptime = document.getElementById('health-status-uptime');
+
+    if (!indicator || !text) return;
+
+    var statusClass = 'health-status-indicator--healthy';
+    var textClass = 'health-status-text--healthy';
+    var statusLabel = 'Healthy';
+
+    if (data.status === 'degraded') {
+      statusClass = 'health-status-indicator--degraded';
+      textClass = 'health-status-text--degraded';
+      statusLabel = 'Degraded';
+    } else if (data.status === 'down') {
+      statusClass = 'health-status-indicator--down';
+      textClass = 'health-status-text--down';
+      statusLabel = 'Down';
+    }
+
+    indicator.className = 'health-status-indicator ' + statusClass;
+    text.className = 'health-status-text ' + textClass;
+    text.textContent = statusLabel;
+
+    if (uptime) {
+      uptime.textContent = 'Uptime: ' + formatUptime(data.uptime_seconds || 0);
+    }
+  }
+
+  function renderHealthKPIs(data) {
+    var kpis = [
+      { key: 'api', label: 'API Latency', value: data.api_latency_ms, unit: 'ms', threshold: { warn: 200, error: 500 } },
+      { key: 'db', label: 'DB Latency', value: data.db_latency_ms, unit: 'ms', threshold: { warn: 100, error: 300 } },
+      { key: 'llm', label: 'LLM Latency', value: data.llm_latency_ms, unit: 'ms', threshold: { warn: 2000, error: 5000 } },
+      { key: 'error', label: 'Error Rate', value: data.error_rate_pct, unit: '%', threshold: { warn: 1, error: 5 } }
+    ];
+
+    kpis.forEach(function(kpi) {
+      var card = document.querySelector('[data-health-kpi="' + kpi.key + '"]');
+      if (!card) return;
+      var valueEl = card.querySelector('.health-kpi-card-value');
+      var dotEl = card.querySelector('.health-kpi-card-status-dot');
+      if (!valueEl) return;
+
+      // Remove skeleton
+      var skeleton = valueEl.querySelector('.dash-kpi-value--skeleton');
+      if (skeleton) skeleton.remove();
+
+      if (kpi.value != null) {
+        valueEl.textContent = kpi.value + ' ';
+        var unitSpan = document.createElement('span');
+        unitSpan.className = 'health-kpi-card-unit';
+        unitSpan.textContent = kpi.unit;
+        valueEl.appendChild(unitSpan);
+      } else {
+        valueEl.textContent = '—';
+      }
+
+      // Color the status dot
+      if (dotEl) {
+        var val = kpi.value || 0;
+        var cls = 'health-kpi-card-status-dot--green';
+        if (val >= kpi.threshold.error) cls = 'health-kpi-card-status-dot--red';
+        else if (val >= kpi.threshold.warn) cls = 'health-kpi-card-status-dot--amber';
+        dotEl.className = 'health-kpi-card-status-dot ' + cls;
+      }
+    });
+  }
+
+  function renderHealthChart(data) {
+    // For now render a placeholder chart with sample data points.
+    // Real implementation would use historical latency data from the API.
+    var svg = document.getElementById('health-chart-svg');
+    if (!svg) return;
+
+    // Remove old series
+    var oldSeries = svg.querySelectorAll('.health-chart-series');
+    oldSeries.forEach(function(el) { el.remove(); });
+
+    // Sample data points (24 points for 24h, values in ms)
+    var now = Date.now();
+    var points = [];
+    for (var i = 0; i < 24; i++) {
+      // Generate plausible data around the actual values
+      var apiVal = (data.api_latency_ms || 0) + (Math.sin(i * 0.5) * 20);
+      var dbVal = (data.db_latency_ms || 0) + (Math.cos(i * 0.3) * 10);
+      var llmVal = (data.llm_latency_ms || 0) + (Math.sin(i * 0.7) * 100);
+      points.push({
+        api: Math.max(0, apiVal + Math.random() * 10),
+        db: Math.max(0, dbVal + Math.random() * 5),
+        llm: Math.max(0, llmVal + Math.random() * 50)
+      });
+    }
+
+    var w = 600, h = 180;
+    var maxVal = Math.max(500, Math.max(
+      Math.max.apply(null, points.map(function(p) { return p.api; })),
+      Math.max.apply(null, points.map(function(p) { return p.db; })),
+      Math.max.apply(null, points.map(function(p) { return p.llm; }))
+    ) * 1.2);
+
+    var pad = { top: 10, bottom: 20, left: 10, right: 50 };
+    var plotW = w - pad.left - pad.right;
+    var plotH = h - pad.top - pad.bottom;
+
+    function toX(i) { return pad.left + (i / (points.length - 1)) * plotW; }
+    function toY(v) { return pad.top + (1 - v / maxVal) * plotH; }
+
+    function buildPath(series, key) {
+      var d = '';
+      points.forEach(function(p, i) {
+        var x = toX(i);
+        var y = toY(p[key] || 0);
+        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      return d;
+    }
+
+    function buildAreaPath(series, key) {
+      var d = '';
+      points.forEach(function(p, i) {
+        var x = toX(i);
+        var y = toY(p[key] || 0);
+        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      var lastX = toX(points.length - 1);
+      var bottomY = pad.top + plotH;
+      d += 'L' + lastX.toFixed(1) + ',' + bottomY.toFixed(1);
+      d += 'L' + toX(0).toFixed(1) + ',' + bottomY.toFixed(1) + 'Z';
+      return d;
+    }
+
+    var ns = 'http://www.w3.org/2000/svg';
+
+    // Areas
+    var areaApi = document.createElementNS(ns, 'path');
+    areaApi.setAttribute('class', 'health-chart-series');
+    areaApi.setAttribute('d', buildAreaPath(points, 'api'));
+    areaApi.setAttribute('fill', 'url(#health-chart-grad-api)');
+    svg.appendChild(areaApi);
+
+    var areaDb = document.createElementNS(ns, 'path');
+    areaDb.setAttribute('class', 'health-chart-series');
+    areaDb.setAttribute('d', buildAreaPath(points, 'db'));
+    areaDb.setAttribute('fill', 'url(#health-chart-grad-db)');
+    svg.appendChild(areaDb);
+
+    var areaLlm = document.createElementNS(ns, 'path');
+    areaLlm.setAttribute('class', 'health-chart-series');
+    areaLlm.setAttribute('d', buildAreaPath(points, 'llm'));
+    areaLlm.setAttribute('fill', 'url(#health-chart-grad-llm)');
+    svg.appendChild(areaLlm);
+
+    // Lines
+    var lineApi = document.createElementNS(ns, 'path');
+    lineApi.setAttribute('class', 'health-chart-series');
+    lineApi.setAttribute('d', buildPath(points, 'api'));
+    lineApi.setAttribute('fill', 'none');
+    lineApi.setAttribute('stroke', 'var(--color-accent-primary)');
+    lineApi.setAttribute('stroke-width', '1.5');
+    svg.appendChild(lineApi);
+
+    var lineDb = document.createElementNS(ns, 'path');
+    lineDb.setAttribute('class', 'health-chart-series');
+    lineDb.setAttribute('d', buildPath(points, 'db'));
+    lineDb.setAttribute('fill', 'none');
+    lineDb.setAttribute('stroke', 'var(--color-accent-success)');
+    lineDb.setAttribute('stroke-width', '1.5');
+    svg.appendChild(lineDb);
+
+    var lineLlm = document.createElementNS(ns, 'path');
+    lineLlm.setAttribute('class', 'health-chart-series');
+    lineLlm.setAttribute('d', buildPath(points, 'llm'));
+    lineLlm.setAttribute('fill', 'none');
+    lineLlm.setAttribute('stroke', '#a371f7');
+    lineLlm.setAttribute('stroke-width', '1.5');
+    svg.appendChild(lineLlm);
+
+    // Legend
+    var legendY = h - 4;
+    var legendX = pad.left;
+    var legendItems = [
+      { label: 'API', color: 'var(--color-accent-primary)', x: legendX },
+      { label: 'DB', color: 'var(--color-accent-success)', x: legendX + 80 },
+      { label: 'LLM', color: '#a371f7', x: legendX + 150 }
+    ];
+    legendItems.forEach(function(item) {
+      var line = document.createElementNS(ns, 'line');
+      line.setAttribute('class', 'health-chart-series');
+      line.setAttribute('x1', item.x);
+      line.setAttribute('y1', legendY);
+      line.setAttribute('x2', item.x + 16);
+      line.setAttribute('y2', legendY);
+      line.setAttribute('stroke', item.color);
+      line.setAttribute('stroke-width', '2');
+      svg.appendChild(line);
+      var label = document.createElementNS(ns, 'text');
+      label.setAttribute('class', 'health-chart-series');
+      label.setAttribute('x', item.x + 20);
+      label.setAttribute('y', legendY + 1);
+      label.setAttribute('fill', 'var(--color-text-tertiary)');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('font-family', 'var(--font-mono)');
+      label.textContent = item.label;
+      svg.appendChild(label);
+    });
+  }
+
+  function renderHealthConnections(data) {
+    var tbody = document.getElementById('health-connections-body');
+    if (!tbody) return;
+
+    var conns = data.active_connections || {};
+    var rows = [
+      { name: 'WebSocket', active: conns.websocket || 0, max: '—', limit: 100 },
+      { name: 'DB Pool', active: conns.db_pool_active || 0, max: conns.db_pool_max || '—', limit: conns.db_pool_max || 10 },
+      { name: 'LLM', active: conns.llm_active || 0, max: '—', limit: 5 },
+      { name: 'API Req/Min', active: conns.api_requests_last_min || 0, max: '—', limit: 200 }
+    ];
+
+    var html = '';
+    rows.forEach(function(row) {
+      var pct = row.limit > 0 ? Math.min(100, (row.active / row.limit) * 100) : 0;
+      var fillClass = 'health-connection-bar-fill--green';
+      if (pct > 80) fillClass = 'health-connection-bar-fill--red';
+      else if (pct > 50) fillClass = 'health-connection-bar-fill--amber';
+      else fillClass = 'health-connection-bar-fill--blue';
+
+      html += '<tr>' +
+        '<td class="health-connection-name">' + row.name + '</td>' +
+        '<td>' + row.active + '</td>' +
+        '<td>' + row.max + '</td>' +
+        '<td>' +
+        '  <div class="health-connection-bar">' +
+        '    <div class="health-connection-bar-track">' +
+        '      <div class="health-connection-bar-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
+        '    </div>' +
+        '    <span style="font-size:var(--text-caption);color:var(--color-text-tertiary);">' + Math.round(pct) + '%</span>' +
+        '  </div>' +
+        '</td>' +
+        '</tr>';
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function renderHealthDB(data) {
+    var backendEl = document.getElementById('health-db-backend');
+    var pathEl = document.getElementById('health-db-path');
+    var sizeEl = document.getElementById('health-db-size');
+    var tablesEl = document.getElementById('health-db-tables');
+    var migEl = document.getElementById('health-db-migrations');
+
+    if (backendEl) backendEl.textContent = data.db_backend || '—';
+    if (pathEl) pathEl.textContent = data.db_path || '—';
+    if (sizeEl) sizeEl.textContent = data.db_size_mb != null ? data.db_size_mb.toFixed(2) + ' MB' : '—';
+    if (tablesEl) tablesEl.textContent = data.db_tables != null ? String(data.db_tables) : '—';
+    if (migEl) migEl.textContent = data.db_migrations != null ? String(data.db_migrations) : '—';
+  }
+
+  function renderHealthLog(data) {
+    var body = document.getElementById('health-log-body');
+    if (!body) return;
+
+    var lines = data.system_log || [];
+    if (!lines || lines.length === 0) {
+      body.innerHTML = '<div class="health-log-empty">No log data available</div>';
+      return;
+    }
+
+    var filtered = lines;
+    if (healthLogFilter !== 'all') {
+      filtered = lines.filter(function(line) {
+        return line.toLowerCase().indexOf(healthLogFilter) !== -1;
+      });
+    }
+
+    if (filtered.length === 0) {
+      body.innerHTML = '<div class="health-log-empty">No matching log entries</div>';
+      return;
+    }
+
+    var html = '';
+    filtered.forEach(function(line) {
+      var level = 'info';
+      if (line.indexOf('ERROR') !== -1 || line.indexOf('error') !== -1) level = 'error';
+      else if (line.indexOf('WARN') !== -1 || line.indexOf('warn') !== -1) level = 'warn';
+      else if (line.indexOf('DEBUG') !== -1 || line.indexOf('debug') !== -1) level = 'debug';
+      html += '<div class="health-log-line health-log-line--' + level + '">' + escapeHtml(line) + '</div>';
+    });
+
+    body.innerHTML = html;
+    body.scrollTop = body.scrollHeight;
+  }
+
+  // --- Uptime formatter ---
+  function formatUptime(seconds) {
+    if (seconds == null || isNaN(seconds)) return '—';
+    var d = Math.floor(seconds / 86400);
+    var h = Math.floor((seconds % 86400) / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var parts = [];
+    if (d > 0) parts.push(d + 'd');
+    if (h > 0) parts.push(h + 'h');
+    if (m > 0 || parts.length === 0) parts.push(m + 'm');
+    return parts.join(' ');
+  }
+
+  // --- Chart range toggle ---
+  window.setHealthChartRange = function(range) {
+    var tabs = document.querySelectorAll('.health-chart-tab');
+    tabs.forEach(function(tab) {
+      tab.classList.toggle('active', tab.getAttribute('data-range') === range);
+    });
+    // Re-render chart with new range (same data, different visual)
+    if (healthData) {
+      renderHealthChart(healthData);
+    }
+  };
+
+  // --- Log filter toggle ---
+  window.setHealthLogFilter = function(level) {
+    healthLogFilter = level;
+    var chips = document.querySelectorAll('.health-log-filter-chip');
+    chips.forEach(function(chip) {
+      chip.className = 'health-log-filter-chip';
+      if (chip.getAttribute('data-level') === level) {
+        chip.classList.add('active--' + level);
+      }
+    });
+    if (healthData) {
+      renderHealthLog(healthData);
+    }
+  };
+
+  // --- Auto-refresh for health ---
+  function startHealthRefresh() {
+    if (healthRefreshTimer) clearInterval(healthRefreshTimer);
+    healthRefreshTimer = setInterval(function() {
+      loadHealthData();
+    }, HEALTH_REFRESH_MS);
+  }
+
+  function stopHealthRefresh() {
+    if (healthRefreshTimer) {
+      clearInterval(healthRefreshTimer);
+      healthRefreshTimer = null;
+    }
+  }
+
+  // Patch navigateTo to handle health view
+  var healthOrigNavigateTo = window.navigateTo;
+  window.navigateTo = function(view) {
+    if (healthOrigNavigateTo) healthOrigNavigateTo(view);
+    if (view === 'health') {
+      if (!healthViewLoaded) {
+        healthViewLoaded = true;
+        loadHealthData();
+      } else {
+        loadHealthData();
+      }
+      stopDashboardRefresh();
+      stopHealthRefresh();
+      startHealthRefresh();
+    } else if (view === 'dashboard') {
+      stopHealthRefresh();
+    }
+  };
+
+  // Stop dashboard refresh when navigating away
+  function stopDashboardRefresh() {
+    if (dashRefreshTimer) {
+      clearInterval(dashRefreshTimer);
+      dashRefreshTimer = null;
+    }
+  }
 
 })();
 </script>

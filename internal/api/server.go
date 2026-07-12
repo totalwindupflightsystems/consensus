@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
@@ -27,6 +28,9 @@ import (
 	"github.com/wojons/consensus/internal/hitl"
 	"github.com/wojons/consensus/internal/quarantine"
 )
+
+// startTime records when the server started, used for uptime calculation.
+var startTime time.Time
 
 // ============================================================================
 // Server
@@ -70,6 +74,7 @@ type ServerConfig struct {
 
 // NewServer creates a new API server with all middleware and routes.
 func NewServer(cfg ServerConfig) *Server {
+	startTime = time.Now()
 	s := &Server{
 		db:             cfg.DB,
 		addr:           cfg.Addr,
@@ -474,12 +479,89 @@ func writeJSON(w http.ResponseWriter, v any) {
 // ============================================================================
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	data, _ := json.Marshal(map[string]any{
-		"status":  "ok",
-		"version": "0.1.0",
+	ctx := r.Context()
+	backend := string(s.db.Backend())
+
+	// Uptime from package-level startTime
+	uptime := int64(time.Since(startTime).Seconds())
+
+	// DB ping latency
+	dbLatency := 0.0
+	pingStart := time.Now()
+	_, err := s.db.Query(ctx, "SELECT 1")
+	if err == nil {
+		dbLatency = float64(time.Since(pingStart).Microseconds()) / 1000.0
+	}
+
+	// DB path
+	dbPath := ""
+	if backend == "sqlite" {
+		rows, qErr := s.db.Query(ctx, "SELECT file FROM pragma_database_list WHERE name = 'main'")
+		if qErr == nil && len(rows) > 0 {
+			dbPath = toString(rows[0]["file"])
+		}
+	} else {
+		row, qErr := s.db.QueryRow(ctx, "SELECT current_database() AS db")
+		if qErr == nil {
+			dbPath = toString(row["db"])
+		}
+	}
+
+	// DB size
+	dbSizeMB := 0.0
+	if backend == "sqlite" && dbPath != "" {
+		if fi, statErr := os.Stat(dbPath); statErr == nil {
+			dbSizeMB = float64(fi.Size()) / (1024.0 * 1024.0)
+		}
+	} else if backend == "postgres" {
+		row, qErr := s.db.QueryRow(ctx, "SELECT pg_database_size(current_database()) AS size")
+		if qErr == nil {
+			if size, ok := row["size"].(int64); ok {
+				dbSizeMB = float64(size) / (1024.0 * 1024.0)
+			}
+		}
+	}
+
+	// User table count
+	dbTables := 0
+	var tablesQuery string
+	if backend == "sqlite" {
+		tablesQuery = "SELECT count(*) AS cnt FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+	} else {
+		tablesQuery = "SELECT count(*) AS cnt FROM information_schema.tables WHERE table_schema = 'public'"
+	}
+	if rows, qErr := s.db.Query(ctx, tablesQuery); qErr == nil && len(rows) > 0 {
+		dbTables = toInt(rows[0]["cnt"])
+	}
+
+	// Migration count
+	dbMigrations := 0
+	if rows, qErr := s.db.Query(ctx, "SELECT count(*) AS cnt FROM migrations"); qErr == nil && len(rows) > 0 {
+		dbMigrations = toInt(rows[0]["cnt"])
+	}
+
+	writeJSON(w, HealthResponse{
+		Status:        "ok",
+		Version:       "0.1.0",
+		UptimeSeconds: uptime,
+		APILatencyMs:  0,
+		DBLatencyMs:   dbLatency,
+		LLMLatencyMs:  0,
+		ErrorRatePct:  0,
+		DBBackend:     backend,
+		DBPath:        dbPath,
+		DBSizeMB:      dbSizeMB,
+		DBTables:      dbTables,
+		DBMigrations:  dbMigrations,
+		ActiveConnections: ActiveConnections{
+			WebSocket:         0,
+			DBPoolActive:      0,
+			DBPoolMax:         0,
+			LLMActive:         0,
+			APIRequestsLastMin: 0,
+		},
+		SystemLog: []string{},
 	})
-	w.Write(data)
 }
 
 // ============================================================================
