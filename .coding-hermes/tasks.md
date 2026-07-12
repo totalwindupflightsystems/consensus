@@ -48,6 +48,13 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [ ] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session)
 - [ ] Test: cursor/vscode opencode extension against Consensus shim
 - [ ] Keep shim_session_map migration current (002_shim_session_map.sql) — verify on both SQLite and Postgres
+- [ ] **models.dev integration** — auto-sync model_registry from models.dev API, keep static table as override layer
+  - Add `internal/modelsync/` package: fetch from `https://models.dev/api/models`, parse tiers+providers+pricing
+  - Add `consensus modelsync` CLI command (runs once, or daemon mode with --interval)
+  - Add `sync_source` column to model_registry: 'static' (manual) vs 'models.dev' (synced), never overwrite static
+  - Provider mapping: models.dev provider names → Consensus config provider (openai/anthropic/openrouter)
+  - On session create, if model_id not in registry but found in models.dev sync → auto-register as 'synced'
+  - Add `--auto-sync` flag to `consensus serve` for background model refresh
 
 ## Phase 3: Production Readiness
 - [ ] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus)
