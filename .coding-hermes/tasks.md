@@ -29,7 +29,7 @@
 - [x] Wire WebSocket for live streaming (THINK cards update at 60fps) — §4.6
 
 ### 1.5 Dashboard & Analytics
-- [ ] Build Overview Dashboard: active sessions, cost metrics, health status — §5
+- [x] Build Overview Dashboard: active sessions, cost metrics, health status — §4 (completed 2026-07-12: chronicle/css/dashboard.css + chronicle/index.html — 6 KPI cards, activity feed, recent sessions, donut chart, model usage, sparkline)
 - [ ] Build Status Dashboard: system health, LLM availability, DB stats — §5.3
 
 ### 1.6 Timeline Explorer + Entity Graph
