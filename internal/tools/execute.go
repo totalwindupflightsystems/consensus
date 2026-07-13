@@ -9,10 +9,13 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -101,10 +104,7 @@ func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest)
 		}, nil
 
 	case "http_endpoint":
-		return &ToolExecutionResult{
-			RequestID: req.ID,
-			Output:    fmt.Sprintf("tool %q executed (http_endpoint stub: %s)", req.ToolName, handlerRef),
-		}, nil
+		return executeHTTPEndpoint(ctx, database, req, handlerRef)
 
 	default:
 		return &ToolExecutionResult{
@@ -235,4 +235,117 @@ func splitCommand(cmd string) []string {
 		parts = append(parts, current.String())
 	}
 	return parts
+}
+
+// executeHTTPEndpoint forwards a tool call to an HTTP API and returns a
+// ToolExecutionResult. handlerRef is a full URL; {param} placeholders are
+// substituted from req.Parameters. Retries up to 3 attempts (1s/2s/4s) on
+// transient errors.
+func executeHTTPEndpoint(ctx context.Context, database db.DB, req *ToolExecutionRequest, handlerRef string) (*ToolExecutionResult, error) {
+	startTime := time.Now()
+
+	// Resolve API key
+	apiKey := ""
+	if keyRows, err := database.Query(ctx, "SELECT api_key FROM sessions WHERE id = $1", req.SessionID); err == nil && len(keyRows) > 0 {
+		apiKey = toString(keyRows[0]["api_key"])
+	}
+
+	// Substitute {param} placeholders
+	targetURL := handlerRef
+	for k, v := range req.Parameters {
+		targetURL = strings.ReplaceAll(targetURL, "{"+k+"}", fmt.Sprintf("%v", v))
+	}
+
+	// Infer HTTP method
+	method := "POST"
+	switch {
+	case strings.HasSuffix(req.ToolName, "_read"), strings.HasSuffix(req.ToolName, "_list"):
+		method = "GET"
+	case strings.HasSuffix(req.ToolName, "_delete"):
+		method = "DELETE"
+	case strings.HasSuffix(req.ToolName, "_update"), req.ToolName == "tag_update":
+		method = "PUT"
+	}
+
+	// Build body
+	var bodyReader io.Reader
+	if method != "GET" && method != "DELETE" {
+		buf, err := json.Marshal(req.Parameters)
+		if err != nil {
+			return errorResult(req.ID, fmt.Sprintf("marshal params: %v", err), startTime), nil
+		}
+		bodyReader = bytes.NewReader(buf)
+	}
+
+	// Retry loop
+	var lastErr error
+	for attempt := 0; attempt <= 3; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return errorResult(req.ID, fmt.Sprintf("cancelled: %v", ctx.Err()), startTime), nil
+			case <-time.After(time.Duration(1<<(attempt-1)) * time.Second):
+			}
+			if br, ok := bodyReader.(*bytes.Reader); ok {
+				br.Seek(0, io.SeekStart)
+			}
+		}
+
+		httpReq, err := http.NewRequestWithContext(ctx, method, targetURL, bodyReader)
+		if err != nil {
+			return errorResult(req.ID, fmt.Sprintf("build request: %v", err), startTime), nil
+		}
+		if apiKey != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		if bodyReader != nil {
+			httpReq.Header.Set("Content-Type", "application/json")
+		}
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			lastErr = err
+			if isRetryableHTTP(err) {
+				continue
+			}
+			return errorResult(req.ID, fmt.Sprintf("http: %v", err), startTime), nil
+		}
+
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return &ToolExecutionResult{
+				RequestID:  req.ID,
+				Output:     string(body),
+				DurationMs: time.Since(startTime).Milliseconds(),
+			}, nil
+		}
+
+		result := &ToolExecutionResult{
+			RequestID:  req.ID,
+			Output:     fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)),
+			IsError:    true,
+			ErrorCode:  fmt.Sprintf("HTTP_%d", resp.StatusCode),
+			DurationMs: time.Since(startTime).Milliseconds(),
+		}
+
+		if resp.StatusCode == 503 || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+		return result, nil
+	}
+
+	return errorResult(req.ID, fmt.Sprintf("all retries exhausted: %v", lastErr), startTime), nil
+}
+
+func isRetryableHTTP(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "timeout") || strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "connection reset") || strings.Contains(msg, "EOF")
 }

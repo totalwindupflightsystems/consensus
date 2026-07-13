@@ -13,11 +13,15 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
+	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -421,8 +425,7 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		return e.executeSubprocessTool(ctx, toolName, handlerRef, row)
 
 	case "http_endpoint":
-		// HTTP endpoint — requires HTTP client
-		return fmt.Sprintf("tool %q executed (http_endpoint stub: %s)", toolName, handlerRef), nil
+		return e.executeHTTPEndpoint(ctx, toolName, handlerRef, sessionID, row)
 
 	default:
 		return fmt.Sprintf("tool %q executed (unknown handler_type: %s)", toolName, handlerType), nil
@@ -513,4 +516,119 @@ func splitToolCommand(cmd string) []string {
 		parts = append(parts, string(current))
 	}
 	return parts
+}
+
+// executeHTTPEndpoint forwards a tool call to an HTTP API and returns the
+// response body. The handlerRef is a full URL; {param} placeholders are
+// substituted from the tool request parameters. The session API key is
+// sent as a Bearer token. Retries up to 3 attempts (1s/2s/4s backoff) on
+// transient errors (503, timeout, connection refused).
+func (e *ToolExecutorImpl) executeHTTPEndpoint(ctx context.Context, toolName, handlerRef, sessionID string, row db.Row) (string, error) {
+	// Parse parameters
+	params := make(map[string]any)
+	if p, ok := row["parameters"].(string); ok && p != "" {
+		_ = json.Unmarshal([]byte(p), &params)
+	}
+
+	// Resolve API key
+	apiKey := ""
+	if keyRows, err := e.database.Query(ctx, "SELECT api_key FROM sessions WHERE id = $1", sessionID); err == nil && len(keyRows) > 0 {
+		apiKey = toString(keyRows[0]["api_key"])
+	}
+
+	// Substitute {param} placeholders in URL
+	targetURL := handlerRef
+	for k, v := range params {
+		targetURL = strings.ReplaceAll(targetURL, "{"+k+"}", fmt.Sprintf("%v", v))
+	}
+
+	// Infer HTTP method from tool name
+	method := "POST"
+	switch {
+	case strings.HasPrefix(toolName, "search_"):
+		method = "POST"
+	case endsWith(toolName, "_read"), endsWith(toolName, "_list"):
+		method = "GET"
+	case endsWith(toolName, "_delete"):
+		method = "DELETE"
+	case toolName == "tag_update":
+		method = "PATCH"
+	case endsWith(toolName, "_update"):
+		method = "PUT"
+	}
+
+	// Build request body
+	var bodyReader io.Reader
+	if method != "GET" && method != "DELETE" {
+		buf, err := json.Marshal(params)
+		if err != nil {
+			return "", fmt.Errorf("http_endpoint: marshal params: %w", err)
+		}
+		bodyReader = bytes.NewReader(buf)
+	}
+
+	// Retry loop
+	var lastErr error
+	for attempt := 0; attempt <= 3; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(time.Duration(1<<(attempt-1)) * time.Second):
+			}
+			if br, ok := bodyReader.(*bytes.Reader); ok {
+				br.Seek(0, io.SeekStart)
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, targetURL, bodyReader)
+		if err != nil {
+			return "", fmt.Errorf("http_endpoint: build request: %w", err)
+		}
+		if apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		if bodyReader != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			if isRetryable(err) {
+				continue
+			}
+			return "", fmt.Errorf("http_endpoint: %w", err)
+		}
+
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return string(body), nil
+		}
+
+		if resp.StatusCode == 503 || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+			continue
+		}
+
+		return fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)), nil
+	}
+
+	return "", fmt.Errorf("http_endpoint: all retries exhausted: %w", lastErr)
+}
+
+func endsWith(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "timeout") || strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "connection reset") || strings.Contains(msg, "EOF")
 }
