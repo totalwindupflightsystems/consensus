@@ -86,7 +86,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [ ] Write Sections 11-24 at outline completeness minimum
 
 ## Active
-- [ ] INFRA — prepaid buckets exhausted for JS/TS feature work (glm-5.2 @ zai-glm silent, MiniMax-M3 @ minimax silent, grok-4.5 @ xai-oauth 403 spending limit). Need new provider or billing top-up before Phase 1.6+1.7 can proceed.
+- [ ] INFRA — grok-4.5 @ xai-oauth 403 spending limit (glm-5.2 @ zai-glm and MiniMax-M3 @ minimax recovered 2026-07-12). Phase 1.6+1.7 unblocked. Only grok-4.5 needs billing top-up for fallback.
 - [ ] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
 
 ## Completed
