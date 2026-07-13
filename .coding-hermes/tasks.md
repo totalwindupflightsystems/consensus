@@ -34,7 +34,7 @@
 
 ### 1.6 Timeline Explorer + Entity Graph
 - [x] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6 (completed 2026-07-12: timeline.css 1,596 lines + index.html +863 lines — full CSS, HTML toolbar/ruler/canvas/bookmarks, vanilla JS with zoom/pan/filter/card-rendering/bookmarks)
-- [ ] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7
+- [x] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7 (completed 2026-07-12: entity-graph.css 827 lines + index.html +1,023 lines — D3.js force simulation, SVG canvas, zoom/pan/drag, node type coloring, edge rendering)
 
 ### 1.7 Integration
 - [ ] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph)
