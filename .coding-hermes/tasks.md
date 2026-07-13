@@ -33,7 +33,7 @@
 - [x] Build Status Dashboard: system health, LLM availability, DB stats — §5.3 (completed 2026-07-12: health.css + enhanced /api/v1/health — 604 lines CSS, 1284 total insertions, Go types + handler)
 
 ### 1.6 Timeline Explorer + Entity Graph
-- [ ] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6 [IN PROGRESS — MiniMax-M3 @ minimax (GLM-5.2 silent, switched 2026-07-12)]
+- [x] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6 (completed 2026-07-12: timeline.css 1,596 lines + index.html +863 lines — full CSS, HTML toolbar/ruler/canvas/bookmarks, vanilla JS with zoom/pan/filter/card-rendering/bookmarks)
 - [ ] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7
 
 ### 1.7 Integration
