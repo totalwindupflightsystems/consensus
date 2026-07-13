@@ -1624,6 +1624,127 @@
       </div>
     </div>
 
+    <!-- ===== Entity Graph Visualizer (Phase 1.6, §7) ===== -->
+    <div class="content-view content-view-full" id="entity-graph-view">
+      <div class="eg-root" id="eg-root">
+        <!-- EG_TOOLBAR -->
+        <div class="eg-toolbar" id="eg-toolbar" role="toolbar" aria-label="Entity Graph toolbar">
+          <div class="eg-toolbar-section">
+            <div class="eg-entity-filters" id="eg-entity-filters" role="group" aria-label="Entity type filters">
+              <button class="eg-chip active" data-type="session" type="button">
+                <span class="eg-chip-dot"></span><span>Sessions</span>
+                <span class="eg-chip-count" data-count="session">0</span>
+              </button>
+              <button class="eg-chip active" data-type="memory" type="button">
+                <span class="eg-chip-dot"></span><span>Memories</span>
+                <span class="eg-chip-count" data-count="memory">0</span>
+              </button>
+              <button class="eg-chip active" data-type="finding" type="button">
+                <span class="eg-chip-dot"></span><span>Findings</span>
+                <span class="eg-chip-count" data-count="finding">0</span>
+              </button>
+              <button class="eg-chip active" data-type="evidence" type="button">
+                <span class="eg-chip-dot"></span><span>Evidence</span>
+                <span class="eg-chip-count" data-count="evidence">0</span>
+              </button>
+              <button class="eg-chip active" data-type="anomaly" type="button">
+                <span class="eg-chip-dot"></span><span>Anomalies</span>
+                <span class="eg-chip-count" data-count="anomaly">0</span>
+              </button>
+              <button class="eg-chip active" data-type="entity" type="button">
+                <span class="eg-chip-dot"></span><span>Entities</span>
+                <span class="eg-chip-count" data-count="entity">0</span>
+              </button>
+            </div>
+          </div>
+          <div class="eg-toolbar-section">
+            <div class="eg-search-wrap" id="eg-search-wrap">
+              <span class="eg-search-icon">🔍</span>
+              <input type="text" class="eg-search" id="eg-search"
+                     placeholder="Search entities…" autocomplete="off" spellcheck="false"/>
+              <button type="button" class="eg-search-clear" id="eg-search-clear" aria-label="Clear search">✕</button>
+            </div>
+          </div>
+          <div class="eg-toolbar-section">
+            <div class="eg-stats" id="eg-stats">
+              Nodes:&nbsp;<strong id="eg-node-count">0</strong> &nbsp;|&nbsp;
+              Edges:&nbsp;<strong id="eg-edge-count">0</strong>
+            </div>
+          </div>
+          <span class="eg-toolbar-spacer"></span>
+          <div class="eg-toolbar-section">
+            <div class="eg-controls" role="group" aria-label="Zoom controls">
+              <button class="eg-control-btn" id="eg-zoom-in" type="button" title="Zoom in (+)">＋</button>
+              <button class="eg-control-btn" id="eg-zoom-out" type="button" title="Zoom out (-)">−</button>
+              <button class="eg-control-btn" id="eg-zoom-reset" type="button" title="Reset zoom (0)">⊙</button>
+              <button class="eg-control-btn" id="eg-recenter" type="button" title="Recenter (Home)">⌖</button>
+            </div>
+          </div>
+        </div>
+        <!-- EG_CANVAS -->
+        <div class="eg-canvas-wrap" id="eg-canvas-wrap">
+          <svg class="eg-canvas" id="eg-canvas"
+               xmlns="http://www.w3.org/2000/svg"
+               role="img" aria-label="Force-directed entity graph">
+            <defs>
+              <pattern id="eg-grid-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle class="eg-grid" cx="1" cy="1" r="1"></circle>
+              </pattern>
+            </defs>
+            <rect id="eg-grid-bg" x="0" y="0" width="100%" height="100%" fill="url(#eg-grid-pattern)"></rect>
+            <g id="eg-viewport">
+              <g id="eg-edges"></g>
+              <g id="eg-nodes"></g>
+              <g id="eg-edge-labels"></g>
+            </g>
+          </svg>
+          <div class="eg-empty" id="eg-empty" style="display:none;">
+            <div class="eg-empty-icon">🕸</div>
+            <div class="eg-empty-title" id="eg-empty-title">Building entity graph…</div>
+            <div class="eg-empty-subtitle" id="eg-empty-subtitle">
+              Loading mock relationships from 3 active sessions.
+            </div>
+          </div>
+          <div class="eg-tooltip" id="eg-tooltip"></div>
+          <div class="eg-detail" id="eg-detail"></div>
+        </div>
+        <!-- EG_LEGEND -->
+        <div class="eg-legend" id="eg-legend" aria-label="Graph legend">
+          <div class="eg-legend-title">Entities</div>
+          <div class="eg-legend-row eg-legend-row--session">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Sessions</span>
+            <span class="eg-legend-count" id="eg-legend-count-session">0</span>
+          </div>
+          <div class="eg-legend-row eg-legend-row--memory">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Memories</span>
+            <span class="eg-legend-count" id="eg-legend-count-memory">0</span>
+          </div>
+          <div class="eg-legend-row eg-legend-row--finding">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Findings</span>
+            <span class="eg-legend-count" id="eg-legend-count-finding">0</span>
+          </div>
+          <div class="eg-legend-row eg-legend-row--evidence">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Evidence</span>
+            <span class="eg-legend-count" id="eg-legend-count-evidence">0</span>
+          </div>
+          <div class="eg-legend-row eg-legend-row--anomaly">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Anomalies</span>
+            <span class="eg-legend-count" id="eg-legend-count-anomaly">0</span>
+          </div>
+          <div class="eg-legend-row eg-legend-row--entity">
+            <span class="eg-legend-dot"></span>
+            <span class="eg-legend-label">Entities</span>
+            <span class="eg-legend-count" id="eg-legend-count-entity">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     </main>
 
   <!-- 2.5: Status Bar (32px, spans full width) -->
@@ -5337,6 +5458,908 @@
     }
   }
 
+})();
+</script>
+<script>
+/* ============================================================================
+   Chronicle — Entity Graph Visualizer (§7) — Phase 1.6
+   D3.js v7 force-directed graph.  Loaded inline at end of <body> so that
+   the CDN d3 script (defer) is guaranteed to have parsed by the time this
+   runs.  Wrapped in its own IIFE so it doesn't leak into the outer shell.
+   ============================================================================ */
+(function () {
+  'use strict';
+
+  // Bail out cleanly if the view is missing (defensive — allows page loads
+  // where Entity Graph HTML hasn't been injected yet).
+  if (!document.getElementById('entity-graph-view')) return;
+
+  // -------------------------------------------------------------------------
+  // Type metadata — colors are read from CSS variables in entity-graph.css
+  // so re-theming flows through automatically.
+  // -------------------------------------------------------------------------
+  var TYPE_META = {
+    session:  { color: 'var(--color-entity-session)',  letter: 'S', label: 'Session'  },
+    memory:   { color: 'var(--color-entity-memory)',   letter: 'M', label: 'Memory'   },
+    finding:  { color: 'var(--color-entity-finding)',  letter: 'F', label: 'Finding'  },
+    evidence: { color: 'var(--color-entity-evidence)', letter: 'E', label: 'Evidence' },
+    anomaly:  { color: 'var(--color-entity-anomaly)',  letter: 'A', label: 'Anomaly'  },
+    entity:   { color: 'var(--color-entity-tool)',     letter: 'X', label: 'Entity'   }
+  };
+
+  // -------------------------------------------------------------------------
+  // Mock data — 50 nodes, ~100 edges.  References Timeline sessions but is
+  // self-contained so the graph is meaningful even without Timeline data.
+  // -------------------------------------------------------------------------
+  var NODES = [
+    // --- Sessions (6) — bigger, central hub nodes ---
+    { id: 's1', type: 'session', label: 'Q4 Revenue Analysis', sublabel: '#a3f2b', weight: 10 },
+    { id: 's2', type: 'session', label: 'Phish Investigation', sublabel: '#b2e1c', weight: 9  },
+    { id: 's3', type: 'session', label: 'Model Evaluation',    sublabel: '#c4d5e', weight: 8  },
+    { id: 's4', type: 'session', label: 'Competitor Research', sublabel: '#d6f7g', weight: 7  },
+    { id: 's5', type: 'session', label: 'Anomaly Triage',      sublabel: '#e8a9h', weight: 6  },
+    { id: 's6', type: 'session', label: 'Q4 Risk Review',      sublabel: '#f0b1j', weight: 6  },
+
+    // --- Memories (15) ---
+    { id: 'm1',  type: 'memory', label: 'User reported phishing email with attachment', sublabel: 'memory',  weight: 6 },
+    { id: 'm2',  type: 'memory', label: 'Revenue data shows 12% YoY growth',            sublabel: 'memory',  weight: 7 },
+    { id: 'm3',  type: 'memory', label: 'LLM-GLM-5 saw a 4% latency spike overnight',  sublabel: 'memory',  weight: 5 },
+    { id: 'm4',  type: 'memory', label: 'DuckBrain compaction stalls on writes >4MB',   sublabel: 'memory',  weight: 6 },
+    { id: 'm5',  type: 'memory', label: 'Coding-Hermes foreman pattern in use',         sublabel: 'memory',  weight: 5 },
+    { id: 'm6',  type: 'memory', label: 'OpenRouter credits drained 09:12 UTC',         sublabel: 'memory',  weight: 6 },
+    { id: 'm7',  type: 'memory', label: 'Grok-4.5 still failing bill check',            sublabel: 'memory',  weight: 5 },
+    { id: 'm8',  type: 'memory', label: 'H4F provisioning queue length 8',              sublabel: 'memory',  weight: 4 },
+    { id: 'm9',  type: 'memory', label: 'Consensus ADR-007 lane encoding chosen',      sublabel: 'memory',  weight: 5 },
+    { id: 'm10', type: 'memory', label: 'Prepaid buckets for JS/TS work exhausted',     sublabel: 'memory',  weight: 6 },
+    { id: 'm11', type: 'memory', label: 'Sonnet-4 streams complete in 1.4s avg',        sublabel: 'memory',  weight: 4 },
+    { id: 'm12', type: 'memory', label: 'Replay fails when WAL > 8MB on hot path',      sublabel: 'memory',  weight: 5 },
+    { id: 'm13', type: 'memory', label: 'User prefers concise responses in chat',       sublabel: 'memory',  weight: 4 },
+    { id: 'm14', type: 'memory', label: 'Tool retry policy: exponential backoff',       sublabel: 'memory',  weight: 4 },
+    { id: 'm15', type: 'memory', label: 'CDN cache hit ratio 94% last 24h',              sublabel: 'memory',  weight: 3 },
+
+    // --- Findings (12) ---
+    { id: 'f1',  type: 'finding', label: 'Suspicious attachment identified as malware',   sublabel: 'finding', weight: 7 },
+    { id: 'f2',  type: 'finding', label: 'Revenue anomaly in Q3 Europe segment',           sublabel: 'finding', weight: 6 },
+    { id: 'f3',  type: 'finding', label: 'GLM-5 min latency drift started 22:40 UTC',      sublabel: 'finding', weight: 5 },
+    { id: 'f4',  type: 'finding', label: 'Indexer panic under concurrent compaction',      sublabel: 'finding', weight: 7 },
+    { id: 'f5',  type: 'finding', label: 'Supplier rotation eliminates bucket thrash',     sublabel: 'finding', weight: 6 },
+    { id: 'f6',  type: 'finding', label: 'Sonnet-4 best at 4-shot, ties Claude Opus',      sublabel: 'finding', weight: 5 },
+    { id: 'f7',  type: 'finding', label: 'Phishing email uses spoofed vendor domain',      sublabel: 'finding', weight: 6 },
+    { id: 'f8',  type: 'finding', label: 'Q4 churn projection revised downward',           sublabel: 'finding', weight: 6 },
+    { id: 'f9',  type: 'finding', label: 'WAL replay deadlock: stdlib mutex race',         sublabel: 'finding', weight: 7 },
+    { id: 'f10', type: 'finding', label: 'Competitor pricing moves suggest margin war',    sublabel: 'finding', weight: 5 },
+    { id: 'f11', type: 'finding', label: 'Approval gate removed for cron schedule',        sublabel: 'finding', weight: 4 },
+    { id: 'f12', type: 'finding', label: 'Users see permission prompt on file share',      sublabel: 'finding', weight: 4 },
+
+    // --- Evidence (10) ---
+    { id: 'ev1', type: 'evidence', label: 'swiftshader.log segment A',        sublabel: 'evidence', weight: 3 },
+    { id: 'ev2', type: 'evidence', label: 'Suspicious email .eml attachment', sublabel: 'evidence', weight: 3 },
+    { id: 'ev3', type: 'evidence', label: 'Q3 Europe revenue CSV (Q3.csv)',   sublabel: 'evidence', weight: 4 },
+    { id: 'ev4', type: 'evidence', label: 'Indexer core dump 92MB',            sublabel: 'evidence', weight: 4 },
+    { id: 'ev5', type: 'evidence', label: 'Braintrust trace id 8834a',         sublabel: 'evidence', weight: 3 },
+    { id: 'ev6', type: 'evidence', label: 'Mock-up competitor landing page',   sublabel: 'evidence', weight: 3 },
+    { id: 'ev7', type: 'evidence', label: 'PANIC stack from WAL replay',       sublabel: 'evidence', weight: 4 },
+    { id: 'ev8', type: 'evidence', label: 'Bucket ledger snapshot',            sublabel: 'evidence', weight: 3 },
+    { id: 'ev9', type: 'evidence', label: 'Email headers raw text',            sublabel: 'evidence', weight: 2 },
+    { id: 'ev10',type: 'evidence', label: 'OpenRouter usage report May-Jun',   sublabel: 'evidence', weight: 3 },
+
+    // --- Anomalies (5) ---
+    { id: 'a1', type: 'anomaly', label: 'OpenRouter 4xx spike 03:00 UTC',     sublabel: 'anomaly', weight: 6 },
+    { id: 'a2', type: 'anomaly', label: 'CDN egress double baseline',          sublabel: 'anomaly', weight: 6 },
+    { id: 'a3', type: 'anomaly', label: 'Inference cost ×1.8 vs forecast',     sublabel: 'anomaly', weight: 7 },
+    { id: 'a4', type: 'anomaly', label: 'Latency p95 +220ms over SLO',         sublabel: 'anomaly', weight: 6 },
+    { id: 'a5', type: 'anomaly', label: 'Crash loop on foreman-3',             sublabel: 'anomaly', weight: 5 },
+
+    // --- Entities (8) — people / external services referenced by findings ---
+    { id: 'x1', type: 'entity', label: 'security@acme.com',  sublabel: 'contact', weight: 3 },
+    { id: 'x2', type: 'entity', label: 'OpenRouter API',     sublabel: 'service', weight: 4 },
+    { id: 'x3', type: 'entity', label: 'Cron scheduler',     sublabel: 'system',  weight: 4 },
+    { id: 'x4', type: 'entity', label: 'Braintrust eval run', sublabel: 'job',     weight: 3 },
+    { id: 'x5', type: 'entity', label: 'Billing dashboard',  sublabel: 'view',    weight: 3 },
+    { id: 'x6', type: 'entity', label: 'competitor-x.com',   sublabel: 'web',     weight: 3 },
+    { id: 'x7', type: 'entity', label: 'user #u-3f1d',       sublabel: 'user',    weight: 2 },
+    { id: 'x8', type: 'entity', label: 'shared dropbox',     sublabel: 'store',   weight: 2 }
+  ];
+
+  var EDGES = [
+    // session -> memories (each session ties 2-3 memories)
+    { source: 's1', target: 'm2',  type: 'wrote',   strength: 6 },
+    { source: 's1', target: 'm9',  type: 'cite',    strength: 4 },
+    { source: 's1', target: 'm11', type: 'cite',    strength: 3 },
+    { source: 's2', target: 'm1',  type: 'wrote',   strength: 6 },
+    { source: 's2', target: 'm14', type: 'cite',    strength: 3 },
+    { source: 's3', target: 'm3',  type: 'wrote',   strength: 5 },
+    { source: 's3', target: 'm11', type: 'wrote',   strength: 5 },
+    { source: 's3', target: 'm15', type: 'cite',    strength: 3 },
+    { source: 's4', target: 'm5',  type: 'cite',    strength: 3 },
+    { source: 's4', target: 'm9',  type: 'cite',    strength: 3 },
+    { source: 's5', target: 'm4',  type: 'wrote',   strength: 6 },
+    { source: 's5', target: 'm12', type: 'wrote',   strength: 6 },
+    { source: 's6', target: 'm2',  type: 'cite',    strength: 4 },
+    { source: 's6', target: 'm8',  type: 'cite',    strength: 4 },
+
+    // session -> findings (1-2 per session)
+    { source: 's1', target: 'f2',  type: 'produced', strength: 7 },
+    { source: 's1', target: 'f8',  type: 'produced', strength: 6 },
+    { source: 's2', target: 'f1',  type: 'produced', strength: 7 },
+    { source: 's2', target: 'f7',  type: 'produced', strength: 6 },
+    { source: 's3', target: 'f3',  type: 'produced', strength: 5 },
+    { source: 's3', target: 'f6',  type: 'produced', strength: 5 },
+    { source: 's4', target: 'f10', type: 'produced', strength: 5 },
+    { source: 's5', target: 'f4',  type: 'produced', strength: 7 },
+    { source: 's5', target: 'f9',  type: 'produced', strength: 7 },
+    { source: 's6', target: 'f12', type: 'produced', strength: 4 },
+
+    // session -> anomalies (rare, high signal)
+    { source: 's3', target: 'a1',  type: 'detected', strength: 6 },
+    { source: 's5', target: 'a2',  type: 'detected', strength: 5 },
+    { source: 's5', target: 'a4',  type: 'detected', strength: 6 },
+    { source: 's5', target: 'a5',  type: 'detected', strength: 5 },
+
+    // session -> evidence + entity (people/tools mentioned)
+    { source: 's1', target: 'ev3', type: 'cites',   strength: 6 },
+    { source: 's2', target: 'ev2', type: 'cites',   strength: 6 },
+    { source: 's2', target: 'ev9', type: 'cites',   strength: 4 },
+    { source: 's2', target: 'x1',  type: 'mentions', strength: 3 },
+    { source: 's5', target: 'ev4', type: 'cites',   strength: 7 },
+    { source: 's5', target: 'ev7', type: 'cites',   strength: 7 },
+    { source: 's3', target: 'x2',  type: 'mentions', strength: 4 },
+    { source: 's3', target: 'x4',  type: 'used',    strength: 4 },
+    { source: 's3', target: 'a3',  type: 'detected', strength: 6 },
+    { source: 's1', target: 'x5',  type: 'mentions', strength: 3 },
+    { source: 's4', target: 'ev6', type: 'cites',   strength: 4 },
+    { source: 's4', target: 'x6',  type: 'mentions', strength: 4 },
+
+    // memory -> memory (recall chains)
+    { source: 'm4',  target: 'm12', type: 'related', strength: 5 },
+    { source: 'm6',  target: 'm10', type: 'related', strength: 5 },
+    { source: 'm7',  target: 'm10', type: 'related', strength: 4 },
+    { source: 'm3',  target: 'm11', type: 'related', strength: 5 },
+    { source: 'm14', target: 'm4',  type: 'related', strength: 4 },
+    { source: 'm13', target: 'm1',  type: 'related', strength: 3 },
+
+    // finding -> memory (evidence base)
+    { source: 'f1',  target: 'm1',  type: 'bases',   strength: 5 },
+    { source: 'f2',  target: 'm2',  type: 'bases',   strength: 5 },
+    { source: 'f3',  target: 'm3',  type: 'bases',   strength: 5 },
+    { source: 'f4',  target: 'm4',  type: 'bases',   strength: 5 },
+    { source: 'f4',  target: 'm12', type: 'bases',   strength: 6 },
+    { source: 'f5',  target: 'm6',  type: 'bases',   strength: 5 },
+    { source: 'f5',  target: 'm10', type: 'bases',   strength: 5 },
+    { source: 'f6',  target: 'm11', type: 'bases',   strength: 5 },
+    { source: 'f7',  target: 'm1',  type: 'bases',   strength: 5 },
+    { source: 'f8',  target: 'm2',  type: 'bases',   strength: 5 },
+    { source: 'f9',  target: 'm12', type: 'bases',   strength: 6 },
+    { source: 'f10', target: 'm5',  type: 'bases',   strength: 4 },
+    { source: 'f12', target: 'm13', type: 'bases',   strength: 3 },
+
+    // finding -> evidence (direct cite)
+    { source: 'f1',  target: 'ev2', type: 'cites',   strength: 6 },
+    { source: 'f1',  target: 'ev9', type: 'cites',   strength: 5 },
+    { source: 'f2',  target: 'ev3', type: 'cites',   strength: 6 },
+    { source: 'f3',  target: 'ev5', type: 'cites',   strength: 5 },
+    { source: 'f4',  target: 'ev4', type: 'cites',   strength: 7 },
+    { source: 'f4',  target: 'ev7', type: 'cites',   strength: 7 },
+    { source: 'f5',  target: 'ev8', type: 'cites',   strength: 5 },
+    { source: 'f6',  target: 'ev10', type: 'cites',  strength: 4 },
+    { source: 'f9',  target: 'ev7', type: 'cites',   strength: 7 },
+    { source: 'f10', target: 'ev6', type: 'cites',   strength: 5 },
+    { source: 'a1',  target: 'ev10', type: 'cites',  strength: 5 },
+    { source: 'a3',  target: 'ev10', type: 'cites',  strength: 5 },
+
+    // anomaly -> evidence / entity (context)
+    { source: 'a1',  target: 'x2',  type: 'involves', strength: 4 },
+    { source: 'a2',  target: 'x3',  type: 'involves', strength: 4 },
+    { source: 'a3',  target: 'x2',  type: 'involves', strength: 5 },
+    { source: 'a3',  target: 'x5',  type: 'involves', strength: 3 },
+    { source: 'a4',  target: 'x2',  type: 'involves', strength: 4 },
+    { source: 'a5',  target: 'x3',  type: 'involves', strength: 4 },
+    { source: 'a5',  target: 'ev4', type: 'cites',    strength: 5 },
+
+    // entity -> entity (people/services connected to each other)
+    { source: 'x5',  target: 'x2',  type: 'monitors', strength: 3 },
+    { source: 'x7',  target: 'x1',  type: 'owns',     strength: 3 },
+    { source: 'x1',  target: 'ev9', type: 'owns',     strength: 3 },
+    { source: 'x7',  target: 'x8',  type: 'uses',     strength: 2 },
+    { source: 'x4',  target: 'x2',  type: 'uses',     strength: 3 },
+    { source: 'x4',  target: 'ev5', type: 'produces', strength: 3 },
+
+    // cross-finding (related discoveries)
+    { source: 'f4',  target: 'f9',  type: 'related',  strength: 5 },
+    { source: 'f5',  target: 'f11', type: 'superseded', strength: 4 },
+    { source: 'f2',  target: 'f8',  type: 'supports',   strength: 4 },
+    { source: 'f1',  target: 'f7',  type: 'supports',   strength: 5 },
+    { source: 'f6',  target: 'f5',  type: 'related',    strength: 3 }
+  ];
+
+  // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+  var EG = {
+    activeTypes: { session: true, memory: true, finding: true, evidence: true, anomaly: true, entity: true },
+    searchQuery: '',
+    selectedId: null,
+    highlightedId: null,
+    initialized: false
+  };
+
+  // -------------------------------------------------------------------------
+  // DOM refs (resolved after DOMContentLoaded so all chips/canvas exist)
+  // -------------------------------------------------------------------------
+  var svg, viewport, edgesG, nodesG, edgeLabelsG, gridBg;
+  var defsSvg, zoomBehavior, simulation;
+  var tooltipEl, detailEl, emptyEl;
+  var searchInput, searchClear, searchWrap;
+  var zoomInBtn, zoomOutBtn, zoomResetBtn, recenterBtn;
+  var chipNodesByType = {};
+  var nodeCountEl, edgeCountEl;
+  var linkSelection, nodeSelection;
+
+  function resolveRefs() {
+    svg         = document.getElementById('eg-canvas');
+    if (!svg) return false;
+    viewport    = document.getElementById('eg-viewport');
+    edgesG      = document.getElementById('eg-edges');
+    nodesG      = document.getElementById('eg-nodes');
+    edgeLabelsG = document.getElementById('eg-edge-labels');
+    gridBg      = document.getElementById('eg-grid-bg');
+    tooltipEl   = document.getElementById('eg-tooltip');
+    detailEl    = document.getElementById('eg-detail');
+    emptyEl     = document.getElementById('eg-empty');
+    searchInput = document.getElementById('eg-search');
+    searchClear = document.getElementById('eg-search-clear');
+    searchWrap  = document.getElementById('eg-search-wrap');
+    zoomInBtn   = document.getElementById('eg-zoom-in');
+    zoomOutBtn  = document.getElementById('eg-zoom-out');
+    zoomResetBtn = document.getElementById('eg-zoom-reset');
+    recenterBtn = document.getElementById('eg-recenter');
+    nodeCountEl = document.getElementById('eg-node-count');
+    edgeCountEl = document.getElementById('eg-edge-count');
+    return true;
+  }
+
+  function resolveChipRefs() {
+    var chips = document.querySelectorAll('#eg-entity-filters .eg-chip');
+    chips.forEach(function (chip) {
+      var type = chip.getAttribute('data-type');
+      if (type) chipNodesByType[type] = chip;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+  function truncate(s, n) {
+    if (!s) return '';
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  function nodeRadius(weight) {
+    // 8..24 px
+    return 8 + Math.max(0, Math.min(10, weight - 1)) * (16 / 9);
+  }
+
+  function visibleNodes() {
+    return NODES.filter(function (n) { return !!EG.activeTypes[n.type]; });
+  }
+
+  function visibleEdges() {
+    var visibleIds = {};
+    visibleNodes().forEach(function (n) { visibleIds[n.id] = true; });
+    return EDGES.filter(function (e) {
+      return visibleIds[e.source] && visibleIds[e.target];
+    }).map(function (e) {
+      // D3 mutates source/target to refs after init; keep this defensive.
+      var sId = (typeof e.source === 'object' && e.source !== null) ? e.source.id : e.source;
+      var tId = (typeof e.target === 'object' && e.target !== null) ? e.target.id : e.target;
+      return { source: sId, target: tId, type: e.type, strength: e.strength };
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Counts (chips + stats + legend)
+  // -------------------------------------------------------------------------
+  function updateCounts() {
+    var counts = { session: 0, memory: 0, finding: 0, evidence: 0, anomaly: 0, entity: 0 };
+    NODES.forEach(function (n) { counts[n.type] = (counts[n.type] || 0) + 1; });
+
+    Object.keys(counts).forEach(function (t) {
+      var chip = chipNodesByType[t];
+      if (!chip) return;
+      var countSpan = chip.querySelector('.eg-chip-count');
+      if (countSpan) countSpan.textContent = counts[t];
+    });
+
+    Object.keys(counts).forEach(function (t) {
+      var lc = document.getElementById('eg-legend-count-' + t);
+      if (lc) lc.textContent = counts[t];
+    });
+
+    if (nodeCountEl) nodeCountEl.textContent = visibleNodes().length;
+    if (edgeCountEl) edgeCountEl.textContent = visibleEdges().length;
+  }
+
+  // -------------------------------------------------------------------------
+  // Filter & search -> DOM classes on nodes/edges
+  // -------------------------------------------------------------------------
+  function applyFilters() {
+    var q = (EG.searchQuery || '').trim().toLowerCase();
+    var hasQuery = q.length > 0;
+
+    if (!linkSelection || !nodeSelection) return;
+
+    if (hasQuery) {
+      // Dim everything except nodes/edges that include a matching label/text
+      var matchSet = {};
+      NODES.forEach(function (n) {
+        if (
+          n.label.toLowerCase().indexOf(q) !== -1 ||
+          (n.sublabel || '').toLowerCase().indexOf(q) !== -1 ||
+          n.type.toLowerCase().indexOf(q) !== -1
+        ) {
+          matchSet[n.id] = true;
+        }
+      });
+      EDGES.forEach(function (e, i) {
+        if (matchSet[e.source] && matchSet[e.target]) matchSet['edge-' + i] = true;
+      });
+
+      nodeSelection.classed('dim', function (d) { return !matchSet[d.id]; })
+                    .classed('eg-node-hidden', function (d) { return !matchSet[d.id] && hasQuery; });
+      linkSelection.classed('dim', function (d) {
+        var s = (typeof d.source === 'object') ? d.source.id : d.source;
+        var t = (typeof d.target === 'object') ? d.target.id : d.target;
+        return !(matchSet[s] && matchSet[t]);
+      });
+    } else {
+      nodeSelection.classed('dim', false).classed('eg-node-hidden', false);
+      linkSelection.classed('dim', false);
+    }
+
+    // Also apply the type-filter chip toggles on top
+    nodeSelection.classed('eg-node-filtered', function (d) { return !EG.activeTypes[d.type]; });
+
+    if (nodeCountEl) nodeCountEl.textContent = countVisibleNodesAfterFilters();
+    if (edgeCountEl) edgeCountEl.textContent = countVisibleEdgesAfterFilters();
+  }
+
+  function countVisibleNodesAfterFilters() {
+    var q = (EG.searchQuery || '').trim().toLowerCase();
+    return NODES.filter(function (n) {
+      if (!EG.activeTypes[n.type]) return false;
+      if (q && n.label.toLowerCase().indexOf(q) === -1 &&
+          (n.sublabel || '').toLowerCase().indexOf(q) === -1 &&
+          n.type.toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    }).length;
+  }
+
+  function countVisibleEdgesAfterFilters() {
+    var q = (EG.searchQuery || '').trim().toLowerCase();
+    var visibleIds = {};
+    NODES.forEach(function (n) {
+      if (!EG.activeTypes[n.type]) return;
+      if (q && n.label.toLowerCase().indexOf(q) === -1 &&
+          (n.sublabel || '').toLowerCase().indexOf(q) === -1 &&
+          n.type.toLowerCase().indexOf(q) === -1) return;
+      visibleIds[n.id] = true;
+    });
+    return EDGES.filter(function (e) {
+      return visibleIds[e.source] && visibleIds[e.target];
+    }).length;
+  }
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
+  function initEntityGraph() {
+    if (!resolveRefs()) return;
+    resolveChipRefs();
+    if (EG.initialized) return;
+    if (typeof window.d3 === 'undefined') {
+      // D3 still loading — try once more in 100ms
+      setTimeout(initEntityGraph, 100);
+      return;
+    }
+    EG.initialized = true;
+
+    // Hide empty state if shown
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    var d3 = window.d3;
+    var width  = svg.clientWidth  || 800;
+    var height = svg.clientHeight || 600;
+
+    // Resize observer — keep simulation bounds accurate when window resizes
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(function () {
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (!svg.clientWidth || !svg.clientHeight) return;
+        width  = svg.clientWidth;
+        height = svg.clientHeight;
+        if (gridBg) {
+          gridBg.setAttribute('width',  width);
+          gridBg.setAttribute('height', height);
+        }
+        if (simulation) {
+          simulation.force('center', d3.forceCenter(width / 2, height / 2));
+          simulation.alpha(0.3).restart();
+        }
+      });
+      ro.observe(svg);
+    }
+
+    if (gridBg) {
+      gridBg.setAttribute('width',  width);
+      gridBg.setAttribute('height', height);
+    }
+
+    // ---- Build working copies (so D3 can mutate source/target to refs) ----
+    var nodes = NODES.map(function (n) {
+      return {
+        id: n.id,
+        type: n.type,
+        label: n.label,
+        sublabel: n.sublabel,
+        weight: n.weight,
+        radius: nodeRadius(n.weight)
+      };
+    });
+    var links = EDGES.map(function (e) {
+      return { source: e.source, target: e.target, type: e.type, strength: e.strength };
+    });
+
+    // ---- Simulation ----
+    simulation = d3.forceSimulation(nodes)
+      .force('link',    d3.forceLink(links).id(function (d) { return d.id; }).distance(function (d) { return 80 + (12 - d.strength) * 8; }).strength(function (d) { return 0.1 + d.strength * 0.04; }))
+      .force('charge',  d3.forceManyBody().strength(-300))
+      .force('center',  d3.forceCenter(width / 2, height / 2))
+      .force('collide', d3.forceCollide().radius(function (d) { return d.radius + 8; }))
+      .force('x',       d3.forceX(width / 2).strength(0.04))
+      .force('y',       d3.forceY(height / 2).strength(0.04));
+
+    // ---- Edges ----
+    linkSelection = d3.select(edgesG).selectAll('line')
+      .data(links)
+      .enter()
+      .append('line')
+      .attr('class', 'eg-link')
+      .attr('stroke-width', function (d) { return 0.6 + (d.strength / 10) * 1.6; });
+
+    // ---- Edge labels (only show on hover for now, but DOM is built) ----
+    var edgeLabelsTexts = d3.select(edgeLabelsG).selectAll('text')
+      .data(links.filter(function (d) { return d.strength >= 6; }))
+      .enter()
+      .append('text')
+      .attr('class', 'eg-link-label')
+      .attr('dy', -3)
+      .text(function (d) { return d.type; });
+
+    // ---- Nodes (group: circle + text label + sublabel) ----
+    var nodeGroups = d3.select(nodesG).selectAll('g.eg-node')
+      .data(nodes, function (d) { return d.id; })
+      .enter()
+      .append('g')
+      .attr('class', function (d) { return 'eg-node eg-node--' + d.type; })
+      .attr('data-id', function (d) { return d.id; })
+      .style('cursor', 'pointer');
+
+    nodeGroups.append('circle')
+      .attr('class', 'eg-node-circle')
+      .attr('r', function (d) { return d.radius; });
+
+    nodeGroups.append('text')
+      .attr('class', 'eg-node-icon')
+      .attr('dy', '0.35em')
+      .text(function (d) { return TYPE_META[d.type] ? TYPE_META[d.type].letter : '?'; });
+
+    nodeGroups.append('text')
+      .attr('class', 'eg-node-label')
+      .attr('dy', function (d) { return d.radius + 14; })
+      .text(function (d) { return truncate(d.label, 20); });
+
+    nodeGroups.append('text')
+      .attr('class', 'eg-node-sublabel')
+      .attr('dy', function (d) { return d.radius + 28; })
+      .text(function (d) { return d.sublabel ? '(' + d.sublabel + ')' : ''; });
+
+    nodeSelection = nodeGroups;
+
+    // ---- Drag behavior ----
+    var dragBehavior = d3.drag()
+      .on('start', function (event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on('drag', function (event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      })
+      .on('end', function (event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        // Keep the node pinned where the user dropped it for spatial memory
+        // (very deliberate UX choice — release-to-pin).
+      });
+
+    nodeGroups.call(dragBehavior);
+
+    // ---- Tick: position nodes + edges ----
+    simulation.on('tick', function () {
+      linkSelection
+        .attr('x1', function (d) { return d.source.x; })
+        .attr('y1', function (d) { return d.source.y; })
+        .attr('x2', function (d) { return d.target.x; })
+        .attr('y2', function (d) { return d.target.y; });
+
+      edgeLabelsTexts
+        .attr('x', function (d) { return (d.source.x + d.target.x) / 2; })
+        .attr('y', function (d) { return (d.source.y + d.target.y) / 2; });
+
+      nodeGroups.attr('transform', function (d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+    });
+
+    // ---- Zoom / pan ----
+    zoomBehavior = d3.zoom()
+      .scaleExtent([0.2, 4])
+      .on('zoom', function (event) {
+        viewport.setAttribute('transform', event.transform.toString());
+      });
+    d3.select(svg).call(zoomBehavior);
+
+    // ---- Hover (highlight neighbors + show tooltip) ----
+    nodeGroups
+      .on('mouseenter', function (event, d) {
+        EG.highlightedId = d.id;
+        highlightNeighbors(d.id);
+        showTooltip(event, d);
+      })
+      .on('mousemove', function (event, d) {
+        positionTooltip(event);
+      })
+      .on('mouseleave', function (event, d) {
+        EG.highlightedId = null;
+        clearHighlights();
+        hideTooltip();
+      })
+      .on('click', function (event, d) {
+        event.stopPropagation();
+        selectNode(d.id);
+      });
+
+    // Click empty canvas: deselect
+    d3.select(svg).on('click', function () {
+      selectNode(null);
+    });
+
+    // ---- Wire toolbar controls ----
+    wireChipFilters();
+    wireSearch();
+    wireZoomControls();
+    wireKeyboard();
+
+    updateCounts();
+  }
+
+  function highlightNeighbors(nodeId) {
+    if (!nodeSelection) return;
+    var neighborSet = {};
+    neighborSet[nodeId] = true;
+    EDGES.forEach(function (e, i) {
+      var sId = (typeof e.source === 'object' && e.source !== null) ? e.source.id : e.source;
+      var tId = (typeof e.target === 'object' && e.target !== null) ? e.target.id : e.target;
+      if (sId === nodeId) neighborSet[tId] = true;
+      if (tId === nodeId) neighborSet[sId] = true;
+    });
+
+    nodeSelection
+      .classed('highlighted', function (d) { return neighborSet[d.id]; })
+      .classed('dim',         function (d) { return !neighborSet[d.id]; });
+
+    linkSelection
+      .classed('highlight', function (d) {
+        var s = (typeof d.source === 'object') ? d.source.id : d.source;
+        var t = (typeof d.target === 'object') ? d.target.id : d.target;
+        return s === nodeId || t === nodeId;
+      })
+      .classed('dim', function (d) {
+        var s = (typeof d.source === 'object') ? d.source.id : d.source;
+        var t = (typeof d.target === 'object') ? d.target.id : d.target;
+        return s !== nodeId && t !== nodeId;
+      });
+  }
+
+  function clearHighlights() {
+    if (!nodeSelection) return;
+    nodeSelection.classed('highlighted', false).classed('dim', false);
+    linkSelection.classed('highlight', false).classed('dim', false);
+    applyFilters(); // re-apply search dimming if any
+  }
+
+  // -------------------------------------------------------------------------
+  // Tooltip
+  // -------------------------------------------------------------------------
+  function showTooltip(event, d) {
+    if (!tooltipEl) return;
+    var typeMeta = TYPE_META[d.type] || { label: d.type, color: '#888', letter: '?' };
+    var connCount = 0;
+    EDGES.forEach(function (e) {
+      var sId = (typeof e.source === 'object' && e.source !== null) ? e.source.id : e.source;
+      var tId = (typeof e.target === 'object' && e.target !== null) ? e.target.id : e.target;
+      if (sId === d.id || tId === d.id) connCount++;
+    });
+
+    tooltipEl.innerHTML =
+      '<div class="eg-tooltip-header" style="--eg-tt-color:' + typeMeta.color + ';">' +
+        '<div class="eg-tooltip-icon">' + typeMeta.letter + '</div>' +
+        '<div class="eg-tooltip-title">' + escapeHtml(d.label) + '</div>' +
+      '</div>' +
+      '<div class="eg-tooltip-row"><span class="eg-tooltip-key">Type</span><span class="eg-tooltip-value">' + typeMeta.label + '</span></div>' +
+      '<div class="eg-tooltip-row"><span class="eg-tooltip-key">Sublabel</span><span class="eg-tooltip-value">' + escapeHtml(d.sublabel || '—') + '</span></div>' +
+      '<div class="eg-tooltip-row"><span class="eg-tooltip-key">Weight</span><span class="eg-tooltip-value">' + d.weight + ' / 10</span></div>' +
+      '<div class="eg-tooltip-row"><span class="eg-tooltip-key">Connections</span><span class="eg-tooltip-value">' + connCount + '</span></div>';
+    tooltipEl.style.setProperty('--eg-tt-color', typeMeta.color);
+    tooltipEl.classList.add('visible');
+    positionTooltip(event);
+  }
+
+  function positionTooltip(event) {
+    if (!tooltipEl) return;
+    var wrap = document.getElementById('eg-canvas-wrap');
+    if (!wrap) return;
+    var rect = wrap.getBoundingClientRect();
+    var x = event.clientX - rect.left + 12;
+    var y = event.clientY - rect.top  + 12;
+    // Clamp inside the canvas
+    var tipRect = tooltipEl.getBoundingClientRect();
+    if (x + tipRect.width  > rect.width)  x = event.clientX - rect.left - tipRect.width  - 12;
+    if (y + tipRect.height > rect.height) y = event.clientY - rect.top  - tipRect.height - 12;
+    if (x < 0) x = 8;
+    if (y < 0) y = 8;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top  = y + 'px';
+  }
+
+  function hideTooltip() {
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('visible');
+  }
+
+  // -------------------------------------------------------------------------
+  // Detail panel
+  // -------------------------------------------------------------------------
+  function selectNode(nodeId) {
+    EG.selectedId = nodeId;
+
+    if (!nodeSelection) return;
+    nodeSelection.classed('selected', function (d) { return d.id === nodeId; });
+
+    if (!nodeId) {
+      if (detailEl) detailEl.classList.remove('visible');
+      return;
+    }
+
+    var nodeData = NODES.find(function (n) { return n.id === nodeId; });
+    if (!nodeData) return;
+
+    var typeMeta = TYPE_META[nodeData.type] || { label: nodeData.type, color: '#888' };
+
+    // Compile connected entries with direction
+    var connections = [];
+    EDGES.forEach(function (e) {
+      var sId = (typeof e.source === 'object' && e.source !== null) ? e.source.id : e.source;
+      var tId = (typeof e.target === 'object' && e.target !== null) ? e.target.id : e.target;
+      if (sId === nodeId) {
+        var tNode = NODES.find(function (n) { return n.id === tId; });
+        if (tNode) connections.push({ dir: 'out', rel: e.type, node: tNode });
+      } else if (tId === nodeId) {
+        var sNode = NODES.find(function (n) { return n.id === sId; });
+        if (sNode) connections.push({ dir: 'in', rel: e.type, node: sNode });
+      }
+    });
+
+    var connsHtml = connections.slice(0, 12).map(function (c) {
+      var arrow = c.dir === 'out' ? '→' : '←';
+      var meta = TYPE_META[c.node.type] || { color: '#888', letter: '?' };
+      var safeLabel = escapeHtml(c.node.label);
+      var safeRel   = escapeHtml(c.rel);
+      return '<div class="eg-detail-connection-item" data-target-id="' + c.node.id + '">' +
+        '<span class="eg-detail-connection-arrow">' + arrow + '</span>' +
+        '<span class="eg-detail-connection-dot" style="background:' + meta.color + ';"></span>' +
+        '<span class="eg-detail-connection-text"><strong>' + safeRel + '</strong> ' + safeLabel + '</span>' +
+      '</div>';
+    }).join('');
+
+    detailEl.innerHTML =
+      '<div class="eg-detail-header">' +
+        '<div class="eg-detail-title">' + escapeHtml(nodeData.label) + '</div>' +
+        '<button class="eg-detail-close" type="button" id="eg-detail-close" aria-label="Close">✕</button>' +
+      '</div>' +
+      '<div class="eg-detail-row" style="--eg-detail-color:' + typeMeta.color + ';">' +
+        '<span class="eg-detail-key">Type</span>' +
+        '<span class="eg-detail-value"><span class="eg-detail-pill" style="--eg-detail-color:' + typeMeta.color + ';">' + typeMeta.label + '</span></span>' +
+      '</div>' +
+      '<div class="eg-detail-row">' +
+        '<span class="eg-detail-key">Sublabel</span>' +
+        '<span class="eg-detail-value">' + escapeHtml(nodeData.sublabel || '—') + '</span>' +
+      '</div>' +
+      '<div class="eg-detail-row">' +
+        '<span class="eg-detail-key">Weight</span>' +
+        '<span class="eg-detail-value">' + nodeData.weight + ' / 10</span>' +
+      '</div>' +
+      '<div class="eg-detail-row">' +
+        '<span class="eg-detail-key">Connections</span>' +
+        '<span class="eg-detail-value">' + connections.length + '</span>' +
+      '</div>' +
+      '<div class="eg-detail-connections">' +
+        '<div class="eg-detail-connections-title">Connected (' + connections.length + ')</div>' +
+        (connsHtml || '<div class="eg-detail-row"><span class="eg-detail-key">—</span><span class="eg-detail-value">No connections</span></div>') +
+      '</div>';
+
+    detailEl.style.setProperty('--eg-detail-color', typeMeta.color);
+    detailEl.classList.add('visible');
+
+    // Wire close button + connection clicks
+    var closeBtn = document.getElementById('eg-detail-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () { selectNode(null); });
+    }
+    detailEl.querySelectorAll('.eg-detail-connection-item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var tid = el.getAttribute('data-target-id');
+        if (tid) selectNode(tid);
+      });
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Toolbar wiring
+  // -------------------------------------------------------------------------
+  function wireChipFilters() {
+    Object.keys(chipNodesByType).forEach(function (type) {
+      var chip = chipNodesByType[type];
+      chip.addEventListener('click', function () {
+        EG.activeTypes[type] = !EG.activeTypes[type];
+        chip.classList.toggle('active', EG.activeTypes[type]);
+        chip.classList.toggle('inactive', !EG.activeTypes[type]);
+        applyFilters();
+      });
+    });
+  }
+
+  function wireSearch() {
+    if (!searchInput) return;
+    searchInput.addEventListener('input', function () {
+      EG.searchQuery = searchInput.value || '';
+      if (searchWrap) searchWrap.classList.toggle('has-value', EG.searchQuery.length > 0);
+      applyFilters();
+    });
+    if (searchClear) {
+      searchClear.addEventListener('click', function () {
+        if (!searchInput) return;
+        searchInput.value = '';
+        EG.searchQuery = '';
+        if (searchWrap) searchWrap.classList.remove('has-value');
+        searchInput.focus();
+        applyFilters();
+      });
+    }
+  }
+
+  function wireZoomControls() {
+    if (!zoomBehavior) return;
+    var d3 = window.d3;
+    if (zoomInBtn) zoomInBtn.addEventListener('click', function () {
+      d3.select(svg).transition().duration(200).call(zoomBehavior.scaleBy, 1.25);
+    });
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', function () {
+      d3.select(svg).transition().duration(200).call(zoomBehavior.scaleBy, 0.8);
+    });
+    if (zoomResetBtn) zoomResetBtn.addEventListener('click', function () {
+      d3.select(svg).transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity);
+      if (simulation) simulation.alpha(0.3).restart();
+    });
+    if (recenterBtn) recenterBtn.addEventListener('click', function () {
+      recenterGraph();
+    });
+  }
+
+  function recenterGraph() {
+    if (!simulation || !nodesG) return;
+    var d3 = window.d3;
+    var width  = svg.clientWidth  || 800;
+    var height = svg.clientHeight || 600;
+    d3.select(svg).transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity);
+    simulation.nodes().forEach(function (n) { n.fx = null; n.fy = null; });
+    simulation.force('center', d3.forceCenter(width / 2, height / 2));
+    simulation.alpha(0.8).restart();
+  }
+
+  function wireKeyboard() {
+    document.addEventListener('keydown', function (e) {
+      // Only act when the entity-graph-view is active
+      var view = document.getElementById('entity-graph-view');
+      if (!view || !view.classList.contains('active')) return;
+      // Don't swallow keys typed into the search field
+      var tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        if (zoomInBtn) zoomInBtn.click();
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        if (zoomOutBtn) zoomOutBtn.click();
+      } else if (e.key === '0') {
+        e.preventDefault();
+        if (zoomResetBtn) zoomResetBtn.click();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        recenterGraph();
+      } else if (e.key === 'Escape') {
+        selectNode(null);
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Utilities
+  // -------------------------------------------------------------------------
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // -------------------------------------------------------------------------
+  // Lazy init — initialize on first navigation to the view, so the
+  // (expensive) force simulation only spins up when actually visible.
+  // -------------------------------------------------------------------------
+  var initializedOnce = false;
+  function ensureInit() {
+    if (initializedOnce) return;
+    initializedOnce = true;
+    initEntityGraph();
+  }
+
+  // Auto-init on DOMContentLoaded if the view is active by default;
+  // otherwise wait for the navigation hook below.
+  function bootWhenReady() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        var v = document.getElementById('entity-graph-view');
+        if (v && v.classList.contains('active')) ensureInit();
+        setTimeout(hookNavigation, 200);
+      });
+    } else {
+      var v = document.getElementById('entity-graph-view');
+      if (v && v.classList.contains('active')) ensureInit();
+      setTimeout(hookNavigation, 200);
+    }
+  }
+
+  function hookNavigation() {
+    var original = window.navigateTo;
+    if (!original) {
+      // navigation not yet attached — try again shortly
+      setTimeout(hookNavigation, 200);
+      return;
+    }
+    // If it has already been patched (by Health view earlier in the file),
+    // make sure we layer on top.
+    window.navigateTo = function (view) {
+      original(view);
+      if (view === 'entity-graph') {
+        ensureInit();
+      }
+    };
+  }
+
+  bootWhenReady();
 })();
 </script>
 </body>
