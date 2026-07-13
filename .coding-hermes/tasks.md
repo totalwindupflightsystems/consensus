@@ -33,7 +33,7 @@
 - [x] Build Status Dashboard: system health, LLM availability, DB stats — §5.3 (completed 2026-07-12: health.css + enhanced /api/v1/health — 604 lines CSS, 1284 total insertions, Go types + handler)
 
 ### 1.6 Timeline Explorer + Entity Graph
-- [ ] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6
+- [ ] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6 [IN PROGRESS — glm-5.2 @ zai-glm worker spawned 2026-07-12]
 - [ ] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7
 
 ### 1.7 Integration
@@ -86,8 +86,8 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [ ] Write Sections 11-24 at outline completeness minimum
 
 ## Active
-- [ ] INFRA — grok-4.5 @ xai-oauth 403 spending limit (glm-5.2 @ zai-glm and MiniMax-M3 @ minimax recovered 2026-07-12). Phase 1.6+1.7 unblocked. Only grok-4.5 needs billing top-up for fallback.
-- [ ] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
+- [ ] INFRA — prepaid buckets exhausted for JS/TS feature work (glm-5.2 @ zai-glm 401, MiniMax-M3 @ minimax 401, grok-4.5 @ xai-oauth 403). **Investigated 2026-07-12: kimi-k2.7 @ kimi-for-coding WORKING (Go bug fix/test fallback), stepfun/opencode-go WORKING (spec/doc/infra). Phase 1.6+1.7 remain blocked (need JS/TS feature model). Phase 6 spec writing is UNBLOCKED (can use opencode-go). Phase 2 Go verification may be partially unblocked via kimi-k2.7 fallback.**
+- [x] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
 
 ## Completed
 - [x] GitReins guards (secrets, lint, tests) — v0.7.9 configured, 20 tasks passing
