@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="/chronicle/css/components.css"/>
 <link rel="stylesheet" href="/chronicle/css/dashboard.css"/>
 <link rel="stylesheet" href="/chronicle/css/health.css"/>
+<link rel="stylesheet" href="/chronicle/css/timeline.css"/>
+<link rel="stylesheet" href="/chronicle/css/entity-graph.css"/>
+<script src="https://d3js.org/d3.v7.min.js" defer></script>
 </head>
 <body>
 <!-- Mobile sidebar backdrop -->
@@ -759,6 +762,866 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- ===== Timeline Explorer View (Phase 1.6, §6) ===== -->
+    <div class="content-view content-view-full" id="timeline-view">
+      <div class="tl-root" id="tl-root">
+        <!-- TL_TOOLBAR -->
+        <div class="tl-toolbar" id="tl-toolbar" role="toolbar" aria-label="Timeline toolbar">
+          <div class="tl-toolbar-section" style="position:relative;">
+            <button class="tl-bookmarks-btn" id="tl-bookmarks-btn" type="button"
+                    aria-haspopup="true" aria-expanded="false">
+              <span class="tl-star">★</span>
+              <span class="tl-bookmark-count" id="tl-bookmark-count">0</span>
+              <span>Bookmarks</span>
+            </button>
+            <button class="tl-annotate-btn" id="tl-annotate-btn" type="button" title="Annotate selection">
+              <span>✎</span>
+              <span>Annotate</span>
+            </button>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-filter-chips" id="tl-filter-chips" role="group" aria-label="Entity type filters">
+              <button class="tl-chip active" data-type="all" type="button">
+                <span class="tl-chip-icon">⊕</span>
+                <span>All</span>
+                <span class="tl-chip-count" data-count="all">0</span>
+              </button>
+              <button class="tl-chip active" data-type="session" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Sessions</span>
+                <span class="tl-chip-count" data-count="session">0</span>
+              </button>
+              <button class="tl-chip active" data-type="memory" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Memories</span>
+                <span class="tl-chip-count" data-count="memory">0</span>
+              </button>
+              <button class="tl-chip active" data-type="finding" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Findings</span>
+                <span class="tl-chip-count" data-count="finding">0</span>
+              </button>
+              <button class="tl-chip active" data-type="task" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Tasks</span>
+                <span class="tl-chip-count" data-count="task">0</span>
+              </button>
+              <button class="tl-chip active" data-type="approval" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Approvals</span>
+                <span class="tl-chip-count" data-count="approval">0</span>
+              </button>
+              <button class="tl-chip active" data-type="anomaly" type="button">
+                <span class="tl-chip-icon">●</span>
+                <span>Anomalies</span>
+                <span class="tl-chip-count" data-count="anomaly">0</span>
+              </button>
+            </div>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-search-wrap" id="tl-search-wrap">
+              <span class="tl-search-icon">🔍</span>
+              <input type="text" class="tl-search-input" id="tl-search-input"
+                     placeholder="Search events…" autocomplete="off" spellcheck="false"/>
+              <button type="button" class="tl-search-clear" id="tl-search-clear" aria-label="Clear search">✕</button>
+              <div class="tl-search-meta" id="tl-search-meta"></div>
+            </div>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-session-dropdown" id="tl-session-dropdown">
+              <button type="button" class="tl-session-trigger" id="tl-session-trigger">
+                <span class="tl-session-status status-thinking"></span>
+                <span class="tl-session-label" id="tl-session-label">Session: All sessions</span>
+                <span class="tl-session-chevron">▼</span>
+              </button>
+              <div class="tl-session-menu" id="tl-session-menu">
+                <div class="tl-session-menu-header">
+                  <input type="text" class="tl-session-menu-search" id="tl-session-menu-search"
+                         placeholder="Filter sessions…" autocomplete="off" spellcheck="false"/>
+                </div>
+                <div class="tl-session-menu-list" id="tl-session-menu-list"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-density-bar" id="tl-density-bar" title="Event density over time"></div>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-range-buttons" id="tl-range-buttons" role="group" aria-label="Time range">
+              <button class="tl-range-btn" data-range="1h" type="button">1h</button>
+              <button class="tl-range-btn" data-range="6h" type="button">6h</button>
+              <button class="tl-range-btn active" data-range="24h" type="button">24h</button>
+              <button class="tl-range-btn" data-range="7d" type="button">7d</button>
+              <button class="tl-range-btn" data-range="all" type="button">All</button>
+            </div>
+          </div>
+          <div class="tl-toolbar-section">
+            <div class="tl-selection-counter" id="tl-selection-counter">
+              <span id="tl-selection-count-text">0 selected</span>
+              <button type="button" id="tl-deselect-btn">Deselect</button>
+            </div>
+          </div>
+        </div>
+        <!-- TL_RULER_PLACEHOLDER -->
+        <div class="tl-ruler-wrap" id="tl-ruler-wrap">
+          <div class="tl-ruler-inner" id="tl-ruler-inner">
+            <div class="tl-ruler-tz" id="tl-ruler-tz">UTC</div>
+          </div>
+        </div>
+        <!-- TL_CANVAS_PLACEHOLDER -->
+        <div class="tl-canvas-scroll" id="tl-canvas-scroll" tabindex="0"
+             role="region" aria-label="Timeline Explorer">
+          <div class="tl-canvas" id="tl-canvas">
+            <svg class="tl-connectors" id="tl-connectors" xmlns="http://www.w3.org/2000/svg">
+              <defs></defs>
+            </svg>
+            <div id="tl-date-groups"></div>
+            <div class="tl-empty-state" id="tl-empty-state" style="display:none;">
+              <div class="tl-empty-icon" id="tl-empty-icon">🕒</div>
+              <div class="tl-empty-title" id="tl-empty-title">No events to display</div>
+              <div class="tl-empty-subtitle" id="tl-empty-subtitle">
+                Events will appear here as sessions run
+              </div>
+              <button class="tl-empty-action" type="button" id="tl-empty-action">
+                Create your first session
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-bookmarks-panel" id="tl-bookmarks-panel">
+          <div class="tl-bookmarks-panel-header">
+            <span class="tl-bookmarks-panel-title">Bookmarks (<span id="tl-bm-panel-count">0</span>)</span>
+            <button class="tl-bookmarks-clear-all" id="tl-bm-clear-all" type="button">Clear all</button>
+          </div>
+          <div class="tl-bookmarks-list" id="tl-bookmarks-list"></div>
+        </div>
+        <div class="tl-zoom-indicator" id="tl-zoom-indicator">
+          <span id="tl-zoom-text">Zoom: 1.0×</span>
+          <span class="tl-zoom-indicator-bar">
+            <span class="tl-zoom-indicator-fill" id="tl-zoom-fill"></span>
+          </span>
+        </div>
+        <script>
+        (function () {
+          'use strict';
+
+          // ─────────────────────────────────────────────────────────────────
+          // State
+          // ─────────────────────────────────────────────────────────────────
+          var PX_PER_HOUR = 400; // base horizontal density at zoom = 1.0
+          var CARD_W = 320;
+          var CARD_GAP = 24;
+          var LANE_H = 96; // matches expanded card height
+          var LANE_VPAD = 16;
+          var TYPE_ICONS = {
+            session: '💬', memory: '🧠', finding: '🔍',
+            task: '☑', approval: '✓', anomaly: '⚠'
+          };
+          var TYPE_COLORS = {
+            session: '#3b82f6', memory: '#06b6d4', finding: '#22c55e',
+            task: '#f59e0b', approval: '#ef4444', anomaly: '#f97316'
+          };
+
+          // Build timestamps relative to "now" so the sample data feels live
+          // regardless of when this page is loaded.
+          var now = Date.now();
+          var day = 24 * 60 * 60 * 1000;
+          var h = 60 * 60 * 1000;
+          var m = 60 * 1000;
+
+          var TL = {
+            zoom: 1.0,
+            scrollLeft: 0,
+            scrollTop: 0,
+            selectedIds: new Set(),
+            bookmarkIds: new Set(),
+            activeTypes: new Set(['session', 'memory', 'finding', 'task', 'approval', 'anomaly']),
+            sessionFilter: 'all',
+            searchQuery: '',
+            events: [
+              // Yesterday
+              { id: 'e1', type: 'session',  title: 'Bootstrapping dev environment', desc: 'Resumed the Consensus project after the indexer-hang incident; re-ran the bootstrap script.', timestamp: now - day - 8 * h,        sessionId: 's-alpha', tags: ['bootstrap', 'infra'], entityColor: TYPE_COLORS.session },
+              { id: 'e2', type: 'memory',   title: 'Stored: project layout convention',  desc: 'Coding-Hermes foreman pattern with shared tests/ layout across cron-driven fleet.', timestamp: now - day - 6 * h + 5 * m, sessionId: 's-alpha', tags: ['memory', 'convention'], entityColor: TYPE_COLORS.memory },
+              { id: 'e3', type: 'finding',  title: 'Bottleneck: TOAST chunked writes', desc: 'DuckBrain compaction stalls at ≥4MB writes — chunk to 2MB batches.', timestamp: now - day - 4 * h,          sessionId: 's-bravo', tags: ['perf', 'duckbrain'], entityColor: TYPE_COLORS.finding },
+              { id: 'e4', type: 'anomaly',  title: 'Spike: H4F bucket exhaustion',     desc: 'Prepaid buckets for JS/TS feature work drained overnight; supplier rotation queued.', timestamp: now - day - 2 * h,          sessionId: 's-bravo', tags: ['infra', 'urgent'], entityColor: TYPE_COLORS.anomaly },
+
+              // Today
+              { id: 'e5', type: 'approval', title: 'Approve: spec split for tasks',     desc: 'Two-stage reviewer wants OK before splitting T-204 into T-204a / T-204b.', timestamp: now - 5 * h,                  sessionId: 's-charlie', tags: ['review', 'spec'], entityColor: TYPE_COLORS.approval },
+              { id: 'e6', type: 'task',     title: 'Implement Timeline Explorer JS',    desc: 'PASS 1–7: rendering, ruler, zoom/pan, filters, bookmarks, selection.', timestamp: now - 3 * h - 30 * m,         sessionId: 's-charlie', tags: ['feature', 'chronicle'], entityColor: TYPE_COLORS.task },
+              { id: 'e7', type: 'session',  title: 'Mid-task context refresh',           desc: 'Re-read indexer config + AGENTS.md before touching the panic path.', timestamp: now - 2 * h,                  sessionId: 's-charlie', tags: ['context'], entityColor: TYPE_COLORS.session },
+              { id: 'e8', type: 'memory',   title: 'Recalled: past indexer hang fix',    desc: 'Linked from DuckBrain — earlier root-cause was a stdlib deadlock in WAL replay.', timestamp: now - 1 * h - 15 * m,         sessionId: 's-charlie', tags: ['memory', 'recalled'], entityColor: TYPE_COLORS.memory },
+
+              // Tomorrow
+              { id: 'e9',  type: 'task',     title: 'Wire indexer panic guard',          desc: 'Replace the silent retry with a signal-handler + structured fence in compaction.', timestamp: now + 1 * h + 30 * m,         sessionId: 's-delta',  tags: ['infra', 'hardening'], entityColor: TYPE_COLORS.task },
+              { id: 'e10', type: 'finding',  title: 'Draft ADR: lane-based timestamps', desc: 'Switching to lane encoding removes the need for collision bucketing.', timestamp: now + 3 * h,                  sessionId: 's-delta',  tags: ['design', 'adr'], entityColor: TYPE_COLORS.finding },
+              { id: 'e11', type: 'approval', title: 'Approve: cron schedule refresh',    desc: 'New per-job jitter to avoid synced thundering herds across the fleet.', timestamp: now + 5 * h,                  sessionId: 's-delta',  tags: ['cron', 'ops'], entityColor: TYPE_COLORS.approval },
+              { id: 'e12', type: 'anomaly',  title: 'Forecast: provider latency drift', desc: 'OpenRouter p95 creep on Sonnet-4 over last 6h — flag before opening more tasks.', timestamp: now + 7 * h,                  sessionId: 's-echo',   tags: ['forecast', 'sre'], entityColor: TYPE_COLORS.anomaly }
+            ]
+          };
+
+          // ─────────────────────────────────────────────────────────────────
+          // Bookmarks (localStorage)
+          // ─────────────────────────────────────────────────────────────────
+          var BM_KEY = 'tl-bookmarks';
+          try {
+            var raw = localStorage.getItem(BM_KEY);
+            if (raw) {
+              var saved = JSON.parse(raw);
+              if (Array.isArray(saved)) saved.forEach(function (id) { TL.bookmarkIds.add(id); });
+            }
+          } catch (e) { /* ignore corrupt entry */ }
+
+          function persistBookmarks() {
+            try { localStorage.setItem(BM_KEY, JSON.stringify(Array.from(TL.bookmarkIds))); }
+            catch (e) { /* storage may be unavailable */ }
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // DOM refs
+          // ─────────────────────────────────────────────────────────────────
+          var root          = document.getElementById('tl-root');
+          var canvasScroll  = document.getElementById('tl-canvas-scroll');
+          var canvas        = document.getElementById('tl-canvas');
+          var dateGroups    = document.getElementById('tl-date-groups');
+          var rulerInner    = document.getElementById('tl-ruler-inner');
+          var connectors    = document.getElementById('tl-connectors');
+          var emptyState    = document.getElementById('tl-empty-state');
+          var zoomText      = document.getElementById('tl-zoom-text');
+          var zoomFill      = document.getElementById('tl-zoom-fill');
+          var selectionText = document.getElementById('tl-selection-count-text');
+          var bookmarkCount = document.getElementById('tl-bookmark-count');
+          var bookmarksBtn  = document.getElementById('tl-bookmarks-btn');
+          var bookmarksList = document.getElementById('tl-bookmarks-list');
+          var bookmarksPanel = document.getElementById('tl-bookmarks-panel');
+          var clearAllBtn   = document.getElementById('tl-bm-clear-all');
+          var chipsWrap     = document.getElementById('tl-filter-chips');
+          var searchInput   = document.getElementById('tl-search-input');
+          var searchClear   = document.getElementById('tl-search-clear');
+          var searchMeta    = document.getElementById('tl-search-meta');
+          var rangeButtons  = document.getElementById('tl-range-buttons');
+          var densityBar    = document.getElementById('tl-density-bar');
+
+          // ─────────────────────────────────────────────────────────────────
+          // Helpers
+          // ─────────────────────────────────────────────────────────────────
+          function pxPerMs() { return (PX_PER_HOUR / (60 * 60 * 1000)) * TL.zoom; }
+
+          function tsToX(ts) {
+            // origin = newest event + 1 day buffer
+            var maxTs = 0;
+            for (var i = 0; i < TL.events.length; i++) if (TL.events[i].timestamp > maxTs) maxTs = TL.events[i].timestamp;
+            var origin = maxTs + day;
+            var px = pxPerMs();
+            return (origin - ts) * px; // x grows as we go further into the past
+          }
+
+          function fmtTime(ts) {
+            var d = new Date(ts);
+            var hh = String(d.getHours()).padStart(2, '0');
+            var mm = String(d.getMinutes()).padStart(2, '0');
+            return hh + ':' + mm;
+          }
+
+          function fmtDateLabel(ts) {
+            var d = new Date(ts);
+            var today = new Date(); today.setHours(0,0,0,0);
+            var target = new Date(ts); target.setHours(0,0,0,0);
+            var diff = Math.round((target - today) / day);
+            var base = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+            if (diff === 0)  return base + ' · Today';
+            if (diff === -1) return base + ' · Yesterday';
+            if (diff === 1)  return base + ' · Tomorrow';
+            return base + ' · ' + (diff < 0 ? -diff + 'd ago' : 'in ' + diff + 'd');
+          }
+
+          function dayBucket(ts) {
+            var d = new Date(ts);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          }
+
+          function visibleEvents() {
+            var q = TL.searchQuery.trim().toLowerCase();
+            return TL.events.filter(function (ev) {
+              if (!TL.activeTypes.has(ev.type)) return false;
+              if (TL.sessionFilter !== 'all' && ev.sessionId !== TL.sessionFilter) return false;
+              if (q && (ev.title.toLowerCase().indexOf(q) === -1 &&
+                        ev.desc.toLowerCase().indexOf(q) === -1)) return false;
+              return true;
+            });
+          }
+
+          function updateChipCounts() {
+            var counts = { all: 0, session: 0, memory: 0, finding: 0, task: 0, approval: 0, anomaly: 0 };
+            TL.events.forEach(function (ev) {
+              counts.all++;
+              if (counts[ev.type] != null) counts[ev.type]++;
+            });
+            chipsWrap.querySelectorAll('.tl-chip-count').forEach(function (el) {
+              var k = el.getAttribute('data-count');
+              if (counts[k] != null) el.textContent = counts[k];
+            });
+          }
+
+          function updateSelectionUI() {
+            var n = TL.selectedIds.size;
+            selectionText.textContent = n + (n === 1 ? ' selected' : ' selected');
+          }
+
+          function updateBookmarkUI() {
+            bookmarkCount.textContent = String(TL.bookmarkIds.size);
+            if (!bookmarksList) return;
+            bookmarksList.innerHTML = '';
+            if (TL.bookmarkIds.size === 0) {
+              var empty = document.createElement('div');
+              empty.className = 'tl-bookmarks-empty';
+              empty.textContent = 'No bookmarks yet — click a star on any event.';
+              bookmarksList.appendChild(empty);
+              return;
+            }
+            TL.bookmarkIds.forEach(function (id) {
+              var ev = TL.events.find(function (e) { return e.id === id; });
+              if (!ev) return;
+              var row = document.createElement('div');
+              row.className = 'tl-bookmarks-item';
+              row.dataset.id = id;
+              row.innerHTML =
+                '<span class="tl-bookmarks-dot" style="background:' + ev.entityColor + '"></span>' +
+                '<span class="tl-bookmarks-title"></span>' +
+                '<span class="tl-bookmarks-time"></span>' +
+                '<button type="button" class="tl-bookmarks-remove" aria-label="Remove bookmark">✕</button>';
+              row.querySelector('.tl-bookmarks-title').textContent = ev.title;
+              row.querySelector('.tl-bookmarks-time').textContent = fmtTime(ev.timestamp);
+              row.querySelector('.tl-bookmarks-remove').addEventListener('click', function (e) {
+                e.stopPropagation();
+                TL.bookmarkIds.delete(id);
+                persistBookmarks();
+                updateBookmarkUI();
+                refreshCards();
+              });
+              row.addEventListener('click', function () {
+                // pan canvas so this event is near centre
+                var x = tsToX(ev.timestamp);
+                canvasScroll.scrollLeft = Math.max(0, x - canvasScroll.clientWidth / 2);
+              });
+              bookmarksList.appendChild(row);
+            });
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Rendering — cards
+          // ─────────────────────────────────────────────────────────────────
+          function renderCards() {
+            var vis = visibleEvents();
+            dateGroups.innerHTML = '';
+
+            if (vis.length === 0) {
+              emptyState.style.display = '';
+              // keep canvas at minimum width so the ruler still draws
+              canvas.style.width = Math.max(canvasScroll.clientWidth, 1200) + 'px';
+              renderRuler();
+              drawConnectors(vis);
+              return;
+            } else {
+              emptyState.style.display = 'none';
+            }
+
+            // group by day
+            var groups = new Map();
+            vis.forEach(function (ev) {
+              var k = dayBucket(ev.timestamp);
+              if (!groups.has(k)) groups.set(k, []);
+              groups.get(k).push(ev);
+            });
+
+            // sort events in each group by timestamp (oldest first = rightmost end of timeline)
+            groups.forEach(function (arr) {
+              arr.sort(function (a, b) { return a.timestamp - b.timestamp; });
+            });
+
+            // assign lanes within each group (greedy)
+            groups.forEach(function (arr) {
+              var laneEnds = []; // index = lane, value = last event's right-edge x
+              arr.forEach(function (ev) {
+                var x = tsToX(ev.timestamp);
+                var left = x - CARD_W / 2;
+                var right = x + CARD_W / 2;
+                var lane = 0;
+                while (lane < laneEnds.length && laneEnds[lane] + CARD_GAP > left) lane++;
+                if (lane >= laneEnds.length) laneEnds.push(right);
+                else laneEnds[lane] = right;
+                ev._x = x;
+                ev._lane = lane;
+              });
+              var maxLane = 0;
+              arr.forEach(function (e) { if (e._lane > maxLane) maxLane = e._lane; });
+              arr._height = (maxLane + 1) * LANE_H + LANE_VPAD * 2;
+            });
+
+            // compute total canvas width (find min x, max x of any card)
+            var minX = Infinity, maxX = -Infinity;
+            vis.forEach(function (ev) {
+              if (ev._x - CARD_W / 2 < minX) minX = ev._x - CARD_W / 2;
+              if (ev._x + CARD_W / 2 > maxX) maxX = ev._x + CARD_W / 2;
+            });
+            var totalW = Math.max(maxX + 200, canvasScroll.clientWidth, minX + 1200);
+
+            // sorted day keys oldest-first so timeline reads left-to-right past → future
+            var dayKeys = Array.from(groups.keys()).sort(function (a, b) { return a - b; });
+
+            var totalH = 0;
+            dayKeys.forEach(function (dk) {
+              var arr = groups.get(dk);
+              var groupDiv = document.createElement('div');
+              groupDiv.className = 'tl-date-group';
+              groupDiv.style.minHeight = arr._height + 'px';
+              groupDiv.style.paddingTop = totalH + 'px';
+
+              var hdr = document.createElement('div');
+              hdr.className = 'tl-date-group-header';
+              hdr.innerHTML =
+                '<span class="tl-date-group-label"></span>' +
+                '<span class="tl-date-group-count"></span>' +
+                '<button type="button" class="tl-date-group-toggle" aria-label="Toggle group">▾</button>';
+              hdr.querySelector('.tl-date-group-label').textContent = fmtDateLabel(dk);
+              hdr.querySelector('.tl-date-group-count').textContent =
+                arr.length + (arr.length === 1 ? ' event' : ' events');
+              hdr.querySelector('.tl-date-group-toggle').addEventListener('click', function () {
+                groupDiv.classList.toggle('collapsed');
+              });
+              groupDiv.appendChild(hdr);
+
+              var eventsWrap = document.createElement('div');
+              eventsWrap.className = 'tl-date-group-events';
+
+              arr.forEach(function (ev) {
+                var card = document.createElement('div');
+                card.className = 'tl-event';
+                card.dataset.id = ev.id;
+                card.dataset.type = ev.type;
+                card.dataset.sessionId = ev.sessionId;
+                card.style.left = (ev._x - CARD_W / 2) + 'px';
+                card.style.top  = (ev._lane * LANE_H + LANE_VPAD) + 'px';
+                if (TL.bookmarkIds.has(ev.id)) card.classList.add('bookmarked');
+                if (TL.selectedIds.has(ev.id)) card.classList.add('selected');
+
+                var tagsHtml = '';
+                ev.tags.slice(0, 3).forEach(function (t) {
+                  tagsHtml += '<span class="tl-tag"></span>';
+                });
+                if (ev.tags.length > 3) tagsHtml += '<span class="tl-tag-overflow">+' + (ev.tags.length - 3) + '</span>';
+
+                card.innerHTML =
+                  '<div class="tl-event-header">' +
+                    '<span class="tl-event-dot"></span>' +
+                    '<span class="tl-event-entity-label"></span>' +
+                    '<span class="tl-event-time"></span>' +
+                    '<button type="button" class="tl-event-bookmark" aria-label="Bookmark">★</button>' +
+                  '</div>' +
+                  '<div class="tl-event-divider"></div>' +
+                  '<div class="tl-event-content">' +
+                    '<span class="tl-event-icon-wrap"></span>' +
+                    '<div class="tl-event-text">' +
+                      '<div class="tl-event-title"></div>' +
+                      '<div class="tl-event-description"></div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="tl-event-tags">' + tagsHtml + '</div>' +
+                  '<span class="tl-event-handle" title="Drag to connect"></span>';
+
+                card.querySelector('.tl-event-entity-label').textContent = ev.type;
+                card.querySelector('.tl-event-time').textContent        = fmtTime(ev.timestamp);
+                card.querySelector('.tl-event-icon-wrap').textContent    = TYPE_ICONS[ev.type] || '•';
+                card.querySelector('.tl-event-title').textContent        = ev.title;
+                card.querySelector('.tl-event-description').textContent  = ev.desc;
+
+                // tag text set after building (avoid HTML injection)
+                var tagEls = card.querySelectorAll('.tl-tag');
+                ev.tags.slice(0, 3).forEach(function (t, i) { tagEls[i].textContent = t; });
+
+                card.addEventListener('click', function (e) {
+                  // bookmark button handles its own click first
+                  if (e.target.closest('.tl-event-bookmark')) return;
+                  handleCardClick(ev, e);
+                });
+                card.querySelector('.tl-event-bookmark').addEventListener('click', function (e) {
+                  e.stopPropagation();
+                  if (TL.bookmarkIds.has(ev.id)) TL.bookmarkIds.delete(ev.id);
+                  else TL.bookmarkIds.add(ev.id);
+                  persistBookmarks();
+                  updateBookmarkUI();
+                  card.classList.toggle('bookmarked');
+                  e.currentTarget.classList.add('bounce');
+                  setTimeout(function () { e.currentTarget.classList.remove('bounce'); }, 320);
+                });
+
+                eventsWrap.appendChild(card);
+              });
+
+              groupDiv.appendChild(eventsWrap);
+              dateGroups.appendChild(groupDiv);
+
+              totalH += arr._height + 32; // 32 = header band
+            });
+
+            canvas.style.width  = totalW + 'px';
+            canvas.style.height = Math.max(totalH, canvasScroll.clientHeight) + 'px';
+            renderRuler();
+            drawConnectors(vis);
+          }
+
+          function refreshCards() {
+            // lighter re-render: full rebuild is fine at this size
+            renderCards();
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Connectors (SVG) — lines between bookmarked events of same session
+          // ─────────────────────────────────────────────────────────────────
+          function drawConnectors(vis) {
+            if (!connectors) return;
+            connectors.innerHTML = '<defs></defs>';
+            connectors.setAttribute('width',  canvas.offsetWidth);
+            connectors.setAttribute('height', canvas.offsetHeight);
+            var bmList = vis.filter(function (e) { return TL.bookmarkIds.has(e.id); });
+            var bySession = {};
+            bmList.forEach(function (e) {
+              if (!bySession[e.sessionId]) bySession[e.sessionId] = [];
+              bySession[e.sessionId].push(e);
+            });
+            Object.keys(bySession).forEach(function (sid) {
+              var pairs = bySession[sid];
+              pairs.sort(function (a, b) { return a.timestamp - b.timestamp; });
+              for (var i = 0; i < pairs.length - 1; i++) {
+                var a = pairs[i], b = pairs[i + 1];
+                var ax = a._x, ay = a._lane * LANE_H + LANE_VPAD + 24;
+                var bx = b._x, by = b._lane * LANE_H + LANE_VPAD + 24;
+                var d = 'M ' + ax + ' ' + ay + ' C ' + (ax + 40) + ' ' + ay + ', ' +
+                        (bx - 40) + ' ' + by + ', ' + bx + ' ' + by;
+                var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'tl-connector');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', a.entityColor);
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('stroke-dasharray', '4 4');
+                path.setAttribute('opacity', '0.45');
+                connectors.appendChild(path);
+              }
+            });
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Ruler
+          // ─────────────────────────────────────────────────────────────────
+          function renderRuler() {
+            rulerInner.innerHTML = '';
+            var tz = document.getElementById('tl-ruler-tz');
+            if (tz) tz.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+            var w = canvas.offsetWidth || canvasScroll.clientWidth || 1200;
+            rulerInner.style.width = w + 'px';
+
+            // choose hour spacing based on zoom
+            var pxPerHr = pxPerMs() * 60 * 60 * 1000;
+            var stepHours = 1;
+            if (pxPerHr < 30) stepHours = 24;
+            else if (pxPerHr < 80) stepHours = 6;
+            else if (pxPerHr < 200) stepHours = 1;
+            if (TL.zoom > 3) stepHours = 0.5;
+
+            // origin anchor: newest event + 1 day
+            var maxTs = 0;
+            TL.events.forEach(function (e) { if (e.timestamp > maxTs) maxTs = e.timestamp; });
+            var origin = maxTs + day;
+            var startTs = origin - (w / pxPerMs());
+
+            var stepMs = stepHours * 60 * 60 * 1000;
+            var firstTick = Math.ceil(startTs / stepMs) * stepMs;
+
+            for (var ts = firstTick; ts < origin + 2 * day; ts += stepMs) {
+              var x = (origin - ts) * pxPerMs();
+              if (x < -50 || x > w + 50) continue;
+              var tick = document.createElement('div');
+              var major = (new Date(ts).getHours() === 0);
+              tick.className = 'tl-ruler-tick ' + (major ? 'major' : 'minor');
+              tick.style.left = x + 'px';
+              rulerInner.appendChild(tick);
+              if (major) {
+                var label = document.createElement('div');
+                label.className = 'tl-ruler-label';
+                label.style.left = x + 'px';
+                label.textContent = new Date(ts).toLocaleDateString(undefined,
+                  { month: 'short', day: 'numeric' });
+                rulerInner.appendChild(label);
+              }
+            }
+
+            // NOW indicator
+            var nowX = (origin - now) * pxPerMs();
+            if (nowX >= -2 && nowX <= w + 2) {
+              var nowDiv = document.createElement('div');
+              nowDiv.className = 'tl-ruler-now';
+              nowDiv.style.left = nowX + 'px';
+              var lbl = document.createElement('div');
+              lbl.className = 'tl-ruler-label';
+              lbl.style.left = (nowX + 6) + 'px';
+              lbl.textContent = 'NOW';
+              lbl.style.color = 'var(--color-accent-primary)';
+              rulerInner.appendChild(nowDiv);
+              rulerInner.appendChild(lbl);
+            }
+
+            // Density bar (light bar chart of events per hour bucket)
+            if (densityBar) {
+              densityBar.innerHTML = '';
+              var buckets = 60;
+              var arr = new Array(buckets).fill(0);
+              var totalRange = (origin + day) - (origin - 7 * day);
+              TL.events.forEach(function (e) {
+                var i = Math.floor(((origin - e.timestamp)) / totalRange * buckets);
+                if (i >= 0 && i < buckets) arr[i]++;
+              });
+              var max = Math.max.apply(null, arr) || 1;
+              for (var i = 0; i < buckets; i++) {
+                var bar = document.createElement('div');
+                bar.className = 'tl-density-bar-cell';
+                bar.style.height = Math.max(2, (arr[i] / max) * 100) + '%';
+                bar.title = arr[i] + ' events';
+                densityBar.appendChild(bar);
+              }
+            }
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Zoom / Pan
+          // ─────────────────────────────────────────────────────────────────
+          function applyZoom(newZoom, anchorClientX) {
+            newZoom = Math.max(0.25, Math.min(8, newZoom));
+            if (newZoom === TL.zoom) return;
+            if (anchorClientX != null) {
+              var rect = canvasScroll.getBoundingClientRect();
+              var cursorX = anchorClientX - rect.left + canvasScroll.scrollLeft;
+              var ratio = newZoom / TL.zoom;
+              canvasScroll.scrollLeft = cursorX * ratio - (anchorClientX - rect.left);
+            }
+            TL.zoom = newZoom;
+            zoomText.textContent = 'Zoom: ' + TL.zoom.toFixed(2) + '×';
+            zoomFill.style.width = Math.min(100, (TL.zoom / 8) * 100) + '%';
+            renderCards();
+          }
+
+          canvasScroll.addEventListener('wheel', function (e) {
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              var factor = e.deltaY < 0 ? 1.15 : 0.87;
+              applyZoom(TL.zoom * factor, e.clientX);
+              return;
+            }
+            if (e.shiftKey) {
+              e.preventDefault();
+              canvasScroll.scrollTop += e.deltaY;
+              return;
+            }
+            // horizontal pan: deltaX natively handled (native scroll)
+            // treat deltaY without shift as additional horizontal nudge (trackpads)
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+              // already handled above for shift; otherwise convert to horizontal
+              canvasScroll.scrollLeft += e.deltaY;
+              e.preventDefault();
+            }
+          }, { passive: false });
+
+          canvasScroll.addEventListener('scroll', function () {
+            TL.scrollLeft = canvasScroll.scrollLeft;
+            TL.scrollTop = canvasScroll.scrollTop;
+          });
+
+          window.addEventListener('keydown', function (e) {
+            if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+            switch (e.key) {
+              case '+': case '=': applyZoom(TL.zoom * 1.2); e.preventDefault(); break;
+              case '-': case '_': applyZoom(TL.zoom / 1.2); e.preventDefault(); break;
+              case 't': case 'T': scrollToNow(); break;
+              case 'Home': scrollToEvent('first'); e.preventDefault(); break;
+              case 'End':  scrollToEvent('last');  e.preventDefault(); break;
+              case 'ArrowLeft':  canvasScroll.scrollLeft -= 80; e.preventDefault(); break;
+              case 'ArrowRight': canvasScroll.scrollLeft += 80; e.preventDefault(); break;
+              case 'ArrowUp':    canvasScroll.scrollTop  -= 80; e.preventDefault(); break;
+              case 'ArrowDown':  canvasScroll.scrollTop  += 80; e.preventDefault(); break;
+              case 'Escape':     TL.selectedIds.clear(); updateSelectionUI(); refreshCards(); break;
+            }
+          });
+
+          function scrollToNow() {
+            var x = tsToX(now);
+            canvasScroll.scrollLeft = Math.max(0, x - canvasScroll.clientWidth / 2);
+          }
+
+          function scrollToEvent(pos) {
+            var sorted = TL.events.slice().sort(function (a, b) { return a.timestamp - b.timestamp; });
+            if (sorted.length === 0) return;
+            var ev = pos === 'first' ? sorted[0] : sorted[sorted.length - 1];
+            canvasScroll.scrollLeft = Math.max(0, tsToX(ev.timestamp) - canvasScroll.clientWidth / 2);
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Filters
+          // ─────────────────────────────────────────────────────────────────
+          chipsWrap.addEventListener('click', function (e) {
+            var btn = e.target.closest('.tl-chip');
+            if (!btn) return;
+            var type = btn.dataset.type;
+            if (type === 'all') {
+              if (TL.activeTypes.size === 6) TL.activeTypes.clear();
+              else TL.activeTypes = new Set(['session','memory','finding','task','approval','anomaly']);
+            } else {
+              if (TL.activeTypes.has(type)) TL.activeTypes.delete(type);
+              else TL.activeTypes.add(type);
+              if (TL.activeTypes.size === 0) TL.activeTypes.add(type); // never empty
+            }
+            updateChipStates();
+            refreshCards();
+          });
+
+          function updateChipStates() {
+            chipsWrap.querySelectorAll('.tl-chip').forEach(function (btn) {
+              var t = btn.dataset.type;
+              if (t === 'all') {
+                btn.classList.toggle('active', TL.activeTypes.size === 6);
+              } else {
+                btn.classList.toggle('active', TL.activeTypes.has(t));
+              }
+            });
+          }
+
+          var searchTimer = null;
+          searchInput.addEventListener('input', function () {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function () {
+              TL.searchQuery = searchInput.value;
+              var q = TL.searchQuery.trim().toLowerCase();
+              var vis = visibleEvents();
+              searchMeta.textContent = q ? (vis.length + ' match' + (vis.length === 1 ? '' : 'es')) : '';
+              refreshCards();
+            }, 200);
+          });
+          searchClear.addEventListener('click', function () {
+            searchInput.value = '';
+            TL.searchQuery = '';
+            searchMeta.textContent = '';
+            refreshCards();
+            searchInput.focus();
+          });
+
+          rangeButtons.addEventListener('click', function (e) {
+            var btn = e.target.closest('.tl-range-btn');
+            if (!btn) return;
+            rangeButtons.querySelectorAll('.tl-range-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var range = btn.dataset.range;
+            var hours = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 }[range];
+            if (hours == null) {
+              // All — zoom out to show every event
+              TL.zoom = 0.5;
+              zoomText.textContent = 'Zoom: 0.50×';
+              zoomFill.style.width = Math.min(100, (TL.zoom / 8) * 100) + '%';
+            } else {
+              // Compute zoom so that `hours` worth of pixels = ~80% of viewport
+              var target = (canvasScroll.clientWidth * 0.8) / (hours * PX_PER_HOUR);
+              TL.zoom = Math.max(0.25, Math.min(8, target));
+              zoomText.textContent = 'Zoom: ' + TL.zoom.toFixed(2) + '×';
+              zoomFill.style.width = Math.min(100, (TL.zoom / 8) * 100) + '%';
+              // pan to now
+              setTimeout(scrollToNow, 0);
+            }
+            renderCards();
+          });
+
+          // ─────────────────────────────────────────────────────────────────
+          // Bookmarks panel
+          // ─────────────────────────────────────────────────────────────────
+          bookmarksBtn.addEventListener('click', function () {
+            var open = bookmarksPanel.style.display !== 'none';
+            bookmarksPanel.style.display = open ? 'none' : '';
+            bookmarksBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+          });
+          if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', function () {
+              TL.bookmarkIds.clear();
+              persistBookmarks();
+              updateBookmarkUI();
+              refreshCards();
+            });
+          }
+
+          // ─────────────────────────────────────────────────────────────────
+          // Selection
+          // ─────────────────────────────────────────────────────────────────
+          function handleCardClick(ev, mouseEvent) {
+            var id = ev.id;
+            if (mouseEvent.shiftKey && TL.selectedIds.size > 0) {
+              var sorted = visibleEvents().slice().sort(function (a, b) { return a.timestamp - b.timestamp; });
+              var ids = sorted.map(function (e) { return e.id; });
+              var first = ids.indexOf(Array.from(TL.selectedIds)[0]);
+              var target = ids.indexOf(id);
+              if (first !== -1 && target !== -1) {
+                var lo = Math.min(first, target), hi = Math.max(first, target);
+                TL.selectedIds = new Set(ids.slice(lo, hi + 1));
+              }
+            } else if (mouseEvent.metaKey || mouseEvent.ctrlKey) {
+              if (TL.selectedIds.has(id)) TL.selectedIds.delete(id);
+              else TL.selectedIds.add(id);
+            } else {
+              TL.selectedIds = new Set([id]);
+            }
+            // apply visual state to cards in DOM
+            document.querySelectorAll('.tl-event').forEach(function (c) {
+              var cid = c.dataset.id;
+              var sel = TL.selectedIds.has(cid);
+              c.classList.toggle('selected', sel);
+              c.classList.toggle('compact', !sel);
+              c.classList.toggle('expanded', sel);
+            });
+            updateSelectionUI();
+          }
+
+          canvas.addEventListener('click', function (e) {
+            if (e.target === canvas || e.target.id === 'tl-connectors' || e.target === dateGroups) {
+              TL.selectedIds.clear();
+              document.querySelectorAll('.tl-event').forEach(function (c) {
+                c.classList.remove('selected', 'expanded');
+                c.classList.add('compact');
+              });
+              updateSelectionUI();
+            }
+          });
+
+          // ─────────────────────────────────────────────────────────────────
+          // Initial state
+          // ─────────────────────────────────────────────────────────────────
+          updateChipCounts();
+          updateChipStates();
+          updateBookmarkUI();
+          updateSelectionUI();
+          zoomText.textContent = 'Zoom: 1.00×';
+          zoomFill.style.width = Math.min(100, (TL.zoom / 8) * 100) + '%';
+          // default: every card starts compact
+          renderCards();
+          // centre on "now" so the NOW indicator is visible at load
+          setTimeout(scrollToNow, 0);
+
+          // re-layout ruler & density on viewport resize
+          var resizeTimer = null;
+          window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderCards, 120);
+          });
+        })();
+        </script>
+      </div>
     </div>
 
     </main>
