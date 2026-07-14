@@ -44,7 +44,7 @@
 The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenCode HTTP → Consensus native API. Any tool speaking OpenCode protocol can use Consensus as a drop-in runtime.
 - [x] Verify all 26 shim endpoints respond correctly (compare against OpenCode upstream contract, SPEC-017) — 25/25 PASS (60274b8, /* wildcard fix)
 - [x] Add shim smoke test to CI: start `consensus serve --adapter opencode`, curl /global/health + /session — TestShimEndpoints (ee6a207)
-- [ ] Document shim endpoints in openapi.yaml (shim-openai.yaml → /v1/chat/completions, shim-anthropic.yaml → /v1/messages)
+- [x] Document shim endpoints in openapi.yaml (shim-openai.yaml → /v1/chat/completions, shim-anthropic.yaml → /v1/messages) — docs/shim-openai.yaml + docs/shim-anthropic.yaml (0b3f049)
 - [ ] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session)
 - [ ] Test: cursor/vscode opencode extension against Consensus shim
 - [ ] Keep shim_session_map migration current (002_shim_session_map.sql) — verify on both SQLite and Postgres
