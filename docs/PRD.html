@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Product Requirements Document</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb;
+  --green: #3fb950;
+  --yellow: #d2991d;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --cyan: #39d2c0;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+h1 { font-size: 2.2rem; margin-bottom: 0.3rem; }
+h2 {
+  font-size: 1.5rem;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+  margin: 2.5rem 0 1rem;
+}
+h3 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; color: var(--purple); }
+.meta {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+.meta span { margin-right: 1.5rem; }
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-yellow { background: rgba(210,153,29,0.15); color: var(--yellow); }
+.badge-blue { background: rgba(31,111,235,0.15); color: var(--accent); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+}
+th { background: var(--surface); color: var(--accent); font-weight: 600; }
+td { background: var(--surface); }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.check { color: var(--green); }
+.cross { color: var(--red); }
+.partial { color: var(--yellow); }
+ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+li { margin: 0.3rem 0; }
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+  background: var(--surface);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+code {
+  background: var(--surface);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.chart {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background: var(--surface);
+  overflow-x: auto;
+}
+.chart-title {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.phase-row {
+  display: flex;
+  align-items: center;
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+}
+.phase-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  margin: 0 0.75rem;
+  overflow: hidden;
+}
+.phase-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+.phase-fill.done { background: var(--green); }
+.phase-fill.progress { background: var(--yellow); }
+.phase-fill.pending { background: var(--border); }
+@media (max-width: 600px) {
+  body { padding: 1rem; }
+  h1 { font-size: 1.6rem; }
+  table { font-size: 0.8rem; }
+  th, td { padding: 0.4rem; }
+}
+</style>
+</head>
+<body>
+
+<h1>Consensus</h1>
+<p style="font-size:1.1rem;color:var(--text-dim);margin-bottom:0.5rem;">
+  Product Requirements Document — v1.0
+</p>
+<div class="meta">
+  <span>📅 July 14, 2026</span>
+  <span><span class="badge badge-green">Phase 1 Complete</span></span>
+  <span><span class="badge badge-yellow">Phase 2 In Progress</span></span>
+</div>
+
+<blockquote>
+  The database <strong>IS</strong> the agent runtime.<br>
+  Every thought, every finding, every evidence link — immutably stored.<br>
+  When the regulator asks, you produce the ledger. Not an excuse.
+</blockquote>
+
+<hr style="border-color:var(--border);margin:1.5rem 0;">
+
+<h2>1. Executive Summary</h2>
+
+<p>Consensus is an <strong>agent runtime where the database IS the harness.</strong> Every agent action — reasoning, tool calls, memory writes, session state — lives in SQL tables with append-only enforcement, schema-level trust policies, and row-level security. There is no separate orchestrator script. The database is the agent's brain, not just its filing cabinet.</p>
+
+<p style="margin-top:0.5rem;"><strong>The product:</strong> Chronicle — an AI Investigation Workbench for regulated industries. Security analysts, investigative journalists, and compliance officers run AI-powered investigations where every reasoning trace, finding, and evidence citation is immutably recorded.</p>
+
+<p style="margin-top:0.5rem;"><strong>The business model:</strong> Open-source engine (Consensus), enterprise product (Chronicle). The runtime is free and auditable. The workbench, compliance dashboards, and SSO are paid.</p>
+
+<h2>2. Problem Statement</h2>
+
+<h3>2.1 The Agent Trust Gap</h3>
+<p>Current agent frameworks (LangChain, CrewAI, AutoGen, raw OpenAI function calling) share a fatal flaw: <strong>the agent's reasoning is ephemeral.</strong> When an AI agent makes a decision that costs money, violates policy, or produces harmful output, there is no audit trail. You can't answer:</p>
+
+<ul>
+  <li>What did the agent <strong>think</strong> before it acted?</li>
+  <li>What evidence did it <strong>cite</strong> for its conclusion?</li>
+  <li>Who <strong>approved</strong> the action, and when?</li>
+  <li>Can I <strong>prove</strong> to a regulator that the agent followed policy?</li>
+</ul>
+
+<p>Every existing framework treats the database as a persistence bucket — dump the final output, move on. The reasoning trace is lost. The evidence chain is broken. The memory is overwritable.</p>
+
+<h3>2.2 The Regulated Industry Mandate</h3>
+<p>Finance (SOX, Basel III), healthcare (HIPAA), legal (e-discovery rules), and defense (AUTHORIZATION frameworks) require:</p>
+
+<table>
+<tr><th>Requirement</th><th>Current State</th><th>Consensus Solution</th></tr>
+<tr><td>Immutable audit trail</td><td>Best-effort logging</td><td>Database-level append-only triggers</td></tr>
+<tr><td>Reasoning transparency</td><td>Lost in prompt/response cycle</td><td>THINK/SAYS split-pane, stored per-turn</td></tr>
+<tr><td>Multi-tenant isolation</td><td>Shared state, accidental leaks</td><td>Row-level security per session/project</td></tr>
+<tr><td>Evidence chain of custody</td><td>Manual, ad-hoc</td><td>Citation linking to source evidence</td></tr>
+<tr><td>Compliance attestation</td><td>Months of manual audit prep</td><td>One query: <code>SELECT * FROM memory_events WHERE session_id = X</code></td></tr>
+</table>
+
+<h2>3. Product Vision</h2>
+
+<h3>3.1 Chronicle — AI Investigation Workbench</h3>
+<p>A dark-theme operational dashboard for AI-powered investigations. Operators run investigations where:</p>
+<ol>
+  <li><strong>THINK pane</strong> streams the agent's reasoning in real-time — every assumption, every deduction, every doubt</li>
+  <li><strong>SAYS pane</strong> displays findings with evidence citations, trust badges, and approval workflow</li>
+  <li><strong>Memory ledger</strong> stores every thought, finding, and evidence link as append-only rows</li>
+  <li><strong>Timeline Explorer</strong> reconstructs the full investigation chronologically</li>
+  <li><strong>Entity Graph</strong> visualizes relationships between entities, sources, and findings</li>
+</ol>
+
+<h3>3.2 Core Value Proposition</h3>
+<blockquote>
+  <strong>Trust through transparency.</strong> When your SOC analyst uses AI to investigate a breach, or your journalist uses AI to verify a source, every step is recorded, every reasoning trace is preserved, every finding is backed by evidence. When the regulator asks "how did you reach this conclusion?", you show them the ledger — not a blog post about your AI policy.
+</blockquote>
+
+<h3>3.3 Target Users</h3>
+<table>
+<tr><th>Persona</th><th>Use Case</th><th>Why Consensus</th></tr>
+<tr><td>SOC Analyst</td><td>Investigate security incidents with AI</td><td>Immutable chain of custody, evidence citations</td></tr>
+<tr><td>Investigative Journalist</td><td>Verify sources, trace provenance</td><td>Source protection, reasoning transparency</td></tr>
+<tr><td>Compliance Officer</td><td>Audit AI-assisted decisions</td><td>Regulatory-grade audit trail</td></tr>
+<tr><td>Legal Discovery</td><td>AI-assisted document review</td><td>Defensible process, judge-ready chains</td></tr>
+<tr><td>Defense/Intel Analyst</td><td>Intelligence synthesis</td><td>Classification-aware isolation</td></tr>
+</table>
+
+<h2>4. Architecture</h2>
+
+<h3>4.1 System Overview</h3>
+<div class="chart">
+<pre style="font-size:0.8rem;line-height:1.5;color:var(--text-dim);">
+┌─────────────────────────────────────────────────────┐
+│  Consensus Runtime (Go binary, single process)       │
+│                                                       │
+│  ┌─────────┐  ┌──────────┐  ┌───────────────┐       │
+│  │ REST API │  │ OpenCode │  │ MCP Server     │       │
+│  │ (chi)    │  │ Shim     │  │ (agent tools)  │       │
+│  └────┬─────┘  └────┬─────┘  └───────┬───────┘       │
+│       │              │               │               │
+│  ┌────┴──────────────┴───────────────┴───────────┐   │
+│  │              Service Layer                      │   │
+│  │  sessions │ planning │ memory │ retrieval │ billing │
+│  └──────────────────────┬────────────────────────┘   │
+│                         │                            │
+│  ┌──────────────────────┴────────────────────────┐   │
+│  │              Database Layer                     │   │
+│  │  SQLite (dev) │ PostgreSQL + pgvector (prod)    │   │
+│  │  Append-only triggers │ Row-level security      │   │
+│  │  Vector embeddings │ Semantic retrieval         │   │
+│  └────────────────────────────────────────────────┘   │
+│                                                       │
+│  ┌────────────────────────────────────────────────┐   │
+│  │  Chronicle UI (embedded, dark-theme, 311KB)     │   │
+│  │  THINK pane │ SAYS pane │ Dashboard │ Timeline  │   │
+│  └────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+</pre>
+</div>
+
+<h3>4.2 Key Technical Innovations</h3>
+
+<table>
+<tr><th>#</th><th>Innovation</th><th>How It Works</th></tr>
+<tr>
+  <td>1</td>
+  <td><strong>Append-only memory</strong></td>
+  <td><code>CREATE TRIGGER ... BEFORE UPDATE ... RAISE(ABORT, 'memory_events is append-only')</code> at the database level. Enforced by the DB engine, not application logic.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><strong>Row-level security</strong></td>
+  <td>PostgreSQL RLS policies. Session A cannot read Session B's memory events. Project isolation enforced by the database, not middleware.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><strong>Split-pane consciousness</strong></td>
+  <td>Every agent turn produces THINK (internal reasoning) and SAYS (public output). Both stored. The agent can lie in SAYS while reasoning honestly in THINK.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><strong>Semantic retrieval</strong></td>
+  <td>pgvector-backed. <code>FindSimilar(query, threshold)</code> returns relevant past memories. No RAG framework needed.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><strong>OpenCode shim</strong></td>
+  <td>26 endpoints translating OpenCode HTTP protocol into Consensus native API. Drop-in replacement.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><strong>Dual backend</strong></td>
+  <td>SQLite for development/embedded, PostgreSQL for production. Same schema, same migrations, same API.</td>
+</tr>
+</table>
+
+<h2>5. Current State</h2>
+
+<h3>5.1 Phase 1 — Chronicle Investigation Workbench <span class="badge badge-green">COMPLETE</span></h3>
+
+<table>
+<tr><th>Component</th><th>Status</th><th>Lines</th></tr>
+<tr><td>Design system (CSS tokens)</td><td class="check">✓</td><td>541</td></tr>
+<tr><td>Layout shell + command palette</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>Component library (9 components)</td><td class="check">✓</td><td>1,089</td></tr>
+<tr><td>THINK pane (streaming thought cards)</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>SAYS pane (findings, trust badges)</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>Input Area (composer, model selector)</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>Evidence Panel + Discovery Panel</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>WebSocket/SSE streaming</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>Overview Dashboard (KPIs, activity)</td><td class="check">✓</td><td>—</td></tr>
+<tr><td>Health Dashboard (system status)</td><td class="check">✓</td><td>604</td></tr>
+<tr><td>Timeline Explorer (zoom, filter)</td><td class="check">✓</td><td>1,596</td></tr>
+<tr><td>Entity Graph (D3.js force-directed)</td><td class="check">✓</td><td>827</td></tr>
+<tr><td>API wiring (sessions, memory)</td><td class="check">✓</td><td>—</td></tr>
+<tr><td><strong>E2E integration test (real LLM)</strong></td><td class="check">✓</td><td>310</td></tr>
+<tr><td><strong>Chronicle UI serving (311KB)</strong></td><td class="check">✓</td><td>—</td></tr>
+</table>
+
+<h3>5.2 Phase 2 — Shim Health & Compatibility <span class="badge badge-yellow">IN PROGRESS</span></h3>
+
+<div class="phase-row">
+  <span style="width:80px">Phase 2</span>
+  <div class="phase-bar"><div class="phase-fill done" style="width:43%"></div></div>
+  <span>3/7</span>
+</div>
+<ul>
+  <li><span class="check">✓</span> Verify all 26 shim endpoints</li>
+  <li><span class="check">✓</span> CI smoke test</li>
+  <li><span class="check">✓</span> OpenAPI docs</li>
+  <li>OpenCode CLI integration test</li>
+  <li>VSCode extension test</li>
+  <li>Migration verification</li>
+  <li><strong>models.dev auto-sync</strong></li>
+</ul>
+
+<h3>5.3 Remaining Phases</h3>
+
+<div class="phase-row"><span style="width:80px">Phase 3</span><div class="phase-bar"><div class="phase-fill pending" style="width:0%"></div></div><span style="color:var(--text-dim)">Production (Docker, docs, SDK)</span></div>
+<div class="phase-row"><span style="width:80px">Phase 4</span><div class="phase-bar"><div class="phase-fill pending" style="width:0%"></div></div><span style="color:var(--text-dim)">Hardened Testing</span></div>
+<div class="phase-row"><span style="width:80px">Phase 5</span><div class="phase-bar"><div class="phase-fill pending" style="width:0%"></div></div><span style="color:var(--text-dim)">AC Gap Closure</span></div>
+<div class="phase-row"><span style="width:80px">Phase 6</span><div class="phase-bar"><div class="phase-fill pending" style="width:0%"></div></div><span style="color:var(--text-dim)">UI Spec Expansion</span></div>
+
+<h2>6. Competitive Analysis</h2>
+
+<table>
+<tr><th>Feature</th><th>Consensus</th><th>LangChain</th><th>CrewAI</th><th>AutoGen</th><th>Raw OpenAI</th></tr>
+<tr>
+  <td>Append-only memory</td>
+  <td class="check">✓ DB triggers</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>Reasoning transparency</td>
+  <td class="check">✓ THINK/SAYS</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>Multi-tenant isolation</td>
+  <td class="check">✓ RLS</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>Semantic retrieval</td>
+  <td class="check">✓ pgvector built-in</td>
+  <td class="partial">◐ via plugins</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>Audit trail</td>
+  <td class="check">✓ One SQL query</td>
+  <td class="partial">◐ best-effort</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>OpenCode-compatible</td>
+  <td class="check">✓ 26 endpoints</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+<tr>
+  <td>Self-hosted</td>
+  <td class="check">✓ Single binary</td>
+  <td class="partial">◐</td>
+  <td class="partial">◐</td>
+  <td class="partial">◐</td>
+  <td class="cross">✗ Cloud only</td>
+</tr>
+<tr>
+  <td>UI included</td>
+  <td class="check">✓ Chronicle</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+  <td class="cross">✗</td>
+</tr>
+</table>
+
+<h3>6.2 Why Consensus Wins for Regulated Use</h3>
+<p><strong>LangChain/CrewAI/AutoGen</strong> — Great for prototyping. But when the regulator audits, your "memory" is a Python dict. There is no ledger. No chain of custody. No defense.</p>
+<p><strong>Raw OpenAI/Anthropic API</strong> — The LLM call is just a request/response. Everything between calls — state, reasoning, evidence — is your problem. And if you're in finance or healthcare, "your problem" means "your liability."</p>
+<p><strong>Consensus</strong> — The database IS the defense. Every thought, every finding, every evidence link is immutably stored. When the SEC, HIPAA auditor, or opposing counsel asks "how did your AI reach this conclusion?", you produce the ledger. Not a script. Not a prompt. The ledger.</p>
+
+<h2>7. Business Model</h2>
+
+<table>
+<tr><th>Tier</th><th>Price</th><th>Includes</th></tr>
+<tr><td><strong>Community</strong></td><td>Free</td><td>Consensus runtime, MIT license, community support</td></tr>
+<tr><td><strong>Pro</strong></td><td>$299/mo</td><td>Chronicle Workbench, 5 projects</td></tr>
+<tr><td><strong>Team</strong></td><td>$999/mo</td><td>Multi-user, SSO, compliance report templates</td></tr>
+<tr><td><strong>Enterprise</strong></td><td>Custom</td><td>On-prem, SLA, audit support, RBAC</td></tr>
+</table>
+
+<h2>8. Success Metrics</h2>
+
+<h3>8.1 Technical</h3>
+<table>
+<tr><td>Build + test</td><td class="check">28/28 packages green</td></tr>
+<tr><td>Quality gates</td><td class="check">20/20 GitReins tasks passing</td></tr>
+<tr><td>CI pipeline</td><td class="check">8 jobs green</td></tr>
+<tr><td>E2E test</td><td class="check">Sub-10s real LLM workflow</td></tr>
+<tr><td>API latency</td><td class="check">&lt;50ms P95</td></tr>
+</table>
+
+<h3>8.2 Product</h3>
+<table>
+<tr><td>Chronicle UI load</td><td class="check">&lt;2s, 311KB</td></tr>
+<tr><td>Deploy</td><td class="check"><code>consensus serve</code> — one command</td></tr>
+<tr><td>OpenCode drop-in</td><td class="check">Any OpenCode tool → Consensus</td></tr>
+</table>
+
+<h3>8.3 Business</h3>
+<table>
+<tr><td>GitHub stars</td><td>10 → 100 → 1,000</td></tr>
+<tr><td>First enterprise pilot</td><td>Target Q4 2026</td></tr>
+<tr><td>Compliance templates</td><td>SOC2, HIPAA attestation</td></tr>
+</table>
+
+<h2>9. Roadmap</h2>
+
+<table>
+<tr><th>Quarter</th><th>Milestone</th></tr>
+<tr><td><strong>Q3 2026</strong></td><td>Phase 2 complete (shim health, models.dev). Phase 3 complete (Docker, docs, SDK). First external testers.</td></tr>
+<tr><td><strong>Q4 2026</strong></td><td>Phase 4 complete (hardened testing). Enterprise SSO. Compliance templates. First pilot customer.</td></tr>
+<tr><td><strong>Q1 2027</strong></td><td>Phase 5 complete (AC gap closure). Phase 6 complete (UI spec). Multi-project dashboards. Public launch.</td></tr>
+<tr><td><strong>Q2 2027</strong></td><td>Enterprise features: RBAC, audit export, on-prem deployment. SOC2 Type I attestation.</td></tr>
+</table>
+
+<h2>10. Risks & Mitigations</h2>
+
+<table>
+<tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>LLM cost unpredictability</td><td>High</td><td>Tiered model selection, budget enforcement, cost tracking</td></tr>
+<tr><td>Open-source competition</td><td>Medium</td><td>Superior architecture is defensible; Chronicle adds enterprise value</td></tr>
+<tr><td>Adoption friction</td><td>Medium</td><td>OpenCode shim = drop-in; one-binary deploy; no infra dependencies</td></tr>
+<tr><td>Regulatory changes</td><td>Low</td><td>Append-only ledger survives policy changes</td></tr>
+<tr><td>Team bandwidth</td><td>Medium</td><td>coding-hermes foreman fleet (25 projects) for autonomous dev</td></tr>
+</table>
+
+<hr style="border-color:var(--border);margin:2rem 0 1rem;">
+<div class="meta">
+  <span>📦 <a href="https://github.com/totalwindupflightsystems/consensus" style="color:var(--accent)">github.com/totalwindupflightsystems/consensus</a></span>
+  <span>🛠 Go 1.26 · SQLite · PostgreSQL + pgvector</span>
+  <span>🔒 GitReins v0.7.9 · coding-hermes foreman</span>
+</div>
+
+</body>
+</html>
