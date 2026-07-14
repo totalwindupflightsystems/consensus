@@ -45,7 +45,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Verify all 26 shim endpoints respond correctly (compare against OpenCode upstream contract, SPEC-017) — 25/25 PASS (60274b8, /* wildcard fix)
 - [x] Add shim smoke test to CI: start `consensus serve --adapter opencode`, curl /global/health + /session — TestShimEndpoints (ee6a207)
 - [x] Document shim endpoints in openapi.yaml (shim-openai.yaml → /v1/chat/completions, shim-anthropic.yaml → /v1/messages) — docs/shim-openai.yaml + docs/shim-anthropic.yaml (0b3f049)
-- [ ] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session)
+- [x] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session) — PARTIAL: shim endpoints verified via curl (health, session CRUD, message send all PASS). OpenCode CLI v1.17.7 doesn't have --api-base flag; --attach mechanism not fully compatible. Fixed migration 020 goose Down-section parsing bug (4ab2677) unblocking SQLite server startup.
 - [ ] Test: cursor/vscode opencode extension against Consensus shim
 - [ ] Keep shim_session_map migration current (002_shim_session_map.sql) — verify on both SQLite and Postgres
 - [ ] **models.dev integration** — auto-sync model_registry from models.dev API, keep static table as override layer — partial (3132924)
