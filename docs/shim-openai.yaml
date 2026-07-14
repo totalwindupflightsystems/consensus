@@ -1,0 +1,184 @@
+openapi: "3.0.3"
+info:
+  title: Consensus — OpenAI Compatibility Shim
+  version: "1.0.0"
+  description: |
+    OpenAI-compatible API shim for Consensus. Any tool that speaks the
+    OpenAI /v1/chat/completions protocol can use Consensus as a drop-in
+    replacement. Requests are translated into Consensus native sessions
+    with append-only memory and semantic retrieval.
+servers:
+  - url: http://localhost:8090/v1
+    description: Consensus serve (default OpenCode shim port)
+
+paths:
+  /chat/completions:
+    post:
+      summary: Create a chat completion
+      description: |
+        OpenAI-compatible chat completions endpoint. Creates a Consensus
+        session, sends the messages as context, and returns the LLM response.
+        All interactions are recorded in the append-only memory ledger.
+      operationId: createChatCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Successful completion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '401':
+          description: Invalid API key
+        '429':
+          description: Rate limited
+        '500':
+          description: Internal server error
+
+  /models:
+    get:
+      summary: List available models
+      description: |
+        Returns models from the Consensus model_registry. Models can be
+        statically seeded or auto-synced from models.dev.
+      operationId: listModels
+      responses:
+        '200':
+          description: Model list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelList'
+
+components:
+  schemas:
+    ChatCompletionRequest:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          description: Model ID from model_registry (e.g., deepseek-chat, gpt-4o)
+          example: deepseek-chat
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        temperature:
+          type: number
+          default: 0.7
+        max_tokens:
+          type: integer
+          example: 4096
+        stream:
+          type: boolean
+          default: false
+        session_id:
+          type: string
+          description: |
+            Existing Consensus session ID to continue. If omitted, a new
+            session is created automatically.
+          format: uuid
+        tools:
+          type: array
+          items:
+            type: object
+          description: Function calling tools (passed to LLM)
+    Message:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+        name:
+          type: string
+        tool_calls:
+          type: array
+          items:
+            type: object
+        tool_call_id:
+          type: string
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Consensus session ID
+          format: uuid
+        object:
+          type: string
+          enum: [chat.completion]
+        created:
+          type: integer
+          description: Unix timestamp
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Choice'
+        usage:
+          $ref: '#/components/schemas/Usage'
+        consensus_session_id:
+          type: string
+          format: uuid
+          description: |
+            Consensus-specific: the session ID for retrieving the full
+            investigation trace via the Consensus API.
+    Choice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: '#/components/schemas/Message'
+        finish_reason:
+          type: string
+          enum: [stop, length, tool_calls, content_filter]
+    Usage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+    ModelList:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelEntry'
+    ModelEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          enum: [model]
+        created:
+          type: integer
+        owned_by:
+          type: string
