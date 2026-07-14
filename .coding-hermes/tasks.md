@@ -38,7 +38,7 @@
 
 ### 1.7 Integration
 - [x] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph) — commit: PHASE_1.7
-- [ ] E2E test: full investigation workflow through Chronicle UI → Consensus API → real LLM → results
+- [x] E2E test: full investigation workflow through Chronicle UI → Consensus API → real LLM → results — PASSES (0727588, real DeepSeek LLM, 311KB UI)
 
 ## Phase 2: OpenCode Shim Health & Compatibility
 The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenCode HTTP → Consensus native API. Any tool speaking OpenCode protocol can use Consensus as a drop-in runtime.
