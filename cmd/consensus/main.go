@@ -302,9 +302,8 @@ func runServer() {
 	// Chronicle Investigation Workbench (SPEC-026) — dark-theme operational
 	// dashboard for AI-powered investigations. Served at /chronicle/.
 	chronicleUI := chronicle.NewServer("http://" + addrString(cfg.Server))
-	apiMux.Route("/chronicle", func(r chi.Router) {
-		r.Handle("/*", http.StripPrefix("/chronicle", chronicleUI.Handler()))
-	})
+	apiMux.Handle("/chronicle/*", http.StripPrefix("/chronicle", chronicleUI.Handler()))
+	apiMux.Handle("/chronicle", http.RedirectHandler("/chronicle/", http.StatusMovedPermanently))
 
 	// opencode Protocol Shim (SPEC-017) — translates opencode server protocol
 	// into native Consensus API calls. Enabled by default.

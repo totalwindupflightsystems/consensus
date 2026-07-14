@@ -38,16 +38,15 @@ func TestE2E_ChronicleInvestigationWorkflow(t *testing.T) {
 
 	// Step 1: Find or build binary
 	binPath := findBinary(t)
-	port := randomPort(t)
+	port := "8191"
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "chronicle-e2e.db")
-	enrollToken := "chronicle-e2e-test-token"
 
 	// Step 2: Initialize DB
 	initCmd := exec.Command(binPath,
 		"init",
-		"--db", dbPath,
-		"--enroll-token", enrollToken,
+		"--db-url", "sqlite://"+dbPath+"?_journal_mode=WAL",
+		"--llm-provider", "openai",
 	)
 	initOut, err := initCmd.CombinedOutput()
 	if err != nil {
@@ -58,9 +57,9 @@ func TestE2E_ChronicleInvestigationWorkflow(t *testing.T) {
 	// Step 3: Start serve
 	serveCmd := exec.Command(binPath,
 		"serve",
-		"--db", dbPath,
+		"--db-url", "sqlite://"+dbPath+"?_journal_mode=WAL",
 		"--port", port,
-		"--admin-key", adminKey,
+		"--hostname", "127.0.0.1",
 	)
 	serveCmd.Env = append(os.Environ(),
 		"CONSENSUS_CONFIG_LLM_PROVIDER=openai",
@@ -211,27 +210,17 @@ func findBinary(t *testing.T) string {
 	return filepath.Join(t.TempDir(), "consensus")
 }
 
-func randomPort(t *testing.T) string {
-	return "8199" // fixed for Chronicle E2E — predictable for UI references
-}
-
 func extractAdminKey(t *testing.T, output string) string {
 	t.Helper()
 	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "cs_ak_") {
-			return line
+		// Format: "key=cs_ak_..."
+		if idx := strings.Index(line, "key=cs_ak_"); idx >= 0 {
+			return line[idx+4:] // strip "key="
 		}
-		// Try JSON output
-		if strings.Contains(line, "admin_key") || strings.Contains(line, "api_key") {
-			var m map[string]any
-			if json.Unmarshal([]byte(line), &m) == nil {
-				for _, v := range m {
-					if s, ok := v.(string); ok && strings.HasPrefix(s, "cs_ak_") {
-						return s
-					}
-				}
-			}
+		// Format: line starts with cs_ak_
+		if strings.HasPrefix(line, "cs_ak_") {
+			return strings.Fields(line)[0]
 		}
 	}
 	t.Fatalf("could not extract admin key from output:\n%s", output)
