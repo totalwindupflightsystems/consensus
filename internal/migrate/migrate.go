@@ -794,6 +794,17 @@ func filterForSQLite(rawSQL string) string {
 
 	result := strings.Join(out, "\n")
 
+	// Strip goose-format Down migration sections.
+	// The custom runner doesn't use goose — it executes all SQL in the file.
+	// Goose's -- +goose Down marks the rollback section, which contains
+	// Postgres-specific syntax (DROP COLUMN IF EXISTS, etc.) that SQLite rejects.
+	// Strip everything from "-- +goose Down" to end of file (or "-- +goose Up" restart).
+	if idx := strings.Index(result, "\n-- +goose Down"); idx >= 0 {
+		result = result[:idx]
+	} else if idx := strings.Index(result, "-- +goose Down"); idx >= 0 {
+		result = result[:idx]
+	}
+
 	// ===================================================================
 	// Phase 2: Translate PG types/functions to SQLite equivalents
 	// ===================================================================
