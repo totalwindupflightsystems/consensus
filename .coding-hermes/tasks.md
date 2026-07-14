@@ -37,7 +37,7 @@
 - [x] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7 (completed 2026-07-12: entity-graph.css 827 lines + index.html +1,023 lines — D3.js force simulation, SVG canvas, zoom/pan/drag, node type coloring, edge rendering)
 
 ### 1.7 Integration
-- [ ] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph)
+- [x] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph) — commit: PHASE_1.7
 - [ ] E2E test: full investigation workflow through Chronicle UI → Consensus API → real LLM → results
 
 ## Phase 2: OpenCode Shim Health & Compatibility
@@ -86,7 +86,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [ ] Write Sections 11-24 at outline completeness minimum
 
 ## Active
-- [ ] INFRA — prepaid buckets exhausted for JS/TS feature work (glm-5.2 @ zai-glm 401, MiniMax-M3 @ minimax 401, grok-4.5 @ xai-oauth 403). **Investigated 2026-07-12: kimi-k2.7 @ kimi-for-coding WORKING (Go bug fix/test fallback), stepfun/opencode-go WORKING (spec/doc/infra). Phase 1.6+1.7 remain blocked (need JS/TS feature model). Phase 6 spec writing is UNBLOCKED (can use opencode-go). Phase 2 Go verification may be partially unblocked via kimi-k2.7 fallback.**
+- [ ] INFRA — prepaid buckets: MiniMax-M3 @ minimax RECOVERED (2026-07-14), GLM-5.2 @ zai-glm 429 (overloaded), grok-4.5 @ xai-oauth 403 (spending). **Phase 1.7 partially unblocked via MiniMax-M3 fallback. Phase 2 Go verification unblocked (kimi-k2.7 working). Phase 6 spec writing unblocked (opencode-go working).**
 - [x] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
 
 ## Completed

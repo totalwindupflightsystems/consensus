@@ -931,6 +931,31 @@
           var h = 60 * 60 * 1000;
           var m = 60 * 1000;
 
+          // ─────────────────────────────────────────────────────────────────
+          // Demo data — kept as fallback if the API is unreachable.  Loaded
+          // unconditionally so that `.catch()` of loadTimelineData() can
+          // restore it without a second copy of the 12 entries inline.
+          // ─────────────────────────────────────────────────────────────────
+          var TL_DEMO_EVENTS = [
+            // Yesterday
+            { id: 'e1', type: 'session',  title: 'Bootstrapping dev environment', desc: 'Resumed the Consensus project after the indexer-hang incident; re-ran the bootstrap script.', timestamp: now - day - 8 * h,        sessionId: 's-alpha', tags: ['bootstrap', 'infra'], entityColor: TYPE_COLORS.session },
+            { id: 'e2', type: 'memory',   title: 'Stored: project layout convention',  desc: 'Coding-Hermes foreman pattern with shared tests/ layout across cron-driven fleet.', timestamp: now - day - 6 * h + 5 * m, sessionId: 's-alpha', tags: ['memory', 'convention'], entityColor: TYPE_COLORS.memory },
+            { id: 'e3', type: 'finding',  title: 'Bottleneck: TOAST chunked writes', desc: 'DuckBrain compaction stalls at ≥4MB writes — chunk to 2MB batches.', timestamp: now - day - 4 * h,          sessionId: 's-bravo', tags: ['perf', 'duckbrain'], entityColor: TYPE_COLORS.finding },
+            { id: 'e4', type: 'anomaly',  title: 'Spike: H4F bucket exhaustion',     desc: 'Prepaid buckets for JS/TS feature work drained overnight; supplier rotation queued.', timestamp: now - day - 2 * h,          sessionId: 's-bravo', tags: ['infra', 'urgent'], entityColor: TYPE_COLORS.anomaly },
+
+            // Today
+            { id: 'e5', type: 'approval', title: 'Approve: spec split for tasks',     desc: 'Two-stage reviewer wants OK before splitting T-204 into T-204a / T-204b.', timestamp: now - 5 * h,                  sessionId: 's-charlie', tags: ['review', 'spec'], entityColor: TYPE_COLORS.approval },
+            { id: 'e6', type: 'task',     title: 'Implement Timeline Explorer JS',    desc: 'PASS 1–7: rendering, ruler, zoom/pan, filters, bookmarks, selection.', timestamp: now - 3 * h - 30 * m,         sessionId: 's-charlie', tags: ['feature', 'chronicle'], entityColor: TYPE_COLORS.task },
+            { id: 'e7', type: 'session',  title: 'Mid-task context refresh',           desc: 'Re-read indexer config + AGENTS.md before touching the panic path.', timestamp: now - 2 * h,                  sessionId: 's-charlie', tags: ['context'], entityColor: TYPE_COLORS.session },
+            { id: 'e8', type: 'memory',   title: 'Recalled: past indexer hang fix',    desc: 'Linked from DuckBrain — earlier root-cause was a stdlib deadlock in WAL replay.', timestamp: now - 1 * h - 15 * m,         sessionId: 's-charlie', tags: ['memory', 'recalled'], entityColor: TYPE_COLORS.memory },
+
+            // Tomorrow
+            { id: 'e9',  type: 'task',     title: 'Wire indexer panic guard',          desc: 'Replace the silent retry with a signal-handler + structured fence in compaction.', timestamp: now + 1 * h + 30 * m,         sessionId: 's-delta',  tags: ['infra', 'hardening'], entityColor: TYPE_COLORS.task },
+            { id: 'e10', type: 'finding',  title: 'Draft ADR: lane-based timestamps', desc: 'Switching to lane encoding removes the need for collision bucketing.', timestamp: now + 3 * h,                  sessionId: 's-delta',  tags: ['design', 'adr'], entityColor: TYPE_COLORS.finding },
+            { id: 'e11', type: 'approval', title: 'Approve: cron schedule refresh',    desc: 'New per-job jitter to avoid synced thundering herds across the fleet.', timestamp: now + 5 * h,                  sessionId: 's-delta',  tags: ['cron', 'ops'], entityColor: TYPE_COLORS.approval },
+            { id: 'e12', type: 'anomaly',  title: 'Forecast: provider latency drift', desc: 'OpenRouter p95 creep on Sonnet-4 over last 6h — flag before opening more tasks.', timestamp: now + 7 * h,                  sessionId: 's-echo',   tags: ['forecast', 'sre'], entityColor: TYPE_COLORS.anomaly }
+          ];
+
           var TL = {
             zoom: 1.0,
             scrollLeft: 0,
@@ -940,26 +965,99 @@
             activeTypes: new Set(['session', 'memory', 'finding', 'task', 'approval', 'anomaly']),
             sessionFilter: 'all',
             searchQuery: '',
-            events: [
-              // Yesterday
-              { id: 'e1', type: 'session',  title: 'Bootstrapping dev environment', desc: 'Resumed the Consensus project after the indexer-hang incident; re-ran the bootstrap script.', timestamp: now - day - 8 * h,        sessionId: 's-alpha', tags: ['bootstrap', 'infra'], entityColor: TYPE_COLORS.session },
-              { id: 'e2', type: 'memory',   title: 'Stored: project layout convention',  desc: 'Coding-Hermes foreman pattern with shared tests/ layout across cron-driven fleet.', timestamp: now - day - 6 * h + 5 * m, sessionId: 's-alpha', tags: ['memory', 'convention'], entityColor: TYPE_COLORS.memory },
-              { id: 'e3', type: 'finding',  title: 'Bottleneck: TOAST chunked writes', desc: 'DuckBrain compaction stalls at ≥4MB writes — chunk to 2MB batches.', timestamp: now - day - 4 * h,          sessionId: 's-bravo', tags: ['perf', 'duckbrain'], entityColor: TYPE_COLORS.finding },
-              { id: 'e4', type: 'anomaly',  title: 'Spike: H4F bucket exhaustion',     desc: 'Prepaid buckets for JS/TS feature work drained overnight; supplier rotation queued.', timestamp: now - day - 2 * h,          sessionId: 's-bravo', tags: ['infra', 'urgent'], entityColor: TYPE_COLORS.anomaly },
-
-              // Today
-              { id: 'e5', type: 'approval', title: 'Approve: spec split for tasks',     desc: 'Two-stage reviewer wants OK before splitting T-204 into T-204a / T-204b.', timestamp: now - 5 * h,                  sessionId: 's-charlie', tags: ['review', 'spec'], entityColor: TYPE_COLORS.approval },
-              { id: 'e6', type: 'task',     title: 'Implement Timeline Explorer JS',    desc: 'PASS 1–7: rendering, ruler, zoom/pan, filters, bookmarks, selection.', timestamp: now - 3 * h - 30 * m,         sessionId: 's-charlie', tags: ['feature', 'chronicle'], entityColor: TYPE_COLORS.task },
-              { id: 'e7', type: 'session',  title: 'Mid-task context refresh',           desc: 'Re-read indexer config + AGENTS.md before touching the panic path.', timestamp: now - 2 * h,                  sessionId: 's-charlie', tags: ['context'], entityColor: TYPE_COLORS.session },
-              { id: 'e8', type: 'memory',   title: 'Recalled: past indexer hang fix',    desc: 'Linked from DuckBrain — earlier root-cause was a stdlib deadlock in WAL replay.', timestamp: now - 1 * h - 15 * m,         sessionId: 's-charlie', tags: ['memory', 'recalled'], entityColor: TYPE_COLORS.memory },
-
-              // Tomorrow
-              { id: 'e9',  type: 'task',     title: 'Wire indexer panic guard',          desc: 'Replace the silent retry with a signal-handler + structured fence in compaction.', timestamp: now + 1 * h + 30 * m,         sessionId: 's-delta',  tags: ['infra', 'hardening'], entityColor: TYPE_COLORS.task },
-              { id: 'e10', type: 'finding',  title: 'Draft ADR: lane-based timestamps', desc: 'Switching to lane encoding removes the need for collision bucketing.', timestamp: now + 3 * h,                  sessionId: 's-delta',  tags: ['design', 'adr'], entityColor: TYPE_COLORS.finding },
-              { id: 'e11', type: 'approval', title: 'Approve: cron schedule refresh',    desc: 'New per-job jitter to avoid synced thundering herds across the fleet.', timestamp: now + 5 * h,                  sessionId: 's-delta',  tags: ['cron', 'ops'], entityColor: TYPE_COLORS.approval },
-              { id: 'e12', type: 'anomaly',  title: 'Forecast: provider latency drift', desc: 'OpenRouter p95 creep on Sonnet-4 over last 6h — flag before opening more tasks.', timestamp: now + 7 * h,                  sessionId: 's-echo',   tags: ['forecast', 'sre'], entityColor: TYPE_COLORS.anomaly }
-            ]
+            events: TL_DEMO_EVENTS.slice(),
+            availableSessions: []
           };
+
+          // ─────────────────────────────────────────────────────────────────
+          // API wiring — fetch sessions + their memory events.  Falls back to
+          // the demo array above if the API is unreachable.
+          // ─────────────────────────────────────────────────────────────────
+          function mapMemoryType(type) {
+            if (type === 'thinking' || type === 'text_block') return 'memory';
+            if (type === 'finding' || type === 'conclusion') return 'finding';
+            if (type === 'task') return 'task';
+            if (type === 'approval') return 'approval';
+            if (type === 'anomaly') return 'anomaly';
+            return type || 'memory';
+          }
+
+          function loadTimelineData() {
+            return fetch('/api/v1/sessions', { headers: apiHeaders() })
+              .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+              })
+              .then(function (sessions) {
+                var sessList = Array.isArray(sessions) ? sessions : (sessions.sessions || sessions.data || []);
+                if (!Array.isArray(sessList)) sessList = [];
+
+                var fetches = sessList.slice(0, 20).map(function (s) {
+                  return fetch('/api/v1/sessions/' + encodeURIComponent(s.id) + '/memory?limit=50', { headers: apiHeaders() })
+                    .then(function (r) {
+                      if (!r.ok) throw new Error('HTTP ' + r.status);
+                      return r.json();
+                    })
+                    .then(function (resp) {
+                      var events = (resp && (resp.events || resp.data)) || (Array.isArray(resp) ? resp : []) || [];
+                      return events.map(function (ev) {
+                        var mapped = mapMemoryType(ev.type);
+                        return {
+                          id: 'mem-' + ev.id,
+                          type: mapped,
+                          title: ((ev.content || '') + '').substring(0, 80) || ev.type || 'Event',
+                          desc: ((ev.content || '') + '').substring(0, 200),
+                          timestamp: new Date(ev.timestamp || ev.created_at || Date.now()).getTime(),
+                          sessionId: s.id,
+                          tags: [ev.type || 'event'],
+                          entityColor: TYPE_COLORS[mapped] || TYPE_COLORS.memory
+                        };
+                      });
+                    })
+                    .catch(function () { return []; });
+                });
+
+                return Promise.all(fetches).then(function (results) {
+                  var loaded = [].concat.apply([], results);
+                  // Only adopt API data when we got something usable; otherwise
+                  // leave the demo events in place so the UI is never empty.
+                  if (loaded.length > 0) {
+                    TL.events = loaded;
+                    TL.availableSessions = sessList;
+                  } else {
+                    TL.availableSessions = sessList; // still useful for the dropdown
+                  }
+                  refreshCards();
+                  updateChipCounts();
+                  populateSessionFilter();
+                });
+              })
+              .catch(function () {
+                // API unavailable — keep demo data, just refresh UI in case
+                // the dropdown population depends on availableSessions.
+                console.warn('Timeline: API unavailable, using demo data');
+                TL.availableSessions = TL.availableSessions || [];
+                populateSessionFilter();
+              });
+          }
+
+          function populateSessionFilter() {
+            var list = document.getElementById('tl-session-menu-list');
+            if (!list) return;
+            var html = '<div class="tl-session-menu-item tl-session-menu-item-all" data-session-id="all">' +
+                       '<span class="tl-session-status status-thinking"></span>' +
+                       '<span>All sessions</span></div>';
+            var seen = {};
+            (TL.availableSessions || []).forEach(function (s) {
+              if (!s || !s.id || seen[s.id]) return;
+              seen[s.id] = true;
+              var label = (s.model ? s.model + ' · ' : '') + truncateId(s.id) + ' · ' + (s.status || 'idle');
+              html += '<div class="tl-session-menu-item" data-session-id="' + escapeHtml(s.id) + '">' +
+                      '<span class="tl-session-status status-' + escapeHtml(s.status || 'idle') + '"></span>' +
+                      '<span>' + escapeHtml(label) + '</span></div>';
+            });
+            list.innerHTML = html;
+          }
 
           // ─────────────────────────────────────────────────────────────────
           // Bookmarks (localStorage)
@@ -1610,8 +1708,12 @@
           zoomFill.style.width = Math.min(100, (TL.zoom / 8) * 100) + '%';
           // default: every card starts compact
           renderCards();
+          populateSessionFilter();
           // centre on "now" so the NOW indicator is visible at load
           setTimeout(scrollToNow, 0);
+
+          // Kick off API load — only swaps in events when the API returns data
+          loadTimelineData();
 
           // re-layout ruler & density on viewport resize
           var resizeTimer = null;
@@ -1619,8 +1721,64 @@
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(renderCards, 120);
           });
+
+          // Wire session dropdown — clicking a session sets the filter, then
+          // re-renders.  Filters by full session id; "all" clears the filter.
+          (function () {
+            var menuList = document.getElementById('tl-session-menu-list');
+            if (!menuList) return;
+            menuList.addEventListener('click', function (e) {
+              var item = e.target.closest('.tl-session-menu-item');
+              if (!item) return;
+              var sid = item.getAttribute('data-session-id') || 'all';
+              TL.sessionFilter = sid;
+              var labelEl = document.getElementById('tl-session-label');
+              if (labelEl) {
+                if (sid === 'all') {
+                  labelEl.textContent = 'Session: All sessions';
+                } else {
+                  var found = (TL.availableSessions || []).find(function (s) { return s.id === sid; });
+                  labelEl.textContent = 'Session: ' + (found ? (found.model || '') + ' ' + truncateId(sid) : truncateId(sid));
+                }
+              }
+              refreshCards();
+              // Close the dropdown — same DOM class toggle the HTML uses.
+              var dropdown = document.getElementById('tl-session-dropdown');
+              if (dropdown) dropdown.classList.remove('open');
+            });
+          })();
         })();
         </script>
+      </div>
+    </div>
+
+    <!-- ===== Sessions List View (Phase 1.7, §8) — wired to /api/v1/sessions -->
+    <div class="content-view content-view-full" id="sessions-view">
+      <div class="chronicle-list-root" id="chronicle-sessions-root">
+        <header class="chronicle-list-header">
+          <h2 class="chronicle-list-title">Sessions</h2>
+          <div class="chronicle-list-actions">
+            <span id="chronicle-sessions-status" class="chronicle-list-status">Loading…</span>
+            <button type="button" id="chronicle-sessions-refresh" class="chronicle-list-refresh">Refresh</button>
+          </div>
+        </header>
+        <div id="chronicle-sessions-body" class="chronicle-list-body"></div>
+      </div>
+    </div>
+
+    <!-- ===== Memory Browser View (Phase 1.7, §9) — wired to /sessions/{id}/memory -->
+    <div class="content-view content-view-full" id="memory-view">
+      <div class="chronicle-list-root" id="chronicle-memory-root">
+        <header class="chronicle-list-header">
+          <h2 class="chronicle-list-title">Memory Browser</h2>
+          <div class="chronicle-list-actions">
+            <label for="chronicle-memory-session" class="chronicle-list-label">Session:</label>
+            <select id="chronicle-memory-session" class="chronicle-list-select"></select>
+            <button type="button" id="chronicle-memory-refresh" class="chronicle-list-refresh">Refresh</button>
+          </div>
+        </header>
+        <div id="chronicle-memory-status" class="chronicle-list-status">Loading…</div>
+        <div id="chronicle-memory-body" class="chronicle-list-body"></div>
       </div>
     </div>
 
@@ -5458,6 +5616,241 @@
     }
   }
 
+  // ==========================================================================
+  // Phase 1.7 — Sessions list + Memory browser views.
+  // Fetch real data from the Consensus API.  Falls back to an empty table
+  // on failure rather than pretending data exists.
+  // ==========================================================================
+  var sessionsLastLoadAt = 0;
+  var memoryLastSessionId = null;
+
+  function loadSessionsList(force) {
+    var now = Date.now();
+    // Avoid hammering the API on every nav.
+    if (!force && now - sessionsLastLoadAt < 5000) return Promise.resolve();
+    sessionsLastLoadAt = now;
+
+    var statusEl = document.getElementById('chronicle-sessions-status');
+    var bodyEl   = document.getElementById('chronicle-sessions-body');
+    if (statusEl) statusEl.textContent = 'Loading…';
+    if (bodyEl)   bodyEl.innerHTML = '<div class="chronicle-list-placeholder">Fetching sessions from API…</div>';
+
+    return apiFetch('/api/v1/sessions')
+      .then(function (resp) {
+        var list = Array.isArray(resp) ? resp : (resp && (resp.sessions || resp.data)) || [];
+        if (!Array.isArray(list)) list = [];
+        renderSessionsTable(list);
+        if (statusEl) statusEl.textContent = list.length + ' session' + (list.length === 1 ? '' : 's') + ' loaded';
+        return list;
+      })
+      .catch(function (err) {
+        if (bodyEl) bodyEl.innerHTML = '<div class="chronicle-list-placeholder chronicle-list-error">Failed to load sessions: ' + escapeHtml(err && err.message ? err.message : 'unknown') + '</div>';
+        if (statusEl) statusEl.textContent = 'API unavailable';
+        return [];
+      });
+  }
+
+  function renderSessionsTable(sessions) {
+    var bodyEl = document.getElementById('chronicle-sessions-body');
+    if (!bodyEl) return;
+    if (!sessions.length) {
+      bodyEl.innerHTML = '<div class="chronicle-list-placeholder">No sessions yet. Start a session from the Investigation view to see it here.</div>';
+      return;
+    }
+
+    var html = '<table class="data-table"><thead><tr>' +
+      '<th>ID</th><th>Status</th><th>Model</th><th>Created</th><th>Updated</th><th>Cost</th><th>Actions</th>' +
+      '</tr></thead><tbody>';
+
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      var sid = s.id || '';
+      var idCell = '<code title="' + escapeHtml(sid) + '">' + escapeHtml(truncateId(sid)) + '</code>';
+      var status = s.status || 'idle';
+      var statusCell = '<span class="status-dot status-' + escapeHtml(status) + '"></span> ' + escapeHtml(status);
+      var modelCell = escapeHtml(s.model || s.agent_name || '—');
+      var createdCell = escapeHtml(formatTimeAgo(s.created_at));
+      var updatedCell = escapeHtml(formatTimeAgo(s.updated_at || s.last_active_at));
+      var cost = (s.total_cost != null) ? Number(s.total_cost).toFixed(4) : '0.0000';
+      var actionsCell = '<button type="button" class="chronicle-list-view-btn" data-session-id="' + escapeHtml(sid) + '">View</button>';
+      html += '<tr>' +
+        '<td>' + idCell + '</td>' +
+        '<td>' + statusCell + '</td>' +
+        '<td>' + modelCell + '</td>' +
+        '<td>' + createdCell + '</td>' +
+        '<td>' + updatedCell + '</td>' +
+        '<td>$' + escapeHtml(cost) + '</td>' +
+        '<td>' + actionsCell + '</td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    bodyEl.innerHTML = html;
+  }
+
+  function loadMemoryBrowser(force) {
+    var statusEl = document.getElementById('chronicle-memory-status');
+    var bodyEl   = document.getElementById('chronicle-memory-body');
+    var selectEl = document.getElementById('chronicle-memory-session');
+    if (statusEl) statusEl.textContent = 'Loading sessions…';
+
+    function fillSelect(list, preferredId) {
+      if (!selectEl) return;
+      var previous = preferredId || (memoryLastSessionId || (selectEl.value || ''));
+      var html = '<option value="">— Select a session —</option>';
+      for (var i = 0; i < list.length; i++) {
+        var s = list[i];
+        var sid = s.id || '';
+        var label = (s.model || 'session') + ' · ' + truncateId(sid) + ' · ' + (s.status || 'idle');
+        var sel = (sid && sid === previous) ? ' selected' : '';
+        html += '<option value="' + escapeHtml(sid) + '"' + sel + '>' + escapeHtml(label) + '</option>';
+      }
+      selectEl.innerHTML = html;
+      // Restore previous selection if possible, else pick the first real session
+      if (previous && list.some(function (s) { return s.id === previous; })) {
+        selectEl.value = previous;
+      } else if (list.length > 0) {
+        selectEl.value = list[0].id || '';
+      }
+    }
+
+    function fetchEvents(sid) {
+      if (!sid) {
+        if (bodyEl) bodyEl.innerHTML = '<div class="chronicle-list-placeholder">Pick a session above to view memory events.</div>';
+        if (statusEl) statusEl.textContent = 'Select a session to view events';
+        return;
+      }
+      memoryLastSessionId = sid;
+      if (statusEl) statusEl.textContent = 'Loading events…';
+      apiFetch('/api/v1/sessions/' + encodeURIComponent(sid) + '/memory?limit=100')
+        .then(function (resp) {
+          var events = (resp && (resp.events || resp.data)) || (Array.isArray(resp) ? resp : []) || [];
+          if (!Array.isArray(events)) events = [];
+          renderMemoryBrowser(sid, events);
+          if (statusEl) statusEl.textContent = events.length + ' event' + (events.length === 1 ? '' : 's') + ' for ' + truncateId(sid);
+        })
+        .catch(function (err) {
+          if (bodyEl) bodyEl.innerHTML = '<div class="chronicle-list-placeholder chronicle-list-error">Failed to load events: ' + escapeHtml(err && err.message ? err.message : 'unknown') + '</div>';
+          if (statusEl) statusEl.textContent = 'API unavailable';
+        });
+    }
+
+    return apiFetch('/api/v1/sessions')
+      .then(function (resp) {
+        var list = Array.isArray(resp) ? resp : (resp && (resp.sessions || resp.data)) || [];
+        if (!Array.isArray(list)) list = [];
+        fillSelect(list);
+        if (statusEl) statusEl.textContent = list.length + ' session' + (list.length === 1 ? '' : 's') + ' available';
+        var firstId = list.length > 0 ? (list[0].id || '') : '';
+        fetchEvents(selectEl && selectEl.value ? selectEl.value : firstId);
+      })
+      .catch(function (err) {
+        if (bodyEl) bodyEl.innerHTML = '<div class="chronicle-list-placeholder chronicle-list-error">Failed to load sessions: ' + escapeHtml(err && err.message ? err.message : 'unknown') + '</div>';
+        if (statusEl) statusEl.textContent = 'API unavailable';
+      });
+  }
+
+  function renderMemoryBrowser(sessionId, events) {
+    var bodyEl = document.getElementById('chronicle-memory-body');
+    if (!bodyEl) return;
+    if (!events || events.length === 0) {
+      bodyEl.innerHTML = '<div class="chronicle-list-placeholder">No memory events for ' + escapeHtml(truncateId(sessionId)) + ' yet.</div>';
+      return;
+    }
+
+    var html = '<div class="chronicle-memory-list">';
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      var type = ev.type || 'event';
+      var ts = ev.timestamp || ev.created_at || '';
+      var content = (ev.content != null) ? String(ev.content) : (ev.summary || ev.text || '');
+      if (content.length > 500) content = content.substring(0, 500) + '…';
+      html += '<article class="chronicle-memory-card">' +
+        '<header class="chronicle-memory-card-header">' +
+          '<span class="chronicle-memory-type chronicle-memory-type-' + escapeHtml(type) + '">' + escapeHtml(type) + '</span>' +
+          '<span class="chronicle-memory-time">' + escapeHtml(formatTimeAgo(ts)) + '</span>' +
+          '<span class="chronicle-memory-id">' + escapeHtml(ev.id != null ? String(ev.id) : '—') + '</span>' +
+        '</header>' +
+        '<pre class="chronicle-memory-content">' + escapeHtml(content) + '</pre>' +
+      '</article>';
+    }
+    html += '</div>';
+    bodyEl.innerHTML = html;
+  }
+
+  // Helper: open the Investigation view for a given session.  Mirrors the
+  // pattern already used elsewhere in the file (window.navigateToSession).
+  function chronicleOpenSession(sessionId) {
+    if (!sessionId) return;
+    if (typeof window.navigateToSession === 'function') {
+      window.navigateToSession(sessionId);
+    } else if (typeof currentSessionId !== 'undefined') {
+      currentSessionId = sessionId;
+    }
+    if (typeof window.navigateTo === 'function') {
+      window.navigateTo('investigate');
+    }
+  }
+
+  // Wire the view-level events: refresh buttons, View buttons, dropdown.
+  (function () {
+    var sRefresh = document.getElementById('chronicle-sessions-refresh');
+    if (sRefresh) sRefresh.addEventListener('click', function () {
+      loadSessionsList(true);
+    });
+    var sBody = document.getElementById('chronicle-sessions-body');
+    if (sBody) sBody.addEventListener('click', function (e) {
+      var btn = e.target.closest('.chronicle-list-view-btn');
+      if (!btn) return;
+      chronicleOpenSession(btn.getAttribute('data-session-id'));
+    });
+
+    var mRefresh = document.getElementById('chronicle-memory-refresh');
+    var mSelect  = document.getElementById('chronicle-memory-session');
+    if (mRefresh) mRefresh.addEventListener('click', function () {
+      if (mSelect && mSelect.value) {
+        memoryLastSessionId = mSelect.value;
+        loadMemoryBrowser(true);
+      } else {
+        loadMemoryBrowser(true);
+      }
+    });
+    if (mSelect) mSelect.addEventListener('change', function () {
+      memoryLastSessionId = mSelect.value || null;
+      // Re-fetch events for the chosen session without re-loading sessions.
+      if (!memoryLastSessionId) {
+        var body = document.getElementById('chronicle-memory-body');
+        if (body) body.innerHTML = '<div class="chronicle-list-placeholder">Pick a session above to view memory events.</div>';
+        return;
+      }
+      var statusEl = document.getElementById('chronicle-memory-status');
+      if (statusEl) statusEl.textContent = 'Loading events…';
+      apiFetch('/api/v1/sessions/' + encodeURIComponent(memoryLastSessionId) + '/memory?limit=100')
+        .then(function (resp) {
+          var events = (resp && (resp.events || resp.data)) || (Array.isArray(resp) ? resp : []) || [];
+          if (!Array.isArray(events)) events = [];
+          renderMemoryBrowser(memoryLastSessionId, events);
+          if (statusEl) statusEl.textContent = events.length + ' event' + (events.length === 1 ? '' : 's') + ' for ' + truncateId(memoryLastSessionId);
+        })
+        .catch(function (err) {
+          if (statusEl) statusEl.textContent = 'API unavailable: ' + (err && err.message ? err.message : 'unknown');
+        });
+    });
+  })();
+
+  // Patch navigateTo to load sessions/memory views on demand.  Layered on top
+  // of any earlier navigateTo wrapper (Health, Entity Graph).
+  (function () {
+    var prevNavigateTo = window.navigateTo;
+    window.navigateTo = function (view) {
+      if (typeof prevNavigateTo === 'function') prevNavigateTo(view);
+      if (view === 'sessions') {
+        loadSessionsList(false);
+      } else if (view === 'memory') {
+        loadMemoryBrowser(false);
+      }
+    };
+  })();
+
 })();
 </script>
 <script>
@@ -5488,9 +5881,13 @@
   };
 
   // -------------------------------------------------------------------------
-  // Mock data — 50 nodes, ~100 edges.  References Timeline sessions but is
-  // self-contained so the graph is meaningful even without Timeline data.
+  // Mock data — fallback if the API is unreachable.  Populated by default;
+  // loadEntityGraphData() will swap in real data when the API returns it.
   // -------------------------------------------------------------------------
+  // Tracks whether the live API has populated the graph.  When false we keep
+  // the hardcoded mock data so the UI is never empty.
+  var EG_LIVE_DATA_LOADED = false;
+
   var NODES = [
     // --- Sessions (6) — bigger, central hub nodes ---
     { id: 's1', type: 'session', label: 'Q4 Revenue Analysis', sublabel: '#a3f2b', weight: 10 },
@@ -6323,6 +6720,136 @@
   function ensureInit() {
     if (initializedOnce) return;
     initializedOnce = true;
+    initEntityGraph();
+    // Kick off API load once the SVG is in place.  If the API is unreachable
+    // we keep the hardcoded NODES/EDGES above.
+    loadEntityGraphData();
+  }
+
+  // -------------------------------------------------------------------------
+  // API wiring — fetch sessions + memory events, derive NODES/EDGES.
+  // Swaps the global arrays in place, then re-renders via initEntityGraph.
+  // -------------------------------------------------------------------------
+  function egMapMemoryType(type) {
+    if (type === 'finding' || type === 'conclusion') return 'finding';
+    if (type === 'thinking' || type === 'text_block') return 'memory';
+    if (type === 'anomaly') return 'anomaly';
+    if (type === 'task') return 'finding'; // bucket tasks as findings for the graph
+    return 'evidence';
+  }
+
+  function loadEntityGraphData() {
+    if (typeof fetch !== 'function' || typeof apiHeaders !== 'function') return Promise.resolve();
+    return fetch('/api/v1/sessions', { headers: apiHeaders() })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (sessions) {
+        var sessList = Array.isArray(sessions) ? sessions : (sessions.sessions || sessions.data || []);
+        if (!Array.isArray(sessList)) sessList = [];
+        if (sessList.length === 0) return; // nothing to do — keep mock data
+
+        var nodes = [];
+        var edges = [];
+        var sessionNodeIds = {};
+
+        sessList.slice(0, 20).forEach(function (s) {
+          if (!s || !s.id) return;
+          var sid = s.id.substring(0, 12);
+          var sessionNodeId = 's-' + sid;
+          var label = (s.model || 'Session') + ' #' + sid;
+          var sub = '';
+          try { sub = new Date(s.created_at).toLocaleDateString(); } catch (e) {}
+          nodes.push({
+            id: sessionNodeId,
+            type: 'session',
+            label: label,
+            sublabel: sub,
+            weight: 6
+          });
+          sessionNodeIds[s.id] = sessionNodeId;
+        });
+
+        var fetches = sessList.slice(0, 10).map(function (s) {
+          return fetch('/api/v1/sessions/' + encodeURIComponent(s.id) + '/memory?limit=20', { headers: apiHeaders() })
+            .then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              return r.json();
+            })
+            .then(function (resp) {
+              var events = (resp && (resp.events || resp.data)) || (Array.isArray(resp) ? resp : []) || [];
+              var sessionNodeId = sessionNodeIds[s.id] || ('s-' + (s.id || '').substring(0, 12));
+              events.forEach(function (ev, i) {
+                var nodeId = 'm-' + (s.id || '').substring(0, 8) + '-' + i;
+                var nodeType = egMapMemoryType(ev.type);
+                var rawContent = (ev.content || ev.type || 'Event') + '';
+                nodes.push({
+                  id: nodeId,
+                  type: nodeType,
+                  label: rawContent.substring(0, 40),
+                  sublabel: (s.id || '').substring(0, 8),
+                  weight: 3
+                });
+                edges.push({
+                  source: nodeId,
+                  target: sessionNodeId,
+                  type: 'contains',
+                  strength: 5
+                });
+              });
+            })
+            .catch(function () { /* skip failed fetch */ });
+        });
+
+        return Promise.all(fetches).then(function () {
+          if (nodes.length === 0) return; // nothing meaningful — keep mock data
+          // Adopt the live data.  Swap the arrays in place — `visibleNodes()`
+          // and `visibleEdges()` re-read the globals on every call.
+          NODES.length = 0;
+          for (var i = 0; i < nodes.length; i++) NODES.push(nodes[i]);
+          EDGES.length = 0;
+          for (var j = 0; j < edges.length; j++) EDGES.push(edges[j]);
+          EG_LIVE_DATA_LOADED = true;
+          // If the graph is already initialized, re-render with new data.
+          if (EG.initialized) {
+            updateEntityGraph();
+          }
+        });
+      })
+      .catch(function () {
+        console.warn('Entity Graph: API unavailable, using demo data');
+      });
+  }
+
+  function updateEntityGraph() {
+    // Force a fresh re-init with the current NODES/EDGES.  We don't try to
+    // update node/edge selections in place — the existing initEntityGraph()
+    // already builds them anew on each call.
+    if (!EG.initialized) {
+      // Lazy: initEntityGraph() will be invoked by ensureInit() on first view.
+      return;
+    }
+    if (typeof simulation !== 'undefined' && simulation) {
+      try { simulation.stop(); } catch (e) {}
+      simulation = null;
+    }
+    EG.initialized = false;
+    // Clear SVG groups so the next initEntityGraph() starts clean.
+    var d3 = window.d3;
+    if (d3) {
+      try {
+        d3.select(nodesG).selectAll('*').remove();
+        d3.select(edgesG).selectAll('*').remove();
+        if (edgeLabelsG) d3.select(edgeLabelsG).selectAll('*').remove();
+      } catch (e) { /* ref may be stale */ }
+    }
+    if (typeof linkSelection !== 'undefined') linkSelection = null;
+    if (typeof nodeSelection !== 'undefined') nodeSelection = null;
+    // Re-bind DOM refs in case anything shifted.
+    resolveRefs();
+    resolveChipRefs();
+    updateCounts();
     initEntityGraph();
   }
 
