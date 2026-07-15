@@ -57,7 +57,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
   - [x] Add `--auto-sync` flag to `consensus serve` for background model refresh — auto-sync flag in serve.go (3135ffa)
 
 ## Phase 3: Production Readiness
-- [ ] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus)
+- [x] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus) — already implemented: CI docker job pushes on master, image exists on GHCR (verified 2026-07-15)
 - [ ] Write deployment quickstart guide (README section: "5-Minute Setup")
 - [ ] Add docker-compose production profile (Consensus + Postgres + pgvector, no dev tools)
 - [ ] Verify Postgres agent_role connections in production scenario (are RLS roles actually used?)
