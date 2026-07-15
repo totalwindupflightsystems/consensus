@@ -119,7 +119,45 @@ across 4 topic clusters and verify the right events come back for every query.
 
 ---
 
-## Quick Start
+## 5-Minute Setup
+
+### Option 1: Docker (recommended)
+
+Pull the image and run. That's it.
+
+```bash
+# Pull the image
+docker pull ghcr.io/totalwindupflightsystems/consensus:latest
+
+# Run with SQLite (zero config — data persists in a volume)
+docker run -d \
+  --name consensus \
+  -p 8090:8090 \
+  -v consensus-data:/home/consensus/data \
+  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  ghcr.io/totalwindupflightsystems/consensus:latest
+
+# Verify it's alive
+curl http://localhost:8090/api/v1/health
+# → {"status":"healthy","uptime":"2s","db":"sqlite"}
+
+# Check the Chronicle dashboard
+open http://localhost:8090/chronicle/
+```
+
+**Production (PostgreSQL + pgvector):**
+
+```bash
+docker run -d \
+  --name consensus \
+  -p 8090:8090 \
+  -e CONSENSUS_DB_URL="postgres://user:pass@host:5432/consensus?sslmode=require" \
+  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  -e CONSENSUS_API_KEY="cs_ak_your_secret_key" \
+  ghcr.io/totalwindupflightsystems/consensus:latest
+```
+
+### Option 2: Go binary (local development)
 
 ```bash
 go build -o bin/consensus ./cmd/consensus/
@@ -134,6 +172,36 @@ Three commands. You have a running agent harness with:
 - Crash recovery
 - Circuit breakers
 - Session isolation
+
+### Configuration
+
+| Env Var | Default | What it does |
+|---------|---------|-------------|
+| `DEEPSEEK_API_KEY` | (required) | DeepSeek API key for LLM calls |
+| `OPENROUTER_API_KEY` | — | Alternative: use OpenRouter instead of DeepSeek direct |
+| `CONSENSUS_LLM_BASE_URL` | `https://api.deepseek.com/v1` | Override LLM API endpoint |
+| `CONSENSUS_API_KEY` | — | Protect the API with an auth key |
+| `CONSENSUS_DB_URL` | `sqlite://$HOME/.consensus/consensus.db` | PostgreSQL or SQLite DSN |
+| `CONSENSUS_PORT` | `8090` | Server listen port |
+| `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`)
+
+**Docker Compose** (docker-compose.yml):
+
+```yaml
+services:
+  consensus:
+    image: ghcr.io/totalwindupflightsystems/consensus:latest
+    ports: ["8090:8090"]
+    volumes:
+      - consensus-data:/home/consensus/data
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - CONSENSUS_API_KEY=${CONSENSUS_API_KEY}
+    restart: unless-stopped
+
+volumes:
+  consensus-data:
+```
 
 ---
 
@@ -172,4 +240,3 @@ MIT
 ---
 
 **[Run the demo →](demo/)** &nbsp;|&nbsp; **[Specifications →](specs/)** &nbsp;|&nbsp; **[Deployment →](deploy/)**
-test change
