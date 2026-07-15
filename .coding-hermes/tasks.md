@@ -62,7 +62,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Add docker-compose production profile (Consensus + Postgres + pgvector, no dev tools) — docker-compose.prod.yml created (2e032c2)
 - [x] Verify Postgres agent_role connections in production scenario (are RLS roles actually used?) — INVESTIGATION: 2 bugs found. (1) App connects as DSN user (table owner) — never SET ROLE agent_role, so RLS bypassed entirely. (2) Critical naming mismatch: SQL policies use conscience.session_id but Go code sets consensus.session_id — even with SET ROLE, RLS would block all access (NULL config var). Both fixes needed before RLS is functional. See commits below.
 - [x] FIX — Implement SET ROLE agent_role on Postgres connections (add AfterConnect hook in internal/db/postgres/postgres.go to switch to agent_role after pool creation; create separate admin pool with alt_mode_role for admin ops) — 1c523dd
-- [ ] FIX — Rename conscience.session_id → consensus.session_id in all 9 SQL migration files (RLS policies reference misspelled config variable name; Go code sets consensus.session_id)
+- [x] FIX — Rename conscience.session_id → consensus.session_id in all 9 SQL migration files (RLS policies reference misspelled config variable name; Go code sets consensus.session_id) — c121a6f (4 files, 34 replacements)
 - [ ] Write SDK/client library (Go client for consensus serve API)
 
 ## Phase 4: Hardened Testing
