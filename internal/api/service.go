@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/modelsync"
 )
 
 // ============================================================================
@@ -53,6 +54,16 @@ func NewService(dbase db.DB, events *EventBus) *Service {
 type SessionService struct {
 	db     db.DB
 	events *EventBus
+
+	// modelSyncer optionally enables auto-registration of unrecognized models
+	// from models.dev during session creation. nil = disabled.
+	modelSyncer *modelsync.Syncer
+}
+
+// SetModelSyncer configures the SessionService to auto-register unknown models
+// from models.dev during session creation.
+func (svc *SessionService) SetModelSyncer(s *modelsync.Syncer) {
+	svc.modelSyncer = s
 }
 
 // CreateSessionInput is the data needed to create a new agent session.
@@ -92,6 +103,13 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 		}
 		if modelID == "" {
 			modelID = "default"
+		}
+	}
+
+	// Auto-register unrecognized models from models.dev if syncer is wired.
+	if svc.modelSyncer != nil && modelID != "default" {
+		if err := svc.modelSyncer.RegisterIfMissing(ctx, modelID); err != nil {
+			// Non-fatal: session creation proceeds even if registration fails.
 		}
 	}
 

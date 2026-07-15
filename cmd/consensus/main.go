@@ -38,6 +38,7 @@ import (
 	"github.com/wojons/consensus/internal/llm"
 	"github.com/wojons/consensus/internal/mcp"
 	"github.com/wojons/consensus/internal/migrate"
+	"github.com/wojons/consensus/internal/modelsync"
 	"github.com/wojons/consensus/internal/quarantine"
 	"github.com/wojons/consensus/internal/shim/opencode"
 	"github.com/wojons/consensus/internal/web"
@@ -230,6 +231,19 @@ func runServer() {
 		ReadonlyRate:      cfg.APIRate.ReadonlyLimit,
 		WebhookRate:       cfg.APIRate.WebhookLimit,
 	})
+
+	// models.dev auto-sync (--auto-sync flag)
+	if autoSyncInterval := os.Getenv("CONSENSUS_AUTO_SYNC"); autoSyncInterval != "" {
+		dur, err := time.ParseDuration(autoSyncInterval)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "consensus: invalid --auto-sync duration %q: %v\n", autoSyncInterval, err)
+		} else {
+			modelSyncer := modelsync.New(database)
+			go modelSyncer.AutoSyncLoop(ctx, dur)
+			apiSrv.Service().Sessions.SetModelSyncer(modelSyncer)
+			slog.Info("consensus: models.dev auto-sync enabled", "interval", dur)
+		}
+	}
 
 	// Wire real-time event streams based on backend type (SPEC-015 §4).
 	// Postgres: LISTEN/NOTIFY triggers → NotificationListener → EventBus.

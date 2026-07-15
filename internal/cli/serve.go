@@ -40,6 +40,9 @@ database configuration.`,
 			if logLevel, _ := cmd.Flags().GetString("log-level"); logLevel != "info" {
 				os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
 			}
+			if autoSync, _ := cmd.Flags().GetString("auto-sync"); autoSync != "" {
+				os.Setenv("CONSENSUS_AUTO_SYNC", autoSync)
+			}
 			// Wire the --config flag to config.Load() via SetConfigPath.
 			if optConfig != "" {
 				config.SetConfigPath(optConfig)
@@ -60,6 +63,7 @@ database configuration.`,
 	cmd.Flags().String("log-level", "info", "Log level: debug, info, warn, error")
 	cmd.Flags().String("adapter", "opencode", "Enable protocol shims: opencode (SPEC-016 §5.1)")
 	cmd.Flags().String("migrations", "", "Path to migration files (default: embedded)")
+	cmd.Flags().String("auto-sync", "", "Auto-sync model_registry from models.dev on interval (e.g., \"6h\", \"24h\")")
 
 	return cmd
 }
