@@ -1,0 +1,77 @@
+# Consensus — Production Docker Compose
+# ====================================
+# Consensus + PostgreSQL 16 + pgvector, no dev tools.
+#
+# Start:   docker compose -f docker-compose.prod.yml up -d
+# Stop:    docker compose -f docker-compose.prod.yml down
+# Logs:    docker compose -f docker-compose.prod.yml logs -f
+#
+# Prerequisites:
+#   - .env file with DEEPSEEK_API_KEY, CONSENSUS_API_KEY
+#   - Docker Engine 24+ with Compose v2
+#
+# axiom:trace work_item=prod-docker-compose spec=specs/003-database.md
+
+services:
+  # ── PostgreSQL 16 with pgvector ──────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: consensus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: consensus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-consensus}
+      POSTGRES_DB: consensus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U consensus -d consensus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "127.0.0.1:5432:5432"   # local-only; don't expose to network
+    networks:
+      - consensus-net
+
+  # ── Consensus Runtime ────────────────────────────────────────────
+  consensus:
+    image: ghcr.io/totalwindupflightsystems/consensus:latest
+    container_name: consensus-runtime
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    environment:
+      - CONSENSUS_DB_URL=postgres://consensus:${POSTGRES_PASSWORD:-consensus}@postgres:5432/consensus?sslmode=disable
+      - CONSENSUS_HOSTNAME=0.0.0.0
+      - CONSENSUS_PORT=8090
+      - CONSENSUS_API_KEY=${CONSENSUS_API_KEY}
+      - CONSENSUS_LOG_LEVEL=${CONSENSUS_LOG_LEVEL:-info}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - CONSENSUS_LLM_BASE_URL=${CONSENSUS_LLM_BASE_URL:-}
+      - CONSENSUS_AUTO_SYNC=${CONSENSUS_AUTO_SYNC:-24h}
+    volumes:
+      - consensus-data:/home/consensus/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8090/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - consensus-net
+
+volumes:
+  pgdata:
+    name: consensus-pgdata
+  consensus-data:
+    name: consensus-data
+
+networks:
+  consensus-net:
+    name: consensus-net
+    driver: bridge
