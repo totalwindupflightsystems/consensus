@@ -58,7 +58,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 
 ## Phase 3: Production Readiness
 - [x] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus) — Dockerfile created + CI pushes on master to ghcr.io (cb4027f)
-- [ ] Write deployment quickstart guide (README section: "5-Minute Setup")
+- [x] Write deployment quickstart guide (README section: "5-Minute Setup") — 75f3a23
 - [ ] Add docker-compose production profile (Consensus + Postgres + pgvector, no dev tools)
 - [ ] Verify Postgres agent_role connections in production scenario (are RLS roles actually used?)
 - [ ] Write SDK/client library (Go client for consensus serve API)
