@@ -131,6 +131,17 @@ func (s *Syncer) lookup(ctx context.Context, modelID string) (map[string]string,
 	return map[string]string{"sync_source": src}, nil
 }
 
+func mapProvider(modelsDevProvider string) string {
+	switch strings.ToLower(modelsDevProvider) {
+	case "openai":
+		return "openai"
+	case "anthropic":
+		return "anthropic"
+	default:
+		return "openrouter"
+	}
+}
+
 func (s *Syncer) insert(ctx context.Context, e ModelEntry, tier int) error {
 	tags := capabilitiesToTags(e.Capabilities)
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -142,7 +153,7 @@ func (s *Syncer) insert(ctx context.Context, e ModelEntry, tier int) error {
 			 classifier_tags, enabled, sync_source, synced_at, provider_id)
 		 VALUES ($1, $2, $3, $4, $5, $6, TRUE, 'models.dev', $7, $8)`,
 		e.ID, tier, e.ContextWindow, e.Pricing.Input, e.Pricing.Output,
-		string(tagsJSON), now, e.Provider,
+		string(tagsJSON), now, mapProvider(e.Provider),
 	)
 }
 
@@ -157,7 +168,7 @@ func (s *Syncer) update(ctx context.Context, e ModelEntry, tier int) error {
 			classifier_tags = $6, synced_at = $7, provider_id = $8
 		 WHERE model_id = $1 AND sync_source = 'models.dev'`,
 		e.ID, tier, e.ContextWindow, e.Pricing.Input, e.Pricing.Output,
-		string(tagsJSON), now, e.Provider,
+		string(tagsJSON), now, mapProvider(e.Provider),
 	)
 }
 
