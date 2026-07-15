@@ -106,3 +106,4 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] docs/diagrams.md (11 Mermaid diagrams)
 - [x] chronicle.html product page on GitHub Pages
 - [x] OpenCode shim (internal/shim/opencode/, 1,836 lines, 26 endpoints) — builds clean
+## [ ] Fix CI: test — 1 failure on master (models.dev integration)
