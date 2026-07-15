@@ -80,8 +80,11 @@ func runServer() {
 	}
 	defer database.Close()
 
+	// Admin DB bypasses RLS for migrations + bootstrap (table owner, not agent_role)
+	adminDB := dbdriver.AdminDB(database)
+
 	// Auto-migrate schema on startup (SPEC-009 §6)
-	migrator := migrate.New(database)
+	migrator := migrate.New(adminDB)
 	migrated, err := migrator.AutoMigrate(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "migrate: %v\n", err)
@@ -90,7 +93,7 @@ func runServer() {
 	if migrated {
 		slog.Info("consensus: schema migrations applied")
 	}
-	adminKey, err := bootstrap.EnsureFirstAdminKey(ctx, database, bootstrap.GetBootstrapKeyTTL())
+	adminKey, err := bootstrap.EnsureFirstAdminKey(ctx, adminDB, bootstrap.GetBootstrapKeyTTL())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bootstrap: %v\n", err)
 		os.Exit(1)
@@ -393,8 +396,11 @@ func runMCPStdio() {
 	}
 	defer database.Close()
 
+	// Admin DB bypasses RLS for migrations + bootstrap (table owner, not agent_role)
+	adminDB := dbdriver.AdminDB(database)
+
 	// Auto-migrate schema on startup (SPEC-009 §6)
-	migrator := migrate.New(database)
+	migrator := migrate.New(adminDB)
 	migrated, err := migrator.AutoMigrate(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "migrate: %v\n", err)
@@ -405,7 +411,7 @@ func runMCPStdio() {
 	}
 
 	// Ensure bootstrap admin key exists
-	adminKey, err := bootstrap.EnsureFirstAdminKey(ctx, database, bootstrap.GetBootstrapKeyTTL())
+	adminKey, err := bootstrap.EnsureFirstAdminKey(ctx, adminDB, bootstrap.GetBootstrapKeyTTL())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bootstrap: %v\n", err)
 		os.Exit(1)
@@ -446,7 +452,9 @@ func runMigrate(action string, dbURL string) error {
 	}
 	defer database.Close()
 
-	m := migrate.New(database)
+	adminDB := dbdriver.AdminDB(database)
+
+	m := migrate.New(adminDB)
 
 	switch action {
 	case "up":

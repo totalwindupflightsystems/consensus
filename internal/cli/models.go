@@ -53,8 +53,10 @@ func runModelsSync(cmd *cobra.Command, _ []string) error {
 	}
 	defer database.Close()
 
+	adminDB := dbdriver.AdminDB(database)
+
 	// Run migrations to ensure sync_source column exists
-	migrator := migrate.New(database)
+	migrator := migrate.New(adminDB)
 	if _, err := migrator.AutoMigrate(ctx); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}

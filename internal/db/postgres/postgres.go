@@ -19,7 +19,8 @@ import (
 
 // DB is a PostgreSQL-backed implementation of db.DB.
 type DB struct {
-	pool *pgxpool.Pool
+	pool      *pgxpool.Pool
+	adminPool *pgxpool.Pool // separate pool without RLS for migrations/admin
 }
 
 // Open creates a new PostgreSQL connection pool.
@@ -38,6 +39,14 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 	}
 	poolConfig.MaxConns = int32(maxOpen)
 
+	// AfterConnect: switch to agent_role for RLS enforcement.
+	// Every connection in the main pool runs as agent_role,
+	// subject to row-level security policies and privilege restrictions.
+	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET ROLE agent_role")
+		return err
+	}
+
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: create pool: %w", err)
@@ -49,7 +58,23 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 		return nil, fmt.Errorf("postgres: ping failed: %w", err)
 	}
 
-	return &DB{pool: pool}, nil
+	// Create admin pool — same config but WITHOUT AfterConnect.
+	// Admin operations (migrations, health checks, DDL) run as
+	// the connection user (table owner), bypassing RLS.
+	adminConfig := poolConfig.Copy()
+	adminConfig.AfterConnect = nil // no SET ROLE — run as table owner
+	adminPool, err := pgxpool.NewWithConfig(ctx, adminConfig)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("postgres: create admin pool: %w", err)
+	}
+	if err := adminPool.Ping(ctx); err != nil {
+		adminPool.Close()
+		pool.Close()
+		return nil, fmt.Errorf("postgres: admin ping failed: %w", err)
+	}
+
+	return &DB{pool: pool, adminPool: adminPool}, nil
 }
 
 // Backend returns the database backend type.
@@ -109,9 +134,12 @@ func (d *DB) QueryRow(ctx context.Context, query string, args ...any) (db.Row, e
 	return row, rows.Err()
 }
 
-// Close closes the connection pool.
+// Close closes both the main and admin connection pools.
 func (d *DB) Close() error {
 	d.pool.Close()
+	if d.adminPool != nil {
+		d.adminPool.Close()
+	}
 	return nil
 }
 
@@ -119,6 +147,19 @@ func (d *DB) Close() error {
 // like LISTEN/NOTIFY that require a dedicated connection.
 func (d *DB) Pool() *pgxpool.Pool {
 	return d.pool
+}
+
+// AdminPool returns the admin connection pool (runs as table owner,
+// bypassing RLS). Use for migrations, DDL, health checks, and
+// administrative operations that require elevated privileges.
+func (d *DB) AdminPool() *pgxpool.Pool {
+	return d.adminPool
+}
+
+// AdminDB returns a db.DB that runs as the connection user (table owner),
+// bypassing RLS for administrative operations.
+func (d *DB) AdminDB() *DB {
+	return &DB{pool: d.adminPool}
 }
 
 // ============================================================================

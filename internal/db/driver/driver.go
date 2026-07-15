@@ -45,3 +45,15 @@ func openSQLite(ctx context.Context, cfg db.Config) (db.DB, error) {
 	}
 	return sqDB, nil
 }
+
+// AdminDB returns a db.DB with elevated privileges for administrative
+// operations (migrations, DDL, health checks). On Postgres this returns
+// a pool that connects as the table owner (bypassing RLS). On SQLite it
+// returns the same database handle.
+func AdminDB(database db.DB) db.DB {
+	if pgDB, ok := database.(*postgres.DB); ok {
+		return pgDB.AdminDB()
+	}
+	// SQLite has no RLS — same DB is fine for admin ops
+	return database
+}
