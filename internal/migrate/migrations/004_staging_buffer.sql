@@ -49,6 +49,6 @@ GRANT SELECT, INSERT, UPDATE ON staging_buffer TO agent_role;
 ALTER TABLE staging_buffer ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY staging_session_isolate ON staging_buffer
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 COMMIT;

@@ -448,12 +448,12 @@ CREATE INDEX idx_secret_audit_session ON secret_access_audit(session_id);
 -- JOINs display_modes instead of reading from memory_events.display_mode,
 -- preserving the append-only invariant on memory_events.
 -- Canonical SQL from SPEC-011 §3.4.
--- Session isolation via current_setting('conscience.session_id') per SPEC-011 §9.
+-- Session isolation via current_setting('consensus.session_id') per SPEC-011 §9.
 CREATE OR REPLACE VIEW active_context_view AS
 WITH active_ids AS (
     SELECT unnest(active_pointers) AS ptr_id
     FROM iteration_commits
-    WHERE session_id = current_setting('conscience.session_id')::UUID
+    WHERE session_id = current_setting('consensus.session_id')::UUID
     ORDER BY iteration_id DESC
     LIMIT 1
 )
@@ -473,7 +473,7 @@ FROM memory_events me
 JOIN active_ids ai ON me.id = ai.ptr_id
 LEFT JOIN display_modes dm ON dm.memory_id = me.id
 WHERE COALESCE(dm.mode, 'full') != 'hidden'
-    AND me.session_id = current_setting('conscience.session_id')::UUID
+    AND me.session_id = current_setting('consensus.session_id')::UUID
 ORDER BY me.iteration_created, me.id;
 
 -- ============================================================================
@@ -489,14 +489,14 @@ ORDER BY me.iteration_created, me.id;
 -- WITH direct_ids AS (
 --     SELECT unnest(target_ids) AS memory_id
 --     FROM memory_pages
---     WHERE name = $1 AND session_id = current_setting('conscience.session_id')::UUID
+--     WHERE name = $1 AND session_id = current_setting('consensus.session_id')::UUID
 -- ),
 -- linked_ids AS (
 --     SELECT unnest(mp2.target_ids) AS memory_id
 --     FROM memory_pages mp1
 --     JOIN memory_pages mp2 ON mp2.id = ANY(mp1.linked_page_ids)
 --     WHERE mp1.name = $1
---       AND mp1.session_id = current_setting('conscience.session_id')::UUID
+--       AND mp1.session_id = current_setting('consensus.session_id')::UUID
 -- ),
 -- resolved AS (
 --     SELECT memory_id FROM direct_ids
@@ -554,40 +554,40 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE secret_access_audit ENABLE ROW LEVEL SECURITY;
 
 -- 9.2 Session-isolation policies.
--- All use the canonical namespace conscience.session_id per SPEC-011 §9.
+-- All use the canonical namespace consensus.session_id per SPEC-011 §9.
 -- SPEC-005 §Row-Level Security, SPEC-011 §9.3.
 CREATE POLICY session_isolate_sessions ON sessions
-    FOR ALL USING (id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_memory ON memory_events
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_display ON display_modes
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_iterations ON iteration_commits
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_pages ON memory_pages
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tasks ON tasks
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tool_req ON tool_requests
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tool_res ON tool_results
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tool_files ON tool_files
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_quarantine ON external_quarantine
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_billing ON agent_billing
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 -- compression_queue has no session_id column; isolate via joined memory_events.session_id
 CREATE POLICY session_isolate_compression ON compression_queue
@@ -595,7 +595,7 @@ CREATE POLICY session_isolate_compression ON compression_queue
         EXISTS (
             SELECT 1 FROM memory_events
             WHERE memory_events.id = compression_queue.event_id
-              AND memory_events.session_id = current_setting('conscience.session_id')::UUID
+              AND memory_events.session_id = current_setting('consensus.session_id')::UUID
         )
         OR current_user = 'compression_worker'
         OR current_user = 'alt_mode_role'
@@ -603,15 +603,15 @@ CREATE POLICY session_isolate_compression ON compression_queue
 
 CREATE POLICY session_isolate_messages ON agent_messages
     FOR ALL USING (
-        target_session_id = current_setting('conscience.session_id')::UUID
-        OR sender_session_id = current_setting('conscience.session_id')::UUID
+        target_session_id = current_setting('consensus.session_id')::UUID
+        OR sender_session_id = current_setting('consensus.session_id')::UUID
     );
 
 CREATE POLICY session_isolate_audit ON audit_logs
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_secrets ON secret_access_audit
-    FOR ALL USING (session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (session_id = current_setting('consensus.session_id')::UUID);
 
 -- 9.x Tools RLS — SPEC-010 §Row-Level Security: Ownership Enforcement
 ALTER TABLE custom_agent_tools ENABLE ROW LEVEL SECURITY;
@@ -622,11 +622,11 @@ ALTER TABLE skills_registry ENABLE ROW LEVEL SECURITY;
 -- Agent A cannot modify Agent B's tool.
 CREATE POLICY enforce_ownership ON custom_agent_tools
     FOR UPDATE USING (
-        current_setting('conscience.session_id')::UUID = creator_session_id
+        current_setting('consensus.session_id')::UUID = creator_session_id
     );
 
 CREATE POLICY session_isolate_tools ON custom_agent_tools
-    FOR ALL USING (creator_session_id = current_setting('conscience.session_id')::UUID);
+    FOR ALL USING (creator_session_id = current_setting('consensus.session_id')::UUID);
 
 CREATE POLICY session_isolate_tools_registry ON tools_registry
     FOR ALL USING (true);  -- tools_registry is shared; all sessions can read

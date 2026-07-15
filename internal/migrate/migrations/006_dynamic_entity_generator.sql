@@ -130,7 +130,7 @@ BEGIN
         CREATE POLICY isolate_session_%s ON %I
             FOR ALL
             TO agent_role, compression_worker, tool_executor
-            USING (session_id = current_setting(''conscience.session_id'', true)::UUID)
+            USING (session_id = current_setting(''consensus.session_id'', true)::UUID)
     ', fq_name, fq_name);
 
     -- Allow alt_mode_role to bypass RLS (they have BYPASSRLS attribute)
