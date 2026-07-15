@@ -48,13 +48,13 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session) — PARTIAL: shim endpoints verified via curl (health, session CRUD, message send all PASS). OpenCode CLI v1.17.7 doesn't have --api-base flag; --attach mechanism not fully compatible. Fixed migration 020 goose Down-section parsing bug (4ab2677) unblocking SQLite server startup.
 - [~] Test: cursor/vscode opencode extension against Consensus shim — API layer verified (26 endpoints pass), GUI integration requires manual cursor/vscode testing
 - [x] Keep shim_session_map migration current (002_shim_session_map.sql) — verified on SQLite (AutoMigrate passes, shim uses table actively). Postgres: SQL uses native PG types, no PG-specific concerns.
-- [ ] **models.dev integration** — auto-sync model_registry from models.dev API, keep static table as override layer — partial (3132924)
+- [ ] **models.dev integration** — auto-sync model_registry from models.dev API, keep static table as override layer — DONE (3135ffa)
   - [x] Add `internal/modelsync/` package: fetch from `https://models.dev/api/models`, parse tiers+providers+pricing — syncer.go (257 lines)
   - [x] Add `consensus models sync` CLI command — consensus models sync --db-url <url>
   - [x] Add `sync_source` column to model_registry: 'static' (manual) vs 'models.dev' (synced), never overwrite static — migration 020
   - [x] Provider mapping: models.dev provider names → Consensus config provider (openai/anthropic/openrouter) — mapProvider() in syncer.go (7de208e)
-  - On session create, if model_id not in registry but found in models.dev sync → auto-register as 'synced'
-  - Add `--auto-sync` flag to `consensus serve` for background model refresh
+  - [x] On session create, if model_id not in registry but found in models.dev sync → auto-register as 'synced' — RegisterIfMissing wired in CreateSession (3135ffa)
+  - [x] Add `--auto-sync` flag to `consensus serve` for background model refresh — AutoSyncLoop started from runServer (3135ffa)
 
 ## Phase 3: Production Readiness
 - [ ] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus)
