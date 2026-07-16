@@ -66,7 +66,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Write SDK/client library (Go client for consensus serve API) — 876da30 (749 lines, 22 typed structs, 24 endpoint methods, 6 tests, full build+vet+test green, GitReins judge 5/5 PASS)
 
 ## Phase 4: Hardened Testing
-- [x] Test: provider failure mid-call (retry with backoff, fallback to LM Studio) — 463e841 (7 tests: error types, context-limit retry, documented gaps: HTTP retry, provider fallback, circuit breaker wiring)
+- [x] Test: provider failure mid-call (retry with backoff, fallback to LM Studio) — 463e841 (7 tests, gap docs) → IMPLEMENTED: 4a2ed35 (+289/-114, retry loop in openaiClient+anthropicClient, LM Studio fallback, isRetryableLLMError helper)
 - [x] Test: 2+ concurrent sessions processing simultaneously — (concurrent_sessions_test.go: 309 lines, alternatingMock race-safe, 2+5 session tests PASS with -race)
 - [ ] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls)
 - [ ] Test: memory poisoning via external_quarantine (inject malicious data, verify sanitized)
