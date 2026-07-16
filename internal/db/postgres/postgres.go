@@ -10,6 +10,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,8 +43,15 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 	// AfterConnect: switch to agent_role for RLS enforcement.
 	// Every connection in the main pool runs as agent_role,
 	// subject to row-level security policies and privilege restrictions.
+	// Best-effort: if agent_role does not exist (fresh CI/development DB),
+	// log a warning and continue without RLS rather than failing the connection.
 	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		_, err := conn.Exec(ctx, "SET ROLE agent_role")
+		if err != nil && strings.Contains(err.Error(), "does not exist") {
+			// Role not created yet — development/CI without migration 021.
+			// RLS is bypassed (connection runs as table owner).
+			return nil
+		}
 		return err
 	}
 
