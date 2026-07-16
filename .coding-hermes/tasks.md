@@ -66,7 +66,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Write SDK/client library (Go client for consensus serve API) — 876da30 (749 lines, 22 typed structs, 24 endpoint methods, 6 tests, full build+vet+test green, GitReins judge 5/5 PASS)
 
 ## Phase 4: Hardened Testing
-- [ ] Test: provider failure mid-call (retry with backoff, fallback to LM Studio)
+- [x] Test: provider failure mid-call (retry with backoff, fallback to LM Studio) — 291fdc9
 - [ ] Test: 2+ concurrent sessions processing simultaneously
 - [ ] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls)
 - [ ] Test: memory poisoning via external_quarantine (inject malicious data, verify sanitized)
