@@ -297,6 +297,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 		ContextBudget:        session.ContextBudget,
 		TokensUsedIn:         session.TokensUsedIn,
 		TokensUsedOut:        session.TokensUsedOut,
+		BudgetLimitCents:     session.BudgetLimitCents,
 		MaxIterations:        session.MaxIterations,
 		MaxConsecutiveErrors: session.MaxConsecutiveErrors,
 		IsSubAgent:           isSubAgent,
@@ -448,6 +449,7 @@ type sessionRow struct {
 	TokensUsedIn        int64
 	TokensUsedOut       int64
 	Iteration           int64
+	BudgetLimitCents    int64
 	MaxIterations       int
 	MaxConsecutiveErrors int
 	ParentID            string // empty string = root agent, non-empty = sub-agent (SPEC-012 §6)
@@ -479,6 +481,7 @@ func (h *Harness) readSession(ctx context.Context, sessionID string) (*sessionRo
 		       COALESCE(goal, '') AS goal,
 		       context_budget, tokens_used_in, tokens_used_out,
 		       iteration, planning_max_turns, 3,
+		       COALESCE(budget_limit_cents, 0) AS budget_limit_cents,
 		       COALESCE(parent_id, '') AS parent_id
 		FROM sessions WHERE id = $1
 	`, sessionID)
@@ -499,6 +502,7 @@ func (h *Harness) readSession(ctx context.Context, sessionID string) (*sessionRo
 		TokensUsedIn:         toInt64(r["tokens_used_in"]),
 		TokensUsedOut:        toInt64(r["tokens_used_out"]),
 		Iteration:            toInt64(r["iteration"]),
+		BudgetLimitCents:     toInt64(r["budget_limit_cents"]),
 		MaxIterations:        toInt(r["planning_max_turns"]),
 		MaxConsecutiveErrors: 3,
 		ParentID:             toString(r["parent_id"]),
@@ -513,6 +517,7 @@ func (h *Harness) readSessionTx(ctx context.Context, tx db.Tx, sessionID string)
 		       COALESCE(goal, '') AS goal,
 		       context_budget, tokens_used_in, tokens_used_out,
 		       iteration, planning_max_turns, 3,
+		       COALESCE(budget_limit_cents, 0) AS budget_limit_cents,
 		       COALESCE(parent_id, '') AS parent_id
 		FROM sessions WHERE id = $1
 	`, sessionID)
@@ -533,6 +538,7 @@ func (h *Harness) readSessionTx(ctx context.Context, tx db.Tx, sessionID string)
 		TokensUsedIn:         toInt64(r["tokens_used_in"]),
 		TokensUsedOut:        toInt64(r["tokens_used_out"]),
 		Iteration:            toInt64(r["iteration"]),
+		BudgetLimitCents:     toInt64(r["budget_limit_cents"]),
 		MaxIterations:        toInt(r["planning_max_turns"]),
 		MaxConsecutiveErrors: 3,
 		ParentID:             toString(r["parent_id"]),

@@ -20,6 +20,7 @@ CREATE TABLE sessions (
     tokens_used_in    INTEGER NOT NULL DEFAULT 0,
     tokens_used_out   INTEGER NOT NULL DEFAULT 0,
     iteration         INTEGER NOT NULL DEFAULT 0,
+    budget_limit_cents INTEGER NOT NULL DEFAULT 0,
     project_id        TEXT,
     heartbeat_at      TEXT NOT NULL DEFAULT (datetime('now')),
     planning_max_turns INTEGER NOT NULL DEFAULT 10,
