@@ -36,6 +36,7 @@ func setupTestDB(t *testing.T) db.DB {
 		tokens_used_in BIGINT NOT NULL DEFAULT 0,
 		tokens_used_out BIGINT NOT NULL DEFAULT 0,
 		iteration BIGINT NOT NULL DEFAULT 0,
+		budget_limit_cents INTEGER NOT NULL DEFAULT 0,
 		project_id TEXT,
 		parent_id TEXT,
 		planning_max_turns INT NOT NULL DEFAULT 10
