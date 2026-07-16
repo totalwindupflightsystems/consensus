@@ -15,6 +15,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -29,15 +30,18 @@ import (
 // It satisfies harness.LLMClient and works with OpenAI, OpenRouter,
 // and any API that implements the /v1/chat/completions contract.
 type openaiClient struct {
-	cfg            *Config
-	httpClient     *http.Client
-	baseURL        string // e.g. https://api.openai.com/v1
-	apiKey         string
-	model          string
-	maxTokens      int
-	temperature    float64
-	enableCache    bool
-	responseFormat ResponseFormat
+	cfg             *Config
+	httpClient      *http.Client
+	baseURL         string // e.g. https://api.openai.com/v1
+	apiKey          string
+	model           string
+	maxTokens       int
+	temperature     float64
+	enableCache     bool
+	responseFormat  ResponseFormat
+	maxRetries      int           // max retry attempts on transient failures
+	retryBackoff    time.Duration // base backoff between retries
+	fallbackBaseURL string        // LM Studio fallback URL (empty = disabled)
 }
 
 // NewOpenAIClient creates a real OpenAI-compatible HTTP client.
@@ -60,15 +64,18 @@ func NewOpenAIClient(cfg *Config) harness.LLMClient {
 	}
 
 	return &openaiClient{
-		cfg:            cfg,
-		httpClient:     &http.Client{Timeout: 120 * time.Second},
-		baseURL:        baseURL,
-		apiKey:         cfg.APIKey,
-		model:          cfg.Model,
-		maxTokens:      cfg.MaxTokens,
-		temperature:    cfg.Temperature,
-		enableCache:    cfg.EnableCache,
-		responseFormat: responseFormat,
+		cfg:             cfg,
+		httpClient:      &http.Client{Timeout: 120 * time.Second},
+		baseURL:         baseURL,
+		apiKey:          cfg.APIKey,
+		model:           cfg.Model,
+		maxTokens:       cfg.MaxTokens,
+		temperature:     cfg.Temperature,
+		enableCache:     cfg.EnableCache,
+		responseFormat:  responseFormat,
+		maxRetries:      3,
+		retryBackoff:    1 * time.Second,
+		fallbackBaseURL: os.Getenv("LM_STUDIO_BASE_URL"),
 	}
 }
 
@@ -77,12 +84,12 @@ func NewOpenAIClient(cfg *Config) harness.LLMClient {
 // ============================================================================
 
 type openaiChatRequest struct {
-	Model          string               `json:"model"`
-	Messages       []openaiChatMessage  `json:"messages"`
-	MaxTokens      int                  `json:"max_tokens,omitempty"`
-	Temperature    float64              `json:"temperature,omitempty"`
-	ResponseFormat *openaiResponseFmt   `json:"response_format,omitempty"`
-	Stream         bool                 `json:"stream"`
+	Model          string              `json:"model"`
+	Messages       []openaiChatMessage `json:"messages"`
+	MaxTokens      int                 `json:"max_tokens,omitempty"`
+	Temperature    float64             `json:"temperature,omitempty"`
+	ResponseFormat *openaiResponseFmt  `json:"response_format,omitempty"`
+	Stream         bool                `json:"stream"`
 }
 
 type openaiChatMessage struct {
@@ -92,8 +99,8 @@ type openaiChatMessage struct {
 }
 
 type openaiResponseFmt struct {
-	Type       string              `json:"type"`
-	JSONSchema *openaiJSONSchema   `json:"json_schema,omitempty"`
+	Type       string            `json:"type"`
+	JSONSchema *openaiJSONSchema `json:"json_schema,omitempty"`
 }
 
 type openaiJSONSchema struct {
@@ -104,11 +111,11 @@ type openaiJSONSchema struct {
 }
 
 type openaiChatResponse struct {
-	ID      string              `json:"id"`
-	Model   string              `json:"model"`
-	Choices []openaiChatChoice  `json:"choices"`
-	Usage   openaiChatUsage     `json:"usage"`
-	Error   *openaiError        `json:"error,omitempty"`
+	ID      string             `json:"id"`
+	Model   string             `json:"model"`
+	Choices []openaiChatChoice `json:"choices"`
+	Usage   openaiChatUsage    `json:"usage"`
+	Error   *openaiError       `json:"error,omitempty"`
 }
 
 type openaiChatChoice struct {
@@ -133,6 +140,10 @@ type openaiError struct {
 
 // Call sends messages to the OpenAI-compatible API, parses the JSON response
 // into AgentOutput, and returns cost/usage metadata.
+//
+// On transient failures (5xx status codes, network errors), Call retries up to
+// maxRetries times with exponential backoff. After all retries are exhausted, it
+// attempts a fallback call to LM Studio if fallbackBaseURL is configured.
 func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*harness.LLMResponse, error) {
 	startTime := time.Now()
 
@@ -142,8 +153,6 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 	if err != nil {
 		return nil, err
 	}
-	// LM Studio (localhost:1234) and similar local servers may reject
-	// response_format on non-JSON-native models. Detect and skip.
 	if c.isLocalProvider() {
 		respFmt = nil
 	}
@@ -156,16 +165,65 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 		Stream:         false,
 	}
 
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("llm: marshal request: %w", err)
+	// Send with retry + backoff
+	var lastErr error
+	for attempt := 0; attempt <= c.maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := c.retryBackoff * time.Duration(1<<uint(attempt-1))
+			slog.Info("llm: retrying provider call",
+				"attempt", attempt,
+				"backoff_ms", backoff.Milliseconds(),
+				"model", c.model,
+			)
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("llm: context cancelled during backoff: %w", ctx.Err())
+			case <-time.After(backoff):
+			}
+		}
+
+		_, chatResp, err := c.sendAndParse(ctx, reqBody)
+		if err == nil {
+			return c.buildResponse(chatResp, startTime)
+		}
+
+		if !isRetryableLLMError(err) {
+			return nil, err
+		}
+		lastErr = err
 	}
 
-	// Build HTTP request
-	url := c.baseURL + "/chat/completions"
+	// All retries exhausted — try LM Studio fallback
+	if c.fallbackBaseURL != "" {
+		slog.Info("llm: attempting LM Studio fallback",
+			"fallback_url", c.fallbackBaseURL,
+			"primary_error", lastErr,
+		)
+		_, chatResp, fallbackErr := c.sendToURL(ctx, reqBody, c.fallbackBaseURL+"/chat/completions")
+		if fallbackErr == nil {
+			return c.buildResponse(chatResp, startTime)
+		}
+		slog.Warn("llm: LM Studio fallback also failed", "fallback_error", fallbackErr)
+	}
+
+	return nil, fmt.Errorf("llm: all retries exhausted (%d attempts): %w", c.maxRetries+1, lastErr)
+}
+
+// sendAndParse sends the request to the primary base URL and parses the response.
+func (c *openaiClient) sendAndParse(ctx context.Context, reqBody openaiChatRequest) (*http.Response, *openaiChatResponse, error) {
+	return c.sendToURL(ctx, reqBody, c.baseURL+"/chat/completions")
+}
+
+// sendToURL sends the request to a specific URL, parses the response, and checks for errors.
+func (c *openaiClient) sendToURL(ctx context.Context, reqBody openaiChatRequest, url string) (*http.Response, *openaiChatResponse, error) {
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, nil, fmt.Errorf("llm: marshal request: %w", err)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("llm: create request: %w", err)
+		return nil, nil, fmt.Errorf("llm: create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -179,51 +237,47 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 
 	slog.Info("llm: calling provider", "url", url, "model", c.model, "messages", len(reqBody.Messages))
 
-	// Send request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		elapsed := time.Since(startTime).Milliseconds()
-		return nil, fmt.Errorf("llm: http request failed after %dms: %w", elapsed, err)
+		return nil, nil, fmt.Errorf("llm: http request failed: %w", err)
 	}
-	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
-		return nil, fmt.Errorf("llm: read response: %w", err)
+		return resp, nil, fmt.Errorf("llm: read response: %w", err)
 	}
 
 	// Parse response with tolerant error handling.
-	// Some providers (LM Studio, Ollama) return error as a plain string
-	// instead of {message, type, code}. Use RawMessage to handle both.
 	var chatResp openaiChatResponse
 	if err := json.Unmarshal(respBytes, &chatResp); err != nil {
-		// Try alternate parse: error might be a plain string
 		var rawErr struct {
 			Error string `json:"error"`
 		}
 		if err2 := json.Unmarshal(respBytes, &rawErr); err2 == nil && rawErr.Error != "" {
-			return nil, fmt.Errorf("llm: api error (status %d): %s", resp.StatusCode, rawErr.Error)
+			return resp, nil, fmt.Errorf("llm: api error (status %d): %s", resp.StatusCode, rawErr.Error)
 		}
-		return nil, fmt.Errorf("llm: parse response (status %d): %w", resp.StatusCode, err)
+		return resp, nil, fmt.Errorf("llm: parse response (status %d): %w", resp.StatusCode, err)
 	}
 
-	// Handle API errors
 	if chatResp.Error != nil {
-		return nil, fmt.Errorf("llm: api error (status %d): %s (type=%s, code=%s)",
+		return resp, nil, fmt.Errorf("llm: api error (status %d): %s (type=%s, code=%s)",
 			resp.StatusCode, chatResp.Error.Message, chatResp.Error.Type, chatResp.Error.Code)
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("llm: http %d: %s", resp.StatusCode, string(respBytes))
+		return resp, nil, fmt.Errorf("llm: http %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	if len(chatResp.Choices) == 0 {
-		return nil, fmt.Errorf("llm: no choices in response")
+		return resp, nil, fmt.Errorf("llm: no choices in response")
 	}
 
-	// Extract content — prefer Content, fall back to ReasoningContent for
-	// thinking/reasoning models (Qwen thinking, DeepSeek-R1 style) that put
-	// their final output in reasoning_content while leaving content empty.
+	return resp, &chatResp, nil
+}
+
+// buildResponse extracts AgentOutput from a parsed chat response and builds LLMResponse.
+func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime time.Time) (*harness.LLMResponse, error) {
 	content := chatResp.Choices[0].Message.Content
 	if content == "" {
 		content = chatResp.Choices[0].Message.ReasoningContent
@@ -234,7 +288,6 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 	}
 	content = strings.TrimSpace(content)
 
-	// Some providers wrap JSON in markdown code blocks; strip them
 	content = stripMarkdownCodeBlock(content)
 
 	var output harness.AgentOutput
@@ -252,8 +305,8 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 	)
 
 	return &harness.LLMResponse{
-		Output:      &output,
-		ModelID:     chatResp.Model,
+		Output:     &output,
+		ModelID:    chatResp.Model,
 		Usage: harness.LLMUsage{
 			PromptTokens:     chatResp.Usage.PromptTokens,
 			CompletionTokens: chatResp.Usage.CompletionTokens,
@@ -261,6 +314,27 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 		},
 		DurationMs: elapsed,
 	}, nil
+}
+
+// isRetryableLLMError returns true if the error is transient and worth retrying.
+func isRetryableLLMError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	if strings.Contains(errStr, "status 5") {
+		return true
+	}
+	if strings.Contains(errStr, "status 4") {
+		return false
+	}
+	if strings.Contains(errStr, "http request failed") {
+		return true
+	}
+	if strings.Contains(errStr, "context") {
+		return false
+	}
+	return false
 }
 
 // ============================================================================
@@ -286,8 +360,6 @@ func (c *openaiClient) buildResponseFormat() (*openaiResponseFmt, error) {
 			},
 		}, nil
 	default:
-		// json_object mode is the safe default; it requests valid JSON but
-		// does not enforce a specific schema shape.
 		return &openaiResponseFmt{Type: "json_object"}, nil
 	}
 }
@@ -361,6 +433,7 @@ func (c *openaiClient) isLocalProvider() bool {
 		strings.Contains(c.baseURL, "localhost") ||
 		strings.Contains(c.baseURL, "host.docker.internal")
 }
+
 func toOpenAIMessages(messages []harness.Message) []openaiChatMessage {
 	out := make([]openaiChatMessage, len(messages))
 	for i, m := range messages {
@@ -375,7 +448,6 @@ func toOpenAIMessages(messages []harness.Message) []openaiChatMessage {
 // stripMarkdownCodeBlock removes ```json / ``` wrapping from LLM output.
 func stripMarkdownCodeBlock(s string) string {
 	s = strings.TrimSpace(s)
-	// Strip leading ```json or ```
 	if strings.HasPrefix(s, "```") {
 		idx := strings.Index(s, "\n")
 		if idx >= 0 {
@@ -385,7 +457,6 @@ func stripMarkdownCodeBlock(s string) string {
 			s = strings.TrimPrefix(s, "```")
 		}
 	}
-	// Strip trailing ```
 	if strings.HasSuffix(s, "```") {
 		s = s[:len(s)-3]
 	}
