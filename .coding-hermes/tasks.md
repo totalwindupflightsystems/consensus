@@ -70,7 +70,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Test: 2+ concurrent sessions processing simultaneously — (concurrent_sessions_test.go: 309 lines, alternatingMock race-safe, 2+5 session tests PASS with -race)
 - [x] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls) — 63c103e (4 tests: budget exhausted blocks agent, below limit proceeds, zero limit no-op, nil tracker skips enforcement; wired budget_limit_cents through readSession/ReadActiveContext)
 - [x] Test: memory poisoning via external_quarantine (inject malicious data, verify sanitized) — 8e47590 (4 tests, 438 lines: AutoRejection, ApprovalBypass gap-documented, CleanFlow, EdgeCases)
-- [ ] Test: schema migration under load (add column while sessions active, verify no data loss)
+- [x] Test: schema migration under load (add column while sessions active, verify no data loss) — f7961ae (+271 lines, 1 test, guards green)
 - [ ] Test: 100+ iteration durability (long-running session stability)
 
 ## Phase 5: AC Gap Closure
