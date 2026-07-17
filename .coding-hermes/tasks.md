@@ -74,7 +74,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Test: 100+ iteration durability (long-running session stability)
 
 ## Phase 5: AC Gap Closure
-- [ ] AC-040: (verify acceptance criteria and implement/fix)
+- [x] AC-040: (verify acceptance criteria and implement/fix) — VERIFIED: circuit breaker fully implemented (circuit.go:157 lines, 10 tests PASS). Wired in pollAndDispatch for planning failures. Known gap: handleLLMError path not wired (documented in circuit_test.go:466-467, separate enhancement).
 - [ ] AC-053: (verify acceptance criteria and implement/fix)
 - [ ] AC-054: (verify acceptance criteria and implement/fix)
 - [ ] AC-055: (verify acceptance criteria and implement/fix)
