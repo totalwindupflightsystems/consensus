@@ -75,9 +75,9 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 
 ## Phase 5: AC Gap Closure
 - [x] AC-040: (verify acceptance criteria and implement/fix) — VERIFIED: circuit breaker fully implemented (circuit.go:157 lines, 10 tests PASS). Wired in pollAndDispatch for planning failures. Known gap: handleLLMError path not wired (documented in circuit_test.go:466-467, separate enhancement).
-- [ ] AC-053: (verify acceptance criteria and implement/fix)
-- [ ] AC-054: (verify acceptance criteria and implement/fix)
-- [ ] AC-055: (verify acceptance criteria and implement/fix)
+- [x] AC-053: (verify acceptance criteria and implement/fix) — CLOSED: undefined acceptance criteria. No criteria exist in specs/, tests/, or code. AC-051-052 and AC-056-060 are implemented; AC-053/054/055 were placeholders with zero references anywhere. README says "60/60 AC passing" — these three were counted but never defined.
+- [x] AC-054: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
+- [x] AC-055: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
 - [x] Update AC-056 to reflect Postgres verification results — INVESTIGATION: agent_role created but never activated (SET ROLE missing), conscience.session_id vs consensus.session_id naming mismatch in RLS policies. RLS infrastructure exists but doesn't function.
 - [ ] Update AC-011 to reflect correct migration counts (17 SQLite, 19 Postgres)
 
