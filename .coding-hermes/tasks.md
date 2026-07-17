@@ -71,7 +71,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls) — 63c103e (4 tests: budget exhausted blocks agent, below limit proceeds, zero limit no-op, nil tracker skips enforcement; wired budget_limit_cents through readSession/ReadActiveContext)
 - [x] Test: memory poisoning via external_quarantine (inject malicious data, verify sanitized) — 8e47590 (4 tests, 438 lines: AutoRejection, ApprovalBypass gap-documented, CleanFlow, EdgeCases)
 - [x] Test: schema migration under load (add column while sessions active, verify no data loss) — f7961ae (+271 lines, 1 test, guards green)
-- [ ] Test: 100+ iteration durability (long-running session stability)
+- [x] Test: 100+ iteration durability (long-running session stability)
 
 ## Phase 5: AC Gap Closure
 - [ ] AC-040: (verify acceptance criteria and implement/fix)
