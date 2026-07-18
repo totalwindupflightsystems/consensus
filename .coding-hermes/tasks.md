@@ -89,7 +89,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 
 ## Active
 - [x] DEPS — bump Go toolchain to 1.26.5 (stdlib vulns GO-2026-5856 crypto/tls ECH leak, GO-2026-5039 net/textproto error escaping, GO-2026-5037 crypto/x509 parsing) — DONE: added `toolchain go1.26.5` to go.mod (CI uses `"1.26"` → latest patch auto-resolves)
-- [ ] INFRA — prepaid buckets (probed 2026-07-18): MiniMax-M3 @ minimax 401 (auth fail, key may be expired), GLM-5.2 @ zai-glm 401 (token expired or incorrect), grok-4.5 @ xai-oauth 403 (spending). Workers use kimi-k2.7 + opencode-go as primary fallbacks. Not blocking — all code phases complete.
+- [ ] INFRA — prepaid buckets (re-probed 2026-07-18 12:02Z): Kimi=200 ✓ | MiniMax=200 ✓ (was 401, now fixed) | ZAI GLM=200 ✓ (was 401, now fixed) | xAI=200 ✓ (was 403, now fixed) | OpenCode-Go=200 ✓ | **StepFun=401 "Incorrect API key"** (NEW — key expired or rotated). Workers: kimi-k2.7 + opencode-go primary. MiniMax/GLM/xAI now available as additional fallbacks. StepFun key needs rotation.
 - [x] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
 
 ## Completed
