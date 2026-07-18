@@ -79,7 +79,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] AC-054: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
 - [x] AC-055: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
 - [x] Update AC-056 to reflect Postgres verification results — INVESTIGATION: agent_role created but never activated (SET ROLE missing), conscience.session_id vs consensus.session_id naming mismatch in RLS policies. RLS infrastructure exists but doesn't function.
-- [ ] Update AC-011 to reflect correct migration counts (17 SQLite, 19 Postgres)
+- [x] Update AC-011 to reflect correct migration counts — 21 total SQL files: 18 applied to SQLite (skips 018_postgres, 021_grant_roles), 19 applied to Postgres (skips 017_sqlite_triggers, 011_sqlite_missing, 009_sqlite_task_tool)
 
 ## Phase 6: Expand UI Spec (ongoing)
 - [ ] Write Section 8 (Search & Query) of specs/026-dashboard-ui.md at blind-developer density
