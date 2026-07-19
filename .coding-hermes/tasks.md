@@ -88,25 +88,25 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Write Sections 11-24 at outline completeness minimum — DONE: §§11-24 all present (Task Queue, Approvals, Deliberation Viewer, Billing, Health, Multi-Tenant, Animation, State Mgmt, WebSocket, Responsive, Accessibility, Keyboard, Build, Testing — 2,561 lines total across 14 sections)
 
 ## Active
+- [ ] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+19 indirect)
+- [ ] TEST-001 — Add tests for internal/modelsync (257 lines, 0 tests; DB queries + provider mapping uncovered)
+- [ ] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval)
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
-- [ ] DEPS-002 — Bump 22 outdated Go dependencies
 
-|→ NEVER-DONE 11-point audit (2026-07-19T21:46Z):<br>
-&nbsp;&nbsp;1. SPEC: 29 spec files, clean ✓<br>
-&nbsp;&nbsp;2. DOCS: Comprehensive ✓<br>
-&nbsp;&nbsp;3. TEST: 60.2% total coverage, all 29 packages pass, chronicle/postgres/sqlite no-tests intentional ✓<br>
-&nbsp;&nbsp;4. DEPS: 22 packages outdated — modernc/sqlite v1.50→v1.54, chi v5.2→v5.3, pgx v5.9→v5.10, x/text v0.29→v0.40, x/tools v0.42→v0.48, etc. → created DEPS-002<br>
-&nbsp;&nbsp;5. PITFALLS: 0 TODOs, shim 501s documented ✓<br>
-&nbsp;&nbsp;6. PERF: Benchmarks pass ✓<br>
-&nbsp;&nbsp;7. ENDPOINTS: No production stubs (shim /project, /vcs, /find stubs are documented opencode-specific) ✓<br>
-&nbsp;&nbsp;8. CI: 5 runs all green ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: ✓ recorded for this tick<br>
-&nbsp;&nbsp;10. QUALITY: Clean gitignore, .vfs/.dirty NOT excluded (correct), only coverage.out cleaned ✓<br>
-&nbsp;&nbsp;11. WIRING: All routes+packages wired ✓<br>
-→ Hilo: 1113 edges, 181 files, healthy<br>
-→ Govulncheck: 0 vulns, 1 in transitives (not called)<br>
-→ GAP-001 committed 51ce655 (022_budget_limit_cents.sql, all tests PASS, CI green)<br>
-→ GAP-002 resolved: test passes 502 correctly on Go 1.26.5
+||→ NEVER-DONE 11-point audit (2026-07-19T17:00Z):<br>
+&nbsp;&nbsp;1. SPEC: 29 spec files, all 6 phases complete ✓<br>
+&nbsp;&nbsp;2. DOCS: 8 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams) ✓<br>
+&nbsp;&nbsp;3. TEST: modelsync 0 tests (257 lines) — real gap. chronicle/cmd/postgres/sqlite no-tests legitimate ✓<br>
+&nbsp;&nbsp;4. DEPS: 3 DIRECT outdated (chi v5.2.5, pgx v5.9.2, sqlite v1.50.0), 19 indirect → DEPS-002<br>
+&nbsp;&nbsp;5. PITFALLS: 0 TODOs, 13 return-nil-nil all legitimate (not-found/budget-exhausted/race-guard). No stubs ✓<br>
+&nbsp;&nbsp;6. PERF: 0 benchmarks exist in any package. No performance baselines → PERF-001<br>
+&nbsp;&nbsp;7. ENDPOINTS: All wired. Shim /project /vcs /find stubs documented. No production stubs ✓<br>
+&nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
+&nbsp;&nbsp;9. DUCKBRAIN: 4 memories, idle ticks tracked. New entry written this tick ✓<br>
+&nbsp;&nbsp;10. QUALITY: .gitignore fixed (added coverage.out). No TODOs, no dupes, clean ✓<br>
+&nbsp;&nbsp;11. WIRING: All packages wired: /mcp/, /webhooks/, /ui/, /chronicle/, /api/*, /global/*, /session, shim routes. main.go imports all service pkgs ✓<br>
+→ Build: clean. Tests: 29/29 pkgs pass. Git: clean (coverage.out now gitignored)<br>
+→ 3 gaps found this tick: TEST-001 (modelsync tests), PERF-001 (benchmarks), DEPS-002 (existing, confirmed still valid)
 
 - [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration: `sessions` table has no `budget_limit_cents` column, but `internal/harness/context.go` queries `COALESCE(budget_limit_cents, 0)` at lines 484/505/520/541. Harness E2E tests using real migration path fail with `SQL logic error: no such column: budget_limit_cents`. Fix: add migration 020 adding `budget_limit_cents INTEGER NOT NULL DEFAULT 0` to sessions table. — DONE: 022_budget_limit_cents.sql (ALTER TABLE sessions ADD COLUMN, all 12 migrate tests PASS, default=0 verified)
 - [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 (`internal/web/server_test.go:218`). — RESOLVED: test passes correctly returning 502 on current code (Go 1.26.5). Handler at server.go:316-318 returns StatusBadGateway on connection error; the Go 1.26 toolchain bump resolved the routing issue.

@@ -31,6 +31,9 @@ dev.db*
 .vfs/graph/graph.db.wal
 .vfs/graph/.last_warm
 
+# Test artifacts
+coverage.out
+
 # Credentials — NEVER commit these
 .env
 .auth.json
