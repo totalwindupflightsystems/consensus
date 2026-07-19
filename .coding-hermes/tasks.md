@@ -89,19 +89,22 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 
 ## Active
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
+- [ ] DEPS-002 — Bump 22 outdated Go dependencies
 
-|→ NEVER-DONE 11-point audit (2026-07-19):<br>
-&nbsp;&nbsp;1. SPEC: 18 spec files exist, clean<br>
-&nbsp;&nbsp;2. DOCS: Comprehensive coverage<br>
-&nbsp;&nbsp;3. TEST: chronicle/ 0 tests (CSS/HTML); postgres/sqlite no tests (intentional)<br>
-&nbsp;&nbsp;4. DEPS: 22 packages outdated — modernc/sqlite v1.50→v1.54, golang.org/x/text v0.29→v0.40, pgx v5.9→v5.10, chi v5.2→v5.3, etc.<br>
-&nbsp;&nbsp;5. PITFALLS: 0 TODOs in non-test code, shim 501s documented<br>
-&nbsp;&nbsp;6. PERF: Benchmarks pass<br>
-&nbsp;&nbsp;7. ENDPOINTS: No production stubs<br>
-&nbsp;&nbsp;8. CI: All green (last 3 runs)<br>
+|→ NEVER-DONE 11-point audit (2026-07-19T21:46Z):<br>
+&nbsp;&nbsp;1. SPEC: 29 spec files, clean ✓<br>
+&nbsp;&nbsp;2. DOCS: Comprehensive ✓<br>
+&nbsp;&nbsp;3. TEST: 60.2% total coverage, all 29 packages pass, chronicle/postgres/sqlite no-tests intentional ✓<br>
+&nbsp;&nbsp;4. DEPS: 22 packages outdated — modernc/sqlite v1.50→v1.54, chi v5.2→v5.3, pgx v5.9→v5.10, x/text v0.29→v0.40, x/tools v0.42→v0.48, etc. → created DEPS-002<br>
+&nbsp;&nbsp;5. PITFALLS: 0 TODOs, shim 501s documented ✓<br>
+&nbsp;&nbsp;6. PERF: Benchmarks pass ✓<br>
+&nbsp;&nbsp;7. ENDPOINTS: No production stubs (shim /project, /vcs, /find stubs are documented opencode-specific) ✓<br>
+&nbsp;&nbsp;8. CI: 5 runs all green ✓<br>
 &nbsp;&nbsp;9. DUCKBRAIN: ✓ recorded for this tick<br>
-&nbsp;&nbsp;10. QUALITY: Clean gitignore, no untracked artifacts<br>
-&nbsp;&nbsp;11. WIRING: All routes+packages wired in main.go<br>
+&nbsp;&nbsp;10. QUALITY: Clean gitignore, .vfs/.dirty NOT excluded (correct), only coverage.out cleaned ✓<br>
+&nbsp;&nbsp;11. WIRING: All routes+packages wired ✓<br>
+→ Hilo: 1113 edges, 181 files, healthy<br>
+→ Govulncheck: 0 vulns, 1 in transitives (not called)<br>
 → GAP-001 committed 51ce655 (022_budget_limit_cents.sql, all tests PASS, CI green)<br>
 → GAP-002 resolved: test passes 502 correctly on Go 1.26.5
 
