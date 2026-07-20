@@ -88,7 +88,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] Write Sections 11-24 at outline completeness minimum — DONE: §§11-24 all present (Task Queue, Approvals, Deliberation Viewer, Billing, Health, Multi-Tenant, Animation, State Mgmt, WebSocket, Responsive, Accessibility, Keyboard, Build, Testing — 2,561 lines total across 14 sections)
 
 ## Active
-- [ ] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+19 indirect)
+- [x] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+17 indirect) — 7ebe12b
 - [ ] TEST-001 — Add tests for internal/modelsync (257 lines, 0 tests; DB queries + provider mapping uncovered)
 - [ ] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval)
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
