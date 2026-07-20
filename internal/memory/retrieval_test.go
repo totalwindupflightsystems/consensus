@@ -5,8 +5,12 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 // ============================================================================
@@ -203,4 +207,248 @@ func TestRetrievalResult_String(t *testing.T) {
 		t.Errorf("expected similarity 0.95, got %.2f", r.Similarity)
 	}
 	_ = fmt.Sprintf("%+v", r) // ensure it formats
+}
+
+// ============================================================================
+// Benchmarks - PERF-001 consensus hot paths
+// ============================================================================
+//
+// These benchmarks measure the per-query cost of semantic retrieval over
+// the memory ledger. FindSimilar is the hot path every agent call uses to
+// surface relevant prior context; cosineSimilarity / vectorToString /
+// parseVector are the inner-loop primitives that compound across thousands
+// of similarity computations per retrieval.
+
+// retrievalBenchSchema is the minimum DDL required for the FindSimilar
+// benchmark. Mirrors the subset of internal/harness/testdata/migration_test.sql
+// that FindSimilar actually queries.
+const retrievalBenchSchema = `
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    agent_name TEXT NOT NULL DEFAULT '',
+    model_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'idle',
+    trust_level TEXT NOT NULL DEFAULT 'low',
+    goal TEXT NOT NULL DEFAULT '',
+    heartbeat_at TEXT,
+    iteration INTEGER NOT NULL DEFAULT 0,
+    parent_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE memory_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    summary_text TEXT,
+    session_id TEXT NOT NULL,
+    iteration_created INTEGER NOT NULL DEFAULT 0,
+    linked_memory_pages TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE display_modes (
+    memory_id INTEGER NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'full',
+    set_at TEXT NOT NULL DEFAULT (datetime('now')),
+    set_by_iteration INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT NOT NULL,
+    PRIMARY KEY (memory_id)
+);
+CREATE TABLE event_embeddings (
+    event_id INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    embedding TEXT NOT NULL,
+    dimensions INTEGER NOT NULL DEFAULT 1536,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id)
+);
+`
+
+// openRetrievalBenchDB opens a fresh SQLite-backed db.DB backed by a temp
+// file (so the database/sql pool can share state across connections) and
+// applies the minimum DDL.
+func openRetrievalBenchDB(b *testing.B) (db.DB, func()) {
+	b.Helper()
+	tmpFile, err := os.CreateTemp("", "consensus-memory-bench-*.db")
+	if err != nil {
+		b.Fatalf("bench: create temp db: %v", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+
+	ctx := context.Background()
+	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
+	if err != nil {
+		os.Remove(tmpPath)
+		b.Fatalf("bench: open sqlite: %v", err)
+	}
+	for _, stmt := range strings.Split(retrievalBenchSchema, ";") {
+		trimmed := strings.TrimSpace(stmt)
+		if trimmed == "" {
+			continue
+		}
+		if err := conn.Exec(ctx, trimmed); err != nil {
+			conn.Close()
+			os.Remove(tmpPath)
+			b.Fatalf("bench: apply schema: %v", err)
+		}
+	}
+	cleanup := func() {
+		conn.Close()
+		os.Remove(tmpPath)
+	}
+	return conn, cleanup
+}
+
+// deterministicVector produces a vector of length `dim` whose values are
+// derived from the input string. Used to populate event_embeddings rows
+// with realistic non-zero vectors and to build inputs for the pure-math
+// cosineSimilarity / vectorToString / parseVector benchmarks.
+func deterministicVector(input string, dim int) []float64 {
+	v := make([]float64, dim)
+	hash := uint64(1469598103934665603)
+	for i := 0; i < len(input); i++ {
+		hash ^= uint64(input[i])
+		hash *= 1099511628211
+	}
+	for i := 0; i < dim; i++ {
+		hash = hash*6364136223846793005 + 1442695040888963407
+		v[i] = float64(int64(hash)%2000-1000) / 1000.0 // range [-1, 1)
+	}
+	return v
+}
+
+// BenchmarkFindSimilar measures the cost of semantic retrieval over the
+// memory ledger with 50 embedded events for the session. This is the
+// per-call cost on a session with moderate activity.
+func BenchmarkFindSimilar(b *testing.B) {
+	conn, cleanup := openRetrievalBenchDB(b)
+	defer cleanup()
+
+	ctx := context.Background()
+	sessionID := "bench-findsimilar-session"
+	if err := conn.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status, trust_level, goal) VALUES ($1, 'bench-agent', 'test-model', 'idle', 'high', 'bench')`,
+		sessionID); err != nil {
+		b.Fatalf("bench: insert session: %v", err)
+	}
+
+	const eventCount = 50
+	const vectorDim = 1536
+	for i := 0; i < eventCount; i++ {
+		content := fmt.Sprintf("Event %d: this is a synthetic memory event about postgresql schema design and migration safety.", i)
+		if err := conn.Exec(ctx,
+			`INSERT INTO memory_events (id, type, content, session_id, iteration_created) VALUES ($1, 'text_block', $2, $3, 1)`,
+			i+1, content, sessionID); err != nil {
+			b.Fatalf("bench: insert memory_events: %v", err)
+		}
+		vec := deterministicVector(content, vectorDim)
+		if err := conn.Exec(ctx,
+			`INSERT INTO event_embeddings (event_id, model, embedding, dimensions) VALUES ($1, 'bench-model', $2, $3)`,
+			i+1, vectorToString(vec), vectorDim); err != nil {
+			b.Fatalf("bench: insert event_embeddings: %v", err)
+		}
+	}
+
+	r := NewRetriever(conn, newMockEmbedder())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := r.FindSimilar(ctx, sessionID, "postgresql migration", 5); err != nil {
+			b.Fatalf("FindSimilar: %v", err)
+		}
+	}
+}
+
+// makeBenchVector is a thin alias for deterministicVector kept under the
+// more discoverable benchmark name.
+func makeBenchVector(seed string, dim int) []float64 {
+	return deterministicVector(seed, dim)
+}
+
+// BenchmarkCosineSimilarity_384 measures cosine similarity at the small
+// embedding dimension used by MiniLM-style models.
+func BenchmarkCosineSimilarity_384(b *testing.B) {
+	a := makeBenchVector("cosine-384-a", 384)
+	c := makeBenchVector("cosine-384-b", 384)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := cosineSimilarity(a, c); err != nil {
+			b.Fatalf("cosineSimilarity: %v", err)
+		}
+	}
+}
+
+// BenchmarkCosineSimilarity_768 measures cosine similarity at the
+// mid-range dimension used by many open-source embedding models.
+func BenchmarkCosineSimilarity_768(b *testing.B) {
+	a := makeBenchVector("cosine-768-a", 768)
+	c := makeBenchVector("cosine-768-b", 768)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := cosineSimilarity(a, c); err != nil {
+			b.Fatalf("cosineSimilarity: %v", err)
+		}
+	}
+}
+
+// BenchmarkCosineSimilarity_1536 measures cosine similarity at the
+// production dimension used by OpenAI text-embedding-3-small and friends.
+func BenchmarkCosineSimilarity_1536(b *testing.B) {
+	a := makeBenchVector("cosine-1536-a", 1536)
+	c := makeBenchVector("cosine-1536-b", 1536)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := cosineSimilarity(a, c); err != nil {
+			b.Fatalf("cosineSimilarity: %v", err)
+		}
+	}
+}
+
+// BenchmarkVectorToString measures the cost of serializing an embedding
+// vector to its JSON string form (the format stored in event_embeddings).
+func BenchmarkVectorToString(b *testing.B) {
+	v := makeBenchVector("vector-to-string", 1536)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = vectorToString(v)
+	}
+}
+
+// BenchmarkParseVector measures the cost of deserializing an embedding
+// vector from its stored JSON string form.
+func BenchmarkParseVector(b *testing.B) {
+	v := makeBenchVector("parse-vector", 1536)
+	s := vectorToString(v)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := parseVector(s); err != nil {
+			b.Fatalf("parseVector: %v", err)
+		}
+	}
+}
+
+// BenchmarkVectorRoundtrip measures the full serialize-then-parse cycle
+// that runs every time we read an embedding back out of the database.
+// This is the combined cost FindSimilar incurs per row.
+func BenchmarkVectorRoundtrip(b *testing.B) {
+	v := makeBenchVector("vector-roundtrip", 1536)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s := vectorToString(v)
+		parsed, err := parseVector(s)
+		if err != nil {
+			b.Fatalf("parseVector: %v", err)
+		}
+		// Touch parsed to defeat dead-code elimination.
+		if len(parsed) != len(v) {
+			b.Fatalf("roundtrip length mismatch: %d vs %d", len(parsed), len(v))
+		}
+	}
 }

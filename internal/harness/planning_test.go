@@ -9,9 +9,14 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 )
 
 // ============================================================================
@@ -494,5 +499,232 @@ func TestFormatSQLList(t *testing.T) {
 	result := formatSQLList([]string{"SELECT 1", "INSERT INTO x VALUES (1)"})
 	if !strings.Contains(result, "[1]") || !strings.Contains(result, "[2]") {
 		t.Error("should show numbered list")
+	}
+}
+
+// ============================================================================
+// Benchmarks - PERF-001 consensus hot paths
+// ============================================================================
+//
+// These benchmarks measure the per-iteration cost of the multi-turn planning
+// loop. Each benchmark isolates a single function so regressions in any one
+// path can be attributed to the right code location.
+//
+// Setup that involves SQLite uses a temp file (not ":memory:") so the
+// database/sql pool can share the database across all pool connections -
+// :memory: gives each pool connection its own private database, which would
+// cause "no such table" errors when loadStagingBuffer runs through a
+// different pool connection than the one that ran the migration.
+
+// benchmarkIterationContext builds a realistic IterationContext for
+// formatTurnContextV2 / formatBufferStateV2 benchmarks. The fields mirror
+// what ReadActiveContext would produce for a mid-iteration agent session.
+func benchmarkIterationContext() *IterationContext {
+	return &IterationContext{
+		SessionID:   "benchmark-session-001",
+		AgentName:   "benchmark-agent",
+		ModelID:     "test-model",
+		TrustLevel:  "high",
+		Goal:        "Implement PERF-001: add Go benchmarks for the consensus hot paths so we can measure " +
+			"regressions in formatTurnContextV2, formatBufferStateV2, outputToTurnPlanV2, and " +
+			"loadStagingBuffer across releases.",
+		Status:      "planning",
+		Iteration:   5,
+		BudgetLimitCents: 10000,
+		BudgetUsedCents: 250,
+		MaxIterations:    10,
+	}
+}
+
+// benchmarkStagingBuffer builds a StagingBuffer with 12 entries spanning
+// several turns. This matches what a typical mid-iteration session looks
+// like (a few SQL inserts, one tool call, one failure that the agent is
+// about to recover from).
+func benchmarkStagingBuffer(sessionID string) *StagingBuffer {
+	buf := &StagingBuffer{IsActive: true}
+	descriptions := []string{
+		"Create tasks table",
+		"Insert seed row",
+		"Run analytics query",
+		"Update session status",
+		"Insert memory event",
+		"Mark display mode compressed",
+		"Tool call: web_search",
+		"Tool call: calculator",
+		"Roll back failed migration",
+		"Retry with corrected SQL",
+		"Commit batch",
+		"Audit log entry",
+	}
+	results := []string{
+		`{"status":"ok","rows":0}`,
+		`{"status":"ok","last_insert_id":42}`,
+		`{"status":"ok","rows":7}`,
+		`{"status":"ok"}`,
+		`{"status":"ok","last_insert_id":99}`,
+		`{"status":"ok"}`,
+		`{"status":"executed","output":"..."}`,
+		`{"status":"executed","output":"42"}`,
+		`{"status":"ok","note":"rollback performed"}`,
+		`{"status":"ok","rows":3}`,
+		`{"status":"ok"}`,
+		`{"status":"ok"}`,
+	}
+	statuses := []BufferStatus{
+		BufferExecuted, BufferExecuted, BufferExecuted, BufferExecuted,
+		BufferExecuted, BufferExecuted, BufferExecuted, BufferExecuted,
+		BufferRolledBack, BufferExecuted, BufferCommitted, BufferExecuted,
+	}
+	cmdTypes := []CmdType{
+		CmdSQL, CmdSQL, CmdSQL, CmdSQL,
+		CmdSQL, CmdSQL, CmdToolCallRef, CmdToolCallRef,
+		CmdSQL, CmdSQL, CmdSQL, CmdSQL,
+	}
+	for i := range descriptions {
+		rawResult := []byte(results[i])
+		buf.Entries = append(buf.Entries, &StagingEntry{
+			ID:          int64(i + 1),
+			SessionID:   sessionID,
+			Turn:        (i / 4) + 1,
+			Seq:         (i % 4) + 1,
+			CmdType:     cmdTypes[i],
+			Payload:     []byte(fmt.Sprintf("BENCHMARK SQL #%d: %s", i+1, descriptions[i])),
+			Description: descriptions[i],
+			Executed:    statuses[i] == BufferExecuted || statuses[i] == BufferCommitted,
+			Result:      (*json.RawMessage)(&rawResult),
+			Status:      statuses[i],
+		})
+	}
+	return buf
+}
+
+// openBenchmarkSQLite opens a fresh SQLite-backed db.DB backed by a temp
+// file (so the database/sql pool can share state across connections) and
+// runs the standard test migration plus model_registry seed.
+func openBenchmarkSQLite(b *testing.B) (db.DB, func()) {
+	b.Helper()
+	tmpFile, err := os.CreateTemp("", "consensus-bench-*.db")
+	if err != nil {
+		b.Fatalf("bench: create temp db: %v", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+
+	ctx := context.Background()
+	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
+	if err != nil {
+		os.Remove(tmpPath)
+		b.Fatalf("bench: open sqlite: %v", err)
+	}
+	if err := runTestMigration(ctx, conn); err != nil {
+		conn.Close()
+		os.Remove(tmpPath)
+		b.Fatalf("bench: migration: %v", err)
+	}
+	if err := seedModelRegistry(ctx, conn); err != nil {
+		conn.Close()
+		os.Remove(tmpPath)
+		b.Fatalf("bench: seed models: %v", err)
+	}
+
+	cleanup := func() {
+		conn.Close()
+		os.Remove(tmpPath)
+	}
+	return conn, cleanup
+}
+
+// BenchmarkFormatTurnContextV2 measures the cost of building the per-turn
+// user message sent to the LLM. This runs once per turn across every
+// session - even a 1ms regression here compounds across thousands of
+// iterations per day.
+func BenchmarkFormatTurnContextV2(b *testing.B) {
+	h := New(nil, &mockLLMClient{})
+	ic := benchmarkIterationContext()
+	buffer := benchmarkStagingBuffer(ic.SessionID)
+	config := DefaultPlanningConfig()
+	memChanges := []string{
+		"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'pending change 1', 'benchmark-session-001', 5)",
+		"UPDATE display_modes SET mode = 'compressed' WHERE memory_id = 42",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = h.formatTurnContextV2(ic, buffer, 3, config, memChanges)
+	}
+}
+
+// BenchmarkFormatBufferStateV2 measures the cost of rendering the staging
+// buffer section that gets embedded in the LLM context. With many staged
+// commands this is O(entries) string concatenation.
+func BenchmarkFormatBufferStateV2(b *testing.B) {
+	h := New(nil, &mockLLMClient{})
+	ic := benchmarkIterationContext()
+	buffer := benchmarkStagingBuffer(ic.SessionID)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = h.formatBufferStateV2(buffer)
+	}
+}
+
+// BenchmarkOutputToTurnPlanV2 measures the cost of parsing an LLM JSON
+// response into a TurnPlan. This runs once per turn - keeping it fast
+// matters for high-frequency interactive sessions.
+func BenchmarkOutputToTurnPlanV2(b *testing.B) {
+	h := New(nil, &mockLLMClient{})
+	output := &AgentOutput{
+		InternalMonologue: "I need to insert a memory event recording the result, then commit.",
+		MemoryStateChanges: []string{
+			"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Created tasks table', 'benchmark-session-001', 5)",
+			"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Inserted seed row 42', 'benchmark-session-001', 5)",
+			"UPDATE display_modes SET mode = 'compressed' WHERE memory_id = 42",
+		},
+		SystemActions: []string{"commit"},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = h.outputToTurnPlanV2(output)
+	}
+}
+
+// BenchmarkLoadStagingBuffer measures the SQL load path that runs at the
+// top of every planning turn. The benchmark seeds a session with 12
+// staged entries so the query exercises a realistic row count.
+func BenchmarkLoadStagingBuffer(b *testing.B) {
+	conn, cleanup := openBenchmarkSQLite(b)
+	defer cleanup()
+	ctx := context.Background()
+
+	sessionID := "benchmark-load-staging-session"
+	if err := conn.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status, trust_level, goal) VALUES ($1, 'bench-agent', 'test-model', 'planning', 'high', 'bench')`,
+		sessionID); err != nil {
+		b.Fatalf("bench: insert session: %v", err)
+	}
+
+	// Seed the staging buffer with 12 entries (mirrors the buffer used by
+	// the format benchmarks) so the SELECT has a realistic payload.
+	buffer := benchmarkStagingBuffer(sessionID)
+	for _, e := range buffer.Entries {
+		payloadJSON, _ := json.Marshal(string(e.Payload))
+		if err := conn.Exec(ctx,
+			`INSERT INTO staging_buffer (session_id, iteration, turn, seq, cmd_type, payload, description, status, executed, result, created_at)
+			 VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8, $9, datetime('now'))`,
+			sessionID, e.Turn, e.Seq, string(e.CmdType), string(payloadJSON), e.Description,
+			string(e.Status), e.Executed, string(*e.Result),
+		); err != nil {
+			b.Fatalf("bench: insert staging entry: %v", err)
+		}
+	}
+
+	h := New(conn, &mockLLMClient{})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := h.loadStagingBuffer(ctx, sessionID); err != nil {
+			b.Fatalf("loadStagingBuffer: %v", err)
+		}
 	}
 }

@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 	"github.com/wojons/consensus/internal/llm"
 )
 
@@ -436,3 +438,259 @@ var (
 	_ llm.EmbeddingClient = (*mockEmbedClient)(nil)
 	_ Summarizer          = (*mockSummarizer)(nil)
 )
+
+// ============================================================================
+// Benchmarks - PERF-001 consensus hot paths
+// ============================================================================
+//
+// These benchmarks measure the per-event cost of the background compression
+// pipeline. Summarize runs against an httptest server so we measure the
+// real HTTP path (marshal request, send, parse response). fetchPending and
+// processOne use a real SQLite database (backed by a temp file so the
+// database/sql pool can share state across connections) seeded with the
+// minimum tables the worker touches.
+
+// compressionBenchSchema is the minimum DDL required for the compression
+// worker benchmarks. It mirrors the subset of the production migration
+// that the worker actually queries.
+const compressionBenchSchema = `
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    agent_name TEXT NOT NULL DEFAULT '',
+    model_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'idle',
+    trust_level TEXT NOT NULL DEFAULT 'low',
+    goal TEXT NOT NULL DEFAULT '',
+    heartbeat_at TEXT,
+    iteration INTEGER NOT NULL DEFAULT 0,
+    parent_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE model_registry (
+    model_id TEXT PRIMARY KEY,
+    tier INTEGER NOT NULL DEFAULT 1,
+    max_context INTEGER NOT NULL DEFAULT 8192,
+    cost_per_m_in REAL NOT NULL DEFAULT 0,
+    cost_per_m_out REAL NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE memory_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    summary_text TEXT,
+    session_id TEXT NOT NULL,
+    iteration_created INTEGER NOT NULL DEFAULT 0,
+    linked_memory_pages TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE display_modes (
+    memory_id INTEGER NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'full',
+    set_at TEXT NOT NULL DEFAULT (datetime('now')),
+    set_by_iteration INTEGER NOT NULL DEFAULT 0,
+    session_id TEXT NOT NULL,
+    PRIMARY KEY (memory_id)
+);
+CREATE TABLE compression_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    current_tier INTEGER NOT NULL DEFAULT 1,
+    next_tier INTEGER NOT NULL DEFAULT 2,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    processed_at TEXT
+);
+`
+
+// openCompressionBenchDB opens a fresh SQLite-backed db.DB backed by a
+// temp file (so the database/sql pool can share state across connections)
+// and applies the minimum DDL plus a seed model registry row.
+func openCompressionBenchDB(b *testing.B) (db.DB, func()) {
+	b.Helper()
+	tmpFile, err := os.CreateTemp("", "consensus-compression-bench-*.db")
+	if err != nil {
+		b.Fatalf("bench: create temp db: %v", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+
+	ctx := context.Background()
+	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
+	if err != nil {
+		os.Remove(tmpPath)
+		b.Fatalf("bench: open sqlite: %v", err)
+	}
+
+	for _, stmt := range strings.Split(compressionBenchSchema, ";") {
+		trimmed := strings.TrimSpace(stmt)
+		if trimmed == "" {
+			continue
+		}
+		if err := conn.Exec(ctx, trimmed); err != nil {
+			conn.Close()
+			os.Remove(tmpPath)
+			b.Fatalf("bench: apply schema (%s): %v", trimmed, err)
+		}
+	}
+
+	if err := conn.Exec(ctx, `INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out) VALUES ('gpt-4o-mini', 1, 128000, 0.15, 0.60)`); err != nil {
+		conn.Close()
+		os.Remove(tmpPath)
+		b.Fatalf("bench: seed model_registry: %v", err)
+	}
+
+	cleanup := func() {
+		conn.Close()
+		os.Remove(tmpPath)
+	}
+	return conn, cleanup
+}
+
+// seedCompressionQueue populates the compression_queue table with `count`
+// pending rows so fetchPending has something to return.
+func seedCompressionQueue(b *testing.B, conn db.DB, count int) {
+	b.Helper()
+	ctx := context.Background()
+	for i := 0; i < count; i++ {
+		if err := conn.Exec(ctx,
+			`INSERT INTO compression_queue (event_id, current_tier, next_tier, status, attempts, max_attempts)
+			 VALUES ($1, 1, 2, 'pending', 0, 3)`, int64(i+1)); err != nil {
+			b.Fatalf("bench: insert queue row: %v", err)
+		}
+	}
+}
+
+// seedMemoryEvent inserts a single memory_events row used by processOne
+// benchmarks so the SELECT inside fetchMemoryEvent returns data.
+func seedMemoryEvent(b *testing.B, conn db.DB, sessionID string, eventID int64) {
+	b.Helper()
+	ctx := context.Background()
+	if err := conn.Exec(ctx,
+		`INSERT INTO memory_events (id, type, content, session_id, iteration_created)
+		 VALUES ($1, 'text_block', $2, $3, 1)`,
+		eventID, "Benchmark content: this is the original memory event body that will be compressed by the worker. "+
+			"It has enough length to be a realistic input for the summarization path - roughly 200 characters.",
+		sessionID); err != nil {
+		b.Fatalf("bench: insert memory_events: %v", err)
+	}
+	if err := conn.Exec(ctx,
+		`INSERT INTO display_modes (memory_id, mode, session_id) VALUES ($1, 'full', $2)`,
+		eventID, sessionID); err != nil {
+		b.Fatalf("bench: insert display_modes: %v", err)
+	}
+}
+
+// BenchmarkSummarize measures the HTTP round-trip cost of the OpenAI-
+// compatible chat completions endpoint used by the compression worker.
+// The httptest server returns a deterministic summary so the benchmark
+// measures Go-side overhead (marshal request, send, read, unmarshal).
+func BenchmarkSummarize(b *testing.B) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := chatCompletionResponse{
+			Choices: []chatChoice{
+				{Message: chatMessage{Role: "assistant", Content: "Compressed summary of the input content."}},
+			},
+			Usage: chatUsage{PromptTokens: 50, CompletionTokens: 10, TotalTokens: 60},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	s := NewOpenAISummarizer(server.URL, "bench-key")
+	content := "This is the original memory event content that the compression worker will summarize. " +
+		"It spans multiple sentences to approximate a realistic input length."
+	systemPrompt := CompressionSummaryPrompt(TierCompressed)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := s.Summarize(context.Background(), systemPrompt, content, "gpt-4o-mini"); err != nil {
+			b.Fatalf("Summarize: %v", err)
+		}
+	}
+}
+
+// BenchmarkFetchPending measures the SQL load path that runs at the top
+// of every poll cycle. The benchmark seeds 10 pending rows so the SELECT
+// exercises a realistic workload.
+func BenchmarkFetchPending(b *testing.B) {
+	conn, cleanup := openCompressionBenchDB(b)
+	defer cleanup()
+
+	if err := conn.Exec(context.Background(),
+		`INSERT INTO sessions (id, agent_name, model_id, status, trust_level, goal) VALUES ('bench-session', 'bench-agent', 'gpt-4o-mini', 'idle', 'high', 'bench')`); err != nil {
+		b.Fatalf("bench: insert session: %v", err)
+	}
+
+	cfg := DefaultWorkerConfig()
+	cfg.BatchSize = 10
+	w := NewWorker(conn, &mockEmbedClient{}, &mockSummarizer{}, cfg)
+	ctx := context.Background()
+
+	// Seed the queue outside the timed region.
+	seedCompressionQueue(b, conn, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := w.fetchPending(ctx); err != nil {
+			b.Fatalf("fetchPending: %v", err)
+		}
+	}
+}
+
+// BenchmarkProcessOne measures the end-to-end cost of processing a single
+// compression queue item with a mock summarizer (no HTTP overhead) and a
+// mock DB that returns the data the worker expects. This isolates the
+// Go-side overhead (status updates, embedding math, queue/escalation logic)
+// from SQL latency. The worker uses session_id::TEXT casts that are
+// Postgres-specific, so we exercise the same code path via the in-memory
+// mockDB the existing TestWorkerProcessOneWithMockServer uses.
+func BenchmarkProcessOne(b *testing.B) {
+	var execQueries []string
+	mock := &mockDB{
+		backend: db.BackendSQLite,
+		queryFn: func(ctx context.Context, query string, args ...any) ([]db.Row, error) {
+			if strings.Contains(query, "model_registry") {
+				return []db.Row{{"model_id": "gpt-4o-mini"}}, nil
+			}
+			return nil, nil
+		},
+		queryRowFn: func(ctx context.Context, query string, args ...any) (db.Row, error) {
+			return db.Row{
+				"id":         int64(100),
+				"content":    "Benchmark content: this is the original memory event body that will be compressed by the worker. It has enough length to be a realistic input for the summarization path - roughly 200 characters.",
+				"session_id": "bench-session",
+			}, nil
+		},
+		execFn: func(ctx context.Context, query string, args ...any) error {
+			execQueries = append(execQueries, query)
+			return nil
+		},
+	}
+
+	cfg := DefaultWorkerConfig()
+	cfg.CosineThreshold = 0.0 // accept every summary (mock embeddings are identical)
+	w := NewWorker(mock, &mockEmbedClient{}, &mockSummarizer{}, cfg)
+
+	item := &QueueItem{
+		ID:          1,
+		EventID:     100,
+		CurrentTier: 1,
+		Attempts:    0,
+		MaxAttempts: 3,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Reset state so the accept path runs every iteration.
+		item.Attempts = 0
+		execQueries = execQueries[:0]
+		if err := w.processOne(context.Background(), item); err != nil {
+			b.Fatalf("processOne: %v", err)
+		}
+	}
+}
