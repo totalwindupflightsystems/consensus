@@ -17,7 +17,7 @@ import (
 	"github.com/wojons/consensus/internal/db"
 )
 
-const modelsDevURL = "https://models.dev/api/models"
+var modelsDevURL = "https://models.dev/api/models"
 
 // ModelEntry mirrors a models.dev API response entry.
 type ModelEntry struct {
