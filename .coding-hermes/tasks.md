@@ -90,7 +90,7 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 ## Active
 - [x] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+17 indirect) — 7ebe12b
 - [x] TEST-001 — Add tests for internal/modelsync (257 lines, 0 tests; DB queries + provider mapping uncovered) — DONE: 17edc13 (32 tests, +849 lines, 100% pass, guard green)
-- [ ] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval)
+- [x] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval) — 572139a (14 benchmarks, 738 lines, all pass)
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
 ||→ NEVER-DONE 11-point audit (2026-07-19T17:00Z):<br>
