@@ -93,20 +93,21 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval) — 572139a (14 benchmarks, 738 lines, all pass)
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
-||→ NEVER-DONE 11-point audit (2026-07-19T17:00Z):<br>
-&nbsp;&nbsp;1. SPEC: 29 spec files, all 6 phases complete ✓<br>
-&nbsp;&nbsp;2. DOCS: 8 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams) ✓<br>
-&nbsp;&nbsp;3. TEST: modelsync 0 tests (257 lines) — real gap. chronicle/cmd/postgres/sqlite no-tests legitimate ✓<br>
-&nbsp;&nbsp;4. DEPS: 3 DIRECT outdated (chi v5.2.5, pgx v5.9.2, sqlite v1.50.0), 19 indirect → DEPS-002<br>
-&nbsp;&nbsp;5. PITFALLS: 0 TODOs, 13 return-nil-nil all legitimate (not-found/budget-exhausted/race-guard). No stubs ✓<br>
-&nbsp;&nbsp;6. PERF: 0 benchmarks exist in any package. No performance baselines → PERF-001<br>
-&nbsp;&nbsp;7. ENDPOINTS: All wired. Shim /project /vcs /find stubs documented. No production stubs ✓<br>
+||→ NEVER-DONE 11-point audit (2026-07-20T16:08Z) — IDLE TICK #1:<br>
+&nbsp;&nbsp;1. SPEC: 30 spec files, all 6 phases complete. No drift ✓<br>
+&nbsp;&nbsp;2. DOCS: 9 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams, runbooks) + shim specs ✓<br>
+&nbsp;&nbsp;3. TEST: 32/32 pkgs pass. 4 no-test pkgs legitimate (chronicle/embed, cmd/main, postgres DB driver, sqlite DB driver) ✓<br>
+&nbsp;&nbsp;4. DEPS: 7 direct deps ALL current. 17 transitive outdated (not in go.mod — not actionable). No direct updates needed ✓<br>
+&nbsp;&nbsp;5. PITFALLS: 0 TODOs. 13 return-nil-nil all legitimate (guard clauses, race guards, not-found patterns). 501 stubs are documented shim exclusions ✓<br>
+&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages (compression: 2, harness: 5, memory: 7). All pass ✓<br>
+&nbsp;&nbsp;7. ENDPOINTS: 68 routes registered. Shim /project/vcs/MCP/TUI stubs documented per SPEC-017. No production stubs ✓<br>
 &nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: 4 memories, idle ticks tracked. New entry written this tick ✓<br>
-&nbsp;&nbsp;10. QUALITY: .gitignore fixed (added coverage.out). No TODOs, no dupes, clean ✓<br>
-&nbsp;&nbsp;11. WIRING: All packages wired: /mcp/, /webhooks/, /ui/, /chronicle/, /api/*, /global/*, /session, shim routes. main.go imports all service pkgs ✓<br>
-→ Build: clean. Tests: 29/29 pkgs pass. Git: clean (coverage.out now gitignored)<br>
-→ 3 gaps found this tick: TEST-001 (modelsync tests), PERF-001 (benchmarks), DEPS-002 (existing, confirmed still valid)
+&nbsp;&nbsp;9. DUCKBRAIN: Fleet status maintained. Idle tick written. No project-specific pitfalls to document ✓<br>
+&nbsp;&nbsp;10. QUALITY: Git status clean (zero untracked). 0 TODOs, 0 dupes ✓<br>
+&nbsp;&nbsp;11. WIRING: main.go imports all 18 service pkgs. 68 routes wired across API/shim/chronicle/web/mcp. All paths connected ✓<br>
+→ Build: clean. Tests: 32/32 pkgs pass. Benchmarks: 14 funcs. Git: clean.<br>
+→ ⚠️ Cooldown reverted: 7200→900 (daemon restart). Re-fixed via API PUT. Reversion count: 1.<br>
+→ 0 gaps found. Idle tick #1. Cooldown=7200s.
 
 - [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration: `sessions` table has no `budget_limit_cents` column, but `internal/harness/context.go` queries `COALESCE(budget_limit_cents, 0)` at lines 484/505/520/541. Harness E2E tests using real migration path fail with `SQL logic error: no such column: budget_limit_cents`. Fix: add migration 020 adding `budget_limit_cents INTEGER NOT NULL DEFAULT 0` to sessions table. — DONE: 022_budget_limit_cents.sql (ALTER TABLE sessions ADD COLUMN, all 12 migrate tests PASS, default=0 verified)
 - [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 (`internal/web/server_test.go:218`). — RESOLVED: test passes correctly returning 502 on current code (Go 1.26.5). Handler at server.go:316-318 returns StatusBadGateway on connection error; the Go 1.26 toolchain bump resolved the routing issue.
