@@ -209,7 +209,7 @@ func TestAPIProxy_QueryString(t *testing.T) {
 }
 
 func TestAPIProxy_UpstreamError(t *testing.T) {
-	s := NewServer("http://localhost:19999") // nothing listening
+	s := NewServer("http://localhost:19990") // nothing listening — 19999 occupied by Dagger Engine
 	req := httptest.NewRequest(http.MethodGet, "/api/api/v1/sessions", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
