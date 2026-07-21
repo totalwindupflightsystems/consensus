@@ -91,60 +91,29 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+17 indirect) — 7ebe12b
 - [x] TEST-001 — Add tests for internal/modelsync (257 lines, 0 tests; DB queries + provider mapping uncovered) — DONE: 17edc13 (32 tests, +849 lines, 100% pass, guard green)
 - [x] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval) — 572139a (14 benchmarks, 738 lines, all pass)
+- [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration — DONE: 022_budget_limit_cents.sql
+- [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 — RESOLVED: Go 1.26.5 toolchain resolved the routing issue
+- [x] GAP-003 (ENV) — `TestAPIProxy_UpstreamError` failing again (2026-07-21): port 19999 occupied by Dagger Engine (pid 446976) serving 404 instead of connection-refused 502. Fix: changed port to 19990. — b690e24
 - [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
-||→ NEVER-DONE 11-point audit (2026-07-20T16:08Z) — IDLE TICK #1:<br>
-&nbsp;&nbsp;1. SPEC: 30 spec files, all 6 phases complete. No drift ✓<br>
-&nbsp;&nbsp;2. DOCS: 9 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams, runbooks) + shim specs ✓<br>
-&nbsp;&nbsp;3. TEST: 32/32 pkgs pass. 4 no-test pkgs legitimate (chronicle/embed, cmd/main, postgres DB driver, sqlite DB driver) ✓<br>
-&nbsp;&nbsp;4. DEPS: 7 direct deps ALL current. 17 transitive outdated (not in go.mod — not actionable). No direct updates needed ✓<br>
-&nbsp;&nbsp;5. PITFALLS: 0 TODOs. 13 return-nil-nil all legitimate (guard clauses, race guards, not-found patterns). 501 stubs are documented shim exclusions ✓<br>
-&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages (compression: 2, harness: 5, memory: 7). All pass ✓<br>
-&nbsp;&nbsp;7. ENDPOINTS: 68 routes registered. Shim /project/vcs/MCP/TUI stubs documented per SPEC-017. No production stubs ✓<br>
-&nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: Fleet status maintained. Idle tick written. No project-specific pitfalls to document ✓<br>
-&nbsp;&nbsp;10. QUALITY: Git status clean (zero untracked). 0 TODOs, 0 dupes ✓<br>
-&nbsp;&nbsp;11. WIRING: main.go imports all 18 service pkgs. 68 routes wired across API/shim/chronicle/web/mcp. All paths connected ✓<br>
-→ Build: clean. Tests: 32/32 pkgs pass. Benchmarks: 14 funcs. Git: clean.<br>
-→ ⚠️ Cooldown reverted: 7200→900 (daemon restart). Re-fixed via API PUT. Reversion count: 1.<br>
-→ 0 gaps found. Idle tick #1. Cooldown=7200s.
-
-||→ NEVER-DONE 11-point audit (2026-07-20T18:30Z) — IDLE TICK #2:<br>
-&nbsp;&nbsp;1. SPEC: 29 spec files. No drift ✓<br>
-&nbsp;&nbsp;2. DOCS: 6 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README) + shim specs ✓<br>
-&nbsp;&nbsp;3. TEST: 28/28 pkgs pass. 4 no-test pkgs legitimate (chronicle/embed, cmd/main, postgres driver, sqlite driver) ✓<br>
-&nbsp;&nbsp;4. DEPS: 0 direct deps outdated. All current ✓<br>
-&nbsp;&nbsp;5. PITFALLS: 13 return-nil-nil all legitimate (guards, not-found). 501 stubs documented shim exclusions ✓<br>
-&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages. All pass ✓<br>
-&nbsp;&nbsp;7. ENDPOINTS: Source audit — only shim stubs per SPEC-017. No production stubs ✓<br>
-&nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: Fleet status at /fleet/projects/consensus/. No project-specific pitfalls to document ✓<br>
-&nbsp;&nbsp;10. QUALITY: Git status clean. 0 untracked. 1 WI-004 TODO (known). Long files are test/impl — not smelly ✓<br>
-&nbsp;&nbsp;11. WIRING: 68 routes, serve command works, binary builds ✓<br>
-→ Build: clean. Tests: 28/28 pkgs pass. Benchmarks: 14 funcs. Vulns: 0. Git: clean.<br>
-→ Scheduler: CooldownS=7200→43200 (12h self-pause). Enabled=True. Reversion count: 1 (prior).<br>
-→ 0 gaps found. Idle tick #2. Cooldown=43200s (12h).
-
-|||→ NEVER-DONE 11-point audit (2026-07-21T02:19Z) — IDLE TICK #3:<br>
-&nbsp;&nbsp;1. SPEC: 29 spec files. No drift ✓<br>
+|||→ NEVER-DONE 11-point audit (2026-07-21T05:38Z) — PRODUCTIVE TICK #4 (1 gap found + fixed, idle counter reset):<br>
+&nbsp;&nbsp;1. SPEC: 30 spec files. No drift ✓<br>
 &nbsp;&nbsp;2. DOCS: 10 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams, shim-openai, shim-anthropic) ✓<br>
-&nbsp;&nbsp;3. TEST: Build passes. All sampled pkgs green (compression, harness, memory, config, sqlite). No new test gaps ✓<br>
+&nbsp;&nbsp;3. TEST: 28/28 pkgs pass + 5 no-test (legitimate). ⚠️ GAP-003 found: TestAPIProxy_UpstreamError port-conflict with Dagger Engine → fixed (port 19990) ✓<br>
 &nbsp;&nbsp;4. DEPS: 0 direct deps outdated. All current ✓<br>
-&nbsp;&nbsp;5. PITFALLS: 13 return-nil-nil legitimate. 0 TODOs. 501 stubs documented shim exclusions ✓<br>
-&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages (3 compression, 4 harness, 7 memory). All pass ✓<br>
-&nbsp;&nbsp;7. ENDPOINTS: 97 route registrations. Only shim stubs per SPEC-017. No production stubs ✓<br>
+&nbsp;&nbsp;5. PITFALLS: 13 return-nil-nil all legitimate (guards, error wrapping, not-found). 0 TODOs. STUBs documented shim exclusions ✓<br>
+&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages. All pass ✓<br>
+&nbsp;&nbsp;7. ENDPOINTS: 72 route registrations. Only shim stubs per SPEC-017. No production stubs ✓<br>
 &nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: 2 prior idle ticks recorded, fleet status at /fleet/projects/consensus/ ✓<br>
-&nbsp;&nbsp;10. QUALITY: Git clean. ⚠️ edges.jsonl restored (Hilo post-commit noise, 27 edge lines). 0 untracked, 0 TODOs ✓<br>
-&nbsp;&nbsp;11. WIRING: 28 imports, 20 service packages connected. Binary builds ✓<br>
-→ Build: clean. Tests: sampled pkgs green. Benchmarks: 14 funcs. CI: 5/5. Git: clean (edges.jsonl restored).<br>
-→ Scheduler: CooldownS=43200→86400 (24h self-pause). Idle tick #3. 3 consecutive idle ticks, no gaps.<br>
-→ 0 gaps found. Idle tick #3. Cooldown=86400s (24h).
+&nbsp;&nbsp;9. DUCKBRAIN: 3 prior idle ticks recorded. Fleet status maintained ✓<br>
+&nbsp;&nbsp;10. QUALITY: Git clean. 0 untracked, 0 TODOs ✓<br>
+&nbsp;&nbsp;11. WIRING: 33 packages, 72 routes, binary builds ✓<br>
+→ Build: clean. Tests: 28/28 pkgs pass + 5 no-test. Benchmarks: 14 funcs. CI: 5/5. Git: clean.<br>
+→ 1 gap found (GAP-003: port conflict) + fixed (b690e24). Productive tick — idle counter reset to 0.<br>
+→ Cooldown: reset to 900s (base) — productive tick with real finding.
 
-- [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration: `sessions` table has no `budget_limit_cents` column, but `internal/harness/context.go` queries `COALESCE(budget_limit_cents, 0)` at lines 484/505/520/541. Harness E2E tests using real migration path fail with `SQL logic error: no such column: budget_limit_cents`. Fix: add migration 020 adding `budget_limit_cents INTEGER NOT NULL DEFAULT 0` to sessions table. — DONE: 022_budget_limit_cents.sql (ALTER TABLE sessions ADD COLUMN, all 12 migrate tests PASS, default=0 verified)
-- [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 (`internal/web/server_test.go:218`). — RESOLVED: test passes correctly returning 502 on current code (Go 1.26.5). Handler at server.go:316-318 returns StatusBadGateway on connection error; the Go 1.26 toolchain bump resolved the routing issue.
 - [x] DEPS — bump Go toolchain to 1.26.5 (stdlib vulns GO-2026-5856 crypto/tls ECH leak, GO-2026-5039 net/textproto error escaping, GO-2026-5037 crypto/x509 parsing) — DONE: added `toolchain go1.26.5` to go.mod (CI uses `"1.26"` → latest patch auto-resolves)
-- [x] INFRA — prepaid buckets (re-probed 2026-07-18 17:18Z): Kimi=200 ✓ | MiniMax=200 ✓ | ZAI GLM=200 ✓ | xAI=200 ✓ | OpenCode-Go=200 ✓ | StepFun=200 ✓ (was 401, now recovered — key working again). Workers: kimi-k2.7 + opencode-go primary. MiniMax/GLM/xAI/StepFun all available as fallbacks. ALL BUCKETS HEALTHY.
+- [x] INFRA — prepaid buckets (re-probed 2026-07-18 17:18Z): ALL BUCKETS HEALTHY.
 - [x] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
 
 ## Completed
@@ -164,4 +133,4 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 - [x] docs/diagrams.md (11 Mermaid diagrams)
 - [x] chronicle.html product page on GitHub Pages
 - [x] OpenCode shim (internal/shim/opencode/, 1,836 lines, 26 endpoints) — builds clean
-## [x] Fix CI: test — 1 failure on master (models.dev integration) — fixed by 4ab2677 (goose Down stripping), CI green
+- [x] Fix CI: test — 1 failure on master (models.dev integration) — fixed by 4ab2677 (goose Down stripping), CI green
