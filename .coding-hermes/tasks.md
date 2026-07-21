@@ -1,136 +1,83 @@
-# Coding Hermes Task Queue — Consensus
+# Consensus — Model-Router Task Matrix
 
-## Phase 1: Ship the Product (Chronicle UI)
-
-### 1.1 Design System Foundation
-- [x] Create Chronicle design system CSS (color tokens §1.2, typography §1.3, spacing §1.4, iconography §1.5, animation tokens §1.6, theme support §1.7) — from specs/026-dashboard-ui.md §1
-- [x] Create internal/chronicle/ Go package with server, /chronicle/ route wired in cmd/consensus/main.go
-- [x] Serve CSS + minimal placeholder page at /chronicle/ with Chronicle header/nav
-
-### 1.2 Layout Architecture
-- [x] Build layout shell: app chrome (header, nav sidebar, main panel area, footer status) — §2
-  → layout.css (CSS Grid shell, collapsible sidebar, status bar, responsive 3-tier breakpoints)
-  → index.html (rewritten with proper top bar, sidebar nav sections, status bar, keyboard shortcuts)
-- [x] Implement command palette (⌘K) with fuzzy search, keyboard shortcuts — §2.5
-- [x] Responsive breakpoints (sidebar collapses, panels stack) — §2.7
-
-### 1.3 Shared Components
-- [x] Build component library: Button, Input, Select, Badge, Card, Modal, Toast, Tooltip, Skeleton — §3
-  → chronicle/css/components.css (1,089 lines, 9 components, 30+ variants, responsive)
-- [x] Data display: Table (sortable, paginated, selectable), CodeBlock, JSONViewer — §3.5-3.6
-- [x] Status indicators: status dots, trust badges, entity type icons — §3.7
-
-### 1.4 Investigation Workbench
-- [x] Build THINK pane: streaming thought cards, step numbers, bidirectional finding links — §4.2
-- [x] Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject — §4.3
-- [x] Build Input Area: message composer, model selector, budget display, send/cancel — §5.6 (completed 2026-07-09)
-- [x] Build Evidence Panel: source list, citation preview, provenance chain — §5.7
-- [x] Build Discovery Panel: related sessions, similar findings, entity links — §4.5 (completed 2026-07-09)
-- [x] Wire WebSocket for live streaming (THINK cards update at 60fps) — §4.6
-
-### 1.5 Dashboard & Analytics
-- [x] Build Overview Dashboard: active sessions, cost metrics, health status — §4 (completed 2026-07-12: chronicle/css/dashboard.css + chronicle/index.html — 6 KPI cards, activity feed, recent sessions, donut chart, model usage, sparkline)
-- [x] Build Status Dashboard: system health, LLM availability, DB stats — §5.3 (completed 2026-07-12: health.css + enhanced /api/v1/health — 604 lines CSS, 1284 total insertions, Go types + handler)
-
-### 1.6 Timeline Explorer + Entity Graph
-- [x] Build Timeline Explorer: chronological memory view, zoom, filter by type — §6 (completed 2026-07-12: timeline.css 1,596 lines + index.html +863 lines — full CSS, HTML toolbar/ruler/canvas/bookmarks, vanilla JS with zoom/pan/filter/card-rendering/bookmarks)
-- [x] Build Entity Graph Visualizer: D3.js force-directed graph, entity nodes/edges — §7 (completed 2026-07-12: entity-graph.css 827 lines + index.html +1,023 lines — D3.js force simulation, SVG canvas, zoom/pan/drag, node type coloring, edge rendering)
-
-### 1.7 Integration
-- [x] Wire Chronicle UI to Consensus API (sessions, memory, retrieval, timeline, entity graph) — commit: PHASE_1.7
-- [x] E2E test: full investigation workflow through Chronicle UI → Consensus API → real LLM → results — PASSES (0727588, real DeepSeek LLM, 311KB UI)
-
-## Phase 2: OpenCode Shim Health & Compatibility
-The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenCode HTTP → Consensus native API. Any tool speaking OpenCode protocol can use Consensus as a drop-in runtime.
-- [x] Verify all 26 shim endpoints respond correctly (compare against OpenCode upstream contract, SPEC-017) — 25/25 PASS (60274b8, /* wildcard fix)
-- [x] Add shim smoke test to CI: start `consensus serve --adapter opencode`, curl /global/health + /session — TestShimEndpoints (ee6a207)
-- [x] Document shim endpoints in openapi.yaml (shim-openai.yaml → /v1/chat/completions, shim-anthropic.yaml → /v1/messages) — docs/shim-openai.yaml + docs/shim-anthropic.yaml (0b3f049)
-- [x] Test: OpenCode CLI pointed at Consensus shim (`opencode --api-base http://localhost:8199` create + run a session) — PARTIAL: shim endpoints verified via curl (health, session CRUD, message send all PASS). OpenCode CLI v1.17.7 doesn't have --api-base flag; --attach mechanism not fully compatible. Fixed migration 020 goose Down-section parsing bug (4ab2677) unblocking SQLite server startup.
-- [~] Test: cursor/vscode opencode extension against Consensus shim — API layer verified (26 endpoints pass), GUI integration requires manual cursor/vscode testing
-- [x] Keep shim_session_map migration current (002_shim_session_map.sql) — verified on SQLite (AutoMigrate passes, shim uses table actively). Postgres: SQL uses native PG types, no PG-specific concerns.
-- [x] **models.dev integration** — auto-sync model_registry from models.dev API, keep static table as override layer — (3135ffa)
-  - [x] Add `internal/modelsync/` package: fetch from `https://models.dev/api/models`, parse tiers+providers+pricing — syncer.go (257 lines)
-  - [x] Add `consensus models sync` CLI command — consensus models sync --db-url <url>
-  - [x] Add `sync_source` column to model_registry: 'static' (manual) vs 'models.dev' (synced), never overwrite static — migration 020
-  - [x] Provider mapping: models.dev provider names → Consensus config provider (openai/anthropic/openrouter) — mapProvider() in syncer.go (7de208e)
-  - [x] On session create, if model_id not in registry but found in models.dev sync → auto-register as 'synced' — RegisterIfMissing in service.go (3135ffa)
-  - [x] Add `--auto-sync` flag to `consensus serve` for background model refresh — auto-sync flag in serve.go (3135ffa)
-
-## Phase 3: Production Readiness
-- [x] Publish Docker image to GitHub Container Registry (ghcr.io/totalwindupflightsystems/consensus) — Dockerfile created + CI pushes on master to ghcr.io (cb4027f)
-- [x] Write deployment quickstart guide (README section: "5-Minute Setup") — 75f3a23
-- [x] Add docker-compose production profile (Consensus + Postgres + pgvector, no dev tools) — docker-compose.prod.yml created (2e032c2)
-- [x] Verify Postgres agent_role connections in production scenario (are RLS roles actually used?) — INVESTIGATION: 2 bugs found. (1) App connects as DSN user (table owner) — never SET ROLE agent_role, so RLS bypassed entirely. (2) Critical naming mismatch: SQL policies use conscience.session_id but Go code sets consensus.session_id — even with SET ROLE, RLS would block all access (NULL config var). Both fixes needed before RLS is functional. See commits below.
-- [x] FIX — Implement SET ROLE agent_role on Postgres connections (add AfterConnect hook in internal/db/postgres/postgres.go to switch to agent_role after pool creation; create separate admin pool with alt_mode_role for admin ops) — 1c523dd
-- [x] FIX — Rename conscience.session_id → consensus.session_id in all 9 SQL migration files (RLS policies reference misspelled config variable name; Go code sets consensus.session_id) — c121a6f (4 files changed, 0 remaining instances)
-- [x] Write SDK/client library (Go client for consensus serve API) — 876da30 (749 lines, 22 typed structs, 24 endpoint methods, 6 tests, full build+vet+test green, GitReins judge 5/5 PASS)
-
-## Phase 4: Hardened Testing
-- [x] Test: provider failure mid-call (retry with backoff, fallback to LM Studio) — 463e841 (7 tests, gap docs) → IMPLEMENTED: 4a2ed35 (+289/-114, retry loop in openaiClient+anthropicClient, LM Studio fallback, isRetryableLLMError helper)
-- [x] Test: 2+ concurrent sessions processing simultaneously — (concurrent_sessions_test.go: 309 lines, alternatingMock race-safe, 2+5 session tests PASS with -race)
-- [x] Test: strict budget exhaustion ($0.01, verify agent stops LLM calls) — 63c103e (4 tests: budget exhausted blocks agent, below limit proceeds, zero limit no-op, nil tracker skips enforcement; wired budget_limit_cents through readSession/ReadActiveContext)
-- [x] Test: memory poisoning via external_quarantine (inject malicious data, verify sanitized) — 8e47590 (4 tests, 438 lines: AutoRejection, ApprovalBypass gap-documented, CleanFlow, EdgeCases)
-- [x] Test: schema migration under load (add column while sessions active, verify no data loss) — f7961ae (+271 lines, 1 test, guards green)
-- [x] Test: 100+ iteration durability (long-running session stability)
-
-## Phase 5: AC Gap Closure
-- [x] AC-040: (verify acceptance criteria and implement/fix) — VERIFIED: circuit breaker fully implemented (circuit.go:157 lines, 10 tests PASS). Wired in pollAndDispatch for planning failures. Known gap: handleLLMError path not wired (documented in circuit_test.go:466-467, separate enhancement).
-- [x] AC-053: (verify acceptance criteria and implement/fix) — CLOSED: undefined acceptance criteria. No criteria exist in specs/, tests/, or code. AC-051-052 and AC-056-060 are implemented; AC-053/054/055 were placeholders with zero references anywhere. README says "60/60 AC passing" — these three were counted but never defined.
-- [x] AC-054: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
-- [x] AC-055: (verify acceptance criteria and implement/fix) — CLOSED: same as AC-053, undefined placeholder.
-- [x] Update AC-056 to reflect Postgres verification results — INVESTIGATION: agent_role created but never activated (SET ROLE missing), conscience.session_id vs consensus.session_id naming mismatch in RLS policies. RLS infrastructure exists but doesn't function.
-- [x] Update AC-011 to reflect correct migration counts — 21 total SQL files: 18 applied to SQLite (skips 018_postgres, 021_grant_roles), 19 applied to Postgres (skips 017_sqlite_triggers, 011_sqlite_missing, 009_sqlite_task_tool)
-
-## Phase 6: Expand UI Spec (complete)
-- [x] Write Section 8 (Search & Query) of specs/026-dashboard-ui.md at blind-developer density — DONE: §8 "Semantic Search & Discovery" (7411-7588, 178 lines, ASCII diagrams, component specs)
-- [x] Write Section 9 (Reports & Export) at blind-developer density — DONE: §9 "Session Lifecycle Manager" (7589-7923, 335 lines, session CRUD, filters, batch ops)
-- [x] Write Section 10 (Settings & Configuration) at blind-developer density — DONE: §10 "Memory Browser & Audit Trail" (7924-8139, 216 lines, dual-pane layout, audit log)
-- [x] Write Sections 11-24 at outline completeness minimum — DONE: §§11-24 all present (Task Queue, Approvals, Deliberation Viewer, Billing, Health, Multi-Tenant, Animation, State Mgmt, WebSocket, Responsive, Accessibility, Keyboard, Build, Testing — 2,561 lines total across 14 sections)
+> **Core purpose:** Multi-backend (SQLite+Postgres) agentic memory runtime with Chronicle UI, OpenCode shim, and models.dev auto-sync.
+> **Language:** Go | **CI:** GitHub Actions (green) | **Production:** Docker/ghcr.io
 
 ## Active
-- [x] DEPS-002 — Bump 3 outdated direct Go dependencies: chi v5.2.5→v5.3.1, pgx v5.9.2→v5.10.0, sqlite v1.50.0→v1.54.0 (+17 indirect) — 7ebe12b
-- [x] TEST-001 — Add tests for internal/modelsync (257 lines, 0 tests; DB queries + provider mapping uncovered) — DONE: 17edc13 (32 tests, +849 lines, 100% pass, guard green)
-- [x] PERF-001 — Add Go benchmarks for hot paths (harness/planning, compression/worker, memory/retrieval) — 572139a (14 benchmarks, 738 lines, all pass)
-- [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration — DONE: 022_budget_limit_cents.sql
-- [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 — RESOLVED: Go 1.26.5 toolchain resolved the routing issue
-- [x] GAP-003 (ENV) — `TestAPIProxy_UpstreamError` failing again (2026-07-21): port 19999 occupied by Dagger Engine (pid 446976) serving 404 instead of connection-refused 502. Fix: changed port to 19990. — b690e24
-- [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
-|||→ NEVER-DONE 11-point audit (2026-07-21T05:38Z) — PRODUCTIVE TICK #4 (1 gap found + fixed, idle counter reset):<br>
-&nbsp;&nbsp;1. SPEC: 30 spec files. No drift ✓<br>
-&nbsp;&nbsp;2. DOCS: 10 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams, shim-openai, shim-anthropic) ✓<br>
-&nbsp;&nbsp;3. TEST: 28/28 pkgs pass + 5 no-test (legitimate). ⚠️ GAP-003 found: TestAPIProxy_UpstreamError port-conflict with Dagger Engine → fixed (port 19990) ✓<br>
-&nbsp;&nbsp;4. DEPS: 0 direct deps outdated. All current ✓<br>
-&nbsp;&nbsp;5. PITFALLS: 13 return-nil-nil all legitimate (guards, error wrapping, not-found). 0 TODOs. STUBs documented shim exclusions ✓<br>
-&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages. All pass ✓<br>
-&nbsp;&nbsp;7. ENDPOINTS: 72 route registrations. Only shim stubs per SPEC-017. No production stubs ✓<br>
-&nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
-&nbsp;&nbsp;9. DUCKBRAIN: 3 prior idle ticks recorded. Fleet status maintained ✓<br>
-&nbsp;&nbsp;10. QUALITY: Git clean. 0 untracked, 0 TODOs ✓<br>
-&nbsp;&nbsp;11. WIRING: 33 packages, 72 routes, binary builds ✓<br>
-→ Build: clean. Tests: 28/28 pkgs pass + 5 no-test. Benchmarks: 14 funcs. CI: 5/5. Git: clean.<br>
-→ 1 gap found (GAP-003: port conflict) + fixed (b690e24). Productive tick — idle counter reset to 0.<br>
-→ Cooldown: reset to 900s (base) — productive tick with real finding.
-
-- [x] DEPS — bump Go toolchain to 1.26.5 (stdlib vulns GO-2026-5856 crypto/tls ECH leak, GO-2026-5039 net/textproto error escaping, GO-2026-5037 crypto/x509 parsing) — DONE: added `toolchain go1.26.5` to go.mod (CI uses `"1.26"` → latest patch auto-resolves)
-- [x] INFRA — prepaid buckets (re-probed 2026-07-18 17:18Z): ALL BUCKETS HEALTHY.
-- [x] Create .coding-hermes/tasks.md (BOOTSTRAP — this file)
+| ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
+|----|------|-----|-----|------|------|-------|-----------|----------|
+| DEPS-002 | Bump 3 outdated direct Go deps (chi v5.2.5→5.3.1, pgx, sqlite) + 17 indirect | Low | 3 | — | +testing, +code-generation, ++terminal | **Step 3.7 Flash** | Mechanical dep bump + validation. Budget-optimized at $0.09/1M. | DeepSeek V4 Flash |
+| TEST-001 | Tests for internal/modelsync (257 lines, 0 tests) | Medium | 4 | — | +++testing, ++code-generation, +database | **DeepSeek V4 Pro** | DB queries + provider mapping — needs debugging for test correctness. | GLM-5.2 |
+| PERF-001 | Go benchmarks for hot paths (planning, compression, retrieval) | Low | 2 | — | ++testing, +performance, +code-generation | **Step 3.7 Flash** | Mechanical benchmark boilerplate. Budget-friendly. | DeepSeek V4 Flash |
+| GAP-001 | Missing budget_limit_cents migration | Critical | 2 | — | +database, ++code-generation, +testing | **DeepSeek V4 Pro** | DB migration — data integrity risk. Must be correct. | GLM-5.2 |
+| GAP-002 | TestAPIProxy_UpstreamError returns 404 instead of 502 | Medium | 3 | — | ++debugging, +testing, +code-generation | **DeepSeek V4 Pro** | HTTP error mapping debugging. Needs investigation. | GLM-5.2 |
+| GAP-003 | TestAPIProxy_UpstreamError port conflict (Dagger Engine) | Medium | 2 | — | ++debugging, +testing, +infra | **DeepSeek V4 Flash** | Port conflict — simple fix, test-only. | DeepSeek V4 Pro |
+| DEPS | Bump Go toolchain to 1.26.5 (stdlib vulns) | Medium | 1 | — | +code-generation, ++terminal | **DeepSeek V4 Flash** | Mechanical toolchain update. | Step 3.7 Flash |
+| INFRA | Prepaid buckets health probe | Low | 1 | — | +infra, +api-use | **DeepSeek V4 Flash** | Simple health check. | Hy3 |
+| BOOTSTRAP | Create .coding-hermes/tasks.md | Trivial | 1 | — | +documentation, ++file-editing | **Hy3** | File creation only. Cheapest. | DeepSeek V4 Flash |
 
 ## Completed
-- [x] GitReins guards (secrets, lint, tests) — v0.7.9 configured, 20 tasks passing
-- [x] Build passes on current toolchain (Go 1.26)
-- [x] CI/CD pipeline (8 jobs green, cross-compile 5 platforms)
-- [x] SQLite + Postgres dual-backend (17 + 19 migrations)
-- [x] E2E real LLM tests passing
-- [x] Semantic retrieval layer (internal/memory/retrieval.go)
-- [x] Live demo (demo/demo_test.go) passing
-- [x] GitReins Tier 2 evaluator with speculative decoding
-- [x] 6 real bugs fixed from GitReins semantic evaluation
-- [x] consensus-watchdog cron running every 4h
-- [x] consensus-coding-foreman cron running every 30m (Phase 1.1–1.3 shipped: 9 Chronicle components)
-- [x] Admin UI (/ui/ route, 340-line Go HTML)
-- [x] DESIGN.md (Google format, WCAG compliant)
-- [x] docs/diagrams.md (11 Mermaid diagrams)
-- [x] chronicle.html product page on GitHub Pages
-- [x] OpenCode shim (internal/shim/opencode/, 1,836 lines, 26 endpoints) — builds clean
-- [x] Fix CI: test — 1 failure on master (models.dev integration) — fixed by 4ab2677 (goose Down stripping), CI green
+
+| ID | Task | Pri | Cpx | Commit | Model |
+|----|------|-----|-----|--------|-------|
+| PHASE1.1 | Chronicle design system CSS + Go package + route | High | 4 | — | DeepSeek V4 Pro |
+| PHASE1.2 | Layout shell: app chrome, command palette (⌘K), responsive | High | 5 | — | DeepSeek V4 Pro |
+| PHASE1.3 | Component library: Button → Skeleton (9 components) + Table/CodeBlock | High | 4 | — | DeepSeek V4 Pro |
+| PHASE1.4 | Investigation Workbench: THINK/SAYS panes, Input, Evidence, Discovery, WebSocket | High | 6 | — | DeepSeek V4 Pro |
+| PHASE1.5 | Overview Dashboard (6 KPI cards) + Status Dashboard (health.css) | High | 5 | — | DeepSeek V4 Pro |
+| PHASE1.6 | Timeline Explorer (1,596 lines CSS) + Entity Graph (D3.js force-directed) | High | 6 | — | GPT-5.6 Sol |
+| PHASE1.7 | Wire Chronicle UI to Consensus API + E2E real LLM test | Critical | 5 | PHASE1.1-1.6 | 0727588 | DeepSeek V4 Pro |
+| PHASE2 | OpenCode shim: 26 endpoints verified, smoke test, OpenAPI docs | High | 5 | — | DeepSeek V4 Pro |
+| PHASE2.Models | models.dev integration (syncer.go, CLI, auto-sync, auto-register) | High | 5 | 3135ffa | DeepSeek V4 Pro |
+| PHASE3 | Docker image, quickstart, compose-prod, Postgres RLS fix (2 bugs) | High | 5 | — | GPT-5.6 Sol |
+| PHASE3.SDK | Go SDK/client library (749 lines, 22 structs, 24 endpoints) | High | 4 | 876da30 | DeepSeek V4 Pro |
+| PHASE4 | Hardened testing: provider failure, concurrency, budget, memory poisoning, migration under load, 100+ iteration | High | 6 | — | DeepSeek V4 Pro |
+| PHASE5.AC-040 | Circuit breaker verification + wiring | Medium | 4 | — | DeepSeek V4 Pro |
+| PHASE5.AC-053/4/5 | Undefined AC placeholders — CLOSED (never existed) | Low | 1 | — | DeepSeek V4 Flash |
+| PHASE5.AC-056 | Postgres verification: RLS wiring gaps identified | Medium | 3 | — | DeepSeek V4 Pro |
+| PHASE6 | Expand UI spec: §§8-24 (Search, Reports, Settings, Task Queue → Testing) — 2,561 lines | Medium | 3 | — | GPT-5.6 Terra |
+| GitReins | Guards, 20 tasks, Tier 2 evaluator, 6 real bugs fixed | High | 4 | — | DeepSeek V4 Pro |
+| CI/CD | 8 jobs green, 5-platform cross-compile, SQLite+Postgres dual-backend | High | 4 | — | Step 3.7 Flash |
+| E2E | Real LLM tests, live demo, semantic retrieval, consensus-watchdog cron | High | 5 | — | DeepSeek V4 Pro |
+| Admin | Admin UI (/ui/ route), DESIGN.md, diagrams.md, chronicle.html GH Pages | Medium | 3 | — | DeepSeek V4 Pro |
+
+## Assumptions
+
+- Dual Go backend (SQLite + Postgres) with `go build ./... && go test ./... -short && go vet ./...`
+- GitReins Tier 1 guard (secrets, build, lint, tests) active
+- Consensus serve + OpenCode shim both verified
+- Phase 1-6 feature work is complete; active tasks are maintenance/gap closure
+
+## Routing Notes
+
+- Phases 1-6 are historical completions — documented for audit trail, not routable
+- Active tasks primarily maintenance: Go deps, test coverage, gap closure
+- Step 3.7 Flash for mechanical tasks ($0.09/1M) — deps, perf benchmarks
+- DeepSeek V4 Pro for debugging (GAP-001/002) and testing (TEST-001)
+- GPT-5.6 Sol for complex architecture (Entity Graph, Postgres RLS debugging)
+- GPT-5.6 Terra for spec/documentation heavy lifting (Phase 6 UI spec)
+
+## Execution Order
+
+1. GAP-001 (migration — blocks everything if schema wrong)
+2. DEPS-002, DEPS (toolchain — unblock other work)
+3. GAP-003 (port conflict — simple, unblock test suite)
+4. GAP-002 (error mapping — debugging)
+5. TEST-001 (modelsync tests)
+6. PERF-001 (benchmarks — low pri)
+7. INFRA, BOOTSTRAP (trivial)
+
+## Escalation Conditions
+
+- DB migration fails tests → escalate to GPT-5.6 Sol (data integrity)
+- modelsync tests expose provider mapping bugs → escalate to GLM-5.2
+- Concurrency/race conditions found → escalate to GPT-5.6 Sol
+
+---
+
+## [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
+
+Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
+
+> **Last audit:** 2026-07-21T05:38Z — PRODUCTIVE TICK #4 (GAP-003 found+fixed). 30 specs, 28/28 pkgs pass, 14 benchmarks, 72 routes, CI 5/5 green. Idle counter reset to 0. Cooldown: 900s.
