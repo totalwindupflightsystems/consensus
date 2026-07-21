@@ -69,6 +69,53 @@ func TestHealthEndpoint_ReturnsOK(t *testing.T) {
 	}
 }
 
+// TestHealthEndpoint_UsesAdminPool verifies the health endpoint runs its
+// DB queries through the AdminDB handle rather than the main DB. This is
+// the INFRA-7 regression test: in Docker the main pool (SET ROLE
+// agent_role) can hang, so health checks must use the admin pool that
+// bypasses RLS. We assert this by giving the two pools distinct query
+// recorders and checking that only the admin recorder was touched.
+func TestHealthEndpoint_UsesAdminPool(t *testing.T) {
+	mainDB := &mockAPIDB{}
+	adminDB := &mockAPIDB{}
+	srv := NewServer(ServerConfig{Addr: ":0", DB: mainDB, AdminDB: adminDB})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if len(mainDB.queries) != 0 {
+		t.Errorf("health endpoint should NOT use the main pool, but it ran %d query/queries: %v",
+			len(mainDB.queries), mainDB.queries)
+	}
+	if len(adminDB.queries) == 0 {
+		t.Error("health endpoint should use the admin pool, but admin pool recorded no queries")
+	}
+}
+
+// TestHealthEndpoint_NilAdminDB_FallsBack verifies backward compatibility:
+// when AdminDB is not configured, health checks fall back to the main DB
+// instead of crashing on a nil dereference.
+func TestHealthEndpoint_NilAdminDB_FallsBack(t *testing.T) {
+	mainDB := &mockAPIDB{}
+	srv := NewServer(ServerConfig{Addr: ":0", DB: mainDB}) // AdminDB intentionally nil
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(mainDB.queries) == 0 {
+		t.Error("with nil AdminDB, health endpoint should fall back to main DB, but no queries were recorded")
+	}
+}
+
 // ============================================================================
 // Auth Middleware Tests
 // ============================================================================

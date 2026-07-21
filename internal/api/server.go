@@ -38,7 +38,12 @@ var startTime time.Time
 
 // Server is the HTTP API server with middleware and endpoint routing.
 type Server struct {
-	db     db.DB
+	db db.DB
+	// admindb bypasses SET ROLE / RLS for admin queries that must always
+	// succeed regardless of pool state (health checks). Falls back to db
+	// when no admin pool is configured (SQLite or tests).
+	admindb db.DB
+
 	svc    *Service    // service layer — shared with shims
 	router chi.Router
 	events *EventBus
@@ -59,7 +64,12 @@ type Server struct {
 type ServerConfig struct {
 	Addr string       // listen address, e.g. ":8090"
 	DB   db.DB
-	HITL *hitl.Manager // HITL Manager for approval lifecycle (optional, defaults to nil)
+	// AdminDB is an optional handle that bypasses SET ROLE / RLS (the
+	// Postgres admin pool). Used for health checks and other operational
+	// queries that must succeed even when the agent pool is exhausted.
+	// When nil, NewServer falls back to DB for backward compatibility.
+	AdminDB db.DB
+	HITL    *hitl.Manager // HITL Manager for approval lifecycle (optional, defaults to nil)
 
 	// QuarantineService is the cognitive firewall service (optional).
 	// When set, enables quarantine API endpoints and SSE events.
@@ -75,8 +85,16 @@ type ServerConfig struct {
 // NewServer creates a new API server with all middleware and routes.
 func NewServer(cfg ServerConfig) *Server {
 	startTime = time.Now()
+	// Health checks run through admindb to avoid the SET ROLE pool, which
+	// can exhaust or hang in Docker. Fall back to the main DB when no
+	// admin pool is configured (SQLite, tests, single-pool deployments).
+	adminDB := cfg.AdminDB
+	if adminDB == nil {
+		adminDB = cfg.DB
+	}
 	s := &Server{
 		db:             cfg.DB,
+		admindb:        adminDB,
 		addr:           cfg.Addr,
 		events:         NewEventBus(),
 		svc:            NewService(cfg.DB, nil), // events set below
@@ -488,7 +506,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// DB ping latency
 	dbLatency := 0.0
 	pingStart := time.Now()
-	_, err := s.db.Query(ctx, "SELECT 1")
+	_, err := s.admindb.Query(ctx, "SELECT 1")
 	if err == nil {
 		dbLatency = float64(time.Since(pingStart).Microseconds()) / 1000.0
 	}
@@ -496,12 +514,12 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// DB path
 	dbPath := ""
 	if backend == "sqlite" {
-		rows, qErr := s.db.Query(ctx, "SELECT file FROM pragma_database_list WHERE name = 'main'")
+		rows, qErr := s.admindb.Query(ctx, "SELECT file FROM pragma_database_list WHERE name = 'main'")
 		if qErr == nil && len(rows) > 0 {
 			dbPath = toString(rows[0]["file"])
 		}
 	} else {
-		row, qErr := s.db.QueryRow(ctx, "SELECT current_database() AS db")
+		row, qErr := s.admindb.QueryRow(ctx, "SELECT current_database() AS db")
 		if qErr == nil {
 			dbPath = toString(row["db"])
 		}
@@ -514,7 +532,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 			dbSizeMB = float64(fi.Size()) / (1024.0 * 1024.0)
 		}
 	} else if backend == "postgres" {
-		row, qErr := s.db.QueryRow(ctx, "SELECT pg_database_size(current_database()) AS size")
+		row, qErr := s.admindb.QueryRow(ctx, "SELECT pg_database_size(current_database()) AS size")
 		if qErr == nil {
 			if size, ok := row["size"].(int64); ok {
 				dbSizeMB = float64(size) / (1024.0 * 1024.0)
@@ -530,13 +548,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	} else {
 		tablesQuery = "SELECT count(*) AS cnt FROM information_schema.tables WHERE table_schema = 'public'"
 	}
-	if rows, qErr := s.db.Query(ctx, tablesQuery); qErr == nil && len(rows) > 0 {
+	if rows, qErr := s.admindb.Query(ctx, tablesQuery); qErr == nil && len(rows) > 0 {
 		dbTables = toInt(rows[0]["cnt"])
 	}
 
 	// Migration count
 	dbMigrations := 0
-	if rows, qErr := s.db.Query(ctx, "SELECT count(*) AS cnt FROM migrations"); qErr == nil && len(rows) > 0 {
+	if rows, qErr := s.admindb.Query(ctx, "SELECT count(*) AS cnt FROM migrations"); qErr == nil && len(rows) > 0 {
 		dbMigrations = toInt(rows[0]["cnt"])
 	}
 
