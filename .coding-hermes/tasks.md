@@ -125,6 +125,22 @@ The shim (`internal/shim/opencode/`, 1,836 lines, 26 endpoints) translates OpenC
 → Scheduler: CooldownS=7200→43200 (12h self-pause). Enabled=True. Reversion count: 1 (prior).<br>
 → 0 gaps found. Idle tick #2. Cooldown=43200s (12h).
 
+|||→ NEVER-DONE 11-point audit (2026-07-21T02:19Z) — IDLE TICK #3:<br>
+&nbsp;&nbsp;1. SPEC: 29 spec files. No drift ✓<br>
+&nbsp;&nbsp;2. DOCS: 10 docs (AGENTS, CHANGELOG, DESIGN, PROMPT-VERIFY, PROMPT, README, PRD, diagrams, shim-openai, shim-anthropic) ✓<br>
+&nbsp;&nbsp;3. TEST: Build passes. All sampled pkgs green (compression, harness, memory, config, sqlite). No new test gaps ✓<br>
+&nbsp;&nbsp;4. DEPS: 0 direct deps outdated. All current ✓<br>
+&nbsp;&nbsp;5. PITFALLS: 13 return-nil-nil legitimate. 0 TODOs. 501 stubs documented shim exclusions ✓<br>
+&nbsp;&nbsp;6. PERF: 14 benchmarks across 3 packages (3 compression, 4 harness, 7 memory). All pass ✓<br>
+&nbsp;&nbsp;7. ENDPOINTS: 97 route registrations. Only shim stubs per SPEC-017. No production stubs ✓<br>
+&nbsp;&nbsp;8. CI: 5/5 green (totalwindupflightsystems/consensus) ✓<br>
+&nbsp;&nbsp;9. DUCKBRAIN: 2 prior idle ticks recorded, fleet status at /fleet/projects/consensus/ ✓<br>
+&nbsp;&nbsp;10. QUALITY: Git clean. ⚠️ edges.jsonl restored (Hilo post-commit noise, 27 edge lines). 0 untracked, 0 TODOs ✓<br>
+&nbsp;&nbsp;11. WIRING: 28 imports, 20 service packages connected. Binary builds ✓<br>
+→ Build: clean. Tests: sampled pkgs green. Benchmarks: 14 funcs. CI: 5/5. Git: clean (edges.jsonl restored).<br>
+→ Scheduler: CooldownS=43200→86400 (24h self-pause). Idle tick #3. 3 consecutive idle ticks, no gaps.<br>
+→ 0 gaps found. Idle tick #3. Cooldown=86400s (24h).
+
 - [x] GAP-001 (CRITICAL) — Missing `budget_limit_cents` migration: `sessions` table has no `budget_limit_cents` column, but `internal/harness/context.go` queries `COALESCE(budget_limit_cents, 0)` at lines 484/505/520/541. Harness E2E tests using real migration path fail with `SQL logic error: no such column: budget_limit_cents`. Fix: add migration 020 adding `budget_limit_cents INTEGER NOT NULL DEFAULT 0` to sessions table. — DONE: 022_budget_limit_cents.sql (ALTER TABLE sessions ADD COLUMN, all 12 migrate tests PASS, default=0 verified)
 - [x] GAP-002 (MINOR) — `TestAPIProxy_UpstreamError` returns 404 instead of 502 (`internal/web/server_test.go:218`). — RESOLVED: test passes correctly returning 502 on current code (Go 1.26.5). Handler at server.go:316-318 returns StatusBadGateway on connection error; the Go 1.26 toolchain bump resolved the routing issue.
 - [x] DEPS — bump Go toolchain to 1.26.5 (stdlib vulns GO-2026-5856 crypto/tls ECH leak, GO-2026-5039 net/textproto error escaping, GO-2026-5037 crypto/x509 parsing) — DONE: added `toolchain go1.26.5` to go.mod (CI uses `"1.26"` → latest patch auto-resolves)
