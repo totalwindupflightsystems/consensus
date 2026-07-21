@@ -3,6 +3,9 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/wojons/consensus/internal/db"
@@ -577,6 +580,121 @@ func TestMigrationUnderLoad(t *testing.T) {
 	t.Log("✓ Edge case: Up() with 0 pending returned clean")
 	if err := database.Exec(ctx, `ALTER TABLE _sessions_renamed RENAME TO sessions`); err != nil {
 		t.Fatalf("restore sessions table: %v", err)
+	}
+}
+
+// ============================================================================
+// Regression: Backend-specific migration drift (INFRA-5)
+// ============================================================================
+
+func TestBackendSpecificMigrationNoFalseDrift(t *testing.T) {
+	// Scenario: A SQLite-only migration (009_sqlite_task_tool_tables.sql) was
+	// applied on a SQLite DB. On Postgres, LoadMigrations() excludes *sqlite* files.
+	// GetState() must NOT flag version 9 as drift because a file with prefix
+	// "009_" exists in the embedded filesystem (just for a different backend).
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Bootstrap and load ALL migrations (as on SQLite)
+	runner := New(database)
+	if err := runner.Bootstrap(ctx); err != nil {
+		t.Fatalf("Bootstrap failed: %v", err)
+	}
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations failed: %v", err)
+	}
+
+	// Record SQLite-only version 9 as applied
+	if err := database.Exec(ctx,
+		`INSERT INTO schema_versions (version, name, applied_at, checksum)
+		 VALUES (9, 'sqlite task tool tables', '2026-05-04T00:00:00Z', 'abc')`); err != nil {
+		t.Fatalf("insert version 9: %v", err)
+	}
+
+	// Simulate Postgres: create a new runner with Postgres-filtered migrations.
+	// We manually build the migration list to exclude *_sqlite_* files.
+	pgRunner := New(database)
+	allEntries, err := embeddedMigrations.ReadDir("migrations")
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	pgRunner.database = database // needed for LoadMigrations filter logic
+	// We can't easily call LoadMigrations with a fake Postgres backend,
+	// so build the filtered list manually.
+	filenamePattern := regexp.MustCompile(`^(\d{3})_(.+)\.sql$`)
+	for _, entry := range allEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		// Simulate Postgres filter: skip *sqlite* files
+		if strings.Contains(strings.ToLower(entry.Name()), "_sqlite_") {
+			continue
+		}
+		matches := filenamePattern.FindStringSubmatch(entry.Name())
+		if matches == nil {
+			continue
+		}
+		version, _ := strconv.Atoi(matches[1])
+		name := strings.ReplaceAll(matches[2], "_", " ")
+		content, _ := embeddedMigrations.ReadFile("migrations/" + entry.Name())
+		pgRunner.migrations = append(pgRunner.migrations, Migration{
+			Version:  version,
+			Name:     name,
+			Filename: entry.Name(),
+			SQL:      string(content),
+		})
+	}
+
+	// GetState on "Postgres" — version 9 should NOT be drift
+	state, err := pgRunner.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState failed: %v", err)
+	}
+	if state.DriftDetected {
+		t.Errorf("expected NO drift for SQLite-only version 9 on simulated Postgres, got: %s", state.DriftDetails)
+	} else {
+		t.Log("✓ SQLite-only migration (v9) not flagged as drift on simulated Postgres")
+	}
+
+	// Now add a truly ghost version (999) — MUST detect as drift
+	if err := database.Exec(ctx,
+		`INSERT INTO schema_versions (version, name, applied_at, checksum)
+		 VALUES (999, 'true ghost', '2026-05-04T00:00:00Z', 'deadbeef')`); err != nil {
+		t.Fatalf("insert ghost version 999: %v", err)
+	}
+
+	state, err = pgRunner.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState failed after ghost insert: %v", err)
+	}
+	if !state.DriftDetected {
+		t.Error("expected drift for true ghost version 999")
+	} else {
+		t.Log("✓ True ghost version 999 correctly flagged as drift")
+	}
+}
+
+func TestBackendMigrationExists(t *testing.T) {
+	// Version 9 exists as SQLite-only migration
+	if !backendMigrationExists(9) {
+		t.Error("backendMigrationExists(9) should be true — 009_sqlite_task_tool_tables.sql exists")
+	}
+	// Version 11 exists as SQLite-only migration
+	if !backendMigrationExists(11) {
+		t.Error("backendMigrationExists(11) should be true — 011_sqlite_missing_tables.sql exists")
+	}
+	// Version 17 exists as SQLite-only migration
+	if !backendMigrationExists(17) {
+		t.Error("backendMigrationExists(17) should be true — 017_append_only_memory_events_sqlite_triggers.sql exists")
+	}
+	// Version 18 exists as Postgres-only migration
+	if !backendMigrationExists(18) {
+		t.Error("backendMigrationExists(18) should be true — 018_postgres_memory_events_append_only.sql exists")
+	}
+	// Version 999 does NOT exist
+	if backendMigrationExists(999) {
+		t.Error("backendMigrationExists(999) should be false — no migration file with that version")
 	}
 }
 

@@ -209,6 +209,13 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 			}
 		}
 		if !found {
+			// Check if a file with this version exists for a different backend.
+			// When migrating from SQLite to Postgres (or vice versa), the other
+			// backend's migrations are filtered out by LoadMigrations() but the
+			// version is still recorded in schema_versions. This is NOT drift.
+			if backendMigrationExists(av) {
+				continue
+			}
 			state.DriftDetected = true
 			state.DriftDetails += fmt.Sprintf("Applied migration version %d has no matching embedded file\n", av)
 		}
@@ -377,9 +384,19 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 }
 
 // repairTrustLevel adds sessions.trust_level if missing (migration 013 filterForSQLite bug).
-// Safe to call on any DB: checks PRAGMA table_info before ALTER TABLE.
+// Safe to call on any DB: uses PRAGMA table_info (SQLite) or
+// information_schema.columns (Postgres) before ALTER TABLE.
 func (r *Runner) repairTrustLevel(ctx context.Context) error {
-	cols, err := r.database.Query(ctx, "PRAGMA table_info(sessions)")
+	var cols []db.Row
+	var err error
+
+	backend := db.DetectBackendFromDB(r.database)
+	if backend == db.BackendPostgres {
+		cols, err = r.database.Query(ctx,
+			`SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'sessions'`)
+	} else {
+		cols, err = r.database.Query(ctx, "PRAGMA table_info(sessions)")
+	}
 	if err != nil {
 		// Table might not exist yet (first-run, not yet auto-migrated)
 		return nil
@@ -455,6 +472,28 @@ func (r *Runner) CheckDrift(ctx context.Context) (bool, string, error) {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+// backendMigrationExists checks whether any embedded SQL migration file
+// starts with the given version number. This is used by drift detection:
+// an applied version that has no matching loaded migration (because
+// LoadMigrations filtered it for the current backend) should NOT be
+// treated as drift — it was applied on a different backend.
+func backendMigrationExists(version int) bool {
+	prefix := fmt.Sprintf("%03d_", version)
+	entries, err := fs.ReadDir(embeddedMigrations, "migrations")
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		if strings.HasPrefix(entry.Name(), prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 // splitStatements splits a SQL string on semicolons for SQLite execution.
 // SQLite drivers cannot execute multiple statements in a single Exec call.
