@@ -8,17 +8,19 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| UX-003 | Chronicle first-time user flow: cold-start UI, THINK/SAYS, timeline, entity graph | High | 4±1 | UX-001 | +++browser, ++usability, ++e2e, -vision | GPT-5.6 Sol | High | MiniMax-M3 | ✅ foreman-direct verification |
-| UX-004 | Deployment smoke test: docker compose prod up, PG, migrations, UI, API health | High | 4±1 | UX-001 | +++docker, ++usability, ++e2e, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| UX-004 | Deployment smoke test: docker compose prod up, PG, migrations, UI, API health | High | 4±1 | UX-001 | +++docker, ++usability, ++e2e, -vision | DS-V4-Pro (foreman) | Low | GLM-5.2 | ✅ foreman-direct verification — 2 bugs found, see UX-009/UX-010 |
 | UX-005 | README command accuracy: copy every command verbatim, verify 100% success | Medium | 2±1 | UX-001 | +++terminal, ++usability, +testing, -vision | DS-V4-Flash | Low | GLM-5.2 |
 | UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | UX-001 | +++terminal, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 | UX-007 | Cross-platform quickstart: UX-001 on Linux/macOS/Windows(WSL) — document gotchas | Low | 5±1 | UX-001 | +++cross-platform, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GPT-5.6 Terra |
+| UX-009 | Fix Dockerfile CMD: `--db` → `--db-url` + add CONSENSUS_DB_URL env | High | 1±1 | UX-004 | ++docker, +terminal, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | UX-004 | ++docker, ++debugging, ++postgres, -vision | DS-V4-Pro | High | GLM-5.2 |
 | U01 | Usability & coverage audit: endpoint wiring, UX flow, error handling, edge cases, test coverage gaps | High | 3±1 | UX-001 | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 
 ## Completed
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| UX-004 | Deployment smoke test: PG ✅, migrations ✅, UI ✅, health⚠️ | High | 4±1 | pending | DS-V4-Pro (foreman) |
 | UX-003 | Chronicle first-time user flow: cold-start UI, THINK/SAYS, timeline, entity graph | High | 4±1 | — | DS-V4-Pro (foreman) |
 | UX-002 | CLI error ergonomics: 20+ incorrect commands, verify error messages | Medium | 3±1 | 9458453 | DS-V4-Flash |
 | UX-001 | Onboarding walkthrough: clone→init→serve→UI→demo investigation | High | 4±1 | — | DS-V4-Flash (foreman) |
@@ -70,6 +72,7 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
+| #11 | 2026-07-22 ~04:52Z | 0/7 (RESET) | **PRODUCTIVE** — UX-004: Deployment smoke test via foreman-direct. Docker compose prod up: PG ✅ (healthy), migrations ✅ (applied), UI ✅ (200), API health ⚠️ (hangs — stale ghcr.io image, admin pool issue). Dockerfile CMD uses `--db` (renamed to `--db-url`); fixed in compose override. 2 new tasks: UX-009 (Dockerfile CMD fix), UX-010 (health endpoint hang). | 2 (UX-009, UX-010) | Commit pending. 1 task done. |
 | #10 | 2026-07-22 ~04:28Z | 0/7 (RESET) | **PRODUCTIVE** — UX-003: foreman-direct verification. Static HTML analysis + live server test. All 4 components verified: (1) Cold-start UI: skeleton loading, empty states for activity/sessions/approvals. (2) THINK/SAYS: empty states with icons/hints, draggable divider, input area. (3) Timeline: full toolbar, 6 entity filters, time ranges, empty state w/ CTA, demo data fallback, API wiring. (4) Entity Graph: D3.js force-directed, filters, zoom, legend, empty state. All 7 CSS files 200 OK (236KB). Server starts clean, health green. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #9 | 2026-07-22 ~06:53Z | 0/7 (RESET) | **PRODUCTIVE** — UX-002: 25 incorrect commands tested, 3 error gaps fixed (unsupported protocol exit code, --goal required message, unsupported shell list). Worker: DS-V4-Flash @ opencode-go. 4 files (+21/-3). Guard ✓, tests ✓. | 0 (reset) | Commit `9458453`. Cooldown→900s. |
 | #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! 8 Phase 7 UX tasks promoted to Active. UX-001 onboarding walkthrough completed. | 0 (reset) | Cooldown 14400→900s. 1 task done. |

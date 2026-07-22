@@ -45,12 +45,18 @@ services:
         condition: service_healthy
     ports:
       - "8090:8090"
+    command:
+      - serve
+      - --db-url
+      - postgres://consensus:${POSTGRES_PASSWORD:-consensus}@postgres:5432/consensus?sslmode=disable
+      - --hostname
+      - "0.0.0.0"
+      - --port
+      - "8090"
+      - --log-level
+      - ${CONSENSUS_LOG_LEVEL:-info}
     environment:
-      - CONSENSUS_DB_URL=postgres://consensus:${POSTGRES_PASSWORD:-consensus}@postgres:5432/consensus?sslmode=disable
-      - CONSENSUS_HOSTNAME=0.0.0.0
-      - CONSENSUS_PORT=8090
       - CONSENSUS_API_KEY=${CONSENSUS_API_KEY}
-      - CONSENSUS_LOG_LEVEL=${CONSENSUS_LOG_LEVEL:-info}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - CONSENSUS_LLM_BASE_URL=${CONSENSUS_LLM_BASE_URL:-}
       - CONSENSUS_AUTO_SYNC=${CONSENSUS_AUTO_SYNC:-24h}
