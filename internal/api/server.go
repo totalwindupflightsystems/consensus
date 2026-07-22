@@ -323,7 +323,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 		rows, err := s.db.Query(ctx,
-			`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > datetime('now'))`,
+			`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
 			prefix, hash,
 		)
 		if err != nil || len(rows) == 0 {
@@ -414,7 +414,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 	}
 
 	if len(rows) == 0 {
-		s.db.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, datetime('now'))`, prefix)
+		s.db.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, CURRENT_TIMESTAMP)`, prefix)
 		return true
 	}
 
@@ -427,7 +427,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 	}
 
 	if time.Since(t) > time.Minute {
-		s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = datetime('now') WHERE key_prefix = $1`, prefix)
+		s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = CURRENT_TIMESTAMP WHERE key_prefix = $1`, prefix)
 		return true
 	}
 

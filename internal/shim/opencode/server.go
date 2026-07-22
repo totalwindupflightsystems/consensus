@@ -223,7 +223,7 @@ func (s *Server) validateAuth(r *http.Request) (string, bool) {
 
 		ctx := r.Context()
 		rows, err := s.db.Query(ctx,
-			`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > datetime('now'))`,
+			`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
 			prefix, hash,
 		)
 		if err == nil && len(rows) > 0 {
@@ -246,7 +246,7 @@ func (s *Server) validateAuth(r *http.Request) (string, bool) {
 				hash := hex.EncodeToString(sha256Hash([]byte(password)))
 				ctx := r.Context()
 				rows, err := s.db.Query(ctx,
-					`SELECT id, scope, session_id FROM api_keys WHERE key_hash = $1 AND (expires_at IS NULL OR expires_at > datetime('now'))`,
+					`SELECT id, scope, session_id FROM api_keys WHERE key_hash = $1 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
 					hash,
 				)
 				if err == nil && len(rows) > 0 {
