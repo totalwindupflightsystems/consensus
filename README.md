@@ -239,4 +239,4 @@ MIT
 
 ---
 
-**[Run the demo →](demo/)** &nbsp;|&nbsp; **[Specifications →](specs/)** &nbsp;|&nbsp; **[Deployment →](deploy/)**
+**[Run the demo →](demo/)** &nbsp;|&nbsp; **[Specifications →](specs/)** &nbsp;|&nbsp; **[Deployment →](deploy/)** &nbsp;|&nbsp; **[Cross-Platform Guide →](docs/quickstart-cross-platform.md)**
