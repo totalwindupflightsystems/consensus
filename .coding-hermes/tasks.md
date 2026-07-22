@@ -54,6 +54,16 @@ All tasks complete. Project in maintenance mode.
 
 ---
 
+## Phase 7: Usability Testing
+
+- [ ] **UX-001 — Onboarding walkthrough**: clone repo → `consensus init` → `consensus serve` → open Chronicle UI → run demo investigation. Verify < 5 minutes on a cold machine. Capture every friction point.
+- [ ] **UX-002 — CLI error ergonomics**: run 20+ incorrect commands (`consensus --typo`, `consensus serve --bad-flag`, missing required args) — verify error messages are (a) human-readable, (b) suggest the correct fix, (c) exit with appropriate codes.
+- [ ] **UX-003 — Chronicle first-time user flow**: cold-start the UI with no prior sessions. Can a person: create an investigation, watch THINK/SAYS panes respond, find results, navigate to timeline/entity graph — without reading docs?
+- [ ] **UX-004 — Deployment smoke test**: `docker compose -f docker-compose.prod.yml up` on a machine with only Docker installed. Verify: (a) PostgreSQL starts, (b) migrations apply, (c) Chronicle UI loads at :8090/chronicle, (d) API responds at /api/v1/health.
+- [ ] **UX-005 — README command accuracy**: copy every command from README.md verbatim — paste into terminal. Verify 100% success rate. Flag any stale flags, missing deps, or wrong paths.
+- [ ] **UX-006 — Error recovery flow**: simulate 5 common mistakes (forgot --db-url, bad API key, port conflict, killed process mid-investigation, corrupted SQLite DB). Verify the system (a) detects the error, (b) gives actionable guidance, (c) user can recover in < 3 steps.
+- [ ] **UX-007 — Cross-platform quickstart**: run onboarding (UX-001) on Linux, macOS, and Windows (WSL). Verify the binary works and the Docker path works on all three. Document any OS-specific gotchas.
+
 ## Idle Tick Log
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
