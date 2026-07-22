@@ -198,7 +198,8 @@ func exitCode(err error) int {
 	case strings.Contains(msg, "RATE_LIMITED"):
 		return 7
 	case strings.Contains(msg, "unknown"), strings.Contains(msg, "invalid"),
-		strings.Contains(msg, "required"), strings.Contains(msg, "missing"):
+		strings.Contains(msg, "required"), strings.Contains(msg, "missing"),
+		strings.Contains(msg, "accepts"), strings.Contains(msg, "unsupported"):
 		return 2
 	default:
 		return 1

@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,7 +37,7 @@ To load completions:
 			case "fish":
 				return cmd.Root().GenFishCompletion(os.Stdout, true)
 			default:
-				return cmd.Help()
+				return fmt.Errorf("unsupported shell %q — supported shells: bash, zsh, fish", args[0])
 			}
 		},
 	}

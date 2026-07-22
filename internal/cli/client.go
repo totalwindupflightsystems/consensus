@@ -6,9 +6,11 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -52,7 +54,17 @@ func (c *Client) do(method, path string, body any) (*http.Response, error) {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		// Wrap raw network errors with a user-friendly message (SPEC-016 §8, exit code 3)
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			return nil, fmt.Errorf("cannot connect to Consensus server at %s — is it running?\n  (%v)", c.baseURL, urlErr.Err)
+		}
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (c *Client) get(path string) (*http.Response, error)  { return c.do("GET", path, nil) }

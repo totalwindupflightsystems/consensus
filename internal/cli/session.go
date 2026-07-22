@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ func newSessionCreateCmd() *cobra.Command {
 		Short: "Create a new agent session",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			goal, _ := cmd.Flags().GetString("goal")
+			if goal == "" {
+				return fmt.Errorf("--goal is required — use: consensus session create --goal \"<task description>\"")
+			}
 			agentName, _ := cmd.Flags().GetString("agent-name")
 			model, _ := cmd.Flags().GetString("model")
 
