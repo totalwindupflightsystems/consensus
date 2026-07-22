@@ -33,7 +33,7 @@ EXPOSE 8090
 # Data volume for SQLite and persistent state
 VOLUME ["/home/consensus/data"]
 
-ENV CONSENSUS_DB_PATH=/home/consensus/data/consensus.db
+ENV CONSENSUS_DB_URL=sqlite:///home/consensus/data/consensus.db
 
 ENTRYPOINT ["consensus"]
-CMD ["serve", "--db", "sqlite:///home/consensus/data/consensus.db"]
+CMD ["serve", "--db-url", "sqlite:///home/consensus/data/consensus.db"]
