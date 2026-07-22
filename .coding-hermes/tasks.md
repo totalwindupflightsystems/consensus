@@ -9,7 +9,6 @@
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | UX-007 | Cross-platform quickstart: UX-001 on Linux/macOS/Windows(WSL) — document gotchas | Low | 5±1 | UX-001 | +++cross-platform, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GPT-5.6 Terra |
-| UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | UX-004 | ++docker, ++debugging, ++postgres, -vision | DS-V4-Pro | High | GLM-5.2 |
 | UX-011 | Fix port 8090 shadowing: CLI gets misleading 404 when non-Consensus service occupies default port — validate server identity | Medium | 4±1 | UX-006 | ++network, ++usability, ++cli, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 | U01 | Usability & coverage audit: endpoint wiring, UX flow, error handling, edge cases, test coverage gaps | High | 3±1 | UX-001 | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 
@@ -17,6 +16,7 @@
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | 13c1af1 | DS-V4-Pro (foreman) |
 | UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-009 | Fix Dockerfile CMD --db→--db-url + CONSENSUS_DB_URL env | High | 1±1 | 81b3935 | DS-V4-Pro (foreman-direct) |
 | UX-005 | README command accuracy: 10 cmds tested (6✓, 2→UX-009, 1→API key, 1 macOS) | Medium | 2±1 | — | DS-V4-Flash (foreman-direct) |
