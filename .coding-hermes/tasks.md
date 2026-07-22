@@ -74,6 +74,7 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
+| #22 | 2026-07-22 ~14:28Z | 2/7 (IDLE#3) | **IDLE** — Resource-constrained: host thread exhaustion (errno=11). go build/vet couldn't spawn threads. GitReins guard partial: build ✓, lint ✓, tests ✓, static_analysis ✓, secrets ○ (gitleaks crash — pre-existing). Cooldown reverted 43200→1800 on restart; re-set to 14400s (4h). | 0 | Cooldown→14400s (4h). Idle tick #3. |
 | #21 | 2026-07-22 ~14:16Z | 1/7 (IDLE#2) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests 30/30 ✓, CI 5/5 green ✓, vulns 0 ✓, Hilo 1135 edges ✓, no TODOs. NEVER-DONE audit: all checks pass. Cooldown reverted from 43200→7200 on restart. Re-set to 43200s. | 0 | Cooldown→43200s (12h). Idle tick #2. |
 | #20 | 2026-07-22 ~06:38Z | 0/7 (RESET→IDLE#1) | **IDLE** — Full discovery sweep: build ✓, vet ✓, tests 30/30 ✓, CI 5/5 green ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits, no outdated direct deps. Only NEVER-DONE remains. | 0 | Cooldown→43200s but reverted to 7200s on restart. |
 | #19 | 2026-07-22 ~05:57Z | 0/7 (RESET) | **PRODUCTIVE** — U02: JSON round-trip tests for pkg/client/types.go. DS-V4-Flash worker wrote types_test.go (319 lines, generic jsonRoundTrip helper, all 22 types). 28/28 tests pass (22 new + 6 existing). Build ✓, vet ✓, guard ✓, commit `25185aa`. Worker committed directly (file verifier false-negative on path). | 0 (reset) | Cooldown→900s. 1 task done. Board now empty. |
@@ -94,4 +95,4 @@
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
 
 > **Last audit:** 2026-07-22T14:16Z — IDLE TICK #21. All 11 checks pass; 0 gaps found.
-> **Next:** Idle counter 1/7 (IDLE#2). Cooldown 43200s (12h).
+> **Next:** Idle counter 2/7 (IDLE#3). Cooldown 14400s (4h).
