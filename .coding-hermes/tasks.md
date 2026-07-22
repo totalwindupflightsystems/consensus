@@ -6,12 +6,21 @@
 
 ## Active
 
-*(Empty — all tasks completed)*
+| ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
+|----|------|-----|-----|------|------|-------|-----------|----------|
+| UX-002 | CLI error ergonomics: 20+ incorrect commands, verify error messages | Medium | 3±1 | — | +++terminal, ++usability, +testing, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| UX-003 | Chronicle first-time user flow: cold-start UI, THINK/SAYS, timeline, entity graph | High | 4±1 | UX-001 | +++browser, ++usability, ++e2e, -vision | GPT-5.6 Sol | High | MiniMax-M3 |
+| UX-004 | Deployment smoke test: docker compose prod up, PG, migrations, UI, API health | High | 4±1 | UX-001 | +++docker, ++usability, ++e2e, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| UX-005 | README command accuracy: copy every command verbatim, verify 100% success | Medium | 2±1 | UX-001 | +++terminal, ++usability, +testing, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | UX-001 | +++terminal, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GLM-5.2 |
+| UX-007 | Cross-platform quickstart: UX-001 on Linux/macOS/Windows(WSL) — document gotchas | Low | 5±1 | UX-001 | +++cross-platform, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GPT-5.6 Terra |
+| U01 | Usability & coverage audit: endpoint wiring, UX flow, error handling, edge cases, test coverage gaps | High | 3±1 | UX-001 | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 
 ## Completed
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| UX-001 | Onboarding walkthrough: clone→init→serve→UI→demo investigation | High | 4±1 | — | DS-V4-Flash (foreman) |
 | DEPS-002 | Bump 3 outdated direct Go deps (chi v5.2.5→5.3.1, pgx, sqlite) + 17 indirect | Low | 3 | 4603df1 | Step 3.7 Flash |
 | TEST-001 | Tests for internal/modelsync (257 lines, 0 tests) | Medium | 4 | 17edc13 | DeepSeek V4 Pro |
 | PERF-001 | Go benchmarks for hot paths (planning, compression, retrieval) — 14 benchmarks | Low | 2 | 572139a | Step 3.7 Flash |
@@ -44,7 +53,9 @@
 
 ## Execution Order
 
-All tasks complete. Project in maintenance mode.
+1. UX-001 — Onboarding walkthrough ✅ (tick #8)
+2. UX-002 — CLI error ergonomics (next)
+3. UX-003 through UX-007, U01 — pending
 
 ## Escalation Conditions
 
@@ -53,16 +64,6 @@ All tasks complete. Project in maintenance mode.
 - Bane adds new work → resume normal 900s cooldown
 
 ---
-
-## Phase 7: Usability Testing
-
-- [ ] **UX-001 — Onboarding walkthrough**: clone repo → `consensus init` → `consensus serve` → open Chronicle UI → run demo investigation. Verify < 5 minutes on a cold machine. Capture every friction point.
-- [ ] **UX-002 — CLI error ergonomics**: run 20+ incorrect commands (`consensus --typo`, `consensus serve --bad-flag`, missing required args) — verify error messages are (a) human-readable, (b) suggest the correct fix, (c) exit with appropriate codes.
-- [ ] **UX-003 — Chronicle first-time user flow**: cold-start the UI with no prior sessions. Can a person: create an investigation, watch THINK/SAYS panes respond, find results, navigate to timeline/entity graph — without reading docs?
-- [ ] **UX-004 — Deployment smoke test**: `docker compose -f docker-compose.prod.yml up` on a machine with only Docker installed. Verify: (a) PostgreSQL starts, (b) migrations apply, (c) Chronicle UI loads at :8090/chronicle, (d) API responds at /api/v1/health.
-- [ ] **UX-005 — README command accuracy**: copy every command from README.md verbatim — paste into terminal. Verify 100% success rate. Flag any stale flags, missing deps, or wrong paths.
-- [ ] **UX-006 — Error recovery flow**: simulate 5 common mistakes (forgot --db-url, bad API key, port conflict, killed process mid-investigation, corrupted SQLite DB). Verify the system (a) detects the error, (b) gives actionable guidance, (c) user can recover in < 3 steps.
-- [ ] **UX-007 — Cross-platform quickstart**: run onboarding (UX-001) on Linux, macOS, and Windows (WSL). Verify the binary works and the Docker path works on all three. Document any OS-specific gotchas.
 
 ## Idle Tick Log
 
@@ -75,10 +76,10 @@ All tasks complete. Project in maintenance mode.
 || #5 | 2026-07-21 ~19:27Z | 3/7 | All 11 pass — 7 outdated deps (minor/patch, no vulns), 4 zero-test infra packages (normal), CI green | 0 | Cooldown 3600→14400s (≥3 idle) ✓ |
 ||| #6 | 2026-07-21 ~21:33Z | 4/7 | All 11 pass — 20 stale GitReins spec tasks found (verified against code, deleted). Cooldown reverted 14400→7200s (daemon restart); re-fixed to 14400s ✓ | 0 | Cooldown re-fixed 14400s. GitReins cleaned. |
 ||| #7 | 2026-07-22 ~05:32Z | 5/7 | All 11 pass — Cooldown reverted 14400→1800s (2nd daemon restart); re-fixed to 14400s ✓. GitReins: 22 stale tasks deleted (prior tick's deletion didn't land on disk). | 0 | Cooldown re-fixed 14400s (2nd reversion). 22 GitReins tasks deleted. |
+|| #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! 8 Phase 7 UX tasks promoted to Active. UX-001 onboarding walkthrough completed: build ✓, init ✓, serve ✓, Chronicle UI loads ✓ (311KB, CSS assets 200 OK), session creation ✓, health endpoint ✓ (all metrics). README commands accurate. No code gaps found. | 0 (reset) | Cooldown 14400→900s. 1 task done. |
 
 ---
 
-| U01 | Usability & coverage audit — find gaps in endpoint wiring, UX flow, error handling, edge cases, test coverage | High | 3±1 | — | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 ## [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
