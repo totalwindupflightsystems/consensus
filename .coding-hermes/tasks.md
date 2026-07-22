@@ -20,7 +20,7 @@
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
-| UX-004 | Deployment smoke test: PG ✅, migrations ✅, UI ✅, health⚠️ | High | 4±1 | pending | DS-V4-Pro (foreman) |
+| UX-004 | Deployment smoke test: PG ✅, migrations ✅, UI ✅, health⚠️ | High | 4±1 | 7dd8c72 | DS-V4-Pro (foreman) |
 | UX-003 | Chronicle first-time user flow: cold-start UI, THINK/SAYS, timeline, entity graph | High | 4±1 | — | DS-V4-Pro (foreman) |
 | UX-002 | CLI error ergonomics: 20+ incorrect commands, verify error messages | Medium | 3±1 | 9458453 | DS-V4-Flash |
 | UX-001 | Onboarding walkthrough: clone→init→serve→UI→demo investigation | High | 4±1 | — | DS-V4-Flash (foreman) |
