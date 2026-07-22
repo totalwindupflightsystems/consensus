@@ -227,6 +227,7 @@ func runServer() {
 	apiSrv = api.NewServer(api.ServerConfig{
 		Addr:              addrString(cfg.Server),
 		DB:                database,
+		AdminDB:           adminDB,
 		HITL:              hitlMgr,
 		QuarantineService: quarantineSvc,
 		AdminRate:         cfg.APIRate.AdminLimit,
