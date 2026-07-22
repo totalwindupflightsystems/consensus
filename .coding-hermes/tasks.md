@@ -16,7 +16,7 @@
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
-| UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | 13c1af1 | DS-V4-Pro (foreman) |
+| UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | 13c1af1 | DS-V4-Pro (foreman-direct) |
 | UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-009 | Fix Dockerfile CMD --db→--db-url + CONSENSUS_DB_URL env | High | 1±1 | 81b3935 | DS-V4-Pro (foreman-direct) |
 | UX-005 | README command accuracy: 10 cmds tested (6✓, 2→UX-009, 1→API key, 1 macOS) | Medium | 2±1 | — | DS-V4-Flash (foreman-direct) |
@@ -72,6 +72,7 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
+| #15 | 2026-07-22 ~05:29Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: wired AdminDB into API server config. One-line fix: `adminDB` var was initialized but never passed to `api.NewServer`. Health endpoint already used `s.admindb` for all queries to bypass Postgres SET ROLE/RLS pool. Without wiring, health checks used main DB and hung in Docker under load. Build ✓, guard ✓, tests ✓, commit `13c1af1`. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #14 | 2026-07-22 ~05:26Z | 0/7 (RESET) | **PRODUCTIVE** — UX-006: foreman-direct CLI error verification. 7 scenarios tested. 6/7 PASS. Port 8090 shadowing gap → UX-011 created. | 1 (UX-011) | Cooldown→900s. 1 task done, 1 created. |
 | #13 | 2026-07-22 ~05:21Z | 0/7 (RESET) | **PRODUCTIVE** — UX-009: Dockerfile CMD --db → --db-url + CONSENSUS_DB_URL env (foreman-direct). 1 file (+2/-2). Build ✓, guard ✓, commit `81b3935`. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #12 | 2026-07-22 ~05:20Z | 0/7 (RESET) | **PRODUCTIVE** — UX-005: README command accuracy via foreman-direct. 10 commands tested verbatim: build ✓, init ✓, serve ✓, health ✓, docker pull ✓, Chronicle ✓, docker run ❌ (--db→--db-url, UX-009), demo test ⚠ (no API key), open ⚠ (macOS-only). Stale count: 28→29 packages. | 0 (reset) | Cooldown→900s. 1 task done. |
