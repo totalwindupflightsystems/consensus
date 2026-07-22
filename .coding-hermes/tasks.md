@@ -74,8 +74,8 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
-| #20 | 2026-07-22 ~06:38Z | 0/7 (RESET→IDLE#1) | **IDLE** — Full discovery sweep: build ✓, vet ✓, tests 30/30 ✓, CI 5/5 green ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits, no outdated direct deps. Only NEVER-DONE remains. | 0 | Cooldown→43200s (12h). Project complete. |
-
+| #21 | 2026-07-22 ~14:16Z | 1/7 (IDLE#2) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests 30/30 ✓, CI 5/5 green ✓, vulns 0 ✓, Hilo 1135 edges ✓, no TODOs. NEVER-DONE audit: all checks pass. Cooldown reverted from 43200→7200 on restart. Re-set to 43200s. | 0 | Cooldown→43200s (12h). Idle tick #2. |
+| #20 | 2026-07-22 ~06:38Z | 0/7 (RESET→IDLE#1) | **IDLE** — Full discovery sweep: build ✓, vet ✓, tests 30/30 ✓, CI 5/5 green ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits, no outdated direct deps. Only NEVER-DONE remains. | 0 | Cooldown→43200s but reverted to 7200s on restart. |
 | #19 | 2026-07-22 ~05:57Z | 0/7 (RESET) | **PRODUCTIVE** — U02: JSON round-trip tests for pkg/client/types.go. DS-V4-Flash worker wrote types_test.go (319 lines, generic jsonRoundTrip helper, all 22 types). 28/28 tests pass (22 new + 6 existing). Build ✓, vet ✓, guard ✓, commit `25185aa`. Worker committed directly (file verifier false-negative on path). | 0 (reset) | Cooldown→900s. 1 task done. Board now empty. |
 | #18 | 2026-07-22 ~05:52Z | 0/7 (RESET) | **PRODUCTIVE** — UX-011: port 8090 shadowing fixed. MiniMax-M3 worker wrote VerifyIdentity() + PersistentPreRunE + 7 tests (+271 lines). Build ✓, guard ✓, tests ✓, commit `078c843`. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #17 | 2026-07-22 ~10:32Z | 0/7 (RESET) | **PRODUCTIVE** — UX-007: cross-platform quickstart gotchas documented. Foreman-direct investigation. | 0 (reset) | Cooldown→900s. 1 task done. |
@@ -93,5 +93,5 @@
 
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
 
-> **Last audit:** 2026-07-22T05:32Z — IDLE TICK #7 (counter 5/7). All 11 checks pass; 0 gaps found.
-> **Next:** Idle counter 0/7 (reset). Cooldown 900s.
+> **Last audit:** 2026-07-22T14:16Z — IDLE TICK #21. All 11 checks pass; 0 gaps found.
+> **Next:** Idle counter 1/7 (IDLE#2). Cooldown 43200s (12h).
