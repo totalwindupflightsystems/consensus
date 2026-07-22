@@ -63,7 +63,8 @@ All tasks complete. Project in maintenance mode.
 ||| #3 | 2026-07-21 ~17:15Z | 1/7 | All 11 pass — maintenance mode, no gaps found | 0 | No action (cooldown 3600s) |
 | #4 | 2026-07-21 ~18:23Z | 2/7 | 10/11 pass; gitleaks allowlist gap FIXED (narrowed from specs/docs/md → .git/.gitreins/vendor only) | 0 (fixed directly) | Gitleaks fix committed ✓ |
 || #5 | 2026-07-21 ~19:27Z | 3/7 | All 11 pass — 7 outdated deps (minor/patch, no vulns), 4 zero-test infra packages (normal), CI green | 0 | Cooldown 3600→14400s (≥3 idle) ✓ |
-|| #6 | 2026-07-21 ~21:33Z | 4/7 | All 11 pass — 20 stale GitReins spec tasks found (verified against code, deleted). Cooldown reverted 14400→7200s (daemon restart); re-fixed to 14400s ✓ | 0 | Cooldown re-fixed 14400s. GitReins cleaned. |
+||| #6 | 2026-07-21 ~21:33Z | 4/7 | All 11 pass — 20 stale GitReins spec tasks found (verified against code, deleted). Cooldown reverted 14400→7200s (daemon restart); re-fixed to 14400s ✓ | 0 | Cooldown re-fixed 14400s. GitReins cleaned. |
+||| #7 | 2026-07-22 ~05:32Z | 5/7 | All 11 pass — Cooldown reverted 14400→1800s (2nd daemon restart); re-fixed to 14400s ✓. GitReins: 22 stale tasks deleted (prior tick's deletion didn't land on disk). | 0 | Cooldown re-fixed 14400s (2nd reversion). 22 GitReins tasks deleted. |
 
 ---
 
@@ -71,7 +72,7 @@ All tasks complete. Project in maintenance mode.
 
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
 
-> **Last audit:** 2026-07-21T21:33Z — IDLE TICK #6 (counter 4/7). All 11 checks pass; 0 gaps found.
+> **Last audit:** 2026-07-22T05:32Z — IDLE TICK #7 (counter 5/7). All 11 checks pass; 0 gaps found. GitReins: 22 stale tasks deleted. Cooldown: 2nd reversion (re-fixed 14400s).
 >
 > **Check results:**
 > 1. SPEC: 29 spec files — comprehensive. PASS ✓
