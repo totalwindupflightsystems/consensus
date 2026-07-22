@@ -34,6 +34,30 @@ operational tasks: starting the server, managing sessions, reviewing
 approvals, running migrations, and inspecting system state.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+
+		// UX-011 — Pre-flight server identity check. Catches the case where
+		// a non-Consensus service (e.g., Dagger Engine) is squatting on the
+		// default port 8090 by calling VerifyIdentity() before any subcommand
+		// executes. Subcommands that don't need a running server (serve, init)
+		// are skipped, and users who explicitly point --server at a custom URL
+		// (or set CONSENSUS_SERVER) are trusted to know what they're doing.
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Skip for subcommands that don't need a running server: serve IS
+			// the server, init is first-time setup.
+			name := cmd.Name()
+			switch name {
+			case "serve", "init", "mcp-stdio", "completion", "help", "consensus":
+				return nil
+			}
+			// Skip when the user explicitly pointed at a non-default server.
+			// Default URL + no env override = "user is using the implicit
+			// localhost:8090", which is exactly the case we want to verify.
+			if optServer != "http://localhost:8090" || os.Getenv("CONSENSUS_SERVER") != "" {
+				return nil
+			}
+			client := newClient()
+			return client.VerifyIdentity()
+		},
 	}
 
 	// Global flags (SPEC-016 §4)

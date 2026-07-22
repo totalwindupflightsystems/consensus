@@ -32,6 +32,61 @@ func NewClient(serverURL, apiKey string) *Client {
 	}
 }
 
+// VerifyIdentity checks that the server at baseURL is actually a Consensus
+// server by calling GET /api/v1/health and verifying the response shape.
+//
+// Behavior (UX-011 — port 8090 shadowing):
+//   - On a connection error (refused, timeout, DNS), returns the user-friendly
+//     error produced by do() — "cannot connect to Consensus server at <url>...".
+//   - If the response is not JSON, or doesn't contain both "status":"ok" and
+//     a non-empty "version" field, returns a specific diagnostic explaining
+//     that the port appears to be occupied by a non-Consensus service.
+//   - On a valid Consensus health response, returns nil.
+//
+// Health endpoint response shape (see internal/api/types.go: HealthResponse):
+//
+//	{"status": "ok", "version": "0.1.0", ...}
+func (c *Client) VerifyIdentity() error {
+	resp, err := c.do("GET", "/api/v1/health", nil)
+	if err != nil {
+		// do() already wraps connection errors with a user-friendly message
+		// ("cannot connect to Consensus server at <url>..."). Pass it through.
+		return err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		// Body read failure — treat the same as a malformed response.
+		data = nil
+	}
+
+	// Parse the response and look for the Consensus health signature:
+	// status == "ok" AND version != "".
+	var health struct {
+		Status  string `json:"status"`
+		Version string `json:"version"`
+	}
+	if json.Unmarshal(data, &health) != nil || health.Status != "ok" || health.Version == "" {
+		// Response is not a recognizable Consensus health payload. The server
+		// at this URL is something else (or is broken) — surface the specific
+		// shadowing diagnostic so the user knows what to do.
+		u, _ := url.Parse(c.baseURL)
+		port := "8090"
+		if u != nil && u.Port() != "" {
+			port = u.Port()
+		}
+		return fmt.Errorf(
+			"port %s is occupied by a non-Consensus service — the server at %s "+
+				"returned an unrecognized response. Use --server to specify the correct "+
+				"Consensus server URL, or --port to change the port when running 'consensus serve'.",
+			port, c.baseURL,
+		)
+	}
+
+	return nil
+}
+
 func (c *Client) do(method, path string, body any) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
