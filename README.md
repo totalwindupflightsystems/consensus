@@ -108,7 +108,7 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo
 ## The Test Suite Doesn't Lie
 
 ```
-28/28 packages green — zero failures
+29/29 packages green — zero failures
 60/60 acceptance criteria passing
 ```
 
