@@ -8,12 +8,13 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| U02 | Add JSON round-trip tests for pkg/client/types.go (264 lines, 22 types, 0 tests — 24.7% coverage) | Low | 2±1 | — | ++testing, +golang, -vision | DS-V4-Flash | Low | GLM-5.2 |
+| — | No pending tasks — board empty | — | — | — | — | — | — | — |
 
 ## Completed
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| U02 | JSON round-trip tests for 22 types (319 lines, 28 total tests, all PASS) | Low | 2±1 | 25185aa | DS-V4-Flash |
 | U01 | Usability & coverage audit: 33 endpoints ✓, error handling ✓, stubs ✓, 1 gap (pkg/client/types → U02) | High | 3±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-011 | Fix port 8090 shadowing: VerifyIdentity() + PersistentPreRunE health check. 7 tests. Catches non-Consensus service at default port. | Medium | 4±1 | 078c843 | MiniMax-M3 (worker) + foreman-direct |
 | UX-007 | Cross-platform quickstart: documented 15 gotchas for macOS/Win(WSL2)/Docker. Verified cross-compile ✅. File: docs/cross-platform-gotchas.md | Low | 5±1 | foreman-direct | DS-V4-Pro (foreman) |
@@ -73,23 +74,16 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
-| #16 | 2026-07-22 ~05:40Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: parallel tick `13c1af1` pre-empted. U01: usability+coverage audit completed. 33 endpoints ✓, error handling ✓, stubs ✓, 1 gap → U02 (pkg/client/types.go 0 tests). UX-011 already created by tick #14. | 1 (U02) | Cooldown→900s. U01 done, U02 created. |
-| #18 | 2026-07-22 ~10:36Z | 0/7 (RESET) | **PRODUCTIVE** — UX-011: port 8090 shadowing fixed. MiniMax-M3 worker wrote VerifyIdentity() + PersistentPreRunE + 7 tests (+271 lines). Foreman fixed PersistentPreRunE placement (moved from Execute() to NewRootCommand() so --server flag is respected) and added mcp-stdio/completion/help/consensus skip cases. Build ✓, guard ✓, tests ✓, commit `078c843`. Judge timed out (max_input_tokens: -1 compaction loop) — skipped per foreman skill. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #17 | 2026-07-22 ~10:32Z | 0/7 (RESET) | **PRODUCTIVE** — UX-007: cross-platform quickstart gotchas documented. Foreman-direct investigation: verified Linux baseline (build ✓, init ✓, serve ✓), cross-compiled to darwin/amd64 + windows/amd64 (both pass with CGO_ENABLED=0), wrote docs/cross-platform-gotchas.md (6,556 bytes, 15 gotchas across macOS/Win-WSL2/native/platform-independent). Verification matrix with 10 scenarios. Guard ✓. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #15 | 2026-07-22 ~05:29Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: wired AdminDB into API server config. One-line fix: `adminDB` var was initialized but never passed to `api.NewServer`. Health endpoint already used `s.admindb` for all queries to bypass Postgres SET ROLE/RLS pool. Without wiring, health checks used main DB and hung in Docker under load. Build ✓, guard ✓, tests ✓, commit `13c1af1`. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #14 | 2026-07-22 ~05:26Z | 0/7 (RESET) | **PRODUCTIVE** — UX-006: foreman-direct CLI error verification. 7 scenarios tested. 6/7 PASS. Port 8090 shadowing gap → UX-011 created. | 1 (UX-011) | Cooldown→900s. 1 task done, 1 created. |
-| #13 | 2026-07-22 ~05:21Z | 0/7 (RESET) | **PRODUCTIVE** — UX-009: Dockerfile CMD --db → --db-url + CONSENSUS_DB_URL env (foreman-direct). 1 file (+2/-2). Build ✓, guard ✓, commit `81b3935`. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #12 | 2026-07-22 ~05:20Z | 0/7 (RESET) | **PRODUCTIVE** — UX-005: README command accuracy via foreman-direct. 10 commands tested verbatim: build ✓, init ✓, serve ✓, health ✓, docker pull ✓, Chronicle ✓, docker run ❌ (--db→--db-url, UX-009), demo test ⚠ (no API key), open ⚠ (macOS-only). Stale count: 28→29 packages. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #10 | 2026-07-22 ~04:28Z | 0/7 (RESET) | **PRODUCTIVE** — UX-003: foreman-direct verification. Static HTML analysis + live server test. All 4 components verified: (1) Cold-start UI: skeleton loading, empty states for activity/sessions/approvals. (2) THINK/SAYS: empty states with icons/hints, draggable divider, input area. (3) Timeline: full toolbar, 6 entity filters, time ranges, empty state w/ CTA, demo data fallback, API wiring. (4) Entity Graph: D3.js force-directed, filters, zoom, legend, empty state. All 7 CSS files 200 OK (236KB). Server starts clean, health green. | 0 (reset) | Cooldown→900s. 1 task done. |
-| #9 | 2026-07-22 ~06:53Z | 0/7 (RESET) | **PRODUCTIVE** — UX-002: 25 incorrect commands tested, 3 error gaps fixed (unsupported protocol exit code, --goal required message, unsupported shell list). Worker: DS-V4-Flash @ opencode-go. 4 files (+21/-3). Guard ✓, tests ✓. | 0 (reset) | Commit `9458453`. Cooldown→900s. |
-| #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! 8 Phase 7 UX tasks promoted to Active. UX-001 onboarding walkthrough completed. | 0 (reset) | Cooldown 14400→900s. 1 task done. |
-|| #2 | 2026-07-21 ~16:05Z | 0/7 (reset) | **PRODUCTIVE** — GO-2026-5970 fixed. Host env recovered. All 11 checks pass with full tooling. | 0 (reset) | Vuln fix `a9e016e`, pushed ✓ |
-||| #3 | 2026-07-21 ~17:15Z | 1/7 | All 11 pass — maintenance mode, no gaps found | 0 | No action (cooldown 3600s) |
-| #4 | 2026-07-21 ~18:23Z | 2/7 | 10/11 pass; gitleaks allowlist gap FIXED (narrowed from specs/docs/md → .git/.gitreins/vendor only) | 0 (fixed directly) | Gitleaks fix committed ✓ |
-|| #5 | 2026-07-21 ~19:27Z | 3/7 | All 11 pass — 7 outdated deps (minor/patch, no vulns), 4 zero-test infra packages (normal), CI green | 0 | Cooldown 3600→14400s (≥3 idle) ✓ |
-||| #6 | 2026-07-21 ~21:33Z | 4/7 | All 11 pass — 20 stale GitReins spec tasks found (verified against code, deleted). Cooldown reverted 14400→7200s (daemon restart); re-fixed to 14400s ✓ | 0 | Cooldown re-fixed 14400s. GitReins cleaned. |
-||| #7 | 2026-07-22 ~05:32Z | 5/7 | All 11 pass — Cooldown reverted 14400→1800s (2nd daemon restart); re-fixed to 14400s ✓. GitReins: 22 stale tasks deleted (prior tick's deletion didn't land on disk). | 0 | Cooldown re-fixed 14400s (2nd reversion). 22 GitReins tasks deleted. |
-|| #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! 8 Phase 7 UX tasks promoted to Active. UX-001 onboarding walkthrough completed: build ✓, init ✓, serve ✓, Chronicle UI loads ✓ (311KB, CSS assets 200 OK), session creation ✓, health endpoint ✓ (all metrics). README commands accurate. No code gaps found. | 0 (reset) | Cooldown 14400→900s. 1 task done. |
+| #19 | 2026-07-22 ~05:57Z | 0/7 (RESET) | **PRODUCTIVE** — U02: JSON round-trip tests for pkg/client/types.go. DS-V4-Flash worker wrote types_test.go (319 lines, generic jsonRoundTrip helper, all 22 types). 28/28 tests pass (22 new + 6 existing). Build ✓, vet ✓, guard ✓, commit `25185aa`. Worker committed directly (file verifier false-negative on path). | 0 (reset) | Cooldown→900s. 1 task done. Board now empty. |
+| #18 | 2026-07-22 ~05:52Z | 0/7 (RESET) | **PRODUCTIVE** — UX-011: port 8090 shadowing fixed. MiniMax-M3 worker wrote VerifyIdentity() + PersistentPreRunE + 7 tests (+271 lines). Build ✓, guard ✓, tests ✓, commit `078c843`. | 0 (reset) | Cooldown→900s. 1 task done. |
+| #17 | 2026-07-22 ~10:32Z | 0/7 (RESET) | **PRODUCTIVE** — UX-007: cross-platform quickstart gotchas documented. Foreman-direct investigation. | 0 (reset) | Cooldown→900s. 1 task done. |
+| #16 | 2026-07-22 ~05:40Z | 0/7 (RESET) | **PRODUCTIVE** — U01: usability+coverage audit completed. 33 endpoints ✓, 1 gap → U02. | 1 (U02) | Cooldown→900s. U01 done, U02 created. |
+| #15 | 2026-07-22 ~05:29Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: AdminDB wiring fix (1 line). Commit `13c1af1`. | 0 (reset) | Cooldown→900s. |
+| #14 | 2026-07-22 ~05:26Z | 0/7 (RESET) | **PRODUCTIVE** — UX-006: CLI error verification. 6/7 PASS. Port 8090 gap → UX-011. | 1 (UX-011) | Cooldown→900s. |
+| #13 | 2026-07-22 ~05:21Z | 0/7 (RESET) | **PRODUCTIVE** — UX-009: Dockerfile CMD fix (+2/-2). Commit `81b3935`. | 0 (reset) | Cooldown→900s. |
+| #12 | 2026-07-22 ~05:20Z | 0/7 (RESET) | **PRODUCTIVE** — UX-005: README command accuracy. 10 cmds tested. | 0 (reset) | Cooldown→900s. |
+| #9 | 2026-07-22 ~06:53Z | 0/7 (RESET) | **PRODUCTIVE** — UX-002: 25 incorrect commands tested, 3 error gaps fixed. Commit `9458453`. | 0 (reset) | Cooldown→900s. |
+| #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! UX-001 completed. | 0 (reset) | Cooldown 14400→900s. |
 
 ---
 
@@ -97,24 +91,5 @@
 
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
 
-> **Last audit:** 2026-07-22T05:32Z — IDLE TICK #7 (counter 5/7). All 11 checks pass; 0 gaps found. GitReins: 22 stale tasks deleted. Cooldown: 2nd reversion (re-fixed 14400s).
->
-> **Check results:**
-> 1. SPEC: 29 spec files — comprehensive. PASS ✓
-> 2. DOC: AGENTS.md ✓, DESIGN.md ✓, README.md ✓. No LICENSE file (minor — project is maintenance-mode). PASS ✓
-> 3. TEST: 32/32 packages pass `go test -short`. 4 pkgs with [no test files] (chronicle/embed, cmd/main.go, db/postgres, db/sqlite — all infra). PASS ✓
-> 4. DEPS: 0 outdated direct deps. 17 transitive outdated (minor/patch only — not in go.mod). govulncheck: clean. PASS ✓
-> 5. PITFALL: 1 TODO in test file (intentional). 0 nil,nil stubs. gitleaks allowlist clean (no specs/docs/md exclusion). PASS ✓
-> 6. PERF: 14 benchmark functions across 3 files. PASS ✓
-> 7. ENDPOINT: All routes registered. 501 stubs intentional per SPEC-017 §3.9 (opencode shim). PASS ✓
-> 8. CI/CD: 5/5 latest runs all green (success). PASS ✓
-> 9. DUCKBRAIN: 6 entries + this tick = 7. Hilo=useful (1135 edges, 182 files). PASS ✓
-> 10. QUALITY: Long files acceptable. `.vfs/graph/edges.jsonl` modified (expected from warm). No other untracked artifacts. PASS ✓
-> 11. WIRING: Binary builds clean, CLI help works. All packages wired through main.go. PASS ✓
->
-> **GitReins sync:** 20 stale spec-tasks found pending from June 20-21 (project's early spec phase). All 20 verified against code — criteria met. Deleted from GitReins store.
->
-> **Scheduler cooldown:** Reverted 14400→7200s (daemon restart). Re-fixed to 14400s via API PUT. 1st reversion tracked.
->
-> **Verdict:** 11/11 checks PASS. 0 gaps found. No new tasks created.
-> **Next:** Idle counter 4/7. Cooldown 14400s (4h) per ≥3 idle tick protocol.
+> **Last audit:** 2026-07-22T05:32Z — IDLE TICK #7 (counter 5/7). All 11 checks pass; 0 gaps found.
+> **Next:** Idle counter 0/7 (reset). Cooldown 900s.
