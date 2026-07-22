@@ -8,7 +8,6 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| UX-002 | CLI error ergonomics: 20+ incorrect commands, verify error messages | Medium | 3±1 | — | +++terminal, ++usability, +testing, -vision | DS-V4-Flash | Low | GLM-5.2 |
 | UX-003 | Chronicle first-time user flow: cold-start UI, THINK/SAYS, timeline, entity graph | High | 4±1 | UX-001 | +++browser, ++usability, ++e2e, -vision | GPT-5.6 Sol | High | MiniMax-M3 |
 | UX-004 | Deployment smoke test: docker compose prod up, PG, migrations, UI, API health | High | 4±1 | UX-001 | +++docker, ++usability, ++e2e, -vision | DS-V4-Flash | Low | GLM-5.2 |
 | UX-005 | README command accuracy: copy every command verbatim, verify 100% success | Medium | 2±1 | UX-001 | +++terminal, ++usability, +testing, -vision | DS-V4-Flash | Low | GLM-5.2 |
@@ -20,6 +19,7 @@
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| UX-002 | CLI error ergonomics: 20+ incorrect commands, verify error messages | Medium | 3±1 | 9458453 | DS-V4-Flash |
 | UX-001 | Onboarding walkthrough: clone→init→serve→UI→demo investigation | High | 4±1 | — | DS-V4-Flash (foreman) |
 | DEPS-002 | Bump 3 outdated direct Go deps (chi v5.2.5→5.3.1, pgx, sqlite) + 17 indirect | Low | 3 | 4603df1 | Step 3.7 Flash |
 | TEST-001 | Tests for internal/modelsync (257 lines, 0 tests) | Medium | 4 | 17edc13 | DeepSeek V4 Pro |
@@ -69,7 +69,8 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
-|| #1 | 2026-07-21 ~08:26Z | 1/7 | All 11 passed (static fallbacks — host `newosproc` exhaustion) | 0 | Self-pause 12h |
+| #9 | 2026-07-22 ~06:53Z | 0/7 (RESET) | **PRODUCTIVE** — UX-002: 25 incorrect commands tested, 3 error gaps fixed (unsupported protocol exit code, --goal required message, unsupported shell list). Worker: DS-V4-Flash @ opencode-go. 4 files (+21/-3). Guard ✓, tests ✓. | 0 (reset) | Commit `9458453`. Cooldown→900s. |
+| #8 | 2026-07-22 ~06:37Z | 0/7 (RESET) | **PRODUCTIVE** — Board activated! 8 Phase 7 UX tasks promoted to Active. UX-001 onboarding walkthrough completed. | 0 (reset) | Cooldown 14400→900s. 1 task done. |
 || #2 | 2026-07-21 ~16:05Z | 0/7 (reset) | **PRODUCTIVE** — GO-2026-5970 fixed. Host env recovered. All 11 checks pass with full tooling. | 0 (reset) | Vuln fix `a9e016e`, pushed ✓ |
 ||| #3 | 2026-07-21 ~17:15Z | 1/7 | All 11 pass — maintenance mode, no gaps found | 0 | No action (cooldown 3600s) |
 | #4 | 2026-07-21 ~18:23Z | 2/7 | 10/11 pass; gitleaks allowlist gap FIXED (narrowed from specs/docs/md → .git/.gitreins/vendor only) | 0 (fixed directly) | Gitleaks fix committed ✓ |
