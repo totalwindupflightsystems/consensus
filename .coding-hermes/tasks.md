@@ -10,12 +10,13 @@
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | UX-007 | Cross-platform quickstart: UX-001 on Linux/macOS/Windows(WSL) — document gotchas | Low | 5±1 | UX-001 | +++cross-platform, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GPT-5.6 Terra |
 | UX-011 | Fix port 8090 shadowing: CLI gets misleading 404 when non-Consensus service occupies default port — validate server identity | Medium | 4±1 | UX-006 | ++network, ++usability, ++cli, -vision | DS-V4-Flash | Medium | GLM-5.2 |
-| U01 | Usability & coverage audit: endpoint wiring, UX flow, error handling, edge cases, test coverage gaps | High | 3±1 | UX-001 | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
+| U02 | Add JSON round-trip tests for pkg/client/types.go (264 lines, 22 types, 0 tests — 24.7% coverage) | Low | 2±1 | — | ++testing, +golang, -vision | DS-V4-Flash | Low | GLM-5.2 |
 
 ## Completed
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| U01 | Usability & coverage audit: 33 endpoints ✓, error handling ✓, stubs ✓, 1 gap (pkg/client/types → U02) | High | 3±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | 13c1af1 | DS-V4-Pro (foreman-direct) |
 | UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-009 | Fix Dockerfile CMD --db→--db-url + CONSENSUS_DB_URL env | High | 1±1 | 81b3935 | DS-V4-Pro (foreman-direct) |
@@ -72,6 +73,7 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
+| #16 | 2026-07-22 ~05:40Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: parallel tick `13c1af1` pre-empted. U01: usability+coverage audit completed. 33 endpoints ✓, error handling ✓, stubs ✓, 1 gap → U02 (pkg/client/types.go 0 tests). UX-011 already created by tick #14. | 1 (U02) | Cooldown→900s. U01 done, U02 created. |
 | #15 | 2026-07-22 ~05:29Z | 0/7 (RESET) | **PRODUCTIVE** — UX-010: wired AdminDB into API server config. One-line fix: `adminDB` var was initialized but never passed to `api.NewServer`. Health endpoint already used `s.admindb` for all queries to bypass Postgres SET ROLE/RLS pool. Without wiring, health checks used main DB and hung in Docker under load. Build ✓, guard ✓, tests ✓, commit `13c1af1`. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #14 | 2026-07-22 ~05:26Z | 0/7 (RESET) | **PRODUCTIVE** — UX-006: foreman-direct CLI error verification. 7 scenarios tested. 6/7 PASS. Port 8090 shadowing gap → UX-011 created. | 1 (UX-011) | Cooldown→900s. 1 task done, 1 created. |
 | #13 | 2026-07-22 ~05:21Z | 0/7 (RESET) | **PRODUCTIVE** — UX-009: Dockerfile CMD --db → --db-url + CONSENSUS_DB_URL env (foreman-direct). 1 file (+2/-2). Build ✓, guard ✓, commit `81b3935`. | 0 (reset) | Cooldown→900s. 1 task done. |
