@@ -8,15 +8,16 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | UX-001 | +++terminal, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 | UX-007 | Cross-platform quickstart: UX-001 on Linux/macOS/Windows(WSL) — document gotchas | Low | 5±1 | UX-001 | +++cross-platform, ++usability, ++testing, -vision | DS-V4-Flash | Medium | GPT-5.6 Terra |
 | UX-010 | Fix health endpoint hang in Docker (Postgres admin pool) | High | 4±1 | UX-004 | ++docker, ++debugging, ++postgres, -vision | DS-V4-Pro | High | GLM-5.2 |
+| UX-011 | Fix port 8090 shadowing: CLI gets misleading 404 when non-Consensus service occupies default port — validate server identity | Medium | 4±1 | UX-006 | ++network, ++usability, ++cli, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 | U01 | Usability & coverage audit: endpoint wiring, UX flow, error handling, edge cases, test coverage gaps | High | 3±1 | UX-001 | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
 
 ## Completed
 
 | ID | Task | Pri | Cpx | Commit | Model |
 |----|------|-----|-----|--------|-------|
+| UX-006 | Error recovery flow: 5 common mistakes, verify detection+guidance+recovery | Medium | 4±1 | foreman-direct | DS-V4-Pro (foreman) |
 | UX-009 | Fix Dockerfile CMD --db→--db-url + CONSENSUS_DB_URL env | High | 1±1 | 81b3935 | DS-V4-Pro (foreman-direct) |
 | UX-005 | README command accuracy: 10 cmds tested (6✓, 2→UX-009, 1→API key, 1 macOS) | Medium | 2±1 | — | DS-V4-Flash (foreman-direct) |
 | UX-004 | Deployment smoke test: PG ✅, migrations ✅, UI ✅, health⚠️ | High | 4±1 | 7dd8c72 | DS-V4-Pro (foreman) |
@@ -71,6 +72,7 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
+| #14 | 2026-07-22 ~05:26Z | 0/7 (RESET) | **PRODUCTIVE** — UX-006: foreman-direct CLI error verification. 7 scenarios tested. 6/7 PASS. Port 8090 shadowing gap → UX-011 created. | 1 (UX-011) | Cooldown→900s. 1 task done, 1 created. |
 | #13 | 2026-07-22 ~05:21Z | 0/7 (RESET) | **PRODUCTIVE** — UX-009: Dockerfile CMD --db → --db-url + CONSENSUS_DB_URL env (foreman-direct). 1 file (+2/-2). Build ✓, guard ✓, commit `81b3935`. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #12 | 2026-07-22 ~05:20Z | 0/7 (RESET) | **PRODUCTIVE** — UX-005: README command accuracy via foreman-direct. 10 commands tested verbatim: build ✓, init ✓, serve ✓, health ✓, docker pull ✓, Chronicle ✓, docker run ❌ (--db→--db-url, UX-009), demo test ⚠ (no API key), open ⚠ (macOS-only). Stale count: 28→29 packages. | 0 (reset) | Cooldown→900s. 1 task done. |
 | #10 | 2026-07-22 ~04:28Z | 0/7 (RESET) | **PRODUCTIVE** — UX-003: foreman-direct verification. Static HTML analysis + live server test. All 4 components verified: (1) Cold-start UI: skeleton loading, empty states for activity/sessions/approvals. (2) THINK/SAYS: empty states with icons/hints, draggable divider, input area. (3) Timeline: full toolbar, 6 entity filters, time ranges, empty state w/ CTA, demo data fallback, API wiring. (4) Entity Graph: D3.js force-directed, filters, zoom, legend, empty state. All 7 CSS files 200 OK (236KB). Server starts clean, health green. | 0 (reset) | Cooldown→900s. 1 task done. |
