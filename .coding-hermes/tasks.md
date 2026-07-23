@@ -74,7 +74,8 @@
 
 | Tick | Date | Counter | Checks | New Tasks | Action |
 |------|------|---------|--------|-----------|--------|
-| #25 | 2026-07-23 ~09:26Z | 5/7 (IDLE#6) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests 30/30 ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits. DuckBrain unreachable (Connection Error). Cooldown reverted 43200→1800 on restart; re-set to 43200s (12h). IDLE#6 — next tick escalates to self-pause at IDLE#7. | 0 | Cooldown→43200s (12h). Idle tick #6. |
+|| #26 | 2026-07-23 ~13:20Z | 6/7 (IDLE#7) | **IDLE#7 ESCALATION** — Discovery sweep clean: build ✓, vet ✓, tests all pass ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, CI 3/3 ✓, no TODOs, no issues, no remote commits, no outdated direct deps. DuckBrain: skipped (Connection Error — pre-existing). Cooldown reverted 43200→1800 on restart; re-set to 43200s (12h). **7 idle ticks — escalated to Bane. Do NOT self-disable.** | 0 | Cooldown→43200s (12h). Idle tick #7. **ESCALATED: recommend self-pause or manual disable.** |
+|| #25 | 2026-07-23 ~09:26Z | 5/7 (IDLE#6) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests 30/30 ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits. DuckBrain unreachable (Connection Error). Cooldown reverted 43200→1800 on restart; re-set to 43200s (12h). IDLE#6 — next tick escalates to self-pause at IDLE#7. | 0 | Cooldown→43200s (12h). Idle tick #6. |
 | #24 | 2026-07-23 ~05:24Z | 4/7 (IDLE#5) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests 30/30 ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits. Cooldown reverted 14400→1800 on restart; re-set to 43200s (12h — IDLE#5 escalation). | 0 | Cooldown→43200s (12h). Idle tick #5. |
 | #23 | 2026-07-22 ~20:37Z | 3/7 (IDLE#4) | **IDLE** — Discovery sweep clean: build ✓, vet ✓, tests all pass ✓, CI 5/5 green ✓, vulns 0 ✓, GitReins guard ✓, Hilo 1135 edges ✓, no TODOs, no issues, no remote commits, no outdated direct deps. All 11 NEVER-DONE checks: pass. Cooldown reverted 14400→1800 on restart; re-set to 14400s. | 0 | Cooldown→14400s (4h). Idle tick #4. |
 | #22 | 2026-07-22 ~14:28Z | 2/7 (IDLE#3) | **IDLE** — Resource-constrained: host thread exhaustion (errno=11). go build/vet couldn't spawn threads. GitReins guard partial: build ✓, lint ✓, tests ✓, static_analysis ✓, secrets ○ (gitleaks crash — pre-existing). Cooldown reverted 43200→1800 on restart; re-set to 14400s (4h). | 0 | Cooldown→14400s (4h). Idle tick #3. |
@@ -97,5 +98,5 @@
 
 Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
 
-> **Last audit:** 2026-07-23T09:26Z — IDLE TICK #25. All checks pass; 0 gaps found.
-> **Next:** Idle counter 5/7 (IDLE#6). Cooldown 43200s (12h). IDLE#7 → self-pause escalation.
+> **Last audit:** 2026-07-23T13:20Z — IDLE TICK #26 (IDLE#7 ESCALATED). All checks pass; 0 gaps found.
+> **Next:** Idle counter 6/7 (IDLE#7). **ESCALATED to Bane — recommend self-pause or manual disable. Do NOT auto-disable.**
