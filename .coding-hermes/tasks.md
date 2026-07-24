@@ -70,18 +70,40 @@
 
 ---
 
-## Phase 8: Real Integration Testing (OpenCode Shim)
+## Phase 8: Real OpenCode Contract Validation
 
-> **WHY THIS PHASE EXISTS:** Phase 2 verified 25/25 shim endpoints return correct HTTP status codes. That is NOT integration testing. Nobody has ever pointed a real OpenCode client at Consensus and confirmed "I can't tell the difference." HTTP smoke tests ≠ semantic interoperability. This phase closes that gap.
+> **Source:** sst/opencode server test suite (httpapi-instance.test.ts, httpapi-sdk.test.ts, sdk-error-shape.test.ts, promise.test.ts)
+> **Test file:** internal/chronicle/opencode_full_contract_test.go — 627 lines, 27 contract tests
+> **Run:** DEEPSEEK_API_KEY=... go test -run TestFullContract -v ./internal/chronicle/...
 
-- [x] **INT-001 — Full session lifecycle via shim**: start Consensus serve, create session via `POST /session`, send a real message, wait for response, verify THINK/SAYS blocks in memory. Use real LLM. One curl-based Go test in `internal/chronicle/shim_real_llm_test.go`. ✅ Commit `648c356` — 383-line test, build ✓, vet ✓, guard ✓. Foreman-direct: file was pre-written by prior tick, verified + committed.
-- [ ] **INT-002 — Streaming (SSE) via shim**: send a message with `stream=true`, verify Server-Sent Events arrive chunked with `data:` prefix. Confirm the client receives progressive THINK/SAYS blocks before the final `[DONE]`.
-- [ ] **INT-003 — Tool execution via shim**: send a message that triggers a tool call (e.g. `read_file`), verify the shim returns `tool_use` blocks, accept the tool result, verify the agent incorporates it. Test bash execution, file read, file write.
-- [ ] **INT-004 — Multi-turn conversation via shim**: send 5 messages with context threading via `session_id`, verify the agent maintains conversation state across turns. Confirm memory events accumulate correctly (10+ events).
-- [ ] **INT-005 — OpenCode SDK against Consensus**: use the official OpenCode Go client library to talk to Consensus via the shim. Verify the SDK's types, streaming, and error handling work without modification.
-- [ ] **INT-006 — VSCode/Cursor extension against Consensus**: configure the OpenCode VSCode extension to point at Consensus, open a file, send a prompt, verify the agent responds correctly. (Requires GUI environment — document setup for manual testing.)
-- [ ] **INT-007 — Budget enforcement via shim**: create a session with a $0.01 budget, send a message, verify the agent stops at budget limit. Confirm the shim returns appropriate error (402 or budget_exceeded).
-- [ ] **INT-008 — Indistinguishability benchmark**: run 10 identical prompts against Consensus shim vs real OpenCode server. Compare: latency, token usage, response quality, streaming behavior. Goal: < 5% difference across all metrics.
+### PASSING (13/27 via core shim — session lifecycle, messages, health, doc, config)
+
+These contract tests pass today with no changes needed:
+- [x] **C01**: GET /doc returns OpenAPI with /global/health + /session paths
+- [x] **C02**: GET /global/health returns healthy=true
+- [x] **C03**: GET /global/health (no auth) → 200
+- [x] **C04**: POST /session returns {id, title, status, api_key, createdAt}
+- [x] **C05**: POST /session without auth → 401
+- [x] **C06**: GET /session/:id returns matching session
+- [x] **C07**: GET /session (list) returns array
+- [x] **C08**: DELETE /session/:id → 200
+- [x] **C09**: POST /session/:id/message (parts format) → 200 with parts array
+- [x] **C10**: GET /session/:id/message lists messages
+- [x] **C11**: POST /session/:id/abort → 200
+- [x] **C12**: GET /session/:id/children lists children
+- [x] **C13**: GET /config returns non-empty JSON
+
+### GAPS (9 contract violations requiring implementation)
+
+- [ ] **GAP-004 — Auth: 5 endpoints return 401 instead of accepting auth or returning stubs**: C14 (/config/providers), C15 (/agent), C16 (/experimental/tool), C17 (/experimental/tool/ids), C21 (/permission routes). These routes exist in the shim mux but reject Bearer auth. Fix: accept admin session API key on these routes, return 200 with empty arrays as stubs, OR wire the native API.
+- [ ] **GAP-005 — File endpoints return 401 instead of 501 stubs**: C18 (/find, /find/file, /file/content, /file/status). These should return 501 Not Implemented per SPEC-017 §3.9, but the auth middleware intercepts before the stub handler. Fix: reorder middleware so file paths skip auth and hit the 501 stub.
+- [ ] **GAP-006 — Instance/VCS routes not registered**: C19 (/instance/path, /instance/vcs, /instance/vcs/diff) return 404 "page not found" — not even routed by chi. OpenCode returns 200 with real directory/vcs data. Fix: register routes in shim mux, return 501 stubs initially.
+- [ ] **GAP-007 — /project/:id returns 401 not 404 with typed body**: C20. OpenCode returns 404 with `{_tag:"ProjectNotFoundError", projectID, message}`. Fix: register /project/* route with typed 404 response.
+- [ ] **GAP-008 — /question endpoints return 404 not even routed**: C22 (/question/:id/reply, /question/:id/reject). OpenCode returns 400/404 with typed QuestionNotFoundError. Fix: register routes with typed 400 responses for invalid IDs.
+- [ ] **GAP-009 — /permission endpoints auth mismatch**: C21 (/permission, /permission/:id, /permission/:id/resolve). Same auth issue as GAP-004. Fix: accept admin auth, return 200 with empty list.
+- [ ] **GAP-010 — SSE /global/event returns JSON not text/event-stream**: C25. OpenCode streams Server-Sent Events with `data:` prefix. Consensus returns `application/json`. Fix: implement SSE writer, wrap responses in `data: {...}\n\n` format with correct Content-Type.
+- [ ] **GAP-011 — /global/event GET without session param**: C25 edge case. OpenCode returns an initial event even without session_id. Needs SSE infrastructure.
+- [ ] **GAP-012 — /config response shape diverges from OpenCode**: C13 passes (non-empty JSON) but the shape differs. OpenCode returns `{providers: [...], models: [...], agents: [...]}`. Consensus returns `{settings: {embedding_model: ...}}`. Fix: add providers/models/agents fields to /config response.
 
 ## Idle Tick Log
 
