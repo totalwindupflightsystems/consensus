@@ -49,7 +49,7 @@
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | FIX-01 | ✅ `test_5_10_session_not_found` — No `GET /v1/sessions/{id}` route; 405 returned. Added route: returns 404 for unknown, 200+status for known. | DONE | 2 | — | adapter,fix | DeepSeek V4 Flash | Simple route addition | — |
 | FIX-02 | ✅ `test_2_4_process_text_finished_false` — Adapter always returned `finished: true` when Consensus idle. Added `streamingDetected()`: content hints like "do not finish" → `finished: false`. | DONE | 2 | — | adapter,fix | MiniMax M3 | Bug fix: streaming detection | — |
-|| ADAPTER-TEXT-GAP | ⚠️ Response text not relayed. Adapter's `ConsensusSession` struct (main.go:167-173) has `ID`, `Status`, `AgentName`, `Goal`, `ModelID` — no `LastMessage` or `ResponseText` field. When Consensus completes (status "idle"), adapter returns `{decision: "end"}` but discards the LLM's response. **Fix:** add `LastMessage string` to struct, populate from `GET /api/v1/sessions/{id}` response, include in final text decision. ~20 line patch. | 🔴 HIGH | 1 | H3-ROUNDTRIP | adapter,gap,text | DeepSeek V4 Flash | Minor struct addition + one extra HTTP call or response field | Kimi K3 |
+|| ADAPTER-TEXT-GAP | ✅ **Fixed in tick #37.** Root cause: `handleResult` returned `DecisionEnd` with monologue in `End.Summary` — Hermes displays `Text.Content`, not `End.Summary`. Fixed by returning `DecisionText` with `Finished: true` (same pattern as `handleProcess`). Patch at `get-h3/sdk-go/cmd/h3-consensus-adapter/main.go:515-518`. `go build` passes clean. | ✅ DONE | 1 | H3-ROUNDTRIP | adapter,gap,text | — | ✅ | — |
 
 ## NEVER-DONE — 11-point audit
 
