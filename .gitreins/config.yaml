@@ -59,15 +59,15 @@ evaluator:
   max_iterations: 50
   max_time: 10m
   max_input_tokens: 0.2M
-  max_output_tokens: 0.05M
+  max_output_tokens: 0.4M
   tool_call_weight: 0.1
-  lsp_diagnostics: true
-  static_analysis_diagnostics: true
+  fast_track: auto
+
 defaults:
   model: deepseek-v4-flash
-  max_iterations: -1
-  check_for_updates: true
-  update_check_ttl: 24h
+  provider: deepseek-foreman
+  api_key_env: GITREINS_LLM_API_KEY
+
 history:
   enabled: true
   storage: filesystem
