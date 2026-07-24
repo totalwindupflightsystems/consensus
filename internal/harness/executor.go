@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -251,6 +252,10 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 func (h *Harness) executeStatement(ctx context.Context, tx interface{ Exec(context.Context, string, ...any) error }, stmt string, sessionID string, trustLevel string) error {
 	// Sanitize
 	stmt = security.Sanitize(stmt)
+	// Fix common LLM SQL generation error: LLMs copy DEFAULT (datetime('now'))
+	// from CREATE TABLE column definitions into INSERT VALUES clauses, where
+	// it's invalid SQL. Replace with the bare expression.
+	stmt = fixLLMSQLDefaults(stmt)
 
 	if stmt == "" {
 		return nil
@@ -297,6 +302,19 @@ func (h *Harness) executeStatementLegacy(ctx context.Context, tx interface{ Exec
 // SplitStatementsSemicolon splits a list of SQL strings on semicolons.
 func SplitStatementsSemicolon(stmts []string) []string {
 	return security.SplitStatements(stmts)
+}
+
+// fixLLMSQLDefaults fixes common LLM SQL generation errors before execution.
+// LLMs frequently copy DEFAULT (datetime('now')) from CREATE TABLE column
+// definitions into INSERT VALUES clauses, where DEFAULT (expr) is invalid.
+func fixLLMSQLDefaults(stmt string) string {
+	// Replace DEFAULT (datetime('now'[, args])) with bare datetime('now'[, args])
+	// in INSERT VALUES contexts — the LLM copies DDL syntax into DML.
+	re := regexp.MustCompile(`(?i)(VALUES\s*\([^)]*?)\bDEFAULT\s*\((\s*datetime\s*\(\s*'now'[^)]*\)\s*)\)`)
+	for re.MatchString(stmt) {
+		stmt = re.ReplaceAllString(stmt, `$1$2`)
+	}
+	return stmt
 }
 
 // determineNextStatus figures out what session status to transition to.

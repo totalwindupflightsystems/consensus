@@ -862,6 +862,7 @@ psql session.
 - memory_events is append-only — you can INSERT but not UPDATE or DELETE.
 - Only access tables scoped to your session_id.
 - For schema changes (CREATE TABLE, ALTER TABLE), put the SQL directly in memory_state_changes.
+|- **IMPORTANT SQL constraint:** In INSERT VALUES clauses, do NOT use DEFAULT (datetime('now')). Use datetime('now') directly instead. The DEFAULT(...) syntax is only valid in CREATE TABLE column definitions, not in INSERT VALUES.
   The harness executes DDL immediately (before the transaction) and retries within the transaction.
 - If there's a SQL error, the harness injects the error into the next context for recovery.
 - **SQLite notes:** No gen_random_uuid() — the harness rewrites it. No ::type casts. No JSONB operators.
