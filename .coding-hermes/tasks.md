@@ -70,6 +70,19 @@
 
 ---
 
+## Phase 8: Real Integration Testing (OpenCode Shim)
+
+> **WHY THIS PHASE EXISTS:** Phase 2 verified 25/25 shim endpoints return correct HTTP status codes. That is NOT integration testing. Nobody has ever pointed a real OpenCode client at Consensus and confirmed "I can't tell the difference." HTTP smoke tests ≠ semantic interoperability. This phase closes that gap.
+
+- [ ] **INT-001 — Full session lifecycle via shim**: start Consensus serve, create session via `POST /session`, send a real message, wait for response, verify THINK/SAYS blocks in memory. Use real LLM. One curl-based Go test in `internal/chronicle/shim_real_llm_test.go`.
+- [ ] **INT-002 — Streaming (SSE) via shim**: send a message with `stream=true`, verify Server-Sent Events arrive chunked with `data:` prefix. Confirm the client receives progressive THINK/SAYS blocks before the final `[DONE]`.
+- [ ] **INT-003 — Tool execution via shim**: send a message that triggers a tool call (e.g. `read_file`), verify the shim returns `tool_use` blocks, accept the tool result, verify the agent incorporates it. Test bash execution, file read, file write.
+- [ ] **INT-004 — Multi-turn conversation via shim**: send 5 messages with context threading via `session_id`, verify the agent maintains conversation state across turns. Confirm memory events accumulate correctly (10+ events).
+- [ ] **INT-005 — OpenCode SDK against Consensus**: use the official OpenCode Go client library to talk to Consensus via the shim. Verify the SDK's types, streaming, and error handling work without modification.
+- [ ] **INT-006 — VSCode/Cursor extension against Consensus**: configure the OpenCode VSCode extension to point at Consensus, open a file, send a prompt, verify the agent responds correctly. (Requires GUI environment — document setup for manual testing.)
+- [ ] **INT-007 — Budget enforcement via shim**: create a session with a $0.01 budget, send a message, verify the agent stops at budget limit. Confirm the shim returns appropriate error (402 or budget_exceeded).
+- [ ] **INT-008 — Indistinguishability benchmark**: run 10 identical prompts against Consensus shim vs real OpenCode server. Compare: latency, token usage, response quality, streaming behavior. Goal: < 5% difference across all metrics.
+
 ## Idle Tick Log
 
 || Tick | Date | Counter | Checks | New Tasks | Action |
