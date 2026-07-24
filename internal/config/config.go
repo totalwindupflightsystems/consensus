@@ -283,4 +283,7 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("ANTHROPIC_API_KEY"); v != "" && cfg.LLM.Provider == "anthropic" && cfg.LLM.APIKey == "" {
 		cfg.LLM.APIKey = v
 	}
+	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && cfg.LLM.APIKey == "" {
+		cfg.LLM.APIKey = v
+	}
 }
