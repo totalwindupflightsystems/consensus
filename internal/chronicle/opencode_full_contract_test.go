@@ -403,7 +403,11 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 	t.Run("C20: PATCH /project/:id returns 404 Not Found", func(t *testing.T) {
 		req, _ := http.NewRequest("PATCH", s.baseURL+"/project/prj_missing", strings.NewReader(`{"name":"test"}`))
 		req.Header.Set("Content-Type", "application/json")
-		resp, _ := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			gap(t, "C20", fmt.Sprintf("PATCH /project/:id failed: %v", err))
+			return
+		}
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode == 501 || resp.StatusCode == 404 {
