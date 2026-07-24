@@ -205,8 +205,13 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		return nil, nil // another goroutine got there first
 	}
 
-	// Open single long-running transaction (HARDEN-PLAN-01)
-	tx, err := h.db.BeginTx(ctx)
+	// Open single long-running transaction (HARDEN-PLAN-01).
+	// Use a fresh context for BeginTx: the caller's context may have a deadline
+	// that's nearly expired (e.g. HTTP request context). SQLite operations need
+	// their own timeout independent of the caller's lifecycle.
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer dbCancel()
+	tx, err := h.db.BeginTx(dbCtx)
 	if err != nil {
 		return nil, fmt.Errorf("planning: begin tx: %w", err)
 	}

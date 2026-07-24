@@ -31,16 +31,23 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 		return nil, fmt.Errorf("sqlite: empty path in URL %q", cfg.URL)
 	}
 
+	// Resolve busy timeout (default: 5000ms)
+	busyTO := cfg.BusyTimeoutMs
+	if busyTO <= 0 {
+		busyTO = 5000
+	}
+	busyPragma := fmt.Sprintf("_pragma=busy_timeout(%d)", busyTO)
+
 	// Add query parameters for WAL mode, busy timeout, and foreign keys
 	dsn := path
 	if !strings.Contains(dsn, "?") {
-		dsn += "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(on)"
+		dsn += "?_pragma=journal_mode(WAL)&" + busyPragma + "&_pragma=foreign_keys(on)"
 	} else {
 		if !strings.Contains(dsn, "_pragma=journal_mode") {
 			dsn += "&_pragma=journal_mode(WAL)"
 		}
 		if !strings.Contains(dsn, "_pragma=busy_timeout") {
-			dsn += "&_pragma=busy_timeout(5000)"
+			dsn += "&" + busyPragma
 		}
 		if !strings.Contains(dsn, "_pragma=foreign_keys") {
 			dsn += "&_pragma=foreign_keys(on)"
@@ -59,7 +66,7 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 	}
 
 	// Explicitly enable WAL mode and busy timeout (driver may not honor DSN pragmas)
-	if _, err := conn.ExecContext(ctx, "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON"); err != nil {
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=%d; PRAGMA foreign_keys=ON", busyTO)); err != nil {
 		slog.Warn("sqlite: explicit pragmas failed", "error", err)
 	}
 

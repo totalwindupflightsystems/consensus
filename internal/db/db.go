@@ -78,6 +78,12 @@ type Config struct {
 
 	// MaxIdleConns is the maximum number of idle connections (Postgres only).
 	MaxIdleConns int `yaml:"max_idle_conns" json:"max_idle_conns"`
+
+	// BusyTimeoutMs is the SQLite busy timeout in milliseconds.
+	// When a SQLite operation encounters a locked database, it retries for this
+	// duration before returning SQLITE_BUSY. Defaults to 5000 (5 seconds).
+	// Increase this if you see "database is locked" errors under high concurrency.
+	BusyTimeoutMs int `yaml:"busy_timeout_ms" json:"busy_timeout_ms"`
 }
 
 // Backend identifies which database backend is in use.

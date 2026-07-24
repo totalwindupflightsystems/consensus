@@ -57,6 +57,11 @@ type HarnessConfig struct {
 	MaxIterations        int `yaml:"max_iterations"`
 	MaxConsecutiveErrors int `yaml:"max_consecutive_errors"`
 	BudgetLimitCents     int `yaml:"budget_limit_cents"`
+	// PlanningTimeoutSec is the max seconds for the full planning session.
+	// LLM calls + SQLite writes compete for this single deadline. If your
+	// model runs slow (>170s), increase this or see BusyTimeoutMs.
+	// Default: 180 (3 minutes). Local LLMs like LM Studio may need 300+.
+	PlanningTimeoutSec int `yaml:"planning_timeout_seconds"`
 }
 
 // HITLConfig holds human-in-the-loop settings.
