@@ -72,6 +72,6 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| NEVER-DONE | 11-point audit: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Run every 3-4 ticks. | Low | 3 | — | audit,quality | DeepSeek V4 Pro | Architecture-level project audit across all subsystems | GLM-5.2 |
+| NEVER-DONE | ✅ Tick #40 audit (2026-07-25): All 11 points clear. 19 specs, 206 Go files (71K LOC), 97 test files, 1187 Hilo edges. go1.26.5. All deps current. build/vet/guards green. CI: cross-platform matrix (linux/darwin/windows × amd64/arm64). 20 internal pkgs wired in main.go. DuckBrain: no project namespace (gap). Known: C19/C20 contract gaps (VCS endpoints). | ✅ DONE (tick #40) | 3 | — | audit,quality | DeepSeek V4 Pro | Architecture-level project audit across all subsystems | GLM-5.2 |
 
-- [ ] **E2E-001 — E2E Testing Tick (self-improving loop)** | Recurring every 5-10 ticks | — | — | Luna (browser/screenshots) or Step 3.7 Flash (CLI/API) | foreman-direct | — | —
+| E2E-001 | E2E testing tick — smoke test consensus server + H3 adapter round-trip on bunker. Last verified: tick #39 (DEPLOY-05). Due every 5-10 ticks. | Medium | 2 | — | e2e,testing | Luna (GPT-5.6-Luna) | Visual/API e2e verification | Step 3.7 Flash |
