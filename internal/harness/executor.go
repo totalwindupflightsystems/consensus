@@ -620,6 +620,15 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 					if err := h.db.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = datetime('now') WHERE id = $2`, result.NextStatus, sessionID); err != nil {
 						slog.Error("harness: failed to apply session status transition", "session_id", sessionID, "next_status", result.NextStatus, "error", err)
 					}
+					// Persist the monologue (LLM response text) so H3 clients can retrieve it
+					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" {
+						if insErr := h.db.Exec(ctx,
+							`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+							 VALUES ('text_block', $1, $2, 0, datetime('now'))`,
+							result.AuditEntry.Monologue, sessionID); insErr != nil {
+							slog.Warn("harness: failed to persist monologue", "session_id", sessionID, "error", insErr)
+						}
+					}
 				}
 			}(sid)
 		}

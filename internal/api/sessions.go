@@ -97,6 +97,17 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 
+	// Populate last assistant message from memory_events
+	row, lmErr := s.db.QueryRow(r.Context(),
+		`SELECT content FROM memory_events
+		 WHERE session_id = $1 AND type = 'text_block'
+		 ORDER BY created_at DESC LIMIT 1`, id)
+	if lmErr == nil && row != nil {
+		if content := toString(row["content"]); content != "" {
+			resp.LastMessage = &content
+		}
+	}
+
 	writeJSON(w, resp)
 }
 

@@ -41,10 +41,11 @@ type SessionResponse struct {
 	TokensUsedIn  int64      `json:"tokens_used_in"`
 	TokensUsedOut int64      `json:"tokens_used_out"`
 	Iteration     int64      `json:"iteration"`
-	ProjectID     *string    `json:"project_id,omitempty"` // NULL = Global scope
+	ProjectID     *string    `json:"project_id,omitempty"`
 	HeartbeatAt   string     `json:"heartbeat_at"`
 	CreatedAt     string     `json:"created_at"`
 	CompletedAt   *string    `json:"completed_at,omitempty"`
+	LastMessage   *string    `json:"last_message,omitempty"` // most recent assistant response
 }
 
 // UpdateSessionRequest is the request body for PATCH /api/v1/sessions/:id.
