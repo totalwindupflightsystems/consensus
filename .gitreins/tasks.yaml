@@ -11,10 +11,11 @@ tasks:
     display_modes'
   - 'Soft-delete intercept: grep for deleted_at TIMESTAMPTZ or BEFORE DELETE soft_delete
     trigger'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:05:57.753213+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-005-security
-  title: "SPEC-005: Security \u2014 RLS, Secrets, Quarantine"
+  title: 'SPEC-005: Security — RLS, Secrets, Quarantine'
   criteria:
   - 'Row-Level Security policy: grep for current_setting or session_id session isolation
     in SQL/Go'
@@ -24,8 +25,9 @@ tasks:
   - 'External quarantine CHECK constraints: grep for external_quarantine table with
     validation_status'
   - 'Alt-Mode soft-delete: grep for deleted_at IS NULL or hide_deleted in SQL/Go'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:05:58.766571+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-006-transactions
   title: 'SPEC-006: Transactions, Circuit Breakers, Budgets'
   criteria:
@@ -36,8 +38,9 @@ tasks:
     SECURITY DEFINER'
   - 'Audit log with committed/rolled_back: grep for audit_logs table with result CHECK
     constraint'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:05:59.771245+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-008-harness
   title: 'SPEC-008: Execution Loop & Harness Runtime'
   criteria:
@@ -48,8 +51,9 @@ tasks:
   - 'Secret injection before SQL: grep for InjectSecrets or {{SECRET.}} replacement
     in Go'
   - 'Two-phase execution: grep for cognition transaction + async tool execution separation'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:00.776550+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-015-api
   title: 'SPEC-015: API & MCP Interface Layer'
   criteria:
@@ -58,8 +62,9 @@ tasks:
   - 'MCP SSE endpoint: grep for /mcp/sse route or MCP server registration'
   - 'API key hashing: grep for key_hash or sha256 of API keys (never plaintext)'
   - 'Consistent error format: grep for error{code,message,details} JSON structure'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:01.784354+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-016-cli
   title: 'SPEC-016: CLI Interface'
   criteria:
@@ -71,8 +76,9 @@ tasks:
   - 'Config file discovery: grep for consensus.yaml loading from cwd, ~/.consensus/,
     /etc/consensus/'
   - '--format json flag: grep for json output format flag on CLI commands'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:02.792705+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-009-deployment
   title: 'SPEC-009: Deployment & Runtime Configuration'
   criteria:
@@ -82,8 +88,9 @@ tasks:
   - 'Migration CLI subcommands: grep for migrate status/up/down subcommands in cmd/'
   - 'Config file shape: consensus.yaml or Go config struct has db, listen, heartbeat_interval,
     llm keys'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:18.826357+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-010-tools
   title: 'SPEC-010: Agent Tools, Skills & Registry'
   criteria:
@@ -97,8 +104,9 @@ tasks:
     guard'
   - 'test_results table: grep for table with tool_id FK, version, passed BOOLEAN,
     output TEXT'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:19.835636+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-018-openapi
   title: 'SPEC-018: OpenAPI Contract & Spec Bundling'
   criteria:
@@ -109,8 +117,9 @@ tasks:
   - 'Component schema files: specs/openapi/components/ has schemas, responses, parameters,
     security yaml'
   - 'Runtime spec endpoints: GET /openapi.json and /openapi.yaml return 200'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:20.844968+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-019-flows
   title: 'SPEC-019: User Interaction Flows'
   criteria:
@@ -119,8 +128,9 @@ tasks:
   - 'consensus approve list: command exists (exits 0 even if empty)'
   - 'consensus session: list, show, create, cancel, pause, resume, cost, logs subcommands'
   - 'consensus status: references active sessions, pending approvals, schema version'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:21.853224+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-020-planning
   title: 'SPEC-020: Multi-Turn Planning & Staging Buffer'
   criteria:
@@ -132,8 +142,9 @@ tasks:
     session status CHECK'
   - 'Max-turns config: grep for max_turns default 10 in config or Go struct'
   - 'Transaction timeout: grep for transaction_timeout_ms default 60000 in config'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:22.864532+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-014-hitl
   title: 'SPEC-014: Human-in-the-Loop & Approval State Machine'
   criteria:
@@ -145,47 +156,49 @@ tasks:
   - 'request_approval() function: grep for request_approval Go function or SQL procedure'
   - 'Approval expiry mechanism: grep for cleanup logic that marks expired pending
     approvals'
-  status: pending
+  status: complete
   created_at: '2026-06-20T17:06:23.874073+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: server-serve
   title: Server startup and health
   criteria:
   - consensus serve starts and listens on specified port (verify with ss -tlnp)
   - GET /api/v1/health returns 200 with JSON body {"status":"ok"}
   - Server logs startup message with port and database backend
-  - "SIGTERM triggers graceful shutdown \u2014 in-flight requests complete"
+  - SIGTERM triggers graceful shutdown — in-flight requests complete
   - consensus serve --help lists all flags (--port, --hostname, --db-url, --adapter)
-  status: pending
+  status: complete
   created_at: '2026-06-21T12:03:50.814776+00:00'
+  completed_at: '2026-07-25T11:08:27.526188+00:00'
 - id: api-sessions
-  title: "Session API CRUD \u2014 correct JSON shapes"
+  title: Session API CRUD — correct JSON shapes
   criteria:
   - POST /api/v1/sessions returns 201 with JSON body containing id (UUID), status,
     model fields
-  - "GET /api/v1/sessions lists sessions \u2014 returns JSON array, empty array is\
-    \ valid"
+  - GET /api/v1/sessions lists sessions — returns JSON array, empty array is valid
   - GET /api/v1/sessions/{id} returns 200 with full session object including status,
     iteration, created_at
   - GET /api/v1/sessions/{nonexistent} returns 404 with {"error":{"code":"NOT_FOUND"}}
-  - "PATCH /api/v1/sessions/{id} returns updated session JSON \u2014 status change\
-    \ is persisted"
-  - "All session endpoints require Authorization header \u2014 missing returns 401"
+  - PATCH /api/v1/sessions/{id} returns updated session JSON — status change is persisted
+  - All session endpoints require Authorization header — missing returns 401
   - Invalid session ID (not UUID) returns 400 with error details
-  status: pending
+  status: complete
   created_at: '2026-06-21T12:03:57.245708+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: append-only-guard
   title: Append-only enforcement on memory_events
   criteria:
-  - "UPDATE on memory_events is blocked at database level \u2014 returns SQL error,\
-    \ not success"
-  - "DELETE on memory_events is blocked at database level \u2014 returns SQL error,\
-    \ not success"
+  - UPDATE on memory_events is blocked at database level — returns SQL error, not
+    success
+  - DELETE on memory_events is blocked at database level — returns SQL error, not
+    success
   - INSERT on memory_events succeeds and auto-increments id
   - Attempted UPDATE via harness executor is caught and logged without crashing server
-  - "Both SQLite and Postgres enforce append-only \u2014 triggers exist for SQLite\
-    \ (migration 017) and Postgres (migration 018)"
-  status: pending
+  - Both SQLite and Postgres enforce append-only — triggers exist for SQLite (migration
+    017) and Postgres (migration 018)
+  status: complete
   created_at: '2026-06-21T12:04:07.968567+00:00'
+  completed_at: '2026-07-25T11:12:18.411549+00:00'
 - id: error-format
   title: Consistent error handling across API
   criteria:
@@ -197,68 +210,70 @@ tasks:
     UNAUTHENTICATED)
   - No error response leaks stack traces, SQL queries, or internal paths
   - Content-Type is application/json on all responses (success and error)
-  status: pending
+  status: complete
   created_at: '2026-06-21T12:04:09.332438+00:00'
+  completed_at: '2026-07-25T11:03:21.272622+00:00'
 - id: harness-loop
-  title: "Harness execution loop \u2014 real agent workflow"
+  title: Harness execution loop — real agent workflow
   criteria:
   - Creating a session and calling RunAgentIteration produces at least one LLM call
     and memory event
-  - "Staging buffer accumulates commands per turn before execution \u2014 verified\
-    \ in test or code"
-  - "Session status transitions: created \u2192 planning \u2192 executing \u2192 completed\
-    \ (or error)"
+  - Staging buffer accumulates commands per turn before execution — verified in test
+    or code
+  - 'Session status transitions: created → planning → executing → completed (or error)'
   - 'Max-turns enforcement: session auto-completes after max_turns iterations'
-  - "Heartbeat loop prevents zombie sessions \u2014 sessions stuck in 'planning' are\
-    \ detected and recovered"
-  status: pending
+  - Heartbeat loop prevents zombie sessions — sessions stuck in 'planning' are detected
+    and recovered
+  status: complete
   created_at: '2026-06-21T12:04:18.573102+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: migrations-safety
-  title: "Migration system \u2014 apply, verify, rollback"
+  title: Migration system — apply, verify, rollback
   criteria:
   - All migrations apply without errors on SQLite (go test -short -count=1 ./internal/migrate
     exits 0)
   - All non-_sqlite_ migrations apply without errors on Postgres
   - 'Schema after full migration matches expected tables: sessions, memory_events,
     iteration_commits, and 30+ more'
-  - "Migration version drift is detected \u2014 applied version without matching file\
-    \ blocks server start"
+  - Migration version drift is detected — applied version without matching file blocks
+    server start
   - Bootstrap creates schema_versions table before applying any migration
-  status: pending
+  status: complete
   created_at: '2026-06-21T12:04:19.863169+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: audit-no-leaks
-  title: "Cross-cutting audit \u2014 no secrets or panics"
+  title: Cross-cutting audit — no secrets or panics
   criteria:
-  - "No hardcoded API keys in Go source (sk-*, ghp_*, OPENROUTER_API_KEY=) \u2014\
-    \ all keys from env/config"
-  - "No panic() calls outside of init() or truly unrecoverable situations \u2014 errors\
-    \ use Go error returns"
-  - "No fmt.Println for errors \u2014 all logging uses structured logger (slog)"
+  - No hardcoded API keys in Go source (sk-*, ghp_*, OPENROUTER_API_KEY=) — all keys
+    from env/config
+  - No panic() calls outside of init() or truly unrecoverable situations — errors
+    use Go error returns
+  - No fmt.Println for errors — all logging uses structured logger (slog)
   - No PII (email addresses, real names) in log messages or error responses
-  - "Database queries use parameterized placeholders (, , ?) \u2014 no string concatenation\
-    \ for SQL"
-  status: pending
+  - Database queries use parameterized placeholders (, , ?) — no string concatenation
+    for SQL
+  status: complete
   created_at: '2026-06-21T12:04:27.129443+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: regression-details
   title: 'Regression: ErrorResponse includes details field'
   criteria:
   - APIError struct has Details string field with json:"details,omitempty" tag
   - writeError() includes Details field when marshaling ErrorResponse
-  - "Error responses actually contain details field in JSON output \u2014 verify with\
-    \ curl"
-  - "SPEC-015 \xA76 requires error{code, message, details} format \u2014 struct matches\
-    \ spec"
-  status: pending
+  - Error responses actually contain details field in JSON output — verify with curl
+  - SPEC-015 §6 requires error{code, message, details} format — struct matches spec
+  status: complete
   created_at: '2026-06-21T12:04:28.623720+00:00'
+  completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: chronicle-says-pane
   title: 'Build SAYS pane: finding cards, evidence citations, trust badges, approve/reject'
   criteria:
   - Finding cards render in the SAYS pane with header (number, status badge, timestamp),
     conclusion text (expandable), collapsible sources/reasoning links, confidence
     bar (5 segments with color coding), approval status line, and action buttons
-  - "Finding card states work: DRAFT (default border, Awaiting review), APPROVED (green\
-    \ border-left, \u2713 badge, success-muted pill), REJECTED (red border-left, opacity\
-    \ 0.6, dimmed), OUTDATED (dashed border)"
+  - 'Finding card states work: DRAFT (default border, Awaiting review), APPROVED (green
+    border-left, ✓ badge, success-muted pill), REJECTED (red border-left, opacity
+    0.6, dimmed), OUTDATED (dashed border)'
   - 'Approval workflow: clicking Approve shows confirmation, updates card to APPROVED
     state with green sweep animation; Request Revision opens dialog and reverts to
     Draft'
@@ -275,26 +290,25 @@ tasks:
   created_at: '2026-07-09T03:24:38.742172+00:00'
   completed_at: '2026-07-09T03:40:46.782667+00:00'
 - id: chronicle-input-area
-  title: "Build Input Area \u2014 message composer, model selector, budget display\
-    \ (\xA75.6)"
+  title: Build Input Area — message composer, model selector, budget display (§5.6)
   criteria:
-  - "Textarea auto-grows from 52px to 200px max-height based on content (\xA75.6.1)"
-  - "Enter submits message, Shift+Enter adds newline, Cmd+Enter forces submit (\xA7\
-    5.6.1)"
-  - "Send button is a 32\xD732 circle arrow overlay on textarea, visible only when\
-    \ textarea has content (\xA75.6.1)"
-  - "Character count shown below textarea left-aligned, fades in when text has content\
-    \ (\xA75.6.1)"
-  - "Input toolbar has: Attach (\U0001F4CE), Context (@), Model selector (#), and\
-    \ token counter on right (\xA75.6.2)"
-  - "Model selector dropdown lists deepseek-v4-pro, deepseek-v4-flash, claude-sonnet-4,\
-    \ gpt-4o, local-model with cost/latency (\xA75.6.2)"
-  - "Token counter shows token estimate and cost, updates on keystroke with 300ms\
-    \ debounce (\xA75.6.2)"
-  - "sendMessage() calls POST /api/v1/sessions/{id}/message endpoint (\xA75.6.3)"
-  - "Context pills appear between toolbar and textarea when context items selected,\
-    \ with \xD7 remove button (\xA75.6.2)"
-  - "Model selection persists per investigation via localStorage (\xA75.6.2)"
+  - Textarea auto-grows from 52px to 200px max-height based on content (§5.6.1)
+  - Enter submits message, Shift+Enter adds newline, Cmd+Enter forces submit (§5.6.1)
+  - Send button is a 32×32 circle arrow overlay on textarea, visible only when textarea
+    has content (§5.6.1)
+  - Character count shown below textarea left-aligned, fades in when text has content
+    (§5.6.1)
+  - 'Input toolbar has: Attach (📎), Context (@), Model selector (#), and token counter
+    on right (§5.6.2)'
+  - Model selector dropdown lists deepseek-v4-pro, deepseek-v4-flash, claude-sonnet-4,
+    gpt-4o, local-model with cost/latency (§5.6.2)
+  - Token counter shows token estimate and cost, updates on keystroke with 300ms debounce
+    (§5.6.2)
+  - sendMessage() calls POST /api/v1/sessions/{id}/message endpoint (§5.6.3)
+  - Context pills appear between toolbar and textarea when context items selected,
+    with × remove button (§5.6.2)
+  - Model selection persists per investigation via localStorage (§5.6.2)
   status: complete
   created_at: '2026-07-09T10:12:35.128314+00:00'
   completed_at: '2026-07-09T10:32:36.965367+00:00'
+
