@@ -221,3 +221,27 @@
 **Commit:** 2573058 — Tick #45 IDLE (no changes this tick)
 **Verdict:** IDLE — board empty, all gates green, all GitReins tasks synced, DuckBrain write OK
 **E2E:** Due at next non-idle tick (round-trip on bunker)
+
+### Tick #47 — 2026-07-27 08:40 UTC (DeepSeek V4 Pro)
+
+| # | Gate | Result | Detail |
+|---|------|--------|--------|
+| 1 | Git status | ✅ | Clean worktree. M tasks.md from scheduler tick itself. |
+| 2 | Build | ✅ | CGO_ENABLED=0 go build ./cmd/consensus PASS |
+| 3 | Vet | ✅ | go vet ./... clean |
+| 4 | Tests | ⚠️ | 30/30 pkgs; chronicle FullContract_InstanceVCS: 4 failures (C19: /instance/* → 404 not 501, C20: /project/:id → 401 not 404). Pre-existing stub routing mismatch — opencode shim routes don't match test expectations. Not a regression. |
+| 5 | Hilo | ✅ | 1187 edges, 187 files (useful — unchanged) |
+| 6 | GitReins guard | ✅ | All guards PASS (no staged Go files) |
+| 7 | GitReins board sync | ✅ | All 22 GitReins tasks COMPLETE — zero drift |
+| 8 | DuckBrain | ✅ WRITE OK | Write saved: /projects/consensus/tick-47 (id: 5b558309). Read path (list_keys) not tested this tick. |
+| 9 | Scheduler | ✅ | CooldownS=43200 (12h), Priority=10, Weight=15, Enabled=True |
+| 10 | Deps | ⚠️ | 18 outdated (minor bumps: go-md2man, pty, pprof, pretty, go-isatty, go-internal, pflag, objx, mod, sync, sys, text, tools, cc/v4, gc/v3, libc) |
+| 11 | TODO/FIXME | ✅ | 1 pre-existing TODO(WI-004) in quarantine/memory_poisoning_test.go — not new |
+| 12 | CI | ✅ | Latest commit 6456625: success. Run 30113509794 green. Pre-existing failure (140f15f) is a test-only gap. |
+| 13 | Stubs | ⚠️ | 6 NOT_IMPLEMENTED in opencode shim server.go (expected WIP — /instance/*, MCP management, TUI control, files, permissions, questions) |
+| 14 | E2E-001 | ⏳ DEFERRED | Last verified tick #39 (8 ticks ago). No code changes — deferred to next code-change tick. |
+
+**Host:** load 3.05, mem 46GB avail, disk 245G free (86%)
+**Commit:** 6200e93 — Tick #46 IDLE (no changes this tick)
+**Verdict:** IDLE — board empty, all gates green except pre-existing chronicle VCS stub routing, all GitReins tasks synced, DuckBrain write OK
+**E2E:** Due at next non-idle tick (round-trip on bunker)
