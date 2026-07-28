@@ -33,7 +33,7 @@
 |----|------|-----|-----|------|------|-------|-----------|----------|
 || SQLITE-DEADLINE | ✅ Fixed in 6456625. Configurable `BusyTimeoutMs` + `PlanningTimeoutSec` added to config. **Critical fix**: `BeginTx` now uses `context.Background()` + 15s timeout instead of caller's near-expired context. Static binary (`CGO_ENABLED=0 go build`) compiles clean. | DONE | 4 | — | sqlite,database,blocking | Kimi K3 | Bug fix: database connectivity, Go context deadline issue | DeepSeek V4 Pro |
 ||| BUNKER-KEY | ❌ MISDIAGNOSED — The key was never corrupted with trailing `}`. The bug is in `applyEnvOverrides()` (config.go:264-286): it checks `CONSENSUS_API_KEY` and `OPENAI_API_KEY` but never `DEEPSEEK_API_KEY`. The YAML `api_key: ${DEEPSEEK_API_KEY}` is interpreted literally by `gopkg.in/yaml.v3` → the literal string `${DEEPSEEK_API_KEY}` was sent to DeepSeek, masked as `****KEY}` (last 4 chars of `DEEPSEEK_API_KEY}` = `KEY}`). See CONFIG-ENV-BUG below for root cause. | DONE (reclassified) | 2 | — | api-key,bunker,config-bug | — | Reclassified: not a key corruption — it's an env var name mismatch in config.go | — |
-||| CONFIG-ENV-BUG | ✅ **Fixed in tick #36.** Added `DEEPSEEK_API_KEY` to `applyEnvOverrides()` at internal/config/config.go:286-288. Same fallback pattern as `OPENAI_API_KEY` (no provider check needed since DeepSeek is OpenAI-compatible). `go build ./...`, `go vet ./...`, `go test -short -count=1 ./...` all pass (30 packages, 0 failures). Now `${DEEPSEEK_API_KEY}` in YAML is correctly overridden by the actual env var value at load time. Full workaround path: set `DEEPSEEK_API_KEY=sk-...` and Consensus picks it up automatically. | ✅ DONE | 2 | — | config,bug,env | — | Fixed: added DEEPSEEK_API_KEY to applyEnvOverrides() | — |
+||| CONFIG-ENV-BUG | 🔴 **REGRESSION — NOT FIXED (tick #49).** The fix at config.go:286-288 only overrides when `cfg.LLM.APIKey == ""`. But `consensus.yaml` has `api_key: ${DEEPSEEK_API_KEY}` — yaml.v3 loads this as the literal string `${DEEPSEEK_API_KEY}`, so `APIKey` is non-empty and the env override never fires. Net result: the literal `${DEEPSEEK_API_KEY}` string is sent to DeepSeek as the API key → 401. **Real fix needed:** either also override when APIKey starts with `${`, or modify `consensus.yaml` to omit `api_key` entirely and rely on env vars. Tick #49 E2E smoke test confirmed: DeepSeek returns 401 `Authentication Fails, Your api key: ****KEY} is invalid`. **Workaround:** `api_key` must be set directly in config.yaml (no env var substitution), or the YAML must omit `api_key` entirely so the override fires. | 🔴 HIGH | 2 | — | config,bug,env,regression | DeepSeek V4 Pro | E2E smoke test caught regression — fix incomplete | — |
 || DEPLOY-05 | ✅ **E2E VERIFIED** — Full pipeline proven on bunker agent 293db00b: curl → SSH tunnel → H3 adapter (9191) → Consensus (8094) → DeepSeek LLM → `llm: response received elapsed_ms=1905 completion_tokens=114` → `planning: responding to user turn=1`. SQLite deadline fix (6456625) confirmed working. Adapter returns `{decision: "end", reason: "task_complete"}` when Consensus finishes. | ✅ DONE | 3 | CONFIG-ENV-BUG, SQLITE-DEADLINE | e2e,integration,smoke-test | — | Verified 2026-07-24 — full brain-swap pipeline proven | — |
 || VET-CI-FAILURE | ✅ Fixed — `resp error check` addressed in prior commit 140f15f. `go vet ./...` passes cleanly both locally and in CI (confirmed on latest CI run for 6456625). | DONE | 2 | — | ci,vet,toolchain | DeepSeek V4 Flash | CI debugging: vet mismatch | Kimi K3 |
 
@@ -72,7 +72,7 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| NEVER-DONE | Tick #43 audit (2026-07-25 20:17 UTC): 11-pass coverage. CGO build PASS, vet PASS, 30/30 pkgs ALL PASS (chronicle now passing — no pre-existing failures). GitReins: 22/22 COMPLETE, zero drift. DuckBrain: write recovered (tick entry written), list_keys read path still broken. 17 outdated deps (minor bumps — same as tick #42). 5 NOT_IMPLEMENTED in opencode shim (WIP). CI: latest run 30113509794 all green. Host load 13.01 (high). E2E-001 deferred — no code changes. | Active | 3 | — | audit,quality | DeepSeek V4 Pro | Architecture-level project audit across all subsystems | GLM-5.2 |
+|| NEVER-DONE | Tick #49 audit (2026-07-28 21:14 UTC): CGO build PASS, vet PASS, 30/30 pkgs (chronicle VCS stub routing pre-existing). GitReins: 22/22 COMPLETE, zero drift. DuckBrain: write OK (tick #49 saved). 18 outdated deps. 5 NOT_IMPLEMENTED in opencode shim (WIP). 🔴 CONFIG-ENV-BUG regression: fix at config.go:286-288 incomplete — YAML `${DEEPSEEK_API_KEY}` blocks env override. E2E-001 smoke test: consensus + adapter start, health OK, session creation OK, message routing OK — but LLM call blocked by API key regression. | Active | 3 | — | audit,quality | DeepSeek V4 Pro | Architecture-level project audit across all subsystems | GLM-5.2 |
 
 | E2E-001 | E2E testing tick — smoke test consensus server + H3 adapter round-trip on bunker. Last verified: tick #39 (DEPLOY-05). Due every 5-10 ticks. | Medium | 2 | — | e2e,testing | Luna (GPT-5.6-Luna) | Visual/API e2e verification | Step 3.7 Flash |
 
@@ -269,3 +269,27 @@
 **Commit:** e7aa5bd — Tick #47 IDLE (no code changes this tick)
 **Verdict:** IDLE — board empty, all gates green except pre-existing chronicle VCS stub routing, all GitReins tasks synced, DuckBrain write OK, E2E-001 MUST run tick #49
 **E2E:** CRITICAL — tick #49 is the 10th since last verification. Bunker round-trip required next tick regardless of code-change status.
+
+### Tick #49 — 2026-07-28 21:14 UTC (DeepSeek V4 Pro)
+
+| # | Gate | Result | Detail |
+|---|------|--------|--------|
+| 1 | Git status | ✅ | Clean worktree. M tasks.md from scheduler tick itself. |
+| 2 | Build | ✅ | CGO_ENABLED=0 go build ./cmd/consensus PASS |
+| 3 | Vet | ✅ | go vet ./... clean |
+| 4 | Tests | ⚠️ | 30/30 pkgs; chronicle FullContract_InstanceVCS: 4 failures (C19: /instance/* → 404 not 501/200, C20: /project/:id → 401 not 404). Pre-existing stub routing mismatch. |
+| 5 | Hilo | ✅ | 1187 edges, 187 files (useful — unchanged) |
+| 6 | GitReins guard | ✅ | All guards PASS (no staged Go files) |
+| 7 | GitReins board sync | ✅ | All 22 GitReins tasks COMPLETE — zero drift |
+| 8 | DuckBrain | ✅ WRITE OK | Tick #49 entry saved to /projects/consensus/tick-49 (id: 277bc67b) |
+| 9 | Scheduler | ✅ | consensus-duckbrain-sync (daily 3am, last OK 2026-07-28). consensus-watchdog (91fcc040) DISABLED since July 9. |
+| 10 | Deps | ⚠️ | 18 outdated (go-md2man, pty, pprof, go-isatty, go-internal, pflag, objx, yaml/v3, mod, sync, sys, text, tools, cc/v4, gc/v3, libc, blackfriday/v2) |
+| 11 | TODO/FIXME | ✅ | Zero in source code |
+| 12 | CI | ✅ | Latest commit 6456625: success. Run 30113509794 green. |
+| 13 | Stubs | ⚠️ | 5 NOT_IMPLEMENTED in opencode shim (expected WIP) |
+| 14 | E2E-001 | 🔴 RAN — CONFIG-ENV-BUG REGRESSION | Foreman-direct smoke test: consensus started (:8095), adapter started (:9195), health OK, session creation OK, message routing OK. **LLM call blocked** — `consensus.yaml` has `api_key: ${DEEPSEEK_API_KEY}`; yaml.v3 loads it literally, `applyEnvOverrides()` doesn't override non-empty values. DeepSeek returns 401. **Bunker unavailable** (agent 293db00b was ephemeral, no active bunker connection). Updated CONFIG-ENV-BUG to regression. |
+
+**Host:** load 4.20, mem 45GB avail, disk 232G free (87%)
+**Commit:** E2E smoke test verified local round-trip minus LLM auth. CONFIG-ENV-BUG regression found.
+**Verdict:** IDLE — board empty, all gates green except pre-existing chronicle VCS, 1 new regression (CONFIG-ENV-BUG is NOT fixed despite tick #36 claim)
+**E2E:** Partial — smoke test ran, adapter+consensus chain works, LLM auth blocked by CONFIG-ENV-BUG regression. Full bunker E2E needs agent re-deployment.
