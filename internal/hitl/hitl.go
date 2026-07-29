@@ -99,22 +99,22 @@ const (
 
 // ApprovalRequest represents a pending human approval decision.
 type ApprovalRequest struct {
-	ID           string         `json:"id"`
-	SessionID    string         `json:"session_id"`
-	Iteration    int64          `json:"iteration"`
-	RequestType  RequestType    `json:"request_type"`
-	Description  string         `json:"description"`
-	RiskLevel    RiskLevel      `json:"risk_level"`
-	Context      string         `json:"context,omitempty"`
-	TargetTool   string         `json:"target_tool,omitempty"`
-	TargetSQL    string         `json:"target_sql,omitempty"`
-	Status       ApprovalStatus `json:"status"`
-	ReviewerID   string         `json:"reviewer_id,omitempty"`
-	ReviewNotes  string         `json:"review_notes,omitempty"`
-	ModifiedSQL  string         `json:"modified_sql,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	ReviewedAt   *time.Time     `json:"reviewed_at,omitempty"`
-	ExpiresAt    time.Time      `json:"expires_at"`
+	ID          string         `json:"id"`
+	SessionID   string         `json:"session_id"`
+	Iteration   int64          `json:"iteration"`
+	RequestType RequestType    `json:"request_type"`
+	Description string         `json:"description"`
+	RiskLevel   RiskLevel      `json:"risk_level"`
+	Context     string         `json:"context,omitempty"`
+	TargetTool  string         `json:"target_tool,omitempty"`
+	TargetSQL   string         `json:"target_sql,omitempty"`
+	Status      ApprovalStatus `json:"status"`
+	ReviewerID  string         `json:"reviewer_id,omitempty"`
+	ReviewNotes string         `json:"review_notes,omitempty"`
+	ModifiedSQL string         `json:"modified_sql,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	ReviewedAt  *time.Time     `json:"reviewed_at,omitempty"`
+	ExpiresAt   time.Time      `json:"expires_at"`
 }
 
 // ============================================================================
@@ -131,26 +131,26 @@ const (
 
 // Configuration holds HITL behavior settings.
 type Configuration struct {
-	Scope                            Scope  `json:"scope"`
-	SessionID                        string `json:"session_id,omitempty"`
-	AutoPauseOnErrorThreshold        int    `json:"auto_pause_on_error_threshold"`
-	RequireApprovalForDestructive    bool   `json:"require_approval_for_destructive"`
-	RequireApprovalForSchemaChanges  bool   `json:"require_approval_for_schema_changes"`
-	RequireApprovalForExternalTools  bool   `json:"require_approval_for_external_tools"`
-	ApprovalTimeoutMinutes           int    `json:"approval_timeout_minutes"`
-	NotifyOnPause                    bool   `json:"notify_on_pause"`
+	Scope                           Scope  `json:"scope"`
+	SessionID                       string `json:"session_id,omitempty"`
+	AutoPauseOnErrorThreshold       int    `json:"auto_pause_on_error_threshold"`
+	RequireApprovalForDestructive   bool   `json:"require_approval_for_destructive"`
+	RequireApprovalForSchemaChanges bool   `json:"require_approval_for_schema_changes"`
+	RequireApprovalForExternalTools bool   `json:"require_approval_for_external_tools"`
+	ApprovalTimeoutMinutes          int    `json:"approval_timeout_minutes"`
+	NotifyOnPause                   bool   `json:"notify_on_pause"`
 }
 
 // DefaultConfiguration returns sensible global defaults.
 func DefaultConfiguration() Configuration {
 	return Configuration{
-		Scope:                            ScopeGlobal,
-		AutoPauseOnErrorThreshold:        3,
-		RequireApprovalForDestructive:    true,
-		RequireApprovalForSchemaChanges:  true,
-		RequireApprovalForExternalTools:  false,
-		ApprovalTimeoutMinutes:           60,
-		NotifyOnPause:                    true,
+		Scope:                           ScopeGlobal,
+		AutoPauseOnErrorThreshold:       3,
+		RequireApprovalForDestructive:   true,
+		RequireApprovalForSchemaChanges: true,
+		RequireApprovalForExternalTools: false,
+		ApprovalTimeoutMinutes:          60,
+		NotifyOnPause:                   true,
 	}
 }
 
@@ -449,11 +449,11 @@ func (m *Manager) StartExpiryCron(ctx context.Context, interval time.Duration) {
 
 // Notification represents a HITL notification to be sent to a human reviewer.
 type Notification struct {
-	SessionID    string `json:"session_id"`
-	ApprovalType string `json:"approval_type"`
-	RiskLevel    string `json:"risk_level"`
-	Description  string `json:"description"`
-	Channel      string `json:"channel,omitempty"`
+	SessionID    string    `json:"session_id"`
+	ApprovalType string    `json:"approval_type"`
+	RiskLevel    string    `json:"risk_level"`
+	Description  string    `json:"description"`
+	Channel      string    `json:"channel,omitempty"`
 	Timestamp    time.Time `json:"timestamp"`
 }
 

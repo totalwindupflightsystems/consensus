@@ -24,8 +24,8 @@ func TestNewStore(t *testing.T) {
 
 func TestNewFromMap(t *testing.T) {
 	s := NewFromMap(map[string]string{
-		"API_KEY":   "sk-abc123",
-		"DB_PASS":   "s3cr3t",
+		"API_KEY": "sk-abc123",
+		"DB_PASS": "s3cr3t",
 	})
 	if s.Count() != 2 {
 		t.Errorf("expected 2 secrets, got %d", s.Count())

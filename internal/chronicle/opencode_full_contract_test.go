@@ -1,10 +1,11 @@
 // Package chronicle: Full OpenCode HTTP contract validation.
 //
 // This test covers EVERY expectation from sst/opencode's server test suite:
-//   packages/opencode/test/server/httpapi-instance.test.ts
-//   packages/opencode/test/server/httpapi-sdk.test.ts
-//   packages/opencode/test/server/sdk-error-shape.test.ts
-//   packages/client/test/promise.test.ts
+//
+//	packages/opencode/test/server/httpapi-instance.test.ts
+//	packages/opencode/test/server/httpapi-sdk.test.ts
+//	packages/opencode/test/server/sdk-error-shape.test.ts
+//	packages/client/test/promise.test.ts
 //
 // Each test maps to a specific OpenCode test and asserts either PASS or GAP.
 // GAPs are soft-failed (t.Log + t.Skip) to track progress without blocking CI.

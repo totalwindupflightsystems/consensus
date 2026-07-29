@@ -30,10 +30,10 @@ import (
 // and passed through the iteration loop.
 type IterationContext struct {
 	// Session identity
-	SessionID   string
-	AgentName   string
-	ModelID     string
-	TrustLevel  string // low, medium, high (SPEC-008 §5.4)
+	SessionID  string
+	AgentName  string
+	ModelID    string
+	TrustLevel string // low, medium, high (SPEC-008 §5.4)
 
 	// Task state
 	Goal      string
@@ -44,13 +44,13 @@ type IterationContext struct {
 	Messages []Message
 
 	// Budget & constraints
-	ContextBudget         int
-	TokensUsedIn          int64
-	TokensUsedOut         int64
-	BudgetLimitCents      int64
-	BudgetUsedCents       int64
-	MaxIterations         int
-	MaxConsecutiveErrors  int
+	ContextBudget        int
+	TokensUsedIn         int64
+	TokensUsedOut        int64
+	BudgetLimitCents     int64
+	BudgetUsedCents      int64
+	MaxIterations        int
+	MaxConsecutiveErrors int
 
 	// Circuit breaker state
 	ConsecutiveErrors int
@@ -64,11 +64,11 @@ type IterationContext struct {
 
 // IterationResult holds the outcome of a single iteration.
 type IterationResult struct {
-	Status       string // "success" | "error" | "complete"
-	NextStatus   string // the session status to transition to
-	Error        error
+	Status        string // "success" | "error" | "complete"
+	NextStatus    string // the session status to transition to
+	Error         error
 	ErrorInjected string // error message injected into context for next iteration
-	AuditEntry   AuditEntry
+	AuditEntry    AuditEntry
 }
 
 // ============================================================================
@@ -110,15 +110,15 @@ type AgentOutput struct {
 
 // ToolRequest describes a single external tool invocation.
 type ToolRequest struct {
-	ToolName string         `json:"tool_name"`
+	ToolName   string         `json:"tool_name"`
 	Parameters map[string]any `json:"parameters"`
 }
 
 // SubAgentSpawn describes a sub-agent fork request.
 type SubAgentSpawn struct {
-	AgentName string `json:"agent_name"`
-	Goal      string `json:"goal"`
-	ModelID   string `json:"model_id,omitempty"`
+	AgentName  string `json:"agent_name"`
+	Goal       string `json:"goal"`
+	ModelID    string `json:"model_id,omitempty"`
 	ParentGoal string `json:"parent_goal,omitempty"` // context about why this sub-agent was spawned
 }
 
@@ -128,12 +128,12 @@ type SubAgentSpawn struct {
 
 // AuditEntry is written to the audit_logs table after each iteration.
 type AuditEntry struct {
-	SessionID   string   `json:"session_id"`
-	Iteration   int64    `json:"iteration"`
-	Monologue   string   `json:"monologue"`
-	SQLExecuted []string `json:"sql_executed"`
-	Result      string   `json:"result"` // "committed" | "rolled_back"
-	ErrorMessage string  `json:"error_message,omitempty"`
+	SessionID    string   `json:"session_id"`
+	Iteration    int64    `json:"iteration"`
+	Monologue    string   `json:"monologue"`
+	SQLExecuted  []string `json:"sql_executed"`
+	Result       string   `json:"result"` // "committed" | "rolled_back"
+	ErrorMessage string   `json:"error_message,omitempty"`
 }
 
 // ============================================================================
@@ -209,9 +209,9 @@ type HeartbeatConfig struct {
 // New creates a new Harness with the given dependencies.
 func New(database db.DB, llm LLMClient) *Harness {
 	return &Harness{
-		db:             database,
-		LLMClient:      llm,
-		secretStore:    secrets.New(),
+		db:          database,
+		LLMClient:   llm,
+		secretStore: secrets.New(),
 		HeartbeatConfig: HeartbeatConfig{
 			Interval: 5 * time.Second,
 		},
@@ -228,10 +228,10 @@ type LLMClient interface {
 
 // LLMResponse wraps the AgentOutput with usage data for billing.
 type LLMResponse struct {
-	Output      *AgentOutput `json:"output"`
-	ModelID     string       `json:"model_id"`
-	Usage       LLMUsage     `json:"usage"`
-	DurationMs  int64        `json:"duration_ms"`
+	Output     *AgentOutput `json:"output"`
+	ModelID    string       `json:"model_id"`
+	Usage      LLMUsage     `json:"usage"`
+	DurationMs int64        `json:"duration_ms"`
 }
 
 // LLMUsage holds token usage statistics from an LLM provider response.

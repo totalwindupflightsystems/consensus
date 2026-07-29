@@ -281,10 +281,10 @@ func trimBOM(s string) string {
 
 // PolicyResult holds the result of a policy check.
 type PolicyResult struct {
-	Allowed      bool
-	Reason       string
-	Class        StatementClass
-	Statement    string
+	Allowed       bool
+	Reason        string
+	Class         StatementClass
+	Statement     string
 	TruncatedStmt string // truncated for error messages
 }
 

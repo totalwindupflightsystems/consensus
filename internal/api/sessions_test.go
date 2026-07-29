@@ -24,7 +24,7 @@ import (
 
 type integrationServer struct {
 	*Server
-	conn   db.DB
+	conn     db.DB
 	adminKey string // valid admin API key for tests
 }
 

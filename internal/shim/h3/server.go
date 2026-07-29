@@ -5,9 +5,10 @@
 // via the H3 protocol — the same protocol used by any H3-compliant harness.
 //
 // Architecture:
-//   Hermes → POST /v1/process → H3 Shim → Consensus API (create session + send message)
-//   Hermes → POST /v1/result  → H3 Shim → Consensus API (feed back tool result)
-//   Loop continues until Consensus returns decision=end
+//
+//	Hermes → POST /v1/process → H3 Shim → Consensus API (create session + send message)
+//	Hermes → POST /v1/result  → H3 Shim → Consensus API (feed back tool result)
+//	Loop continues until Consensus returns decision=end
 //
 // The shim runs in-process alongside Consensus, using the same database connection.
 // It does NOT bypass the native API — it calls api.Service, the same business
@@ -115,8 +116,8 @@ type ErrorDetail struct {
 // ============================================================================
 
 type ProcessRequest struct {
-	SessionID string  `json:"session_id"`
-	Message   Message `json:"message"`
+	SessionID string   `json:"session_id"`
+	Message   Message  `json:"message"`
 	Identity  Identity `json:"identity"`
 	Context   Context  `json:"context"`
 }
@@ -164,11 +165,11 @@ type Tool struct {
 }
 
 type Model struct {
-	Name               string  `json:"name"`
-	Provider           string  `json:"provider"`
-	CostPer1kInput     float64 `json:"cost_per_1k_input,omitempty"`
-	CostPer1kOutput    float64 `json:"cost_per_1k_output,omitempty"`
-	ContextWindow      int     `json:"context_window"`
+	Name            string  `json:"name"`
+	Provider        string  `json:"provider"`
+	CostPer1kInput  float64 `json:"cost_per_1k_input,omitempty"`
+	CostPer1kOutput float64 `json:"cost_per_1k_output,omitempty"`
+	ContextWindow   int     `json:"context_window"`
 }
 
 type Config struct {

@@ -27,20 +27,20 @@ type mockEmbedder struct {
 func newMockEmbedder() *mockEmbedder {
 	return &mockEmbedder{
 		vocab: map[string]int{
-			"postgresql":  0,
-			"database":    0,
-			"migration":   1,
-			"schema":      1,
-			"security":    2,
+			"postgresql":    0,
+			"database":      0,
+			"migration":     1,
+			"schema":        1,
+			"security":      2,
 			"vulnerability": 2,
-			"python":      3,
-			"pytest":      3,
-			"docker":      4,
-			"container":   4,
-			"api":         5,
-			"endpoint":    5,
-			"performance": 6,
-			"slow":        6,
+			"python":        3,
+			"pytest":        3,
+			"docker":        4,
+			"container":     4,
+			"api":           5,
+			"endpoint":      5,
+			"performance":   6,
+			"slow":          6,
 		},
 	}
 }

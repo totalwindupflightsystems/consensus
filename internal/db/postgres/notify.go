@@ -28,12 +28,12 @@ type NotificationHandler func(Notification)
 // NotificationListener manages a dedicated connection for Postgres LISTEN/NOTIFY.
 // It acquires a connection from the pool and runs the LISTEN loop in a goroutine.
 type NotificationListener struct {
-	pool    *pgxpool.Pool
-	ctx     context.Context
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
-	mu      sync.Mutex
-	handler NotificationHandler
+	pool     *pgxpool.Pool
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	mu       sync.Mutex
+	handler  NotificationHandler
 	channels []string
 	running  bool
 }

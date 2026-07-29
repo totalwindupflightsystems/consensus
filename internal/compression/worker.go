@@ -97,10 +97,10 @@ type openaiSummarizer struct {
 
 // chatCompletionRequest is the request body for POST /v1/chat/completions (summarization).
 type chatCompletionRequest struct {
-	Model       string                `json:"model"`
-	Messages    []chatMessage         `json:"messages"`
-	MaxTokens   int                   `json:"max_tokens,omitempty"`
-	Temperature float64               `json:"temperature,omitempty"`
+	Model       string        `json:"model"`
+	Messages    []chatMessage `json:"messages"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
+	Temperature float64       `json:"temperature,omitempty"`
 }
 
 type chatMessage struct {
@@ -251,10 +251,10 @@ func DefaultWorkerConfig() WorkerConfig {
 // Worker is the background compression goroutine.
 // It polls the compression_queue, processes events, and writes results.
 type Worker struct {
-	db             db.DB
-	embedClient    llm.EmbeddingClient
-	summarizer     Summarizer
-	cfg            WorkerConfig
+	db          db.DB
+	embedClient llm.EmbeddingClient
+	summarizer  Summarizer
+	cfg         WorkerConfig
 
 	// billingTracker is an optional callback for recording billing rows.
 	// Signature: (sessionID, iteration, modelID, category, promptTokens, completionTokens, costUSD)
@@ -271,11 +271,11 @@ type BillingFunc func(ctx context.Context, sessionID string, iteration int64, mo
 // NewWorker creates a new compression worker.
 func NewWorker(database db.DB, embedClient llm.EmbeddingClient, summarizer Summarizer, cfg WorkerConfig) *Worker {
 	return &Worker{
-		db:             database,
-		embedClient:    embedClient,
-		summarizer:     summarizer,
-		cfg:            cfg,
-		stopped:        make(chan struct{}),
+		db:          database,
+		embedClient: embedClient,
+		summarizer:  summarizer,
+		cfg:         cfg,
+		stopped:     make(chan struct{}),
 	}
 }
 

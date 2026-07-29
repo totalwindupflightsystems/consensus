@@ -28,12 +28,12 @@ import (
 
 // ToolExecutionRequest describes a single pending tool request.
 type ToolExecutionRequest struct {
-	ID              string         `json:"id"`
-	SessionID       string         `json:"session_id"`
-	ToolName        string         `json:"tool_name"`
-	Parameters      map[string]any `json:"parameters"`
-	TimeoutMS       int            `json:"timeout_ms"`
-	ApprovalRequestID *string      `json:"approval_request_id,omitempty"`
+	ID                string         `json:"id"`
+	SessionID         string         `json:"session_id"`
+	ToolName          string         `json:"tool_name"`
+	Parameters        map[string]any `json:"parameters"`
+	TimeoutMS         int            `json:"timeout_ms"`
+	ApprovalRequestID *string        `json:"approval_request_id,omitempty"`
 }
 
 // ToolExecutionResult captures the outcome of executing a tool request.

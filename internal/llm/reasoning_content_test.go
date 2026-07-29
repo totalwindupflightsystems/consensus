@@ -41,9 +41,9 @@ func TestOpenAIClient_ReasoningContentFallback(t *testing.T) {
 	defer server.Close()
 
 	client := NewOpenAIClient(&Config{
-		Provider: ProviderOpenAI,
-		BaseURL:  server.URL,
-		Model:    "qwen-thinking",
+		Provider:  ProviderOpenAI,
+		BaseURL:   server.URL,
+		Model:     "qwen-thinking",
 		MaxTokens: 1024,
 	})
 
@@ -88,9 +88,9 @@ func TestOpenAIClient_ReasoningContentFallback_EmptyBoth(t *testing.T) {
 	defer server.Close()
 
 	client := NewOpenAIClient(&Config{
-		Provider: ProviderOpenAI,
-		BaseURL:  server.URL,
-		Model:    "broken-model",
+		Provider:  ProviderOpenAI,
+		BaseURL:   server.URL,
+		Model:     "broken-model",
 		MaxTokens: 1024,
 	})
 

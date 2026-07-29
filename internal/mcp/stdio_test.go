@@ -303,5 +303,3 @@ func TestServeStdio_CompleteHandshake(t *testing.T) {
 		}
 	}
 }
-
-

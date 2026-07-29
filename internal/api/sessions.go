@@ -139,11 +139,11 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 
 	// Validate status transition
 	validTransitions := map[string][]string{
-		"paused":  {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"},
-		"resume":  {"paused"},
-		"cancel":  {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub", "paused"},
-		"idle":    {"thinking", "planning"}, // sent by harness
-		"failed":  {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"}, // sent by harness
+		"paused": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"},
+		"resume": {"paused"},
+		"cancel": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub", "paused"},
+		"idle":   {"thinking", "planning"},                                                  // sent by harness
+		"failed": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"}, // sent by harness
 	}
 
 	ctx := r.Context()

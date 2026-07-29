@@ -1617,16 +1617,16 @@ const swaggerUIPage = `<!DOCTYPE html>
 func (s *Server) translateSessionRow(row map[string]any) map[string]any {
 	// opencode session format
 	return map[string]any{
-		"id":           toString(row["id"]),
-		"title":        toString(row["agent_name"]),
-		"status":       toString(row["status"]),
-		"goal":         toString(row["goal"]),
-		"model":        toString(row["model_id"]),
-		"iteration":    toInt64(row["iteration"]),
-		"tokensIn":     toInt64(row["tokens_used_in"]),
-		"tokensOut":    toInt64(row["tokens_used_out"]),
-		"createdAt":    toString(row["created_at"]),
-		"completedAt":  nilOrString(row["completed_at"]),
+		"id":          toString(row["id"]),
+		"title":       toString(row["agent_name"]),
+		"status":      toString(row["status"]),
+		"goal":        toString(row["goal"]),
+		"model":       toString(row["model_id"]),
+		"iteration":   toInt64(row["iteration"]),
+		"tokensIn":    toInt64(row["tokens_used_in"]),
+		"tokensOut":   toInt64(row["tokens_used_out"]),
+		"createdAt":   toString(row["created_at"]),
+		"completedAt": nilOrString(row["completed_at"]),
 	}
 }
 

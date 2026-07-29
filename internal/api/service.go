@@ -668,12 +668,12 @@ func (svc *ToolsService) GetTool(ctx context.Context, name string) (*ToolInfo, e
 
 // ModelInfo is a model registry entry.
 type ModelInfo struct {
-	ModelID      string
-	Tier         int
-	MaxContext   int64
-	CostPerMIn   float64
-	CostPerMOut  float64
-	Enabled      bool
+	ModelID     string
+	Tier        int
+	MaxContext  int64
+	CostPerMIn  float64
+	CostPerMOut float64
+	Enabled     bool
 }
 
 // ListModels returns all enabled model registry entries.

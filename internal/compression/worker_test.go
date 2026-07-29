@@ -24,10 +24,10 @@ import (
 
 // mockDB implements db.DB for testing.
 type mockDB struct {
-	backend  db.Backend
-	queryFn  func(ctx context.Context, query string, args ...any) ([]db.Row, error)
+	backend    db.Backend
+	queryFn    func(ctx context.Context, query string, args ...any) ([]db.Row, error)
 	queryRowFn func(ctx context.Context, query string, args ...any) (db.Row, error)
-	execFn   func(ctx context.Context, query string, args ...any) error
+	execFn     func(ctx context.Context, query string, args ...any) error
 }
 
 func (m *mockDB) BeginTx(ctx context.Context) (db.Tx, error) { return nil, nil }

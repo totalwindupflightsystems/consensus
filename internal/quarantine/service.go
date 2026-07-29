@@ -42,17 +42,17 @@ const (
 
 // QuarantineItem represents a row in the external_quarantine table.
 type QuarantineItem struct {
-	ID               int64     `json:"id"`
-	SessionID        string    `json:"session_id"`
-	SourceType       string    `json:"source_type"`
-	SourceURL        string    `json:"source_url,omitempty"`
-	RawContent       string    `json:"raw_content"`
-	ContentHash      string    `json:"content_hash"`
-	ValidationStatus string    `json:"validation_status"`
-	ValidationNotes  string    `json:"validation_notes,omitempty"`
-	PromotedMemoryID int64     `json:"promoted_memory_id,omitempty"`
-	ExpiresAt        string    `json:"expires_at"`
-	CreatedAt        string    `json:"created_at"`
+	ID               int64  `json:"id"`
+	SessionID        string `json:"session_id"`
+	SourceType       string `json:"source_type"`
+	SourceURL        string `json:"source_url,omitempty"`
+	RawContent       string `json:"raw_content"`
+	ContentHash      string `json:"content_hash"`
+	ValidationStatus string `json:"validation_status"`
+	ValidationNotes  string `json:"validation_notes,omitempty"`
+	PromotedMemoryID int64  `json:"promoted_memory_id,omitempty"`
+	ExpiresAt        string `json:"expires_at"`
+	CreatedAt        string `json:"created_at"`
 }
 
 // ============================================================================

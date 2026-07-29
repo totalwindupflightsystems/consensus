@@ -43,7 +43,7 @@ func (m *mockMCPDB) QueryRow(ctx context.Context, query string, args ...any) (db
 	return rows[0], nil
 }
 func (m *mockMCPDB) Backend() db.Backend { return db.BackendSQLite }
-func (m *mockMCPDB) Close() error { return nil }
+func (m *mockMCPDB) Close() error        { return nil }
 
 // sequentialMockDB returns different results for each Query call.
 type sequentialMockDB struct {
@@ -73,7 +73,7 @@ func (m *sequentialMockDB) QueryRow(ctx context.Context, query string, args ...a
 	}
 	return rows[0], nil
 }
-func (m *sequentialMockDB) Close() error { return nil }
+func (m *sequentialMockDB) Close() error        { return nil }
 func (m *sequentialMockDB) Backend() db.Backend { return db.BackendSQLite }
 
 // ============================================================================

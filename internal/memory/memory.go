@@ -304,14 +304,14 @@ func formatTimestamp(t time.Time) string {
 // FormatMemoryEventByType renders a single memory event's content according to
 // its type. Each type gets a distinct markdown presentation:
 //
-//   header            → ## heading
-//   text_block        → plain paragraph
-//   tool_call         → **bold** inline
-//   tool_result       → ```code block```
-//   thinking          → <!-- HTML comment -->
-//   system            → > blockquote
-//   user_message      → plain paragraph
-//   inherited_pointer → compact reference [→parent]
+//	header            → ## heading
+//	text_block        → plain paragraph
+//	tool_call         → **bold** inline
+//	tool_result       → ```code block```
+//	thinking          → <!-- HTML comment -->
+//	system            → > blockquote
+//	user_message      → plain paragraph
+//	inherited_pointer → compact reference [→parent]
 //
 // The rendered_text field of MemoryEvent should be populated by calling this
 // function when building the active context view on SQLite (where the PG view

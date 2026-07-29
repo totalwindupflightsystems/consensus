@@ -182,5 +182,3 @@ func trimNewline(s string) string {
 	}
 	return s
 }
-
-

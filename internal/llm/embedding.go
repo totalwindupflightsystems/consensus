@@ -52,7 +52,7 @@ type openaiEmbeddingClient struct {
 // openaiEmbeddingRequest is the request body for POST /v1/embeddings.
 type openaiEmbeddingRequest struct {
 	Model          string `json:"model"`
-	Input          any    `json:"input"` // string or []string
+	Input          any    `json:"input"`                     // string or []string
 	EncodingFormat string `json:"encoding_format,omitempty"` // "float" (default)
 }
 

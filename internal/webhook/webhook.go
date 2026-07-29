@@ -217,9 +217,9 @@ type Event struct {
 type IngestResult string
 
 const (
-	IngestOK         IngestResult = "ok"          // New event ingested
-	IngestDuplicate  IngestResult = "duplicate"   // Already ingested (idempotent)
-	IngestRejected   IngestResult = "rejected"    // Rate limited or oversized
+	IngestOK        IngestResult = "ok"        // New event ingested
+	IngestDuplicate IngestResult = "duplicate" // Already ingested (idempotent)
+	IngestRejected  IngestResult = "rejected"  // Rate limited or oversized
 )
 
 // IngestEvent processes an incoming webhook event:
@@ -372,15 +372,15 @@ func (s *Store) checkRateLimit(source string, limitPerMin int) bool {
 
 // RoutingRule represents a routing rule from the database.
 type RoutingRule struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	SourcePattern     string `json:"source_pattern,omitempty"`
-	EventTypePattern  string `json:"event_type_pattern,omitempty"`
-	PayloadPattern    string `json:"payload_pattern,omitempty"`
-	TargetSessionID   string `json:"target_session_id,omitempty"`
-	TargetWorkflowID  string `json:"target_workflow_id,omitempty"`
-	Priority          int    `json:"priority"`
-	Enabled           bool   `json:"enabled"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	SourcePattern    string `json:"source_pattern,omitempty"`
+	EventTypePattern string `json:"event_type_pattern,omitempty"`
+	PayloadPattern   string `json:"payload_pattern,omitempty"`
+	TargetSessionID  string `json:"target_session_id,omitempty"`
+	TargetWorkflowID string `json:"target_workflow_id,omitempty"`
+	Priority         int    `json:"priority"`
+	Enabled          bool   `json:"enabled"`
 }
 
 // StartRoutingLoop runs a background goroutine that polls for pending external
@@ -702,9 +702,9 @@ func (s *Store) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if result == IngestDuplicate {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":     "duplicate",
-			"event_id":   existingID,
-			"message":    "event already ingested",
+			"status":   "duplicate",
+			"event_id": existingID,
+			"message":  "event already ingested",
 		})
 		return
 	}

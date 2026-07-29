@@ -265,9 +265,9 @@ func TestNullIfEmpty_WhitespaceOnly(t *testing.T) {
 
 func TestAuditEntry_Defaults(t *testing.T) {
 	entry := AuditEntry{
-		SessionID:   "s1",
-		Iteration:   1,
-		Result:      "committed",
+		SessionID: "s1",
+		Iteration: 1,
+		Result:    "committed",
 	}
 
 	if entry.ErrorMessage != "" {

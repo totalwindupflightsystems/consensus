@@ -122,9 +122,11 @@ func (c *Client) do(method, path string, body any) (*http.Response, error) {
 	return resp, nil
 }
 
-func (c *Client) get(path string) (*http.Response, error)  { return c.do("GET", path, nil) }
+func (c *Client) get(path string) (*http.Response, error)            { return c.do("GET", path, nil) }
 func (c *Client) post(path string, body any) (*http.Response, error) { return c.do("POST", path, body) }
-func (c *Client) patch(path string, body any) (*http.Response, error) { return c.do("PATCH", path, body) }
+func (c *Client) patch(path string, body any) (*http.Response, error) {
+	return c.do("PATCH", path, body)
+}
 func (c *Client) delete(path string) (*http.Response, error) { return c.do("DELETE", path, nil) }
 
 func (c *Client) decodeBody(resp *http.Response, target any) error {

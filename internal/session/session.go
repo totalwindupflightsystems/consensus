@@ -21,16 +21,16 @@ import (
 type Status string
 
 const (
-	StatusBooting     Status = "booting"
-	StatusIdle        Status = "idle"
-	StatusPlanning    Status = "planning"
-	StatusThinking    Status = "thinking"
-	StatusToolExec    Status = "tool_exec"
-	StatusExecuting   Status = "executing"
-	StatusWaitingSub  Status = "waiting_sub"
-	StatusCompleted   Status = "completed"
-	StatusFailed      Status = "failed"
-	StatusPaused      Status = "paused"
+	StatusBooting    Status = "booting"
+	StatusIdle       Status = "idle"
+	StatusPlanning   Status = "planning"
+	StatusThinking   Status = "thinking"
+	StatusToolExec   Status = "tool_exec"
+	StatusExecuting  Status = "executing"
+	StatusWaitingSub Status = "waiting_sub"
+	StatusCompleted  Status = "completed"
+	StatusFailed     Status = "failed"
+	StatusPaused     Status = "paused"
 )
 
 // TerminalStatuses returns the set of statuses from which no further transitions are allowed.
@@ -109,9 +109,9 @@ func MustTransition(from, to Status) error {
 	}
 	if !ValidTransition(from, to) {
 		return &TransitionError{
-			From:       from,
-			To:         to,
-			AllowedTo:  validTransitions[from],
+			From:      from,
+			To:        to,
+			AllowedTo: validTransitions[from],
 		}
 	}
 	return nil
@@ -130,22 +130,22 @@ const (
 
 // Session represents an agent instance with its lifecycle state.
 type Session struct {
-	ID                 string     `json:"id"`
-	ParentID           *string    `json:"parent_id,omitempty"`
-	AgentName          string     `json:"agent_name"`
-	ModelID            string     `json:"model_id"`
-	Status             Status     `json:"status"`
-	TrustLevel         string     `json:"trust_level"` // low, medium, high (SPEC-008 §5.4)
-	Goal               string     `json:"goal"`
-	ContextBudget      int        `json:"context_budget"`
-	TokensUsedIn       int64      `json:"tokens_used_in"`
-	TokensUsedOut      int64      `json:"tokens_used_out"`
-	Iteration          int64      `json:"iteration"`
-	ProjectID          *string    `json:"project_id,omitempty"` // NULL = Global scope
-	HeartbeatAt        time.Time  `json:"heartbeat_at"`
-	PlanningMaxTurns   int        `json:"planning_max_turns"`
-	CreatedAt          time.Time  `json:"created_at"`
-	CompletedAt        *time.Time `json:"completed_at,omitempty"`
+	ID               string     `json:"id"`
+	ParentID         *string    `json:"parent_id,omitempty"`
+	AgentName        string     `json:"agent_name"`
+	ModelID          string     `json:"model_id"`
+	Status           Status     `json:"status"`
+	TrustLevel       string     `json:"trust_level"` // low, medium, high (SPEC-008 §5.4)
+	Goal             string     `json:"goal"`
+	ContextBudget    int        `json:"context_budget"`
+	TokensUsedIn     int64      `json:"tokens_used_in"`
+	TokensUsedOut    int64      `json:"tokens_used_out"`
+	Iteration        int64      `json:"iteration"`
+	ProjectID        *string    `json:"project_id,omitempty"` // NULL = Global scope
+	HeartbeatAt      time.Time  `json:"heartbeat_at"`
+	PlanningMaxTurns int        `json:"planning_max_turns"`
+	CreatedAt        time.Time  `json:"created_at"`
+	CompletedAt      *time.Time `json:"completed_at,omitempty"`
 }
 
 // Transition applies a validated status transition to the session.

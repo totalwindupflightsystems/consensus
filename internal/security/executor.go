@@ -118,25 +118,25 @@ func TrustLevelToTier(level TrustLevel) ExecutionTier {
 // tools_registry with handler_type 'sql_function'.
 var DefaultAllowedFunctions = map[string]bool{
 	// Session lifecycle
-	"set_display_mode":      true,
-	"complete_session":      true,
+	"set_display_mode":        true,
+	"complete_session":        true,
 	"touch_session_heartbeat": true,
 
 	// Memory operations
-	"load_memory_event":     true,
-	"search_memory":         true,
-	"create_memory_page":    true,
+	"load_memory_event":  true,
+	"search_memory":      true,
+	"create_memory_page": true,
 
 	// Task operations
-	"claim_task":            true,
-	"complete_task":         true,
-	"fail_task":             true,
-	"cancel_task":           true,
+	"claim_task":    true,
+	"complete_task": true,
+	"fail_task":     true,
+	"cancel_task":   true,
 
 	// Utility
-	"current_setting":       true,
-	"gen_random_uuid":       true,
-	"now":                   true,
+	"current_setting": true,
+	"gen_random_uuid": true,
+	"now":             true,
 }
 
 // Tier1StmtRegex matches a Tier 1 safe statement: SELECT fn_name(...)
@@ -239,8 +239,8 @@ func ExecuteTier1(stmt string, allowedFunctions map[string]bool) *ExecuteTier1Re
 
 // ExecuteTier2Result holds the result of a Tier 2 validation.
 type ExecuteTier2Result struct {
-	Allowed  bool
-	Reason   string
+	Allowed    bool
+	Reason     string
 	ParamCount int // number of $N parameters detected
 }
 
@@ -374,12 +374,12 @@ func ExecuteTier3(stmt string, whitelist *TableWhitelist) *ExecuteTier3Result {
 
 // TieredPolicyResult holds the result of a tier-aware policy check.
 type TieredPolicyResult struct {
-	Allowed       bool
-	Reason        string
-	Tier          ExecutionTier
-	Class         StatementClass
-	ParamCount    int  // populated for Tier 2
-	FunctionName  string // populated for Tier 1
+	Allowed      bool
+	Reason       string
+	Tier         ExecutionTier
+	Class        StatementClass
+	ParamCount   int    // populated for Tier 2
+	FunctionName string // populated for Tier 1
 }
 
 // EnforceTieredPolicy applies the correct execution tier based on trust level.

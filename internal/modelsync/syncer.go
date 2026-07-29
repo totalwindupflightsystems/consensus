@@ -21,11 +21,11 @@ var modelsDevURL = "https://models.dev/api/models"
 
 // ModelEntry mirrors a models.dev API response entry.
 type ModelEntry struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Provider      string   `json:"provider"`
-	ContextWindow int      `json:"context_window"`
-	MaxOutput     int      `json:"max_output"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Provider      string `json:"provider"`
+	ContextWindow int    `json:"context_window"`
+	MaxOutput     int    `json:"max_output"`
 	Pricing       struct {
 		Input  float64 `json:"input"`
 		Output float64 `json:"output"`

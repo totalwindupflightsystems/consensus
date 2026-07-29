@@ -45,12 +45,12 @@ func TestValidTaskTransition(t *testing.T) {
 		{TaskStatusPending, TaskStatusInProgress, false}, // must claim first
 		{TaskStatusPending, TaskStatusPublished, false},  // skip reviewed
 		{TaskStatusPending, TaskStatusReviewed, false},
-		{TaskStatusClaimed, TaskStatusPublished, false}, // skip in_progress + reviewed
+		{TaskStatusClaimed, TaskStatusPublished, false},    // skip in_progress + reviewed
 		{TaskStatusInProgress, TaskStatusPublished, false}, // skip reviewed
-		{TaskStatusPublished, TaskStatusPending, false}, // terminal — no revert
-		{TaskStatusPublished, TaskStatusFailed, false}, // terminal
-		{TaskStatusFailed, TaskStatusPending, false}, // terminal
-		{TaskStatusCancelled, TaskStatusPending, false}, // terminal
+		{TaskStatusPublished, TaskStatusPending, false},    // terminal — no revert
+		{TaskStatusPublished, TaskStatusFailed, false},     // terminal
+		{TaskStatusFailed, TaskStatusPending, false},       // terminal
+		{TaskStatusCancelled, TaskStatusPending, false},    // terminal
 		{"unknown", TaskStatusPending, false},
 	}
 
@@ -95,10 +95,10 @@ func TestEnforceTaskTransition(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "in_progress to published without review is blocked",
-			oldStatus:   TaskStatusInProgress,
-			newStatus:   TaskStatusPublished,
-			expectError: true,
+			name:             "in_progress to published without review is blocked",
+			oldStatus:        TaskStatusInProgress,
+			newStatus:        TaskStatusPublished,
+			expectError:      true,
 			expectErrorMatch: "must be reviewed",
 		},
 		{
@@ -108,19 +108,19 @@ func TestEnforceTaskTransition(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "published to pending is blocked (terminal)",
-			oldStatus:   TaskStatusPublished,
-			newStatus:   TaskStatusPending,
-			expectError: true,
+			name:             "published to pending is blocked (terminal)",
+			oldStatus:        TaskStatusPublished,
+			newStatus:        TaskStatusPending,
+			expectError:      true,
 			expectErrorMatch: "terminal",
 		},
 		{
-			name:        "claiming already-locked task is blocked",
-			oldStatus:   TaskStatusPending,
-			newStatus:   TaskStatusClaimed,
-			oldLockedBy: &agentA,
-			newLockedBy: &agentB,
-			expectError: true,
+			name:             "claiming already-locked task is blocked",
+			oldStatus:        TaskStatusPending,
+			newStatus:        TaskStatusClaimed,
+			oldLockedBy:      &agentA,
+			newLockedBy:      &agentB,
+			expectError:      true,
 			expectErrorMatch: "already locked",
 		},
 		{
@@ -370,8 +370,8 @@ func TestPrerequisiteEnforcement_FullFlow(t *testing.T) {
 
 // mockRateLimitChecker implements RateLimitChecker for testing.
 type mockRateLimitChecker struct {
-	limits   map[string]int // tool name → rate_limit_per_min
-	recent   map[string]int // key: "sessionID/toolName" → count
+	limits map[string]int // tool name → rate_limit_per_min
+	recent map[string]int // key: "sessionID/toolName" → count
 }
 
 func (m *mockRateLimitChecker) GetToolRateLimit(ctx context.Context, toolName string) (int, error) {
@@ -458,7 +458,7 @@ func TestEnforceToolRateLimit_DifferentTools(t *testing.T) {
 	ctx := context.Background()
 	checker := &mockRateLimitChecker{
 		limits: map[string]int{
-			"api_call": 10,
+			"api_call":  10,
 			"read_file": 5,
 		},
 		recent: map[string]int{

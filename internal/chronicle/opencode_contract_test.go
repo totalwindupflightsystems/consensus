@@ -2,9 +2,10 @@
 //
 // Validates Consensus's shim against the OpenCode HTTP contract.
 // Expectations extracted from sst/opencode server test suite:
-//   packages/opencode/test/server/httpapi-instance.test.ts  (server endpoint tests)
-//   packages/opencode/test/server/httpapi-sdk.test.ts       (SDK-driven tests)
-//   packages/client/test/promise.test.ts                    (client contract tests)
+//
+//	packages/opencode/test/server/httpapi-instance.test.ts  (server endpoint tests)
+//	packages/opencode/test/server/httpapi-sdk.test.ts       (SDK-driven tests)
+//	packages/client/test/promise.test.ts                    (client contract tests)
 //
 // Run: DEEPSEEK_API_KEY=... go test -run TestOpenCodeContract -v ./internal/chronicle/...
 package chronicle
@@ -214,8 +215,8 @@ func TestOpenCodeContract_ConfigEndpoint(t *testing.T) {
 // --- Test harness helpers ---
 
 type contractSession struct {
-	baseURL string
-	tmpDir  string
+	baseURL  string
+	tmpDir   string
 	adminKey string
 }
 

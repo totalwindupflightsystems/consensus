@@ -293,8 +293,8 @@ func TestFilterForSQLite_PreservesAlterTableAddColumn(t *testing.T) {
 	// This test verifies that ALTER TABLE ADD COLUMN (SQLite-compatible) is preserved
 	// and that ALTER TABLE ADD CONSTRAINT FOREIGN KEY (PG-only) is stripped.
 	tests := []struct {
-		name       string
-		input      string
+		name         string
+		input        string
 		wantContains string
 		wantMissing  string
 	}{
@@ -309,14 +309,14 @@ COMMIT;`,
 			wantMissing:  "",
 		},
 		{
-			name: "ALTER TABLE ADD COLUMN IF NOT EXISTS (SQLite-compatible)",
-			input: `ALTER TABLE tool_results ADD COLUMN IF NOT EXISTS exit_code INT;`,
+			name:         "ALTER TABLE ADD COLUMN IF NOT EXISTS (SQLite-compatible)",
+			input:        `ALTER TABLE tool_results ADD COLUMN IF NOT EXISTS exit_code INT;`,
 			wantContains: "ALTER TABLE tool_results",
 			wantMissing:  "",
 		},
 		{
-			name: "ALTER TABLE ADD COLUMN with REFERENCES (SQLite-compatible)",
-			input: `ALTER TABLE sessions ADD COLUMN project_id UUID REFERENCES projects(id);`,
+			name:         "ALTER TABLE ADD COLUMN with REFERENCES (SQLite-compatible)",
+			input:        `ALTER TABLE sessions ADD COLUMN project_id UUID REFERENCES projects(id);`,
 			wantContains: "ALTER TABLE sessions ADD COLUMN project_id",
 			wantMissing:  "",
 		},
@@ -329,14 +329,14 @@ FOREIGN KEY (model_id) REFERENCES model_registry(model_id);`,
 			wantMissing:  "ADD CONSTRAINT",
 		},
 		{
-			name: "ALTER TABLE ENABLE ROW LEVEL SECURITY (PG-only — MUST be stripped)",
-			input: `ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;`,
+			name:         "ALTER TABLE ENABLE ROW LEVEL SECURITY (PG-only — MUST be stripped)",
+			input:        `ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;`,
 			wantContains: "",
 			wantMissing:  "ENABLE ROW LEVEL SECURITY",
 		},
 		{
-			name: "ALTER TABLE with BYPASSRLS (PG-only — MUST be stripped)",
-			input: `ALTER TABLE sessions BYPASSRLS;`,
+			name:         "ALTER TABLE with BYPASSRLS (PG-only — MUST be stripped)",
+			input:        `ALTER TABLE sessions BYPASSRLS;`,
 			wantContains: "",
 			wantMissing:  "BYPASSRLS",
 		},

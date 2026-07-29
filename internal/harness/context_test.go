@@ -342,9 +342,9 @@ func TestReadActiveContext_ConstraintsInMarkdown(t *testing.T) {
 
 func TestFormatMemoryEvent_Full(t *testing.T) {
 	m := MemoryEventInfo{
-		Type:    "text_block",
-		Content: "The user asked about data",
-		DisplayMode: "full",
+		Type:             "text_block",
+		Content:          "The user asked about data",
+		DisplayMode:      "full",
 		IterationCreated: 5,
 	}
 
@@ -359,10 +359,10 @@ func TestFormatMemoryEvent_Full(t *testing.T) {
 
 func TestFormatMemoryEvent_Compressed(t *testing.T) {
 	m := MemoryEventInfo{
-		Type:        "text_block",
-		Content:     "Very long content...",
-		SummaryText: "Short summary",
-		DisplayMode: "compressed",
+		Type:             "text_block",
+		Content:          "Very long content...",
+		SummaryText:      "Short summary",
+		DisplayMode:      "compressed",
 		IterationCreated: 3,
 	}
 

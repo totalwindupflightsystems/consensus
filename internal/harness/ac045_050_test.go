@@ -142,9 +142,9 @@ func TestAC047_SessionListing(t *testing.T) {
 func TestAC048_CLIToolParsing(t *testing.T) {
 	// Test that tool command parsing handles subcommands
 	toolCmds := []struct {
-		input  string
-		parts  int
-		first  string
+		input string
+		parts int
+		first string
 	}{
 		{"session list", 2, "session"},
 		{"session pause s1", 3, "session"},

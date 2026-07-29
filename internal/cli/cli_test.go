@@ -843,9 +843,9 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 		// /billing
 		if strings.Contains(suffix, "/billing") {
 			json.NewEncoder(w).Encode(map[string]any{
-				"session_id":             sessID,
-				"total_cost_usd":         0.0084,
-				"total_prompt_tokens":    float64(200),
+				"session_id":              sessID,
+				"total_cost_usd":          0.0084,
+				"total_prompt_tokens":     float64(200),
 				"total_completion_tokens": float64(100),
 				"entries": []map[string]any{
 					{"id": float64(1), "iteration": float64(1), "model_id": "gpt-4o",
@@ -897,7 +897,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 				"goal": "test goal", "iteration": float64(5),
 				"tokens_used_in": float64(200), "tokens_used_out": float64(100),
 				"context_budget": float64(128000),
-				"model_id": "gpt-4o", "created_at": "2026-05-07T00:00:00Z",
+				"model_id":       "gpt-4o", "created_at": "2026-05-07T00:00:00Z",
 			})
 			return
 		}
@@ -961,7 +961,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 			"id": "appr-1", "session_id": "sess-1", "request_type": "destructive_tool",
 			"risk_level": "high", "status": "pending", "description": "Delete temp_cache",
 			"sql_preview": "DROP TABLE temp_cache",
-			"created_at": "2026-05-07T00:00:00Z",
+			"created_at":  "2026-05-07T00:00:00Z",
 		})
 		return
 	}
@@ -977,7 +977,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 	// ─── Config ────────────────────────────────────────────
 	if path == "/api/v1/config" && method == http.MethodGet {
 		json.NewEncoder(w).Encode(map[string]any{
-			"llm": map[string]any{"default_model": "gpt-4o", "provider": "openai"},
+			"llm":  map[string]any{"default_model": "gpt-4o", "provider": "openai"},
 			"hitl": map[string]any{"require_approval_for_destructive": true},
 		})
 		return

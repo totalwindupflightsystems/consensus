@@ -96,8 +96,8 @@ func TestAC027_StageAndExecuteMultipleCommands(t *testing.T) {
 
 	// Stage and execute 3 commands in sequence
 	commands := []struct {
-		sql     string
-		desc    string
+		sql  string
+		desc string
 	}{
 		{"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'cmd1', '" + sessionID + "', 1)", "insert event 1"},
 		{"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'cmd2', '" + sessionID + "', 1)", "insert event 2"},

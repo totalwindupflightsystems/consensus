@@ -73,8 +73,8 @@ func (s *Server) handleApproveQuarantine(w http.ResponseWriter, r *http.Request,
 	}
 
 	writeJSON(w, map[string]any{
-		"status":  "approved",
-		"item":    item,
+		"status": "approved",
+		"item":   item,
 	})
 }
 
@@ -107,8 +107,8 @@ func (s *Server) handleRejectQuarantine(w http.ResponseWriter, r *http.Request, 
 	}
 
 	writeJSON(w, map[string]any{
-		"status":  "rejected",
-		"item":    item,
+		"status": "rejected",
+		"item":   item,
 	})
 }
 

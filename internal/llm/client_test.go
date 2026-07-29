@@ -209,8 +209,8 @@ func TestAnthropicClient_CreatedWithoutPanic(t *testing.T) {
 	// NewAnthropicClient creates a real HTTP client even without an API key.
 	// It will fail on Call() but should not panic or return nil.
 	client := NewAnthropicClient(&Config{
-		Provider: ProviderAnthropic,
-		Model:    "claude-sonnet-4-20250514",
+		Provider:  ProviderAnthropic,
+		Model:     "claude-sonnet-4-20250514",
 		MaxTokens: 1024,
 	})
 	if client == nil {

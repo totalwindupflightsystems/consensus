@@ -229,5 +229,3 @@ func exitCode(err error) int {
 		return 1
 	}
 }
-
-

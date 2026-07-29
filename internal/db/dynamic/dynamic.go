@@ -59,38 +59,38 @@ var SystemColumnNames = []string{
 // SPEC-014, SPEC-015, SPEC-017, SPEC-020, and the schema_versions migration
 // tracking table.
 var reservedNames = map[string]bool{
-	"sessions":                true,
-	"memory_events":           true,
-	"display_modes":           true,
-	"iteration_commits":       true,
-	"memory_pages":            true,
-	"tasks":                   true,
-	"tool_requests":           true,
-	"tool_results":            true,
-	"tools_registry":          true,
-	"skills_registry":         true,
-	"agent_billing":           true,
-	"workflows":               true,
-	"custom_agent_tools":      true,
-	"tool_files":              true,
-	"external_quarantine":     true,
-	"compression_queue":       true,
-	"model_registry":          true,
-	"staging_buffer":          true,
-	"audit_logs":              true,
-	"system_settings":         true,
-	"agent_messages":          true,
-	"api_keys":                true,
-	"api_rate_limits":         true,
-	"external_events":         true,
-	"webhook_registrations":   true,
-	"routing_rules":           true,
-	"agent_circuit_breakers":  true,
-	"agent_budget_limits":     true,
-	"secret_access_audit":     true,
-	"approval_requests":       true,
-	"schema_versions":         true,
-	"dynamic_table_schemas":   true,
+	"sessions":               true,
+	"memory_events":          true,
+	"display_modes":          true,
+	"iteration_commits":      true,
+	"memory_pages":           true,
+	"tasks":                  true,
+	"tool_requests":          true,
+	"tool_results":           true,
+	"tools_registry":         true,
+	"skills_registry":        true,
+	"agent_billing":          true,
+	"workflows":              true,
+	"custom_agent_tools":     true,
+	"tool_files":             true,
+	"external_quarantine":    true,
+	"compression_queue":      true,
+	"model_registry":         true,
+	"staging_buffer":         true,
+	"audit_logs":             true,
+	"system_settings":        true,
+	"agent_messages":         true,
+	"api_keys":               true,
+	"api_rate_limits":        true,
+	"external_events":        true,
+	"webhook_registrations":  true,
+	"routing_rules":          true,
+	"agent_circuit_breakers": true,
+	"agent_budget_limits":    true,
+	"secret_access_audit":    true,
+	"approval_requests":      true,
+	"schema_versions":        true,
+	"dynamic_table_schemas":  true,
 }
 
 // ReservedCount is the number of reserved names, for verification tests.
@@ -568,8 +568,8 @@ func getActiveSchemaPostgres(ctx context.Context, database db.DB, tableName stri
 // sqliteSchemaRegistry stores active JSON Schema constraints for SQLite tables.
 // Thread-safe map of table_name → { schema, version }.
 var sqliteSchemaRegistry struct {
-	mu    sync.RWMutex
-	data  map[string]sqliteSchemaEntry
+	mu   sync.RWMutex
+	data map[string]sqliteSchemaEntry
 }
 
 type sqliteSchemaEntry struct {

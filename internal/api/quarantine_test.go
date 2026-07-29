@@ -191,8 +191,8 @@ func TestApproveQuarantineAPI(t *testing.T) {
 	}
 
 	var body struct {
-		Status string                      `json:"status"`
-		Item   *quarantine.QuarantineItem  `json:"item"`
+		Status string                     `json:"status"`
+		Item   *quarantine.QuarantineItem `json:"item"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -225,8 +225,8 @@ func TestRejectQuarantineAPI(t *testing.T) {
 	}
 
 	var body struct {
-		Status string                      `json:"status"`
-		Item   *quarantine.QuarantineItem  `json:"item"`
+		Status string                     `json:"status"`
+		Item   *quarantine.QuarantineItem `json:"item"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)

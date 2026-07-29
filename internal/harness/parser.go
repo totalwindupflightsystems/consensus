@@ -2,10 +2,10 @@
 //
 // The parser validates LLM JSON output against the AgentOutput schema.
 // It enforces:
-//  - Required fields (internal_monologue, memory_state_changes, system_actions)
-//  - Array types for statement lists
-//  - Valid tool request shapes
-//  - Statement sanitization (null bytes, BOM, trim)
+//   - Required fields (internal_monologue, memory_state_changes, system_actions)
+//   - Array types for statement lists
+//   - Valid tool request shapes
+//   - Statement sanitization (null bytes, BOM, trim)
 //
 // axiom:trace work_item=runtime-harness-01 spec=specs/007-json-schema.md,specs/008-harness.md plan=phase-1/task-1-1/step-1-1-1 impl=internal/harness/parser.go
 package harness
@@ -154,8 +154,8 @@ func sanitizeStatements(statements []string) []string {
 // sanitizeStatement removes null bytes, BOM, and trims whitespace from a single statement.
 func sanitizeStatement(stmt string) string {
 	s := strings.ReplaceAll(stmt, "\x00", "") // remove null bytes
-	s = trimBOMString(s)                       // remove BOM
-	s = strings.TrimSpace(s)                   // trim whitespace
+	s = trimBOMString(s)                      // remove BOM
+	s = strings.TrimSpace(s)                  // trim whitespace
 	return s
 }
 

@@ -62,4 +62,3 @@ func NewQuarantineInserter(qs *QuarantineService) func(ctx context.Context, sess
 		return err
 	}
 }
-

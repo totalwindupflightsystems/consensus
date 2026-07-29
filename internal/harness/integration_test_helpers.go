@@ -22,9 +22,9 @@ import (
 type testHarness struct {
 	*Harness
 	conn    db.DB
-	ctx    context.Context
-	cancel context.CancelFunc
-	hitl   *hitl.Manager
+	ctx     context.Context
+	cancel  context.CancelFunc
+	hitl    *hitl.Manager
 	tmpPath string // temp database file, cleaned up on close
 }
 

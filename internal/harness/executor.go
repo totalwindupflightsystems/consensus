@@ -249,7 +249,9 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 //   - low    → Tier 1 (stored-procedure-only)
 //   - medium → Tier 2 (parameterized SQL)
 //   - high   → Tier 3 (raw SQL with classifier + whitelist)
-func (h *Harness) executeStatement(ctx context.Context, tx interface{ Exec(context.Context, string, ...any) error }, stmt string, sessionID string, trustLevel string) error {
+func (h *Harness) executeStatement(ctx context.Context, tx interface {
+	Exec(context.Context, string, ...any) error
+}, stmt string, sessionID string, trustLevel string) error {
 	// Sanitize
 	stmt = security.Sanitize(stmt)
 	// Fix common LLM SQL generation error: LLMs copy DEFAULT (datetime('now'))
@@ -295,7 +297,9 @@ func (h *Harness) executeStatement(ctx context.Context, tx interface{ Exec(conte
 // executeStatementLegacy is the original executeStatement signature preserved for
 // callers that haven't been updated to pass trust level yet.
 // It defaults to Tier 3 (high trust) for backward compatibility.
-func (h *Harness) executeStatementLegacy(ctx context.Context, tx interface{ Exec(context.Context, string, ...any) error }, stmt string, sessionID string) error {
+func (h *Harness) executeStatementLegacy(ctx context.Context, tx interface {
+	Exec(context.Context, string, ...any) error
+}, stmt string, sessionID string) error {
 	return h.executeStatement(ctx, tx, stmt, sessionID, DefaultTrustLevel)
 }
 
@@ -474,7 +478,9 @@ func (h *Harness) truncateContext(ic *IterationContext) bool {
 // visible in the next iteration's context.
 //
 // In practice, agents use standard SELECT on memory_events directly:
-//   SELECT content FROM memory_events WHERE id = <memory_id>
+//
+//	SELECT content FROM memory_events WHERE id = <memory_id>
+//
 // This is the page-fault pattern documented in SPEC-002 §4.3.
 //
 // This function provides a convenience wrapper with error handling and

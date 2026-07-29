@@ -297,7 +297,7 @@ func TestIntegration_SystemPrompt_DynamicAssembly_WithRealDB(t *testing.T) {
 
 	// Verify system prompt contains key sections
 	checks := []struct {
-		label string
+		label  string
 		needle string
 		source string
 	}{

@@ -521,17 +521,17 @@ func TestFormatSQLList(t *testing.T) {
 // what ReadActiveContext would produce for a mid-iteration agent session.
 func benchmarkIterationContext() *IterationContext {
 	return &IterationContext{
-		SessionID:   "benchmark-session-001",
-		AgentName:   "benchmark-agent",
-		ModelID:     "test-model",
-		TrustLevel:  "high",
-		Goal:        "Implement PERF-001: add Go benchmarks for the consensus hot paths so we can measure " +
+		SessionID:  "benchmark-session-001",
+		AgentName:  "benchmark-agent",
+		ModelID:    "test-model",
+		TrustLevel: "high",
+		Goal: "Implement PERF-001: add Go benchmarks for the consensus hot paths so we can measure " +
 			"regressions in formatTurnContextV2, formatBufferStateV2, outputToTurnPlanV2, and " +
 			"loadStagingBuffer across releases.",
-		Status:      "planning",
-		Iteration:   5,
+		Status:           "planning",
+		Iteration:        5,
 		BudgetLimitCents: 10000,
-		BudgetUsedCents: 250,
+		BudgetUsedCents:  250,
 		MaxIterations:    10,
 	}
 }

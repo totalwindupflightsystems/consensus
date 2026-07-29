@@ -37,8 +37,9 @@ type pageMemoryIDs map[int64]bool
 
 // resolvePageMemoryIDs expands memory_pages for a session into a deduplicated
 // set of memory event IDs. Supports single-level nesting:
-//   page.target_ids → direct event IDs
-//   page.linked_page_ids → resolve target_ids of linked pages (depth 1)
+//
+//	page.target_ids → direct event IDs
+//	page.linked_page_ids → resolve target_ids of linked pages (depth 1)
 //
 // Returns a deduplicated map of memory event ID → true.
 func (h *Harness) resolvePageMemoryIDs(ctx context.Context, sessionID string) (pageMemoryIDs, error) {
@@ -421,10 +422,10 @@ func (h *Harness) formatContextMarkdown(ic *IterationContext, memories []MemoryE
 func formatMemoryEvent(m MemoryEventInfo) string {
 	// Build a MemoryEvent for the formatter
 	evt := memory.MemoryEvent{
-		Type:         m.Type,
-		Content:      m.Content,
-		SummaryText:  m.SummaryText,
-		DisplayMode:  m.DisplayMode,
+		Type:        m.Type,
+		Content:     m.Content,
+		SummaryText: m.SummaryText,
+		DisplayMode: m.DisplayMode,
 	}
 	rendered := memory.FormatMemoryEventByType(evt)
 	// Add compressed label before the rendered content
@@ -440,19 +441,19 @@ func formatMemoryEvent(m MemoryEventInfo) string {
 
 // sessionRow holds a flattened session query result.
 type sessionRow struct {
-	AgentName           string
-	ModelID             string
-	Status              string
-	TrustLevel          string // low, medium, high (SPEC-008 §5.4)
-	Goal                string
-	ContextBudget       int
-	TokensUsedIn        int64
-	TokensUsedOut       int64
-	Iteration           int64
-	BudgetLimitCents    int64
-	MaxIterations       int
+	AgentName            string
+	ModelID              string
+	Status               string
+	TrustLevel           string // low, medium, high (SPEC-008 §5.4)
+	Goal                 string
+	ContextBudget        int
+	TokensUsedIn         int64
+	TokensUsedOut        int64
+	Iteration            int64
+	BudgetLimitCents     int64
+	MaxIterations        int
 	MaxConsecutiveErrors int
-	ParentID            string // empty string = root agent, non-empty = sub-agent (SPEC-012 §6)
+	ParentID             string // empty string = root agent, non-empty = sub-agent (SPEC-012 §6)
 }
 
 // MemoryEventInfo holds a single memory event with display mode and cache metadata.
@@ -636,7 +637,7 @@ func (h *Harness) readMemoriesFromView(ctx context.Context, tx db.Tx, sessionID 
 		m := MemoryEventInfo{
 			ID:               toInt64(r["id"]),
 			Type:             toString(r["type"]),
-			Content:          toString(r["rendered_text"]),     // VIEW provides rendered text
+			Content:          toString(r["rendered_text"]), // VIEW provides rendered text
 			SummaryText:      toString(r["summary_text"]),
 			DisplayMode:      toString(r["display_mode"]),
 			IterationCreated: toInt64(r["iteration_created"]),

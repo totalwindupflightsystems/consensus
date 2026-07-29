@@ -75,10 +75,10 @@ func TestAC029_AutoCommitOnMaxTurns_WithWork(t *testing.T) {
 func TestAC029_MaxTurnsNoWork_SessionIdle(t *testing.T) {
 	// Create mock with no memory changes (no-op)
 	noopOutput := &AgentOutput{
-		InternalMonologue: "Just thinking...",
+		InternalMonologue:  "Just thinking...",
 		MemoryStateChanges: nil,
-		SystemActions:     nil,
-		ToolRequests:      nil,
+		SystemActions:      nil,
+		ToolRequests:       nil,
 	}
 	mockNoop := newMockLLM(noopOutput)
 

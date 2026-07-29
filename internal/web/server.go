@@ -209,9 +209,12 @@ func (s *Server) html(w http.ResponseWriter, page string) {
 func pageShell(title, apiURL, active, content string) string {
 	dashClass, sessClass, memClass := "", "", ""
 	switch active {
-	case "dashboard": dashClass = " class=\"active\""
-	case "sessions": sessClass = " class=\"active\""
-	case "memory": memClass = " class=\"active\""
+	case "dashboard":
+		dashClass = " class=\"active\""
+	case "sessions":
+		sessClass = " class=\"active\""
+	case "memory":
+		memClass = " class=\"active\""
 	}
 	return `<html lang="en">
 <head>

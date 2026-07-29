@@ -34,10 +34,10 @@ type Client = harness.LLMClient
 type Provider string
 
 const (
-	ProviderOpenAI    Provider = "openai"
-	ProviderAnthropic Provider = "anthropic"
+	ProviderOpenAI     Provider = "openai"
+	ProviderAnthropic  Provider = "anthropic"
 	ProviderOpenRouter Provider = "openrouter"
-	ProviderMock      Provider = "mock"
+	ProviderMock       Provider = "mock"
 )
 
 // ============================================================================

@@ -305,8 +305,8 @@ func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime tim
 	)
 
 	return &harness.LLMResponse{
-		Output:     &output,
-		ModelID:    chatResp.Model,
+		Output:  &output,
+		ModelID: chatResp.Model,
 		Usage: harness.LLMUsage{
 			PromptTokens:     chatResp.Usage.PromptTokens,
 			CompletionTokens: chatResp.Usage.CompletionTokens,

@@ -370,5 +370,3 @@ func TestQuarantineServiceEmitsEvents(t *testing.T) {
 	}
 	t.Logf("Events emitted: %v", events)
 }
-
-

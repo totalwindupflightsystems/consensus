@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -19,13 +20,13 @@ import (
 
 // Config is the root configuration for the Consensus binary.
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Adapters   AdaptersConfig   `yaml:"adapters"`
-	LLM        LLMConfig        `yaml:"llm"`
-	Harness    HarnessConfig    `yaml:"harness"`
-	Database   db.Config        `yaml:"database"`
-	HITL       HITLConfig       `yaml:"hitl"`
-	Logging    LoggingConfig    `yaml:"logging"`
+	Server      ServerConfig      `yaml:"server"`
+	Adapters    AdaptersConfig    `yaml:"adapters"`
+	LLM         LLMConfig         `yaml:"llm"`
+	Harness     HarnessConfig     `yaml:"harness"`
+	Database    db.Config         `yaml:"database"`
+	HITL        HITLConfig        `yaml:"hitl"`
+	Logging     LoggingConfig     `yaml:"logging"`
 	APIRate     APIRateConfig     `yaml:"api_rate"`
 	Compression CompressionConfig `yaml:"compression"`
 	// configPath tracks the file that was loaded (for informational use).
@@ -283,7 +284,7 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("ANTHROPIC_API_KEY"); v != "" && cfg.LLM.Provider == "anthropic" && cfg.LLM.APIKey == "" {
 		cfg.LLM.APIKey = v
 	}
-	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && cfg.LLM.APIKey == "" {
+	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
 		cfg.LLM.APIKey = v
 	}
 }

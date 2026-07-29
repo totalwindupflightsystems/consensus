@@ -15,11 +15,11 @@ import (
 func TestBuildIdentityLayer_ContainsCoreElements(t *testing.T) {
 	b := &SystemPromptBuilder{harness: &Harness{}}
 	config := &SystemPromptConfig{
-		AgentName:  "test_agent",
-		ModelID:    "gpt-4o",
-		SessionID:  "sess-123",
-		Goal:       "Test the prompt builder",
-		Status:     "idle",
+		AgentName: "test_agent",
+		ModelID:   "gpt-4o",
+		SessionID: "sess-123",
+		Goal:      "Test the prompt builder",
+		Status:    "idle",
 	}
 
 	layer := b.buildIdentityLayer(config)
@@ -250,11 +250,11 @@ func TestBuildConstraintsLayer_BudgetDisplay(t *testing.T) {
 	layer := b.buildConstraintsLayer(config)
 
 	checks := map[string]bool{
-		"12":    false,
-		"100":   false,
-		"10":    false,
-		"350":   false,
-		"1000":  false,
+		"12":     false,
+		"100":    false,
+		"10":     false,
+		"350":    false,
+		"1000":   false,
 		"128000": false,
 	}
 
@@ -312,8 +312,8 @@ func TestPromptLayers_SystemPrompt(t *testing.T) {
 
 func TestPromptLayers_FullString(t *testing.T) {
 	layers := &PromptLayers{
-		Layer1Identity:    "IDENTITY_LAYER",
-		Layer6Context:     "CONTEXT_LAYER",
+		Layer1Identity: "IDENTITY_LAYER",
+		Layer6Context:  "CONTEXT_LAYER",
 	}
 
 	result := layers.String()
@@ -563,7 +563,7 @@ func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
 	}
 
 	config := &PlanningConfig{
-		MaxTurns:         10,
+		MaxTurns:          10,
 		MaxStagedCommands: 50,
 	}
 
@@ -580,10 +580,10 @@ func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
 
 	// Must NOT include deprecated/alternative field names
 	deprecatedFields := []string{
-		`"action"`,            // deprecated — parser ignores this field
-		`"staged_commands"`,   // deprecated — parser reads memory_state_changes
-		`"message_to_user"`,   // deprecated — parser reads system_actions
-		`"end_iteration"`,     // deprecated — parser uses system_actions
+		`"action"`,          // deprecated — parser ignores this field
+		`"staged_commands"`, // deprecated — parser reads memory_state_changes
+		`"message_to_user"`, // deprecated — parser reads system_actions
+		`"end_iteration"`,   // deprecated — parser uses system_actions
 	}
 
 	for _, field := range requiredFields {

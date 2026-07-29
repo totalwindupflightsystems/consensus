@@ -148,12 +148,12 @@ func TestCreateTask_InvalidPriority(t *testing.T) {
 	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('sess-ip', 'test', 'gpt-4o', 'idle', 'Goal', $1, $1)`, now)
 
 	tests := []struct {
-		name         string
-		priority     string
-		expect200    bool
+		name      string
+		priority  string
+		expect200 bool
 	}{
-		{"too low (defaulted)", `{"title":"Test","priority":0}`, true},   // 0 → defaults to 5
-		{"too high", `{"title":"Test","priority":11}`, false},            // 11 rejected
+		{"too low (defaulted)", `{"title":"Test","priority":0}`, true}, // 0 → defaults to 5
+		{"too high", `{"title":"Test","priority":11}`, false},          // 11 rejected
 	}
 
 	for _, tt := range tests {

@@ -45,7 +45,7 @@ func (m *mockAPIDB) QueryRow(ctx context.Context, query string, args ...any) (db
 	return rows[0], nil
 }
 func (m *mockAPIDB) Backend() db.Backend { return db.BackendSQLite }
-func (m *mockAPIDB) Close() error { return nil }
+func (m *mockAPIDB) Close() error        { return nil }
 
 // ============================================================================
 // Health Endpoint Tests
@@ -672,4 +672,4 @@ func (c *callbackMock) QueryRow(ctx context.Context, query string, args ...any) 
 	return nil, nil
 }
 func (c *callbackMock) Backend() db.Backend { return db.BackendSQLite }
-func (c *callbackMock) Close() error { return nil }
+func (c *callbackMock) Close() error        { return nil }

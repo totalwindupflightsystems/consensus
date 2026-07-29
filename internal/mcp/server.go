@@ -63,8 +63,8 @@ type MCPInitializeRequest struct {
 
 // MCPClientCapabilities describes what the client supports.
 type MCPClientCapabilities struct {
-	Roots    *MCPCapRoots    `json:"roots,omitempty"`
-	Sampling *struct{}       `json:"sampling,omitempty"`
+	Roots    *MCPCapRoots `json:"roots,omitempty"`
+	Sampling *struct{}    `json:"sampling,omitempty"`
 }
 
 // MCPCapRoots describes client roots capability.
@@ -137,7 +137,7 @@ type Property struct {
 
 // MCPCallToolRequest is the params for tools/call.
 type MCPCallToolRequest struct {
-	Name      string         `json:"name"`
+	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments,omitempty"`
 }
 
@@ -217,13 +217,13 @@ type Server struct {
 
 // mcpSession tracks per-connection MCP state.
 type mcpSession struct {
-	id       string
-	eventCh  chan string   // SSE events to the client
-	done     chan struct{} // closed when client disconnects
-	stop     func()        // cancel function for cleanup
-	sessionKey string      // API key for this MCP session (for scoping)
-	authScope  string      // admin, session, readonly — from API key validation
-	agentSessionID string  // if session-scoped, the session ID
+	id             string
+	eventCh        chan string   // SSE events to the client
+	done           chan struct{} // closed when client disconnects
+	stop           func()        // cancel function for cleanup
+	sessionKey     string        // API key for this MCP session (for scoping)
+	authScope      string        // admin, session, readonly — from API key validation
+	agentSessionID string        // if session-scoped, the session ID
 }
 
 // NewServer creates a new MCP server sharing the given database connection.

@@ -114,13 +114,13 @@ func TestHITLConfiguration(t *testing.T) {
 
 	// Set global config with non-default values
 	err := mgr.SetConfiguration(ctx, Configuration{
-		Scope:                            ScopeGlobal,
-		AutoPauseOnErrorThreshold:        5,
-		RequireApprovalForDestructive:    true,
-		RequireApprovalForSchemaChanges:  false,
-		RequireApprovalForExternalTools:  false,
-		ApprovalTimeoutMinutes:           30,
-		NotifyOnPause:                    true,
+		Scope:                           ScopeGlobal,
+		AutoPauseOnErrorThreshold:       5,
+		RequireApprovalForDestructive:   true,
+		RequireApprovalForSchemaChanges: false,
+		RequireApprovalForExternalTools: false,
+		ApprovalTimeoutMinutes:          30,
+		NotifyOnPause:                   true,
 	})
 	if err != nil {
 		t.Fatalf("set global config: %v", err)
@@ -138,14 +138,14 @@ func TestHITLConfiguration(t *testing.T) {
 
 	// Set session override
 	err = mgr.SetConfiguration(ctx, Configuration{
-		Scope:                            ScopeSession,
-		SessionID:                        "session-with-override",
-		AutoPauseOnErrorThreshold:        2,
-		RequireApprovalForDestructive:    false,
-		RequireApprovalForSchemaChanges:  true,
-		RequireApprovalForExternalTools:  true,
-		ApprovalTimeoutMinutes:           10,
-		NotifyOnPause:                    false,
+		Scope:                           ScopeSession,
+		SessionID:                       "session-with-override",
+		AutoPauseOnErrorThreshold:       2,
+		RequireApprovalForDestructive:   false,
+		RequireApprovalForSchemaChanges: true,
+		RequireApprovalForExternalTools: true,
+		ApprovalTimeoutMinutes:          10,
+		NotifyOnPause:                   false,
 	})
 	if err != nil {
 		t.Fatalf("set session config: %v", err)

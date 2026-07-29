@@ -113,23 +113,23 @@ func TestParseAgentResponse_InvalidJSON(t *testing.T) {
 
 func TestParseAgentResponse_MissingRequiredFields(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
+		name        string
+		input       string
 		errContains string
 	}{
 		{
-			name: "missing memory_state_changes",
-			input: `{"internal_monologue": "test", "system_actions": []}`,
+			name:        "missing memory_state_changes",
+			input:       `{"internal_monologue": "test", "system_actions": []}`,
 			errContains: "memory_state_changes",
 		},
 		{
-			name: "missing system_actions",
-			input: `{"internal_monologue": "test", "memory_state_changes": []}`,
+			name:        "missing system_actions",
+			input:       `{"internal_monologue": "test", "memory_state_changes": []}`,
 			errContains: "system_actions",
 		},
 		{
-			name: "both missing",
-			input: `{"internal_monologue": "test"}`,
+			name:        "both missing",
+			input:       `{"internal_monologue": "test"}`,
 			errContains: "memory_state_changes",
 		},
 	}
@@ -153,8 +153,8 @@ func TestParseAgentResponse_MissingRequiredFields(t *testing.T) {
 
 func TestParseAgentResponse_InvalidToolName(t *testing.T) {
 	tests := []struct {
-		name    string
-		toolName string
+		name       string
+		toolName   string
 		shouldPass bool
 	}{
 		{"valid_alpha", "fetch_url", true},
@@ -168,7 +168,7 @@ func TestParseAgentResponse_InvalidToolName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := jsonEncode(t, map[string]any{
-				"internal_monologue": "test",
+				"internal_monologue":   "test",
 				"memory_state_changes": []string{},
 				"system_actions":       []string{},
 				"tool_requests": []map[string]any{
@@ -206,7 +206,7 @@ func TestParseAgentResponse_SubAgentSpawnValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := jsonEncode(t, map[string]any{
-				"internal_monologue":  "test",
+				"internal_monologue":   "test",
 				"memory_state_changes": []string{},
 				"system_actions":       []string{},
 				"sub_agent_spawns": []map[string]any{
@@ -317,7 +317,7 @@ func TestParseAgentResponse_LargeArray(t *testing.T) {
 	}
 
 	input := jsonEncode(t, map[string]any{
-		"internal_monologue":  "test",
+		"internal_monologue":   "test",
 		"memory_state_changes": statements,
 		"system_actions":       []string{},
 	})

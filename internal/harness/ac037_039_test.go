@@ -27,7 +27,7 @@ func TestAC037_HITLApprovalRequest(t *testing.T) {
 		t.Fatalf("AC-037: create session: %v", err)
 	}
 
-// Create approval request (matching approval_requests schema from SPEC-014 §3.1)
+	// Create approval request (matching approval_requests schema from SPEC-014 §3.1)
 	err = th.conn.Exec(th.ctx, `
 		INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status)
 		VALUES ('apr-037-1', $1, 1, 'tool_execution', 'Delete 5000 rows needs approval', 'high', 'pending')

@@ -1,12 +1,13 @@
 // Package harness: dynamic system prompt assembly (SPEC-012).
 //
 // The system prompt is assembled dynamically from multiple sources:
-//   Layer 1: Identity + rules (static, always cached)
-//   Layer 2: Schema discovery — core tables + dynamic tables
-//   Layer 3: Tools registry metadata (progressive disclosure)
-//   Layer 4: Skills registry metadata (metadata only, not full instructions)
-//   Layer 5: Session constraints + budget
-//   Layer 6: Current context (dynamic, changes every iteration)
+//
+//	Layer 1: Identity + rules (static, always cached)
+//	Layer 2: Schema discovery — core tables + dynamic tables
+//	Layer 3: Tools registry metadata (progressive disclosure)
+//	Layer 4: Skills registry metadata (metadata only, not full instructions)
+//	Layer 5: Session constraints + budget
+//	Layer 6: Current context (dynamic, changes every iteration)
 //
 // axiom:trace work_item=runtime-harness-01 spec=specs/012-system-prompt-and-discovery.md plan=phase-2/task-2-1/step-2-1-1 impl=internal/harness/prompt.go
 package harness
@@ -31,7 +32,7 @@ type SystemPromptConfig struct {
 	Status    string
 
 	// Budget
-	ContextBudget   int
+	ContextBudget    int
 	BudgetLimitCents int64
 	BudgetUsedCents  int64
 

@@ -9,14 +9,15 @@
 //   - TrantorInc: "AI Agent Failure Modes in Production"
 //
 // Top pitfalls mapped to Consensus's architecture:
-//   #1 State Corruption → ACID transactions + WAL + rollback
-//   #2 Missing Circuit Breakers → agent_circuit_breakers table
-//   #3 Contract/Format Violations (36%) → structured JSON output enforcement
-//   #4 Duplicate Side Effects → append-only memory_events + iteration_commits
-//   #5 Context Bloat → compression_queue + active_context_view
-//   #6 Memory Poisoning → external_quarantine + cognitive firewall
-//   #7 Crash Recovery → WAL journal + heartbeat + status tracking
-//   #8 Budget Exhaustion → budget_limit_cents + agent_billing
+//
+//	#1 State Corruption → ACID transactions + WAL + rollback
+//	#2 Missing Circuit Breakers → agent_circuit_breakers table
+//	#3 Contract/Format Violations (36%) → structured JSON output enforcement
+//	#4 Duplicate Side Effects → append-only memory_events + iteration_commits
+//	#5 Context Bloat → compression_queue + active_context_view
+//	#6 Memory Poisoning → external_quarantine + cognitive firewall
+//	#7 Crash Recovery → WAL journal + heartbeat + status tracking
+//	#8 Budget Exhaustion → budget_limit_cents + agent_billing
 package harness
 
 import (

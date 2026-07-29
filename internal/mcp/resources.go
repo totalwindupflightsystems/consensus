@@ -220,7 +220,7 @@ func (s *Server) handlePromptsGet(req *JSONRPCRequest, sess *mcpSession) (any, *
 	endPrompt := spanStart("mcp.prompts/get", tID, sID)
 
 	var input struct {
-		Name      string         `json:"name"`
+		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`
 	}
 	if err := json.Unmarshal(req.Params, &input); err != nil {

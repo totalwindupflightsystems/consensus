@@ -44,7 +44,7 @@ type Server struct {
 	// when no admin pool is configured (SQLite or tests).
 	admindb db.DB
 
-	svc    *Service    // service layer — shared with shims
+	svc    *Service // service layer — shared with shims
 	router chi.Router
 	events *EventBus
 	hitl   *hitl.Manager
@@ -62,7 +62,7 @@ type Server struct {
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	Addr string       // listen address, e.g. ":8090"
+	Addr string // listen address, e.g. ":8090"
 	DB   db.DB
 	// AdminDB is an optional handle that bypasses SET ROLE / RLS (the
 	// Postgres admin pool). Used for health checks and other operational
@@ -93,14 +93,14 @@ func NewServer(cfg ServerConfig) *Server {
 		adminDB = cfg.DB
 	}
 	s := &Server{
-		db:             cfg.DB,
-		admindb:        adminDB,
-		addr:           cfg.Addr,
-		events:         NewEventBus(),
-		svc:            NewService(cfg.DB, nil), // events set below
-		hitl:           cfg.HITL,
-		quarantineSvc:  cfg.QuarantineService,
-		apiRates:       resolveRates(cfg),
+		db:            cfg.DB,
+		admindb:       adminDB,
+		addr:          cfg.Addr,
+		events:        NewEventBus(),
+		svc:           NewService(cfg.DB, nil), // events set below
+		hitl:          cfg.HITL,
+		quarantineSvc: cfg.QuarantineService,
+		apiRates:      resolveRates(cfg),
 	}
 	s.svc.Sessions.events = s.events
 	s.svc.Messages.events = s.events
@@ -490,8 +490,6 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
-
-
 // ============================================================================
 // Health Endpoint
 // ============================================================================
@@ -572,10 +570,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		DBTables:      dbTables,
 		DBMigrations:  dbMigrations,
 		ActiveConnections: ActiveConnections{
-			WebSocket:         0,
-			DBPoolActive:      0,
-			DBPoolMax:         0,
-			LLMActive:         0,
+			WebSocket:          0,
+			DBPoolActive:       0,
+			DBPoolMax:          0,
+			LLMActive:          0,
 			APIRequestsLastMin: 0,
 		},
 		SystemLog: []string{},
@@ -671,4 +669,5 @@ func toInt(v any) int {
 		return 0
 	}
 }
+
 // guard test

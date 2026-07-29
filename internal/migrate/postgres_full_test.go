@@ -8,9 +8,10 @@
 // Requires: docker compose up -d (postgres:16-alpine on port 5432).
 //
 // axiom:trace work_item=WI-postgres-full-integration
-//   spec=specs/003-database.md
-//   plan=phase-1/task-1/step-1
-//   test=internal/migrate/postgres_full_test.go
+//
+//	spec=specs/003-database.md
+//	plan=phase-1/task-1/step-1
+//	test=internal/migrate/postgres_full_test.go
 package migrate
 
 import (

@@ -11,12 +11,12 @@ import "time"
 
 // CreateSessionRequest is the request body for POST /api/v1/sessions.
 type CreateSessionRequest struct {
-	AgentName     string            `json:"agent_name"`
-	Goal          string            `json:"goal"`
-	ModelID       string            `json:"model_id,omitempty"`
-	ContextBudget int               `json:"context_budget,omitempty"`
-	HITLConfig    map[string]any    `json:"hitl_config,omitempty"`
-	ProjectID     string            `json:"project_id,omitempty"` // Project scope (empty = Global)
+	AgentName     string         `json:"agent_name"`
+	Goal          string         `json:"goal"`
+	ModelID       string         `json:"model_id,omitempty"`
+	ContextBudget int            `json:"context_budget,omitempty"`
+	HITLConfig    map[string]any `json:"hitl_config,omitempty"`
+	ProjectID     string         `json:"project_id,omitempty"` // Project scope (empty = Global)
 }
 
 // CreateSessionResponse is the response body for POST /api/v1/sessions.
@@ -31,21 +31,21 @@ type CreateSessionResponse struct {
 
 // SessionResponse is the response body for GET /api/v1/sessions/:id.
 type SessionResponse struct {
-	ID            string     `json:"id"`
-	ParentID      *string    `json:"parent_id,omitempty"`
-	AgentName     string     `json:"agent_name"`
-	ModelID       string     `json:"model_id"`
-	Status        string     `json:"status"`
-	Goal          *string    `json:"goal,omitempty"`
-	ContextBudget int        `json:"context_budget"`
-	TokensUsedIn  int64      `json:"tokens_used_in"`
-	TokensUsedOut int64      `json:"tokens_used_out"`
-	Iteration     int64      `json:"iteration"`
-	ProjectID     *string    `json:"project_id,omitempty"`
-	HeartbeatAt   string     `json:"heartbeat_at"`
-	CreatedAt     string     `json:"created_at"`
-	CompletedAt   *string    `json:"completed_at,omitempty"`
-	LastMessage   *string    `json:"last_message,omitempty"` // most recent assistant response
+	ID            string  `json:"id"`
+	ParentID      *string `json:"parent_id,omitempty"`
+	AgentName     string  `json:"agent_name"`
+	ModelID       string  `json:"model_id"`
+	Status        string  `json:"status"`
+	Goal          *string `json:"goal,omitempty"`
+	ContextBudget int     `json:"context_budget"`
+	TokensUsedIn  int64   `json:"tokens_used_in"`
+	TokensUsedOut int64   `json:"tokens_used_out"`
+	Iteration     int64   `json:"iteration"`
+	ProjectID     *string `json:"project_id,omitempty"`
+	HeartbeatAt   string  `json:"heartbeat_at"`
+	CreatedAt     string  `json:"created_at"`
+	CompletedAt   *string `json:"completed_at,omitempty"`
+	LastMessage   *string `json:"last_message,omitempty"` // most recent assistant response
 }
 
 // UpdateSessionRequest is the request body for PATCH /api/v1/sessions/:id.
@@ -101,11 +101,11 @@ type ExecuteToolRequest struct {
 
 // ExecuteToolResponse is the response body for POST /api/v1/tools/:name/execute.
 type ExecuteToolResponse struct {
-	ToolName   string `json:"tool_name"`
-	Result     any    `json:"result,omitempty"`
-	RowsAffected int64 `json:"rows_affected,omitempty"`
-	IsError    bool   `json:"is_error"`
-	Error      string `json:"error,omitempty"`
+	ToolName     string `json:"tool_name"`
+	Result       any    `json:"result,omitempty"`
+	RowsAffected int64  `json:"rows_affected,omitempty"`
+	IsError      bool   `json:"is_error"`
+	Error        string `json:"error,omitempty"`
 }
 
 // ============================================================================
@@ -183,19 +183,19 @@ type CreateTaskRequest struct {
 
 // TaskResponse is the response body for task CRUD endpoints.
 type TaskResponse struct {
-	ID               string   `json:"id"`
-	SessionID        string   `json:"session_id"`
-	ParentTaskID     *string  `json:"parent_task_id,omitempty"`
-	Title            string   `json:"title"`
-	Description      *string  `json:"description,omitempty"`
-	Status           string   `json:"status"`
-	Priority         int      `json:"priority"`
-	LockedByAgent    *string  `json:"locked_by_agent,omitempty"`
-	PrerequisiteIDs  []string `json:"prerequisite_ids"`
-	ResultMemoryID   *int64   `json:"result_memory_id,omitempty"`
-	CreatedAt        string   `json:"created_at"`
-	ClaimedAt        *string  `json:"claimed_at,omitempty"`
-	CompletedAt      *string  `json:"completed_at,omitempty"`
+	ID              string   `json:"id"`
+	SessionID       string   `json:"session_id"`
+	ParentTaskID    *string  `json:"parent_task_id,omitempty"`
+	Title           string   `json:"title"`
+	Description     *string  `json:"description,omitempty"`
+	Status          string   `json:"status"`
+	Priority        int      `json:"priority"`
+	LockedByAgent   *string  `json:"locked_by_agent,omitempty"`
+	PrerequisiteIDs []string `json:"prerequisite_ids"`
+	ResultMemoryID  *int64   `json:"result_memory_id,omitempty"`
+	CreatedAt       string   `json:"created_at"`
+	ClaimedAt       *string  `json:"claimed_at,omitempty"`
+	CompletedAt     *string  `json:"completed_at,omitempty"`
 }
 
 // UpdateTaskRequest is the request body for PATCH /api/v1/tasks/:tid.
@@ -227,10 +227,10 @@ type HealthResponse struct {
 
 // ActiveConnections describes current connection counts.
 type ActiveConnections struct {
-	WebSocket         int `json:"websocket"`
-	DBPoolActive      int `json:"db_pool_active"`
-	DBPoolMax         int `json:"db_pool_max"`
-	LLMActive         int `json:"llm_active"`
+	WebSocket          int `json:"websocket"`
+	DBPoolActive       int `json:"db_pool_active"`
+	DBPoolMax          int `json:"db_pool_max"`
+	LLMActive          int `json:"llm_active"`
 	APIRequestsLastMin int `json:"api_requests_last_min"`
 }
 
@@ -241,22 +241,22 @@ type ActiveConnections struct {
 // ApprovalResponse is the response body for GET /api/v1/approvals, /api/v1/approvals/:id,
 // and GET /api/v1/sessions/:id/approvals.
 type ApprovalResponse struct {
-	ID           string  `json:"id"`
-	SessionID    string  `json:"session_id"`
-	Iteration    int64   `json:"iteration"`
-	RequestType  string  `json:"request_type"`
-	Description  string  `json:"description"`
-	RiskLevel    string  `json:"risk_level"`
-	Context      any     `json:"context,omitempty"`
-	TargetTool   *string `json:"target_tool,omitempty"`
-	TargetSQL    *string `json:"target_sql,omitempty"`
-	Status       string  `json:"status"`
-	ReviewerID   *string `json:"reviewer_id,omitempty"`
-	ReviewNotes  *string `json:"review_notes,omitempty"`
-	ModifiedSQL  *string `json:"modified_sql,omitempty"`
-	CreatedAt    string  `json:"created_at"`
-	ReviewedAt   *string `json:"reviewed_at,omitempty"`
-	ExpiresAt    *string `json:"expires_at,omitempty"`
+	ID          string  `json:"id"`
+	SessionID   string  `json:"session_id"`
+	Iteration   int64   `json:"iteration"`
+	RequestType string  `json:"request_type"`
+	Description string  `json:"description"`
+	RiskLevel   string  `json:"risk_level"`
+	Context     any     `json:"context,omitempty"`
+	TargetTool  *string `json:"target_tool,omitempty"`
+	TargetSQL   *string `json:"target_sql,omitempty"`
+	Status      string  `json:"status"`
+	ReviewerID  *string `json:"reviewer_id,omitempty"`
+	ReviewNotes *string `json:"review_notes,omitempty"`
+	ModifiedSQL *string `json:"modified_sql,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+	ReviewedAt  *string `json:"reviewed_at,omitempty"`
+	ExpiresAt   *string `json:"expires_at,omitempty"`
 }
 
 // ApprovalReviewRequest is the request body for POST /api/v1/approvals/:id/review.

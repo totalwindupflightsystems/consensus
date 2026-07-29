@@ -279,13 +279,13 @@ func (m *Manager) CheckAllChildrenComplete(ctx context.Context, parentSessionID 
 		return err
 	}
 
-		if len(rows) > 0 && toInt(rows[0]["cnt"]) == 0 {
-			// All children complete — wake parent directly
-			return m.database.Exec(ctx, `
+	if len(rows) > 0 && toInt(rows[0]["cnt"]) == 0 {
+		// All children complete — wake parent directly
+		return m.database.Exec(ctx, `
 				UPDATE sessions SET status = 'idle', heartbeat_at = $1
 				WHERE id = $2 AND status = 'waiting_sub'
 			`, time.Now(), parentSessionID)
-		}
+	}
 	return nil
 }
 

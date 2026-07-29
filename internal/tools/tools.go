@@ -6,10 +6,10 @@
 //   - External: Sandboxed subprocesses for network/I/O operations
 //
 // Resolution order (SPEC-010 §Tool Resolution Order):
-//   1. Internal hemisphere (SQL functions — fastest, atomic)
-//   2. Skill-linked tools (pre-approved external tools)
-//   3. JIT registry (agent-authored custom_agent_tools)
-//   4. Runtime built-ins (harness-level utilities)
+//  1. Internal hemisphere (SQL functions — fastest, atomic)
+//  2. Skill-linked tools (pre-approved external tools)
+//  3. JIT registry (agent-authored custom_agent_tools)
+//  4. Runtime built-ins (harness-level utilities)
 //
 // axiom:trace work_item=runtime-harness-01 spec=specs/010-tools.md plan=phase-3/task-3-1/step-3-1-1 impl=internal/tools/tools.go
 package tools
@@ -37,35 +37,35 @@ const (
 type HandlerType string
 
 const (
-	HandlerSQLFunction HandlerType = "sql_function"
+	HandlerSQLFunction  HandlerType = "sql_function"
 	HandlerHTTPEndpoint HandlerType = "http_endpoint"
-	HandlerGoNative    HandlerType = "go_native"
-	HandlerSubprocess  HandlerType = "subprocess"
+	HandlerGoNative     HandlerType = "go_native"
+	HandlerSubprocess   HandlerType = "subprocess"
 )
 
 // Tool represents a registered tool in the tools_registry table.
 type Tool struct {
-	ID                string      `json:"id"`
-	Name              string      `json:"name"`
-	Description       string      `json:"description"`
-	Hemisphere        Hemisphere  `json:"hemisphere"`
-	ParameterSchema   map[string]any `json:"parameter_schema"`
-	HandlerType       HandlerType `json:"handler_type"`
-	HandlerRef        string      `json:"handler_ref"`
-	OwnerSessionID    *string     `json:"owner_session_id,omitempty"`
-	Status            string      `json:"status"`
-	Enabled           bool        `json:"enabled"`
-	RequiresApproval  bool        `json:"requires_approval"`
-	RateLimitPerMin   *int        `json:"rate_limit_per_min,omitempty"`
+	ID               string         `json:"id"`
+	Name             string         `json:"name"`
+	Description      string         `json:"description"`
+	Hemisphere       Hemisphere     `json:"hemisphere"`
+	ParameterSchema  map[string]any `json:"parameter_schema"`
+	HandlerType      HandlerType    `json:"handler_type"`
+	HandlerRef       string         `json:"handler_ref"`
+	OwnerSessionID   *string        `json:"owner_session_id,omitempty"`
+	Status           string         `json:"status"`
+	Enabled          bool           `json:"enabled"`
+	RequiresApproval bool           `json:"requires_approval"`
+	RateLimitPerMin  *int           `json:"rate_limit_per_min,omitempty"`
 }
 
 // ToolResult holds the output of a tool execution.
 type ToolResult struct {
-	RequestID int64  `json:"request_id"`
-	Output    string `json:"output"`
-	IsError   bool   `json:"is_error"`
-	ErrorCode string `json:"error_code,omitempty"`
-	TokenCount int   `json:"token_count,omitempty"`
+	RequestID  int64  `json:"request_id"`
+	Output     string `json:"output"`
+	IsError    bool   `json:"is_error"`
+	ErrorCode  string `json:"error_code,omitempty"`
+	TokenCount int    `json:"token_count,omitempty"`
 }
 
 // ============================================================================

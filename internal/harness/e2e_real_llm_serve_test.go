@@ -312,9 +312,9 @@ func querySession(t *testing.T, baseURL, adminKey, sessionID string) sessionResu
 	}
 
 	return sessionResult{
-		Status:     s.Status,
-		Iteration:  s.Iteration,
-		EventCount: memCount,
+		Status:      s.Status,
+		Iteration:   s.Iteration,
+		EventCount:  memCount,
 		CommitCount: 0, // Would need direct DB access for this
 	}
 }

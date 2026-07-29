@@ -13,9 +13,10 @@
 // support draft-07.
 //
 // axiom:trace work_item=WI-003
-//   spec=specs/003-database.md#4,specs/007-json-schema.md
-//   plan=phase-2/task-1
-//   impl=internal/db/jsonschema/
+//
+//	spec=specs/003-database.md#4,specs/007-json-schema.md
+//	plan=phase-2/task-1
+//	impl=internal/db/jsonschema/
 package jsonschema
 
 import (
@@ -42,8 +43,8 @@ const Draft07Schema = "http://json-schema.org/draft-07/schema#"
 // Validator compiles and validates JSON Schema documents.
 // Compiled schemas are cached for performance.
 type Validator struct {
-	mu       sync.RWMutex
-	schemas  map[string]*jsonschema.Schema // keyed by schema document text
+	mu      sync.RWMutex
+	schemas map[string]*jsonschema.Schema // keyed by schema document text
 }
 
 // New creates a new Validator with an empty cache.

@@ -249,8 +249,8 @@ func TestRegistry_NilDB(t *testing.T) {
 
 func TestTool_NilOwnerSessionID(t *testing.T) {
 	tool := &Tool{
-		Name:            "system_tool",
-		OwnerSessionID:  nil, // system tool — no owner
+		Name:           "system_tool",
+		OwnerSessionID: nil, // system tool — no owner
 	}
 	if tool.OwnerSessionID != nil {
 		t.Error("system tool should have nil owner")

@@ -46,7 +46,7 @@ func (m *mockDB) QueryRow(ctx context.Context, query string, args ...any) (db.Ro
 	return m.queryRow, nil
 }
 func (m *mockDB) Backend() db.Backend { return db.BackendSQLite }
-func (m *mockDB) Close() error { return nil }
+func (m *mockDB) Close() error        { return nil }
 
 func rowOf(kv map[string]any) db.Row {
 	r := make(db.Row, len(kv))
@@ -175,7 +175,7 @@ func TestGetSession(t *testing.T) {
 			"status": "thinking", "goal": "do work",
 			"context_budget": 128000,
 			"tokens_used_in": int64(200), "tokens_used_out": int64(100),
-			"iteration": int64(3),
+			"iteration":  int64(3),
 			"created_at": "2026-01-01T00:00:00Z",
 		}),
 	}
@@ -715,7 +715,7 @@ func TestGetPermission(t *testing.T) {
 			"id": "p1", "session_id": "s1", "request_type": "destructive_tool",
 			"risk_level": "high", "description": "Delete temp_cache",
 			"sql_preview": "DROP TABLE temp_cache",
-			"status": "pending", "decision_reason": "",
+			"status":      "pending", "decision_reason": "",
 			"created_at": "2026-05-04T00:00:00Z",
 		}),
 	}

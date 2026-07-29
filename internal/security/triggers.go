@@ -151,8 +151,8 @@ func EnforceTaskTransition(oldStatus, newStatus string, oldLockedByAgent, newLoc
 
 // PrerequisiteError is returned when a task's prerequisites are not met.
 type PrerequisiteError struct {
-	TaskID      string
-	PrerequisiteIDs []string
+	TaskID           string
+	PrerequisiteIDs  []string
 	UnpublishedCount int
 }
 

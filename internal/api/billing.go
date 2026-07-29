@@ -93,11 +93,11 @@ func (s *Server) handleGetSessionBilling(w http.ResponseWriter, r *http.Request,
 	totalCost = math.Round(totalCost*1e6) / 1e6
 
 	writeJSON(w, map[string]any{
-		"session_id":         id,
-		"total_cost_usd":     totalCost,
-		"total_prompt_tokens": totalPrompt,
+		"session_id":              id,
+		"total_cost_usd":          totalCost,
+		"total_prompt_tokens":     totalPrompt,
 		"total_completion_tokens": totalCompletion,
-		"entries":            billings,
+		"entries":                 billings,
 	})
 }
 

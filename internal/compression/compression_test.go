@@ -53,12 +53,12 @@ func TestDisplayTier_DisplayMode(t *testing.T) {
 func TestNextTier(t *testing.T) {
 	tests := []struct {
 		current DisplayTier
-		want   DisplayTier
+		want    DisplayTier
 	}{
 		{TierRaw, TierCompressed},
 		{TierCompressed, TierAbstract},
 		{TierAbstract, TierCanonical},
-		{TierCanonical, TierCanonical}, // max — stays
+		{TierCanonical, TierCanonical},   // max — stays
 		{DisplayTier(99), TierCanonical}, // invalid — returns max
 	}
 	for _, tt := range tests {
@@ -133,7 +133,7 @@ func TestCompressionResult_String(t *testing.T) {
 
 func TestCompressionSummaryPrompt(t *testing.T) {
 	prompts := []struct {
-		tier DisplayTier
+		tier  DisplayTier
 		check string
 	}{
 		{TierCompressed, "40-60%"},
@@ -170,7 +170,7 @@ func TestCosineThresholdForTier(t *testing.T) {
 		{TierCompressed, 0.85},
 		{TierAbstract, 0.80},
 		{TierCanonical, 0.75},
-		{TierRaw, 0.85}, // default fallback
+		{TierRaw, 0.85},         // default fallback
 		{DisplayTier(99), 0.85}, // default fallback
 	}
 	for _, tt := range tests {

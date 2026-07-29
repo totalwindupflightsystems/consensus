@@ -127,10 +127,10 @@ type StagedCmd struct {
 
 // PlanningConfig controls the interactive planning loop.
 type PlanningConfig struct {
-	MaxTurns          int           `json:"max_turns"`        // max turns before auto-commit (default: 10)
-	Timeout           time.Duration `json:"timeout"`           // max time for entire planning session (default: 60s)
-	MaxRollbacks      int           `json:"max_rollbacks"`     // max rollbacks before forcing failure (default: 3)
-	MaxStagedCommands int           `json:"max_staged_cmds"`   // max commands in staging buffer per iteration (default: 50)
+	MaxTurns          int           `json:"max_turns"`          // max turns before auto-commit (default: 10)
+	Timeout           time.Duration `json:"timeout"`            // max time for entire planning session (default: 60s)
+	MaxRollbacks      int           `json:"max_rollbacks"`      // max rollbacks before forcing failure (default: 3)
+	MaxStagedCommands int           `json:"max_staged_cmds"`    // max commands in staging buffer per iteration (default: 50)
 	AutoCommitOnMax   bool          `json:"auto_commit_on_max"` // auto-commit when max turns hit with staged work
 }
 
@@ -140,8 +140,8 @@ func DefaultPlanningConfig() *PlanningConfig {
 		MaxTurns:          10,
 		Timeout:           180 * time.Second, // Local LLMs (LM Studio, Ollama) need more time than cloud APIs
 		MaxRollbacks:      3,
-		MaxStagedCommands: 50,    // SPEC-020 §11
-		AutoCommitOnMax:   true,  // SPEC-020 §11
+		MaxStagedCommands: 50,   // SPEC-020 §11
+		AutoCommitOnMax:   true, // SPEC-020 §11
 	}
 }
 
@@ -1054,4 +1054,3 @@ func toBoolHelper(v interface{}) bool {
 	}
 	return false
 }
-

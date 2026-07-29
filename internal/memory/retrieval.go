@@ -40,14 +40,14 @@ type RetrievalResult struct {
 // Retriever performs semantic search over memory events using vector embeddings.
 // It requires a database connection and an embedding client.
 type Retriever struct {
-	db     db.DB
+	db       db.DB
 	embedder Embedder
 }
 
 // NewRetriever creates a new semantic retriever.
 func NewRetriever(database db.DB, embedder Embedder) *Retriever {
 	return &Retriever{
-		db:     database,
+		db:       database,
 		embedder: embedder,
 	}
 }

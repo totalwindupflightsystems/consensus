@@ -21,11 +21,11 @@ import (
 
 // ScanResult is the outcome of scanning external data through the cognitive firewall.
 type ScanResult struct {
-	Status         string   `json:"status"`          // "approved" or "rejected"
-	ConfidenceScore float64 `json:"confidence_score"` // 0.0 (clean) to 1.0 (certain malicious)
-	Reason         string   `json:"reason"`           // Human-readable explanation (empty if approved)
-	ScannerVersion string   `json:"scanner_version"`  // Version of the scanner that produced this result
-	MatchedRules   []string `json:"matched_rules,omitempty"` // Which rules triggered (rejected only)
+	Status          string   `json:"status"`                  // "approved" or "rejected"
+	ConfidenceScore float64  `json:"confidence_score"`        // 0.0 (clean) to 1.0 (certain malicious)
+	Reason          string   `json:"reason"`                  // Human-readable explanation (empty if approved)
+	ScannerVersion  string   `json:"scanner_version"`         // Version of the scanner that produced this result
+	MatchedRules    []string `json:"matched_rules,omitempty"` // Which rules triggered (rejected only)
 }
 
 const (
