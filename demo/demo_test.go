@@ -91,7 +91,9 @@ logging:
 	defer cmd.Process.Kill()
 
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", demoPort)
-	if !waitForHealth(serverURL, 15*time.Second) { t.Fatal("not healthy") }
+	if !waitForHealth(serverURL, 15*time.Second) {
+		t.Fatal("not healthy")
+	}
 	fmt.Printf("✓ Server started — admin key: %s...\n", adminKey[:25])
 	fmt.Println("✓ Heartbeat loop active — will auto-process sessions")
 
@@ -168,7 +170,9 @@ logging:
 	}
 	defer cmd2.Process.Kill()
 
-	if !waitForHealth(serverURL, 15*time.Second) { t.Fatal("restart not healthy") }
+	if !waitForHealth(serverURL, 15*time.Second) {
+		t.Fatal("restart not healthy")
+	}
 	fmt.Println("   ✓ Server restarted")
 
 	// Check session survived
@@ -257,7 +261,9 @@ func sendMsg(t *testing.T, url, key, sid, content string) {
 func createSession(t *testing.T, url, key, goal string) string {
 	body := fmt.Sprintf(`{"agent_name":"demo","model_id":"deepseek-chat","goal":"%s"}`, goal)
 	resp := api(t, url, key, "POST", "/api/v1/sessions", body)
-	var r struct{ ID string `json:"id"` }
+	var r struct {
+		ID string `json:"id"`
+	}
 	json.Unmarshal([]byte(resp.Body), &r)
 	if r.ID == "" {
 		t.Fatalf("create session: %d %s", resp.Status, resp.Body)
@@ -289,9 +295,13 @@ func waitForStatus(t *testing.T, url, key, sid string, targets []string, timeout
 		default:
 			s := getSession(t, url, key, sid)
 			status := ""
-			if st, ok := s["status"].(string); ok { status = st }
+			if st, ok := s["status"].(string); ok {
+				status = st
+			}
 			for _, tgt := range targets {
-				if status == tgt { return true }
+				if status == tgt {
+					return true
+				}
 			}
 			time.Sleep(2 * time.Second)
 		}
@@ -301,13 +311,21 @@ func waitForStatus(t *testing.T, url, key, sid string, targets []string, timeout
 func showSessionResult(t *testing.T, url, key, sid, label string) {
 	s := getSession(t, url, key, sid)
 	status := ""
-	if st, ok := s["status"].(string); ok { status = st }
+	if st, ok := s["status"].(string); ok {
+		status = st
+	}
 	iteration := float64(0)
-	if it, ok := s["iteration"].(float64); ok { iteration = it }
+	if it, ok := s["iteration"].(float64); ok {
+		iteration = it
+	}
 	tokensIn := float64(0)
-	if ti, ok := s["tokens_used_in"].(float64); ok { tokensIn = ti }
+	if ti, ok := s["tokens_used_in"].(float64); ok {
+		tokensIn = ti
+	}
 	tokensOut := float64(0)
-	if to, ok := s["tokens_used_out"].(float64); ok { tokensOut = to }
+	if to, ok := s["tokens_used_out"].(float64); ok {
+		tokensOut = to
+	}
 
 	fmt.Printf("   ┌─ %s ─────────────────────────────\n", label)
 	fmt.Printf("   │ Status: %s | Iterations: %.0f | Tokens: %.0f in / %.0f out\n",
@@ -321,25 +339,41 @@ func showSessionResult(t *testing.T, url, key, sid, label string) {
 		// Sort by ID descending (newest first)
 		idi := float64(0)
 		idj := float64(0)
-		if v, ok := mem[i]["id"].(float64); ok { idi = v }
-		if v, ok := mem[j]["id"].(float64); ok { idj = v }
+		if v, ok := mem[i]["id"].(float64); ok {
+			idi = v
+		}
+		if v, ok := mem[j]["id"].(float64); ok {
+			idj = v
+		}
 		return idi > idj
 	})
 
 	shown := 0
 	for _, evt := range mem {
-		if shown >= 5 { break }
+		if shown >= 5 {
+			break
+		}
 		etype := ""
-		if t, ok := evt["type"].(string); ok { etype = t }
+		if t, ok := evt["type"].(string); ok {
+			etype = t
+		}
 		content := ""
-		if c, ok := evt["content"].(string); ok { content = c }
-		if etype == "thinking" || etype == "system" { continue } // skip noise
+		if c, ok := evt["content"].(string); ok {
+			content = c
+		}
+		if etype == "thinking" || etype == "system" {
+			continue
+		} // skip noise
 		prefix := "  "
 		switch etype {
-		case "tool_call": prefix = "  🔧"
-		case "tool_result": prefix = "  📊"
-		case "text_block": prefix = "  💬"
-		default: prefix = "   "
+		case "tool_call":
+			prefix = "  🔧"
+		case "tool_result":
+			prefix = "  📊"
+		case "text_block":
+			prefix = "  💬"
+		default:
+			prefix = "   "
 		}
 		fmt.Printf("%s [%s] %s\n", prefix, etype, truncate(content, 80))
 		shown++
@@ -351,17 +385,26 @@ func showSessionResult(t *testing.T, url, key, sid, label string) {
 // HTTP helpers
 // ============================================================================
 
-type apiResp struct{ Status int; Body string }
+type apiResp struct {
+	Status int
+	Body   string
+}
 
 func api(t *testing.T, url, key, method, path, body string) apiResp {
 	t.Helper()
 	var r io.Reader
-	if body != "" { r = strings.NewReader(body) }
+	if body != "" {
+		r = strings.NewReader(body)
+	}
 	req, _ := http.NewRequest(method, url+path, r)
-	if key != "" { req.Header.Set("Authorization", "Bearer "+key) }
+	if key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil { t.Fatalf("%s %s: %v", method, path, err) }
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	return apiResp{resp.StatusCode, string(b)}
@@ -371,7 +414,8 @@ func waitForHealth(url string, timeout time.Duration) bool {
 	deadline := time.After(timeout)
 	for {
 		select {
-		case <-deadline: return false
+		case <-deadline:
+			return false
 		default:
 			resp, err := http.Get(url + "/api/v1/health")
 			if err == nil && resp.StatusCode == 200 {
@@ -384,7 +428,9 @@ func waitForHealth(url string, timeout time.Duration) bool {
 }
 
 func truncate(s string, n int) string {
-	if len(s) <= n { return s }
+	if len(s) <= n {
+		return s
+	}
 	return s[:n] + "..."
 }
 
@@ -395,7 +441,9 @@ func findProjectRoot() (string, error) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
-		if parent == dir { return "", fmt.Errorf("go.mod not found") }
+		if parent == dir {
+			return "", fmt.Errorf("go.mod not found")
+		}
 		dir = parent
 	}
 }
