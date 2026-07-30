@@ -353,3 +353,31 @@
 **Verdict:** IDLE — board empty except NEVER-DONE/E2E-001, all GitReins tasks synced, E2E pipeline confirmed (except env-dependent LLM auth). CONFIG-ENV-BUG code fix verified working — the ${DEEPSEEK_API_KEY} env var placeholder is correctly detected by HasPrefix check.
 **Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active.
 **E2E:** Partial smoke test confirms pipeline integrity. Full bunker round-trip requires agent re-deployment with DEEPSEEK_API_KEY env var.
+
+
+### Tick #52 — 2026-07-30 05:08 UTC (DeepSeek V4 Pro)
+
+| # | Gate | Result | Detail |
+|---|------|--------|--------|
+| 0 | Scheduler | ✅ 43200s | CooldownS=43200 (12h), Enabled=True, updated 2026-07-24. Matches board claim — no drift. |
+| 1 | Git status | ✅ CLEAN | Only .coding-hermes/tasks.md modified by this tick + 3 new docs. |
+| 2 | Build | ✅ | CGO_ENABLED=0 go build ./cmd/consensus PASS |
+| 3 | Vet | ✅ | go vet ./... clean |
+| 4 | gofmt | ✅ | cmd/ internal/ pkg/ — 0 unformatted files |
+| 5 | Tests | ⚠️ 34/35 pkgs | chronicle FullContract_InstanceVCS: 4 failures (C19: /instance/* → 404 not 200, C20: /project/:id → 401 not 404). Pre-existing VCS stub routing mismatch — unchanged since tick #41. harness: 34.8s (previously timed out at 66s, now passing). All other pkgs PASS. |
+| 6 | TODO/FIXME | ✅ | Zero in non-test .go files |
+| 7 | Hilo | ✅ 1187 edges, 187 files | Useful — unchanged for 15+ consecutive ticks |
+| 8 | GitReins guard | ✅ | All guards PASS (no staged Go files). 22/22 tasks COMPLETE — zero drift. |
+| 9 | GitReins judge | ✅ | deepseek-v4-flash, caps 100/30m/0.5M/0.5M |
+| 10 | DuckBrain | ✅ | ~50 entries in consensus namespace: 32 /project/consensus (29 events), 6 /findings/consensus, 12 /knowledge/synthesis. Write path functional. |
+| 11 | Deps | ⚠️ 19 outdated | Same minor bumps: go-md2man, pty, pprof, pretty, go-isatty, go-internal, pflag, objx, yaml/v3, mod, sync, sys, text, tools, cc/v4, gc/v3, libc, sqlite, blackfriday/v2 |
+| 12 | Docs & Security | ✅ 12/12 FIXED | `ls`-verified: all 12 files exist. 3 created this tick: NOTICE, GOVERNANCE.md, TRADEMARK_POLICY.md (foreman-direct fix — gap from 12-file checklist upgrade). .env gitignored, gitleaks clean. |
+| 13 | Middle-out | ✅ | 623-line main.go, 35 route registrations, 41 handler patterns — healthy |
+| 14 | Stubs | ⚠️ 5 NOT_IMPLEMENTED | opencode shim: /instance/*, MCP management, TUI control, files, permissions, questions (expected WIP) |
+| 15 | E2E-001 | ⏳ DEFERRED | Last partial smoke test tick #49 (LLM auth blocked — env var). Bunker agent not currently reachable. Pipeline works except LLM auth (environment, not code). Full bunker round-trip needs agent re-deployment with DEEPSEEK_API_KEY. |
+
+**Host:** load 2.81, mem ~45GB avail, disk ~230G free
+**Commit:** 3 governance docs created (NOTICE, GOVERNANCE.md, TRADEMARK_POLICY.md) — 12/12 docs now present
+**Verdict:** IDLE — board empty except NEVER-DONE/E2E-001. All gates green except pre-existing chronicle VCS (15+ ticks stable). 3 doc gaps fixed (12-file checklist compliance). All GitReins tasks synced.
+**Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active.
+**E2E:** Bunker agent re-deployment needed for full round-trip verification. Pipeline confirmed working except LLM auth (environment-dependent).
