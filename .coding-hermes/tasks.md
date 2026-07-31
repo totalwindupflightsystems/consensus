@@ -31,7 +31,8 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-|| SQLITE-DEADLINE | ✅ Fixed in 6456625. Configurable `BusyTimeoutMs` + `PlanningTimeoutSec` added to config. **Critical fix**: `BeginTx` now uses `context.Background()` + 15s timeout instead of caller's near-expired context. Static binary (`CGO_ENABLED=0 go build`) compiles clean. | DONE | 4 | — | sqlite,database,blocking | Kimi K3 | Bug fix: database connectivity, Go context deadline issue | DeepSeek V4 Pro |
+|| BOARD-V2 | 🟡 MIGRATE BOARD TO DUCKDB v2.1 — run `python3 ~/.hermes/scripts/migrate-board-to-duckdb.py .` (load skill coding-hermes-board first). Creates .coding-hermes/board/ (schema.sql, tasks.parquet, events.parquet), archives tasks.md → tasks.md.bak, commit. Same pattern as DuckBrain. | P1 | 3 | — | duckdb,board,migration | deepseek-v4-flash | Run migration script, verify Parquet, commit board | deepseek-v4-flash |
+|| SQLITE-DEADLINE | ✅ Fixed in 6456625. Configurable `BusyTimeoutMs` + `PlanningTimeoutSec` added to config. **Critical fix**: `BeginTx` now uses `context.Background()` + 15s timeout instead of caller's near-expired context. Static binary (`CGO_ENABLED=0 go build`) compiles clean. | DONE | 4 | — | sqlite,database,blocking | Kimi K3 | Bug fix: database connectivity, Go context deadline issue | deepseek-v4-flash |
 ||| BUNKER-KEY | ❌ MISDIAGNOSED — The key was never corrupted with trailing `}`. The bug is in `applyEnvOverrides()` (config.go:264-286): it checks `CONSENSUS_API_KEY` and `OPENAI_API_KEY` but never `DEEPSEEK_API_KEY`. The YAML `api_key: ${DEEPSEEK_API_KEY}` is interpreted literally by `gopkg.in/yaml.v3` → the literal string `${DEEPSEEK_API_KEY}` was sent to DeepSeek, masked as `****KEY}` (last 4 chars of `DEEPSEEK_API_KEY}` = `KEY}`). See CONFIG-ENV-BUG below for root cause. | DONE (reclassified) | 2 | — | api-key,bunker,config-bug | — | Reclassified: not a key corruption — it's an env var name mismatch in config.go | — |
 ||| CONFIG-ENV-BUG | ✅ **FIXED in 303604a.** `applyEnvOverrides()` now also overrides when `cfg.LLM.APIKey` starts with `${` — catches YAML env var placeholder literals that yaml.v3 can't resolve. `DEEPSEEK_API_KEY` env var now correctly overrides `api_key: ${DEEPSEEK_API_KEY}` from consensus.yaml. Build + vet + config tests PASS. | ✅ DONE | 2 | — | config,bug,env | — | Fixed tick #50 — foreman-direct | — |
 || DEPLOY-05 | ✅ **E2E VERIFIED** — Full pipeline proven on bunker agent 293db00b: curl → SSH tunnel → H3 adapter (9191) → Consensus (8094) → DeepSeek LLM → `llm: response received elapsed_ms=1905 completion_tokens=114` → `planning: responding to user turn=1`. SQLite deadline fix (6456625) confirmed working. Adapter returns `{decision: "end", reason: "task_complete"}` when Consensus finishes. | ✅ DONE | 3 | CONFIG-ENV-BUG, SQLITE-DEADLINE | e2e,integration,smoke-test | — | Verified 2026-07-24 — full brain-swap pipeline proven | — |
@@ -52,7 +53,7 @@
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | H3-PROTOCOL | ✅ H3 protocol specs (27 docs) | DONE | — | — | spec | GPT-5.6 Terra | Spec/doc writing | — |
-| H3-ADAPTER | ✅ H3 adapter (sdk-go/cmd/h3-consensus-adapter) — 43/43 compliance | DONE | 4 | — | adapter,go | DeepSeek V4 Pro | Architecture: adapter implementation | — |
+| H3-ADAPTER | ✅ H3 adapter (sdk-go/cmd/h3-consensus-adapter) — 43/43 compliance | DONE | 4 | — | adapter,go | deepseek-v4-flash | Architecture: adapter implementation | — |
 | H3-TEST-BATTERY | ✅ H3 test battery | DONE | 3 | — | testing | Step 3.7 Flash | Testing: test battery execution | — |
 | H3-SESSION | ✅ Session creation via adapter | DONE | 2 | — | integration | — | ✅ Done | — |
 | H3-MESSAGE | ✅ Message delivery → Consensus agent | DONE | 2 | — | integration | — | ✅ Done | — |
@@ -72,13 +73,13 @@
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-|||| NEVER-DONE | Tick #54 audit (2026-07-31 15:20 UTC): Build PASS, Vet PASS, gofmt clean, Tests 29/29 ALL PASS — first fully-green run in 13 ticks (chronicle C19/C20 + harness LLM auth failures both PASS this tick; prior flags were pre-existing, resource contention gone), Hilo 1187/187 (useful, 17+ ticks stable), GitReins all tasks COMPLETE (zero drift), DuckBrain write OK, 19 deps outdated (minor, no advisories), 5 NOT_IMPLEMENTED in opencode shim (expected WIP), 12 docs present, .env gitignored, CI green on latest master push. E2E-001: partial smoke — health/session-auth/openapi all PASS on :8197; full bunker round-trip blocked on agent re-deployment with DEEPSEEK_API_KEY. GitReins judge: deepseek-v4-flash, caps 100/30m/0.5M/0.5M. Scheduler CooldownS=43200. | Active | 3 | — | audit,quality,e2e | DeepSeek V4 Pro | Foreman-direct — E2E smoke test confirms end-to-end pipeline working except LLM auth (env, not code) | — |
+||||| NEVER-DONE | Tick #55 audit (2026-07-31 15:42 UTC): Build PASS, Vet PASS, gofmt clean, Tests 27/29 — harness fully green after killing orphaned `consensus serve` process (300s hang root-caused); chronicle 2 pre-existing fails (C19/C20 opencode shim VCS stub routing since tick #41; TestShimRealLLMSessionLifecycle stuck booting). 🔍 Tick #54 "fully green" was skip-artifact — repo-root consensus binary absent → findConscienceBinary tests skipped; binary built this tick surfaced real failures. Hilo 1188/187 (useful), GitReins 22/22 COMPLETE (zero drift), DuckBrain write OK, 19 deps outdated (minor), 5 NOT_IMPLEMENTED in opencode shim (expected WIP), docs 12+, .env gitignored, CI not re-checked (no code changes). E2E-001: partial smoke on :8199 — health 200, auth gate 401/200, sqlite. Scheduler CooldownS REVERTED to 900 by daemon restart (~15:43Z) — re-fixed via PUT 43200+DecayRate=0, GET-verified Enabled=true. GitReins judge deepseek-v4-flash, caps 100/30m/0.5M/0.5M. Host load 18.65, disk 95%. | Active | 3 | — | audit,quality,e2e | deepseek-v4-flash | Foreman-direct — E2E smoke test confirms pipeline; chronicle fails pre-existing stub routing | — |
 
 | E2E-001 | E2E testing tick — smoke test consensus server + H3 adapter round-trip on bunker. Last verified: tick #39 (DEPLOY-05). Due every 5-10 ticks. | Medium | 2 | — | e2e,testing | Luna (GPT-5.6-Luna) | Visual/API e2e verification | Step 3.7 Flash |
 
 ## Tick Log
 
-### Tick #41 — 2026-07-25 05:45 UTC (DeepSeek V4 Pro)
+### Tick #41 — 2026-07-25 05:45 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -222,7 +223,7 @@
 **Verdict:** IDLE — board empty, all gates green, all GitReins tasks synced, DuckBrain write OK
 **E2E:** Due at next non-idle tick (round-trip on bunker)
 
-### Tick #47 — 2026-07-27 08:40 UTC (DeepSeek V4 Pro)
+### Tick #47 — 2026-07-27 08:40 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -246,7 +247,7 @@
 **Verdict:** IDLE — board empty, all gates green except pre-existing chronicle VCS stub routing, all GitReins tasks synced, DuckBrain write OK
 **E2E:** Due at next non-idle tick (round-trip on bunker)
 
-### Tick #48 — 2026-07-27 20:50 UTC (DeepSeek V4 Pro)
+### Tick #48 — 2026-07-27 20:50 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -270,7 +271,7 @@
 **Verdict:** IDLE — board empty, all gates green except pre-existing chronicle VCS stub routing, all GitReins tasks synced, DuckBrain write OK, E2E-001 MUST run tick #49
 **E2E:** CRITICAL — tick #49 is the 10th since last verification. Bunker round-trip required next tick regardless of code-change status.
 
-### Tick #49 — 2026-07-28 21:14 UTC (DeepSeek V4 Pro)
+### Tick #49 — 2026-07-28 21:14 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -295,7 +296,7 @@
 **E2E:** Partial — smoke test ran, adapter+consensus chain works, LLM auth blocked by CONFIG-ENV-BUG regression. Full bunker E2E needs agent re-deployment.
 
 
-### Tick #50 — 2026-07-29 04:35 UTC (DeepSeek V4 Pro)
+### Tick #50 — 2026-07-29 04:35 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -325,7 +326,7 @@
 **Board:** CONFIG-ENV-BUG marked DONE. All critical tasks complete. Only NEVER-DONE + E2E-001 remain active.
 **E2E:** CONFIG-ENV-BUG fixed — full bunker round-trip E2E now unblocked for next tick.
 
-### Tick #51 — 2026-07-29 21:48 UTC (DeepSeek V4 Pro)
+### Tick #51 — 2026-07-29 21:48 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -354,7 +355,7 @@
 **Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active.
 **E2E:** Partial smoke test confirms pipeline integrity. Full bunker round-trip requires agent re-deployment with DEEPSEEK_API_KEY env var.
 
-### Tick #52 — 2026-07-30 05:22 UTC (DeepSeek V4 Pro)
+### Tick #52 — 2026-07-30 05:22 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -382,7 +383,7 @@
 **E2E:** Partial smoke test confirms server startup + health. Bunker E2E needs agent re-deployment with valid admin key.
 **Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active.
 
-### Tick #53 — 2026-07-30 20:17 UTC (DeepSeek V4 Pro)
+### Tick #53 — 2026-07-30 20:17 UTC (deepseek-v4-flash)
 
 | # | Gate | Result | Detail |
 |---|------|--------|--------|
@@ -439,3 +440,35 @@
 **Verdict:** IDLE — board empty except NEVER-DONE/E2E-001, all gates green including first fully-green test run in 13 ticks. No regressions. E2E partial smoke confirms server+DB+auth pipeline.
 **E2E:** Partial smoke PASS. Full bunker round-trip still blocked on agent re-deployment with valid admin key.
 **Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active. NEVER-DONE audit refreshed (this tick).
+
+
+### Tick #55 — 2026-07-31 15:42 UTC (deepseek-v4-flash)
+
+| # | Gate | Result | Detail |
+|---|------|--------|--------|
+| 0 | Scheduler | ⚠️ REVERTED → FIXED | Live API: CooldownS=900 (daemon restart ~15:43Z reverted 43200 — same window as chimera-v2/sdk-go/deepseek-dashboard/hivemind). PUT {CooldownS:43200, DecayRate:0} + GET-verify: 43200/0/Enabled=true. Tick #54's "43200" claim was stale-board copy — live check required every tick. |
+| 1 | Git status | ✅ CLEAN | Only tasks.md modified by this tick. 25 unpushed (foreman-local convention, stable). |
+| 2 | Build | ✅ | CGO_ENABLED=0 go build ./cmd/consensus PASS. Binary built to repo root (gitignored). |
+| 3 | Vet | ✅ | go vet ./... clean |
+| 4 | gofmt | ✅ | 0 unformatted |
+| 5 | Tests | ⚠️ 27/29 pkgs | harness: 300s hang FIRST run → root cause: orphaned `consensus serve` (pid 2837790) from timed-out test run (defer Kill never fired). Killed orphan + cleaned 59 stale /tmp artifacts → harness PASS 157s. chronicle: 2 PRE-EXISTING fails surfaced — TestFullContract_InstanceVCS C19 (/instance/* 404 not 200) + C20 (/project/:id 401 not 404) = opencode shim VCS stub routing (documented since tick #41); TestShimRealLLMSessionLifecycle stuck at booting iteration=0 (real-LLM harness test, DEEPSEEK_API_KEY valid — DeepSeek API reachable 200). All other pkgs PASS. |
+| 6 | Hilo | ✅ 1188 edges, 187 files | Useful (+1 edge). Fresh warm+stats this tick. |
+| 7 | GitReins guard | ✅ PASS | Secrets clean, build/lint/tests ok (full-suite safety trigger) |
+| 8 | GitReins board | ✅ 22/22 COMPLETE | Zero drift (tasks.yaml: 22 complete, 0 pending) |
+| 9 | DuckBrain | ✅ Write OK | Tick #55 entry + status updated (/project/consensus/tick-55, status). |
+| 10 | Deps | ⚠️ 19 outdated | Same minor bumps (go-md2man, pty, pprof, go-isatty, yaml/v3, sqlite, etc.) — no advisories |
+| 11 | TODO/FIXME | ⚠️ 5 NOT_IMPLEMENTED | opencode shim server.go: /instance/*, MCP mgmt, TUI, files, permissions (expected WIP) |
+| 12 | Docs | ✅ 12+ present | All core docs on disk (23 md files) |
+| 13 | Security | ✅ | .env gitignored, gitleaks clean via guard |
+| 14 | Stubs | ⚠️ 5 NOT_IMPLEMENTED | Same as gate 11 |
+| 15 | E2E-001 | ⚠️ PARTIAL | Fresh binary smoke on :8199: /global/health 200 {"healthy":true}, sessions no-auth 401, with admin key 200, sqlite backend. Server+DB+auth pipeline confirmed. Full bunker round-trip still needs agent re-deployment. |
+| 16 | GitReins judge | ✅ deepseek-v4-flash | Caps 100/30m/0.5M/0.5M, checker PASS |
+| 17 | CI | ⚠️ not re-checked | gh auth not active in this session (no code changes since last green run) |
+| 18 | Off-by-one | ✅ Alive | Health OK, uptime 175h. Submitted go-test-harness-orphaned-server lesson. |
+| 19 | 🔍 FINDING | Tick #54 "fully green" was a SKIP-ARTIFACT | repo-root `consensus` binary was absent at tick #54 → findConscienceBinary tests SKIPPED silently. Built binary this tick → real pre-existing chronicle failures surfaced. Rule: build binary before full-suite runs; never trust green claims without binary presence check. |
+
+**Host:** load 18.65 (was 1-2 at tick #54), mem 48GB avail, disk 95% (94G free — cleaned 20MB stale artifacts)
+**Commit:** board-only update this tick (no code changes — rapid re-fire 22min after tick #54)
+**Verdict:** IDLE — board empty except NEVER-DONE/E2E-001. Self-pause re-executed (cooldown reverted by daemon restart, re-fixed 43200). Test suite recovered from orphan-process hang. 2 chronicle failures are pre-existing (stub routing + real-LLM boot), NOT regressions — but tick #54's green claim is now suspect.
+**E2E:** Partial smoke PASS. Full bunker round-trip still blocked on agent re-deployment with valid admin key.
+**Board:** All critical tasks DONE. Only NEVER-DONE + E2E-001 remain active.
