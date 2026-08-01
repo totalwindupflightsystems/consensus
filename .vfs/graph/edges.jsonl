@@ -1291,3 +1291,5 @@
 {"from":"pkg/client/client_test.go","to":"pkg/client/client.go","rel":"tested_by","provenance":"heuristic","confidence":0.8}
 {"from":"pkg/client/types_test.go","to":"pkg/client/types.go","rel":"tested_by","provenance":"heuristic","confidence":0.8}
 {"from":"pkg/client/client.go","to":"pkg/client/client_test.go","rel":"tests","provenance":"heuristic","confidence":0.8}
+{"from":"internal/chronicle/shim_real_llm_test.go","to":"std:bufio","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"internal/shim/opencode/server_test.go","to":"std:io","rel":"imports","provenance":"ast_exact","confidence":1.0}
