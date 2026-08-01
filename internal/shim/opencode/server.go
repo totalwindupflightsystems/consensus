@@ -304,6 +304,18 @@ func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	ctx := r.Context()
 
+	// SSE contract: flush 200 + headers immediately on connect so a client
+	// that subscribes with no pending events still receives response headers
+	// right away instead of hanging. (SHIM-EVENT-001)
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	// Historical replay: emit stored memory_events for the session before
+	// entering the live wait loop, so late subscribers (e.g. a client that
+	// connects after the session reached idle) see the session's history
+	// instead of an empty stream. (SHIM-EVENT-001)
+	s.replaySessionEvents(ctx, w, flusher, sessionID)
+
 	if s.events != nil {
 		// Real event bus — subscribe and translate events
 		ch := make(chan map[string]any, 64)
@@ -350,6 +362,64 @@ func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 			}
 		}
+	}
+}
+
+// replaySessionEvents emits the session's stored memory_events as SSE frames
+// (event: <type>\ndata: <json>\n\n) so a late subscriber sees history before
+// the live wait loop begins. The most recent ~50 events are replayed ordered
+// by id ASC (oldest first) to preserve chronological order. When sessionID is
+// empty the most recent global events are replayed instead.
+func (s *Server) replaySessionEvents(ctx context.Context, w http.ResponseWriter, flusher http.Flusher, sessionID string) {
+	if s.db == nil {
+		return
+	}
+	query := `SELECT me.id, me.type, me.content, me.session_id, me.iteration_created, me.created_at
+	          FROM memory_events me`
+	args := []any{}
+	if sessionID != "" {
+		query += ` WHERE me.session_id = $1`
+		args = append(args, sessionID)
+	}
+	// Most recent ~50 events, replayed oldest-first.
+	query += ` ORDER BY me.id DESC LIMIT 50`
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		slog.Warn("opencode-shim: failed to replay session events", "session_id", sessionID, "error", err)
+		return
+	}
+
+	for i := len(rows) - 1; i >= 0; i-- {
+		row := rows[i]
+		rawType := toString(row["type"])
+		content := toString(row["content"])
+		evt := s.translateConscienceEvent(sessionID, "message_created", map[string]any{
+			"content": content,
+		})
+		if evt == nil {
+			evt = map[string]any{
+				"type":       "message.created",
+				"session_id": sessionID,
+				"properties": map[string]any{
+					"sessionID": sessionID,
+				},
+				"timestamp": time.Now().Format(time.RFC3339),
+			}
+		}
+		// Keep the raw memory event type + content so consumers can inspect
+		// the original event (matches listMessages semantics).
+		evt["event_type"] = rawType
+		evt["content"] = content
+		evt["id"] = toInt64(row["id"])
+		if ts := toString(row["created_at"]); ts != "" {
+			evt["timestamp"] = ts
+		}
+
+		data, _ := json.Marshal(evt)
+		eventType := toString(evt["type"])
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
+		flusher.Flush()
 	}
 }
 

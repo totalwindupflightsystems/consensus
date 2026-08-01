@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1049,11 +1050,90 @@ func TestVCSEndpointReturns501(t *testing.T) {
 }
 
 // ============================================================================
-// handleGlobalEvent Tests (SSE blocks in test — skip for now)
+// handleGlobalEvent Tests (SSE)
 // ============================================================================
 
-func TestGlobalEventEndpoint_GET(t *testing.T) {
-	t.Skip("SSE handler blocks in test environment")
+// TestGlobalEventEndpoint_SSE_FlushesAndReplays proves the SSE contract:
+// (1) 200 + headers flush immediately on connect, and (2) stored
+// memory_events for the session are replayed as frames for late subscribers.
+// The handler streams forever, so the request runs under a 2s context and
+// the buffered bytes are parsed as SSE frames.
+func TestGlobalEventEndpoint_SSE_FlushesAndReplays(t *testing.T) {
+	mdb := &mockDB{
+		queryResults: []db.Row{
+			rowOf(map[string]any{"id": int64(1), "type": "user_message", "content": "hello world", "session_id": "sess-1", "iteration_created": int64(1), "created_at": "2026-08-01T00:00:00Z"}),
+			rowOf(map[string]any{"id": int64(2), "type": "assistant_message", "content": "hi there", "session_id": "sess-1", "iteration_created": int64(1), "created_at": "2026-08-01T00:00:01Z"}),
+		},
+	}
+	s := &Server{db: mdb}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.handleGlobalEvent(w, r)
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/global/event?session_id=sess-1", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /global/event: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("expected Content-Type text/event-stream, got %q", ct)
+	}
+
+	// Read until the 2s context cancels the stream; parse what arrived.
+	body, _ := io.ReadAll(resp.Body)
+	text := string(body)
+	t.Logf("SSE body (%d bytes):\n%s", len(body), text)
+
+	if !strings.Contains(text, "event: message.created") {
+		t.Fatalf("expected replayed message.created frames, got:\n%s", text)
+	}
+	if !strings.Contains(text, "hello world") || !strings.Contains(text, "hi there") {
+		t.Errorf("expected replayed content 'hello world' and 'hi there', got:\n%s", text)
+	}
+	if !strings.Contains(text, "event_type") {
+		t.Errorf("expected raw event_type in replayed frames, got:\n%s", text)
+	}
+}
+
+// TestGlobalEventEndpoint_SSE_EmptySession_ReplaysGlobal proves the
+// session_id-less case replays recent global events (test step 7 calls
+// /event without a session_id).
+func TestGlobalEventEndpoint_SSE_EmptySession_ReplaysGlobal(t *testing.T) {
+	mdb := &mockDB{
+		queryResults: []db.Row{
+			rowOf(map[string]any{"id": int64(1), "type": "user_message", "content": "global hello", "session_id": "sess-9", "iteration_created": int64(1), "created_at": "2026-08-01T00:00:00Z"}),
+		},
+	}
+	s := &Server{db: mdb}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.handleGlobalEvent(w, r)
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/global/event", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /global/event: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "global hello") {
+		t.Errorf("expected global event replay, got:\n%s", string(body))
+	}
 }
 
 // ============================================================================

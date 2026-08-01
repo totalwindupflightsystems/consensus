@@ -6,6 +6,7 @@
 package chronicle
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -289,9 +290,13 @@ func waitForShimSessionIdle(t *testing.T, client *http.Client, apiBase, sessionI
 	return false
 }
 
-// shimListEvents GETs the OpenCode shim /event endpoint and returns the raw
-// event list. The shim returns events as a JSON array (or under an "events"
-// key — handle both shapes defensively).
+// shimListEvents GETs the OpenCode shim /event endpoint and returns the
+// event list. The shim streams text/event-stream frames (event:/data:
+// blocks), which never EOF — so this helper parses frames with a bounded
+// idle deadline (5s of no new data) instead of io.ReadAll. Each frame
+// becomes {"type": <event type>, ...unmarshaled data JSON...}. Defensive
+// JSON array/wrapped shape parsing is kept as a fallback for non-SSE
+// responses.
 func shimListEvents(t *testing.T, client *http.Client, apiBase, adminKey string) []map[string]any {
 	t.Helper()
 	req, _ := http.NewRequest(http.MethodGet, apiBase+"/event", nil)
@@ -301,12 +306,25 @@ func shimListEvents(t *testing.T, client *http.Client, apiBase, adminKey string)
 		t.Fatalf("GET /event: %v", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("GET /event returned %d: %s", resp.StatusCode, body)
 	}
 
-	// Try array shape first, then wrapped shape.
+	// SSE: parse event:/data: frames with a bounded idle deadline.
+	const sseIdleTimeout = 5 * time.Second
+	events, rawBody := readSSEFrames(t, resp.Body, sseIdleTimeout)
+	if len(events) > 0 {
+		t.Logf("/event returned %d events (SSE frames)", len(events))
+		return events
+	}
+
+	// Defensive fallback: non-SSE JSON array/wrapped shapes. rawBody holds
+	// whatever bytes the frame reader saw before the stream went quiet.
+	body := rawBody
+	if len(body) == 0 {
+		body, _ = io.ReadAll(resp.Body) // bounded by client Timeout
+	}
 	var arr []map[string]any
 	if err := json.Unmarshal(body, &arr); err == nil {
 		t.Logf("/event returned %d events (array shape)", len(arr))
@@ -325,8 +343,101 @@ func shimListEvents(t *testing.T, client *http.Client, apiBase, adminKey string)
 			return out
 		}
 	}
-	t.Logf("WARNING: /event body did not match array or wrapped shape: %s", string(body)[:min(200, len(body))])
+	t.Logf("WARNING: /event body did not match SSE, array or wrapped shape: %s", string(body)[:min(200, len(body))])
 	return nil
+}
+
+// readSSEFrames parses a text/event-stream into event maps. Lines starting
+// with "event:" set the frame type; "data:" lines accumulate the JSON
+// payload; a blank line terminates a frame. Returns each frame as a map with
+// "type" set from the event: line and the decoded data JSON merged in.
+// Reading stops after idle of no new data (the live stream never EOFs). The
+// raw bytes seen are returned too, so callers can fall back to JSON parsing
+// for non-SSE bodies.
+func readSSEFrames(t *testing.T, r io.Reader, idle time.Duration) ([]map[string]any, []byte) {
+	t.Helper()
+	dr := &deadlineReader{r: r, idle: idle}
+	br := bufio.NewReader(dr)
+	var (
+		events  []map[string]any
+		raw     []byte
+		evType  string
+		dataLns []string
+	)
+	flushFrame := func() {
+		if len(dataLns) == 0 && evType == "" {
+			return
+		}
+		m := map[string]any{}
+		if evType != "" {
+			m["type"] = evType
+		}
+		payload := strings.Join(dataLns, "\n")
+		if payload != "" {
+			var decoded any
+			if err := json.Unmarshal([]byte(payload), &decoded); err == nil {
+				if dm, ok := decoded.(map[string]any); ok {
+					for k, v := range dm {
+						m[k] = v
+					}
+				} else {
+					m["data"] = decoded
+				}
+			} else {
+				m["data"] = payload
+			}
+		}
+		events = append(events, m)
+		evType = ""
+		dataLns = nil
+	}
+	for {
+		line, err := br.ReadString('\n')
+		raw = append(raw, line...)
+		if err != nil {
+			// Idle timeout or EOF — finalize any partial frame and return.
+			flushFrame()
+			return events, raw
+		}
+		trimmed := strings.TrimRight(line, "\r\n")
+		switch {
+		case strings.HasPrefix(trimmed, "event:"):
+			evType = strings.TrimSpace(strings.TrimPrefix(trimmed, "event:"))
+		case strings.HasPrefix(trimmed, "data:"):
+			dataLns = append(dataLns, strings.TrimPrefix(trimmed, "data:"))
+		case trimmed == "":
+			flushFrame()
+		}
+	}
+}
+
+// deadlineReader wraps an io.Reader so a Read that produces no data within
+// idle returns os.ErrDeadlineExceeded — used to bound reads from an SSE
+// stream that never EOFs. (Goroutine-per-read; acceptable in a test helper,
+// and the deferred resp.Body.Close() unblocks it.)
+type deadlineReader struct {
+	r    io.Reader
+	idle time.Duration
+}
+
+func (d *deadlineReader) Read(p []byte) (int, error) {
+	ch := make(chan struct {
+		n   int
+		err error
+	}, 1)
+	go func() {
+		n, err := d.r.Read(p)
+		ch <- struct {
+			n   int
+			err error
+		}{n, err}
+	}()
+	select {
+	case res := <-ch:
+		return res.n, res.err
+	case <-time.After(d.idle):
+		return 0, os.ErrDeadlineExceeded
+	}
 }
 
 // ── Tiny utilities ────────────────────────────────────────────────────
