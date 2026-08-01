@@ -550,10 +550,14 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		dbTables = toInt(rows[0]["cnt"])
 	}
 
-	// Migration count
+	// Migration count + schema version (table is schema_versions, not migrations)
 	dbMigrations := 0
-	if rows, qErr := s.admindb.Query(ctx, "SELECT count(*) AS cnt FROM migrations"); qErr == nil && len(rows) > 0 {
+	schemaVersion := 0
+	if rows, qErr := s.admindb.Query(ctx, "SELECT count(*) AS cnt FROM schema_versions"); qErr == nil && len(rows) > 0 {
 		dbMigrations = toInt(rows[0]["cnt"])
+	}
+	if rows, qErr := s.admindb.Query(ctx, "SELECT COALESCE(MAX(version), 0) AS v FROM schema_versions"); qErr == nil && len(rows) > 0 {
+		schemaVersion = toInt(rows[0]["v"])
 	}
 
 	writeJSON(w, HealthResponse{
@@ -569,6 +573,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		DBSizeMB:      dbSizeMB,
 		DBTables:      dbTables,
 		DBMigrations:  dbMigrations,
+		SchemaVersion: schemaVersion,
 		ActiveConnections: ActiveConnections{
 			WebSocket:          0,
 			DBPoolActive:       0,

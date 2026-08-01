@@ -365,8 +365,10 @@ func runServer() {
 	slog.Info("consensus: starting", "addr", addrString(cfg.Server), "backend", backend)
 
 	// Start API server (which now serves both API and MCP routes)
+	// Use StartContext so SIGTERM/SIGINT triggers a graceful drain
+	// (5s grace for in-flight requests) instead of killing them.
 	go func() {
-		if err := apiSrv.Start(); err != nil {
+		if err := apiSrv.StartContext(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "consensus: %v\n", err)
 			cancel()
 		}

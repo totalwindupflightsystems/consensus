@@ -36,6 +36,9 @@ func newStatusCmd() *cobra.Command {
 			if v, ok := health["version"]; ok {
 				result["version"] = v
 			}
+			if v, ok := health["schema_version"]; ok {
+				result["schema_version"] = v
+			}
 
 			if metrics != nil {
 				result["active_sessions"] = metrics["active_sessions"]

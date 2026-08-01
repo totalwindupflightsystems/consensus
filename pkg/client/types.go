@@ -218,6 +218,7 @@ type HealthResponse struct {
 	DBSizeMB          float64           `json:"db_size_mb"`
 	DBTables          int               `json:"db_tables"`
 	DBMigrations      int               `json:"db_migrations"`
+	SchemaVersion     int               `json:"schema_version"`
 	ActiveConnections ActiveConnections `json:"active_connections"`
 	SystemLog         []string          `json:"system_log"`
 }

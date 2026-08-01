@@ -63,6 +63,10 @@ type HarnessConfig struct {
 	// model runs slow (>170s), increase this or see BusyTimeoutMs.
 	// Default: 180 (3 minutes). Local LLMs like LM Studio may need 300+.
 	PlanningTimeoutSec int `yaml:"planning_timeout_seconds"`
+	// TransactionTimeoutMs is the max milliseconds a single SQL statement may
+	// hold the planning transaction before it's considered stuck.
+	// Default: 60000 (60s).
+	TransactionTimeoutMs int `yaml:"transaction_timeout_ms"`
 }
 
 // HITLConfig holds human-in-the-loop settings.
@@ -137,6 +141,8 @@ func Defaults() Config {
 			MaxIterations:        100,
 			MaxConsecutiveErrors: 3,
 			BudgetLimitCents:     1000,
+			PlanningTimeoutSec:   180,
+			TransactionTimeoutMs: 60000,
 		},
 		Database: db.Config{
 			URL:          "sqlite://dev.db",

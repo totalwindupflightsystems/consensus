@@ -31,7 +31,12 @@ WORKDIR = os.path.expanduser("~/consensus")
 def load_tasks():
     with open(TASKS_FILE) as f:
         data = yaml.safe_load(f)
-    return data.get("tasks", {})
+    tasks = data.get("tasks", {})
+    # v0.3.0+ writes tasks as a list; older formats used a dict keyed by id.
+    # Normalize both to {id: task_def} so --all and single-task runs work.
+    if isinstance(tasks, list):
+        return {t["id"]: t for t in tasks if isinstance(t, dict) and "id" in t}
+    return tasks
 
 
 def run_evaluation(task_id, task_def, budget_override=None):

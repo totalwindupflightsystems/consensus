@@ -56,12 +56,17 @@ pipeline:
     - read_diff
     - sandbox
 evaluator:
+  file_scope: full
   max_iterations: 100
   max_time: 30m
-  max_input_tokens: 0.5M
+  max_input_tokens: 2M
   max_output_tokens: 0.5M
   tool_call_weight: 0.1
   fast_track: auto
+  # With file_scope: full, the whole repo is eligible — cap the injected
+  # code context so the LLM keeps budget for actual evaluation reasoning
+  # (0.5M input was exhausted by code_context at the default 0.70).
+  code_context_budget: 0.15
 
 defaults:
   model: deepseek-v4-flash
