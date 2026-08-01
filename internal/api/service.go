@@ -97,11 +97,18 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 	sessionID := newUUID()
 	modelID := input.ModelID
 	if modelID == "" {
-		rows, err := svc.db.Query(ctx, `SELECT model_id FROM model_registry WHERE enabled = true ORDER BY tier ASC, cost_per_m_in ASC LIMIT 1`)
+		// Prefer a chat-capable model. Exclude embedding-only models
+		// (e.g. text-embedding-3-small) which are registered by the
+		// compression worker and would otherwise win on cost.
+		rows, err := svc.db.Query(ctx, `SELECT model_id FROM model_registry
+			WHERE enabled = true AND model_id NOT LIKE 'text-embedding%'
+			ORDER BY tier ASC, cost_per_m_in ASC LIMIT 1`)
 		if err == nil && len(rows) > 0 {
 			modelID = toString(rows[0]["model_id"])
 		}
 		if modelID == "" {
+			// Fall back to config default via the harness LLM client;
+			// "default" is resolved to cfg.LLM.DefaultModel at call time.
 			modelID = "default"
 		}
 	}
@@ -398,8 +405,11 @@ func (svc *MessageService) SendMessage(ctx context.Context, input SendMessageInp
 		return fmt.Errorf("failed to store message: %w", err)
 	}
 
-	// Transition session to thinking if idle
-	if status == "idle" {
+	// Transition session to thinking if idle or booting.
+	// Sessions are born 'booting' (CreateSession); a message must wake them
+	// so the heartbeat loop claims them. (Native HTTP handler + shim both
+	// route through here via Service.SendMessage.)
+	if status == "idle" || status == "booting" {
 		svc.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1 WHERE id = $2`,
 			now, input.SessionID)

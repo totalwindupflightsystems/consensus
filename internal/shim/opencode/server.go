@@ -587,7 +587,11 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if modelID == "" {
-		modelRows, err := s.db.Query(ctx, `SELECT model_id FROM model_registry WHERE enabled = true ORDER BY tier ASC, cost_per_m_in ASC LIMIT 1`)
+		// Prefer a chat-capable model; exclude embedding-only models
+		// (text-embedding-*) which win on cost but can't drive the loop.
+		modelRows, err := s.db.Query(ctx, `SELECT model_id FROM model_registry
+			WHERE enabled = true AND model_id NOT LIKE 'text-embedding%'
+			ORDER BY tier ASC, cost_per_m_in ASC LIMIT 1`)
 		if err == nil && len(modelRows) > 0 {
 			modelID = toString(modelRows[0]["model_id"])
 		}
@@ -984,7 +988,11 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, sessionID s
 	}
 
 	currentStatus := toString(row["status"])
-	if currentStatus == "idle" {
+	// Wake the session for harness pickup. Sessions are born 'booting'
+	// (see createSession); a message must transition them to 'thinking'
+	// so the heartbeat loop claims them. Matches native API behavior
+	// (api/sessions.go: idle || booting → thinking).
+	if currentStatus == "idle" || currentStatus == "booting" {
 		s.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1 WHERE id = $2`,
 			now, sessionID,

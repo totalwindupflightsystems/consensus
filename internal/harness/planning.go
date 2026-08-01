@@ -206,12 +206,13 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	}
 
 	// Open single long-running transaction (HARDEN-PLAN-01).
-	// Use a fresh context for BeginTx: the caller's context may have a deadline
-	// that's nearly expired (e.g. HTTP request context). SQLite operations need
-	// their own timeout independent of the caller's lifecycle.
-	dbCtx, dbCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer dbCancel()
-	tx, err := h.db.BeginTx(dbCtx)
+	// Use context.Background() — NOT the caller's context and NOT a short
+	// timeout. database/sql's BeginTx spawns a watcher goroutine that rolls
+	// back the tx when the passed context fires. The caller's ctx (HTTP
+	// request, heartbeat tick) can expire, and a 15s timeout fires during
+	// long LLM calls (20-46s), silently killing the tx mid-planning.
+	// SQLite busy_timeout (5000ms) already handles lock contention.
+	tx, err := h.db.BeginTx(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("planning: begin tx: %w", err)
 	}
@@ -521,8 +522,22 @@ func (h *Harness) executeStagedEntry(ctx context.Context, tx db.Tx, entry *Stagi
 		if sqlStr == "" {
 			return nil, fmt.Errorf("empty SQL payload")
 		}
+		// Isolate the statement in a SAVEPOINT so a SQL error can't poison
+		// the surrounding transaction. Without this, modernc/sqlite marks the
+		// tx done after certain statement failures (e.g. "no such column"),
+		// and the NEXT turn's insert dies with "transaction has already been
+		// committed or rolled back" — killing the whole planning session.
+		if err := tx.Exec(ctx, "SAVEPOINT staged_exec"); err != nil {
+			return nil, fmt.Errorf("sql: savepoint: %w", err)
+		}
 		if err := tx.Exec(ctx, sqlStr); err != nil {
+			// Roll back only this statement's effects; the tx stays usable.
+			tx.Exec(ctx, "ROLLBACK TO SAVEPOINT staged_exec")
+			tx.Exec(ctx, "RELEASE SAVEPOINT staged_exec")
 			return nil, fmt.Errorf("sql: %w", err)
+		}
+		if err := tx.Exec(ctx, "RELEASE SAVEPOINT staged_exec"); err != nil {
+			return nil, fmt.Errorf("sql: release savepoint: %w", err)
 		}
 		result, _ := json.Marshal(map[string]string{"status": "ok"})
 		return (*json.RawMessage)(&result), nil
