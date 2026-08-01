@@ -42,3 +42,7 @@ coverage.out
 service-account*.json
 *.pem
 !*.pub.pem
+
+# Hilo board — rebuildable local cache
+.coding-hermes/board/board.db
+.coding-hermes/board/board.db.wal
