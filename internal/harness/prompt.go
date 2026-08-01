@@ -266,15 +266,15 @@ var coreTableColumns = map[string]string{
 	"display_modes":      "memory_id, mode, set_at, set_by_iteration, session_id",
 	"iteration_commits":  "iteration_id, session_id, active_pointers, display_rules, llm_response, sql_executed, rows_affected, created_at",
 	"memory_pages":       "id, name, target_ids, linked_page_ids, session_id, created_at",
-	"tasks":              "id, session_id, description, status, assigned_to, result, created_at",
+	"tasks":              "id, session_id, parent_task_id, title, description, status, priority, locked_by_agent, prerequisite_ids, result_memory_id, created_at, claimed_at, completed_at",
 	"tool_requests":      "id, session_id, iteration_id, tool_name, parameters, status, created_at",
-	"tool_results":       "id, request_id, session_id, result, error, created_at",
-	"agent_billing":      "id, session_id, provider, model, prompt_tokens, completion_tokens, cost_cents, created_at",
-	"staging_buffer":     "id, session_id, command_type, payload, status, turn, created_at",
+	"tool_results":       "id, request_id, session_id, output, is_error, error_code, token_count, created_at",
+	"agent_billing":      "id, session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cache_read_tokens, cache_write_tokens, cost_usd, recorded_at",
+	"staging_buffer":     "id, session_id, iteration, turn, seq, cmd_type, payload, description, executed, result, status, created_at, executed_at",
 	"audit_logs":         "id, session_id, iteration, monologue, sql_executed, result, error_message, created_at",
 	"agent_messages":     "id, target_session_id, sender_session_id, payload, read, created_at",
 	"compression_queue":  "id, event_id, current_tier, next_tier, status, attempts, max_attempts, created_at",
-	"custom_agent_tools": "id, name, description, enabled, status, created_at",
+	"custom_agent_tools": "id, creator_session_id, name, language, source_code, parameter_schema, approved, status, created_at, updated_at",
 }
 
 func (b *SystemPromptBuilder) buildSchemaLayer(schema *SchemaData) string {
