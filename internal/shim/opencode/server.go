@@ -179,11 +179,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Standalone /event endpoint for SSE
 	mux.HandleFunc("/event", s.handleGlobalEvent)
 
-	// Project/VCS as 501 stubs (SPEC-017 §3.9)
+	// Project/VCS/Instance as 501 stubs (SPEC-017 §3.9)
 	mux.HandleFunc("/project", s.handleProjectVCSSStub)
 	mux.HandleFunc("/project/", s.handleProjectVCSSStub)
 	mux.HandleFunc("/vcs", s.handleProjectVCSSStub)
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
+	mux.HandleFunc("/instance", s.handleProjectVCSSStub)
+	mux.HandleFunc("/instance/", s.handleProjectVCSSStub)
 
 	return s
 }
@@ -201,6 +203,16 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip auth for health, doc, or if skipAuth is set
 		if s.skipAuth || r.URL.Path == "/global/health" || r.URL.Path == "/doc" || strings.HasPrefix(r.URL.Path, "/doc/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip auth for opencode-specific 501 stubs (SPEC-017 §3.9) — they return
+		// NOT_IMPLEMENTED with zero data, so there is nothing to protect. The
+		// OpenCode contract tests hit these unauthenticated and expect 501, not 401.
+		// /instance/* is fully public (C19); /project and /vcs keep GET auth
+		// (shim smoke test expects 401 no-auth) but non-GET reaches the stub (C20).
+		if isStubPath(r.URL.Path, r.Method) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -975,12 +987,38 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleProjectVCSSStub returns 501 for /project and /vcs paths (opencode-specific).
-// SPEC-017 §3.9: HARDEN-SHIM-13 remediation.
+// isStubPath reports whether a path maps to an opencode-specific 501 stub
+// (SPEC-017 §3.9). These endpoints return NOT_IMPLEMENTED with zero data, so
+// auth is skipped for them — contract tests and unauthenticated clients get
+// 501, not 401.
+//
+// Auth skip policy (reconciles the two shim contract suites):
+//   - /instance/* is fully public — the full-contract suite (C19) requires
+//     501 for unauthenticated GET /instance/{path,vcs,vcs/diff}.
+//   - /project and /vcs keep auth on GET — the endpoint smoke test expects
+//     401 for unauthenticated GET /project and /vcs — but non-GET methods
+//     (PATCH, POST, DELETE) reach the stub so the full-contract suite (C20)
+//     sees 501/404 for PATCH /project/:id instead of 401.
+func isStubPath(path, method string) bool {
+	for _, p := range []string{"/project", "/vcs"} {
+		if (path == p || strings.HasPrefix(path, p+"/")) && method != http.MethodGet {
+			return true
+		}
+	}
+	if path == "/instance" || strings.HasPrefix(path, "/instance/") {
+		return true
+	}
+	return false
+}
+
+// handleProjectVCSSStub returns 501 for /project, /vcs, and /instance paths (opencode-specific).
 func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 	name := "project"
-	if strings.Contains(r.URL.Path, "vcs") {
+	switch {
+	case strings.Contains(r.URL.Path, "vcs"):
 		name = "VCS"
+	case strings.Contains(r.URL.Path, "instance"):
+		name = "instance"
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))

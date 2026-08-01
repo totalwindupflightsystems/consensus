@@ -356,6 +356,8 @@ func runServer() {
 		apiMux.Handle("/project/*", shimSrv.Handler())
 		apiMux.Handle("/vcs", shimSrv.Handler())
 		apiMux.Handle("/vcs/*", shimSrv.Handler())
+		apiMux.Handle("/instance", shimSrv.Handler())
+		apiMux.Handle("/instance/*", shimSrv.Handler())
 		slog.Info("consensus: opencode shim enabled")
 	}
 
