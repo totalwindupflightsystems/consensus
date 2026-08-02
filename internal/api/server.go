@@ -352,10 +352,16 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 func extractBearerToken(r *http.Request) string {
 	auth := r.Header.Get("Authorization")
-	if len(auth) < 8 || auth[:7] != "Bearer " {
-		return ""
+	if len(auth) >= 8 && auth[:7] == "Bearer " {
+		return auth[7:]
 	}
-	return auth[7:]
+	// The Chronicle dashboard (chronicle/index.html) authenticates with an
+	// X-Api-Key header (apiHeaders()). Accept it here so the UI can talk to
+	// the same server it's served from.
+	if k := r.Header.Get("X-Api-Key"); k != "" {
+		return k
+	}
+	return ""
 }
 
 func sha256Hash(s string) string {
