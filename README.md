@@ -88,7 +88,7 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo
 | Agent computes a value, server restarts | Gone. Start over. Burn more tokens. | SQLite WAL. Heartbeat auto-resumes. Proven. |
 | Agent makes a bad decision | Good luck finding *why*. The reasoning was evicted 5 turns ago. | Append-only `memory_events` ledger. Full audit trail. Every thought, every tool call, permanently recorded. |
 | Context window hits 128K tokens | Hope your manual truncation didn't cut anything important. | Vector-validated compression. Every summary must pass cosine similarity ≥0.85 against the original. Fail → escalate. No guesswork. |
-| "I know the agent mentioned the API key issue somewhere" | `grep` through log files. Good luck. | Semantic retrieval. Embed your query, get ranked results by cosine similarity. Find what you need in 20ms. |
+| "I know the agent mentioned the API key issue somewhere" | `grep` through log files. Good luck. | Semantic retrieval (harness-internal). Embed your query, get ranked results by cosine similarity inside memory compression. No user-facing search endpoint — retrieval powers the compression worker, not a public API. |
 | Two agents running concurrently | Shared dicts. Race conditions. Agent B overwrites Agent A's state. | Session-scoped memory. DB-level isolation. Physically impossible to cross-contaminate. |
 | API rate limit triggers a retry loop | Agent retries 400 times before you notice. $200 gone. | `agent_circuit_breakers`. 2 consecutive errors → session pauses. Configurable per session. |
 | Agent "saves" its work | Did it actually save? Did the file write complete? Who knows? | ACID transactions. Commit fully or rollback entirely. No partial state. Ever. |
@@ -109,13 +109,12 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo
 
 ```
 29/29 packages green — zero failures
-60/60 acceptance criteria passing
 ```
 
 Not mocked. Not simulated. The E2E tests launch a real server, make real
 DeepSeek API calls, kill the server mid-session, and verify the agent
-resumes cleanly on restart. The semantic retrieval tests insert 20 events
-across 4 topic clusters and verify the right events come back for every query.
+resumes cleanly on restart. Vector-validated compression with cosine
+similarity ≥0.85 acceptance threshold.
 
 ---
 
@@ -127,7 +126,7 @@ Pull the image and run. That's it.
 
 ```bash
 # Pull the image
-docker pull ghcr.io/totalwindupflightsystems/consensus:latest
+docker pull ghcr.io/wojons/consensus:latest
 
 # Run with SQLite (zero config — data persists in a volume)
 docker run -d \
@@ -135,7 +134,7 @@ docker run -d \
   -p 8090:8090 \
   -v consensus-data:/home/consensus/data \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  ghcr.io/totalwindupflightsystems/consensus:latest
+  ghcr.io/wojons/consensus:latest
 
 # Verify it's alive
 curl http://localhost:8090/api/v1/health
@@ -154,7 +153,7 @@ docker run -d \
   -e CONSENSUS_DB_URL="postgres://user:pass@host:5432/consensus?sslmode=require" \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
   -e CONSENSUS_API_KEY="cs_ak_your_secret_key" \
-  ghcr.io/totalwindupflightsystems/consensus:latest
+  ghcr.io/wojons/consensus:latest
 ```
 
 ### Option 2: Go binary (local development)
@@ -167,7 +166,7 @@ go build -o bin/consensus ./cmd/consensus/
 
 Three commands. You have a running agent harness with:
 - Append-only memory ledger
-- Semantic retrieval
+- Vector-validated compression (harness-internal)
 - ACID transactions
 - Crash recovery
 - Circuit breakers
@@ -190,7 +189,7 @@ Three commands. You have a running agent harness with:
 ```yaml
 services:
   consensus:
-    image: ghcr.io/totalwindupflightsystems/consensus:latest
+    image: ghcr.io/wojons/consensus:latest
     ports: ["8090:8090"]
     volumes:
       - consensus-data:/home/consensus/data

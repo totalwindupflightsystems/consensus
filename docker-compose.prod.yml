@@ -37,7 +37,7 @@ services:
 
   # ── Consensus Runtime ────────────────────────────────────────────
   consensus:
-    image: ghcr.io/totalwindupflightsystems/consensus:latest
+    image: ghcr.io/wojons/consensus:latest
     container_name: consensus-runtime
     restart: unless-stopped
     depends_on:

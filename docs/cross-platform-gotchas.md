@@ -87,7 +87,7 @@ file locking can be unreliable due to the 9p/DrvFs translation layer.
 **Workaround:** Clone and run inside the WSL2 Linux filesystem:
 ```bash
 cd ~/projects  # Linux filesystem, not /mnt/c/
-git clone https://github.com/totalwindupflightsystems/consensus.git
+git clone https://github.com/wojons/consensus.git
 cd consensus
 ```
 

@@ -10,47 +10,62 @@ Requires `DEEPSEEK_API_KEY` environment variable (or set in consensus.yaml).
 
 ## What It Demonstrates
 
-1. **Append-Only Memory** — UPDATE/DELETE attempted on `memory_events` → rejected by DB trigger
-2. **Semantic Retrieval** — 8 events across 3 topic clusters → security search returns security events first
-3. **Crash Recovery** — Server kill -9 mid-session → database intact → restart resumes session
-4. **Circuit Breaker** — Consecutive error threshold configured → breaker state visible in `agent_circuit_breakers`
+> **Note:** The demo test skips entirely when `DEEPSEEK_API_KEY` is not set.
+> Set the environment variable to run: `DEEPSEEK_API_KEY=sk-... go test -v -run TestDemo -timeout 300s ./demo/`
+
+1. **LLM-Powered Agent Loop** — Creates a session, sends a task, and lets the heartbeat/planning loop
+   process it with real DeepSeek API calls. Shows agent plans, SQL execution, and memory events.
+2. **Multi-Topic Sessions** — Two concurrent sessions with different agent roles (security auditor,
+   performance engineer) process independently, each storing topic-specific memory events.
+3. **Crash Recovery** — Server killed mid-session (simulating crash) → database intact on disk →
+   server restarted → session data and memory events survive.
 
 ## Expected Output
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║         CONSCIENCE — Database-as-Agent-Runtime Demo         ║
+║     CONSCIENCE — Real LLM-Powered Agent Harness Demo        ║
 ╚══════════════════════════════════════════════════════════════╝
 
-✓ Database initialized
-✓ Server started
-✓ Server healthy
+✓ Server started — admin key: cs_ak_...
+✓ Heartbeat loop active — will auto-process sessions
 
-━━━ DEMO 1: Append-Only Memory Ledger ━━━
-   UPDATE attempt → 500 append-only: UPDATE is not permitted
-   DELETE attempt → 500 append-only: DELETE is not permitted
-   INSERT allowed → 200
-   ✓ Memory is append-only — UPDATE/DELETE blocked at DB level
+━━━ DEMO 1: Agent Plans & Executes via LLM ━━━
+   Session xxx... created
+   Waking session for heartbeat pickup...
+   Waiting for heartbeat to process session...
+   ┌─ Demo 1 ─────────────────────────────
+   │ Status: completed | Iterations: 2 | Tokens: …
+   │ Memory events: 3
+  💬 [text_block] CREATE TABLE demo_tasks …
+  🔧 [tool_call] sql_execute …
+   └─────────────────────────────────────────
 
-━━━ DEMO 2: Semantic Retrieval ━━━
-   Inserted 8 events across 3 topic clusters
-   Security search results:
-     → Security audit reveals XSS vulnerability in admin dashboard
-     → API key rotation requires 90-day expiration
-     → Row-level security prevents cross-session data leaks
-   ✓ Semantic retrieval finds relevant events by topic
+━━━ DEMO 2: Multi-Topic Sessions ━━━
+   ┌─ Demo 2a (Security) ─────────────────────────────
+   │ Status: completed | Iterations: 2
+   │ Memory events: 4
+  💬 Cross-site request forgery (CSRF): …
+  💬 Cross-site scripting (XSS): …
+   └─────────────────────────────────────────
+   ┌─ Demo 2b (Performance) ─────────────────────────────
+   │ Status: completed | Iterations: 2
+   │ Memory events: 3
+  💬 Query optimization: proper indexing …
+   └─────────────────────────────────────────
 
 ━━━ DEMO 3: Crash Recovery ━━━
-   💥 Server killed (simulating crash)
-   ✓ Database file intact after crash
+   💥 Server killed
+   ✓ Database intact on disk
    ✓ Server restarted
-   ✓ Session survived crash — heartbeat resuming
-
-━━━ DEMO 4: Circuit Breaker ━━━
-   Circuit breaker state: {"rows":[{"breaker_type":"consecutive_errors",...}]}
-   ✓ Circuit breaker tracking active
+   ✓ Session data intact — crash recovery works
 
 ╔══════════════════════════════════════════════════════════════╗
 ║                      DEMO COMPLETE                          ║
+╠══════════════════════════════════════════════════════════════╣
+║  Real LLM calls: DeepSeek V4 Flash (via HTTPS API)          ║
+║  Agent plans, executes SQL, stores memory — autonomously    ║
+║  Data survives server crash + restart                       ║
+║  Sessions queryable via REST API                            ║
 ╚══════════════════════════════════════════════════════════════╝
 ```

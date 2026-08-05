@@ -282,8 +282,10 @@ curl -s http://localhost:8090/mcp/sse
 # Expected: SSE stream with endpoint event
 
 # 2. Check auth
-# For MCP stdio transport, auth is in initialize._meta.authorization
-# For MCP SSE transport, auth is in initialize._meta.authorization
+# The API key is configured on the CLIENT side (--api-key flag, CONSENSUS_API_KEY
+# env, or consensus.yaml server.api_key). The MCP client forwards it to the
+# server in initialize._meta.authorization — you do NOT set _meta yourself.
+# A 401 "Invalid API key" means the configured key is missing/expired.
 
 # 3. Test with raw JSON-RPC
 echo '{"jsonrpc":"2.0","id":1,"method":"ping"}' | \

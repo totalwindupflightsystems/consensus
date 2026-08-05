@@ -31,7 +31,7 @@ Docker is the easiest path. One command to pull, one to run.
 ### Step 1: Pull the image
 
 ```bash
-docker pull ghcr.io/totalwindupflightsystems/consensus:latest
+docker pull ghcr.io/wojons/consensus:latest
 ```
 
 > ⚠️ **Gotcha:** First pull downloads ~300 MB. On slow connections this can take several minutes. You'll see progress bars — wait for them to complete.
@@ -44,7 +44,7 @@ docker run -d \
   -p 8090:8090 \
   -v consensus-data:/home/consensus/data \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  ghcr.io/totalwindupflightsystems/consensus:latest
+  ghcr.io/wojons/consensus:latest
 ```
 
 ### Step 3: Verify
@@ -129,7 +129,7 @@ Verify: `go version` → should show Go 1.23 or later.
 ### Step 2: Clone and build
 
 ```bash
-git clone https://github.com/totalwindupflightsystems/consensus.git
+git clone https://github.com/wojons/consensus.git
 cd consensus
 go build -o bin/consensus ./cmd/consensus/
 ```
@@ -139,8 +139,6 @@ go build -o bin/consensus ./cmd/consensus/
 ```bash
 ./bin/consensus init
 ```
-
-> ⚠️ **Gotcha:** `init` reports `Server URL: http://127.0.0.1:8094` but the actual default port is **8090**. This display bug is cosmetic — the server starts on port 8090 unless you override it with `CONSENSUS_PORT`.
 
 ### Step 4: Serve
 
