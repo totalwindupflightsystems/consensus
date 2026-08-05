@@ -269,7 +269,15 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 
 		sql := m.SQL
 		if db.DetectBackendFromDB(r.database) == db.BackendSQLite {
-			sql = filterForSQLite(sql)
+			// SQLite-native migrations (filename contains "_sqlite_") are written
+			// for SQLite by construction — the same convention LoadMigrations uses
+			// to include them only on SQLite. Skip the PG→SQLite filter for them:
+			// filterForSQLite strips CREATE TRIGGER statements whose header spans
+			// multiple lines, which silently dropped migration 017's append-only
+			// triggers while still recording v17 as applied (DOGFOOD-001).
+			if !strings.Contains(strings.ToLower(m.Filename), "_sqlite_") {
+				sql = filterForSQLite(sql)
+			}
 			// SQLite cannot execute multiple ;-separated statements in one Exec call.
 			// Split and execute each statement individually.
 			for i, stmt := range splitStatements(sql) {
@@ -380,6 +388,14 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 		// missing column in its planning phase and report a clear error.
 	}
 
+	// Repair: migration 017's append-only triggers were silently stripped by
+	// filterForSQLite (multi-line CREATE TRIGGER header without " BEGIN " on
+	// the first line). SQLite DBs initialized before the fix have v17 recorded
+	// as applied but no triggers in sqlite_master (DOGFOOD-001).
+	if err := r.repairAppendOnlyTriggers(ctx); err != nil {
+		// Non-fatal: best-effort, same policy as repairTrustLevel.
+	}
+
 	return len(applied) > 0, nil
 }
 
@@ -408,6 +424,59 @@ func (r *Runner) repairTrustLevel(ctx context.Context) error {
 	}
 	// Column missing — add it (migration 013 recorded but never executed)
 	return r.database.Exec(ctx, "ALTER TABLE sessions ADD COLUMN trust_level TEXT NOT NULL DEFAULT 'high' CHECK (trust_level IN ('low', 'medium', 'high'))")
+}
+
+// repairAppendOnlyTriggers ensures the SQLite append-only triggers on
+// memory_events (migration 017) actually exist. filterForSQLite used to strip
+// CREATE TRIGGER statements whose header spans multiple lines, so SQLite DBs
+// initialized before the fix have migration 017 recorded in schema_versions
+// but zero triggers in sqlite_master — leaving memory_events mutable despite
+// the append-only invariant (DOGFOOD-001). Re-applying 017 is idempotent
+// (CREATE TRIGGER IF NOT EXISTS). Postgres is unaffected: append-only
+// enforcement there lives in migration 018.
+func (r *Runner) repairAppendOnlyTriggers(ctx context.Context) error {
+	if db.DetectBackendFromDB(r.database) != db.BackendSQLite {
+		return nil
+	}
+
+	rows, err := r.database.Query(ctx,
+		`SELECT name, type FROM sqlite_master WHERE type IN ('table', 'trigger')`)
+	if err != nil {
+		// sqlite_master unavailable — best-effort repair, don't fail startup
+		return nil
+	}
+	haveMemoryEvents := false
+	triggers := map[string]bool{}
+	for _, row := range rows {
+		name, _ := row["name"].(string)
+		typ, _ := row["type"].(string)
+		if typ == "table" && name == "memory_events" {
+			haveMemoryEvents = true
+		}
+		if typ == "trigger" {
+			triggers[name] = true
+		}
+	}
+	if !haveMemoryEvents {
+		// First-run (memory_events not created yet) — the normal migration
+		// path will create the table and the triggers together.
+		return nil
+	}
+	if triggers["trg_memory_events_append_only_update"] && triggers["trg_memory_events_append_only_delete"] {
+		return nil // Both present — nothing to repair
+	}
+
+	// Re-apply migration 017 (idempotent: CREATE TRIGGER IF NOT EXISTS).
+	content, err := embeddedMigrations.ReadFile("migrations/017_append_only_memory_events_sqlite_triggers.sql")
+	if err != nil {
+		return fmt.Errorf("migrate: read 017 repair SQL: %w", err)
+	}
+	for i, stmt := range splitStatements(string(content)) {
+		if err := r.database.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate: repair append-only triggers (statement %d): %w", i+1, err)
+		}
+	}
+	return nil
 }
 
 // ============================================================================
@@ -535,6 +604,57 @@ func splitStatements(sql string) []string {
 	return statements
 }
 
+// triggerIsSQLiteStyle reports whether a CREATE TRIGGER statement is
+// SQLite-native (body uses BEGIN...END) as opposed to PostgreSQL-style
+// (EXECUTE FUNCTION/PROCEDURE or dollar-quoted bodies). lines must start at
+// the statement's first line. The scan stops at the statement's terminating
+// semicolon (paren depth 0); if neither marker is found the trigger is
+// treated as PostgreSQL-style, preserving the previous skip behavior.
+func triggerIsSQLiteStyle(lines []string) bool {
+	depth := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		upper := strings.ToUpper(trimmed)
+		if strings.Contains(upper, "EXECUTE FUNCTION") || strings.Contains(upper, "EXECUTE PROCEDURE") {
+			return false
+		}
+		for _, t := range []string{"$$", "$func$", "$body$", "$tag$"} {
+			if strings.Contains(trimmed, t) {
+				return false
+			}
+		}
+		if hasBeginKeyword(upper) {
+			return true
+		}
+		for _, ch := range trimmed {
+			if ch == '(' {
+				depth++
+			}
+			if ch == ')' {
+				depth--
+			}
+		}
+		if strings.HasSuffix(trimmed, ";") && depth <= 0 {
+			return false // statement ended with no BEGIN keyword → PG-style
+		}
+	}
+	return false
+}
+
+// hasBeginKeyword reports whether an uppercased SQL line contains the SQLite
+// BEGIN keyword as a standalone word (not inside a longer identifier).
+func hasBeginKeyword(upper string) bool {
+	return upper == "BEGIN" ||
+		strings.HasPrefix(upper, "BEGIN ") ||
+		strings.HasPrefix(upper, "BEGIN;") ||
+		strings.HasSuffix(upper, " BEGIN") ||
+		strings.Contains(upper, " BEGIN ") ||
+		strings.Contains(upper, " BEGIN;")
+}
+
 // filterForSQLite transforms PostgreSQL migration SQL for SQLite compatibility.
 //
 // Two phases:
@@ -571,7 +691,7 @@ func filterForSQLite(rawSQL string) string {
 		mComment     = 13
 	)
 
-	for _, line := range lines {
+	for lineIdx, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		if skipMode != mNone {
@@ -763,9 +883,12 @@ func filterForSQLite(rawSQL string) string {
 			}
 			continue
 		case strings.HasPrefix(upper, "CREATE TRIGGER"):
-			// SQLite-native triggers use BEGIN...END (keep these)
-			// PostgreSQL triggers use EXECUTE FUNCTION (skip these)
-			if strings.Contains(upper, " BEGIN ") {
+			// SQLite-native triggers use BEGIN...END (keep these).
+			// PostgreSQL triggers use EXECUTE FUNCTION / $$ bodies (skip these).
+			// The CREATE TRIGGER header may span multiple lines, so " BEGIN "
+			// may not appear on the first line — scan ahead to the end of the
+			// statement before deciding (DOGFOOD-001).
+			if triggerIsSQLiteStyle(lines[lineIdx:]) {
 				// SQLite-style — keep the line as-is (don't skip)
 				// The BEGIN...END body has its own semicolons, but that's fine
 				// because splitStatements handles it on the full migration content later.

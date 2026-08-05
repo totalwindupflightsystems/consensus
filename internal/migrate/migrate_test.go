@@ -463,6 +463,130 @@ func TestAutoMigrate_CreatesTrustLevelColumn(t *testing.T) {
 }
 
 // ============================================================================
+// Regression: AutoMigrate MUST install the append-only triggers (DOGFOOD-001)
+// ============================================================================
+
+func TestAutoMigrate_CreatesAppendOnlyTriggers(t *testing.T) {
+	// Regression: migration 017 (append-only memory_events triggers) is a
+	// SQLite-native file whose CREATE TRIGGER headers span multiple lines.
+	// filterForSQLite only kept triggers whose FIRST line contained " BEGIN ",
+	// so both statements were dropped while v17 was still recorded as applied —
+	// fresh installs ended up with a mutable memory_events ledger.
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	triggerNames := func() map[string]bool {
+		rows, err := database.Query(ctx, `SELECT name FROM sqlite_master WHERE type = 'trigger'`)
+		if err != nil {
+			t.Fatalf("query sqlite_master: %v", err)
+		}
+		names := map[string]bool{}
+		for _, row := range rows {
+			if n, ok := row["name"].(string); ok {
+				names[n] = true
+			}
+		}
+		return names
+	}
+
+	wantTriggers := []string{
+		"trg_memory_events_append_only_update",
+		"trg_memory_events_append_only_delete",
+	}
+	for _, trg := range wantTriggers {
+		if !triggerNames()[trg] {
+			t.Errorf("trigger %s MISSING from sqlite_master after AutoMigrate", trg)
+		}
+	}
+
+	// Enforcement: seed a session + memory event, then UPDATE/DELETE must fail.
+	if err := database.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status) VALUES ('sess-ao', 't', 'm', 'idle')`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	if err := database.Exec(ctx,
+		`INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'original', 'sess-ao', 1)`); err != nil {
+		t.Fatalf("seed memory event: %v", err)
+	}
+	if err := database.Exec(ctx, `UPDATE memory_events SET content = 'HACKED' WHERE session_id = 'sess-ao'`); err == nil {
+		t.Error("UPDATE on memory_events should be rejected by trg_memory_events_append_only_update")
+	}
+	if err := database.Exec(ctx, `DELETE FROM memory_events WHERE session_id = 'sess-ao'`); err == nil {
+		t.Error("DELETE on memory_events should be rejected by trg_memory_events_append_only_delete")
+	}
+
+	// Heal path: simulate a pre-fix install (v17 recorded, triggers missing),
+	// then re-run AutoMigrate — Up() skips v17, so only the startup repair can
+	// bring the triggers back.
+	for _, trg := range wantTriggers {
+		if err := database.Exec(ctx, `DROP TRIGGER IF EXISTS `+trg); err != nil {
+			t.Fatalf("drop trigger %s: %v", trg, err)
+		}
+	}
+	for _, trg := range wantTriggers {
+		if triggerNames()[trg] {
+			t.Fatalf("setup: trigger %s should be gone after DROP", trg)
+		}
+	}
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("second AutoMigrate (heal) failed: %v", err)
+	}
+	for _, trg := range wantTriggers {
+		if !triggerNames()[trg] {
+			t.Errorf("trigger %s still MISSING after repairAppendOnlyTriggers heal", trg)
+		}
+	}
+	if err := database.Exec(ctx, `UPDATE memory_events SET content = 'HACKED' WHERE session_id = 'sess-ao'`); err == nil {
+		t.Error("UPDATE on memory_events should be rejected after heal")
+	}
+	if err := database.Exec(ctx, `DELETE FROM memory_events WHERE session_id = 'sess-ao'`); err == nil {
+		t.Error("DELETE on memory_events should be rejected after heal")
+	}
+}
+
+// ============================================================================
+// Regression: filterForSQLite MUST keep multi-line SQLite triggers (DOGFOOD-001)
+// ============================================================================
+
+func TestFilterForSQLite_MultiLineCreateTrigger(t *testing.T) {
+	// A SQLite-native CREATE TRIGGER whose header spans multiple lines has no
+	// " BEGIN " on the first line — the filter must scan ahead for BEGIN...END
+	// and KEEP it. PostgreSQL triggers (EXECUTE FUNCTION) must still be stripped.
+	sqliteTrigger := `CREATE TRIGGER IF NOT EXISTS trg_memory_events_append_only_update
+BEFORE UPDATE ON memory_events
+FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'memory_events is append-only: UPDATE is not permitted'); END;`
+
+	result := filterForSQLite(sqliteTrigger)
+	if !containsStr(result, "CREATE TRIGGER") {
+		t.Errorf("filterForSQLite should preserve multi-line SQLite CREATE TRIGGER\ngot: %s", result)
+	}
+	if !containsStr(result, "BEGIN") || !containsStr(result, "RAISE") {
+		t.Errorf("filterForSQLite should preserve the trigger BEGIN...END body\ngot: %s", result)
+	}
+
+	pgTrigger := `CREATE TRIGGER memory_touches_session
+    AFTER INSERT ON memory_events
+    FOR EACH ROW EXECUTE FUNCTION touch_session_heartbeat();`
+
+	resultPG := filterForSQLite(pgTrigger)
+	if containsStr(resultPG, "EXECUTE FUNCTION") || containsStr(resultPG, "CREATE TRIGGER") {
+		t.Errorf("filterForSQLite should strip PostgreSQL CREATE TRIGGER\ngot: %s", resultPG)
+	}
+
+	// Single-line SQLite trigger (previous detection path) must still be kept.
+	singleLine := `CREATE TRIGGER trg_x BEFORE UPDATE ON t FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'no'); END;`
+	if got := filterForSQLite(singleLine); !containsStr(got, "CREATE TRIGGER") {
+		t.Errorf("filterForSQLite should preserve single-line SQLite CREATE TRIGGER\ngot: %s", got)
+	}
+}
+
+// ============================================================================
 // AC-DEP-04: Migration under load — pause/resume preserves session data
 // ============================================================================
 
