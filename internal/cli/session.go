@@ -146,7 +146,7 @@ func newSessionLogsCmd() *cobra.Command {
 
 With --follow enabled, polls the server every 3 seconds for new iterations.
 For true SSE-based real-time streaming, connect to the server's SSE endpoint
-directly: GET /api/v1/events?session=<session-id>`,
+directly: GET /api/v1/events?session_id=<session-id>`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()
@@ -163,6 +163,15 @@ directly: GET /api/v1/events?session=<session-id>`,
 			// Apply --iterations limit (SPEC-016 §5.3)
 			if iterations > 0 && len(results) > iterations {
 				results = results[len(results)-iterations:]
+			}
+
+			// When iteration_commits is empty, print an explanatory message instead
+			// of the generic "(no results)" — the session may have failed or yielded
+			// no committed iterations. Point users to the SSE stream for live events.
+			if len(results) == 0 {
+				fm.PrintText("No iteration commits yet — the session produced no committed iterations (failed or LLM-less run).\n")
+				fm.PrintText("Stream live events via SSE: GET /api/v1/events?session_id=%s\n", args[0])
+				return nil
 			}
 
 			if follow {

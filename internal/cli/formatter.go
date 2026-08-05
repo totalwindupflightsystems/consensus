@@ -25,9 +25,10 @@ const (
 
 // Formatter writes structured output in the configured format.
 type Formatter struct {
-	w      io.Writer
-	format Format
-	quiet  bool
+	w         io.Writer
+	format    Format
+	quiet     bool
+	emptyHint string // optional hint printed when a table is empty (replaces "(no results)")
 }
 
 // NewFormatter creates a formatter for the given output writer and format.
@@ -41,6 +42,13 @@ func NewFormatter(w io.Writer, format Format, quiet bool) *Formatter {
 // SetWriter changes the output writer (useful for testing).
 func (f *Formatter) SetWriter(w io.Writer) {
 	f.w = w
+}
+
+// SetEmptyHint configures a custom message printed when PrintTable encounters
+// an empty result set. When set, this replaces the default "(no results)".
+// Pass an empty string to restore the default.
+func (f *Formatter) SetEmptyHint(hint string) {
+	f.emptyHint = hint
 }
 
 // Print writes a single value in the configured format.
@@ -131,7 +139,11 @@ func (f *Formatter) printTableWithHeaders(v any, headers []string) error {
 	}
 
 	if len(rows) == 0 {
-		fmt.Fprintln(f.w, "(no results)")
+		if f.emptyHint != "" {
+			fmt.Fprintln(f.w, f.emptyHint)
+		} else {
+			fmt.Fprintln(f.w, "(no results)")
+		}
 		return nil
 	}
 

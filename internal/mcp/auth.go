@@ -17,26 +17,30 @@ import (
 
 // validateAuth extracts the Bearer token from an initialize request's
 // _meta.authorization field and validates it against the api_keys table.
+// The key itself must be configured on the CLIENT side (--api-key flag or
+// CONSENSUS_API_KEY env / consensus.yaml server.api_key); the MCP client
+// forwards it in _meta.authorization. Error messages point at the real
+// configuration surface, not the internal transport field (DOGFOOD-007).
 func (s *Server) validateAuth(req *JSONRPCRequest, sess *mcpSession) *JSONRPCErrObj {
 	var init struct {
 		Meta map[string]any `json:"_meta"`
 	}
 	if err := json.Unmarshal(req.Params, &init); err != nil {
-		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "missing _meta.authorization"}
+		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "API key missing from the MCP initialize request — provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)"}
 	}
 
 	if init.Meta == nil {
-		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "missing _meta.authorization"}
+		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "API key missing from the MCP initialize request — provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)"}
 	}
 
 	raw, ok := init.Meta["authorization"]
 	if !ok {
-		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "missing _meta.authorization"}
+		return &JSONRPCErrObj{Code: -32000, Message: "Authentication required", Data: "API key missing from the MCP initialize request — provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)"}
 	}
 
 	authStr, ok := raw.(string)
 	if !ok {
-		return &JSONRPCErrObj{Code: -32000, Message: "Invalid authorization", Data: "_meta.authorization must be a string"}
+		return &JSONRPCErrObj{Code: -32000, Message: "Invalid authorization", Data: "_meta.authorization must be a string (the MCP client forwards your --api-key / CONSENSUS_API_KEY here)"}
 	}
 
 	// Strip "Bearer " prefix if present
@@ -46,7 +50,7 @@ func (s *Server) validateAuth(req *JSONRPCRequest, sess *mcpSession) *JSONRPCErr
 	}
 
 	if len(authStr) < 8 {
-		return &JSONRPCErrObj{Code: -32001, Message: "Invalid API key", Data: "API key too short"}
+		return &JSONRPCErrObj{Code: -32001, Message: "Invalid API key", Data: "API key too short — check the key configured via --api-key / CONSENSUS_API_KEY"}
 	}
 
 	// Look up key by prefix + hash
@@ -59,7 +63,7 @@ func (s *Server) validateAuth(req *JSONRPCRequest, sess *mcpSession) *JSONRPCErr
 		prefix, hash,
 	)
 	if err != nil || len(rows) == 0 {
-		return &JSONRPCErrObj{Code: -32001, Message: "Invalid API key", Data: "key not found or expired"}
+		return &JSONRPCErrObj{Code: -32001, Message: "Invalid API key", Data: "key not found or expired — check the key configured via --api-key / CONSENSUS_API_KEY (the client forwards it as _meta.authorization)"}
 	}
 
 	scope := toString(rows[0]["scope"])

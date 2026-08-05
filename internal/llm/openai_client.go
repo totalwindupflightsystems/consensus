@@ -248,25 +248,26 @@ func (c *openaiClient) sendToURL(ctx context.Context, reqBody openaiChatRequest,
 		return resp, nil, fmt.Errorf("llm: read response: %w", err)
 	}
 
-	// Parse response with tolerant error handling.
+	// Check HTTP status BEFORE attempting JSON parse (DOGFOOD-004).
+	// Non-2xx responses (especially 401/403 auth errors) may have non-JSON
+	// bodies (plaintext, HTML). Attempting json.Unmarshal first produces
+	// cryptic errors instead of surfacing the real authentication failure.
+	if resp.StatusCode >= 400 {
+		// Try to extract a structured error from the body for diagnostics.
+		errDetail := c.extractErrorDetail(respBytes)
+		msg := errDetail.actionableError(resp.StatusCode)
+		slog.Error(msg, "status", resp.StatusCode, "detail", errDetail)
+		return resp, nil, fmt.Errorf("%s", msg)
+	}
+
 	var chatResp openaiChatResponse
 	if err := json.Unmarshal(respBytes, &chatResp); err != nil {
-		var rawErr struct {
-			Error string `json:"error"`
-		}
-		if err2 := json.Unmarshal(respBytes, &rawErr); err2 == nil && rawErr.Error != "" {
-			return resp, nil, fmt.Errorf("llm: api error (status %d): %s", resp.StatusCode, rawErr.Error)
-		}
 		return resp, nil, fmt.Errorf("llm: parse response (status %d): %w", resp.StatusCode, err)
 	}
 
 	if chatResp.Error != nil {
 		return resp, nil, fmt.Errorf("llm: api error (status %d): %s (type=%s, code=%s)",
 			resp.StatusCode, chatResp.Error.Message, chatResp.Error.Type, chatResp.Error.Code)
-	}
-
-	if resp.StatusCode >= 400 {
-		return resp, nil, fmt.Errorf("llm: http %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	if len(chatResp.Choices) == 0 {
@@ -322,10 +323,11 @@ func isRetryableLLMError(err error) bool {
 		return false
 	}
 	errStr := err.Error()
-	if strings.Contains(errStr, "status 5") {
+	// Match both old format ("status 5") and new format ("HTTP 5").
+	if strings.Contains(errStr, "status 5") || strings.Contains(errStr, "HTTP 5") {
 		return true
 	}
-	if strings.Contains(errStr, "status 4") {
+	if strings.Contains(errStr, "status 4") || strings.Contains(errStr, "HTTP 4") {
 		return false
 	}
 	if strings.Contains(errStr, "http request failed") {
@@ -469,4 +471,81 @@ func truncateStr(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// ============================================================================
+// HTTP Error Detail Extraction (DOGFOOD-004)
+// ============================================================================
+
+// errorDetail captures structured error information extracted from a non-2xx
+// LLM provider response body. Fields are populated on a best-effort basis;
+// not all providers return JSON error bodies.
+type errorDetail struct {
+	Message string // human-readable error message
+	Type    string // error type (e.g. "authentication_error")
+	Code    string // error code (e.g. "invalid_api_key")
+	Raw     string // first 200 chars of raw body for diagnostics
+}
+
+// extractErrorDetail tries to pull structured error info from a response body.
+// It handles the OpenAI error shape: {"error":{"message":"...","type":"...","code":"..."}}
+// and the simpler shape: {"error":"..."}.
+// On any failure, Raw is populated with a truncated view of the body.
+func (c *openaiClient) extractErrorDetail(body []byte) errorDetail {
+	d := errorDetail{Raw: truncateStr(string(body), 200)}
+
+	// First try the OpenAI structured error shape.
+	var chatResp openaiChatResponse
+	if err := json.Unmarshal(body, &chatResp); err == nil && chatResp.Error != nil {
+		d.Message = chatResp.Error.Message
+		d.Type = chatResp.Error.Type
+		d.Code = chatResp.Error.Code
+		return d
+	}
+
+	// Then try the flat shape: {"error": "some message"}
+	var flat struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(body, &flat); err == nil && flat.Error != "" {
+		d.Message = flat.Error
+		return d
+	}
+
+	return d
+}
+
+// actionableError returns an actionable error message for an HTTP status code.
+// On 401/403, it includes a hint to check API key configuration.
+func (d errorDetail) actionableError(statusCode int) string {
+	base := fmt.Sprintf("llm: HTTP %d", statusCode)
+
+	switch statusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		msg := fmt.Sprintf("%s — LLM auth failed: check your API key (e.g. DEEPSEEK_API_KEY or OPENAI_API_KEY env var)", base)
+		if d.Message != "" {
+			msg += fmt.Sprintf(" (%s)", d.Message)
+		}
+		return msg
+	case http.StatusTooManyRequests:
+		msg := fmt.Sprintf("%s — LLM rate limited", base)
+		if d.Message != "" {
+			msg += fmt.Sprintf(": %s", d.Message)
+		}
+		return msg
+	case http.StatusBadRequest:
+		msg := fmt.Sprintf("%s — LLM bad request", base)
+		if d.Message != "" {
+			msg += fmt.Sprintf(": %s", d.Message)
+		}
+		return msg
+	default:
+		msg := base
+		if d.Message != "" {
+			msg += fmt.Sprintf(": %s", d.Message)
+		} else if d.Raw != "" {
+			msg += fmt.Sprintf(": %s", d.Raw)
+		}
+		return msg
+	}
 }

@@ -46,6 +46,7 @@ type SessionResponse struct {
 	CreatedAt     string  `json:"created_at"`
 	CompletedAt   *string `json:"completed_at,omitempty"`
 	LastMessage   *string `json:"last_message,omitempty"` // most recent assistant response
+	LastError     *string `json:"last_error,omitempty"`   // most recent audit_logs error_message (DOGFOOD-004)
 }
 
 // UpdateSessionRequest is the request body for PATCH /api/v1/sessions/:id.

@@ -177,7 +177,7 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string, sessionID string, scope string) ([]SessionResponse, error) {
 	if scope == "session" && sessionID != "" {
 		rows, err := svc.db.Query(ctx,
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions WHERE id = $1`, sessionID)
 		if err != nil {
 			return nil, err
@@ -197,13 +197,13 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 			args[i] = strings.TrimSpace(s)
 		}
 		query := fmt.Sprintf(
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions WHERE status IN (%s) ORDER BY created_at DESC LIMIT 50`,
 			strings.Join(placeholders, ","))
 		rows, err = svc.db.Query(ctx, query, args...)
 	} else {
 		rows, err = svc.db.Query(ctx,
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions ORDER BY created_at DESC LIMIT 50`)
 	}
 	if err != nil {
@@ -223,6 +223,21 @@ func (svc *SessionService) GetSession(ctx context.Context, id string) (*SessionR
 		return nil, fmt.Errorf("session not found")
 	}
 	resp := rowToSessionResponse(row)
+
+	// Surface the most recent audit_logs error for failed sessions so a
+	// wrong/expired API key (or any harness failure) is actionable (DOGFOOD-004).
+	if resp.Status == "failed" {
+		errRow, qerr := svc.db.QueryRow(ctx,
+			`SELECT error_message FROM audit_logs
+			 WHERE session_id = $1 AND error_message IS NOT NULL AND error_message != ''
+			 ORDER BY id DESC LIMIT 1`, id)
+		if qerr == nil && errRow != nil {
+			if em := toString(errRow["error_message"]); em != "" {
+				resp.LastError = &em
+			}
+		}
+	}
+
 	return &resp, nil
 }
 
@@ -350,7 +365,7 @@ func (svc *SessionService) AbortSession(ctx context.Context, id string) error {
 // ListChildren returns child sessions of the given parent session.
 func (svc *SessionService) ListChildren(ctx context.Context, parentID string) ([]SessionResponse, error) {
 	rows, err := svc.db.Query(ctx,
-		`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, created_at
+		`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 		 FROM sessions WHERE parent_id = $1 ORDER BY created_at DESC LIMIT 50`,
 		parentID,
 	)

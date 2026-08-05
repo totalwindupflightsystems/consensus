@@ -29,6 +29,7 @@ func newToolListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()
 			fmt := newFormatter()
+			fmt.SetEmptyHint("No tools registered yet — see docs/TOOLS.md to learn how to register tools")
 
 			results, err := client.ListTools()
 			if err != nil {
@@ -89,6 +90,7 @@ func newSkillListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()
 			fmt := newFormatter()
+			fmt.SetEmptyHint("No skills installed yet — see docs/TOOLS.md to learn how to install skills")
 
 			results, err := client.ListSkills()
 			if err != nil {

@@ -232,6 +232,14 @@ func (c *anthropicClient) sendAnthropic(ctx context.Context, reqBody anthropicMe
 		return nil, fmt.Errorf("llm: anthropic read response: %w", err)
 	}
 
+	// Check HTTP status BEFORE attempting JSON parse (DOGFOOD-004).
+	if resp.StatusCode >= 400 {
+		ed := extractAnthropicErrorDetail(respBytes)
+		msg := ed.actionableError(resp.StatusCode)
+		slog.Error(msg, "status", resp.StatusCode, "detail", ed)
+		return nil, fmt.Errorf("%s", msg)
+	}
+
 	var msgResp anthropicMessageResponse
 	if err := json.Unmarshal(respBytes, &msgResp); err != nil {
 		return nil, fmt.Errorf("llm: anthropic parse response (status %d): %w", resp.StatusCode, err)
@@ -240,10 +248,6 @@ func (c *anthropicClient) sendAnthropic(ctx context.Context, reqBody anthropicMe
 	if msgResp.Error != nil {
 		return nil, fmt.Errorf("llm: anthropic api error (status %d): %s (type=%s)",
 			resp.StatusCode, msgResp.Error.Message, msgResp.Error.Type)
-	}
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("llm: anthropic http %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	if len(msgResp.Content) == 0 {
@@ -391,4 +395,44 @@ func (c *anthropicClient) splitMessages(messages []harness.Message) ([]anthropic
 	}
 
 	return systemBlocks, convMessages
+}
+
+// extractAnthropicErrorDetail tries to extract structured error info from an
+// Anthropic error response body. Anthropic errors follow the shape:
+// {"type":"error","error":{"type":"authentication_error","message":"..."}}
+// Falls back to the generic OpenAI shape if Anthropic format isn't detected.
+func extractAnthropicErrorDetail(body []byte) errorDetail {
+	d := errorDetail{Raw: truncateStr(string(body), 200)}
+
+	// Try Anthropic error shape: {"type":"error","error":{...}}
+	var anthroErr struct {
+		Type  string      `json:"type"`
+		Error openaiError `json:"error"`
+	}
+	if err := json.Unmarshal(body, &anthroErr); err == nil && anthroErr.Error.Message != "" {
+		d.Message = anthroErr.Error.Message
+		d.Type = anthroErr.Error.Type
+		d.Code = "" // Anthropic doesn't use codes
+		return d
+	}
+
+	// Fall back to the OpenAI shape (shared errorDetail extraction).
+	var chatResp openaiChatResponse
+	if err := json.Unmarshal(body, &chatResp); err == nil && chatResp.Error != nil {
+		d.Message = chatResp.Error.Message
+		d.Type = chatResp.Error.Type
+		d.Code = chatResp.Error.Code
+		return d
+	}
+
+	// Flat shape: {"error": "some message"}
+	var flat struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(body, &flat); err == nil && flat.Error != "" {
+		d.Message = flat.Error
+		return d
+	}
+
+	return d
 }
