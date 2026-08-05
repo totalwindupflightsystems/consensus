@@ -1134,6 +1134,58 @@ func TestSessionResume_Success(t *testing.T) {
 	}
 }
 
+// TestSessionPauseResume_SendsActionVerbs is the DOGFOOD-002 regression test:
+// the CLI must send ACTION VERBS ("pause"/"resume") to PATCH
+// /api/v1/sessions/{id} — the API rejects target states ("paused"/"idle")
+// with 400 "unknown status action".
+func TestSessionPauseResume_SendsActionVerbs(t *testing.T) {
+	var gotBodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/api/v1/sessions/") {
+			body, _ := io.ReadAll(r.Body)
+			gotBodies = append(gotBodies, string(body))
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"id": "sess-1", "status": "paused", "created_at": "2026-05-07T00:00:00Z",
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+	defer overrideGlobals(srv.URL, "test-key", "json", false)()
+
+	pauseCmd := newSessionPauseCmd()
+	pauseCmd.SetArgs([]string{"sess-1"})
+	if err := pauseCmd.Execute(); err != nil {
+		t.Fatalf("pause command: %v", err)
+	}
+
+	resumeCmd := newSessionResumeCmd()
+	resumeCmd.SetArgs([]string{"sess-1"})
+	if err := resumeCmd.Execute(); err != nil {
+		t.Fatalf("resume command: %v", err)
+	}
+
+	if len(gotBodies) != 2 {
+		t.Fatalf("expected 2 PATCH requests, got %d", len(gotBodies))
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(gotBodies[0]), &payload); err != nil {
+		t.Fatalf("decode pause body: %v", err)
+	}
+	if payload["status"] != "pause" {
+		t.Errorf("pause command sent status=%v, want action verb \"pause\"", payload["status"])
+	}
+	payload = nil
+	if err := json.Unmarshal([]byte(gotBodies[1]), &payload); err != nil {
+		t.Fatalf("decode resume body: %v", err)
+	}
+	if payload["status"] != "resume" {
+		t.Errorf("resume command sent status=%v, want action verb \"resume\"", payload["status"])
+	}
+}
+
 func TestSessionCancel_Success(t *testing.T) {
 	ms := newMockAPIServer()
 	defer ms.Close()
@@ -1604,7 +1656,10 @@ func TestClient_UpdateSession(t *testing.T) {
 	defer ms.Close()
 	c := NewClient(ms.URL, "")
 
-	result, err := c.UpdateSession("sess-1", map[string]any{"status": "paused"})
+	// The API contract takes action verbs ("pause"/"resume"/"cancel"), not
+	// target states (DOGFOOD-002). The mock responds with the resulting
+	// session status ("paused").
+	result, err := c.UpdateSession("sess-1", map[string]any{"status": "pause"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

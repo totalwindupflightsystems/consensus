@@ -582,6 +582,53 @@ func TestUpdateSession_InvalidTransition(t *testing.T) {
 	}
 }
 
+// TestUpdateSession_PauseResumeRoundTrip is the DOGFOOD-002 contract test:
+// the CLI sends action verbs, so the API must accept {"status":"pause"} on a
+// running session (→ 200, status "paused") and then {"status":"resume"}
+// (→ 200, status "idle") on the same session.
+func TestUpdateSession_PauseResumeRoundTrip(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('sess-rt', 'test', 'gpt-4o', 'thinking', 'Goal', datetime('now'), datetime('now'))`)
+
+	patch := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/sessions/sess-rt", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+		w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
+		return w
+	}
+	status := func() string {
+		rows, _ := srv.conn.Query(ctx, `SELECT status FROM sessions WHERE id = 'sess-rt'`)
+		if len(rows) == 0 {
+			return "missing"
+		}
+		return toString(rows[0]["status"])
+	}
+
+	if w := patch(`{"status":"pause"}`); w.Code != http.StatusOK {
+		t.Fatalf("pause: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := status(); got != "paused" {
+		t.Fatalf("after pause: expected 'paused', got %q", got)
+	}
+
+	if w := patch(`{"status":"resume"}`); w.Code != http.StatusOK {
+		t.Fatalf("resume: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := status(); got != "idle" {
+		t.Fatalf("after resume: expected 'idle', got %q", got)
+	}
+
+	// Target states are NOT valid actions — the old CLI sent these and got 400.
+	if w := patch(`{"status":"paused"}`); w.Code != http.StatusBadRequest {
+		t.Errorf("target-state payload: expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // ============================================================================
 // Delete Session Tests
 // ============================================================================

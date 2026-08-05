@@ -227,7 +227,9 @@ func newSessionPauseCmd() *cobra.Command {
 			client := newClient()
 			fm := newFormatter()
 
-			result, err := client.UpdateSession(args[0], map[string]any{"status": "paused"})
+			// The API expects the action verb "pause" (→ target status "paused"),
+			// not the target state (DOGFOOD-002).
+			result, err := client.UpdateSession(args[0], map[string]any{"status": "pause"})
 			if err != nil {
 				return err
 			}
@@ -247,7 +249,9 @@ func newSessionResumeCmd() *cobra.Command {
 			client := newClient()
 			fm := newFormatter()
 
-			result, err := client.UpdateSession(args[0], map[string]any{"status": "idle"})
+			// The API expects the action verb "resume" (→ target status "idle"),
+			// not the target state (DOGFOOD-002).
+			result, err := client.UpdateSession(args[0], map[string]any{"status": "resume"})
 			if err != nil {
 				return err
 			}
