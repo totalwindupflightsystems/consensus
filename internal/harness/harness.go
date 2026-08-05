@@ -175,6 +175,11 @@ type Harness struct {
 	// ToolExecutor runs sandboxed tool execution asynchronously (optional, may be nil).
 	ToolExecutor ToolExecutor
 
+	// MaxConsecutiveErrors is the consecutive-errors circuit breaker threshold
+	// (harness.max_consecutive_errors config). Zero means "use the default" —
+	// see maxConsecutiveErrors() in circuit.go (DOGFOOD-003).
+	MaxConsecutiveErrors int
+
 	// inFlight tracks sessions currently inside RunInteractivePlanning.
 	// Prevents the heartbeat loop from dispatching duplicate goroutines for
 	// the same session (which causes SQLITE_BUSY).
@@ -215,7 +220,8 @@ func New(database db.DB, llm LLMClient) *Harness {
 		HeartbeatConfig: HeartbeatConfig{
 			Interval: 5 * time.Second,
 		},
-		inFlight: make(map[string]bool),
+		MaxConsecutiveErrors: 3, // SPEC-006 §Circuit Breakers default; config may override
+		inFlight:             make(map[string]bool),
 	}
 }
 

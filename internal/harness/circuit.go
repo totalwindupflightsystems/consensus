@@ -116,6 +116,49 @@ func (h *Harness) tripBreaker(ctx context.Context, sessionID string, breakerType
 // Circuit Breaker Reset (Admin Operation)
 // ============================================================================
 
+// maxConsecutiveErrors returns the configured consecutive-errors threshold,
+// falling back to the spec default of 3 when unset (SPEC-006 §Circuit
+// Breakers). The value comes from harness.max_consecutive_errors config,
+// wired onto the Harness at startup (DOGFOOD-003).
+func (h *Harness) maxConsecutiveErrors() int {
+	if h.MaxConsecutiveErrors <= 0 {
+		return 3
+	}
+	return h.MaxConsecutiveErrors
+}
+
+// currentBreakerCount reads the persisted current_count for a breaker row.
+// Returns 0 when no row exists or the read fails — the counter is
+// best-effort; CheckCircuitBreaker re-persists the count on every call.
+func (h *Harness) currentBreakerCount(ctx context.Context, sessionID string, breakerType BreakerType) int {
+	if h.db == nil {
+		return 0
+	}
+	rows, err := h.db.Query(ctx,
+		`SELECT current_count FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
+		sessionID, string(breakerType))
+	if err != nil || len(rows) == 0 {
+		return 0
+	}
+	return toInt(rows[0]["current_count"])
+}
+
+// resetConsecutiveErrors clears the consecutive-errors counter after a
+// successful planning commit so stale failures don't accumulate across
+// successful runs (the breaker counts CONSECUTIVE errors). No-op when no row
+// exists or the count is already 0.
+func (h *Harness) resetConsecutiveErrors(ctx context.Context, sessionID string) {
+	if h.db == nil {
+		return
+	}
+	if err := h.db.Exec(ctx, `
+		UPDATE agent_circuit_breakers SET current_count = 0
+		WHERE session_id = $1 AND breaker_type = $2 AND current_count <> 0
+	`, sessionID, string(BreakerConsecutiveErrors)); err != nil {
+		slog.Warn("harness: failed to reset consecutive-errors counter", "session_id", sessionID, "error", err)
+	}
+}
+
 // ResetCircuitBreaker clears a tripped circuit breaker, enabling the session
 // to resume execution. This is an admin operation — not available to agents.
 func (h *Harness) ResetCircuitBreaker(ctx context.Context, sessionID string, breakerType BreakerType) error {

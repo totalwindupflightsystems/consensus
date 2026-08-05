@@ -264,7 +264,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		output, err := h.LLMClient.Call(ctx, messages)
 		if err != nil {
 			slog.Error("planning: LLM call failed", "turn", turn, "error", err)
-			return h.handlePlanningError(ctx, tx, sessionID, err)
+			return h.handleLLMPlanningError(ctx, tx, sessionID, err)
 		}
 
 		// Parse into TurnPlan
@@ -647,6 +647,10 @@ func (h *Harness) handleCommitV2(ctx context.Context, tx db.Tx, sessionID string
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
+	// Successful planning run — a clean LLM round-trip breaks any
+	// consecutive-error streak (DOGFOOD-003).
+	h.resetConsecutiveErrors(ctx, sessionID)
+
 	return &IterationResult{
 		Status:     "success",
 		NextStatus: string(session.StatusIdle),
@@ -704,6 +708,58 @@ func (h *Harness) handlePlanningTimeout(ctx context.Context, tx db.Tx, sessionID
 		Status:        "error",
 		ErrorInjected: fmt.Sprintf("planning timeout after turn %d: %v", turn, err),
 		NextStatus:    string(session.StatusFailed),
+	}, nil
+}
+
+// handleLLMPlanningError handles LLM call failures inside the planning loop
+// (DOGFOOD-003). Unlike handlePlanningError (deterministic/infra errors →
+// session 'failed'), LLM failures route through the consecutive-errors
+// circuit breaker (AC-040, AC-HARDEN-04): each failure increments the
+// persisted counter in agent_circuit_breakers; when the configured
+// max_consecutive_errors threshold is reached the breaker trips and the
+// session is PAUSED (not failed) so an operator can fix the cause (bad API
+// key, rate limit, provider outage) and resume. Below the threshold the
+// session returns to 'thinking' so the next heartbeat tick retries.
+//
+// The previous behavior sent the session straight to 'failed' on the first
+// LLM error and, by returning a nil Go error, also bypassed the breaker check
+// in pollAndDispatch — agent_circuit_breakers stayed empty.
+func (h *Harness) handleLLMPlanningError(ctx context.Context, tx db.Tx, sessionID string, err error) (*IterationResult, error) {
+	slog.Error("planning: LLM error", "session_id", sessionID, "error", err)
+
+	if tx.IsActive() {
+		tx.Rollback()
+	}
+
+	threshold := h.maxConsecutiveErrors()
+	errorCount := h.currentBreakerCount(ctx, sessionID, BreakerConsecutiveErrors) + 1
+
+	tripped, cbErr := h.CheckCircuitBreaker(ctx, sessionID, BreakerConsecutiveErrors, errorCount, threshold)
+	if cbErr != nil {
+		slog.Error("planning: circuit breaker check failed", "session_id", sessionID, "error", cbErr)
+	}
+
+	if tripped {
+		slog.Error("planning: consecutive-error circuit breaker tripped, pausing session",
+			"session_id", sessionID, "count", errorCount, "threshold", threshold)
+		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); pauseErr != nil {
+			slog.Error("planning: failed to pause session after circuit breaker trip", "session_id", sessionID, "error", pauseErr)
+		}
+	} else {
+		// Below threshold — back to 'thinking' so the heartbeat re-claims and
+		// retries; the persisted counter keeps the consecutive-failure streak.
+		if resetErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); resetErr != nil {
+			slog.Error("planning: failed to return session to thinking after LLM error", "session_id", sessionID, "error", resetErr)
+		}
+	}
+
+	// Return a nil Go error (same convention as handlePlanningError): the
+	// status transition and breaker accounting are already done here, and a
+	// non-nil error would double-count the failure in pollAndDispatch.
+	return &IterationResult{
+		Status:        "error",
+		Error:         err,
+		ErrorInjected: fmt.Sprintf("LLM call failed: %v", err),
 	}, nil
 }
 

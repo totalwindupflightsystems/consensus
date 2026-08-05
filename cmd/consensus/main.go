@@ -129,6 +129,9 @@ func runServer() {
 		os.Exit(1)
 	}
 	h := harness.New(database, llmClient)
+	if cfg.Harness.MaxConsecutiveErrors > 0 {
+		h.MaxConsecutiveErrors = cfg.Harness.MaxConsecutiveErrors
+	}
 	go h.StartHeartbeatLoop(ctx)
 
 	// Compression Worker (WI-012, CS-GAP-001) — background memory compression pipeline.

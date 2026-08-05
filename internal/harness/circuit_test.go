@@ -8,6 +8,7 @@ package harness
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -576,4 +577,147 @@ func TestCircuitBreaker_ConcurrentAccess_NoRace(t *testing.T) {
 	}
 
 	t.Log("concurrent access: no deadlocks, no panics")
+}
+
+// ============================================================================
+// DOGFOOD-003 regression: consecutive LLM errors trip the breaker → paused
+// ============================================================================
+
+// TestConsecutiveLLMErrors_TripBreakerPausesSession proves the wiring that
+// dogfood found broken: LLM call failures inside RunInteractivePlanning used
+// to go straight to status='failed' via handlePlanningError, never reaching
+// CheckCircuitBreaker (agent_circuit_breakers stayed empty). Now each failure
+// increments the persisted counter with the CONFIGURED threshold, and on trip
+// the session is PAUSED, not failed.
+func TestConsecutiveLLMErrors_TripBreakerPausesSession(t *testing.T) {
+	th, err := newTestHarness(failingMockLLM(fmt.Errorf("llm: http 401: invalid api key")))
+	if err != nil {
+		t.Fatalf("failed to create test harness: %v", err)
+	}
+	defer th.close()
+
+	th.Harness.MaxConsecutiveErrors = 2
+
+	sessionID, err := th.createTestSession()
+	if err != nil {
+		t.Fatalf("failed to create test session: %v", err)
+	}
+	if err := th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID); err != nil {
+		t.Fatalf("set thinking: %v", err)
+	}
+
+	cfg := DefaultPlanningConfig()
+	breakerState := func() (int, any) {
+		rows, qErr := th.conn.Query(th.ctx,
+			`SELECT current_count, tripped_at FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
+			sessionID, string(BreakerConsecutiveErrors))
+		if qErr != nil || len(rows) == 0 {
+			return 0, nil
+		}
+		return toInt(rows[0]["current_count"]), rows[0]["tripped_at"]
+	}
+	sessionStatus := func() string {
+		rows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
+		if len(rows) == 0 {
+			return "missing"
+		}
+		return toString(rows[0]["status"])
+	}
+
+	// Failure 1: below threshold — session returns to 'thinking' (retryable),
+	// counter persisted at 1, not tripped, NOT failed.
+	result, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	if err != nil {
+		t.Fatalf("run 1: unexpected Go error: %v", err)
+	}
+	if result == nil || result.Status != "error" {
+		t.Fatalf("run 1: expected error result, got %+v", result)
+	}
+	if got := sessionStatus(); got != "thinking" {
+		t.Errorf("run 1: expected status 'thinking' (retry pending), got %q", got)
+	}
+	if got := sessionStatus(); got == "failed" {
+		t.Errorf("run 1: session must NOT go straight to 'failed' on first LLM error (DOGFOOD-003)")
+	}
+	count, trippedAt := breakerState()
+	if count != 1 {
+		t.Errorf("run 1: expected breaker current_count=1, got %d", count)
+	}
+	if trippedAt != nil {
+		t.Errorf("run 1: breaker should not be tripped below threshold, tripped_at=%v", trippedAt)
+	}
+
+	// Failure 2: threshold reached — breaker trips, session PAUSED (not
+	// failed), tripped_at persisted.
+	result, err = th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	if err != nil {
+		t.Fatalf("run 2: unexpected Go error: %v", err)
+	}
+	if result == nil || result.Status != "error" {
+		t.Fatalf("run 2: expected error result, got %+v", result)
+	}
+	if got := sessionStatus(); got != "paused" {
+		t.Errorf("run 2: expected status 'paused' after breaker trip, got %q", got)
+	}
+	count, trippedAt = breakerState()
+	if count != 2 {
+		t.Errorf("run 2: expected breaker current_count=2, got %d", count)
+	}
+	if trippedAt == nil {
+		t.Error("run 2: expected tripped_at to be set on agent_circuit_breakers row")
+	}
+}
+
+// TestConsecutiveErrors_ResetOnSuccessfulCommit proves the counter tracks
+// CONSECUTIVE failures: a failure followed by a successful planning commit
+// resets the persisted count to 0.
+func TestConsecutiveErrors_ResetOnSuccessfulCommit(t *testing.T) {
+	mock := &retryMockLLM{maxFails: 1, successOutput: minimalOutput()}
+	th, err := newTestHarness(mock)
+	if err != nil {
+		t.Fatalf("failed to create test harness: %v", err)
+	}
+	defer th.close()
+
+	th.Harness.MaxConsecutiveErrors = 3
+
+	sessionID, err := th.createTestSession()
+	if err != nil {
+		t.Fatalf("failed to create test session: %v", err)
+	}
+	cfg := DefaultPlanningConfig()
+	cfg.MaxTurns = 2
+	cfg.AutoCommitOnMax = true
+
+	// Run 1: LLM fails → below threshold → 'thinking', count=1.
+	if err := th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID); err != nil {
+		t.Fatalf("set thinking: %v", err)
+	}
+	if _, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
+		t.Fatalf("run 1: unexpected Go error: %v", err)
+	}
+	rows, _ := th.conn.Query(th.ctx,
+		`SELECT current_count FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
+		sessionID, string(BreakerConsecutiveErrors))
+	if len(rows) == 0 || toInt(rows[0]["current_count"]) != 1 {
+		t.Fatalf("run 1: expected breaker count=1, rows=%v", rows)
+	}
+
+	// Run 2: LLM succeeds → commit → counter reset to 0, session idle.
+	if _, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
+		t.Fatalf("run 2: unexpected Go error: %v", err)
+	}
+	rows, _ = th.conn.Query(th.ctx,
+		`SELECT current_count FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
+		sessionID, string(BreakerConsecutiveErrors))
+	if len(rows) == 0 {
+		t.Fatal("run 2: breaker row missing")
+	}
+	if got := toInt(rows[0]["current_count"]); got != 0 {
+		t.Errorf("run 2: expected breaker count reset to 0 after successful commit, got %d", got)
+	}
+	statusRows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
+	if len(statusRows) > 0 && toString(statusRows[0]["status"]) != "idle" {
+		t.Errorf("run 2: expected session 'idle' after successful commit, got %q", toString(statusRows[0]["status"]))
+	}
 }

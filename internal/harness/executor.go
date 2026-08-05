@@ -598,19 +598,12 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 				if err != nil {
 					slog.Error("harness: planning failed", "session_id", sessionID, "error", err)
 
-					// Circuit breaker: count failures and trip at 3 (AC-040).
-					rows, qErr := h.db.Query(ctx,
-						`SELECT COUNT(*) AS cnt FROM audit_logs WHERE session_id = $1 AND result = 'rolled_back'`,
-						sessionID)
-					errorCount := 1
-					if qErr == nil && len(rows) > 0 {
-						if v, ok := rows[0]["cnt"]; ok {
-							if cv, ok2 := v.(int64); ok2 {
-								errorCount = int(cv)
-							}
-						}
-					}
-					tripped, cbErr := h.CheckCircuitBreaker(ctx, sessionID, BreakerConsecutiveErrors, errorCount, 3)
+					// Circuit breaker (AC-040, AC-HARDEN-04): accumulate through the
+					// persisted breaker row with the CONFIGURED threshold
+					// (DOGFOOD-003 — the previous audit_logs 'rolled_back' count
+					// never saw LLM-path failures and the threshold was hardcoded).
+					errorCount := h.currentBreakerCount(ctx, sessionID, BreakerConsecutiveErrors) + 1
+					tripped, cbErr := h.CheckCircuitBreaker(ctx, sessionID, BreakerConsecutiveErrors, errorCount, h.maxConsecutiveErrors())
 					if cbErr != nil {
 						slog.Error("harness: circuit breaker check failed", "session_id", sessionID, "error", cbErr)
 					}
