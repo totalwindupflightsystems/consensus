@@ -294,3 +294,31 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.LLM.APIKey = v
 	}
 }
+
+// ApplyStartupValidations checks the effective configuration for problems
+// that would fail at runtime. Non-fatal misconfigurations are corrected in
+// place; remaining problems are returned as prominent startup warnings for
+// the caller to log.
+//
+// C-GAP-002: the compression worker needs an embeddings endpoint, which
+// DeepSeek (api.deepseek.com) does not provide. When the LLM backend is
+// DeepSeek, compression is disabled with a warning instead of failing on
+// every embedding call at runtime.
+//
+// C-GAP-003: with no LLM API key (empty, or still a ${...} YAML template
+// literal that yaml.v3 could not resolve), every LLM call fails with an
+// opaque 401. A warning at startup makes the misconfiguration obvious.
+func (cfg *Config) ApplyStartupValidations() []string {
+	var warns []string
+
+	if cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${") {
+		warns = append(warns, "No LLM API key configured — agent harness will fail on LLM calls (set DEEPSEEK_API_KEY or CONSENSUS_API_KEY)")
+	}
+
+	if cfg.Compression.Enabled && strings.Contains(strings.ToLower(cfg.LLM.BaseURL), "deepseek") {
+		cfg.Compression.Enabled = false
+		warns = append(warns, "Compression worker DISABLED — provider DeepSeek has no embeddings endpoint (set compression.enabled=false or configure an OpenAI-compatible embeddings provider)")
+	}
+
+	return warns
+}

@@ -73,6 +73,13 @@ func runServer() {
 		os.Exit(1)
 	}
 
+	// Startup validation (C-GAP-002, C-GAP-003): correct non-fatal
+	// misconfigurations (compression on a provider without embeddings) and
+	// surface runtime-fatal ones (missing LLM API key) as prominent warnings.
+	for _, w := range cfg.ApplyStartupValidations() {
+		slog.Warn("consensus: " + w)
+	}
+
 	database, err := dbdriver.Open(ctx, cfg.Database)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "db: %v\n", err)

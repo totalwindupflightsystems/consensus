@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -92,5 +93,89 @@ func TestAPIRateDefaults(t *testing.T) {
 	}
 	if cfg.APIRate.SessionLimit != 100 {
 		t.Errorf("expected session limit 100, got %d", cfg.APIRate.SessionLimit)
+	}
+}
+
+// --- ApplyStartupValidations (C-GAP-002, C-GAP-003) ---
+
+func TestApplyStartupValidations_EmptyAPIKeyWarns(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.APIKey = ""
+
+	warns := cfg.ApplyStartupValidations()
+
+	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
+		t.Fatalf("expected API key warning, got %v", warns)
+	}
+}
+
+func TestApplyStartupValidations_TemplateAPIKeyWarns(t *testing.T) {
+	cfg := Defaults()
+	// yaml.v3 leaves ${DEEPSEEK_API_KEY} as a literal when the env var is
+	// unset — the startup validation must catch the template form too.
+	cfg.LLM.APIKey = "${DEEPSEEK_API_KEY}"
+
+	warns := cfg.ApplyStartupValidations()
+
+	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
+		t.Fatalf("expected API key warning for ${...} template, got %v", warns)
+	}
+}
+
+func TestApplyStartupValidations_SetAPIKeyNoWarning(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.APIKey = "sk-test-key"
+
+	warns := cfg.ApplyStartupValidations()
+
+	for _, w := range warns {
+		if strings.Contains(w, "LLM API key") {
+			t.Fatalf("unexpected API key warning with key set: %q", w)
+		}
+	}
+}
+
+func TestApplyStartupValidations_DeepSeekDisablesCompression(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.BaseURL = "https://api.deepseek.com/v1"
+	cfg.Compression.Enabled = true
+
+	warns := cfg.ApplyStartupValidations()
+
+	if cfg.Compression.Enabled {
+		t.Error("expected compression to be disabled on DeepSeek backend")
+	}
+	found := false
+	for _, w := range warns {
+		if strings.Contains(w, "Compression worker DISABLED") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected compression warning, got %v", warns)
+	}
+}
+
+func TestApplyStartupValidations_NonDeepSeekKeepsCompression(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.BaseURL = "https://api.openai.com/v1"
+	cfg.Compression.Enabled = true
+
+	_ = cfg.ApplyStartupValidations()
+
+	if !cfg.Compression.Enabled {
+		t.Error("expected compression to stay enabled on OpenAI backend")
+	}
+}
+
+func TestApplyStartupValidations_NoBaseURLKeepsCompression(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.BaseURL = ""
+	cfg.Compression.Enabled = true
+
+	_ = cfg.ApplyStartupValidations()
+
+	if !cfg.Compression.Enabled {
+		t.Error("expected compression to stay enabled when base URL is empty (provider default)")
 	}
 }

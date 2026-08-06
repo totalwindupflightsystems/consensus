@@ -17,10 +17,10 @@ build:
 # --- Development ---
 
 dev:
-	$(GO) run ./cmd/consensus serve --db sqlite://dev.db
+	$(GO) run ./cmd/consensus serve --db-url sqlite://dev.db
 
 dev-pg:
-	$(GO) run ./cmd/consensus serve --db postgres://localhost:5432/consensus
+	$(GO) run ./cmd/consensus serve --db-url postgres://localhost:5432/consensus
 
 # --- Test ---
 
