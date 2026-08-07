@@ -396,6 +396,17 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 		// Non-fatal: best-effort, same policy as repairTrustLevel.
 	}
 
+	// Repair: migration 008 was recorded as applied on some installs without
+	// its DDL landing (recorded-but-not-executed — same family as 013/017),
+	// leaving approval_requests / hitl_configuration / notification_log
+	// missing while schema_versions says v8 applied. Every startup then warns
+	// "failed to initialize HITL defaults: relation hitl_configuration does
+	// not exist" (BUG-010, dexdat sidecar 2026-08-07).
+	if err := r.repairHitlConfiguration(ctx); err != nil {
+		// Non-fatal: best-effort. HITL flows surface the missing table with a
+		// clear error at first use.
+	}
+
 	return len(applied) > 0, nil
 }
 
@@ -475,6 +486,56 @@ func (r *Runner) repairAppendOnlyTriggers(ctx context.Context) error {
 		if err := r.database.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("migrate: repair append-only triggers (statement %d): %w", i+1, err)
 		}
+	}
+	return nil
+}
+
+// repairHitlConfiguration ensures the HITL tables (migration 008) actually
+// exist. Some installs have version 8 recorded in schema_versions while the
+// DDL never landed (recorded-but-not-executed — same family as 013/017),
+// leaving approval_requests / hitl_configuration / notification_log missing
+// and every startup warning "failed to initialize HITL defaults: relation
+// hitl_configuration does not exist" (BUG-010, dexdat sidecar 2026-08-07).
+// Re-applying 008 is idempotent (CREATE TABLE IF NOT EXISTS + guarded
+// default-row insert).
+func (r *Runner) repairHitlConfiguration(ctx context.Context) error {
+	backend := db.DetectBackendFromDB(r.database)
+
+	var rows []db.Row
+	var err error
+	if backend == db.BackendPostgres {
+		rows, err = r.database.Query(ctx,
+			`SELECT table_name AS name FROM information_schema.tables WHERE table_name = 'hitl_configuration'`)
+	} else {
+		rows, err = r.database.Query(ctx,
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'hitl_configuration'`)
+	}
+	if err != nil {
+		// Table metadata unavailable (pre-bootstrap) — best-effort repair, don't fail startup.
+		return nil
+	}
+	if len(rows) > 0 {
+		return nil // Already present — nothing to repair
+	}
+
+	// Table missing — re-apply migration 008 (idempotent), through the same
+	// backend filters the normal Up() path applies (filterForSQLite strips
+	// PG-only constructs like gen_random_uuid()/BIGSERIAL on SQLite).
+	content, err := embeddedMigrations.ReadFile("migrations/008_hitl_tables.sql")
+	if err != nil {
+		return fmt.Errorf("migrate: read 008 repair SQL: %w", err)
+	}
+	if backend == db.BackendSQLite {
+		content = []byte(filterForSQLite(string(content)))
+		for i, stmt := range splitStatements(string(content)) {
+			if err := r.database.Exec(ctx, stmt); err != nil {
+				return fmt.Errorf("migrate: repair hitl (statement %d): %w", i+1, err)
+			}
+		}
+		return nil
+	}
+	if err := r.database.Exec(ctx, string(content)); err != nil {
+		return fmt.Errorf("migrate: repair hitl: %w", err)
 	}
 	return nil
 }

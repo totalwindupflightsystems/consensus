@@ -554,6 +554,59 @@ func TestAutoMigrate_CreatesAppendOnlyTriggers(t *testing.T) {
 // Regression: filterForSQLite MUST keep multi-line SQLite triggers (DOGFOOD-001)
 // ============================================================================
 
+// TestRepairHitlConfiguration covers the recorded-but-missing HITL tables
+// class (BUG-010): schema_versions says v8 applied, but the 008 DDL never
+// landed, so approval_requests / hitl_configuration / notification_log are
+// absent. Up() skips v8 (version recorded), so only the startup repair can
+// bring the tables back.
+func TestRepairHitlConfiguration(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("first AutoMigrate failed: %v", err)
+	}
+	if !hitlTableExists(t, database) {
+		t.Fatal("setup: hitl_configuration should exist after full AutoMigrate")
+	}
+
+	// Simulate a pre-fix install: drop the HITL tables while schema_versions
+	// still records version 8 as applied.
+	for _, tbl := range []string{"approval_requests", "hitl_configuration", "notification_log"} {
+		if err := database.Exec(ctx, `DROP TABLE IF EXISTS `+tbl); err != nil {
+			t.Fatalf("drop %s: %v", tbl, err)
+		}
+	}
+	if hitlTableExists(t, database) {
+		t.Fatal("setup: hitl_configuration should be gone after DROP")
+	}
+
+	// Heal path: re-run AutoMigrate — Up() skips v8, so only the startup
+	// repair can recreate the tables.
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("second AutoMigrate (heal) failed: %v", err)
+	}
+	if !hitlTableExists(t, database) {
+		t.Error("hitl_configuration still MISSING after repairHitlConfiguration heal")
+	}
+}
+
+func hitlTableExists(t *testing.T, database db.DB) bool {
+	t.Helper()
+	rows, err := database.Query(context.Background(),
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'hitl_configuration'`)
+	if err != nil {
+		t.Fatalf("query hitl_configuration: %v", err)
+	}
+	return len(rows) > 0
+}
+
+// ============================================================================
+// Regression: filterForSQLite MUST keep multi-line SQLite triggers (DOGFOOD-001)
+// ============================================================================
+
 func TestFilterForSQLite_MultiLineCreateTrigger(t *testing.T) {
 	// A SQLite-native CREATE TRIGGER whose header spans multiple lines has no
 	// " BEGIN " on the first line — the filter must scan ahead for BEGIN...END

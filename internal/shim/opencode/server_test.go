@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/wojons/consensus/internal/db"
 )
 
@@ -298,6 +299,64 @@ func TestSendMessage(t *testing.T) {
 	}
 	if msg["parts"] == nil {
 		t.Error("expected parts in response")
+	}
+}
+
+// TestMountPatternsChi is the BUG-009 regression: the shim must be reachable
+// through a parent chi router mounted with MountPatterns. chi v5 Handle()
+// with a trailing-slash pattern ("/session/") is EXACT-match only, so
+// sub-path routes mounted that way 404 before reaching the shim — the dexdat
+// sidecar hit exactly this (2026-08-07). The /* wildcard forms must pass
+// /session/{id}/message through to the shim.
+func TestMountPatternsChi(t *testing.T) {
+	mdb := &mockDB{
+		queryRow: rowOf(map[string]any{
+			"status": "idle", "iteration": int64(0),
+		}),
+	}
+	s := NewServer(mdb, "test-key", nil, nil)
+	s.skipAuth = true
+
+	r := chi.NewRouter()
+	for _, p := range MountPatterns {
+		r.Handle(p, s.Handler())
+	}
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	// Sub-path route: must reach the shim (200), not chi's 404.
+	body := jsonBody(t, map[string]any{
+		"parts": []map[string]any{
+			{"type": "text", "text": "Hello, agent!"},
+		},
+	})
+	resp, err := http.Post(srv.URL+"/session/s1/message", "application/json", body)
+	if err != nil {
+		t.Fatalf("POST /session/s1/message via chi mount failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200 via chi MountPatterns mount, got %d", resp.StatusCode)
+	}
+
+	// Bare endpoint: exact pattern must still work.
+	resp2, err := http.Get(srv.URL + "/session/s1")
+	if err != nil {
+		t.Fatalf("GET /session/s1 via chi mount failed: %v", err)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode == 404 {
+		t.Error("GET /session/s1 returned 404 — bare /session pattern not mounted")
+	}
+
+	// Unmounted path must 404 (sanity: the router is real, not a catch-all).
+	resp3, err := http.Get(srv.URL + "/nope/not-mounted")
+	if err != nil {
+		t.Fatalf("GET /nope/not-mounted failed: %v", err)
+	}
+	defer resp3.Body.Close()
+	if resp3.StatusCode != 404 {
+		t.Errorf("expected 404 for unmounted path, got %d", resp3.StatusCode)
 	}
 }
 

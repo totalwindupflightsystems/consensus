@@ -195,6 +195,33 @@ func (s *Server) Handler() http.Handler {
 	return s.corsMiddleware(s.authMiddleware(s.mux))
 }
 
+// MountPatterns lists the chi router patterns required to expose the shim
+// under a parent router. Exact patterns (no trailing slash) register the bare
+// endpoint; /* wildcard patterns register sub-paths. chi v5 Handle() with a
+// trailing-slash pattern (e.g. "/session/") matches ONLY the literal path, so
+// sub-paths must be registered with the /* form — otherwise every
+// /session/{id} request 404s before reaching the shim (BUG-009, dexdat
+// sidecar, 2026-08-07).
+var MountPatterns = []string{
+	"/global/*",
+	"/session", "/session/*",
+	"/config", "/config/*",
+	"/provider", "/provider/*",
+	"/agent", "/agent/*",
+	"/experimental/*",
+	"/find", "/find/*",
+	"/file/*",
+	"/event",
+	"/permission", "/permission/*",
+	"/tui/*",
+	"/lsp", "/lsp/*",
+	"/doc", "/doc/*",
+	"/auth/*",
+	"/project", "/project/*",
+	"/vcs", "/vcs/*",
+	"/instance", "/instance/*",
+}
+
 // ============================================================================
 // Middleware
 // ============================================================================

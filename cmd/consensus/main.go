@@ -344,34 +344,9 @@ func runServer() {
 		shimSrv := opencode.NewServer(database, cfg.Adapters.OpenCode.AdminKey, shimEvents, shimService)
 		// Mount shim at root — it handles paths like /session, /config, /event, etc.
 		// Use /* wildcards for sub-path routes (chi v5 trailing-slash prefix can be unreliable).
-		apiMux.Handle("/global/*", shimSrv.Handler())
-		apiMux.Handle("/session", shimSrv.Handler())
-		apiMux.Handle("/session/*", shimSrv.Handler())
-		apiMux.Handle("/config", shimSrv.Handler())
-		apiMux.Handle("/config/*", shimSrv.Handler())
-		apiMux.Handle("/provider", shimSrv.Handler())
-		apiMux.Handle("/provider/*", shimSrv.Handler())
-		apiMux.Handle("/agent", shimSrv.Handler())
-		apiMux.Handle("/agent/*", shimSrv.Handler())
-		apiMux.Handle("/experimental/*", shimSrv.Handler())
-		apiMux.Handle("/find", shimSrv.Handler())
-		apiMux.Handle("/find/*", shimSrv.Handler())
-		apiMux.Handle("/file/*", shimSrv.Handler())
-		apiMux.Handle("/event", shimSrv.Handler())
-		apiMux.Handle("/permission", shimSrv.Handler())
-		apiMux.Handle("/permission/*", shimSrv.Handler())
-		apiMux.Handle("/tui/*", shimSrv.Handler())
-		apiMux.Handle("/lsp", shimSrv.Handler())
-		apiMux.Handle("/lsp/*", shimSrv.Handler())
-		apiMux.Handle("/doc", shimSrv.Handler())
-		apiMux.Handle("/doc/*", shimSrv.Handler())
-		apiMux.Handle("/auth/*", shimSrv.Handler())
-		apiMux.Handle("/project", shimSrv.Handler())
-		apiMux.Handle("/project/*", shimSrv.Handler())
-		apiMux.Handle("/vcs", shimSrv.Handler())
-		apiMux.Handle("/vcs/*", shimSrv.Handler())
-		apiMux.Handle("/instance", shimSrv.Handler())
-		apiMux.Handle("/instance/*", shimSrv.Handler())
+		for _, pattern := range opencode.MountPatterns {
+			apiMux.Handle(pattern, shimSrv.Handler())
+		}
 		slog.Info("consensus: opencode shim enabled")
 	}
 
