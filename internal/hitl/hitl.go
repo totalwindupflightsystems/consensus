@@ -364,10 +364,10 @@ func (m *Manager) SetConfiguration(ctx context.Context, cfg Configuration) error
 		_ = m.database.Exec(ctx, `DELETE FROM hitl_configuration WHERE scope = 'global'`)
 		return m.database.Exec(ctx, `
 			INSERT INTO hitl_configuration (scope, auto_pause_on_error_threshold, require_approval_for_destructive, require_approval_for_schema_changes, require_approval_for_external_tools, approval_timeout_minutes, notify_on_pause, created_at)
-			VALUES ('global', $1, CAST($2 AS BOOLEAN), CAST($3 AS BOOLEAN), CAST($4 AS BOOLEAN), $5, CAST($6 AS BOOLEAN), $7)
-		`, cfg.AutoPauseOnErrorThreshold, toBoolInt(cfg.RequireApprovalForDestructive),
-			toBoolInt(cfg.RequireApprovalForSchemaChanges), toBoolInt(cfg.RequireApprovalForExternalTools),
-			cfg.ApprovalTimeoutMinutes, toBoolInt(cfg.NotifyOnPause),
+			VALUES ('global', $1, $2, $3, $4, $5, $6, $7)
+		`, cfg.AutoPauseOnErrorThreshold, cfg.RequireApprovalForDestructive,
+			cfg.RequireApprovalForSchemaChanges, cfg.RequireApprovalForExternalTools,
+			cfg.ApprovalTimeoutMinutes, cfg.NotifyOnPause,
 			time.Now())
 	}
 
@@ -378,10 +378,10 @@ func (m *Manager) SetConfiguration(ctx context.Context, cfg Configuration) error
 		_ = m.database.Exec(ctx, `DELETE FROM hitl_configuration WHERE scope = 'session' AND session_id = $1`, cfg.SessionID)
 		return m.database.Exec(ctx, `
 			INSERT INTO hitl_configuration (scope, session_id, auto_pause_on_error_threshold, require_approval_for_destructive, require_approval_for_schema_changes, require_approval_for_external_tools, approval_timeout_minutes, notify_on_pause, created_at)
-			VALUES ('session', $1, $2, CAST($3 AS BOOLEAN), CAST($4 AS BOOLEAN), CAST($5 AS BOOLEAN), $6, CAST($7 AS BOOLEAN), $8)
-		`, cfg.SessionID, cfg.AutoPauseOnErrorThreshold, toBoolInt(cfg.RequireApprovalForDestructive),
-			toBoolInt(cfg.RequireApprovalForSchemaChanges), toBoolInt(cfg.RequireApprovalForExternalTools),
-			cfg.ApprovalTimeoutMinutes, toBoolInt(cfg.NotifyOnPause),
+			VALUES ('session', $1, $2, $3, $4, $5, $6, $7, $8)
+		`, cfg.SessionID, cfg.AutoPauseOnErrorThreshold, cfg.RequireApprovalForDestructive,
+			cfg.RequireApprovalForSchemaChanges, cfg.RequireApprovalForExternalTools,
+			cfg.ApprovalTimeoutMinutes, cfg.NotifyOnPause,
 			time.Now())
 	}
 
@@ -786,12 +786,4 @@ func toBool(v interface{}) bool {
 	default:
 		return false
 	}
-}
-
-// toBoolInt converts a Go bool to 0/1 for portable boolean storage in SQLite.
-func toBoolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
