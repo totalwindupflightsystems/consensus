@@ -315,8 +315,12 @@ func runServer() {
 
 	// Combined handler tree: API handles /api/..., MCP handles /mcp/...
 	// chi.Router provides both ServeHTTP and Handle methods for sub-path mounting.
+	// Note: the /mcp/* wildcard (NOT "/mcp/") is required — chi v5 treats a bare
+	// trailing-slash pattern as an exact match, so "/mcp/" 404s every subpath.
+	// The inner mux registers absolute paths (/mcp/sse, /mcp/message), so no
+	// StripPrefix wrapper is used here (C-GAP-005).
 	apiMux := apiSrv.Handler().(chi.Router)
-	apiMux.Handle("/mcp/", mcpSrv.Handler())
+	apiMux.Handle("/mcp/*", mcpSrv.Handler())
 
 	// Webhook ingestion endpoint (SPEC-013 §4)
 	// Mount at /webhooks/ — no API key required (HMAC signature verification instead).

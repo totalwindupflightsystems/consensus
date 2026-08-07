@@ -138,7 +138,12 @@ docker run -d \
 
 # Verify it's alive
 curl http://localhost:8090/api/v1/health
-# → {"status":"healthy","uptime":"2s","db":"sqlite"}
+# → {"status":"ok","version":"0.1.0","uptime_seconds":8,"api_latency_ms":0,"db_latency_ms":0.1,
+#    "llm_latency_ms":0,"error_rate_pct":0,"db_backend":"sqlite","db_path":"/home/consensus/data/dev.db",
+#    "db_size_mb":0.00390625,"db_tables":37,"db_migrations":22,"schema_version":23,
+#    "active_connections":{"websocket":0,"db_pool_active":0,"db_pool_max":0,"llm_active":0,"api_requests_last_min":0},
+#    "system_log":[]}
+# Key fields: status (ok|degraded|unhealthy), db_backend (sqlite|postgres), schema_version.
 
 # Check the Chronicle dashboard
 open http://localhost:8090/chronicle/
