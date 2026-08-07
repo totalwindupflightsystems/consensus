@@ -186,7 +186,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	// The WHERE status='thinking' clause prevents duplicate goroutines
 	// from processing the same session on concurrent heartbeat ticks.
 	if err := h.db.Exec(ctx,
-		`UPDATE sessions SET status = 'planning', heartbeat_at = datetime('now') WHERE id = $1 AND status = 'thinking'`,
+		`UPDATE sessions SET status = 'planning', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'thinking'`,
 		sessionID); err != nil {
 		slog.Error("planning: atomic claim failed", "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("planning: claim session: %w", err)
@@ -285,7 +285,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			if exceeded {
 				slog.Warn("planning: budget exceeded", "session_id", sessionID)
 				if err := h.db.Exec(ctx,
-					`UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`,
+					`UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`,
 					sessionID); err != nil {
 					slog.Error("planning: failed to pause session for budget", "session_id", sessionID, "error", err)
 				}
@@ -447,7 +447,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	// is compromised), the session stays stuck in its current status forever.
 	defer func() {
 		if err := h.db.Exec(ctx,
-			`UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now') WHERE id = $1 AND status NOT IN ('idle','failed','paused')`,
+			`UPDATE sessions SET status = 'idle', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1 AND status NOT IN ('idle','failed','paused')`,
 			sessionID); err != nil {
 			slog.Error("planning: failed to update session status to idle after max turns",
 				"session_id", sessionID, "error", err)
@@ -470,7 +470,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		tx.Rollback()
 		// BUG FIX: tx is rolled back, so we must update session status outside the transaction.
 		// Without this, the session remains stuck in "planning" forever.
-		if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); err != nil {
+		if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
 			slog.Error("planning: failed to update session status to idle after no productive work", "session_id", sessionID, "error", err)
 		}
 	}
@@ -495,21 +495,21 @@ func (h *Harness) insertStagingEntry(ctx context.Context, tx db.Tx, sessionID st
 	return tx.Exec(ctx, `
 		INSERT INTO staging_buffer
 			(session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
-		VALUES ($1, 0, $2, $3, $4, $5, $6, $7, datetime('now'))
+		VALUES ($1, 0, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
 	`, sessionID, entry.Turn, entry.Seq, string(entry.CmdType),
 		string(payloadJSON), entry.Description, string(entry.Status))
 }
 
 func (h *Harness) updateStagingStatus(ctx context.Context, tx db.Tx, entryID int64, status BufferStatus, result *json.RawMessage) error {
 	return tx.Exec(ctx, `
-		UPDATE staging_buffer SET status = $1, executed = $2, executed_at = datetime('now')
+		UPDATE staging_buffer SET status = $1, executed = $2, executed_at = CURRENT_TIMESTAMP
 		WHERE id = $3
 	`, string(status), status == BufferExecuted, entryID)
 }
 
 func (h *Harness) updateStagingResult(ctx context.Context, tx db.Tx, entryID int64, result *json.RawMessage) error {
 	return tx.Exec(ctx, `
-		UPDATE staging_buffer SET status = 'executed', result = $1, executed = true, executed_at = datetime('now')
+		UPDATE staging_buffer SET status = 'executed', result = $1, executed = true, executed_at = CURRENT_TIMESTAMP
 		WHERE id = $2
 	`, string(*result), entryID)
 }
@@ -637,7 +637,7 @@ func (h *Harness) handleCommitV2(ctx context.Context, tx db.Tx, sessionID string
 
 	// Update session to idle
 	if err := tx.Exec(ctx, `
-		UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now'), iteration = iteration + 1
+		UPDATE sessions SET status = 'idle', heartbeat_at = CURRENT_TIMESTAMP, iteration = iteration + 1
 		WHERE id = $1
 	`, sessionID); err != nil {
 		return nil, fmt.Errorf("commit: update session: %w", err)
@@ -742,13 +742,13 @@ func (h *Harness) handleLLMPlanningError(ctx context.Context, tx db.Tx, sessionI
 	if tripped {
 		slog.Error("planning: consecutive-error circuit breaker tripped, pausing session",
 			"session_id", sessionID, "count", errorCount, "threshold", threshold)
-		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); pauseErr != nil {
+		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
 			slog.Error("planning: failed to pause session after circuit breaker trip", "session_id", sessionID, "error", pauseErr)
 		}
 	} else {
 		// Below threshold — back to 'thinking' so the heartbeat re-claims and
 		// retries; the persisted counter keeps the consecutive-failure streak.
-		if resetErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); resetErr != nil {
+		if resetErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); resetErr != nil {
 			slog.Error("planning: failed to return session to thinking after LLM error", "session_id", sessionID, "error", resetErr)
 		}
 	}
@@ -777,7 +777,7 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 		WHERE session_id = $1 AND status IN ('staged', 'executed')
 	`, sessionID)
 
-	if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'failed', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); err != nil {
+	if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'failed', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
 		slog.Error("planning: failed to update session status to failed after error", "session_id", sessionID, "error", err)
 	}
 
@@ -933,12 +933,12 @@ psql session.
 - memory_events is append-only — you can INSERT but not UPDATE or DELETE.
 - Only access tables scoped to your session_id.
 - For schema changes (CREATE TABLE, ALTER TABLE), put the SQL directly in memory_state_changes.
-|- **IMPORTANT SQL constraint:** In INSERT VALUES clauses, do NOT use DEFAULT (datetime('now')). Use datetime('now') directly instead. The DEFAULT(...) syntax is only valid in CREATE TABLE column definitions, not in INSERT VALUES.
+|- **IMPORTANT SQL constraint:** In INSERT VALUES clauses, do NOT use DEFAULT (CURRENT_TIMESTAMP). Use CURRENT_TIMESTAMP directly instead. The DEFAULT(...) syntax is only valid in CREATE TABLE column definitions, not in INSERT VALUES.
   The harness executes DDL immediately (before the transaction) and retries within the transaction.
 - If there's a SQL error, the harness injects the error into the next context for recovery.
 - **SQLite notes:** No gen_random_uuid() — the harness rewrites it. No ::type casts. No JSONB operators.
   Use INTEGER PRIMARY KEY AUTOINCREMENT for auto-incrementing IDs (not SERIAL/BIGSERIAL).
-  DEFAULT (datetime('now')) for timestamps — parentheses required. CHECK constraints for validation.
+  DEFAULT (CURRENT_TIMESTAMP) for timestamps — parentheses required. CHECK constraints for validation.
   **Use CREATE TABLE IF NOT EXISTS** — SQLite auto-commits DDL, so repeated CREATE TABLE fails.
   **Use INSERT OR IGNORE** for idempotent inserts when you're unsure if rows already exist.
 
@@ -959,7 +959,7 @@ Put DDL (CREATE TABLE, ALTER TABLE) before DML (INSERT, UPDATE) in separate entr
 **IMPORTANT:** memory_state_changes IS where SQL code goes — not text descriptions, not prose.
 Each entry is raw executable SQL. Example of creating a table (session_id is in the turn context):
   "memory_state_changes": [
-    "CREATE TABLE IF NOT EXISTS my_table (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, created_at TEXT DEFAULT (datetime('now')))",
+    "CREATE TABLE IF NOT EXISTS my_table (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, created_at TEXT DEFAULT (CURRENT_TIMESTAMP))",
     "INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Created my_table', '<your session id>', 0)"
   ]
 **system_actions:** ["commit"] to finalize and end the session. ["rollback"] to undo.

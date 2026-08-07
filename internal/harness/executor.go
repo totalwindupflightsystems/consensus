@@ -206,7 +206,7 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 
 	// Update session status
 	newStatus := h.determineNextStatus(output)
-	if err := tx.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = datetime('now'), iteration = iteration + 1 WHERE id = $2`,
+	if err := tx.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = CURRENT_TIMESTAMP, iteration = iteration + 1 WHERE id = $2`,
 		newStatus, sessionID); err != nil {
 		tx.Rollback()
 		return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
@@ -254,7 +254,7 @@ func (h *Harness) executeStatement(ctx context.Context, tx interface {
 }, stmt string, sessionID string, trustLevel string) error {
 	// Sanitize
 	stmt = security.Sanitize(stmt)
-	// Fix common LLM SQL generation error: LLMs copy DEFAULT (datetime('now'))
+	// Fix common LLM SQL generation error: LLMs copy DEFAULT (CURRENT_TIMESTAMP)
 	// from CREATE TABLE column definitions into INSERT VALUES clauses, where
 	// it's invalid SQL. Replace with the bare expression.
 	stmt = fixLLMSQLDefaults(stmt)
@@ -309,14 +309,21 @@ func SplitStatementsSemicolon(stmts []string) []string {
 }
 
 // fixLLMSQLDefaults fixes common LLM SQL generation errors before execution.
-// LLMs frequently copy DEFAULT (datetime('now')) from CREATE TABLE column
+// LLMs frequently copy DEFAULT (CURRENT_TIMESTAMP) from CREATE TABLE column
 // definitions into INSERT VALUES clauses, where DEFAULT (expr) is invalid.
 func fixLLMSQLDefaults(stmt string) string {
-	// Replace DEFAULT (datetime('now'[, args])) with bare datetime('now'[, args])
-	// in INSERT VALUES contexts — the LLM copies DDL syntax into DML.
-	re := regexp.MustCompile(`(?i)(VALUES\s*\([^)]*?)\bDEFAULT\s*\((\s*datetime\s*\(\s*'now'[^)]*\)\s*)\)`)
+	// Replace DEFAULT (datetime('now')) / DEFAULT (CURRENT_TIMESTAMP) with the
+	// bare backend-neutral CURRENT_TIMESTAMP in INSERT VALUES contexts — the
+	// LLM copies DDL syntax into DML.
+	re := regexp.MustCompile(`(?i)(VALUES\s*\([^)]*?)\bDEFAULT\s*\((\s*(?:datetime\s*\(\s*'now'\s*\)|CURRENT_TIMESTAMP)\s*)\)`)
 	for re.MatchString(stmt) {
-		stmt = re.ReplaceAllString(stmt, `$1$2`)
+		stmt = re.ReplaceAllString(stmt, `${1}CURRENT_TIMESTAMP`)
+	}
+	// Args variant (datetime('now', '+1 hour')): strip the DEFAULT(...) wrapper
+	// but keep the bare SQLite expression — no CURRENT_TIMESTAMP equivalent.
+	reArgs := regexp.MustCompile(`(?i)(VALUES\s*\([^)]*?)\bDEFAULT\s*\((\s*datetime\s*\(\s*'now'[^)]*\)\s*)\)`)
+	for reArgs.MatchString(stmt) {
+		stmt = reArgs.ReplaceAllString(stmt, `$1$2`)
 	}
 	return stmt
 }
@@ -609,21 +616,21 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 					}
 					if tripped {
 						slog.Error("harness: circuit breaker tripped, pausing session", "session_id", sessionID)
-						if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`, sessionID); pauseErr != nil {
+						if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
 							slog.Error("harness: failed to pause session", "session_id", sessionID, "error", pauseErr)
 						}
 					}
 				} else if result == nil {
 					slog.Debug("harness: planning returned nil (session already claimed)", "session_id", sessionID)
 				} else if result.NextStatus != "" {
-					if err := h.db.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = datetime('now') WHERE id = $2`, result.NextStatus, sessionID); err != nil {
+					if err := h.db.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = CURRENT_TIMESTAMP WHERE id = $2`, result.NextStatus, sessionID); err != nil {
 						slog.Error("harness: failed to apply session status transition", "session_id", sessionID, "next_status", result.NextStatus, "error", err)
 					}
 					// Persist the monologue (LLM response text) so H3 clients can retrieve it
 					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" {
 						if insErr := h.db.Exec(ctx,
 							`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
-							 VALUES ('text_block', $1, $2, 0, datetime('now'))`,
+							 VALUES ('text_block', $1, $2, 0, CURRENT_TIMESTAMP)`,
 							result.AuditEntry.Monologue, sessionID); insErr != nil {
 							slog.Warn("harness: failed to persist monologue", "session_id", sessionID, "error", insErr)
 						}

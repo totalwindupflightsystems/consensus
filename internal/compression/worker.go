@@ -515,8 +515,8 @@ func (w *Worker) acceptSummary(ctx context.Context, item *QueueItem, sessionID, 
 	// Update display_modes to compressed
 	err = w.db.Exec(ctx, `
 		INSERT INTO display_modes (memory_id, mode, set_at, set_by_iteration, session_id)
-		VALUES ($1, 'compressed', datetime('now'), 0, $2)
-		ON CONFLICT (memory_id) DO UPDATE SET mode = 'compressed', set_at = datetime('now')
+		VALUES ($1, 'compressed', CURRENT_TIMESTAMP, 0, $2)
+		ON CONFLICT (memory_id) DO UPDATE SET mode = 'compressed', set_at = CURRENT_TIMESTAMP
 	`, item.EventID, sessionID)
 	if err != nil {
 		return fmt.Errorf("update display_modes: %w", err)
@@ -525,7 +525,7 @@ func (w *Worker) acceptSummary(ctx context.Context, item *QueueItem, sessionID, 
 	// Mark queue item as completed
 	err = w.db.Exec(ctx, `
 		UPDATE compression_queue
-		SET status = 'completed', processed_at = datetime('now'), current_tier = $2
+		SET status = 'completed', processed_at = CURRENT_TIMESTAMP, current_tier = $2
 		WHERE id = $1
 	`, item.ID, int(tier))
 	if err != nil {
@@ -549,7 +549,7 @@ func (w *Worker) rejectSummary(ctx context.Context, item *QueueItem, currentTier
 		// Exhausted all attempts or tiers — mark as failed
 		err := w.db.Exec(ctx, `
 			UPDATE compression_queue
-			SET status = 'failed', attempts = $2, processed_at = datetime('now')
+			SET status = 'failed', attempts = $2, processed_at = CURRENT_TIMESTAMP
 			WHERE id = $1
 		`, item.ID, item.Attempts)
 		if err != nil {
@@ -591,7 +591,7 @@ func (w *Worker) rejectSummary(ctx context.Context, item *QueueItem, currentTier
 func (w *Worker) markFailed(ctx context.Context, queueID int64, errMsg string) {
 	werr := w.db.Exec(ctx, `
 		UPDATE compression_queue
-		SET status = 'failed', processed_at = datetime('now')
+		SET status = 'failed', processed_at = CURRENT_TIMESTAMP
 		WHERE id = $1 AND status != 'completed'
 	`, queueID)
 	if werr != nil {
