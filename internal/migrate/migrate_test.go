@@ -897,3 +897,203 @@ func setupTestDB(t *testing.T) (db.DB, func()) {
 
 	return database, cleanup
 }
+
+// ============================================================================
+// BUG-012: repairCircuitBreakers + checksum drift detection
+// ============================================================================
+
+func TestRepairCircuitBreakerColumns(t *testing.T) {
+	// Mirror TestRepairHitlConfiguration: full AutoMigrate → simulate drift
+	// (drop breaker_type while keeping schema_versions v3 row) → re-run
+	// AutoMigrate → assert the column + unique index are healed.
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("first AutoMigrate failed: %v", err)
+	}
+	if !circuitBreakerHasColumn(t, database, "breaker_type") {
+		t.Fatal("setup: breaker_type should exist after full AutoMigrate")
+	}
+
+	// Simulate drift: drop breaker_type. SQLite (modernc.org/sqlite v1.34+)
+	// supports ALTER TABLE ... DROP COLUMN. If it fails on the driver, the
+	// fallback path (drop+recreate without breaker_type) is used below.
+	drifted := false
+	if err := database.Exec(ctx, `ALTER TABLE agent_circuit_breakers DROP COLUMN breaker_type`); err != nil {
+		t.Logf("DROP COLUMN unsupported (%v) — using drop+recreate fallback", err)
+		// Recreate the drifted table WITHOUT breaker_type while schema_versions
+		// still records v3 as applied.
+		if err := database.Exec(ctx, `DROP TABLE agent_circuit_breakers`); err != nil {
+			t.Fatalf("drop circuit breakers: %v", err)
+		}
+		if err := database.Exec(ctx, `CREATE TABLE IF NOT EXISTS agent_circuit_breakers (
+			session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+			tripped_at TEXT,
+			reset_at TEXT,
+			PRIMARY KEY (session_id)
+		)`); err != nil {
+			t.Fatalf("recreate drifted table: %v", err)
+		}
+		drifted = true
+	}
+	if circuitBreakerHasColumn(t, database, "breaker_type") {
+		t.Fatal("setup: breaker_type should be gone after drift simulation")
+	}
+
+	// Heal path: re-run AutoMigrate — Up() skips v3 (already recorded), so
+	// only repairCircuitBreakers can restore the column.
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("second AutoMigrate (heal) failed: %v", err)
+	}
+	if !circuitBreakerHasColumn(t, database, "breaker_type") {
+		t.Error("breaker_type still MISSING after repairCircuitBreakers heal")
+	}
+	if !circuitBreakerHasColumn(t, database, "threshold") {
+		t.Error("threshold still MISSING after repairCircuitBreakers heal")
+	}
+	if !circuitBreakerHasColumn(t, database, "current_count") {
+		t.Error("current_count still MISSING after repairCircuitBreakers heal")
+	}
+	if !circuitBreakerUniqueIndexExists(t, database) {
+		t.Error("unique index on (session_id, breaker_type) MISSING after heal")
+	}
+
+	// When we used the drop+recreate fallback, verify the unique index was
+	// created even though the table had no breaker_type at heal time.
+	_ = drifted
+}
+
+func TestChecksumLegacyNormalization(t *testing.T) {
+	// After a full AutoMigrate, simulate an old install by overwriting the v3
+	// checksum with the legacy length-based hex. GetState/CheckDrift must NOT
+	// report drift (legacy normalization accepts the old form).
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Find migration 003's embedded SQL to compute its legacy checksum.
+	var sql003 string
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations: %v", err)
+	}
+	for _, m := range runner.migrations {
+		if m.Version == 3 {
+			sql003 = m.SQL
+			break
+		}
+	}
+	if sql003 == "" {
+		t.Fatal("could not find migration 003 embedded SQL")
+	}
+	legacy := legacyChecksum(sql003)
+	contentHash := migrationChecksum(sql003)
+	t.Logf("003: legacy=%s content=%s len=%d", legacy, contentHash, len(sql003))
+
+	if err := database.Exec(ctx,
+		`UPDATE schema_versions SET checksum = $1 WHERE version = 3`, legacy); err != nil {
+		t.Fatalf("update v3 checksum: %v", err)
+	}
+
+	drifted, details, err := runner.CheckDrift(ctx)
+	if err != nil {
+		t.Fatalf("CheckDrift failed: %v", err)
+	}
+	if drifted {
+		t.Errorf("expected NO drift for legacy length-based checksum, got: %s", details)
+	} else {
+		t.Log("✓ legacy length-based checksum not flagged as drift (BUG-012 normalization)")
+	}
+}
+
+func TestChecksumContentDriftDetected(t *testing.T) {
+	// Overwrite v3's checksum with a value that matches NEITHER the content
+	// hash NOR the legacy length hex — genuine recorded-but-different-content
+	// drift. GetState/CheckDrift MUST flag it (BUG-012 criterion 3).
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	if err := database.Exec(ctx,
+		`UPDATE schema_versions SET checksum = 'deadbeef' WHERE version = 3`); err != nil {
+		t.Fatalf("update v3 checksum: %v", err)
+	}
+
+	drifted, details, err := runner.CheckDrift(ctx)
+	if err != nil {
+		t.Fatalf("CheckDrift failed: %v", err)
+	}
+	if !drifted {
+		t.Fatal("expected drift for content-hash mismatch, got none")
+	}
+	if !strings.Contains(details, "003") && !strings.Contains(details, "version 3") {
+		t.Errorf("drift details should reference migration 003, got: %s", details)
+	}
+	if !strings.Contains(details, "recorded-but-different-content") {
+		t.Errorf("drift details should mention recorded-but-different-content, got: %s", details)
+	}
+	t.Logf("✓ content drift detected: %s", details)
+}
+
+// circuitBreakerHasColumn reports whether agent_circuit_breakers has the
+// given column on the test SQLite DB.
+func circuitBreakerHasColumn(t *testing.T, database db.DB, col string) bool {
+	t.Helper()
+	rows, err := database.Query(context.Background(), "PRAGMA table_info(agent_circuit_breakers)")
+	if err != nil {
+		t.Fatalf("PRAGMA table_info(agent_circuit_breakers): %v", err)
+	}
+	for _, row := range rows {
+		if name, ok := row["name"].(string); ok && name == col {
+			return true
+		}
+	}
+	return false
+}
+
+// circuitBreakerUniqueIndexExists reports whether a unique index on
+// (session_id, breaker_type) exists on the test SQLite DB.
+func circuitBreakerUniqueIndexExists(t *testing.T, database db.DB) bool {
+	t.Helper()
+	rows, err := database.Query(context.Background(),
+		`SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'agent_circuit_breakers'`)
+	if err != nil {
+		t.Fatalf("query sqlite_master indexes: %v", err)
+	}
+	for _, row := range rows {
+		sql, _ := row["sql"].(string)
+		name, _ := row["name"].(string)
+		// The repair-created index or a PK constraint backing the uniqueness.
+		if strings.Contains(strings.ToLower(sql), "session_id") &&
+			strings.Contains(strings.ToLower(sql), "breaker_type") {
+			return true
+		}
+		_ = name
+	}
+	// Also accept a PRIMARY KEY on (session_id, breaker_type) which provides
+	// the same uniqueness contract.
+	pkRows, err := database.Query(context.Background(),
+		`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'agent_circuit_breakers'`)
+	if err == nil {
+		for _, row := range pkRows {
+			if sql, ok := row["sql"].(string); ok {
+				if strings.Contains(strings.ToLower(sql), "primary key (session_id, breaker_type)") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

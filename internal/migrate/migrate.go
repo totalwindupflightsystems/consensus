@@ -9,6 +9,7 @@ package migrate
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -170,6 +171,7 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 	}
 
 	var appliedVersions []int
+	appliedChecksums := make(map[int]string, len(rows))
 	for _, row := range rows {
 		v, ok := row["version"]
 		if !ok {
@@ -177,7 +179,9 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 		}
 		version := toInt(v)
 		name, _ := row["name"].(string)
+		checksum, _ := row["checksum"].(string)
 		appliedVersions = append(appliedVersions, version)
+		appliedChecksums[version] = checksum
 		state.AppliedMigrations = append(state.AppliedMigrations, fmt.Sprintf("%03d_%s", version, name))
 
 		if version > state.CurrentVersion {
@@ -199,26 +203,41 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 		}
 	}
 
+	// Build a lookup of embedded migrations by version for checksum comparison.
+	embeddedByVersion := make(map[int]Migration, len(r.migrations))
+	for _, m := range r.migrations {
+		embeddedByVersion[m.Version] = m
+	}
+
 	// Drift detection: are there applied migrations that don't have embedded files?
 	for _, av := range appliedVersions {
-		found := false
-		for _, m := range r.migrations {
-			if m.Version == av {
-				found = true
-				break
+		m, found := embeddedByVersion[av]
+		if found {
+			// Checksum comparison: the stored checksum must match either the
+			// current content hash (migrationChecksum) OR the legacy
+			// length-based hex (legacyChecksum) — otherwise the embedded file
+			// content differs from what was recorded (BUG-012).
+			stored, _ := appliedChecksums[av]
+			if stored != "" &&
+				!strings.EqualFold(stored, migrationChecksum(m.SQL)) &&
+				!strings.EqualFold(stored, legacyChecksum(m.SQL)) {
+				state.DriftDetected = true
+				state.DriftDetails += fmt.Sprintf(
+					"Applied migration %03d (checksum %s) does not match embedded file checksum %s (recorded-but-different-content)\n",
+					av, stored, migrationChecksum(m.SQL))
 			}
+			continue
 		}
-		if !found {
-			// Check if a file with this version exists for a different backend.
-			// When migrating from SQLite to Postgres (or vice versa), the other
-			// backend's migrations are filtered out by LoadMigrations() but the
-			// version is still recorded in schema_versions. This is NOT drift.
-			if backendMigrationExists(av) {
-				continue
-			}
-			state.DriftDetected = true
-			state.DriftDetails += fmt.Sprintf("Applied migration version %d has no matching embedded file\n", av)
+		// No matching embedded file for this applied version.
+		// Check if a file with this version exists for a different backend.
+		// When migrating from SQLite to Postgres (or vice versa), the other
+		// backend's migrations are filtered out by LoadMigrations() but the
+		// version is still recorded in schema_versions. This is NOT drift.
+		if backendMigrationExists(av) {
+			continue
 		}
+		state.DriftDetected = true
+		state.DriftDetails += fmt.Sprintf("Applied migration version %d has no matching embedded file\n", av)
 	}
 
 	state.MigrationRequired = len(state.PendingMigrations) > 0
@@ -291,8 +310,12 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 			}
 		}
 
-		// Record the migration
-		checksum := fmt.Sprintf("%x", len(m.SQL)) // Simple length-based checksum
+		// Record the migration.
+		// Checksum is a SHA-256 content hash of the embedded SQL so that
+		// recorded-but-different-content drift (BUG-012) is detectable on the
+		// next GetState. Legacy installs stored a length-based hex; GetState
+		// normalizes those so they don't read as false drift.
+		checksum := migrationChecksum(m.SQL)
 		if err := r.database.Exec(ctx,
 			`INSERT INTO schema_versions (version, name, applied_at, checksum) VALUES ($1, $2, $3, $4)`,
 			m.Version, m.Name, time.Now().Format(time.RFC3339), checksum,
@@ -405,6 +428,17 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 	if err := r.repairHitlConfiguration(ctx); err != nil {
 		// Non-fatal: best-effort. HITL flows surface the missing table with a
 		// clear error at first use.
+	}
+
+	// Repair: migration 003 drifted on the dexdat sidecar PG —
+	// agent_circuit_breakers was created without breaker_type (and possibly
+	// threshold/current_count) while schema_versions records v3 as applied.
+	// The harness upserts via ON CONFLICT (session_id, breaker_type), which
+	// fails without the column + unique constraint. Reconcile additively
+	// (BUG-012, recorded-but-different-content).
+	if err := r.repairCircuitBreakers(ctx); err != nil {
+		// Non-fatal: best-effort. The harness will surface the missing column
+		// as a query error on first circuit-breaker write.
 	}
 
 	return len(applied) > 0, nil
@@ -540,6 +574,192 @@ func (r *Runner) repairHitlConfiguration(ctx context.Context) error {
 	return nil
 }
 
+// repairCircuitBreakers reconciles a drifted agent_circuit_breakers table
+// (BUG-012). Migration 003 was recorded as applied but its content drifted
+// on the dexdat sidecar PG — the table exists but lacks breaker_type (and
+// possibly threshold/current_count), so the harness upsert
+// `ON CONFLICT (session_id, breaker_type)` fails. This repair:
+//  1. If the table is missing entirely but sessions exists, re-apply 003
+//     (idempotent: CREATE TABLE IF NOT EXISTS).
+//  2. If the table exists, add any missing columns among breaker_type /
+//     threshold / current_count additively (never drop/recreate — RLS and
+//     existing data are preserved).
+//  3. Ensure a UNIQUE constraint on (session_id, breaker_type) so the
+//     harness ON CONFLICT clause works.
+//
+// Safe to call on any DB (SQLite or PG) at any migration state. All DDL is
+// additive and guarded. Non-fatal on failure.
+func (r *Runner) repairCircuitBreakers(ctx context.Context) error {
+	backend := db.DetectBackendFromDB(r.database)
+
+	// --- 1. Does agent_circuit_breakers exist? ---
+	var rows []db.Row
+	var err error
+	if backend == db.BackendPostgres {
+		rows, err = r.database.Query(ctx,
+			`SELECT table_name AS name FROM information_schema.tables WHERE table_name = 'agent_circuit_breakers'`)
+	} else {
+		rows, err = r.database.Query(ctx,
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'agent_circuit_breakers'`)
+	}
+	if err != nil {
+		// Table metadata unavailable (pre-bootstrap) — best-effort, don't fail startup.
+		return nil
+	}
+	breakersExists := len(rows) > 0
+
+	if !breakersExists {
+		// If sessions doesn't exist either, this is a fresh DB pre-migration —
+		// the normal Up() path will create everything. Bail out silently.
+		if !r.tableExists(ctx, "sessions") {
+			return nil
+		}
+		// sessions exists but agent_circuit_breakers is missing while v3 is
+		// recorded as applied → re-apply 003 idempotently.
+		content, rerr := embeddedMigrations.ReadFile("migrations/003_circuit_breakers.sql")
+		if rerr != nil {
+			return fmt.Errorf("migrate: read 003 repair SQL: %w", rerr)
+		}
+		if backend == db.BackendSQLite {
+			filtered := filterForSQLite(string(content))
+			for i, stmt := range splitStatements(filtered) {
+				if eerr := r.database.Exec(ctx, stmt); eerr != nil {
+					return fmt.Errorf("migrate: repair circuit breakers (statement %d): %w", i+1, eerr)
+				}
+			}
+			return nil
+		}
+		if eerr := r.database.Exec(ctx, string(content)); eerr != nil {
+			return fmt.Errorf("migrate: repair circuit breakers: %w", eerr)
+		}
+		return nil
+	}
+
+	// --- 2. Table exists — reconcile columns additively. ---
+	cols, cerr := r.columnNames(ctx, "agent_circuit_breakers")
+	if cerr != nil {
+		// Cannot introspect — best-effort, don't fail startup.
+		return nil
+	}
+	have := make(map[string]bool, len(cols))
+	for _, c := range cols {
+		have[strings.ToLower(c)] = true
+	}
+
+	// Each missing column is added with a DEFAULT so existing rows stay valid.
+	type colDef struct {
+		name string
+		pg   string // full ADD COLUMN clause for Postgres (CHECK allowed)
+		sql  string // full ADD COLUMN clause for SQLite (CHECK omitted if needed)
+	}
+	defs := []colDef{
+		{
+			name: "breaker_type",
+			pg:   `ALTER TABLE agent_circuit_breakers ADD COLUMN IF NOT EXISTS breaker_type TEXT NOT NULL DEFAULT 'consecutive_errors' CHECK (breaker_type IN ('consecutive_errors', 'iterations', 'budget'))`,
+			sql:  `ALTER TABLE agent_circuit_breakers ADD COLUMN breaker_type TEXT NOT NULL DEFAULT 'consecutive_errors' CHECK (breaker_type IN ('consecutive_errors', 'iterations', 'budget'))`,
+		},
+		{
+			name: "threshold",
+			pg:   `ALTER TABLE agent_circuit_breakers ADD COLUMN IF NOT EXISTS threshold INTEGER NOT NULL DEFAULT 5`,
+			sql:  `ALTER TABLE agent_circuit_breakers ADD COLUMN threshold INTEGER NOT NULL DEFAULT 5`,
+		},
+		{
+			name: "current_count",
+			pg:   `ALTER TABLE agent_circuit_breakers ADD COLUMN IF NOT EXISTS current_count INTEGER NOT NULL DEFAULT 0`,
+			sql:  `ALTER TABLE agent_circuit_breakers ADD COLUMN current_count INTEGER NOT NULL DEFAULT 0`,
+		},
+	}
+	for _, d := range defs {
+		if have[d.name] {
+			continue
+		}
+		stmt := d.pg
+		if backend == db.BackendSQLite {
+			stmt = d.sql
+		}
+		if eerr := r.database.Exec(ctx, stmt); eerr != nil {
+			if backend == db.BackendSQLite && d.name == "breaker_type" {
+				// Some SQLite builds reject a CHECK constraint on ADD COLUMN.
+				// Retry without the CHECK (keep the DEFAULT so rows are valid).
+				fallback := `ALTER TABLE agent_circuit_breakers ADD COLUMN breaker_type TEXT NOT NULL DEFAULT 'consecutive_errors'`
+				if ferr := r.database.Exec(ctx, fallback); ferr != nil {
+					return fmt.Errorf("migrate: repair circuit breakers (add breaker_type): %w", ferr)
+				}
+				continue
+			}
+			return fmt.Errorf("migrate: repair circuit breakers (add %s): %w", d.name, eerr)
+		}
+	}
+
+	// --- 3. Ensure unique (session_id, breaker_type) for ON CONFLICT. ---
+	// The harness upserts with `ON CONFLICT (session_id, breaker_type) DO UPDATE`.
+	// CREATE UNIQUE INDEX IF NOT EXISTS is supported by both PG and SQLite and
+	// is additive (does not disturb an existing PK or RLS policies).
+	uniqueIdx := `CREATE UNIQUE INDEX IF NOT EXISTS agent_circuit_breakers_session_breaker_key ON agent_circuit_breakers (session_id, breaker_type)`
+	if eerr := r.database.Exec(ctx, uniqueIdx); eerr != nil {
+		// A PK on (session_id, breaker_type) already satisfies the uniqueness
+		// contract; a duplicate-index error is non-fatal. Only fail on
+		// unrelated errors.
+		if !isDuplicateIndexErr(eerr) {
+			return fmt.Errorf("migrate: repair circuit breakers (unique index): %w", eerr)
+		}
+	}
+	return nil
+}
+
+// tableExists reports whether the named table is present in the database.
+func (r *Runner) tableExists(ctx context.Context, name string) bool {
+	backend := db.DetectBackendFromDB(r.database)
+	var rows []db.Row
+	var err error
+	if backend == db.BackendPostgres {
+		rows, err = r.database.Query(ctx,
+			`SELECT table_name AS name FROM information_schema.tables WHERE table_name = $1`, name)
+	} else {
+		rows, err = r.database.Query(ctx,
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = $1`, name)
+	}
+	if err != nil {
+		return false
+	}
+	return len(rows) > 0
+}
+
+// columnNames returns the column names of the given table.
+func (r *Runner) columnNames(ctx context.Context, table string) ([]string, error) {
+	backend := db.DetectBackendFromDB(r.database)
+	var rows []db.Row
+	var err error
+	if backend == db.BackendPostgres {
+		rows, err = r.database.Query(ctx,
+			`SELECT column_name AS name FROM information_schema.columns WHERE table_name = $1`, table)
+	} else {
+		rows, err = r.database.Query(ctx, "PRAGMA table_info("+table+")")
+	}
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if n, ok := row["name"].(string); ok {
+			names = append(names, n)
+		}
+	}
+	return names, nil
+}
+
+// isDuplicateIndexErr reports whether an error is a benign "index already
+// exists" / duplicate constraint error that the repair can ignore.
+func isDuplicateIndexErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "already exists") ||
+		strings.Contains(msg, "duplicate") ||
+		strings.Contains(msg, "relation") && strings.Contains(msg, "exists")
+}
+
 // ============================================================================
 // Session Pause/Resume (Drift Handling — WI-022)
 // ============================================================================
@@ -623,6 +843,22 @@ func backendMigrationExists(version int) bool {
 		}
 	}
 	return false
+}
+
+// migrationChecksum returns the SHA-256 content hash of a migration's SQL.
+// This is the current checksum scheme: two migrations with the same length
+// but different content produce different checksums, so recorded-but-
+// different-content drift (BUG-012) is detectable.
+func migrationChecksum(sql string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(sql)))
+}
+
+// legacyChecksum returns the pre-BUG-012 length-based hex checksum that
+// older installs recorded in schema_versions. GetState accepts it as an
+// alternative to migrationChecksum so existing installs don't read as
+// false drift after the content-hash scheme is introduced.
+func legacyChecksum(sql string) string {
+	return fmt.Sprintf("%x", len(sql))
 }
 
 // splitStatements splits a SQL string on semicolons for SQLite execution.
