@@ -1097,3 +1097,212 @@ func circuitBreakerUniqueIndexExists(t *testing.T, database db.DB) bool {
 	}
 	return false
 }
+
+// TestRepairCircuitBreakersOldShape replicates the BUG-012 dexdat scenario on
+// SQLite: the table pre-exists in the OLD dexdat shape (id PK, error_type,
+// consecutive_errors, no breaker_type/threshold/current_count, no unique
+// (session_id, breaker_type) constraint) while schema_versions records v3 as
+// applied. AutoMigrate must reconcile additively and the harness upsert
+// (INSERT ... ON CONFLICT (session_id, breaker_type)) must succeed.
+func TestRepairCircuitBreakersOldShape(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Bootstrap + load migrations, then simulate the dexdat bootstrap: the
+	// old-shape table exists BEFORE consensus migrations run.
+	runner := New(database)
+	if err := runner.Bootstrap(ctx); err != nil {
+		t.Fatalf("Bootstrap failed: %v", err)
+	}
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations failed: %v", err)
+	}
+
+	// The old-shape table references sessions(id) — create a minimal one
+	// (the dexdat bootstrap would have created the full sessions table).
+	if err := database.Exec(ctx, `CREATE TABLE sessions (
+		id TEXT PRIMARY KEY,
+		agent_name TEXT NOT NULL,
+		model_id TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'idle'
+	)`); err != nil {
+		t.Fatalf("create sessions: %v", err)
+	}
+
+	// Old dexdat shape (001_init.sql section 29, SQLite-flavored). SQLite
+	// cannot ALTER COLUMN SET DEFAULT, so the old shape here carries the
+	// error_type default the PG repair would add via ALTER COLUMN — the
+	// SQLite unit test exercises the column additions + unique index + the
+	// consumer path; the PG-gated test covers the full old-shape scenario
+	// including the error_type default repair. tenant_id carries the
+	// zero-UUID default that migration 023 set on the live dexdat DB.
+	if err := database.Exec(ctx, `CREATE TABLE agent_circuit_breakers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT NOT NULL REFERENCES sessions(id),
+		error_type TEXT NOT NULL DEFAULT 'consecutive_errors',
+		consecutive_errors INTEGER NOT NULL DEFAULT 0,
+		last_error_at TEXT,
+		tripped INTEGER NOT NULL DEFAULT 0,
+		tripped_at TEXT,
+		reset_at TEXT,
+		tenant_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'
+	)`); err != nil {
+		t.Fatalf("create old-shape table: %v", err)
+	}
+	// Record ALL embedded versions as applied with legacy length checksums —
+	// the live dexdat schema_versions state (v1-v20 applied 2026-07-14, all
+	// length-hex). Up() will skip everything; only the repairs run.
+	for _, m := range runner.migrations {
+		if err := database.Exec(ctx,
+			`INSERT INTO schema_versions (version, name, applied_at, checksum) VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (version) DO NOTHING`,
+			m.Version, m.Filename, "2026-07-14T07:34:00Z", legacyChecksum(m.SQL)); err != nil {
+			t.Fatalf("record version %d: %v", m.Version, err)
+		}
+	}
+
+	// AutoMigrate: Up() skips all recorded versions, repair must reconcile.
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Columns added.
+	for _, col := range []string{"breaker_type", "threshold", "current_count"} {
+		if !circuitBreakerHasColumn(t, database, col) {
+			t.Errorf("column %s MISSING after repair", col)
+		}
+	}
+	// Old columns preserved (additive repair).
+	for _, col := range []string{"id", "session_id", "error_type", "consecutive_errors", "tenant_id"} {
+		if !circuitBreakerHasColumn(t, database, col) {
+			t.Errorf("old column %s LOST after repair (must be additive)", col)
+		}
+	}
+	// Unique (session_id, breaker_type) present.
+	if !circuitBreakerUniqueIndexExists(t, database) {
+		t.Error("unique (session_id, breaker_type) index MISSING after repair")
+	}
+
+	// Consumer path: harness-shaped upsert must succeed. Seed the session
+	// the FK references.
+	if err := database.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status) VALUES ('sess-1', 'test-agent', 'test-model', 'idle')`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	if err := database.Exec(ctx,
+		`INSERT INTO agent_circuit_breakers (session_id, breaker_type, threshold, current_count)
+		 VALUES ('sess-1', 'consecutive_errors', 5, 1)
+		 ON CONFLICT (session_id, breaker_type) DO UPDATE SET current_count = 4, threshold = 5`); err != nil {
+		t.Fatalf("harness upsert failed after repair: %v", err)
+	}
+	// Second upsert (conflict path) must also succeed.
+	if err := database.Exec(ctx,
+		`INSERT INTO agent_circuit_breakers (session_id, breaker_type, threshold, current_count)
+		 VALUES ('sess-1', 'consecutive_errors', 5, 2)
+		 ON CONFLICT (session_id, breaker_type) DO UPDATE SET current_count = 4, threshold = 5`); err != nil {
+		t.Fatalf("harness upsert (conflict) failed after repair: %v", err)
+	}
+	rows, err := database.Query(ctx,
+		`SELECT current_count FROM agent_circuit_breakers WHERE session_id = 'sess-1' AND breaker_type = 'consecutive_errors'`)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("query repaired row: %v (rows=%d)", err, len(rows))
+	}
+	if got := toInt(rows[0]["current_count"]); got != 4 {
+		t.Errorf("expected current_count=4 after conflict update, got %d", got)
+	}
+}
+
+// TestRepairCircuitBreakersCanonicalNoop verifies the repair is a no-op on a
+// canonical schema: after a full AutoMigrate the table already has the 003
+// columns and the (session_id, breaker_type) PK, so no extra unique index is
+// created and no columns are touched.
+func TestRepairCircuitBreakersCanonicalNoop(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Canonical SQLite shape: PK (session_id, breaker_type) — the repair must
+	// not add a redundant unique index.
+	rows, err := database.Query(ctx,
+		`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'agent_circuit_breakers'`)
+	if err != nil {
+		t.Fatalf("query indexes: %v", err)
+	}
+	for _, row := range rows {
+		if name, ok := row["name"].(string); ok && name == "agent_circuit_breakers_session_breaker_key" {
+			t.Error("redundant unique index created on canonical schema (PK already provides ON CONFLICT arbiter)")
+		}
+	}
+	// Columns intact.
+	for _, col := range []string{"breaker_type", "threshold", "current_count"} {
+		if !circuitBreakerHasColumn(t, database, col) {
+			t.Errorf("column %s missing on canonical schema", col)
+		}
+	}
+}
+
+// TestChecksumLegacyRewrite verifies the one-time transition: a stored legacy
+// length-based checksum is rewritten to the SHA-256 content hash by
+// AutoMigrate, and no drift is flagged.
+func TestChecksumLegacyRewrite(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Find migration 003's embedded SQL to compute both checksum forms.
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations: %v", err)
+	}
+	var sql003 string
+	for _, m := range runner.migrations {
+		if m.Version == 3 {
+			sql003 = m.SQL
+			break
+		}
+	}
+	if sql003 == "" {
+		t.Fatal("could not find migration 003 embedded SQL")
+	}
+	legacy := legacyChecksum(sql003)
+	contentHash := migrationChecksum(sql003)
+
+	// Simulate a pre-BUG-012 install: overwrite v3's checksum with the legacy
+	// length hex.
+	if err := database.Exec(ctx,
+		`UPDATE schema_versions SET checksum = $1 WHERE version = 3`, legacy); err != nil {
+		t.Fatalf("update v3 checksum: %v", err)
+	}
+
+	// AutoMigrate must rewrite it to the content hash (one-time transition).
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("second AutoMigrate failed: %v", err)
+	}
+	rows, err := database.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 3`)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("query v3 checksum: %v (rows=%d)", err, len(rows))
+	}
+	got, _ := rows[0]["checksum"].(string)
+	if !strings.EqualFold(got, contentHash) {
+		t.Errorf("v3 checksum not rewritten to content hash: got %q want %q", got, contentHash)
+	}
+
+	// No drift after normalization.
+	drifted, details, err := runner.CheckDrift(ctx)
+	if err != nil {
+		t.Fatalf("CheckDrift failed: %v", err)
+	}
+	if drifted {
+		t.Errorf("expected NO drift after legacy rewrite, got: %s", details)
+	}
+}

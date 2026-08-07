@@ -13,6 +13,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strconv"
@@ -441,7 +442,73 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 		// as a query error on first circuit-breaker write.
 	}
 
+	// One-time transition: pre-BUG-012 installs recorded length-based hex
+	// checksums (e.g. "2e7" for migration 003). Rewrite those rows to the
+	// SHA-256 content hash of the current embedded SQL so content-hash drift
+	// detection engages for them on the next GetState. Rows whose stored
+	// checksum matches NEITHER the legacy form NOR the content hash are
+	// genuine recorded-but-different-content drift and are left untouched
+	// (GetState flags them).
+	if err := r.normalizeLegacyChecksums(ctx); err != nil {
+		// Non-fatal: best-effort. GetState still accepts legacy checksums, so
+		// an un-normalized install simply keeps the old scheme until the
+		// next successful startup.
+	}
+
 	return len(applied) > 0, nil
+}
+
+// normalizeLegacyChecksums rewrites schema_versions rows that still carry the
+// pre-BUG-012 length-based hex checksum to the SHA-256 content hash of the
+// current embedded migration SQL. This is the one-time transition that lets
+// content-hash drift detection (recorded-but-different-content) engage for
+// existing installs — including the live dexdat sidecar PG, whose v3 row
+// stores "2e7" (hex of len(003 SQL) = 743).
+func (r *Runner) normalizeLegacyChecksums(ctx context.Context) error {
+	rows, err := r.database.Query(ctx, `SELECT version, checksum FROM schema_versions`)
+	if err != nil {
+		// schema_versions unavailable (pre-bootstrap) — nothing to normalize.
+		return nil
+	}
+
+	embeddedByVersion := make(map[int]Migration, len(r.migrations))
+	for _, m := range r.migrations {
+		embeddedByVersion[m.Version] = m
+	}
+
+	for _, row := range rows {
+		v, ok := row["version"]
+		if !ok {
+			continue
+		}
+		version := toInt(v)
+		stored, _ := row["checksum"].(string)
+		if stored == "" {
+			continue
+		}
+		m, found := embeddedByVersion[version]
+		if !found {
+			continue // backend-filtered or ghost migration — leave alone
+		}
+		contentHash := migrationChecksum(m.SQL)
+		if strings.EqualFold(stored, contentHash) {
+			continue // already the content hash — nothing to do
+		}
+		if !strings.EqualFold(stored, legacyChecksum(m.SQL)) {
+			// Matches neither the legacy length form nor the content hash —
+			// genuine drift. Leave it for GetState to flag.
+			continue
+		}
+		// Legacy length-based checksum → rewrite to the content hash.
+		if err := r.database.Exec(ctx,
+			`UPDATE schema_versions SET checksum = $1 WHERE version = $2`,
+			contentHash, version); err != nil {
+			return fmt.Errorf("migrate: normalize legacy checksum for version %d: %w", version, err)
+		}
+		slog.Info("migrate: normalized legacy length-based checksum to content hash",
+			"version", version, "checksum", contentHash)
+	}
+	return nil
 }
 
 // repairTrustLevel adds sessions.trust_level if missing (migration 013 filterForSQLite bug).
@@ -691,10 +758,32 @@ func (r *Runner) repairCircuitBreakers(ctx context.Context) error {
 		}
 	}
 
+	// The old dexdat shape declares error_type TEXT NOT NULL with NO default,
+	// and the harness upsert (internal/harness/circuit.go) never supplies it —
+	// so even after the 003 columns land, the consumer INSERT would fail with
+	// a NOT NULL violation. Give it the canonical default (PG only: SQLite
+	// cannot ALTER COLUMN SET DEFAULT, and SQLite installs never carry the old
+	// shape — they get the canonical 003 DDL directly). Idempotent: setting
+	// the same default twice is a no-op.
+	if backend == db.BackendPostgres && have["error_type"] {
+		if eerr := r.database.Exec(ctx,
+			`ALTER TABLE agent_circuit_breakers ALTER COLUMN error_type SET DEFAULT 'consecutive_errors'`); eerr != nil {
+			return fmt.Errorf("migrate: repair circuit breakers (error_type default): %w", eerr)
+		}
+	}
+
 	// --- 3. Ensure unique (session_id, breaker_type) for ON CONFLICT. ---
 	// The harness upserts with `ON CONFLICT (session_id, breaker_type) DO UPDATE`.
 	// CREATE UNIQUE INDEX IF NOT EXISTS is supported by both PG and SQLite and
 	// is additive (does not disturb an existing PK or RLS policies).
+	//
+	// Skip when a PRIMARY KEY on (session_id, breaker_type) already exists
+	// (the canonical 003 shape) — the PK provides the ON CONFLICT arbiter, and
+	// adding a redundant unique index would duplicate the constraint. The
+	// drifted dexdat shape has a PK on id only, so the index is created there.
+	if r.hasPrimaryKeyOn(ctx, "agent_circuit_breakers", "session_id", "breaker_type") {
+		return nil
+	}
 	uniqueIdx := `CREATE UNIQUE INDEX IF NOT EXISTS agent_circuit_breakers_session_breaker_key ON agent_circuit_breakers (session_id, breaker_type)`
 	if eerr := r.database.Exec(ctx, uniqueIdx); eerr != nil {
 		// A PK on (session_id, breaker_type) already satisfies the uniqueness
@@ -705,6 +794,78 @@ func (r *Runner) repairCircuitBreakers(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// hasPrimaryKeyOn reports whether the named table has a PRIMARY KEY whose
+// column set is exactly the given columns (order-insensitive). Used by
+// repairCircuitBreakers to avoid creating a redundant unique index when the
+// canonical (session_id, breaker_type) PK already provides the ON CONFLICT
+// arbiter (BUG-012). Postgres introspects pg_index; SQLite parses the
+// table's CREATE statement from sqlite_master.
+func (r *Runner) hasPrimaryKeyOn(ctx context.Context, table string, cols ...string) bool {
+	want := make(map[string]bool, len(cols))
+	for _, c := range cols {
+		want[strings.ToLower(c)] = true
+	}
+
+	if db.DetectBackendFromDB(r.database) == db.BackendPostgres {
+		rows, err := r.database.Query(ctx,
+			`SELECT a.attname
+			   FROM pg_index i
+			   JOIN pg_class t ON t.oid = i.indrelid
+			   JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(i.indkey)
+			  WHERE t.relname = $1 AND i.indisprimary
+			  ORDER BY a.attnum`, table)
+		if err != nil {
+			return false
+		}
+		got := make(map[string]bool, len(rows))
+		for _, row := range rows {
+			if n, ok := row["attname"].(string); ok {
+				got[strings.ToLower(n)] = true
+			}
+		}
+		if len(got) != len(want) {
+			return false
+		}
+		for c := range want {
+			if !got[c] {
+				return false
+			}
+		}
+		return true
+	}
+
+	// SQLite: the composite PK appears in the table's CREATE statement as
+	// "PRIMARY KEY (session_id, breaker_type)" (column order as declared).
+	rows, err := r.database.Query(ctx,
+		`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = $1`, table)
+	if err != nil || len(rows) == 0 {
+		return false
+	}
+	createSQL, _ := rows[0]["sql"].(string)
+	lower := strings.ToLower(createSQL)
+	idx := strings.Index(lower, "primary key (")
+	if idx < 0 {
+		return false
+	}
+	end := strings.Index(lower[idx:], ")")
+	if end < 0 {
+		return false
+	}
+	got := make(map[string]bool)
+	for _, c := range strings.Split(lower[idx+len("primary key ("):idx+end], ",") {
+		got[strings.TrimSpace(c)] = true
+	}
+	if len(got) != len(want) {
+		return false
+	}
+	for c := range want {
+		if !got[c] {
+			return false
+		}
+	}
+	return true
 }
 
 // tableExists reports whether the named table is present in the database.
