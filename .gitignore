@@ -47,3 +47,5 @@ service-account*.json
 .coding-hermes/board/board.db
 .coding-hermes/board/board.db.wal
 .coding-hermes/board/*.parquet
+
+.coding-hermes/board/*.duckdb
