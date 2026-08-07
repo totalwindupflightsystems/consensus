@@ -43,6 +43,7 @@ service-account*.json
 *.pem
 !*.pub.pem
 
-# Hilo board — rebuildable local cache
+# Hilo board — rebuildable local cache (Bane directive 08-07: JSONL canonical, db/parquet untracked)
 .coding-hermes/board/board.db
 .coding-hermes/board/board.db.wal
+.coding-hermes/board/*.parquet
