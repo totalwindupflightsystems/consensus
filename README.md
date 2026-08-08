@@ -189,23 +189,57 @@ Three commands. You have a running agent harness with:
 | `CONSENSUS_PORT` | `8090` | Server listen port |
 | `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`)
 
-**Docker Compose** (docker-compose.yml):
+**Docker Compose** (docker-compose.prod.yml — full stack, Consensus + PostgreSQL):
 
 ```yaml
 services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: consensus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-consensus}
+      POSTGRES_DB: consensus
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U consensus -d consensus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   consensus:
     image: ghcr.io/wojons/consensus:latest
-    ports: ["8090:8090"]
+    container_name: consensus-runtime
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    command:
+      - serve
+      - --db-url
+      - postgres://consensus:${POSTGRES_PASSWORD:-consensus}@postgres:5432/consensus?sslmode=disable
+    environment:
+      - CONSENSUS_API_KEY=${CONSENSUS_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     volumes:
       - consensus-data:/home/consensus/data
-    environment:
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - CONSENSUS_API_KEY=${CONSENSUS_API_KEY}
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8090/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
+  pgdata:
   consensus-data:
 ```
+
+> The dev `docker-compose.yml` is PostgreSQL-only — it exists to run the local
+> integration tests (Makefile `test-pg*` targets, `internal/migrate/postgres_full_test.go`),
+> not the Consensus server. For a full Consensus + PostgreSQL stack use
+> `docker compose -f docker-compose.prod.yml up -d`.
 
 ---
 
