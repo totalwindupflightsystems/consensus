@@ -51,7 +51,11 @@ docker run -d \
 
 ```bash
 curl http://localhost:8090/api/v1/health
-# → {"status":"healthy","uptime":"2s","db":"sqlite"}
+# → {"status":"ok","version":"0.1.0","uptime_seconds":7,"api_latency_ms":0,
+#    "db_latency_ms":0.128,"llm_latency_ms":0,"error_rate_pct":0,
+#    "db_backend":"sqlite","db_path":".../dev.db","db_size_mb":0.45,
+#    "db_tables":37,"db_migrations":22,"schema_version":23,
+#    "active_connections":{...},"system_log":[]}
 ```
 
 ### Step 4: Open Chronicle
