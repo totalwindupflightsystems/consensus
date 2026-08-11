@@ -15,7 +15,7 @@ tasks:
   created_at: '2026-06-20T17:05:57.753213+00:00'
   completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: spec-005-security
-  title: 'SPEC-005: Security — RLS, Secrets, Quarantine'
+  title: "SPEC-005: Security \u2014 RLS, Secrets, Quarantine"
   criteria:
   - 'Row-Level Security policy: grep for current_setting or session_id session isolation
     in SQL/Go'
@@ -165,22 +165,24 @@ tasks:
   - consensus serve starts and listens on specified port (verify with ss -tlnp)
   - GET /api/v1/health returns 200 with JSON body {"status":"ok"}
   - Server logs startup message with port and database backend
-  - SIGTERM triggers graceful shutdown — in-flight requests complete
+  - "SIGTERM triggers graceful shutdown \u2014 in-flight requests complete"
   - consensus serve --help lists all flags (--port, --hostname, --db-url, --adapter)
   status: complete
   created_at: '2026-06-21T12:03:50.814776+00:00'
   completed_at: '2026-07-25T11:08:27.526188+00:00'
 - id: api-sessions
-  title: Session API CRUD — correct JSON shapes
+  title: "Session API CRUD \u2014 correct JSON shapes"
   criteria:
   - POST /api/v1/sessions returns 201 with JSON body containing id (UUID), status,
     model fields
-  - GET /api/v1/sessions lists sessions — returns JSON array, empty array is valid
+  - "GET /api/v1/sessions lists sessions \u2014 returns JSON array, empty array is\
+    \ valid"
   - GET /api/v1/sessions/{id} returns 200 with full session object including status,
     iteration, created_at
   - GET /api/v1/sessions/{nonexistent} returns 404 with {"error":{"code":"NOT_FOUND"}}
-  - PATCH /api/v1/sessions/{id} returns updated session JSON — status change is persisted
-  - All session endpoints require Authorization header — missing returns 401
+  - "PATCH /api/v1/sessions/{id} returns updated session JSON \u2014 status change\
+    \ is persisted"
+  - "All session endpoints require Authorization header \u2014 missing returns 401"
   - Invalid session ID (not UUID) returns 400 with error details
   status: complete
   created_at: '2026-06-21T12:03:57.245708+00:00'
@@ -188,14 +190,14 @@ tasks:
 - id: append-only-guard
   title: Append-only enforcement on memory_events
   criteria:
-  - UPDATE on memory_events is blocked at database level — returns SQL error, not
-    success
-  - DELETE on memory_events is blocked at database level — returns SQL error, not
-    success
+  - "UPDATE on memory_events is blocked at database level \u2014 returns SQL error,\
+    \ not success"
+  - "DELETE on memory_events is blocked at database level \u2014 returns SQL error,\
+    \ not success"
   - INSERT on memory_events succeeds and auto-increments id
   - Attempted UPDATE via harness executor is caught and logged without crashing server
-  - Both SQLite and Postgres enforce append-only — triggers exist for SQLite (migration
-    017) and Postgres (migration 018)
+  - "Both SQLite and Postgres enforce append-only \u2014 triggers exist for SQLite\
+    \ (migration 017) and Postgres (migration 018)"
   status: complete
   created_at: '2026-06-21T12:04:07.968567+00:00'
   completed_at: '2026-07-25T11:12:18.411549+00:00'
@@ -214,44 +216,45 @@ tasks:
   created_at: '2026-06-21T12:04:09.332438+00:00'
   completed_at: '2026-07-25T11:03:21.272622+00:00'
 - id: harness-loop
-  title: Harness execution loop — real agent workflow
+  title: "Harness execution loop \u2014 real agent workflow"
   criteria:
   - Creating a session and calling RunAgentIteration produces at least one LLM call
     and memory event
-  - Staging buffer accumulates commands per turn before execution — verified in test
-    or code
-  - 'Session status transitions: created → planning → executing → completed (or error)'
+  - "Staging buffer accumulates commands per turn before execution \u2014 verified\
+    \ in test or code"
+  - "Session status transitions: created \u2192 planning \u2192 executing \u2192 completed\
+    \ (or error)"
   - 'Max-turns enforcement: session auto-completes after max_turns iterations'
-  - Heartbeat loop prevents zombie sessions — sessions stuck in 'planning' are detected
-    and recovered
+  - "Heartbeat loop prevents zombie sessions \u2014 sessions stuck in 'planning' are\
+    \ detected and recovered"
   status: complete
   created_at: '2026-06-21T12:04:18.573102+00:00'
   completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: migrations-safety
-  title: Migration system — apply, verify, rollback
+  title: "Migration system \u2014 apply, verify, rollback"
   criteria:
   - All migrations apply without errors on SQLite (go test -short -count=1 ./internal/migrate
     exits 0)
   - All non-_sqlite_ migrations apply without errors on Postgres
   - 'Schema after full migration matches expected tables: sessions, memory_events,
     iteration_commits, and 30+ more'
-  - Migration version drift is detected — applied version without matching file blocks
-    server start
+  - "Migration version drift is detected \u2014 applied version without matching file\
+    \ blocks server start"
   - Bootstrap creates schema_versions table before applying any migration
   status: complete
   created_at: '2026-06-21T12:04:19.863169+00:00'
   completed_at: '2026-07-25T11:13:39.114742+00:00'
 - id: audit-no-leaks
-  title: Cross-cutting audit — no secrets or panics
+  title: "Cross-cutting audit \u2014 no secrets or panics"
   criteria:
-  - No hardcoded API keys in Go source (sk-*, ghp_*, OPENROUTER_API_KEY=) — all keys
-    from env/config
-  - No panic() calls outside of init() or truly unrecoverable situations — errors
-    use Go error returns
-  - No fmt.Println for errors — all logging uses structured logger (slog)
+  - "No hardcoded API keys in Go source (sk-*, ghp_*, OPENROUTER_API_KEY=) \u2014\
+    \ all keys from env/config"
+  - "No panic() calls outside of init() or truly unrecoverable situations \u2014 errors\
+    \ use Go error returns"
+  - "No fmt.Println for errors \u2014 all logging uses structured logger (slog)"
   - No PII (email addresses, real names) in log messages or error responses
-  - Database queries use parameterized placeholders (, , ?) — no string concatenation
-    for SQL
+  - "Database queries use parameterized placeholders (, , ?) \u2014 no string concatenation\
+    \ for SQL"
   status: complete
   created_at: '2026-06-21T12:04:27.129443+00:00'
   completed_at: '2026-07-25T11:13:39.114742+00:00'
@@ -260,8 +263,10 @@ tasks:
   criteria:
   - APIError struct has Details string field with json:"details,omitempty" tag
   - writeError() includes Details field when marshaling ErrorResponse
-  - Error responses actually contain details field in JSON output — verify with curl
-  - SPEC-015 §6 requires error{code, message, details} format — struct matches spec
+  - "Error responses actually contain details field in JSON output \u2014 verify with\
+    \ curl"
+  - "SPEC-015 \xA76 requires error{code, message, details} format \u2014 struct matches\
+    \ spec"
   status: complete
   created_at: '2026-06-21T12:04:28.623720+00:00'
   completed_at: '2026-07-25T11:13:39.114742+00:00'
@@ -271,9 +276,9 @@ tasks:
   - Finding cards render in the SAYS pane with header (number, status badge, timestamp),
     conclusion text (expandable), collapsible sources/reasoning links, confidence
     bar (5 segments with color coding), approval status line, and action buttons
-  - 'Finding card states work: DRAFT (default border, Awaiting review), APPROVED (green
-    border-left, ✓ badge, success-muted pill), REJECTED (red border-left, opacity
-    0.6, dimmed), OUTDATED (dashed border)'
+  - "Finding card states work: DRAFT (default border, Awaiting review), APPROVED (green\
+    \ border-left, \u2713 badge, success-muted pill), REJECTED (red border-left, opacity\
+    \ 0.6, dimmed), OUTDATED (dashed border)"
   - 'Approval workflow: clicking Approve shows confirmation, updates card to APPROVED
     state with green sweep animation; Request Revision opens dialog and reverts to
     Draft'
@@ -290,25 +295,161 @@ tasks:
   created_at: '2026-07-09T03:24:38.742172+00:00'
   completed_at: '2026-07-09T03:40:46.782667+00:00'
 - id: chronicle-input-area
-  title: Build Input Area — message composer, model selector, budget display (§5.6)
+  title: "Build Input Area \u2014 message composer, model selector, budget display\
+    \ (\xA75.6)"
   criteria:
-  - Textarea auto-grows from 52px to 200px max-height based on content (§5.6.1)
-  - Enter submits message, Shift+Enter adds newline, Cmd+Enter forces submit (§5.6.1)
-  - Send button is a 32×32 circle arrow overlay on textarea, visible only when textarea
-    has content (§5.6.1)
-  - Character count shown below textarea left-aligned, fades in when text has content
-    (§5.6.1)
-  - 'Input toolbar has: Attach (📎), Context (@), Model selector (#), and token counter
-    on right (§5.6.2)'
-  - Model selector dropdown lists deepseek-v4-pro, deepseek-v4-flash, claude-sonnet-4,
-    gpt-4o, local-model with cost/latency (§5.6.2)
-  - Token counter shows token estimate and cost, updates on keystroke with 300ms debounce
-    (§5.6.2)
-  - sendMessage() calls POST /api/v1/sessions/{id}/message endpoint (§5.6.3)
-  - Context pills appear between toolbar and textarea when context items selected,
-    with × remove button (§5.6.2)
-  - Model selection persists per investigation via localStorage (§5.6.2)
+  - "Textarea auto-grows from 52px to 200px max-height based on content (\xA75.6.1)"
+  - "Enter submits message, Shift+Enter adds newline, Cmd+Enter forces submit (\xA7\
+    5.6.1)"
+  - "Send button is a 32\xD732 circle arrow overlay on textarea, visible only when\
+    \ textarea has content (\xA75.6.1)"
+  - "Character count shown below textarea left-aligned, fades in when text has content\
+    \ (\xA75.6.1)"
+  - "Input toolbar has: Attach (\U0001F4CE), Context (@), Model selector (#), and\
+    \ token counter on right (\xA75.6.2)"
+  - "Model selector dropdown lists deepseek-v4-pro, deepseek-v4-flash, claude-sonnet-4,\
+    \ gpt-4o, local-model with cost/latency (\xA75.6.2)"
+  - "Token counter shows token estimate and cost, updates on keystroke with 300ms\
+    \ debounce (\xA75.6.2)"
+  - "sendMessage() calls POST /api/v1/sessions/{id}/message endpoint (\xA75.6.3)"
+  - "Context pills appear between toolbar and textarea when context items selected,\
+    \ with \xD7 remove button (\xA75.6.2)"
+  - "Model selection persists per investigation via localStorage (\xA75.6.2)"
   status: complete
   created_at: '2026-07-09T10:12:35.128314+00:00'
   completed_at: '2026-07-09T10:32:36.965367+00:00'
-
+- id: c-gap-004
+  title: README health-response example matches reality
+  criteria:
+  - README curl example keys match the live /api/v1/health response (verified by curl)
+  status: complete
+  created_at: '2026-08-07T05:44:14.624306+00:00'
+  completed_at: '2026-08-07T05:44:56.264479+00:00'
+- id: c-gap-005
+  title: MCP endpoints reachable (no 404)
+  criteria:
+  - POST /mcp/message with Content-Type application/json body {"jsonrpc":"2.0","method":"tools/list","id":1}
+    returns a valid JSON-RPC response (not 404)
+  status: complete
+  created_at: '2026-08-07T05:44:14.777641+00:00'
+  completed_at: '2026-08-07T05:46:15.488823+00:00'
+- id: bug-009
+  title: Shim sub-path routes reachable through chi mounts
+  criteria:
+  - opencode.MountPatterns exported in internal/shim/opencode with /* wildcard patterns
+    for sub-path routes
+  - cmd/consensus/main.go mounts the shim via MountPatterns (no inline Handle list)
+  - TestMountPatternsChi mounts shim on a chi router with MountPatterns and proves
+    POST /session/{id}/message returns 200 (not 404)
+  - dexdat sidecar mountOpenCodeShim uses MountPatterns (cross-repo commit b6ce2ff)
+  status: complete
+  created_at: '2026-08-07T14:12:39.413688+00:00'
+  completed_at: '2026-08-07T14:12:44.017647+00:00'
+- id: bug-010
+  title: HITL tables and defaults init on Postgres
+  criteria:
+  - repairHitlConfiguration added to internal/migrate and wired into AutoMigrate
+  - TestRepairHitlConfiguration proves a DB with v8 recorded but tables dropped gets
+    hitl_configuration back on AutoMigrate
+  - SetConfiguration passes Go bools for boolean columns (no toBoolInt int encoding
+    on PG)
+  - 'live dexdat sidecar: hitl_configuration exists with global defaults row, no ''failed
+    to initialize HITL defaults'' warning'
+  status: complete
+  created_at: '2026-08-07T14:12:39.521255+00:00'
+  completed_at: '2026-08-07T14:14:54.790555+00:00'
+- id: bug-011
+  title: Backend-neutral CURRENT_TIMESTAMP for PG session claims
+  criteria:
+  - Harness executor/planning and compression worker SQL use CURRENT_TIMESTAMP instead
+    of SQLite-only datetime('now')
+  - No datetime('now') remains in non-test production Go SQL in internal/harness/executor.go,
+    planning.go, compression/worker.go (comments exempt)
+  - go build ./... && go vet ./... pass; go test ./... -count=1 -short full suite
+    green (29/29 packages)
+  - 'PG16 live smoke: SELECT datetime(''now'') errors 42883, SELECT CURRENT_TIMESTAMP
+    returns timestamp'
+  - TestFixLLMSQLDefaults regression test covers DEFAULT-wrapper stripping for both
+    datetime('now') and CURRENT_TIMESTAMP forms
+  status: complete
+  created_at: '2026-08-07T16:30:49.243109+00:00'
+  completed_at: '2026-08-07T16:30:51.667622+00:00'
+- id: bug-012
+  title: Fix agent_circuit_breakers breaker_type drift + checksum detection
+  criteria:
+  - Repair function reconciles drifted agent_circuit_breakers (adds breaker_type/threshold/current_count
+    columns + unique (session_id,breaker_type) index) preserving RLS and existing
+    columns
+  - Migration checksums switch from length-only to content hash with legacy normalization
+    (no false drift on existing installs)
+  - Genuine content drift is detected and surfaced via CheckDrift
+  - Build/vet pass, full go test green, PG-gated test green on scratch DB, live dexdat
+    DB untouched
+  status: complete
+  created_at: '2026-08-07T18:45:29.734354+00:00'
+  completed_at: '2026-08-07T19:14:01.882886+00:00'
+- id: c-gap-006
+  title: README Docker Compose snippet points to the correct compose file
+  criteria:
+  - README.md Docker Compose section header names docker-compose.prod.yml (grep 'Docker
+    Compose' README.md shows docker-compose.prod.yml, not bare docker-compose.yml)
+  - README.md compose snippet includes a consensus service with image ghcr.io/wojons/consensus:latest
+    (grep 'ghcr.io/wojons/consensus' README.md snippet block)
+  - docker compose -f docker-compose.prod.yml config --services includes postgres
+    and consensus (live verified)
+  - 'README.md snippet renders as valid YAML: docker compose -f <snippet> config --services
+    includes consensus (live verified)'
+  status: complete
+  created_at: '2026-08-08T04:14:22.299968+00:00'
+  completed_at: '2026-08-08T04:14:25.783555+00:00'
+- id: c-gap-007
+  title: Regenerate specs/README.md spec inventory
+  criteria:
+  - specs/README.md contains no 'No specs have been created' text
+  - 'specs/README.md inventory lists all files matching ''ls specs/*.md'' (count matches:
+    29)'
+  - Every 'specs/*.md' link in specs/README.md resolves to a file that exists on disk
+    (no broken links)
+  status: complete
+  created_at: '2026-08-09T03:26:26.608690+00:00'
+  completed_at: '2026-08-09T03:26:30.258186+00:00'
+- id: c-gap-008
+  title: 'C-GAP-008: quickstart health response drift'
+  criteria:
+  - Stale health JSON (status:healthy) gone from docs/quickstart-cross-platform.md
+  - Health response shape in docs matches live server keys (status/version/uptime_seconds/db_backend)
+  status: complete
+  created_at: '2026-08-10T07:55:02.102690+00:00'
+  completed_at: '2026-08-10T07:55:06.217006+00:00'
+- id: c-gap-009
+  title: 'C-GAP-009: CI/CD pipeline'
+  criteria:
+  - .github/workflows/ci.yml exists
+  - Workflow triggers on push and pull_request
+  - Workflow runs build, vet, and test jobs
+  status: complete
+  created_at: '2026-08-10T07:55:02.309463+00:00'
+  completed_at: '2026-08-10T07:55:46.473771+00:00'
+- id: c-gap-010
+  title: 'C-GAP-010: API reference doc'
+  criteria:
+  - docs/API.md exists
+  - docs/API.md documents at least 10 endpoints with curl examples
+  - README.md links to docs/API.md
+  status: complete
+  created_at: '2026-08-10T07:55:02.561117+00:00'
+  completed_at: '2026-08-10T07:56:16.783474+00:00'
+- id: c-gap-011
+  title: 'C-GAP-011: wire consecutive-errors circuit breaker into task-claim LLM error
+    path'
+  criteria:
+  - circuit_test.go:466 'NOT yet wired' note removed or updated to describe the wired
+    integration
+  - A test trips the breaker via RunAgentIteration errors (consecutive LLM failures
+    reach the threshold)
+  - Session status becomes 'paused' when the breaker trips through the RunAgentIteration
+    error path
+  - go test -short -count=1 ./... passes (full suite)
+  status: complete
+  created_at: '2026-08-11T13:36:09.184087+00:00'
+  completed_at: '2026-08-11T13:36:13.149925+00:00'
