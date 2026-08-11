@@ -463,9 +463,12 @@ func TestCircuitBreaker_NilDB_DoesNotPanic(t *testing.T) {
 //  2. CheckCircuitBreaker + tripBreaker work correctly with a real database
 //  3. upsertBreakerCount correctly tracks counts across calls
 //
-// Note: The circuit breaker is NOT yet wired into RunAgentIteration's LLM error
-// path (handleLLMError). That integration is a future task. The persistence
-// infrastructure is fully tested and ready.
+// The breaker is wired into both LLM error paths: handleLLMPlanningError
+// (planning loop, DOGFOOD-003) and handleLLMError (RunAgentIteration /
+// task-claim loop, C-GAP-011). Trip behavior through the full iteration path
+// is covered by TestProviderFailure_CircuitBreakerTripsViaRunAgentIteration
+// in ac_provider_failure_test.go; the persistence infrastructure itself is
+// fully tested here.
 // ============================================================================
 
 func TestCircuitBreaker_Integration_TableExistsInMigration(t *testing.T) {

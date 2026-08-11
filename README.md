@@ -90,7 +90,7 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo
 | Context window hits 128K tokens | Hope your manual truncation didn't cut anything important. | Vector-validated compression. Every summary must pass cosine similarity ≥0.85 against the original. Fail → escalate. No guesswork. |
 | "I know the agent mentioned the API key issue somewhere" | `grep` through log files. Good luck. | Semantic retrieval (harness-internal). Embed your query, get ranked results by cosine similarity inside memory compression. No user-facing search endpoint — retrieval powers the compression worker, not a public API. |
 | Two agents running concurrently | Shared dicts. Race conditions. Agent B overwrites Agent A's state. | Session-scoped memory. DB-level isolation. Physically impossible to cross-contaminate. |
-| API rate limit triggers a retry loop | Agent retries 400 times before you notice. $200 gone. | `agent_circuit_breakers`. 2 consecutive errors → session pauses. Configurable per session. |
+| API rate limit triggers a retry loop | Agent retries 400 times before you notice. $200 gone. | `agent_circuit_breakers`. 2 consecutive errors → session pauses. Configurable per session. (LLM error paths in planning and task-claim iterations) |
 | Agent "saves" its work | Did it actually save? Did the file write complete? Who knows? | ACID transactions. Commit fully or rollback entirely. No partial state. Ever. |
 
 ### Your Coding Agent Has Amnesia

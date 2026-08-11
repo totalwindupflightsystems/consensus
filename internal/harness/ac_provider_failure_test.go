@@ -253,23 +253,19 @@ func TestLLMClient_ErrorWrapping(t *testing.T) {
 }
 
 // ============================================================================
-// Circuit breaker: verify it is NOT wired into handleLLMError
-// (documented gap — circuit breaker exists but isn't triggered on LLM errors)
+// Circuit breaker: wired into RunAgentIteration's LLM error path (C-GAP-011)
+//
+// handleLLMError now mirrors handleLLMPlanningError (DOGFOOD-003): every LLM
+// failure that reaches the terminal error branch increments the persisted
+// consecutive-errors counter in agent_circuit_breakers; at the configured
+// threshold (default 3) the breaker trips, tripped_at is set, and the session
+// is PAUSED. Below the threshold the claimed task is returned to 'pending' so
+// the heartbeat re-claims and retries it — the task loop dispatches on
+// tasks.status, not sessions.status, so the session row is left untouched on
+// the retry path.
 // ============================================================================
 
-func TestProviderFailure_CircuitBreakerNotWired_Gap(t *testing.T) {
-	// The circuit breaker infrastructure (CheckCircuitBreaker, agent_circuit_breakers table)
-	// is implemented and tested (see circuit_test.go). However, handleLLMError does NOT
-	// call CheckCircuitBreaker — it only checks for context-limit errors.
-	//
-	// The circuit breaker IS checked in pollAndDispatch (executor.go:589) AFTER
-	// RunAgentIteration returns, but only for planning sessions, not for task-based
-	// iterations. This means:
-	//   - Planning sessions: 3 consecutive provider failures → circuit breaker trips → paused
-	//   - Task iterations: provider failures are recorded but don't trip the breaker
-	//
-	// This is a partial gap — the infrastructure exists but isn't fully wired.
-
+func TestProviderFailure_CircuitBreakerTripsViaRunAgentIteration(t *testing.T) {
 	th, err := newTestHarness(failingMockLLM(fmt.Errorf("repeated provider failure")))
 	if err != nil {
 		t.Fatalf("failed to create test harness: %v", err)
@@ -281,36 +277,91 @@ func TestProviderFailure_CircuitBreakerNotWired_Gap(t *testing.T) {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 
-	// Run 3 iterations with failing LLM
-	for i := 0; i < 3; i++ {
+	// Simulate a claimed task: ClaimNextReadyTask (executor.go) sets
+	// tasks.status='in_progress' before dispatching RunAgentIteration.
+	taskID := "task-cgap-011"
+	if err := th.conn.Exec(th.ctx, `
+		INSERT INTO tasks (id, session_id, title, description, status)
+		VALUES ($1, $2, 'Circuit breaker task', 'Prove the breaker trips via RunAgentIteration', 'in_progress')
+	`, taskID, sessionID); err != nil {
+		t.Fatalf("failed to insert in_progress task: %v", err)
+	}
+
+	breakerState := func() (int, any) {
+		rows, qErr := th.conn.Query(th.ctx,
+			`SELECT current_count, tripped_at FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
+			sessionID, string(BreakerConsecutiveErrors))
+		if qErr != nil || len(rows) == 0 {
+			return 0, nil
+		}
+		return toInt(rows[0]["current_count"]), rows[0]["tripped_at"]
+	}
+	sessionStatus := func() string {
+		rows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
+		if len(rows) == 0 {
+			return "missing"
+		}
+		return toString(rows[0]["status"])
+	}
+	taskStatus := func() string {
+		rows, _ := th.conn.Query(th.ctx, `SELECT status FROM tasks WHERE id = $1`, taskID)
+		if len(rows) == 0 {
+			return "missing"
+		}
+		return toString(rows[0]["status"])
+	}
+
+	// Iterations 1-2: below the default threshold of 3 — the failure is counted
+	// (persisted in agent_circuit_breakers), the breaker does NOT trip, and the
+	// claimed task is returned to 'pending' so the next heartbeat re-claims it.
+	for i := 1; i <= 2; i++ {
 		result, err := th.RunAgentIteration(context.Background(), sessionID)
 		if err != nil {
 			t.Fatalf("iteration %d: unexpected Go error: %v", i, err)
 		}
-		t.Logf("iteration %d: status=%s, error=%v", i+1, result.Status, result.Error)
+		if result.Status != "error" {
+			t.Fatalf("iteration %d: expected status 'error', got %q", i, result.Status)
+		}
+		if result.Error == nil {
+			t.Fatalf("iteration %d: expected non-nil result.Error", i)
+		}
+
+		count, trippedAt := breakerState()
+		if count != i {
+			t.Errorf("iteration %d: breaker count = %d, want %d", i, count, i)
+		}
+		if trippedAt != nil {
+			t.Errorf("iteration %d: breaker must NOT trip below threshold, tripped_at=%v", i, trippedAt)
+		}
+		if got := sessionStatus(); got == "paused" {
+			t.Errorf("iteration %d: session must not be paused below threshold", i)
+		}
+		if got := taskStatus(); got != "pending" {
+			t.Errorf("iteration %d: task status = %q, want 'pending' (re-claimable)", i, got)
+		}
+		t.Logf("iteration %d: failure counted (count=%d), task re-claimable (status=%s)", i, count, taskStatus())
 	}
 
-	// Check if circuit breaker was tripped (it won't be — not wired)
-	rows, err := th.conn.Query(th.ctx,
-		`SELECT current_count, tripped_at FROM agent_circuit_breakers WHERE session_id = $1 AND breaker_type = $2`,
-		sessionID, string(BreakerConsecutiveErrors))
+	// Iteration 3: at the default threshold of 3 the breaker trips — tripped_at
+	// is set and the session is PAUSED (the README promise: N consecutive
+	// errors → session pauses).
+	result, err := th.RunAgentIteration(context.Background(), sessionID)
 	if err != nil {
-		t.Fatalf("query circuit_breakers: %v", err)
+		t.Fatalf("iteration 3: unexpected Go error: %v", err)
 	}
-	if len(rows) > 0 {
-		count := toInt(rows[0]["current_count"])
-		trippedAt := rows[0]["tripped_at"]
-		t.Logf("circuit breaker state: count=%d, tripped_at=%v (wired in pollAndDispatch only)", count, trippedAt)
+	if result.Status != "error" {
+		t.Fatalf("iteration 3: expected status 'error', got %q", result.Status)
 	}
 
-	// Verify session is still idle (not paused by circuit breaker)
-	sessRows, err := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
-	if err != nil {
-		t.Fatalf("query session: %v", err)
+	count, trippedAt := breakerState()
+	if count != 3 {
+		t.Errorf("iteration 3: breaker count = %d, want 3", count)
 	}
-	if len(sessRows) > 0 {
-		t.Logf("session status after 3 failures: %v (expected: idle — circuit breaker not wired)", sessRows[0]["status"])
+	if trippedAt == nil {
+		t.Error("iteration 3: breaker should be tripped at threshold — tripped_at is NULL")
 	}
-
-	t.Log("GAP: handleLLMError does not call CheckCircuitBreaker — see circuit_test.go:466-467")
+	if got := sessionStatus(); got != "paused" {
+		t.Errorf("iteration 3: session status = %q, want 'paused'", got)
+	}
+	t.Logf("iteration 3: breaker tripped (count=%d), session paused", count)
 }

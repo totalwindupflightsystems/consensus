@@ -353,6 +353,17 @@ func (h *Harness) determineNextStatus(output *AgentOutput) string {
 //  3. Truncate it, keeping first ~70% of tokens
 //  4. Append instructions for the agent to use chunking/search
 //  5. Retry with truncated context (up to maxContextRetryAttempts)
+//
+// Terminal LLM failures (the truncation flow falls through — including when a
+// truncation retry itself fails) route through the consecutive-errors circuit
+// breaker (AC-040, AC-HARDEN-04, C-GAP-011), mirroring handleLLMPlanningError:
+// each failure increments the persisted counter in agent_circuit_breakers; at
+// the configured threshold the breaker trips and the session is PAUSED so an
+// operator can fix the cause (bad API key, rate limit, provider outage) and
+// resume. Below the threshold the claimed task is returned to 'pending' so the
+// next heartbeat tick re-claims and retries it — the task loop dispatches on
+// tasks.status, not sessions.status (findActiveSessions only drives the
+// planning loop), so the session row is left untouched on the retry path.
 func (h *Harness) handleLLMError(ctx context.Context, sessionID string, ic *IterationContext, err error) (*IterationResult, error) {
 	errMsg := err.Error()
 
@@ -393,6 +404,36 @@ func (h *Harness) handleLLMError(ctx context.Context, sessionID string, ic *Iter
 	// Try to write audit
 	if werr := h.WriteAuditLog(ctx, &audit); werr != nil {
 		slog.Error("harness: audit write failed during llm error handling", "error", werr)
+	}
+
+	// Consecutive-errors circuit breaker (AC-040, AC-HARDEN-04, C-GAP-011):
+	// same pattern as handleLLMPlanningError. Every LLM failure reaching this
+	// terminal branch (including a failed truncation retry) increments the
+	// persisted counter exactly once.
+	threshold := h.maxConsecutiveErrors()
+	errorCount := h.currentBreakerCount(ctx, sessionID, BreakerConsecutiveErrors) + 1
+
+	tripped, cbErr := h.CheckCircuitBreaker(ctx, sessionID, BreakerConsecutiveErrors, errorCount, threshold)
+	if cbErr != nil {
+		slog.Error("harness: circuit breaker check failed during llm error handling", "session_id", sessionID, "error", cbErr)
+	}
+
+	if tripped {
+		slog.Error("harness: consecutive-error circuit breaker tripped, pausing session",
+			"session_id", sessionID, "count", errorCount, "threshold", threshold)
+		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
+			slog.Error("harness: failed to pause session after circuit breaker trip", "session_id", sessionID, "error", pauseErr)
+		}
+	} else {
+		// Below threshold — return the claimed task to 'pending' so
+		// ClaimNextReadyTask re-claims it on the next heartbeat tick; the
+		// persisted counter keeps the consecutive-failure streak. The session
+		// row is deliberately left untouched: task sessions are dispatched on
+		// tasks.status, and setting sessions.status to 'thinking' would route
+		// the session into the planning loop (findActiveSessions).
+		if resetErr := h.db.Exec(ctx, `UPDATE tasks SET status = 'pending' WHERE session_id = $1 AND status = 'in_progress'`, sessionID); resetErr != nil {
+			slog.Error("harness: failed to return task to pending after llm error", "session_id", sessionID, "error", resetErr)
+		}
 	}
 
 	return &IterationResult{
