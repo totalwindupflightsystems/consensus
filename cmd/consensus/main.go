@@ -552,6 +552,14 @@ func runInit(dbURL string) error {
 	}
 	fmt.Printf("Server URL:    http://%s\n", addrString(cfg.Server))
 	fmt.Println("Config file:   ./consensus.yaml or ~/.consensus/config.yaml")
+	// Bootstrap the .memory-bank/ agent-memory skeleton (C-GAP-013):
+	// gitignored and absent on fresh checkouts, yet AGENTS.md requires it.
+	// Idempotent — existing files are never overwritten.
+	// axiom:trace work_item=c-gap-013 spec=specs/016-cli-interface.md impl=cmd/consensus/main.go
+	if _, err := bootstrap.EnsureMemoryBank("."); err != nil {
+		return err
+	}
+	fmt.Println("Memory bank:   ready")
 	return nil
 }
 

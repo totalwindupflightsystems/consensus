@@ -79,7 +79,7 @@ Starts the Go binary with harness loop, REST API, and MCP server. With SQLite, t
 
 ### 5.2 `consensus init`
 
-Bootstrap a new Consensus instance. Creates tables, default configuration, and an admin API key.
+Bootstrap a new Consensus instance. Creates tables, default configuration, an admin API key, and the `.memory-bank/` agent-memory skeleton (`_index.md`, `_prompt.md`, `findings/_index.md`, `work-items/`) in the current directory.
 
 ```bash
 consensus init [flags]
@@ -95,6 +95,7 @@ Output:
   Admin API key:  cs_ak_a1b2c3d4...
   Server URL:     http://localhost:8090
   Config saved:   ./consensus.yaml
+  Memory bank:    ready
 ```
 
 This runs the consolidated SQL schema, creates the `hitl_configuration` global defaults, and generates the first admin API key.
