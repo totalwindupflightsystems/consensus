@@ -290,7 +290,7 @@ A dark-theme operational dashboard for AI-powered investigations. Operators run 
 
 ### B. Repository
 
-- **GitHub:** `https://github.com/totalwindupflightsystems/consensus`
+- **GitHub:** `https://github.com/wojons/consensus`
 - **Branch:** `master`
 - **Stack:** Go 1.26, SQLite, PostgreSQL + pgvector
 - **CI:** 8 jobs, GitHub Actions
