@@ -179,3 +179,43 @@ func TestApplyStartupValidations_NoBaseURLKeepsCompression(t *testing.T) {
 		t.Error("expected compression to stay enabled when base URL is empty (provider default)")
 	}
 }
+
+// --- applyEnvOverrides (C-GAP-015: OPENROUTER_API_KEY read path) ---
+
+func TestApplyEnvOverrides_OpenRouterAPIKey(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-test")
+	cfg := Defaults()
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.APIKey != "sk-or-test" {
+		t.Errorf("expected LLM.APIKey from OPENROUTER_API_KEY, got %q", cfg.LLM.APIKey)
+	}
+	if cfg.LLM.Provider != "openrouter" {
+		t.Errorf("expected provider openrouter, got %q", cfg.LLM.Provider)
+	}
+}
+
+func TestApplyEnvOverrides_OpenRouterWinsOverDeepSeek(t *testing.T) {
+	t.Setenv("DEEPSEEK_API_KEY", "sk-deepseek-test")
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-test")
+	cfg := Defaults()
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.APIKey != "sk-or-test" {
+		t.Errorf("expected explicitly-set OPENROUTER_API_KEY to win over DEEPSEEK_API_KEY, got %q", cfg.LLM.APIKey)
+	}
+	if cfg.LLM.Provider != "openrouter" {
+		t.Errorf("expected provider openrouter, got %q", cfg.LLM.Provider)
+	}
+}
+
+func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
+	t.Setenv("DEEPSEEK_API_KEY", "sk-deepseek-test")
+	os.Unsetenv("OPENROUTER_API_KEY")
+	cfg := Defaults()
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.APIKey != "sk-deepseek-test" {
+		t.Errorf("expected DEEPSEEK_API_KEY to apply when OPENROUTER_API_KEY unset, got %q", cfg.LLM.APIKey)
+	}
+}

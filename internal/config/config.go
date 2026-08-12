@@ -293,6 +293,17 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
 		cfg.LLM.APIKey = v
 	}
+	// OPENROUTER_API_KEY selects OpenRouter as the LLM backend (README:
+	// "Alternative: use OpenRouter instead of DeepSeek direct"). Setting the
+	// key alone switches provider + default base URL (NewOpenAIClient maps
+	// provider "openrouter" to https://openrouter.ai/api/v1), so no separate
+	// CONSENSUS_LLM_BASE_URL/OPENROUTER_BASE_URL is required. Checked after
+	// DEEPSEEK_API_KEY so an explicitly-set OpenRouter key wins over a
+	// leftover DeepSeek key in the shell environment. (C-GAP-015)
+	if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {
+		cfg.LLM.APIKey = v
+		cfg.LLM.Provider = "openrouter"
+	}
 }
 
 // ApplyStartupValidations checks the effective configuration for problems
