@@ -34,6 +34,9 @@ EXPOSE 8090
 VOLUME ["/home/consensus/data"]
 
 ENV CONSENSUS_DB_URL=sqlite:///home/consensus/data/consensus.db
+# Bind all interfaces inside the container so `docker run -p 8090:8090` is
+# reachable from the host (default Hostname is 127.0.0.1 — C-GAP-016).
+ENV CONSENSUS_HOSTNAME=0.0.0.0
 
 ENTRYPOINT ["consensus"]
 CMD ["serve", "--db-url", "sqlite:///home/consensus/data/consensus.db"]
