@@ -84,7 +84,7 @@ logging:
 	os.WriteFile(configPath, []byte(config), 0644)
 
 	// Start server
-	adminKey, cmd, err := startServer(t, configPath)
+	adminKey, cmd, _, err := startServer(t, configPath)
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -205,14 +205,14 @@ logging:
 // Server lifecycle
 // ============================================================================
 
-func startServer(t *testing.T, configPath string) (string, *exec.Cmd, error) {
+func startServer(t *testing.T, configPath string) (string, *exec.Cmd, *bytes.Buffer, error) {
 	t.Helper()
 	cmd := exec.Command(demoBin, "--config", configPath, "serve")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stdout
 	if err := cmd.Start(); err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	adminKey := ""
 	deadline := time.After(20 * time.Second)
@@ -220,7 +220,7 @@ func startServer(t *testing.T, configPath string) (string, *exec.Cmd, error) {
 		select {
 		case <-deadline:
 			cmd.Process.Kill()
-			return "", nil, fmt.Errorf("key timeout. Output:\n%s", stdout.String())
+			return "", nil, nil, fmt.Errorf("key timeout. Output:\n%s", stdout.String())
 		default:
 			for _, line := range strings.Split(stdout.String(), "\n") {
 				for _, f := range strings.Fields(line) {
@@ -233,7 +233,7 @@ func startServer(t *testing.T, configPath string) (string, *exec.Cmd, error) {
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	return adminKey, cmd, nil
+	return adminKey, cmd, &stdout, nil
 }
 
 // restartServer starts serve without parsing a new key (DB already has one).

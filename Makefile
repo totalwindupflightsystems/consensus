@@ -7,7 +7,7 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build dev dev-pg test test-short lint clean run docker
+.PHONY: build dev dev-pg test test-short smoke lint clean run docker
 
 # --- Build ---
 
@@ -29,6 +29,11 @@ test:
 
 test-short:
 	$(CGO_FLAGS) $(GO) test $(PKG) -v -short -count=1
+
+# Keyless end-to-end smoke (C-GAP-019): real server + mocked LLM, no API key.
+# Validates the install in under 60 seconds. See demo/README.md.
+smoke:
+	timeout 60 $(GO) test -run Smoke ./demo/
 
 # --- Lint ---
 

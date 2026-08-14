@@ -8,6 +8,18 @@ go test -v -run TestDemo_FullAgentHarness -timeout 300s ./demo/
 
 Requires `DEEPSEEK_API_KEY` environment variable (or set in consensus.yaml).
 
+## Keyless Smoke Test (no API key, no cost)
+
+Validate the install end-to-end without spending money or waiting minutes:
+
+```bash
+make smoke
+```
+
+Runs the full loop — real server binary, scratch SQLite database,
+session → heartbeat → LLM call — against a mocked OpenAI-compatible
+endpoint. Passes in under 60 seconds.
+
 ## What It Demonstrates
 
 > **Note:** The demo test skips entirely when `DEEPSEEK_API_KEY` is not set.
