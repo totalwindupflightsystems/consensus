@@ -16,6 +16,26 @@ not a test-suite summary.
 
 ---
 
+## Status (2026-08-14) — all three headline blockers FIXED
+
+| Item | Aug-4 verdict | Status (2026-08-14) | Fix |
+|---|---|---|---|
+| **DOGFOOD-001** — append-only memory triggers silently absent on fresh SQLite installs | P0 — headline promise broken | ✅ **FIXED** — `filterForSQLite` now leaves `*_sqlite_*` migrations untouched, and `consensus init` heals DBs whose triggers were stripped (`repairAppendOnlyTriggers`) | `5d36aa7` (tick #94, 2026-08-05) |
+| **DOGFOOD-002** — `session pause`/`resume` CLI commands broken | P1 | ✅ **FIXED** — the CLI now sends action verbs (`pause`/`resume`/`cancel`), matching what `PATCH /api/v1/sessions/{id}` expects; regression tests added | `b4f030e` (tick #94, 2026-08-05) |
+| **DOGFOOD-003** — circuit breaker never trips | P1 | ✅ **FIXED** — planning-loop LLM errors now accumulate via the consecutive-errors breaker; the session pauses at `max_consecutive_errors` and a successful commit resets the streak. Extended to the task-claim LLM path by C-GAP-011 | `7ad8575` (tick #94), `ff0306a` (C-GAP-011) |
+
+Also resolved since the report: **DOGFOOD-004..007** (actionable LLM error
+messages, `last_error` on failed sessions, empty tools/skills hints, MCP auth
+guidance) in `03339a5`/`cee65af` (tick #95); **DOGFOOD-006(d)** PRD repo-URL
+drift in `d6de2b3` (C-GAP-012); and the "which port is canonical" question —
+everything (README, Dockerfile, `consensus.yaml`) now agrees on **8090**.
+
+One item from the report's "not documented" list is still open: there is no
+**public semantic-retrieval endpoint** — retrieval remains internal to the
+harness. Per-item details are annotated inline below.
+
+---
+
 ## 1. What the run did (real use, not tests)
 
 Scratch instance in `/tmp/dogfood-consensus/run` (fresh SQLite DB, port
@@ -117,8 +137,8 @@ Auth: `Authorization: Bearer cs_ak_...` (admin key from `init`).
 
 | # | What happened | Why | Workaround / fix |
 |---|---|---|---|
-| 1 | `UPDATE memory_events` succeeded — append-only violated | Migration 017 triggers silently dropped by `filterForSQLite` (DOGFOOD-001) | P0 task on board; until fixed, don't rely on the ledger being immutable |
-| 2 | `session pause` → `unknown status action: "paused"` | CLI sends target state, server wants verb (DOGFOOD-002) | Use the REST API directly: `PATCH /api/v1/sessions/{id}` `{"status":"pause"}` |
+| 1 | `UPDATE memory_events` succeeded — append-only violated | Migration 017 triggers silently dropped by `filterForSQLite` (DOGFOOD-001) | ✅ **Fixed** (`5d36aa7`, tick #94): `filterForSQLite` skips `*_sqlite_*` migrations and `init` heals stripped triggers — the ledger is append-only on fresh installs again |
+| 2 | `session pause` → `unknown status action: "paused"` | CLI sends target state, server wants verb (DOGFOOD-002) | ✅ **Fixed** (`b4f030e`, tick #94): CLI sends action verbs (`pause`/`resume`/`cancel`); `session pause`/`resume` work again |
 | 3 | `llm: parse response (status 401): invalid character 'A'...` | Client JSON-parses the upstream error body (DOGFOOD-004) | Set a valid `DEEPSEEK_API_KEY`; the message is a bug, not your fault |
 | 4 | Session flips to `failed` with 0 tokens, no reason in API | No error surfaced on the session object (DOGFOOD-004) | Check `audit_logs` table (it records `error_message`) |
 | 5 | `tool list` → `(no results)` | Registry empty on fresh install (DOGFOOD-005) | Nothing to do; tools are only populated via registration |
@@ -141,9 +161,15 @@ Auth: `Authorization: Bearer cs_ak_...` (admin key from `init`).
 
 1. **DOGFOOD-001 (P0):** make `filterForSQLite` pass SQLite trigger files
    through untouched, add a post-init assertion that the triggers exist.
-   This is a ~10-line fix that restores the project's headline promise.
+   → ✅ **DONE** in `5d36aa7` (tick #94, 2026-08-05): `_sqlite_` migrations
+   bypass the filter and `init` runs `repairAppendOnlyTriggers`.
 2. **DOGFOOD-002 (P1):** map CLI status verbs to server action verbs.
+   → ✅ **DONE** in `b4f030e` (tick #94): CLI sends `pause`/`resume`/`cancel`.
 3. **DOGFOOD-003 (P1):** wire harness errors into `circuit.go` so the
    advertised breaker actually trips.
+   → ✅ **DONE** in `7ad8575` (tick #94): planning-loop LLM failures now
+   accumulate via the consecutive-errors breaker (session pauses at
+   `max_consecutive_errors`, success resets the streak); the task-claim path
+   got the same wiring in `ff0306a` (C-GAP-011).
 
 Everything else is polish. The core is genuinely good.
