@@ -246,6 +246,7 @@ volumes:
 ## Documentation
 
 - **[HTTP API Reference](docs/API.md)** — every REST endpoint with request/response examples, auth requirements, and error codes
+- **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
 - **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract (`/openapi.json`, `/openapi.yaml`, `/doc` on a running server)
 
