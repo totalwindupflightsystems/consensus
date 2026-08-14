@@ -1,9 +1,13 @@
 // Memory-bank skeleton templates bootstrapped by `consensus init`.
 //
-// The .memory-bank/ directory itself is gitignored (see .gitignore), so the
-// templates live here as tracked constants. Content mirrors what AGENTS.md
-// promises agents: _index.md navigates the bank, _prompt.md gives the rules,
-// findings/_index.md is the finding index, work-items/ holds per-item plans.
+// The skeleton (.memory-bank/_index.md, _prompt.md, findings/) is COMMITTED
+// (C-GAP-017) so a fresh clone satisfies AGENTS.md "Required Reading";
+// these constants keep `consensus init` output byte-identical to the
+// committed skeleton (edit both together). work-items/ stays gitignored —
+// per-item plans are local agent memory. Content mirrors what AGENTS.md
+// promises agents: _index.md navigates the bank, _prompt.md gives the
+// rules, findings/_index.md is the finding index, work-items/ holds
+// per-item plans.
 //
 // axiom:trace work_item=c-gap-013 spec=specs/016-cli-interface.md impl=internal/bootstrap/memorybank_templates.go test=internal/bootstrap/memory_bank_test.go
 package bootstrap
@@ -14,9 +18,10 @@ package bootstrap
 const memoryBankIndexTemplate = `# Memory Bank — Index
 
 This directory is the Consensus project's long-term agent memory
-(AGENTS.md: "Long-term project memory lives in .memory-bank/"). It is
-gitignored and bootstrapped by ` + "`consensus init`" + `; agents create and
-maintain the contents during their work.
+(AGENTS.md: "Long-term project memory lives in .memory-bank/"). The
+skeleton (this file, _prompt.md, findings/) is committed so a fresh clone
+has it; agents create and maintain the contents during their work.
+work-items/ is gitignored and bootstrapped by ` + "`consensus init`" + `.
 
 ## Navigation
 
@@ -39,7 +44,8 @@ Rules for agents using this memory bank (see AGENTS.md "Memory Bank"):
 3. Each finding type has its own subfolder with _index.md and _prompt.md.
 4. For work items, use work-items/<WORK_ITEM_ID>/.
 5. Never write secrets to the memory bank.
-6. Files here are gitignored — they are local agent memory, not source.
+6. The skeleton is committed; work-items/ and other local contents are
+   gitignored — agent memory beyond the skeleton is local, not source.
 `
 
 // memoryBankFindingsIndexTemplate is the .memory-bank/findings/_index.md
@@ -50,8 +56,8 @@ const memoryBankFindingsIndexTemplate = `# Findings — Index
 Agents accumulate findings, patterns, and self-improvement notes here
 (AGENTS.md "Findings & Self-Improvement").
 
-This index is a placeholder bootstrapped by ` + "`consensus init`" + `. Add a
-section per finding type below, each with its own subfolder containing
+This index is part of the committed skeleton (mirrored by ` + "`consensus init`" + `).
+Add a section per finding type below, each with its own subfolder containing
 _index.md and _prompt.md, and link it here.
 
 - (no findings recorded yet)

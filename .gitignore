@@ -2,10 +2,24 @@
 .worktrees/*/
 .axiom/sessions/
 .axiom/state/
-.axiom/
-.opencode/
+# .axiom/* + negation keeps the committed co-author config (C-GAP-017);
+# everything else under .axiom/ stays local.
+.axiom/*
+!.axiom/axiom.config.yaml
+# .opencode/* + nested negation keeps the committed git-rules prompt
+# (C-GAP-017); sibling local prompts stay ignored.
+.opencode/*
+!.opencode/prompts/
+.opencode/prompts/*
+!.opencode/prompts/git-rules.md
 .hermes/
-.memory-bank/
+# The ROOT memory-bank skeleton (_index.md, _prompt.md, findings/) is
+# committed (C-GAP-017); work-items/ and any other .memory-bank dirs
+# (test artifacts, e.g. internal/chronicle/.memory-bank/) stay local.
+**/.memory-bank/
+!/.memory-bank/
+!/.memory-bank/*
+/.memory-bank/work-items/
 _tmp/
 .graph-harness/
 .morty/
