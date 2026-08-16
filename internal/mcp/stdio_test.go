@@ -101,7 +101,7 @@ func TestServeStdio_Initialize(t *testing.T) {
 func TestServeStdio_ToolsList(t *testing.T) {
 	mock := &mockMCPDB{}
 	srv := NewServer(mock)
-	sess := &mcpSession{authScope: "admin"}
+	sess := &mcpSession{authScope: "admin", authenticated: true}
 
 	req := &JSONRPCRequest{
 		JSONRPC: "2.0",
@@ -184,7 +184,7 @@ func TestServeStdio_InvalidJSONRPC(t *testing.T) {
 
 func TestServeStdio_UnknownMethod(t *testing.T) {
 	srv := NewServer(&mockMCPDB{})
-	sess := &mcpSession{}
+	sess := &mcpSession{authenticated: true}
 
 	req := &JSONRPCRequest{
 		JSONRPC: "2.0",

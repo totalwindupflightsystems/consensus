@@ -734,7 +734,7 @@ func TestNotificationsInitialized_ReturnsNil(t *testing.T) {
 
 func TestUnknownMethod_ReturnsError(t *testing.T) {
 	srv := NewServer(&mockMCPDB{})
-	sess := &mcpSession{}
+	sess := &mcpSession{authenticated: true}
 
 	_, err := srv.handleMethod(&JSONRPCRequest{JSONRPC: "2.0", Method: "nonexistent"}, sess)
 	if err == nil {

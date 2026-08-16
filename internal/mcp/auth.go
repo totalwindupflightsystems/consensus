@@ -69,6 +69,7 @@ func (s *Server) validateAuth(req *JSONRPCRequest, sess *mcpSession) *JSONRPCErr
 	scope := toString(rows[0]["scope"])
 	sess.authScope = scope
 	sess.sessionKey = authStr
+	sess.authenticated = true // DOGFOOD-101: bind the session to this auth result — the dispatch gate requires it
 
 	if sid := rows[0]["session_id"]; sid != nil {
 		sess.agentSessionID = toString(sid)

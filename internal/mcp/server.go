@@ -224,6 +224,7 @@ type mcpSession struct {
 	sessionKey     string        // API key for this MCP session (for scoping)
 	authScope      string        // admin, session, readonly — from API key validation
 	agentSessionID string        // if session-scoped, the session ID
+	authenticated  bool          // true once initialize validated a valid API key (DOGFOOD-101)
 }
 
 // NewServer creates a new MCP server sharing the given database connection.
@@ -439,6 +440,24 @@ func (s *Server) handleMethod(req *JSONRPCRequest, sess *mcpSession) (any, *JSON
 			panic(r) // re-panic after logging
 		}
 	}()
+
+	// DOGFOOD-101: every method except the lifecycle handshake (initialize,
+	// notifications/initialized) and the no-op ping requires a session that
+	// completed authenticated initialize. A session is only marked
+	// authenticated by validateAuth (called from handleInitialize), so an
+	// unauthenticated caller cannot list, call, read, or probe any method.
+	switch req.Method {
+	case "initialize", "notifications/initialized", "ping":
+		// lifecycle / no-op methods are allowed pre-auth
+	default:
+		if sess == nil || !sess.authenticated {
+			return nil, &JSONRPCErrObj{
+				Code:    -32002,
+				Message: "Forbidden",
+				Data:    "session not authenticated — initialize with a valid API key (--api-key / CONSENSUS_API_KEY) first",
+			}
+		}
+	}
 
 	switch req.Method {
 	// Lifecycle
