@@ -211,7 +211,11 @@ func TestApplyEnvOverrides_OpenRouterWinsOverDeepSeek(t *testing.T) {
 
 func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
 	t.Setenv("DEEPSEEK_API_KEY", "sk-deepseek-test")
-	os.Unsetenv("OPENROUTER_API_KEY")
+	// Hermetic: OPENAI_API_KEY (checked first when provider==openai) and
+	// OPENROUTER_API_KEY would otherwise leak from the shell env and win
+	// over the DeepSeek key this test asserts (env-contamination fix).
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	cfg := Defaults()
 	applyEnvOverrides(&cfg)
 
