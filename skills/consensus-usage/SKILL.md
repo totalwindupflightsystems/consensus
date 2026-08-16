@@ -3,13 +3,15 @@ name: consensus-usage
 description: >-
   How to use the Consensus agent runtime for real: bootstrap a server,
   drive the REST API, integrate the Go client library, manage sessions via
-  the CLI, and avoid the current landmines (MCP surface unauthenticated,
-  MCP create_session deterministic IDs/keys, OpenAPI only from repo root).
-  Written from two dogfood runs (2026-08-04, 2026-08-15) — reflects actual
-  behavior, not README claims. Aug-4 landmines (append-only triggers,
-  pause/resume, circuit breaker, ports) are FIXED — do not treat them as
+  the CLI, and avoid the current landmines (mcp-stdio --api-key does not
+  authenticate initialize, no public semantic-retrieval endpoint, H3
+  example hardcodes port 8095). Written from two dogfood runs
+  (2026-08-04, 2026-08-15) — reflects actual behavior, not README claims.
+  Aug-4 landmines (append-only triggers, pause/resume, circuit breaker,
+  ports) and the Aug-15 landmines DOGFOOD-101/102/103 (MCP auth, MCP
+  session IDs, OpenAPI from repo root) are FIXED — do not treat them as
   open.
-version: 2.0.0
+version: 2.1.0
 category: software-development
 ---
 
@@ -28,8 +30,8 @@ MCP. Module: `github.com/wojons/consensus` (branch `master`, Go 1.26).
 | REST API | `http://127.0.0.1:<port>/api/v1/*`, auth `Authorization: Bearer cs_ak_...` — solid, use this for real work |
 | Go client | `pkg/client` — typed, matches REST 1:1, the best surface (verified 5/5 on 2026-08-15) |
 | CLI | `consensus status/session/memory/approve/config/tool/skill/migrate/models` — all functional |
-| MCP | `consensus mcp-stdio --api-key …` and `/mcp/sse` — works, but see LANDMINES 1-3 (auth + IDs) |
-| Docs | `/openapi.json` + `/openapi.yaml` (only from repo-root CWD), `/doc` (opencode-shim UI, hardcoded localhost:8090) |
+| MCP | `consensus mcp-stdio --api-key …` and `/mcp/sse` — works, but see LANDMINE 1 (auth) |
+| Docs | `/openapi.json` + `/openapi.yaml` (served from the EMBEDDED spec — works from any CWD and in Docker), `/doc/api` (REST Swagger UI, servers URL derived from request Host), `/doc` (opencode-shim UI) |
 
 ## Quickstart (verified 2026-08-15)
 
@@ -84,26 +86,14 @@ Compiles first try; verified against a live server both runs.
 
 ## Current landmines (from the 2026-08-15 re-run — DO NOT assume fixed)
 
-1. **MCP surface is effectively unauthenticated** (DOGFOOD-101, P0). Auth
-   is checked only at `initialize`; anyone can open `/mcp/sse` and call
-   list_memory/create_session/send_message with no key. Do not expose the
-   MCP port until fixed; don't build security on it.
-2. **MCP `create_session` is broken after the first call** (DOGFOOD-102,
-   P0): deterministic session IDs and keys — every MCP session shares id
-   `00070e15-1c23-2a31-383f-464d545b6269`-style (i*7) and key
-   `cs_sk_000d1a27…` (i*13%256). 2nd call → UNIQUE constraint. Create
-   sessions via REST instead.
-3. **`consensus mcp-stdio --api-key` does not authenticate initialize**
+1. **`consensus mcp-stdio --api-key` does not authenticate initialize**
    (DOGFOOD-106): initialize still says "Authentication required". SSE
    clients must put the key in `_meta.authorization` themselves.
-4. **OpenAPI 404 outside the repo root** (DOGFOOD-103, P1): `/openapi.json`
-   works only when CWD has `specs/openapi/` (never in Docker). `/doc` is
-   the opencode-shim UI (hardcoded localhost:8090), not the REST UI.
-5. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
+2. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
    retrieval is harness-internal; don't look for a search API.
-6. **H3 is a library, not mounted**: `consensus serve` does not expose
-   `/v1/*`; mount `internal/shim/h3` yourself (INTEGRATION.md §2.3 has a
-   runnable keyless example; change the port if 8095 is taken).
+3. **H3 is a library, not mounted** (DOGFOOD-107): `consensus serve` does
+   not expose `/v1/*`; mount `internal/shim/h3` yourself (INTEGRATION.md
+   §2.3 has a runnable keyless example; change the port if 8095 is taken).
 
 ## FIXED since the 2026-08-04 run (do NOT re-report these)
 
@@ -117,6 +107,18 @@ Compiles first try; verified against a live server both runs.
   (C-GAP-013/014/017). Ports standardized on 8090.
 - Keyless validation: `make smoke` (C-GAP-019) and `go test -short ./...`
   30/30 green without DEEPSEEK_API_KEY (~142s).
+- MCP surface is now authenticated (DOGFOOD-101 → `21dd46e`, tick #209):
+  auth is enforced at `initialize`; opening `/mcp/sse` and calling tools
+  without a key no longer works.
+- MCP `create_session` now gets unique session IDs/keys (DOGFOOD-102 →
+  `829eb12`, tick #210): no more deterministic shared id/key, no UNIQUE
+  constraint on the 2nd call. Create sessions via MCP or REST freely.
+- OpenAPI is served from the embedded spec (DOGFOOD-103 → `4912f32` +
+  `6ced588`, tick #211): `specs/openapi/bundled.yaml` is `go:embedded`
+  with an on-disk fallback, so `/openapi.json` + `/openapi.yaml` work from
+  any CWD and in Docker; the REST Swagger UI moved to `/doc/api` with its
+  servers URL derived from the request Host; `/doc` stays the opencode-shim
+  UI.
 
 ## Crash recovery (verified both runs)
 
