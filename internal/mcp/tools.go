@@ -4,6 +4,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -483,18 +484,25 @@ func (s *Server) toolQueryTool(args json.RawMessage, sess *mcpSession) (any, *JS
 
 func generateUUID() string {
 	b := make([]byte, 16)
-	// simple uuid-like string from random bytes
-	for i := 0; i < 16; i++ {
-		b[i] = byte(i * 7) // deterministic fallback
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand only fails on catastrophic system entropy loss; never
+		// fall back to deterministic output (DOGFOOD-102: every MCP session
+		// used to get the SAME id, so create_session worked exactly once).
+		panic(fmt.Sprintf("crypto/rand failed: %v", err))
 	}
+	// Set UUIDv4 version (4) and RFC 4122 variant bits.
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // generateShortID creates a random hex string of given length.
 func generateShortID(n int) string {
 	b := make([]byte, n/2)
-	for i := range b {
-		b[i] = byte(i * 13 % 256)
+	if _, err := rand.Read(b); err != nil {
+		// Same guarantee as generateUUID: never deterministic (DOGFOOD-102 —
+		// every MCP session used to get the SAME api_key).
+		panic(fmt.Sprintf("crypto/rand failed: %v", err))
 	}
 	return hex.EncodeToString(b)
 }
