@@ -138,3 +138,65 @@ logs should surface it instead of the parse error.
 | guard `embedded null byte` on `./consensus --help` | The Hermes cron lifecycle guard reads referenced files as scripts; compiled binaries crash it — use `go run` instead |
 | `consensus init` prints `Server URL: http://127.0.0.1:8094` | Hardcoded default from repo `consensus.yaml`; `--config` port wins at serve time |
 | MCP `missing _meta.authorization` then `Invalid API key` | MCP auth comes from `--api-key`/config only; `_meta` is ignored; messages are misleading (DOGFOOD-007) |
+
+---
+
+# 2026-08-15 re-run addendum (dogfood #2)
+
+## How the system is built (updated)
+
+- **Board is now JSONL, not DuckDB.** `.coding-hermes/board/tasks.jsonl` +
+  `events.jsonl` are the canonical, git-tracked board (JSONL-NORM-001,
+  `e362ac5`); `board.db` is a local cache the foreman heals with
+  `sync_tasks_jsonl_to_db.py`. Write new tasks as JSONL rows in
+  `tasks.jsonl` (schema: `id, title, status, priority, complexity,
+  depends_on, blocks, primary_model, primary_provider, capability_tags,
+  worker_status, created_at, …`). The Aug-4 diagnostics section that calls
+  DuckDB canonical is historical — trust the JSONL.
+- **MCP auth architecture (and its flaw):** the API key is validated ONLY
+  at `initialize` via `params._meta.authorization` (`internal/mcp/auth.go`),
+  then scopes ride on the in-memory `mcpSession`. Nothing requires an
+  authenticated initialize before tool calls — sessions are minted by the
+  SSE stream with no credentials. `checkWriteAccess`/`checkAdminScope` only
+  constrain *scoped* keys; empty scope passes. This is DOGFOOD-101.
+- **MCP session ID/key generation is deterministic** (`generateUUID` =
+  `byte(i*7)`, `generateShortID` = `byte(i*13%256)` in
+  `internal/mcp/tools.go`). Every MCP-created session shares one session id
+  (2nd create collides — UNIQUE constraint) and one predictable session
+  key. This is DOGFOOD-102.
+- **OpenAPI spec resolution is CWD-dependent** (`internal/api/openapi.go`
+  `resolveSpecPath()`: `specs/openapi/bundled.yaml` etc. relative to CWD;
+  no embed). `/doc` is shadowed by the opencode shim's Swagger UI
+  (`internal/shim/opencode/server.go` mounts `/doc` with a hardcoded
+  `servers: [{url: "http://localhost:8090"}]`). DOGFOOD-103.
+- **Keyless smoke exists:** `make smoke` = `go test -run Smoke ./demo/`
+  (C-GAP-019, `ac8d36a`) — mock-LLM, scratch sqlite, real server binary,
+  45s deadline. `go test -short ./...` is 30/30 green keyless (~142s).
+
+## Errors I hit this run (and the right way)
+
+| Error | Explanation / right way |
+|---|---|
+| `session not found` on MCP POST | I used INTEGRATION.md's placeholder sessionId instead of the one from my own `/mcp/sse` endpoint event. Use YOUR sessionId (DOGFOOD-105 filed to fix the doc). |
+| `UNIQUE constraint failed: sessions.id` on 2nd MCP create_session | Deterministic generateUUID — every MCP session has the same id (DOGFOOD-102). Create sessions via REST until fixed. |
+| MCP `initialize` → `Authentication required` with `--api-key` | The stdio CLI never injects the key into `_meta.authorization` (DOGFOOD-106); SSE clients must put the key there themselves. |
+| `Authentication required` **not** returned for tools/list | By design today — auth only checked at initialize (DOGFOOD-101). Don't assume an authenticated surface. |
+| `bind: address already in use` (H3 example, :8095) | Port taken by another service on this host; doc example hardcodes it (DOGFOOD-107). |
+| `/openapi.json` 404 while `/doc` 200 | CWD had no `specs/openapi/`; and `/doc` is the opencode-shim UI, not the REST UI (DOGFOOD-103). |
+| `pgrep -f 'consensus serve'` matched my own shell | The command line contains the pattern; match the binary path instead. |
+| `test -f docs/dogfood/` said missing in a fresh clone | `test -f` on a directory is false — use `test -d`. The files are tracked. |
+
+## The right way (summary)
+
+1. Scratch instance: `consensus init --config …` + `consensus serve` with an
+   explicit `server.port` (8090 is taken by the sidecar on this host) and
+   `database.url` to a scratch sqlite file; no LLM key needed for the
+   REST/CLI/DB surface.
+2. Session creation: REST `POST /api/v1/sessions` (random IDs/keys). MCP
+   create_session: once, max — until DOGFOOD-102.
+3. Ledger + breaker are now real: `UPDATE memory_events` fails; a dead LLM
+   pauses the session after `max_consecutive_errors`.
+4. OpenAPI: run from repo root or vendor `specs/openapi/bundled.yaml` —
+   until DOGFOOD-103.
+5. H3: mount `internal/shim/h3` yourself (still a library, not wired into
+   `consensus serve` — INTEGRATION.md §2.3, honest about it).
