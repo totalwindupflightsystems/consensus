@@ -220,8 +220,9 @@ The shim maps an H3 session id to a Consensus session on first `/v1/process`
 for every later call on the same H3 session id.
 
 **Runnable example (keyless, canned responses).** Drop this into
-`cmd/h3shim/main.go` in this repo and run
+`cmd/h3shim/main.go` and run
 `timeout 30 go run ./cmd/h3shim` — it serves the H3 endpoints on `:8095`
+(override with the `PORT` env var, e.g. `PORT=18095 timeout 30 go run ./cmd/h3shim`)
 with a stub service that plays back a realistic conversation, so you can
 exercise the protocol without an LLM key:
 
@@ -232,6 +233,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/wojons/consensus/internal/shim/h3"
 )
@@ -256,8 +258,12 @@ func (s *stub) FeedToolResult(ctx context.Context, sessionID, toolName string, o
 }
 
 func main() {
-	log.Println("h3 shim demo on :8095 — try: curl -s localhost:8095/v1/health")
-	log.Fatal(http.ListenAndServe("127.0.0.1:8095", h3.NewServer(nil, &stub{}).Handler()))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8095" // default; set PORT if 8095 is taken on your host
+	}
+	log.Printf("h3 shim demo on :%s — try: curl -s localhost:%s/v1/health", port, port)
+	log.Fatal(http.ListenAndServe("127.0.0.1:"+port, h3.NewServer(nil, &stub{}).Handler()))
 }
 ```
 
@@ -270,7 +276,8 @@ func main() {
 ### 2.4 Worked session (text → tool_call → end)
 
 All bodies below match the actual request/response types in
-`internal/shim/h3/server.go`. `$H3 = http://127.0.0.1:8095`.
+`internal/shim/h3/server.go`. `$H3 = http://127.0.0.1:8095` (adjust the port
+to match your shim if you set `PORT` when starting it).
 
 **1. `/v1/process` — new session, agent answers with text:**
 
