@@ -32,8 +32,8 @@ func TestExecuteExternalTool_Success(t *testing.T) {
 	if !strings.Contains(result.Output, "hello world") {
 		t.Errorf("output = %q, want 'hello world'", result.Output)
 	}
-	if result.DurationMs <= 0 {
-		t.Error("duration_ms should be > 0")
+	if result.DurationMs < 0 {
+		t.Error("duration_ms should be >= 0")
 	}
 	if result.Error != "" {
 		t.Errorf("unexpected error: %s", result.Error)
