@@ -417,6 +417,14 @@ func runMCPStdio() {
 
 	// Create MCP server and start stdio transport
 	mcpSrv := mcp.NewServer(database)
+	// DOGFOOD-106: honor the process-configured API key. mcp_stdio.go
+	// forwards the resolved --api-key / CONSENSUS_API_KEY / config-file
+	// value into CONSENSUS_API_KEY; the stdio transport injects it into
+	// the initialize handshake so the documented invocation
+	// (`consensus mcp-stdio --api-key cs_ak_...`) authenticates.
+	if key := os.Getenv("CONSENSUS_API_KEY"); key != "" {
+		mcpSrv.SetAPIKey(key)
+	}
 	slog.Info("consensus: starting MCP stdio transport")
 
 	if err := mcpSrv.ServeStdio(ctx); err != nil {

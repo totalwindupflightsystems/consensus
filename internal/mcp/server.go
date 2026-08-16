@@ -211,6 +211,14 @@ type Server struct {
 	name string
 	ver  string
 
+	// apiKey is the process-configured API key (--api-key flag /
+	// CONSENSUS_API_KEY env / consensus.yaml server.api_key). Only the
+	// stdio transport consumes it: clients launched with the documented
+	// flags get the key injected into the initialize handshake
+	// (DOGFOOD-106). SSE clients always send their own
+	// _meta.authorization, so this field is stdio-specific.
+	apiKey string
+
 	mu       sync.RWMutex
 	sessions map[string]*mcpSession // sessionID → session
 }
@@ -240,6 +248,15 @@ func NewServer(database db.DB) *Server {
 // ServerInfo returns identifying information about this MCP server.
 func (s *Server) ServerInfo() MCPServerInfo {
 	return MCPServerInfo{Name: s.name, Version: s.ver}
+}
+
+// SetAPIKey configures the process-level API key that the stdio transport
+// injects into the initialize handshake (DOGFOOD-106). The key comes from
+// --api-key / CONSENSUS_API_KEY / consensus.yaml server.api_key — see
+// docs/INTEGRATION.md §1.1. It is only a fallback: a client that sends its
+// own _meta.authorization keeps it.
+func (s *Server) SetAPIKey(key string) {
+	s.apiKey = key
 }
 
 // ============================================================================

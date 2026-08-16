@@ -35,8 +35,16 @@ import (
 //
 // Unlike the SSE transport which creates per-connection sessions, stdio
 // creates a single session that lasts the lifetime of the process.
-// Authentication is handled via the initialize request's _meta.authorization.
+// Authentication is handled via the initialize request's _meta.authorization
+// (DOGFOOD-106: when the process was started with a configured API key via
+// SetAPIKey, a client initialize that omits _meta.authorization gets the key
+// injected so the documented `--api-key` invocation authenticates).
 func (s *Server) ServeStdio(ctx context.Context) error {
+	return s.serveStdioIO(ctx, os.Stdin, os.Stdout)
+}
+
+// serveStdioIO is ServeStdio with explicit input/output streams (testable).
+func (s *Server) serveStdioIO(ctx context.Context, in io.Reader, out io.Writer) error {
 	slog.Info("mcp: starting stdio transport")
 
 	// Create a single MCP session for the stdio connection lifetime.
@@ -51,7 +59,7 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(in)
 	writeMu := &sync.Mutex{} // protect stdout writes
 
 	// Channel to report fatal errors
@@ -98,13 +106,22 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 			var req JSONRPCRequest
 			if err := json.Unmarshal([]byte(line), &req); err != nil {
 				slog.Warn("mcp: invalid JSON-RPC request", "error", err)
-				s.writeStdioError(writeMu, nil, -32700, "Parse error", err.Error())
+				s.writeStdioError(out, writeMu, nil, -32700, "Parse error", err.Error())
 				continue
 			}
 
 			if req.JSONRPC != "2.0" {
-				s.writeStdioError(writeMu, req.ID, -32600, "Invalid Request", "jsonrpc must be 2.0")
+				s.writeStdioError(out, writeMu, req.ID, -32600, "Invalid Request", "jsonrpc must be 2.0")
 				continue
+			}
+
+			// DOGFOOD-106: a client launched as `consensus mcp-stdio
+			// --api-key ...` has no way to send _meta.authorization itself
+			// (the docs promise the flag forwards the key). Inject the
+			// process-configured key into the initialize handshake when the
+			// client did not supply its own authorization.
+			if req.Method == "initialize" && s.apiKey != "" {
+				req.Params = injectInitializeAuth(req.Params, s.apiKey)
 			}
 
 			// Route to handler (same dispatch as SSE transport)
@@ -116,7 +133,7 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 			}
 
 			if rpcErr != nil {
-				s.writeStdioError(writeMu, req.ID, rpcErr.Code, rpcErr.Message, rpcErr.Data)
+				s.writeStdioError(out, writeMu, req.ID, rpcErr.Code, rpcErr.Message, rpcErr.Data)
 				continue
 			}
 
@@ -133,7 +150,7 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 			}
 
 			writeMu.Lock()
-			fmt.Fprintln(os.Stdout, string(data))
+			fmt.Fprintln(out, string(data))
 			writeMu.Unlock()
 		}
 	}()
@@ -147,8 +164,40 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 	}
 }
 
-// writeStdioError writes a JSON-RPC error response to stdout.
-func (s *Server) writeStdioError(mu *sync.Mutex, id any, code int, message string, data any) {
+// injectInitializeAuth merges the process-configured API key into an
+// initialize request's params by setting params._meta.authorization.
+// A client-supplied authorization is left untouched. Returns the original
+// params unchanged when there is nothing to inject (no key, empty params)
+// or the params are not a JSON object.
+func injectInitializeAuth(params json.RawMessage, key string) json.RawMessage {
+	if len(params) == 0 || key == "" {
+		return params
+	}
+	var p map[string]any
+	if err := json.Unmarshal(params, &p); err != nil {
+		return params
+	}
+	if p == nil {
+		p = map[string]any{}
+	}
+	meta, _ := p["_meta"].(map[string]any)
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	if _, ok := meta["authorization"]; ok {
+		return params // client supplied its own key — keep it
+	}
+	meta["authorization"] = "Bearer " + key
+	p["_meta"] = meta
+	out, err := json.Marshal(p)
+	if err != nil {
+		return params
+	}
+	return out
+}
+
+// writeStdioError writes a JSON-RPC error response to the transport output.
+func (s *Server) writeStdioError(out io.Writer, mu *sync.Mutex, id any, code int, message string, data any) {
 	resp := JSONRPCErrorResponse{
 		JSONRPC: "2.0",
 		ID:      id,
@@ -165,7 +214,7 @@ func (s *Server) writeStdioError(mu *sync.Mutex, id any, code int, message strin
 	}
 
 	mu.Lock()
-	fmt.Fprintln(os.Stdout, string(body))
+	fmt.Fprintln(out, string(body))
 	mu.Unlock()
 }
 
