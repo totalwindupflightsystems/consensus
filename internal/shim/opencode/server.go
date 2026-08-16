@@ -1681,7 +1681,14 @@ func (s *Server) handleLSP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(swaggerUIPage))
+	// Derive the servers URL from the request Host instead of hardcoding
+	// localhost:8090 — the shim can be mounted on any port (DOGFOOD-103).
+	serversURL := "http://" + r.Host
+	if r.TLS != nil {
+		serversURL = "https://" + r.Host
+	}
+	page := strings.Replace(swaggerUIPage, "{{SHIM_SERVERS_URL}}", serversURL, 1)
+	w.Write([]byte(page))
 }
 
 const swaggerUIPage = `<!DOCTYPE html>
@@ -1706,7 +1713,7 @@ const swaggerUIPage = `<!DOCTYPE html>
           openapi: "3.1.0",
           info: { title: "Consensus opencode Shim", version: "0.1.0",
             description: "opencode server protocol shim for Consensus agent runtime." },
-          servers: [{ url: "http://localhost:8090", description: "Shim server" }],
+          servers: [{ url: "{{SHIM_SERVERS_URL}}", description: "Shim server" }],
           tags: [
             { name: "Global", description: "Health check and event stream" },
             { name: "Sessions", description: "Session lifecycle" },

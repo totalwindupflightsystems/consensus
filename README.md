@@ -248,7 +248,7 @@ volumes:
 - **[HTTP API Reference](docs/API.md)** — every REST endpoint with request/response examples, auth requirements, and error codes
 - **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
-- **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract (`/openapi.json`, `/openapi.yaml`, `/doc` on a running server)
+- **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract served at `/openapi.json` and `/openapi.yaml` (embedded in the binary — available from any working directory and in the Docker image), with the REST API Swagger UI at `/doc/api` on a running server (`/doc` is the opencode shim's own Swagger UI)
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
 
 ---

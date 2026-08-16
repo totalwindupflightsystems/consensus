@@ -72,11 +72,23 @@ iteration completed, approval requested, ...).
 
 ## OpenAPI Specification
 
+The machine-readable contract is embedded in the binary and served at these
+routes — no working-directory dependency, and the Docker image serves them
+too:
+
 | Route | Description |
 |---|---|
 | `GET /openapi.json` | Bundled OpenAPI spec as JSON |
 | `GET /openapi.yaml` | Bundled OpenAPI spec as YAML |
-| `GET /doc` | Swagger UI explorer (also `/doc/*`) |
+| `GET /doc/api` | Swagger UI explorer for the REST API (servers URL derived from the request Host) |
+
+In development the server prefers `specs/openapi/bundled.yaml` relative to
+the process working directory when it exists, so re-running
+`make bundle-spec` picks up live edits without a rebuild.
+
+> `GET /doc` is **not** the REST API explorer — it serves the opencode shim's
+> own Swagger UI (SPEC-017 surface: `/session`, `/config`, `/event`, ...).
+> Use `/doc/api` for the REST API.
 
 ```bash
 curl http://localhost:8090/openapi.json | jq '.paths | keys'
@@ -260,7 +272,7 @@ curl -X POST http://localhost:8090/api/v1/auth/keys \
 | `/webhooks/` | HMAC signature | Webhook ingestion (SPEC-013) |
 | `/ui/` | — | Web admin console (proxies API via its own `/api/` path) |
 | `/chronicle/` | — | Chronicle investigation workbench |
-| `/instance/*`, `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls |
+| `/instance/*`, `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, `/doc`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls; `/doc` serves the shim's own Swagger UI (the REST API explorer lives at `/doc/api`) |
 
 ---
 

@@ -403,7 +403,7 @@ datamodel-codegen --input specs/openapi/bundled.yaml --output client/python/
 ### 5.3 Generate Docs
 
 ```bash
-# Swagger UI (served at /doc when server is running)
+# Swagger UI (served at /doc/api when server is running — /doc is the opencode shim's own UI)
 npx swagger-ui-watcher specs/openapi/bundled.yaml
 
 # Redoc static HTML
@@ -519,11 +519,17 @@ The Consensus server serves the OpenAPI spec at runtime:
 
 | Path | Content |
 |---|---|
-| `GET /doc` | Swagger UI (interactive docs) |
+| `GET /doc/api` | Swagger UI for the REST API (interactive docs; servers URL derived from the request Host) |
+| `GET /doc` | Swagger UI for the opencode shim surface (SPEC-017) — NOT the REST API docs |
 | `GET /openapi.yaml` | Raw YAML spec |
 | `GET /openapi.json` | JSON spec |
 
-This is served by the Go binary's HTTP handler regardless of database backend.
+The spec is embedded into the Go binary (specs/embed.go), so it is served
+regardless of the process working directory and in the Docker image (which
+does not copy specs/). In development the server prefers
+`specs/openapi/bundled.yaml` relative to the CWD when it exists, so
+re-bundling picks up live edits without a rebuild. Served by the Go binary's
+HTTP handler regardless of database backend.
 
 ---
 
@@ -531,7 +537,7 @@ This is served by the Go binary's HTTP handler regardless of database backend.
 
 | Feature | Postgres Backend | SQLite Backend |
 |---|---|---|
-| Spec serving | Go handler at `/doc`, `/openapi.yaml` | Same — shared code |
+| Spec serving | Go handler at `/doc/api`, `/openapi.yaml` (embedded spec) | Same — shared code |
 | Contract tests | Same test suite | Same test suite |
 | SDK generation | Same process | Same process |
 | PostgREST overlap | PostgREST auto-generates OpenAPI — Consensus spec overrides/supplements | Manual spec maintained |

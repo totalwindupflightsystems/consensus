@@ -18,18 +18,23 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"gopkg.in/yaml.v3"
+
+	"github.com/wojons/consensus/specs"
 )
 
 // ============================================================================
 // OpenAPI Spec Serving (SPEC-018 §9)
 // ============================================================================
 
-// registerOpenAPIRoutes adds the /doc, /openapi.yaml, and /openapi.json routes.
+// registerOpenAPIRoutes adds the /doc/api, /openapi.yaml, and /openapi.json
+// routes. The REST API Swagger UI lives at /doc/api (NOT /doc): the opencode
+// shim (SPEC-017) mounts its own Swagger UI at /doc, and the bare /doc path
+// belongs to that shim surface in full deployments (DOGFOOD-103).
 func (s *Server) registerOpenAPIRoutes(r chi.Router) {
 	r.Get("/openapi.yaml", s.handleOpenAPIYAML)
 	r.Get("/openapi.json", s.handleOpenAPIJSON)
-	r.Get("/doc", s.handleSwaggerUI)
-	r.Get("/doc/*", s.handleSwaggerUI)
+	r.Get("/doc/api", s.handleSwaggerUI)
+	r.Get("/doc/api/*", s.handleSwaggerUI)
 }
 
 // resolveSpecPath finds the OpenAPI spec file, checking multiple locations.
@@ -57,15 +62,27 @@ func resolveSpecPath() string {
 }
 
 // loadSpec reads and parses the OpenAPI YAML spec into a generic map.
+//
+// Resolution order (DOGFOOD-103):
+//  1. On-disk bundle relative to the process CWD (dev workflow — after
+//     re-running `make bundle-spec` the running server picks up the new
+//     file without a rebuild).
+//  2. The spec embedded into the binary at build time (specs.BundledYAML),
+//     so /openapi.json and /openapi.yaml work from any working directory
+//     and in the Docker image, which does not copy specs/.
 func (s *Server) loadSpec() ([]byte, map[string]any, error) {
-	path := resolveSpecPath()
-	if path == "" {
-		return nil, nil, os.ErrNotExist
-	}
+	var data []byte
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, nil, err
+	if path := resolveSpecPath(); path != "" {
+		d, err := os.ReadFile(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		data = d
+	} else if len(specs.BundledYAML) > 0 {
+		data = specs.BundledYAML
+	} else {
+		return nil, nil, os.ErrNotExist
 	}
 
 	var doc map[string]any
@@ -115,13 +132,21 @@ func (s *Server) handleOpenAPIJSON(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-// handleSwaggerUI serves the interactive Swagger UI documentation page.
+// handleSwaggerUI serves the interactive Swagger UI documentation page for
+// the REST API. The servers URL is derived from the request Host so the UI
+// points at the port the server is actually listening on rather than a
+// hardcoded default (DOGFOOD-103).
 func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	specURL := "/openapi.yaml"
+	serversURL := "http://" + r.Host
+	if r.TLS != nil {
+		serversURL = "https://" + r.Host
+	}
 	html := strings.Replace(swaggerUITemplate, "{{SPEC_URL}}", specURL, 1)
+	html = strings.Replace(html, "{{SERVERS_URL}}", serversURL, 1)
 	w.Write([]byte(html))
 }
 
@@ -149,6 +174,7 @@ const swaggerUITemplate = `<!DOCTYPE html>
     window.onload = function() {
       window.ui = SwaggerUIBundle({
         url: "{{SPEC_URL}}",
+        servers: [{ url: "{{SERVERS_URL}}", description: "Consensus REST API" }],
         dom_id: '#swagger-ui',
         deepLinking: true,
         presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
