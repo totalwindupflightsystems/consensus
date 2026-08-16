@@ -62,8 +62,14 @@ curl -N http://127.0.0.1:8090/mcp/sse
 
 ```
 event: endpoint
-data: /mcp/message?sessionId=1f2e3d4c5b6a7988
+data: /mcp/message?sessionId=<YOUR_SESSION_ID>
 ```
+
+> **Note:** `<YOUR_SESSION_ID>` is a placeholder — the server assigns its own
+> session id and sends it to you in this `endpoint` event (the `data:` line of
+> the `GET /mcp/sse` response). Use that value, not a copied one: a missing
+> `sessionId` query param yields 400, and an unknown/mismatched session id
+> yields 404 (session not found).
 
 **Step 3 — POST JSON-RPC messages to that endpoint** (each in its own curl,
 same `sessionId`). The wire format is JSON-RPC 2.0:
@@ -72,7 +78,7 @@ same `sessionId`). The wire format is JSON-RPC 2.0:
 Initialize (this is where auth happens — the key goes in `_meta.authorization`):
 
 ```bash
-curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=1f2e3d4c5b6a7988' \
+curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=<YOUR_SESSION_ID>' \
   -H 'Content-Type: application/json' \
   -d '{
     "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -100,7 +106,7 @@ curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=1f2e3d4c5b6a7988' \
 List the tools:
 
 ```bash
-curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=1f2e3d4c5b6a7988' \
+curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=<YOUR_SESSION_ID>' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
