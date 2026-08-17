@@ -408,12 +408,17 @@ func TestTruncateJSON(t *testing.T) {
 func TestPlanningTimeout_ContextExpiry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	time.Sleep(2 * time.Millisecond)
 
+	// Timing-boundary flake (INT-CI-002): a 1ms deadline followed by a 2ms
+	// sleep + single non-blocking check is a razor edge — under scheduler
+	// preemption the timer goroutine can be descheduled past the check and
+	// the test fails spuriously (observed on CI, 2026-08-17). The behavioral
+	// guarantee is that the context expires; the generous guard absorbs
+	// preemption slack while still proving the deadline fired.
 	select {
 	case <-ctx.Done():
-		// expected
-	default:
+		// expected — 1ms deadline fires well within the guard
+	case <-time.After(2 * time.Second):
 		t.Error("context should have expired")
 	}
 }
