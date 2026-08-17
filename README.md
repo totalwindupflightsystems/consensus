@@ -169,6 +169,14 @@ go build -o bin/consensus ./cmd/consensus/
 ./bin/consensus serve
 ```
 
+> **⚠ Always build before you run.** Never execute a stale binary: the
+> repo-root `./consensus` file is a gitignored build artifact from an old
+> checkout and goes out of date with every pull, and `bin/consensus`
+> must be rebuilt after `git pull` too. Always `go build -o bin/consensus
+> ./cmd/consensus/` (or `make build`; `make fresh` also removes the stray
+> root binary). Confirm what you're about to run with
+> `bin/consensus --version`.
+
 Three commands. You have a running agent harness with:
 - Append-only memory ledger
 - Vector-validated compression (harness-internal)

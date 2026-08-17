@@ -2482,3 +2482,27 @@ func captureStdout(fn func() error) (error, string) {
 	io.Copy(&buf, r)
 	return err, buf.String()
 }
+
+// TestRootCommandVersionFlag verifies `consensus --version` exits cleanly and
+// prints the version string (C-GAP-023). The version flag is cobra's built-in
+// (wired via the root command's Version field), so this guards against
+// regressions that would silently drop the flag from the built binary.
+func TestRootCommandVersionFlag(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := NewRootCommand()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--version"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("consensus --version failed: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "version") {
+		t.Errorf("expected version output to mention version, got: %q", out)
+	}
+	if !strings.Contains(out, version) {
+		t.Errorf("expected version output to contain %q, got: %q", version, out)
+	}
+}

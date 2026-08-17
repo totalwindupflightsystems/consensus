@@ -7,11 +7,18 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build dev dev-pg test test-short smoke lint clean run docker
+.PHONY: build fresh dev dev-pg test test-short smoke lint clean run docker
 
 # --- Build ---
 
 build:
+	$(CGO_FLAGS) $(GO) build -o $(BINARY) ./cmd/consensus
+
+# Rebuild from the current tree and remove the stale gitignored repo-root
+# binary (C-GAP-023). `./consensus` at the repo root predates recent fixes
+# and must never be run; run `make fresh` after every pull.
+fresh:
+	rm -f consensus
 	$(CGO_FLAGS) $(GO) build -o $(BINARY) ./cmd/consensus
 
 # --- Development ---

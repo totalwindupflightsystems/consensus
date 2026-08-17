@@ -22,11 +22,21 @@ var (
 	optConfig string
 )
 
+// version is the build version reported by `consensus --version`. It
+// defaults to "dev" and can be overridden at build time via -ldflags:
+//
+//	go build -ldflags "-X github.com/wojons/consensus/internal/cli.version=0.1.0" -o bin/consensus ./cmd/consensus
+//
+// (C-GAP-023: the version flag lets users confirm they are not running a
+// stale binary.)
+var version = "dev"
+
 // NewRootCommand creates the root `consensus` command with all subcommands.
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "consensus",
-		Short: "Consensus — database-native cognitive architecture for AI agents",
+		Use:     "consensus",
+		Short:   "Consensus — database-native cognitive architecture for AI agents",
+		Version: version,
 		Long: `Consensus is a database-native cognitive architecture for AI agents.
 
 The CLI is a management tool for the Consensus runtime. It handles
