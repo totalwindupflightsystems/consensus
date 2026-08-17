@@ -1,0 +1,77 @@
+{
+  "task_id": "int-ci-002",
+  "task_title": "INT-CI-002: TestPlanningTimeout_ContextExpiry flaky under CI load",
+  "task_criteria": [
+    "TestPlanningTimeout_ContextExpiry in internal/harness passes reliably: context.WithTimeout(1ms) must observe ctx.Done() within a generous guard (2s), no razor-edge 2ms sleep; go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ passes; go test -short ./... passes"
+  ],
+  "passed": true,
+  "items": [],
+  "stages": {
+    "tier1": {
+      "id": "tier1",
+      "passed": true,
+      "any_failed": false,
+      "summary": "  \u2713 secrets: \n  \u2713 lint: \n  \u2713 tests: ?   \tgithub.com/wojons/consensus/chronicle\t[no test files]\n?   \tgithub.com/wojons/consensus/cmd/cons",
+      "steps": [
+        {
+          "id": "secrets",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "lint",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "tests",
+          "type": "script",
+          "passed": true,
+          "output": "?   \tgithub.com/wojons/consensus/chronicle\t[no test files]\n?   \tgithub.com/wojons/consensus/cmd/consensus\t[no test files]\nok  \tgithub.com/wojons/consensus/demo\t8.077s\nok  \tgithub.com/wojons/consensus/internal/api\t0.802s\nok  \tgithub.com/wojons/consensus/internal/billing\t0.020s\nok  \tgithub.com/wojons/consensus/internal/bootstrap\t0.278s\nok  \tgithub.com/wojons/consensus/internal/chronicle\t10.081s\nok  \tgithub.com/wojons/consensus/internal/cli\t0.064s\nok  \tgithub.com/wojons/consensus/internal/compressi",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        }
+      ]
+    },
+    "tier2": {
+      "id": "tier2",
+      "passed": true,
+      "any_failed": false,
+      "summary": "COMPLETE\n  \u2713 TestPlanningTimeout_ContextExpiry in internal/harness passes reliably: context.WithTimeout(1ms) must observe ctx.Done() within a generous guard (2s), no razor-edge 2ms sleep; go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ passes; go test -short ./... passes: internal/harness/planning_test.go:408-424: test uses context.WithTimeout(1ms) then select{case <-ctx.Done(): expected; case <-time.After(2*time.Second): t.Error} \u2014 observes ctx.Done() within a generous 2s guard, no razor-edge 2ms sleep. go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ exit_code=0 (ok ... 0.061s). go test -short ./... exit_code=0 (all packages ok, incl. internal/harness 7.945s). go vet ./internal/harness/ clean; no LSP diagnostics.\nThe flaky timing test was rewritten to use a select with a generous 2s guard instead of a razor-edge 2ms sleep, and both the targeted 50x run and the full short suite pass.",
+      "steps": [
+        {
+          "id": "tier2",
+          "type": "ai_eval",
+          "passed": true,
+          "output": "COMPLETE\n  \u2713 TestPlanningTimeout_ContextExpiry in internal/harness passes reliably: context.WithTimeout(1ms) must observe ctx.Done() within a generous guard (2s), no razor-edge 2ms sleep; go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ passes; go test -short ./... passes: internal/harness/planning_test.go:408-424: test uses context.WithTimeout(1ms) then select{case <-ctx.Done(): expected; case <-time.After(2*time.Second): t.Error} \u2014 observes ctx.Done() within ",
+          "error": "",
+          "data": {
+            "verdict": "COMPLETE",
+            "items": [
+              {
+                "criterion": "TestPlanningTimeout_ContextExpiry in internal/harness passes reliably: context.WithTimeout(1ms) must observe ctx.Done() within a generous guard (2s), no razor-edge 2ms sleep; go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ passes; go test -short ./... passes",
+                "status": "PASS",
+                "detail": "internal/harness/planning_test.go:408-424: test uses context.WithTimeout(1ms) then select{case <-ctx.Done(): expected; case <-time.After(2*time.Second): t.Error} \u2014 observes ctx.Done() within a generous 2s guard, no razor-edge 2ms sleep. go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ exit_code=0 (ok ... 0.061s). go test -short ./... exit_code=0 (all packages ok, incl. internal/harness 7.945s). go vet ./internal/harness/ clean; no LSP diagnostics."
+              }
+            ],
+            "summary": "The flaky timing test was rewritten to use a select with a generous 2s guard instead of a razor-edge 2ms sleep, and both the targeted 50x run and the full short suite pass."
+          }
+        }
+      ]
+    }
+  },
+  "summary": "Judge Result: int-ci-002\n\nStage tier1: PASS\n    \u2713 secrets: \n  \u2713 lint: \n  \u2713 tests: ?   \tgithub.com/wojons/consensus/chronicle\t[no test files]\n?   \tgithub.com/wojons/consensus/cmd/cons\n\nStage tier2: PASS\n  COMPLETE\n  \u2713 TestPlanningTimeout_ContextExpiry in internal/harness passes reliably: context.WithTimeout(1ms) must observe ctx.Done() within a generous guard (2s), no razor-edge 2ms sleep; go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ passes; go test -short ./... passes: internal/harness/planning_test.go:408-424: test uses context.WithTimeout(1ms) then select{case <-ctx.Done(): expected; case <-time.After(2*time.Second): t.Error} \u2014 observes ctx.Done() within a generous 2s guard, no razor-edge 2ms sleep. go test -short -count=50 -run TestPlanningTimeout_ContextExpiry ./internal/harness/ exit_code=0 (ok ... 0.061s). go test -short ./... exit_code=0 (all packages ok, incl. internal/harness 7.945s). go vet ./internal/harness/ clean; no LSP diagnostics.\nThe flaky timing test was rewritten to use a select with a generous 2s guard instead of a razor-edge 2ms sleep, and both the targeted 50x run and the full short suite pass.\n\nOverall: PASS \u2713",
+  "evaluated_at": "2026-08-17T11:59:45.462764"
+}
