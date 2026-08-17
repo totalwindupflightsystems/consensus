@@ -63,3 +63,6 @@ service-account*.json
 .coding-hermes/board/*.parquet
 
 .coding-hermes/board/*.duckdb
+
+# gitreins judge token telemetry (local-only)
+.gitreins/usage.jsonl
