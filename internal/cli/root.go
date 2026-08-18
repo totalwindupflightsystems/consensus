@@ -11,6 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/wojons/consensus"
 )
 
 // Global CLI options, set by root command flags.
@@ -23,13 +25,17 @@ var (
 )
 
 // version is the build version reported by `consensus --version`. It
-// defaults to "dev" and can be overridden at build time via -ldflags:
+// defaults to the repo-root VERSION file content (embedded at build time
+// via the module-root package, see version.go) — the same version the
+// /api/v1/health endpoint reports — and can be overridden at build time
+// via -ldflags:
 //
 //	go build -ldflags "-X github.com/wojons/consensus/internal/cli.version=0.1.0" -o bin/consensus ./cmd/consensus
 //
 // (C-GAP-023: the version flag lets users confirm they are not running a
-// stale binary.)
-var version = "dev"
+// stale binary. C-GAP-027: the default tracks the VERSION file, so the
+// README stale-binary check works on a plain `go build`.)
+var version = consensus.Version
 
 // NewRootCommand creates the root `consensus` command with all subcommands.
 func NewRootCommand() *cobra.Command {

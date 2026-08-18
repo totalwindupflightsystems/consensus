@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/wojons/consensus"
 	"github.com/wojons/consensus/internal/db"
 	"github.com/wojons/consensus/internal/hitl"
 	"github.com/wojons/consensus/internal/quarantine"
@@ -566,9 +567,12 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		schemaVersion = toInt(rows[0]["v"])
 	}
 
+	// Version comes from the repo-root VERSION file (embedded via the
+	// module-root package) so /api/v1/health, `consensus --version`, and
+	// the VERSION file can never drift (C-GAP-027).
 	writeJSON(w, HealthResponse{
 		Status:        "ok",
-		Version:       "0.1.0",
+		Version:       consensus.Version,
 		UptimeSeconds: uptime,
 		APILatencyMs:  0,
 		DBLatencyMs:   dbLatency,

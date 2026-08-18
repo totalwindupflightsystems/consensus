@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -2487,7 +2488,26 @@ func captureStdout(fn func() error) (error, string) {
 // prints the version string (C-GAP-023). The version flag is cobra's built-in
 // (wired via the root command's Version field), so this guards against
 // regressions that would silently drop the flag from the built binary.
+// C-GAP-027: the default (no ldflags) must equal the repo-root VERSION file
+// content — the same version /api/v1/health reports — so the README
+// stale-binary check works on a plain `go build -o bin/consensus ./cmd/consensus/`.
 func TestRootCommandVersionFlag(t *testing.T) {
+	// The embedded default tracks the VERSION file; assert the invariant
+	// directly so a drift (e.g. a hardcoded "dev" or a stale literal)
+	// fails here rather than in the field. Resolve via the test file's
+	// own path (not CWD): sibling tests os.Chdir() into temp dirs and
+	// restore only to "..", so the package's CWD is not stable.
+	_, thisFile, _, _ := runtime.Caller(0)
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
+	want, err := os.ReadFile(filepath.Join(repoRoot, "VERSION"))
+	if err != nil {
+		t.Fatalf("read VERSION file: %v", err)
+	}
+	wantVersion := strings.TrimSpace(string(want))
+	if version != wantVersion {
+		t.Errorf("default version = %q, want VERSION file content %q", version, wantVersion)
+	}
+
 	var buf bytes.Buffer
 	cmd := NewRootCommand()
 	cmd.SetOut(&buf)
