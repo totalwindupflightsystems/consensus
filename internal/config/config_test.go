@@ -29,8 +29,13 @@ func TestDefaults(t *testing.T) {
 	if cfg.Harness.MaxConsecutiveErrors != 3 {
 		t.Errorf("expected max consecutive errors 3, got %d", cfg.Harness.MaxConsecutiveErrors)
 	}
-	if cfg.Database.URL != "sqlite://dev.db" {
-		t.Errorf("expected sqlite://dev.db, got %s", cfg.Database.URL)
+	// C-GAP-026: the default database URL is $HOME/.consensus/consensus.db,
+	// matching the README Configuration table — not a CWD-relative dev.db.
+	t.Setenv("HOME", "/tmp/cgap026-home")
+	cfg = Defaults()
+	wantDBURL := "sqlite:///tmp/cgap026-home/.consensus/consensus.db"
+	if cfg.Database.URL != wantDBURL {
+		t.Errorf("expected default DB URL %s, got %s", wantDBURL, cfg.Database.URL)
 	}
 	if cfg.HITL.RequireApprovalForDestructive != true {
 		t.Errorf("expected require_approval_for_destructive=true")
@@ -221,5 +226,87 @@ func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
 
 	if cfg.LLM.APIKey != "sk-deepseek-test" {
 		t.Errorf("expected DEEPSEEK_API_KEY to apply when OPENROUTER_API_KEY unset, got %q", cfg.LLM.APIKey)
+	}
+}
+
+// --- resolveDBURL (C-GAP-026: $HOME/~ expansion in database URLs) ---
+
+func TestResolveDBURL_HomeEnvExpansion(t *testing.T) {
+	t.Setenv("HOME", "/tmp/cgap026-home")
+
+	if got := resolveDBURL("sqlite://$HOME/.consensus/consensus.db"); got != "sqlite:///tmp/cgap026-home/.consensus/consensus.db" {
+		t.Errorf("expected expanded default URL, got %q", got)
+	}
+	if got := resolveDBURL("sqlite://${HOME}/data.db"); got != "sqlite:///tmp/cgap026-home/data.db" {
+		t.Errorf("expected ${HOME} expansion, got %q", got)
+	}
+	if got := resolveDBURL("sqlite://~/db.db"); got != "sqlite:///tmp/cgap026-home/db.db" {
+		t.Errorf("expected ~ expansion, got %q", got)
+	}
+	if got := resolveDBURL("sqlite://~"); got != "sqlite:///tmp/cgap026-home" {
+		t.Errorf("expected bare ~ expansion, got %q", got)
+	}
+}
+
+func TestResolveDBURL_NoHomeLeavesUnchanged(t *testing.T) {
+	t.Setenv("HOME", "")
+
+	if got := resolveDBURL("sqlite://$HOME/.consensus/consensus.db"); got != "sqlite://$HOME/.consensus/consensus.db" {
+		t.Errorf("expected unchanged URL when HOME unset, got %q", got)
+	}
+}
+
+func TestResolveDBURL_NonSQLiteUnchanged(t *testing.T) {
+	t.Setenv("HOME", "/tmp/cgap026-home")
+
+	// DSN credentials may legitimately contain ~ or $HOME — never touch them.
+	dsn := "postgres://user:p@ss~word@host:5432/db?sslmode=require"
+	if got := resolveDBURL(dsn); got != dsn {
+		t.Errorf("expected postgres URL unchanged, got %q", got)
+	}
+}
+
+func TestResolveDBURL_RelativeAndMemoryUnchanged(t *testing.T) {
+	t.Setenv("HOME", "/tmp/cgap026-home")
+
+	// Explicit CWD-relative choices (e.g. the repo's consensus.yaml dev.db)
+	// and :memory: must survive resolution untouched.
+	if got := resolveDBURL("sqlite://dev.db"); got != "sqlite://dev.db" {
+		t.Errorf("expected relative URL unchanged, got %q", got)
+	}
+	if got := resolveDBURL("sqlite://:memory:"); got != "sqlite://:memory:" {
+		t.Errorf("expected :memory: unchanged, got %q", got)
+	}
+}
+
+func TestEnvOverrideDBURLHomeExpansion(t *testing.T) {
+	t.Setenv("HOME", "/tmp/cgap026-home")
+	t.Setenv("CONSENSUS_DB_URL", "sqlite://$HOME/custom/data.db")
+	t.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer os.Unsetenv("CONSENSUS_DB_URL")
+	defer os.Unsetenv("CONSENSUS_CONFIG")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Database.URL != "sqlite:///tmp/cgap026-home/custom/data.db" {
+		t.Errorf("expected env override with expanded $HOME, got %q", cfg.Database.URL)
+	}
+}
+
+func TestEnvOverrideDBURLTildeExpansion(t *testing.T) {
+	t.Setenv("HOME", "/tmp/cgap026-home")
+	t.Setenv("CONSENSUS_DB_URL", "sqlite://~/tilde.db")
+	t.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer os.Unsetenv("CONSENSUS_DB_URL")
+	defer os.Unsetenv("CONSENSUS_CONFIG")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Database.URL != "sqlite:///tmp/cgap026-home/tilde.db" {
+		t.Errorf("expected env override with expanded ~, got %q", cfg.Database.URL)
 	}
 }

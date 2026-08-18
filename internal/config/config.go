@@ -145,7 +145,7 @@ func Defaults() Config {
 			TransactionTimeoutMs: 60000,
 		},
 		Database: db.Config{
-			URL:          "sqlite://dev.db",
+			URL:          resolveDBURL("sqlite://$HOME/.consensus/consensus.db"),
 			MaxOpenConns: 1,
 		},
 		HITL: HITLConfig{
@@ -231,7 +231,45 @@ func LoadWithPath(configPath string) (Config, error) {
 	// Apply environment variable overrides.
 	applyEnvOverrides(&cfg)
 
+	// Normalize the effective database URL: expand $HOME/~ references so a
+	// YAML-provided URL behaves exactly like the built-in default and the
+	// CONSENSUS_DB_URL env var (both already normalized at their own seams).
+	// Idempotent for URLs without home references. (C-GAP-026)
+	cfg.Database.URL = resolveDBURL(cfg.Database.URL)
+
 	return cfg, nil
+}
+
+// resolveDBURL expands home-directory references in a database URL so that
+// the built-in default, an explicitly-set CONSENSUS_DB_URL, and a YAML
+// database.url all behave identically (C-GAP-026). Both $HOME and ${HOME}
+// are expanded env-var-style, and a leading ~ or ~/ resolves to the user's
+// home directory. $HOME wins; os.UserHomeDir() is the fallback when it is
+// unset. If no home directory can be determined the URL is returned
+// unchanged and the driver will surface a clear open error.
+//
+// Non-sqlite URLs (postgres://...) are returned unchanged to avoid
+// false-positive expansion of DSNs whose credentials may contain ~ or $HOME.
+func resolveDBURL(raw string) string {
+	if !strings.HasPrefix(raw, "sqlite://") {
+		return raw
+	}
+	home := os.Getenv("HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil && h != "" {
+			home = h
+		}
+	}
+	if home == "" {
+		return raw
+	}
+	path := strings.TrimPrefix(raw, "sqlite://")
+	path = strings.ReplaceAll(path, "${HOME}", home)
+	path = strings.ReplaceAll(path, "$HOME", home)
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		path = home + strings.TrimPrefix(path, "~")
+	}
+	return "sqlite://" + path
 }
 
 // resolveConfigPath returns the first existing config file from the priority chain.
@@ -276,7 +314,7 @@ func applyEnvOverrides(cfg *Config) {
 		fmt.Sscanf(v, "%d", &cfg.Server.Port)
 	}
 	if v := os.Getenv("CONSENSUS_DB_URL"); v != "" {
-		cfg.Database.URL = v
+		cfg.Database.URL = resolveDBURL(v)
 	}
 	if v := os.Getenv("CONSENSUS_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v

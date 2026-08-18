@@ -11,6 +11,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite" // pure-Go SQLite driver
@@ -29,6 +31,19 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 	path := strings.TrimPrefix(cfg.URL, "sqlite://")
 	if path == "" {
 		return nil, fmt.Errorf("sqlite: empty path in URL %q", cfg.URL)
+	}
+
+	// SQLite does not create parent directories for a new database file, and
+	// the default URL lives under ~/.consensus which does not exist on a fresh
+	// machine (C-GAP-026). Create the parent up-front so the first open
+	// succeeds. 0700: the database may hold sensitive agent state. Skip
+	// :memory: and file: URIs, which have no filesystem parent.
+	if path != ":memory:" && !strings.HasPrefix(path, "file:") {
+		if dir := filepath.Dir(path); dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return nil, fmt.Errorf("sqlite: create parent directory %q: %w", dir, err)
+			}
+		}
 	}
 
 	// Resolve busy timeout (default: 5000ms)
