@@ -3,15 +3,15 @@ name: consensus-usage
 description: >-
   How to use the Consensus agent runtime for real: bootstrap a server,
   drive the REST API, integrate the Go client library, manage sessions via
-  the CLI, and avoid the current landmines (mcp-stdio --api-key does not
-  authenticate initialize, no public semantic-retrieval endpoint, H3
-  example hardcodes port 8095). Written from two dogfood runs
+  the CLI, and avoid the current landmines (no public semantic-retrieval
+  endpoint). Written from two dogfood runs
   (2026-08-04, 2026-08-15) — reflects actual behavior, not README claims.
   Aug-4 landmines (append-only triggers, pause/resume, circuit breaker,
-  ports) and the Aug-15 landmines DOGFOOD-101/102/103 (MCP auth, MCP
-  session IDs, OpenAPI from repo root) are FIXED — do not treat them as
-  open.
-version: 2.1.0
+  ports), the Aug-15 landmines DOGFOOD-101/102/103 (MCP auth, MCP
+  session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
+  auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
+  treat them as open.
+version: 2.2.0
 category: software-development
 ---
 
@@ -30,7 +30,7 @@ MCP. Module: `github.com/wojons/consensus` (branch `master`, Go 1.26).
 | REST API | `http://127.0.0.1:<port>/api/v1/*`, auth `Authorization: Bearer cs_ak_...` — solid, use this for real work |
 | Go client | `pkg/client` — typed, matches REST 1:1, the best surface (verified 5/5 on 2026-08-15) |
 | CLI | `consensus status/session/memory/approve/config/tool/skill/migrate/models` — all functional |
-| MCP | `consensus mcp-stdio --api-key …` and `/mcp/sse` — works, but see LANDMINE 1 (auth) |
+| MCP | `consensus mcp-stdio --api-key …` and `/mcp/sse` — works (stdio `--api-key` authenticates initialize; SSE clients put the key in `_meta.authorization`) |
 | Docs | `/openapi.json` + `/openapi.yaml` (served from the EMBEDDED spec — works from any CWD and in Docker), `/doc/api` (REST Swagger UI, servers URL derived from request Host), `/doc` (opencode-shim UI) |
 
 ## Quickstart (verified 2026-08-15)
@@ -82,18 +82,19 @@ Compiles first try; verified against a live server both runs.
   send_message, get_session_status, list_memory, review_approval,
   query_tool.
 - **stdio works for tools/list+**: `printf '<jsonrpc>' | consensus mcp-stdio
-  --server http://… --api-key …`.
+  --server http://… --api-key …`. Since DOGFOOD-106 → `706358c`, the
+  `--api-key` flag (flag > env > config) is injected into `initialize`'s
+  `_meta.authorization`, so initialize authenticates instead of returning
+  "Authentication required".
 
 ## Current landmines (from the 2026-08-15 re-run — DO NOT assume fixed)
 
-1. **`consensus mcp-stdio --api-key` does not authenticate initialize**
-   (DOGFOOD-106): initialize still says "Authentication required". SSE
-   clients must put the key in `_meta.authorization` themselves.
-2. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
+1. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
    retrieval is harness-internal; don't look for a search API.
-3. **H3 is a library, not mounted** (DOGFOOD-107): `consensus serve` does
-   not expose `/v1/*`; mount `internal/shim/h3` yourself (INTEGRATION.md
-   §2.3 has a runnable keyless example; change the port if 8095 is taken).
+2. **H3 is a library, not mounted**: `consensus serve` does not expose
+   `/v1/*`; mount `internal/shim/h3` yourself (INTEGRATION.md §2.3 has a
+   runnable keyless example — reads PORT env, defaults to 8095, since
+   DOGFOOD-107 → `0389a05`).
 
 ## FIXED since the 2026-08-04 run (do NOT re-report these)
 
@@ -119,6 +120,13 @@ Compiles first try; verified against a live server both runs.
   any CWD and in Docker; the REST Swagger UI moved to `/doc/api` with its
   servers URL derived from the request Host; `/doc` stays the opencode-shim
   UI.
+- `consensus mcp-stdio --api-key` authenticates initialize (DOGFOOD-106 →
+  `706358c`): the flag is injected into `_meta.authorization`
+  (flag > env > config), live-verified 2026-08-18. SSE clients still put
+  the key in `_meta.authorization` themselves.
+- H3 example port is configurable (DOGFOOD-107 → `0389a05`, tick #215):
+  INTEGRATION.md §2.3's example reads PORT env (default 8095) instead of
+  hardcoding the port.
 
 ## Crash recovery (verified both runs)
 
