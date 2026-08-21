@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.2.0
+version: 2.3.0
 category: software-development
 ---
 
@@ -61,6 +61,25 @@ curl -s -X POST http://127.0.0.1:18123/api/v1/sessions/$SID/message \
 curl -s http://127.0.0.1:18123/api/v1/sessions/$SID/memory \
   -H "Authorization: Bearer $KEY"
 ```
+
+## First admin key (bootstrap flow)
+
+A fresh database has no API keys, so the only way in is the bootstrap admin
+key printed exactly once at first startup (`consensus init` / `consensus
+serve` print it in the terminal; Docker: `docker logs`):
+
+```
+consensus: first_admin_key created=true key=cs_ak_<64 hex> key_prefix=<8> id=<uuid> created_at=<RFC 3339> expires_at=<RFC 3339>
+consensus: this key expires at <RFC 3339> (… from now)
+consensus: save this key now; it is stored hashed and will not be printed again
+```
+
+Capture it: the secret is hashed at rest and never reprinted (later startups
+print `created=false` + `key_prefix` only). It has `admin` scope — Bearer-auth
+every admin endpoint with it, and mint durable keys via
+`POST /api/v1/auth/keys` (scopes: `admin`, `session`, `readonly`, `webhook`).
+Default expiry 90 days; `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` overrides
+(`0` = no expiry).
 
 ## Go client integration (the "aha" path)
 

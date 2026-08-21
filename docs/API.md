@@ -7,7 +7,7 @@ examples. The canonical machine-readable contract is the bundled OpenAPI spec �
 see [OpenAPI](#openapi-specification) below.
 
 - Base URL: `http://<host>:8090` (default port, configurable via `CONSENSUS_PORT` / config `server.port`)
-- Auth: `Authorization: Bearer <api-key>` header (keys are `cs_ak_...` secrets created via `POST /api/v1/auth/keys`)
+- Auth: `Authorization: Bearer <api-key>` header (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management))
 - Errors: JSON envelope `{"error":{"code":"...","message":"...","details":"..."}}` with the appropriate HTTP status
 - Auth failures return `401` with code `UNAUTHORIZED`; missing/invalid UUID path params return `400` with code `INVALID_UUID`
 
@@ -239,18 +239,56 @@ curl http://localhost:8090/api/v1/config \
 
 ## API Key Management
 
+### First key: the bootstrap admin key
+
+A fresh instance has no credentials, so `POST /api/v1/auth/keys` rejects the
+request until one exists — the way in is the bootstrap key. On first startup
+against an empty database, the server prints the first admin key exactly once
+(in the terminal output of `consensus init` / `consensus serve`; with Docker,
+`docker logs`):
+
+```
+consensus: first_admin_key created=true key=cs_ak_<64 hex chars> key_prefix=<8 chars> id=<uuid> created_at=<RFC 3339> expires_at=<RFC 3339>
+consensus: this key expires at <RFC 3339> (… from now)
+consensus: save this key now; it is stored hashed and will not be printed again
+```
+
+Capture it now: the raw secret is stored only as a hash and is never printed
+again (later startups print `created=false` with just the `key_prefix`). The
+bootstrap key has `admin` scope, so it works as a Bearer credential on every
+admin endpoint — including `POST /api/v1/auth/keys`, which is how you mint
+durable keys for day-to-day use.
+
+Bootstrap keys expire after **90 days** by default
+(`CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS=2160`); set the env var to change the
+TTL, or `0` for no expiry.
+
+### Key management endpoints
+
 | Route | Description |
 |---|---|
 | `POST /api/v1/auth/keys` | Create an API key |
 | `GET /api/v1/auth/keys` | List API keys |
 | `DELETE /api/v1/auth/keys/{keyID}` | Revoke an API key |
 
+Worked sequence — bootstrap key → durable key → new key as Bearer:
+
 ```bash
+# 1. Mint a durable key with the bootstrap admin key (the response includes
+#    the new key's secret in the `api_key` field — shown once)
 curl -X POST http://localhost:8090/api/v1/auth/keys \
-  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Authorization: Bearer $BOOTSTRAP_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name":"ci","scope":"readonly"}'
+  -d '{"scope":"readonly"}'
+
+# 2. Authenticate with the new key
+curl http://localhost:8090/api/v1/metrics \
+  -H "Authorization: Bearer $NEW_KEY"
 ```
+
+`POST /api/v1/auth/keys` requires `admin` scope; valid scopes are `admin`,
+`session`, `readonly`, `webhook`. The endpoint accepts optional `expires_in`
+(seconds from now) and, for `session` scope, `session_id`.
 
 ---
 

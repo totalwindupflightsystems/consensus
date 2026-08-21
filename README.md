@@ -185,6 +185,36 @@ Three commands. You have a running agent harness with:
 - Circuit breakers
 - Session isolation
 
+### First login / API key
+
+On first startup against a fresh database, Consensus prints its first admin
+key exactly once (in the terminal output of `consensus init` / `consensus
+serve`; with Docker, in `docker logs`):
+
+```
+consensus: first_admin_key created=true key=cs_ak_<64 hex chars> key_prefix=<8 chars> id=<uuid> created_at=<RFC 3339> expires_at=<RFC 3339>
+consensus: this key expires at <RFC 3339> (… from now)
+consensus: save this key now; it is stored hashed and will not be printed again
+```
+
+Capture it immediately — the secret is stored only as a hash and never printed
+again (restarts print `created=false` with just the `key_prefix`). It has
+`admin` scope, so it authenticates every admin endpoint. Use it as Bearer to
+mint durable keys of any scope:
+
+```bash
+curl -X POST http://localhost:8090/api/v1/auth/keys \
+  -H "Authorization: Bearer $BOOTSTRAP_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"readonly"}'
+```
+
+The response includes the new key's secret (`api_key`). Key management
+(`POST`/`GET /api/v1/auth/keys`, `DELETE /api/v1/auth/keys/{keyID}`) is
+documented in [docs/API.md](docs/API.md). Bootstrap keys expire after **90
+days** by default; override with `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` (`0` =
+no expiry).
+
 ### Configuration
 
 | Env Var | Default | What it does |
