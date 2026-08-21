@@ -78,9 +78,13 @@ Compiles first try; verified against a live server both runs.
 
 - **SSE happy path works**: `GET /mcp/sse` → endpoint event gives YOUR
   sessionId → POST `/mcp/message?sessionId=<YOURS>` with JSON-RPC; put the
-  key in `initialize`'s `_meta.authorization`. 6 tools: create_session,
-  send_message, get_session_status, list_memory, review_approval,
-  query_tool.
+  key in `initialize`'s `_meta.authorization`. Full MCP surface (verified
+  against the internal/mcp/ registry, tick #283):
+  - 6 tools (`tools/list`): create_session, send_message,
+    get_session_status, list_memory, review_approval, query_tool
+  - 2 resources (`resources/list`): sessions, tools_registry
+  - 1 resource template (`resources/templates/list`): session_context
+  - 1 prompt (`prompts/list`): agent_status
 - **stdio works for tools/list+**: `printf '<jsonrpc>' | consensus mcp-stdio
   --server http://… --api-key …`. Since DOGFOOD-106 → `706358c`, the
   `--api-key` flag (flag > env > config) is injected into `initialize`'s
