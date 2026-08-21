@@ -108,7 +108,7 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY go test -v -run TestDemo -timeout 300s ./demo
 ## The Test Suite Doesn't Lie
 
 ```
-30/30 packages green — zero failures
+36/36 packages green — zero failures
 ```
 
 Not mocked. Not simulated. The E2E tests launch a real server, make real

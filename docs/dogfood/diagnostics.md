@@ -171,7 +171,7 @@ logs should surface it instead of the parse error.
   `servers: [{url: "http://localhost:8090"}]`). DOGFOOD-103.
 - **Keyless smoke exists:** `make smoke` = `go test -run Smoke ./demo/`
   (C-GAP-019, `ac8d36a`) — mock-LLM, scratch sqlite, real server binary,
-  45s deadline. `go test -short ./...` is 30/30 green keyless (~142s).
+  45s deadline. `go test -short ./...` is 36/36 green keyless (~142s).
 
 ## Errors I hit this run (and the right way)
 

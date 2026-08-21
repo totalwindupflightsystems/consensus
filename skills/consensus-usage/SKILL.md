@@ -111,7 +111,7 @@ Compiles first try; verified against a live server both runs.
 - `init` bootstraps `.memory-bank/`; fresh clone has all AGENTS.md paths
   (C-GAP-013/014/017). Ports standardized on 8090.
 - Keyless validation: `make smoke` (C-GAP-019) and `go test -short ./...`
-  30/30 green without DEEPSEEK_API_KEY (~142s).
+  36/36 green without DEEPSEEK_API_KEY (~142s).
 - MCP surface is now authenticated (DOGFOOD-101 → `21dd46e`, tick #209):
   auth is enforced at `initialize`; opening `/mcp/sse` and calling tools
   without a key no longer works.
