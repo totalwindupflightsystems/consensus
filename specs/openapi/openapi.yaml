@@ -58,6 +58,11 @@ tags:
     description: System metrics, billing, and configuration
   - name: Auth
     description: API key management
+  - name: Opencode Shim
+    description: >
+      opencode protocol shim (SPEC-017) — translates the opencode server
+      protocol into native Consensus calls. Mounted at the server root
+      alongside the native /api/v1 REST API.
 
 paths:
   # ── System ──
@@ -123,6 +128,76 @@ paths:
     $ref: "./paths/auth.yaml#/authKeys"
   /api/v1/auth/keys/{keyId}:
     $ref: "./paths/auth.yaml#/authKeyItem"
+
+  # ── Opencode Protocol Shim (SPEC-017) ──
+  /global/health:
+    $ref: "./paths/shim.yaml#/globalHealth"
+  /global/event:
+    $ref: "./paths/shim.yaml#/globalEvent"
+  /session:
+    $ref: "./paths/shim.yaml#/session"
+  /session/{sessionId}:
+    $ref: "./paths/shim.yaml#/sessionItem"
+  /session/{sessionId}/abort:
+    $ref: "./paths/shim.yaml#/sessionAbort"
+  /session/{sessionId}/message:
+    $ref: "./paths/shim.yaml#/sessionMessage"
+  /session/{sessionId}/message/{messageId}:
+    $ref: "./paths/shim.yaml#/sessionMessageItem"
+  /session/{sessionId}/children:
+    $ref: "./paths/shim.yaml#/sessionChildren"
+  /doc:
+    $ref: "./paths/shim.yaml#/doc"
+  /config:
+    $ref: "./paths/shim.yaml#/config"
+  /config/providers:
+    $ref: "./paths/shim.yaml#/configProviders"
+  /provider:
+    $ref: "./paths/shim.yaml#/provider"
+  /agent:
+    $ref: "./paths/shim.yaml#/agent"
+  /experimental/tool:
+    $ref: "./paths/shim.yaml#/experimentalTool"
+  /experimental/tool/ids:
+    $ref: "./paths/shim.yaml#/experimentalToolIDs"
+  /find:
+    $ref: "./paths/shim.yaml#/find"
+  /find/file:
+    $ref: "./paths/shim.yaml#/findFile"
+  /find/symbol:
+    $ref: "./paths/shim.yaml#/findSymbol"
+  /file/content:
+    $ref: "./paths/shim.yaml#/fileContent"
+  /file/status:
+    $ref: "./paths/shim.yaml#/fileStatus"
+  /permission:
+    $ref: "./paths/shim.yaml#/permissions"
+  /permission/{permissionId}:
+    $ref: "./paths/shim.yaml#/permissionItem"
+  /permission/{permissionId}/resolve:
+    $ref: "./paths/shim.yaml#/permissionResolve"
+  /tui/{action}:
+    $ref: "./paths/shim.yaml#/tuiAction"
+  /lsp:
+    $ref: "./paths/shim.yaml#/lsp"
+  /mcp:
+    $ref: "./paths/shim.yaml#/mcp"
+  /auth/{authId}:
+    $ref: "./paths/shim.yaml#/authItem"
+  /event:
+    $ref: "./paths/shim.yaml#/event"
+  /project:
+    $ref: "./paths/shim.yaml#/project"
+  /project/{projectId}:
+    $ref: "./paths/shim.yaml#/projectItem"
+  /vcs:
+    $ref: "./paths/shim.yaml#/vcs"
+  /vcs/{vcsId}:
+    $ref: "./paths/shim.yaml#/vcsItem"
+  /instance:
+    $ref: "./paths/shim.yaml#/instance"
+  /instance/{path}:
+    $ref: "./paths/shim.yaml#/instancePath"
 
 components:
   securitySchemes:

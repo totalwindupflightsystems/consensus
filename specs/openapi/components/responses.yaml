@@ -74,3 +74,10 @@ InternalError:
     application/json:
       schema:
         $ref: "#/ErrorResponse/content/application~1json/schema"
+
+NotImplemented:
+  description: Endpoint is a registered stub surface — not implemented.
+  content:
+    application/json:
+      schema:
+        $ref: "#/ErrorResponse/content/application~1json/schema"

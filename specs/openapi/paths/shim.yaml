@@ -1,0 +1,1020 @@
+# Opencode protocol shim surfaces (SPEC-017).
+# The shim translates the opencode server protocol into Consensus native API
+# calls. It is mounted at the server root alongside the native /api/v1 REST
+# API and uses the same API service layer. Auth accepts the Consensus Bearer
+# API key or opencode-style Basic auth (username "opencode", admin key as
+# password). Exceptions are noted per-operation: /global/health and /doc are
+# unauthenticated, and the /project, /vcs, /instance stub surfaces have their
+# own auth policy (see descriptions).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/017-ui-adapter-layer.md,specs/018-openapi-contract.md
+
+# ── Global ──
+globalHealth:
+  get:
+    tags: [Opencode Shim]
+    summary: Shim health check
+    operationId: shimGlobalHealth
+    description: |
+      Returns shim health status. No authentication required — the shim
+      auth middleware skips this path.
+    security: []
+    responses:
+      "200":
+        description: Shim is healthy.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [healthy, version]
+              properties:
+                healthy:
+                  type: boolean
+                  example: true
+                version:
+                  type: string
+                  example: consensus-0.1.0
+
+globalEvent:
+  get:
+    tags: [Opencode Shim]
+    summary: Global SSE event stream
+    operationId: shimGlobalEvent
+    description: |
+      SSE event stream mapping Consensus memory events to opencode event
+      types (session.updated, permission.requested, message.created, ...).
+      The most recent ~50 stored events are replayed on connect, then live
+      events stream until the client disconnects. Optional ?session_id=
+      scopes the stream to one session.
+    responses:
+      "200":
+        description: SSE event stream (text/event-stream).
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+# ── Sessions ──
+session:
+  get:
+    tags: [Opencode Shim]
+    summary: List sessions (opencode format)
+    operationId: shimListSessions
+    description: |
+      Lists sessions newest first, max 50. Optional comma-separated
+      ?status= filter (e.g. ?status=idle,thinking).
+    responses:
+      "200":
+        description: Array of sessions in opencode format.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  post:
+    tags: [Opencode Shim]
+    summary: Create a session
+    operationId: shimCreateSession
+    description: |
+      Creates a Consensus session. Body fields: title (maps to the
+      Consensus agent_name, defaults to "opencode-agent"), goal, model.
+      The response includes the generated api_key for the session.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+              goal:
+                type: string
+              model:
+                type: string
+    responses:
+      "200":
+        description: Created session with api_key.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+sessionItem:
+  get:
+    tags: [Opencode Shim]
+    summary: Get session details
+    operationId: shimGetSession
+    description: |
+      Returns one session in opencode format. opencode-specific subpaths
+      (prompt_async, shell, command, share, summarize, init, fork, revert)
+      return 501 NOT_IMPLEMENTED; unknown subpaths return 404.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    responses:
+      "200":
+        description: Session details.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+
+  patch:
+    tags: [Opencode Shim]
+    summary: Update a session
+    operationId: shimUpdateSession
+    description: |
+      Updates session properties (title, status, goal). opencode status
+      values are mapped: pause/paused → paused, resume/resumed/idle → idle,
+      cancel/cancelled → failed.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+              status:
+                type: string
+              goal:
+                type: string
+    responses:
+      "200":
+        description: 'Updated session (or {"status": "updated"}).'
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+  delete:
+    tags: [Opencode Shim]
+    summary: Delete a session
+    operationId: shimDeleteSession
+    description: |
+      Marks the session failed with a completed_at timestamp (soft delete).
+      Returns {"status": "deleted"}.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    responses:
+      "200":
+        description: Deletion confirmation.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: deleted
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+sessionAbort:
+  post:
+    tags: [Opencode Shim]
+    summary: Abort a session
+    operationId: shimAbortSession
+    description: |
+      Marks the session failed with a completed_at timestamp.
+      Returns {"status": "aborted"}.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    responses:
+      "200":
+        description: Abort confirmation.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: aborted
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+sessionMessage:
+  get:
+    tags: [Opencode Shim]
+    summary: List session messages
+    operationId: shimListMessages
+    description: |
+      Lists the session's messages (memory events) in opencode format.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    responses:
+      "200":
+        description: Array of messages.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+  post:
+    tags: [Opencode Shim]
+    summary: Send a message to a session
+    operationId: shimSendMessage
+    description: |
+      Sends a user instruction. Body: {"parts": [{"type": "text", "text":
+      "..."}]}. Wakes idle/booting sessions to "thinking" for harness
+      pickup. Returns an assistant acknowledgement message.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [parts]
+            properties:
+              parts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      example: text
+                    text:
+                      type: string
+    responses:
+      "200":
+        description: Assistant acknowledgement message.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+
+sessionMessageItem:
+  get:
+    tags: [Opencode Shim]
+    summary: Get a single message
+    operationId: shimGetMessage
+    description: |
+      Returns one message by ID (opencode "msg-{id}" format).
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+      - $ref: "#/parameters/ShimMessageId"
+    responses:
+      "200":
+        description: Message with info and parts.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+
+sessionChildren:
+  get:
+    tags: [Opencode Shim]
+    summary: List child sessions
+    operationId: shimListSessionChildren
+    description: |
+      Lists sessions whose parent_id is the given session, newest first,
+      max 50.
+    parameters:
+      - $ref: "#/parameters/ShimSessionId"
+    responses:
+      "200":
+        description: Array of child sessions.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+# ── Doc (shim Swagger UI, no auth) ──
+doc:
+  get:
+    tags: [Opencode Shim]
+    summary: opencode shim Swagger UI
+    operationId: shimDoc
+    description: |
+      Serves the opencode shim's Swagger UI (HTML). No authentication
+      required. The native REST API explorer lives at /doc/api instead.
+    security: []
+    responses:
+      "200":
+        description: Swagger UI HTML page.
+        content:
+          text/html:
+            schema:
+              type: string
+
+# ── Config / Provider / Agent ──
+config:
+  get:
+    tags: [Opencode Shim]
+    summary: Read shim configuration
+    operationId: shimGetConfig
+    description: |
+      Returns all system_settings as {"settings": {...}}.
+    responses:
+      "200":
+        description: Configuration map.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  patch:
+    tags: [Opencode Shim]
+    summary: Update shim configuration
+    operationId: shimUpdateConfig
+    description: |
+      Upserts system_settings from the JSON body. Returns
+      {"status": "updated", "keys": N}.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+    responses:
+      "200":
+        description: Update confirmation.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: updated
+                keys:
+                  type: integer
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+configProviders:
+  get:
+    tags: [Opencode Shim]
+    summary: List model providers
+    operationId: shimListConfigProviders
+    description: |
+      Lists the model_registry as {"providers": [...]} with id, tier,
+      max_context, cost_per_m_in, cost_per_m_out, enabled.
+    responses:
+      "200":
+        description: Provider list.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providers:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+provider:
+  get:
+    tags: [Opencode Shim]
+    summary: Get default provider info
+    operationId: shimGetProvider
+    description: |
+      Returns the default LLM provider: {"provider": "consensus",
+      "version", "model", "maxTokens"}.
+    responses:
+      "200":
+        description: Provider info.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  example: consensus
+                version:
+                  type: string
+                model:
+                  type: string
+                maxTokens:
+                  type: integer
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+agent:
+  get:
+    tags: [Opencode Shim]
+    summary: List available agent types
+    operationId: shimListAgents
+    description: |
+      Returns the available agent types (default, researcher, coder,
+      analyst) as an array of {name, description}.
+    responses:
+      "200":
+        description: Agent type list.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+# ── Tools ──
+experimentalTool:
+  get:
+    tags: [Opencode Shim]
+    summary: List tools
+    operationId: shimListTools
+    description: |
+      Lists tools_registry entries (id, name, description, hemisphere,
+      handler_type, status, enabled, requires_approval).
+    responses:
+      "200":
+        description: Tool list.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+experimentalToolIDs:
+  get:
+    tags: [Opencode Shim]
+    summary: List tool IDs
+    operationId: shimListToolIDs
+    description: |
+      Returns the tool names from tools_registry as a plain string array.
+    responses:
+      "200":
+        description: Tool name list.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# ── File endpoints ──
+find:
+  get:
+    tags: [Opencode Shim]
+    summary: Find files by glob pattern
+    operationId: shimFindFiles
+    description: |
+      Glob-based file search. Requires ?pattern=. Returns
+      {"files": [...], "count": N, "pattern": "..."}.
+    parameters:
+      - name: pattern
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Glob pattern (e.g. "**/*.go").
+    responses:
+      "200":
+        description: Matching files.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+findFile:
+  get:
+    tags: [Opencode Shim]
+    summary: Find files by query
+    operationId: shimFindFilesSub
+    description: |
+      File search under /find/file. Requires ?query=. Returns
+      {"files": [...], "count": N, "query": "..."}.
+    parameters:
+      - name: query
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Search query (glob pattern).
+    responses:
+      "200":
+        description: Matching files.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+findSymbol:
+  get:
+    tags: [Opencode Shim]
+    summary: Find symbols (stub)
+    operationId: shimFindSymbolStub
+    description: |
+      Registered stub surface: symbol search requires LSP integration and
+      is not yet available — always returns 501 NOT_IMPLEMENTED.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+fileContent:
+  get:
+    tags: [Opencode Shim]
+    summary: Read file content
+    operationId: shimReadFile
+    description: |
+      Reads a file via the service layer. Requires ?path=. Returns
+      {"path": "...", "content": "...", "size": N}.
+    parameters:
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Absolute or relative file path.
+    responses:
+      "200":
+        description: File content.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                content:
+                  type: string
+                size:
+                  type: integer
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+fileStatus:
+  get:
+    tags: [Opencode Shim]
+    summary: Git status
+    operationId: shimFileStatus
+    description: |
+      Returns the working tree git status (delegated to the service layer).
+    responses:
+      "200":
+        description: Git status object.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# ── Permissions (HITL) ──
+permissions:
+  get:
+    tags: [Opencode Shim]
+    summary: List pending permissions
+    operationId: shimListPermissions
+    description: |
+      Lists pending approval_requests as opencode permission events.
+      Optional ?session_id= filter. Returns {"permissions": [...]},
+      max 20, ordered by risk level.
+    parameters:
+      - name: session_id
+        in: query
+        schema:
+          type: string
+        description: Filter by session ID.
+    responses:
+      "200":
+        description: Pending permissions.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+permissionItem:
+  get:
+    tags: [Opencode Shim]
+    summary: Get permission details
+    operationId: shimGetPermission
+    description: |
+      Returns one pending approval request with its decision metadata.
+    parameters:
+      - $ref: "#/parameters/ShimPermissionId"
+    responses:
+      "200":
+        description: Permission details.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+
+permissionResolve:
+  post:
+    tags: [Opencode Shim]
+    summary: Resolve a permission
+    operationId: shimResolvePermission
+    description: |
+      Resolves a pending approval request. Body: {"decision":
+      "approved"|"rejected"|"modified", "reason": "..."}. Emits a
+      permission.resolved SSE event on success. Returns
+      {"id", "status", "resolved": true, "timestamp"}.
+    parameters:
+      - $ref: "#/parameters/ShimPermissionId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [decision]
+            properties:
+              decision:
+                type: string
+                enum: [approved, rejected, modified]
+              reason:
+                type: string
+    responses:
+      "200":
+        description: Resolution confirmation.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+
+# ── TUI / LSP / MCP ──
+tuiAction:
+  get:
+    tags: [Opencode Shim]
+    summary: TUI control (stub)
+    operationId: shimTUIControlStub
+    description: |
+      Registered stub surface (shim-only passthrough): actions
+      append-prompt, submit-prompt, execute-command and show-toast always
+      return 501 NOT_IMPLEMENTED — use opencode's built-in TUI. Unknown
+      actions return 404.
+    parameters:
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [append-prompt, submit-prompt, execute-command, show-toast]
+        description: TUI action name.
+    responses:
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+lsp:
+  get:
+    tags: [Opencode Shim]
+    summary: LSP status
+    operationId: shimLSPStatus
+    description: |
+      Returns LSP integration status — not yet available:
+      {"enabled": false, "status": "unavailable", "message": "..."}.
+    responses:
+      "200":
+        description: LSP status.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  example: false
+                status:
+                  type: string
+                message:
+                  type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+mcp:
+  get:
+    tags: [Opencode Shim]
+    summary: MCP management (stub)
+    operationId: shimMCPStub
+    description: |
+      Registered stub surface: MCP management via the opencode shim is not
+      implemented — always returns 501 NOT_IMPLEMENTED. Use /mcp/sse
+      directly.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+# ── Auth management ──
+authItem:
+  put:
+    tags: [Opencode Shim]
+    summary: Update provider/session auth config
+    operationId: shimUpdateAuth
+    description: |
+      Upserts auth configuration for a provider or session. Each body key
+      is stored as system_settings "auth.<authId>.<key>". Only PUT is
+      supported.
+    parameters:
+      - name: authId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Provider or session identifier.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+    responses:
+      "200":
+        description: Auth config stored.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "405":
+        description: Method not allowed — only PUT is supported.
+
+# ── Event (standalone alias of /global/event) ──
+event:
+  get:
+    tags: [Opencode Shim]
+    summary: Standalone SSE event stream
+    operationId: shimEventStream
+    description: |
+      Standalone alias of /global/event — SSE event stream mapping
+      Consensus memory events to opencode event types.
+    responses:
+      "200":
+        description: SSE event stream (text/event-stream).
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+
+# ── Project / VCS / Instance (501 stubs, SPEC-017 §3.9) ──
+# These are opencode-specific surfaces the Consensus shim does not
+# implement. The auth middleware deliberately lets unauthenticated
+# requests reach the stub (returning 501, not 401) where the opencode
+# contract expects it: /instance/* is fully public; /project and /vcs
+# still require auth on GET (401 unauthenticated) while non-GET methods
+# reach the stub.
+project:
+  get:
+    tags: [Opencode Shim]
+    summary: Project info (stub)
+    operationId: shimProjectStub
+    description: |
+      Registered stub surface: project management is opencode-specific and
+      not supported by the Consensus shim. GET requires auth (401
+      unauthenticated) and otherwise returns 501 NOT_IMPLEMENTED; use the
+      native tool API instead.
+    responses:
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+projectItem:
+  get:
+    tags: [Opencode Shim]
+    summary: Project item (stub)
+    operationId: shimProjectItemStub
+    description: |
+      Registered stub surface: non-GET methods on /project/{id} reach the
+      stub unauthenticated and return 501 NOT_IMPLEMENTED.
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Project identifier.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+vcs:
+  get:
+    tags: [Opencode Shim]
+    summary: VCS info (stub)
+    operationId: shimVCSStub
+    description: |
+      Registered stub surface: VCS operations are opencode-specific and not
+      supported by the Consensus shim. GET requires auth (401
+      unauthenticated) and otherwise returns 501 NOT_IMPLEMENTED; use the
+      native tool API instead.
+    responses:
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+vcsItem:
+  get:
+    tags: [Opencode Shim]
+    summary: VCS item (stub)
+    operationId: shimVCSItemStub
+    description: |
+      Registered stub surface: non-GET methods on /vcs/{id} reach the stub
+      unauthenticated and return 501 NOT_IMPLEMENTED.
+    parameters:
+      - name: vcsId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: VCS identifier.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+instance:
+  get:
+    tags: [Opencode Shim]
+    summary: Instance info (stub)
+    operationId: shimInstanceStub
+    description: |
+      Registered stub surface: instance management is opencode-specific and
+      not supported by the Consensus shim. Fully public — unauthenticated
+      requests reach the stub and receive 501 NOT_IMPLEMENTED.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+instancePath:
+  get:
+    tags: [Opencode Shim]
+    summary: Instance sub-path (stub)
+    operationId: shimInstancePathStub
+    description: |
+      Registered stub surface: /instance/* sub-paths (e.g. vcs,
+      vcs/diff) are fully public stubs returning 501 NOT_IMPLEMENTED.
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Instance sub-path.
+    responses:
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+# ── Shared parameters (shim-local) ──
+parameters:
+  ShimSessionId:
+    name: sessionId
+    in: path
+    required: true
+    schema:
+      type: string
+      format: uuid
+    description: UUID of the agent session.
+  ShimMessageId:
+    name: messageId
+    in: path
+    required: true
+    schema:
+      type: string
+    description: Message ID in opencode "msg-{id}" format.
+  ShimPermissionId:
+    name: permissionId
+    in: path
+    required: true
+    schema:
+      type: string
+    description: ID of the approval request (permission).
