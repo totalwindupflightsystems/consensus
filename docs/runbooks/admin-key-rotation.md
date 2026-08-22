@@ -47,14 +47,14 @@ curl -s http://localhost:8090/api/v1/auth/keys \
 ### Step 1: Generate New Admin Key
 
 ```bash
-# If server is running, use the API
+# If server is running, use the API (expires_in is seconds from now; 7776000 = 90 days)
 curl -s -X POST http://localhost:8090/api/v1/auth/keys \
   -H "Authorization: Bearer $CURRENT_ADMIN_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"scope":"admin","ttl_hours":2160}' | jq .
+  -d '{"scope":"admin","expires_in":7776000}' | jq .
 
-# Output will contain the full key — save it immediately:
-# {"id":"...","key":"cs_ak_<full_key>","scope":"admin","expires_at":"2026-08-27T00:00:00Z"}
+# Output will contain the full key — save it immediately (the secret is in `api_key`):
+# {"id":"...","key_prefix":"cs_ak_<prefix>","api_key":"cs_ak_<full_key>","scope":"admin","created_at":"2026-08-22T00:00:00Z"}
 ```
 
 ### Step 2: Verify New Key Works
