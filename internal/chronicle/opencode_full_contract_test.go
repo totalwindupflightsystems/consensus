@@ -378,24 +378,89 @@ func TestFullContract_FileOperations(t *testing.T) {
 }
 
 // ===========================================================================
-// GROUP F: Instance & VCS — KNOWN 501 STUBS (httpapi-instance.test.ts:233)
+// GROUP F: Instance & VCS — real translation endpoints (httpapi-instance.test.ts)
 // ===========================================================================
+//
+// C-GAP-031 implemented /instance/* as opencode-protocol translation
+// (SPEC-017 §3.10): GET /instance (singleton instance list), /instance/path
+// (PathInfo), /instance/vcs (branch info) and /instance/vcs/diff (per-file
+// diff stats). All are fully public — the opencode contract probes them
+// unauthenticated — and must return 200 with real workspace data.
 
 func TestFullContract_InstanceVCS(t *testing.T) {
 	_, s, clean := startConsensus(t)
 	defer clean()
 
-	// OpenCode expects these to return 200 with real data
-	vcsEndpoints := []string{"/instance/path", "/instance/vcs", "/instance/vcs/diff"}
+	// OpenCode expects these to return 200 with real data. All are probed
+	// unauthenticated — /instance/* is fully public (SPEC-017 §3.10).
+	vcsEndpoints := []string{"/instance", "/instance/path", "/instance/vcs", "/instance/vcs/diff"}
 
 	for _, ep := range vcsEndpoints {
 		t.Run("C19: GET "+ep, func(t *testing.T) {
 			resp, body := fcGet(t, s.baseURL+ep, "")
-			// Consensus shim stubs these at 501
-			if resp.StatusCode == 501 {
-				gap(t, "C19", fmt.Sprintf("GET %s → 501 stub. OpenCode returns 200 with directory/vcs data. Needs implementation for indistinguishability.", ep))
-			} else {
-				assertCode(t, resp, 200, body)
+			assertCode(t, resp, 200, body)
+			var parsed any
+			if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+				t.Fatalf("C19: GET %s body is not JSON: %v\n%s", ep, err, body)
+			}
+			switch {
+			case ep == "/instance":
+				instances, ok := parsed.([]any)
+				if !ok || len(instances) == 0 {
+					t.Fatalf("C19: GET /instance is not a non-empty array: %s", body)
+				}
+				inst, ok := instances[0].(map[string]any)
+				if !ok {
+					t.Fatalf("C19: GET /instance entry not an object: %s", body)
+				}
+				for _, f := range []string{"id", "path", "createdAt", "updatedAt"} {
+					if v, _ := inst[f].(string); v == "" {
+						t.Errorf("C19: GET /instance entry missing non-empty %q: %s", f, body)
+					}
+				}
+			case ep == "/instance/path":
+				paths, ok := parsed.(map[string]any)
+				if !ok {
+					t.Fatalf("C19: GET /instance/path not an object: %s", body)
+				}
+				// upstream PathInfo: {home, state, config, worktree, directory}
+				for _, f := range []string{"home", "state", "config", "worktree", "directory"} {
+					if v, _ := paths[f].(string); v == "" {
+						t.Errorf("C19: GET /instance/path missing non-empty %q: %s", f, body)
+					}
+				}
+			case ep == "/instance/vcs":
+				vcs, ok := parsed.(map[string]any)
+				if !ok {
+					t.Fatalf("C19: GET /instance/vcs not an object: %s", body)
+				}
+				// The consensus workspace is a git repo — branch (or
+				// default_branch on a detached checkout) must be present.
+				branch, _ := vcs["branch"].(string)
+				defBranch, _ := vcs["default_branch"].(string)
+				if branch == "" && defBranch == "" {
+					t.Errorf("C19: GET /instance/vcs has no branch info: %s", body)
+				}
+			case ep == "/instance/vcs/diff":
+				diffs, ok := parsed.([]any)
+				if !ok {
+					t.Fatalf("C19: GET /instance/vcs/diff not an array: %s", body)
+				}
+				for _, d := range diffs {
+					entry, ok := d.(map[string]any)
+					if !ok {
+						t.Fatalf("C19: GET /instance/vcs/diff entry not an object: %s", body)
+					}
+					if f, _ := entry["file"].(string); f == "" {
+						t.Errorf("C19: diff entry missing non-empty file: %s", body)
+					}
+					if _, ok := entry["additions"]; !ok {
+						t.Errorf("C19: diff entry missing additions: %s", body)
+					}
+					if _, ok := entry["deletions"]; !ok {
+						t.Errorf("C19: diff entry missing deletions: %s", body)
+					}
+				}
 			}
 		})
 	}
@@ -406,6 +471,7 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
+			// 501 stub → fall through to the gap log
 			gap(t, "C20", fmt.Sprintf("PATCH /project/:id failed: %v", err))
 			return
 		}

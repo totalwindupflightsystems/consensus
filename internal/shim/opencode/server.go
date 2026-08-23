@@ -7,6 +7,7 @@
 package opencode
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -18,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +59,14 @@ type Server struct {
 
 	// If skipAuth is true, auth middleware is bypassed (for testing)
 	skipAuth bool
+
+	// Workspace directory for /instance/* translation endpoints (SPEC-017
+	// §3.10). Defaults to the process working directory at construction;
+	// overridable for tests.
+	workdir string
+
+	// Server start time — reported as the singleton instance's createdAt.
+	startedAt time.Time
 
 	// Mutex for shim_session_map writes
 	mu sync.Mutex
@@ -124,11 +134,17 @@ type MessageSendInput struct {
 // svc is the API service layer — the shim calls this instead of raw DB.
 // If eventBus is nil, the shim falls back to polling-based event streaming.
 func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Server {
+	wd, err := os.Getwd()
+	if err != nil {
+		wd = "."
+	}
 	s := &Server{
-		db:       dbase,
-		svc:      svc,
-		events:   eventBus,
-		adminKey: adminKey,
+		db:        dbase,
+		svc:       svc,
+		events:    eventBus,
+		adminKey:  adminKey,
+		workdir:   wd,
+		startedAt: time.Now().UTC(),
 	}
 	mux := http.NewServeMux()
 	s.mux = mux
@@ -179,13 +195,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Standalone /event endpoint for SSE
 	mux.HandleFunc("/event", s.handleGlobalEvent)
 
-	// Project/VCS/Instance as 501 stubs (SPEC-017 §3.9)
+	// Project/VCS as 501 stubs (SPEC-017 §3.9); /instance is a real
+	// opencode-protocol translation surface (SPEC-017 §3.10).
 	mux.HandleFunc("/project", s.handleProjectVCSSStub)
 	mux.HandleFunc("/project/", s.handleProjectVCSSStub)
 	mux.HandleFunc("/vcs", s.handleProjectVCSSStub)
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
-	mux.HandleFunc("/instance", s.handleProjectVCSSStub)
-	mux.HandleFunc("/instance/", s.handleProjectVCSSStub)
+	mux.HandleFunc("/instance", s.handleInstance)
+	mux.HandleFunc("/instance/", s.handleInstanceSub)
 
 	return s
 }
@@ -237,9 +254,17 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		// Skip auth for opencode-specific 501 stubs (SPEC-017 §3.9) — they return
 		// NOT_IMPLEMENTED with zero data, so there is nothing to protect. The
 		// OpenCode contract tests hit these unauthenticated and expect 501, not 401.
-		// /instance/* is fully public (C19); /project and /vcs keep GET auth
-		// (shim smoke test expects 401 no-auth) but non-GET reaches the stub (C20).
+		// /project and /vcs keep GET auth (shim smoke test expects 401 no-auth)
+		// but non-GET reaches the stub (C20).
 		if isStubPath(r.URL.Path, r.Method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// /instance/* is fully public but implemented (SPEC-017 §3.10) — the
+		// opencode contract probes these endpoints unauthenticated and expects
+		// 200 with real workspace data (full-contract suite C19).
+		if p := r.URL.Path; p == "/instance" || strings.HasPrefix(p, "/instance/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1020,8 +1045,8 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 // 501, not 401.
 //
 // Auth skip policy (reconciles the two shim contract suites):
-//   - /instance/* is fully public — the full-contract suite (C19) requires
-//     501 for unauthenticated GET /instance/{path,vcs,vcs/diff}.
+//   - /instance/* is fully public but implemented (SPEC-017 §3.10) — the
+//     auth skip lives in authMiddleware, not here.
 //   - /project and /vcs keep auth on GET — the endpoint smoke test expects
 //     401 for unauthenticated GET /project and /vcs — but non-GET methods
 //     (PATCH, POST, DELETE) reach the stub so the full-contract suite (C20)
@@ -1032,23 +1057,292 @@ func isStubPath(path, method string) bool {
 			return true
 		}
 	}
-	if path == "/instance" || strings.HasPrefix(path, "/instance/") {
-		return true
-	}
 	return false
 }
 
-// handleProjectVCSSStub returns 501 for /project, /vcs, and /instance paths (opencode-specific).
+// handleProjectVCSSStub returns 501 for /project and /vcs paths (opencode-specific).
 func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 	name := "project"
-	switch {
-	case strings.Contains(r.URL.Path, "vcs"):
+	if strings.Contains(r.URL.Path, "vcs") {
 		name = "VCS"
-	case strings.Contains(r.URL.Path, "instance"):
-		name = "instance"
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))
+}
+
+// ============================================================================
+// Instance Endpoints (SPEC-017 §3.10) — opencode /instance/* translation
+// ============================================================================
+//
+// The opencode server protocol (sst/opencode httpapi-instance.test.ts) probes
+// /instance/path, /instance/vcs and /instance/vcs/diff unauthenticated and
+// expects 200 with real workspace data. The Consensus shim treats the server
+// as a singleton instance rooted at the workspace directory.
+
+// instanceKnownSubpaths lists /instance/* sub-paths that exist in the upstream
+// opencode protocol but are NOT translated by the shim. They return
+// 501 NOT_IMPLEMENTED (same convention as /session subpaths); unknown
+// sub-paths return 404.
+var instanceKnownSubpaths = map[string]bool{
+	"dispose":      true, // POST — upstream instance disposal
+	"vcs/status":   true, // GET — per-file VCS status list
+	"vcs/diff/raw": true, // GET — raw unified diff text
+	"vcs/apply":    true, // POST — apply a patch
+	"command":      true, // GET — opencode slash commands
+	"agent":        true, // GET — opencode agent registry
+	"skill":        true, // GET — opencode skill registry
+	"lsp":          true, // GET — LSP server status
+	"formatter":    true, // GET — formatter status
+}
+
+// handleInstance serves GET /instance — the singleton instance list. The
+// Consensus server is a single instance rooted at the workspace directory;
+// created/updated timestamps come from the server process.
+func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	dir := s.workspaceDir()
+	writeJSON(w, []map[string]any{
+		{
+			"id":        instanceID(dir),
+			"path":      dir,
+			"createdAt": s.startedAt.Format(time.RFC3339),
+			"updatedAt": time.Now().UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+// handleInstanceSub serves /instance/* sub-paths: the implemented translation
+// endpoints (/instance/path, /instance/vcs, /instance/vcs/diff) plus the
+// 501/404 convention for everything else.
+func (s *Server) handleInstanceSub(w http.ResponseWriter, r *http.Request) {
+	sub := strings.TrimPrefix(r.URL.Path, "/instance/")
+	switch {
+	case sub == "path" && r.Method == http.MethodGet:
+		s.instancePath(w, r)
+	case sub == "vcs" && r.Method == http.MethodGet:
+		s.instanceVCS(w, r)
+	case sub == "vcs/diff" && r.Method == http.MethodGet:
+		s.instanceVCSDiff(w, r)
+	default:
+		if instanceKnownSubpaths[sub] {
+			writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
+				fmt.Sprintf("endpoint %q is opencode-specific, not supported by Consensus shim", sub))
+			return
+		}
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
+	}
+}
+
+// instancePath serves GET /instance/path → opencode PathInfo:
+// {home, state, config, worktree, directory}.
+func (s *Server) instancePath(w http.ResponseWriter, r *http.Request) {
+	dir := s.workspaceDir()
+	home, _ := os.UserHomeDir()
+	writeJSON(w, map[string]any{
+		"home":      home,
+		"state":     filepath.Join(home, ".local", "state", "consensus"),
+		"config":    filepath.Join(home, ".config", "consensus", "config.json"),
+		"worktree":  gitWorktree(r.Context(), dir, dir),
+		"directory": dir,
+	})
+}
+
+// instanceVCS serves GET /instance/vcs → opencode Vcs.Info:
+// {branch?, default_branch?}. Never errors — a non-git workspace returns {}.
+func (s *Server) instanceVCS(w http.ResponseWriter, r *http.Request) {
+	dir := s.workspaceDir()
+	ctx := r.Context()
+	info := map[string]any{}
+	if branch := gitBranch(ctx, dir); branch != "" {
+		info["branch"] = branch
+	}
+	if def := gitDefaultBranch(ctx, dir); def != "" {
+		info["default_branch"] = def
+	}
+	writeJSON(w, info)
+}
+
+// instanceVCSDiff serves GET /instance/vcs/diff → opencode Array(Vcs.FileDiff):
+// [{file, additions, deletions, status?}]. patch is omitted (optional in the
+// upstream schema). Never errors — a clean or non-git workspace returns [].
+func (s *Server) instanceVCSDiff(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, gitFileDiffs(r.Context(), s.workspaceDir()))
+}
+
+// workspaceDir returns the workspace directory used by /instance/* endpoints:
+// an explicitly configured workdir, falling back to the process CWD.
+func (s *Server) workspaceDir() string {
+	if s.workdir != "" {
+		return s.workdir
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return wd
+}
+
+// instanceID derives a stable singleton-instance id from the workspace
+// directory (short sha256 prefix).
+func instanceID(dir string) string {
+	sum := sha256.Sum256([]byte(dir))
+	return "consensus-" + hex.EncodeToString(sum[:])[:12]
+}
+
+// runGit runs git -C dir <args...> and returns trimmed stdout; errors are
+// returned so callers can fall back to neutral shapes (never fatal).
+func runGit(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	out, err := cmd.Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+// gitBranch returns the current branch (empty when not a git repo, detached,
+// or unborn HEAD).
+func gitBranch(ctx context.Context, dir string) string {
+	out, err := runGit(ctx, dir, "branch", "--show-current")
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
+// gitDefaultBranch returns the repository's default branch (origin HEAD,
+// falling back to init.defaultBranch); empty when undeterminable.
+func gitDefaultBranch(ctx context.Context, dir string) string {
+	if out, err := runGit(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil && out != "" {
+		return strings.TrimPrefix(out, "origin/")
+	}
+	if out, err := runGit(ctx, dir, "config", "--get", "init.defaultBranch"); err == nil {
+		return out
+	}
+	return ""
+}
+
+// gitWorktree returns the repository top-level (worktree root) for a git
+// workspace; falls back to dir when not a git repo.
+func gitWorktree(ctx context.Context, dir string, fallback string) string {
+	if out, err := runGit(ctx, dir, "rev-parse", "--show-toplevel"); err == nil && out != "" {
+		return out
+	}
+	return fallback
+}
+
+// gitNumstat returns {path: [additions, deletions]} from
+// `git diff HEAD --numstat`, falling back to index-vs-worktree when the repo
+// has no HEAD yet. Binary files ("-" columns) count as 0.
+func gitNumstat(ctx context.Context, dir string) map[string][]int {
+	out, err := runGit(ctx, dir, "diff", "HEAD", "--numstat")
+	if err != nil {
+		out, err = runGit(ctx, dir, "diff", "--numstat")
+		if err != nil {
+			return map[string][]int{}
+		}
+	}
+	stats := map[string][]int{}
+	for _, line := range strings.Split(out, "\n") {
+		parts := strings.SplitN(line, "	", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		adds, errA := strconv.Atoi(parts[0])
+		dels, errD := strconv.Atoi(parts[1])
+		file := unquoteGitPath(parts[2])
+		if errA != nil || errD != nil || file == "" {
+			continue
+		}
+		stats[file] = []int{adds, dels}
+	}
+	return stats
+}
+
+// gitFileDiffs builds the opencode Vcs.FileDiff list for a workspace: changed
+// files from `git status --porcelain` with additions/deletions from
+// `git diff HEAD --numstat`; untracked files count their own lines. A clean or
+// non-git workspace yields an empty (never nil) list.
+func gitFileDiffs(ctx context.Context, dir string) []map[string]any {
+	status, err := runGit(ctx, dir, "status", "--porcelain")
+	if err != nil {
+		return []map[string]any{}
+	}
+	stats := gitNumstat(ctx, dir)
+	diffs := []map[string]any{}
+	for _, line := range strings.Split(status, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		code, path := line[:2], line[3:]
+		if strings.HasPrefix(code, "R") || strings.HasPrefix(code, "C") {
+			if i := strings.LastIndex(path, " -> "); i >= 0 {
+				path = path[i+4:]
+			}
+		}
+		path = unquoteGitPath(path)
+		if path == "" {
+			continue
+		}
+		entry := map[string]any{
+			"file":      path,
+			"additions": 0,
+			"deletions": 0,
+		}
+		if stat := stats[path]; stat != nil {
+			entry["additions"] = stat[0]
+			entry["deletions"] = stat[1]
+		}
+		switch {
+		case strings.HasPrefix(code, "??"):
+			entry["status"] = "added"
+			if _, ok := stats[path]; !ok {
+				entry["additions"] = lineCount(filepath.Join(dir, path))
+			}
+		case strings.Contains(code, "D"):
+			entry["status"] = "deleted"
+		case strings.Contains(code, "A"):
+			entry["status"] = "added"
+		default:
+			entry["status"] = "modified"
+		}
+		diffs = append(diffs, entry)
+	}
+	return diffs
+}
+
+// unquoteGitPath unquotes a git-quoted path (C-style escaping when the path
+// contains spaces or non-ASCII characters); plain paths pass through.
+func unquoteGitPath(p string) string {
+	if strings.HasPrefix(p, "\"") {
+		if u, err := strconv.Unquote(p); err == nil {
+			return u
+		}
+	}
+	return p
+}
+
+// lineCount counts newlines in a text file for untracked-file diff stats;
+// unreadable or oversized (>= 1 MiB) files count as 0.
+func lineCount(path string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	buf := make([]byte, 32*1024)
+	n, total := 0, 0
+	for {
+		m, rerr := f.Read(buf)
+		total += m
+		if m > 0 {
+			n += bytes.Count(buf[:m], []byte{'\n'})
+		}
+		if rerr != nil || total >= 1<<20 {
+			break
+		}
+	}
+	return n
 }
 
 // ============================================================================

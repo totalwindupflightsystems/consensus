@@ -196,8 +196,12 @@ paths:
     $ref: "./paths/shim.yaml#/vcsItem"
   /instance:
     $ref: "./paths/shim.yaml#/instance"
-  /instance/{path}:
+  /instance/path:
     $ref: "./paths/shim.yaml#/instancePath"
+  /instance/vcs:
+    $ref: "./paths/shim.yaml#/instanceVCS"
+  /instance/vcs/diff:
+    $ref: "./paths/shim.yaml#/instanceVCSDiff"
 
 components:
   securitySchemes:

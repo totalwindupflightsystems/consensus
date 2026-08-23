@@ -885,13 +885,12 @@ event:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
 
-# ── Project / VCS / Instance (501 stubs, SPEC-017 §3.9) ──
+# ── Project / VCS (501 stubs, SPEC-017 §3.9) ──
 # These are opencode-specific surfaces the Consensus shim does not
 # implement. The auth middleware deliberately lets unauthenticated
 # requests reach the stub (returning 501, not 401) where the opencode
-# contract expects it: /instance/* is fully public; /project and /vcs
-# still require auth on GET (401 unauthenticated) while non-GET methods
-# reach the stub.
+# contract expects it: /project and /vcs require auth on GET (401
+# unauthenticated) while non-GET methods reach the stub.
 project:
   get:
     tags: [Opencode Shim]
@@ -962,37 +961,83 @@ vcsItem:
       "501":
         $ref: "../components/responses.yaml#/NotImplemented"
 
+# ── Instance (opencode-protocol translation, SPEC-017 §3.10) ──
+# C-GAP-031: /instance/* translates the opencode server protocol into
+# native Consensus calls. The Consensus server is a singleton instance
+# rooted at the process working directory. Fully public — the opencode
+# contract probes these endpoints unauthenticated and expects 200 with
+# real workspace data. Other upstream sub-paths (dispose, vcs/status,
+# vcs/diff/raw, vcs/apply, command, agent, skill, lsp, formatter) return
+# 501 NOT_IMPLEMENTED; unknown sub-paths return 404 NOT_FOUND.
 instance:
   get:
     tags: [Opencode Shim]
-    summary: Instance info (stub)
-    operationId: shimInstanceStub
+    summary: List instances
+    operationId: shimInstanceList
     description: |
-      Registered stub surface: instance management is opencode-specific and
-      not supported by the Consensus shim. Fully public — unauthenticated
-      requests reach the stub and receive 501 NOT_IMPLEMENTED.
+      Singleton instance list: the Consensus server is one instance rooted
+      at the workspace directory. Fully public — no auth required.
     responses:
-      "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+      "200":
+        description: Singleton instance list.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/InstanceInfo"
 
 instancePath:
   get:
     tags: [Opencode Shim]
-    summary: Instance sub-path (stub)
-    operationId: shimInstancePathStub
+    summary: Get instance paths
+    operationId: shimInstancePath
     description: |
-      Registered stub surface: /instance/* sub-paths (e.g. vcs,
-      vcs/diff) are fully public stubs returning 501 NOT_IMPLEMENTED.
-    parameters:
-      - name: path
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Instance sub-path.
+      opencode PathInfo translation: home, state, config, worktree and
+      directory for the instance workspace. Fully public — no auth required.
     responses:
-      "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+      "200":
+        description: Instance path info.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/InstancePathInfo"
+
+instanceVCS:
+  get:
+    tags: [Opencode Shim]
+    summary: Get VCS info
+    operationId: shimInstanceVCS
+    description: |
+      opencode Vcs.Info translation: current branch and default branch of
+      the workspace git repository, read live. Non-git workspaces return {}
+      — never an error. Fully public — no auth required.
+    responses:
+      "200":
+        description: VCS info (both fields optional; {} for non-git workspaces).
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/VcsInfo"
+
+instanceVCSDiff:
+  get:
+    tags: [Opencode Shim]
+    summary: Get VCS diff
+    operationId: shimInstanceVCSDiff
+    description: |
+      opencode Vcs.FileDiff translation: per-file additions, deletions and
+      status for the workspace working tree. Clean or non-git workspaces
+      return []. Fully public — no auth required.
+    responses:
+      "200":
+        description: Per-file diff stats (possibly empty array).
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/VcsFileDiff"
 
 # ── Shared parameters (shim-local) ──
 parameters:

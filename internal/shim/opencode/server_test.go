@@ -10,6 +10,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1105,6 +1108,332 @@ func TestVCSEndpointReturns501(t *testing.T) {
 
 	if resp.StatusCode != 501 {
 		t.Errorf("expected 501 for /vcs, got %d", resp.StatusCode)
+	}
+}
+
+// ============================================================================
+// Instance Endpoint Tests (SPEC-017 §3.10)
+// ============================================================================
+
+// makeGitRepo creates a temp git repo with one committed file, one staged new
+// file (dirty.txt) and one untracked file (untracked.txt, 3 lines). Returns
+// the repo dir; skips when git is unavailable.
+func makeGitRepo(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	dir := t.TempDir()
+	run := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	// origin/HEAD does not exist in a fresh local repo; set the
+	// init.defaultBranch fallback so default_branch resolves to "main".
+	run("config", "init.defaultBranch", "main")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("hello\nworld\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", ".")
+	run("commit", "-m", "initial")
+	// staged new file → porcelain "A " → added with 1 addition
+	if err := os.WriteFile(filepath.Join(dir, "dirty.txt"), []byte("change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "dirty.txt")
+	// untracked file → porcelain "??" → added, additions from line count
+	if err := os.WriteFile(filepath.Join(dir, "untracked.txt"), []byte("one\ntwo\nthree\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestInstanceEndpoint_GET(t *testing.T) {
+	workdir := t.TempDir()
+	s, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+	s.workdir = workdir
+
+	resp, err := http.Get(srv.URL + "/instance")
+	if err != nil {
+		t.Fatalf("GET /instance: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var list []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("not an array: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 singleton instance, got %d", len(list))
+	}
+	inst := list[0]
+	for _, f := range []string{"id", "path", "createdAt", "updatedAt"} {
+		if v, _ := inst[f].(string); v == "" {
+			t.Errorf("instance entry missing non-empty %q: %v", f, inst)
+		}
+	}
+	if p, _ := inst["path"].(string); p != workdir {
+		t.Errorf("path = %q, want %q", p, workdir)
+	}
+}
+
+func TestInstanceEndpoint_RequiresGET(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	req, _ := http.NewRequest("POST", srv.URL+"/instance", strings.NewReader(`{}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST /instance: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 405 {
+		t.Errorf("expected 405, got %d", resp.StatusCode)
+	}
+}
+
+func TestInstancePathEndpoint_GET(t *testing.T) {
+	workdir := t.TempDir()
+	s, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+	s.workdir = workdir
+
+	resp, err := http.Get(srv.URL + "/instance/path")
+	if err != nil {
+		t.Fatalf("GET /instance/path: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var info map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		t.Fatalf("not JSON object: %v", err)
+	}
+	// upstream PathInfo: {home, state, config, worktree, directory}
+	for _, f := range []string{"home", "state", "config", "worktree", "directory"} {
+		if v, _ := info[f].(string); v == "" {
+			t.Errorf("missing non-empty %q: %v", f, info)
+		}
+	}
+	if d, _ := info["directory"].(string); d != workdir {
+		t.Errorf("directory = %q, want %q", d, workdir)
+	}
+	// non-git workspace → worktree falls back to the workspace directory
+	if w, _ := info["worktree"].(string); w != workdir {
+		t.Errorf("worktree = %q, want fallback %q", w, workdir)
+	}
+}
+
+func TestInstanceVCSEndpoint_GET(t *testing.T) {
+	t.Run("git workspace", func(t *testing.T) {
+		repo := makeGitRepo(t)
+		s, srv := newTestServer(&mockDB{})
+		defer srv.Close()
+		s.workdir = repo
+
+		resp, err := http.Get(srv.URL + "/instance/vcs")
+		if err != nil {
+			t.Fatalf("GET /instance/vcs: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var info map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+			t.Fatalf("not JSON object: %v", err)
+		}
+		if b, _ := info["branch"].(string); b != "main" {
+			t.Errorf("branch = %q, want \"main\"", b)
+		}
+		if d, _ := info["default_branch"].(string); d != "main" {
+			t.Errorf("default_branch = %q, want \"main\"", d)
+		}
+	})
+
+	t.Run("non-git workspace", func(t *testing.T) {
+		workdir := t.TempDir()
+		s, srv := newTestServer(&mockDB{})
+		defer srv.Close()
+		s.workdir = workdir
+
+		resp, err := http.Get(srv.URL + "/instance/vcs")
+		if err != nil {
+			t.Fatalf("GET /instance/vcs: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200 (never error), got %d", resp.StatusCode)
+		}
+		var info map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+			t.Fatalf("not JSON object: %v", err)
+		}
+		if len(info) != 0 {
+			t.Errorf("expected {} for non-git workspace, got %v", info)
+		}
+	})
+}
+
+func TestInstanceVCSDiffEndpoint_GET(t *testing.T) {
+	t.Run("git workspace with staged + untracked changes", func(t *testing.T) {
+		repo := makeGitRepo(t)
+		s, srv := newTestServer(&mockDB{})
+		defer srv.Close()
+		s.workdir = repo
+
+		resp, err := http.Get(srv.URL + "/instance/vcs/diff")
+		if err != nil {
+			t.Fatalf("GET /instance/vcs/diff: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var diffs []map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&diffs); err != nil {
+			t.Fatalf("not JSON array: %v", err)
+		}
+		if len(diffs) == 0 {
+			t.Fatal("expected non-empty diff list for dirty repo")
+		}
+		var dirty, untracked *map[string]any
+		for i := range diffs {
+			switch diffs[i]["file"] {
+			case "dirty.txt":
+				dirty = &diffs[i]
+			case "untracked.txt":
+				untracked = &diffs[i]
+			}
+		}
+		if dirty == nil {
+			t.Fatalf("dirty.txt missing from diff list: %v", diffs)
+		}
+		if (*dirty)["status"] != "added" {
+			t.Errorf("dirty.txt status = %v, want \"added\"", (*dirty)["status"])
+		}
+		if a, _ := (*dirty)["additions"].(float64); a != 1 {
+			t.Errorf("dirty.txt additions = %v, want 1", (*dirty)["additions"])
+		}
+		if untracked == nil {
+			t.Fatalf("untracked.txt missing from diff list: %v", diffs)
+		}
+		if (*untracked)["status"] != "added" {
+			t.Errorf("untracked.txt status = %v, want \"added\"", (*untracked)["status"])
+		}
+		if a, _ := (*untracked)["additions"].(float64); a != 3 {
+			t.Errorf("untracked.txt additions = %v, want 3 (line count)", (*untracked)["additions"])
+		}
+	})
+
+	t.Run("clean git workspace", func(t *testing.T) {
+		repo := makeGitRepo(t)
+		// reset the staged file and remove the untracked one → clean tree
+		if out, err := exec.Command("git", "-C", repo, "reset", "--hard", "HEAD").CombinedOutput(); err != nil {
+			t.Fatalf("git reset: %v\n%s", err, out)
+		}
+		if err := os.Remove(filepath.Join(repo, "untracked.txt")); err != nil {
+			t.Fatal(err)
+		}
+		s, srv := newTestServer(&mockDB{})
+		defer srv.Close()
+		s.workdir = repo
+
+		resp, err := http.Get(srv.URL + "/instance/vcs/diff")
+		if err != nil {
+			t.Fatalf("GET /instance/vcs/diff: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var diffs []map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&diffs); err != nil {
+			t.Fatalf("not JSON array: %v", err)
+		}
+		if len(diffs) != 0 {
+			t.Errorf("expected empty diff list for clean repo, got %v", diffs)
+		}
+	})
+
+	t.Run("non-git workspace", func(t *testing.T) {
+		workdir := t.TempDir()
+		s, srv := newTestServer(&mockDB{})
+		defer srv.Close()
+		s.workdir = workdir
+
+		resp, err := http.Get(srv.URL + "/instance/vcs/diff")
+		if err != nil {
+			t.Fatalf("GET /instance/vcs/diff: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200 (never error), got %d", resp.StatusCode)
+		}
+		var diffs []map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&diffs); err != nil {
+			t.Fatalf("not JSON array: %v", err)
+		}
+		if len(diffs) != 0 {
+			t.Errorf("expected empty diff list for non-git workspace, got %v", diffs)
+		}
+	})
+}
+
+func TestInstanceKnownSubpathReturns501(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, sub := range []string{
+		"/instance/vcs/status", "/instance/vcs/diff/raw", "/instance/vcs/apply",
+		"/instance/dispose", "/instance/command", "/instance/agent",
+		"/instance/skill", "/instance/lsp", "/instance/formatter",
+	} {
+		resp, err := http.Get(srv.URL + sub)
+		if err != nil {
+			t.Fatalf("GET %s: %v", sub, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != 501 {
+			t.Errorf("GET %s: expected 501, got %d: %s", sub, resp.StatusCode, body)
+		}
+	}
+
+	// upstream POST endpoints reach the 501 branch regardless of method
+	req, _ := http.NewRequest("POST", srv.URL+"/instance/dispose", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST /instance/dispose: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 501 {
+		t.Errorf("POST /instance/dispose: expected 501, got %d", resp.StatusCode)
+	}
+}
+
+func TestInstanceUnknownSubpathReturns404(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/instance/foo")
+	if err != nil {
+		t.Fatalf("GET /instance/foo: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
 }
 

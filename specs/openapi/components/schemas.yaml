@@ -680,3 +680,76 @@ HealthResponse:
     version:
       type: string
       example: "0.1.0"
+
+# ─── Instance Schemas (SPEC-017 §3.10) ───
+
+InstanceInfo:
+  type: object
+  required: [id, path, createdAt, updatedAt]
+  properties:
+    id:
+      type: string
+      description: Stable singleton instance id (derived from the workspace directory).
+    path:
+      type: string
+      description: Workspace directory the instance is rooted at.
+    createdAt:
+      type: string
+      format: date-time
+      description: Server process start time.
+    updatedAt:
+      type: string
+      format: date-time
+      description: Time of the last update to the instance list.
+  description: A single Consensus shim instance (the server is a singleton).
+
+InstancePathInfo:
+  type: object
+  required: [home, state, config, worktree, directory]
+  properties:
+    home:
+      type: string
+      description: User home directory.
+    state:
+      type: string
+      description: Consensus state directory.
+    config:
+      type: string
+      description: Consensus config file path.
+    worktree:
+      type: string
+      description: Git worktree root of the workspace (falls back to directory).
+    directory:
+      type: string
+      description: Workspace directory.
+  description: opencode PathInfo translation (SPEC-017 §3.10).
+
+VcsInfo:
+  type: object
+  properties:
+    branch:
+      type: string
+      description: Current git branch (absent for non-git or detached workspaces).
+    default_branch:
+      type: string
+      description: Default branch from origin HEAD or init.defaultBranch.
+  description: opencode Vcs.Info translation — both fields optional.
+
+VcsFileDiff:
+  type: object
+  required: [file, additions, deletions]
+  properties:
+    file:
+      type: string
+      description: Changed file path relative to the workspace.
+    additions:
+      type: integer
+      description: Added line count.
+    deletions:
+      type: integer
+      description: Deleted line count.
+    status:
+      type: string
+      enum: [added, deleted, modified]
+      description: Change classification.
+  description: opencode Vcs.FileDiff translation — patch omitted (optional upstream).

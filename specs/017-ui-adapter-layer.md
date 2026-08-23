@@ -443,6 +443,25 @@ These opencode endpoints relate to opencode's own internal LLM calling and aren'
 
 These return `501 Not Implemented` or are mapped to Consensus equivalents where sensible.
 
+The `/instance/*` surface is NOT part of this exclusion list — it is implemented as real opencode-protocol translation endpoints, see §3.10.
+
+### 3.10 Instance Endpoints (opencode-protocol translation)
+
+C-GAP-031: `/instance/*` translates the opencode server protocol into native Consensus calls instead of returning 501. The Consensus server is a singleton instance rooted at the server process working directory.
+
+**Auth policy:** `/instance/*` is fully public — no auth — because the opencode contract probes these endpoints unauthenticated and expects 200 with real workspace data (full-contract suite C19). `isStubPath` no longer covers `/instance`; the auth skip lives directly in the auth middleware.
+
+| Endpoint | Response |
+|---|---|
+| `GET /instance` | Singleton instance list: `[{id, path, createdAt, updatedAt}]` — `id` is a stable hash of the workspace directory; timestamps come from the server process. |
+| `GET /instance/path` | opencode `PathInfo`: `{home, state, config, worktree, directory}` — `worktree` is the git top-level when the workspace is a repo, otherwise the directory itself. |
+| `GET /instance/vcs` | opencode `Vcs.Info`: `{branch?, default_branch?}` read live from git (`branch --show-current`, origin HEAD / `init.defaultBranch`); non-git workspaces return `{}` — never an error. |
+| `GET /instance/vcs/diff` | opencode `Vcs.FileDiff[]`: `[{file, additions, deletions, status?}]` built from `git status --porcelain` + `git diff HEAD --numstat` (untracked files count their own lines); clean or non-git workspaces return `[]`. `patch` is omitted — optional in the upstream schema. |
+
+Other upstream `/instance/*` sub-paths (`dispose`, `vcs/status`, `vcs/diff/raw`, `vcs/apply`, `command`, `agent`, `skill`, `lsp`, `formatter`) return `501 NOT_IMPLEMENTED` (same convention as `/session` subpaths in §3.9); unknown sub-paths return `404 NOT_FOUND`.
+
+Response shapes mirror the upstream opencode server protocol (`sst/opencode` `packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts` and `src/project/vcs.ts`) so bridged opencode clients are indistinguishable from a native server.
+
 ---
 
 ## 4. MCP Server (Tool-Level Integration)

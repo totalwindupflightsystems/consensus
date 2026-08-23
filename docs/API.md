@@ -310,7 +310,8 @@ curl http://localhost:8090/api/v1/metrics \
 | `/webhooks/` | HMAC signature | Webhook ingestion (SPEC-013) |
 | `/ui/` | — | Web admin console (proxies API via its own `/api/` path) |
 | `/chronicle/` | — | Chronicle investigation workbench |
-| `/instance/*`, `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, `/doc`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls; `/doc` serves the shim's own Swagger UI (the REST API explorer lives at `/doc/api`) |
+| `/instance`, `/instance/path`, `/instance/vcs`, `/instance/vcs/diff` | — (public) | opencode protocol shim (SPEC-017 §3.10) — singleton instance list, workspace `PathInfo`, live git branch info, and per-file diff stats; other upstream `/instance/*` sub-paths return 501, unknown sub-paths 404 |
+| `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, `/doc`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls; `/doc` serves the shim's own Swagger UI (the REST API explorer lives at `/doc/api`) |
 
 ---
 
