@@ -23,21 +23,19 @@ Admin keys have full CRUD access to all endpoints. Key rotation should be perfor
 curl -s http://localhost:8090/api/v1/auth/keys \
   -H "Authorization: Bearer $CURRENT_ADMIN_KEY" | jq .
 
-# Expected response snippet:
-# {
-#   "keys": [
-#     {
-#       "key_prefix": "cs_ak_a1b2",
-#       "scope": "admin",
-#       "created_at": "2026-03-01T00:00:00Z",
-#       "expires_at": "2026-05-30T00:00:00Z"
-#     }
-#   ]
-# }
+# Expected response snippet (bare array — one entry per key):
+# [
+#   {
+#     "key_prefix": "cs_ak_a1b2",
+#     "scope": "admin",
+#     "created_at": "2026-03-01T00:00:00Z",
+#     "expires_at": "2026-05-30T00:00:00Z"
+#   }
+# ]
 
 # Check expiry
 curl -s http://localhost:8090/api/v1/auth/keys \
-  -H "Authorization: Bearer $CURRENT_ADMIN_KEY" | jq -r '.keys[] | select(.scope=="admin") | "Expires: \(.expires_at)"'
+  -H "Authorization: Bearer $CURRENT_ADMIN_KEY" | jq -r '.[] | select(.scope=="admin") | "Expires: \(.expires_at)"'
 ```
 
 ---
@@ -80,7 +78,7 @@ curl -s http://localhost:8090/api/v1/sessions \
 # Get the old key ID
 OLD_KEY_ID=$(curl -s http://localhost:8090/api/v1/auth/keys \
   -H "Authorization: Bearer $NEW_ADMIN_KEY" | \
-  jq -r '.keys[] | select(.key_prefix == "cs_ak_a1b2") | .id')
+  jq -r '.[] | select(.key_prefix == "cs_ak_a1b2") | .id')
 
 # Delete the old key
 curl -s -X DELETE "http://localhost:8090/api/v1/auth/keys/$OLD_KEY_ID" \
