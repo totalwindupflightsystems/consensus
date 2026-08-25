@@ -349,7 +349,7 @@ func (s *Server) handleListAPIKeys(w http.ResponseWriter, r *http.Request) {
 
 	type keyEntry struct {
 		ID        string  `json:"id"`
-		Prefix    string  `json:"prefix"`
+		Prefix    string  `json:"key_prefix"`
 		Scope     string  `json:"scope"`
 		SessionID *string `json:"session_id,omitempty"`
 		ExpiresAt *string `json:"expires_at,omitempty"`

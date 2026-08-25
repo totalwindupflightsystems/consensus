@@ -538,6 +538,20 @@ func TestListAPIKeys_Admin(t *testing.T) {
 		t.Errorf("expected at least 1 key, got %d", len(keys))
 	}
 
+	// Field-name contract (C-GAP-035): the GET list response must use
+	// key_prefix — the same field name as the POST create response, the
+	// docs, and the DB column. The old name `prefix` silently broke
+	// automation parsing this endpoint.
+	for i, k := range keys {
+		prefix, ok := k["key_prefix"].(string)
+		if !ok || prefix == "" {
+			t.Errorf("keys[%d]: expected non-empty key_prefix field, got %v", i, k["key_prefix"])
+		}
+		if _, hasOld := k["prefix"]; hasOld {
+			t.Errorf("keys[%d]: legacy field 'prefix' must not be present (use key_prefix)", i)
+		}
+	}
+
 	// Check that no key_hash is exposed
 	for _, k := range keys {
 		if _, hasHash := k["key_hash"]; hasHash {
