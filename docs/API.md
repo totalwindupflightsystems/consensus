@@ -94,6 +94,13 @@ the process working directory when it exists, so re-running
 curl http://localhost:8090/openapi.json | jq '.paths | keys'
 ```
 
+**Authoritative path count: 60** (36 opencode shim + 24 native `/api/v1`),
+including the four `/instance` routes (`/instance`, `/instance/path`,
+`/instance/vcs`, `/instance/vcs/diff`) from SPEC-017 §3.10. The embedded
+`specs/openapi/bundled.yaml` (served at `/openapi.json`) is the source of
+truth — when routes are added or removed, update this count in the same
+change.
+
 ---
 
 ## Sessions
