@@ -631,12 +631,12 @@ CreateAPIKeyResponse:
 
 APIKeyEntry:
   type: object
-  required: [id, prefix, scope, created_at]
+  required: [id, key_prefix, scope, created_at]
   properties:
     id:
       type: string
       format: uuid
-    prefix:
+    key_prefix:
       type: string
       description: Key prefix (first 8 chars).
     scope:
