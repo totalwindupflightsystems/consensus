@@ -3,11 +3,12 @@
 // The bundle lives at specs/openapi/bundled.yaml at the repository root.
 // internal/api cannot go:embed it directly (embed patterns cannot cross
 // package directories), so this tiny root-level package is the single
-// compile-time holder. The API server prefers the on-disk file when it
-// exists (dev workflow — live edits after `make bundle-spec`) and falls
-// back to this embedded copy otherwise, which makes /openapi.json and
-// /openapi.yaml work from any working directory and in the Docker image
-// (which does not copy specs/). See DOGFOOD-103.
+// compile-time holder. The embedded copy is the single source of truth for
+// the served contract (C-GAP-039): the API server serves specs.BundledYAML
+// unconditionally, so /openapi.yaml and /openapi.json are identical from any
+// working directory and in the Docker image (which does not copy specs/).
+// To publish a new contract, update specs/openapi/, re-run `make bundle-spec`,
+// and rebuild. See DOGFOOD-103 and SPEC-018 §9.
 package specs
 
 import _ "embed"

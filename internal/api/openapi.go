@@ -1,9 +1,11 @@
 // Package api: OpenAPI spec serving (SPEC-018 §9).
 //
 // The specs directory contains split OpenAPI files (openapi.yaml + components/ + paths/),
-// but for serving we use a single-file bundled spec. The bundle step can be run via
-// `npx @redocly/cli bundle specs/openapi/openapi.yaml -o specs/openapi/bundled.yaml`
-// or the server reads the root spec directly and serves it via Swagger UI CDN.
+// which are bundled into a single file (specs/openapi/bundled.yaml) and embedded into
+// the binary at build time (see specs/embed.go). The served contract is ALWAYS the
+// embedded copy — an on-disk specs/openapi/bundled.yaml can no longer shadow it
+// (C-GAP-039). Regenerate the bundle with `make bundle-spec` and rebuild to publish
+// a new contract.
 //
 // axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-3 impl=internal/api/openapi.go
 package api
@@ -13,7 +15,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -37,60 +38,28 @@ func (s *Server) registerOpenAPIRoutes(r chi.Router) {
 	r.Get("/doc/api/*", s.handleSwaggerUI)
 }
 
-// resolveSpecPath finds the OpenAPI spec file, checking multiple locations.
-func resolveSpecPath() string {
-	// Check for bundled.yaml first (generated single-file spec)
-	candidates := []string{
-		"specs/openapi/bundled.yaml",
-		"specs/openapi/openapi.yaml",
-		filepath.Join("..", "..", "specs", "openapi", "bundled.yaml"),
-		filepath.Join("..", "..", "specs", "openapi", "openapi.yaml"),
-	}
-
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-
-	// Fallback: try from current directory
-	if _, err := os.Stat("openapi.yaml"); err == nil {
-		return "openapi.yaml"
-	}
-
-	return ""
-}
-
-// loadSpec reads and parses the OpenAPI YAML spec into a generic map.
+// loadSpec returns the embedded OpenAPI spec bytes and its parsed document.
 //
-// Resolution order (DOGFOOD-103):
-//  1. On-disk bundle relative to the process CWD (dev workflow — after
-//     re-running `make bundle-spec` the running server picks up the new
-//     file without a rebuild).
-//  2. The spec embedded into the binary at build time (specs.BundledYAML),
-//     so /openapi.json and /openapi.yaml work from any working directory
-//     and in the Docker image, which does not copy specs/.
+// The embedded copy (specs.BundledYAML) is the single source of truth for
+// the served contract (C-GAP-039): /openapi.yaml and /openapi.json serve
+// byte-identical content from any working directory and in the Docker image
+// (which does not copy specs/), regardless of what files exist on disk.
+// Previously the server preferred an on-disk specs/openapi/bundled.yaml so
+// `make bundle-spec` changes were picked up without a rebuild — that let a
+// stale or divergent local bundle shadow the repo spec, so the on-disk
+// resolution was removed. Publish a new contract by regenerating the bundle
+// and rebuilding.
 func (s *Server) loadSpec() ([]byte, map[string]any, error) {
-	var data []byte
-
-	if path := resolveSpecPath(); path != "" {
-		d, err := os.ReadFile(path)
-		if err != nil {
-			return nil, nil, err
-		}
-		data = d
-	} else if len(specs.BundledYAML) > 0 {
-		data = specs.BundledYAML
-	} else {
+	if len(specs.BundledYAML) == 0 {
 		return nil, nil, os.ErrNotExist
 	}
 
 	var doc map[string]any
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return data, nil, err // return raw data even if parse fails (for YAML serving)
+	if err := yaml.Unmarshal(specs.BundledYAML, &doc); err != nil {
+		return specs.BundledYAML, nil, err // return raw data even if parse fails (for YAML serving)
 	}
 
-	return data, doc, nil
+	return specs.BundledYAML, doc, nil
 }
 
 // handleOpenAPIYAML serves the raw YAML OpenAPI spec.
@@ -99,7 +68,7 @@ func (s *Server) handleOpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("api: failed to load OpenAPI spec", "error", err)
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND",
-			"OpenAPI spec not found. Run 'make bundle-spec' to generate it, or place specs/openapi/openapi.yaml.")
+			"OpenAPI spec not found. The spec is embedded at build time from specs/openapi/bundled.yaml; rebuild the binary.")
 		return
 	}
 
