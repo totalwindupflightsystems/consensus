@@ -177,6 +177,31 @@ go build -o bin/consensus ./cmd/consensus/
 > root binary). Confirm what you're about to run with
 > `bin/consensus --version`.
 
+#### Port 8090 already in use? (stale sidecar shadowing)
+
+If `serve` dies with an actionable diagnostic naming the occupant class
+(instead of a bare `bind: address already in use`), the listen port is
+shadowed by a stale `consensus-sidecar` or other leftover process. The
+tell-tale symptom: `curl http://localhost:8090/api/v1/health` returns
+`404 page not found` instead of `{"status":"ok",...}` — the stale sidecar
+owns the port and answers every path with 404.
+
+Identify the occupant read-only (host state — never kill it automatically):
+
+```bash
+ss -tlnp | grep :8090
+```
+
+Start on a free port instead — either form works:
+
+```bash
+CONSENSUS_PORT=8095 ./bin/consensus serve
+# or
+./bin/consensus serve --port 8095
+```
+
+Then verify: `curl http://localhost:8095/api/v1/health` → `{"status":"ok",...}`.
+
 Three commands. You have a running agent harness with:
 - Append-only memory ledger
 - Vector-validated compression (harness-internal)
@@ -224,7 +249,7 @@ no expiry).
 | `CONSENSUS_LLM_BASE_URL` | `https://api.deepseek.com/v1` | Override LLM API endpoint |
 | `CONSENSUS_API_KEY` | — | Protect the API with an auth key |
 | `CONSENSUS_DB_URL` | `sqlite://$HOME/.consensus/consensus.db` | PostgreSQL or SQLite DSN |
-| `CONSENSUS_PORT` | `8090` | Server listen port |
+| `CONSENSUS_PORT` | `8090` | Server listen port (if occupied by a stale sidecar, see [Port 8090 already in use?](#port-8090-already-in-use-stale-sidecar-shadowing)) |
 | `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`)
 
 **Docker Compose** (docker-compose.prod.yml — full stack, Consensus + PostgreSQL):

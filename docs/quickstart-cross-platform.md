@@ -165,7 +165,7 @@ curl http://localhost:8090/api/v1/health
 
 | Gotcha | Symptom | Fix |
 |--------|---------|-----|
-| **Port 8090 occupied** | `api: listen tcp :8090: bind: address already in use` | `CONSENSUS_PORT=8095 ./bin/consensus serve` |
+| **Port 8090 occupied** | `serve` prints an actionable diagnostic naming the occupant class and the `CONSENSUS_PORT`/`--port` override (instead of a bare `bind: address already in use`) | `CONSENSUS_PORT=8095 ./bin/consensus serve` |
 | **Non-Consensus service on port 8090** | `curl` returns 404 or unexpected response | Verify with `ss -tlnp \| grep 8090`. Use `CONSENSUS_PORT` to pick a different port. |
 | **Missing C compiler for SQLite** | `go build` fails with CGO errors | `CGO_ENABLED=0 go build ...` uses pure-Go SQLite driver |
 | **Go not in PATH** | `go: command not found` | Add `export PATH=$PATH:/usr/local/go/bin` to `~/.bashrc` |

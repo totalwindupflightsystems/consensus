@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -2524,5 +2525,118 @@ func TestRootCommandVersionFlag(t *testing.T) {
 	}
 	if !strings.Contains(out, version) {
 		t.Errorf("expected version output to contain %q, got: %q", version, out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// C-GAP-038 — port occupant classification (portprobe.go)
+// ---------------------------------------------------------------------------
+
+func TestProbePort_FreePort(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	res := ProbePort("127.0.0.1", port)
+	if res.Occupied {
+		t.Errorf("expected port %d to probe free, got occupied (class=%s)", port, res.Class)
+	}
+	if res.Class != OccupantNone {
+		t.Errorf("expected class %q, got %q", OccupantNone, res.Class)
+	}
+}
+
+func TestProbePort_ConsensusOccupant(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/health" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"status":"ok","version":"0.1.0"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+	res := ProbePort("127.0.0.1", port)
+	if !res.Occupied {
+		t.Fatal("expected occupied port")
+	}
+	if res.Class != OccupantConsensus {
+		t.Errorf("expected class %q, got %q", OccupantConsensus, res.Class)
+	}
+}
+
+func TestProbePort_ForeignHTTPOccupant(t *testing.T) {
+	// 404 on every path — the shadowed-port symptom (curl /api/v1/health
+	// returns "page not found" instead of {"status":"ok",...}).
+	srv := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+	res := ProbePort("127.0.0.1", port)
+	if !res.Occupied {
+		t.Fatal("expected occupied port")
+	}
+	if res.Class != OccupantForeignHTTP {
+		t.Errorf("expected class %q, got %q", OccupantForeignHTTP, res.Class)
+	}
+}
+
+func TestProbePort_NonHTTPOccupant(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	port := ln.Addr().(*net.TCPAddr).Port
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	res := ProbePort("127.0.0.1", port)
+	if !res.Occupied {
+		t.Fatal("expected occupied port")
+	}
+	if res.Class != OccupantNonHTTP {
+		t.Errorf("expected class %q, got %q", OccupantNonHTTP, res.Class)
+	}
+}
+
+func TestProbePort_DiagnosticMentionsOverride(t *testing.T) {
+	res := ProbeResult{Occupied: true, Class: OccupantForeignHTTP, Addr: "127.0.0.1:8090", Port: 8090}
+	diag := res.Diagnostic()
+	for _, want := range []string{"CONSENSUS_PORT", "--port", "127.0.0.1:8090", "stale"} {
+		if !strings.Contains(diag, want) {
+			t.Errorf("diagnostic missing %q:\n%s", want, diag)
+		}
+	}
+}
+
+func TestProbePort_FreePortDoesNotBlock(t *testing.T) {
+	// Sanity: probing a refused port returns promptly and correctly (no
+	// explicit timing assertion — the suite timeout guards against hangs).
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	res := ProbePort("127.0.0.1", port)
+	if res.Occupied {
+		t.Errorf("expected refused port to probe free, got class=%s", res.Class)
+	}
+	if res.Class != OccupantNone {
+		t.Errorf("expected class %q, got %q", OccupantNone, res.Class)
 	}
 }

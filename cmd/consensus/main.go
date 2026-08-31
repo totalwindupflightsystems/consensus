@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -70,6 +71,18 @@ func runServer() {
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Pre-flight port probe (C-GAP-038): if something already occupies the
+	// effective listen port, fail fast with an actionable diagnostic naming
+	// the occupant class instead of a bare EADDRINUSE deep in startup.
+	// Read-only — never touches the occupant. cfg.Server is authoritative
+	// (flags → CONSENSUS_PORT env → consensus.yaml port → default 8090) and
+	// covers BOTH the bare-binary path (main → runServer) and the
+	// `consensus serve` path (cli.ServerFunc → runServer).
+	if res := cli.ProbePort(cfg.Server.Hostname, cfg.Server.Port); res.Occupied {
+		fmt.Fprintln(os.Stderr, res.Diagnostic())
 		os.Exit(1)
 	}
 
@@ -358,8 +371,23 @@ func runServer() {
 	// (5s grace for in-flight requests) instead of killing them.
 	go func() {
 		if err := apiSrv.StartContext(ctx); err != nil {
+			// Normal shutdown path: Shutdown() makes ListenAndServe return
+			// ErrServerClosed — not a failure, exit 0 as before.
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
 			fmt.Fprintf(os.Stderr, "consensus: %v\n", err)
-			cancel()
+			// C-GAP-038: a server-start failure must exit non-zero (it
+			// previously printed and exited 0), and when the port is
+			// occupied the error should be actionable. This fallback also
+			// covers the race where an occupant appears between the
+			// pre-flight probe and the bind.
+			if errors.Is(err, syscall.EADDRINUSE) {
+				if res := cli.ProbePort(cfg.Server.Hostname, cfg.Server.Port); res.Occupied {
+					fmt.Fprintln(os.Stderr, res.Diagnostic())
+				}
+			}
+			os.Exit(1)
 		}
 	}()
 
