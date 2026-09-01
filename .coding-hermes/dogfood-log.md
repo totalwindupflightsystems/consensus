@@ -31,3 +31,5 @@ Run details (2026-08-15):
   addendum, skills/consensus-usage/SKILL.md v2.0 (stale landmines removed).
 - Foreman: not woken (CooldownS=3600 < 14400; enabled, healthy). P0s will be
   picked up on the next tick.
+2026-09-01 | PROMISING-BUT-ROUGH | 45s t2fs | friction 9 | 5 findings
+
