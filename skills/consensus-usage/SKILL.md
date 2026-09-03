@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.3.0
+version: 2.4.0
 category: software-development
 ---
 
@@ -21,6 +21,11 @@ Consensus is a database-native agent runtime ("the database IS the agent"):
 agent context is a live SQL view, memory is a ledger in SQLite/Postgres,
 sessions survive `kill -9`, and everything is manageable over REST + CLI +
 MCP. Module: `github.com/wojons/consensus` (branch `master`, Go 1.26).
+
+> **2026-09-03 status:** the goal-driven execution pattern below is verified
+> working with real LLM calls. The documented conversational message contract
+> (`{"role":"user",...}`) is verified BROKEN (DF-CONSENSUS-6) — use the
+> goal-driven pattern until it's fixed.
 
 ## Entry points
 
@@ -110,14 +115,49 @@ Compiles first try; verified against a live server both runs.
   `_meta.authorization`, so initialize authenticates instead of returning
   "Authentication required".
 
-## Current landmines (from the 2026-08-15 re-run — DO NOT assume fixed)
+## Current landmines (from the 2026-09-03 run — DO NOT assume fixed)
 
-1. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
+0. **The documented conversational path is DEAD (DF-CONSENSUS-6, verified
+   2026-09-03 with real LLM calls).** `POST /sessions/{id}/message` with
+   docs/API.md's `{"role":"user","content":...}` payload never reaches the
+   LLM: the planning prompt stays `messages=2` every turn, the model itself
+   reports "No user-supplied text is present in this turn", no assistant
+   reply is ever produced anywhere, tokens stay 0, and the session ends
+   `idle` with no error surfaced. **Do not use this path.** Use the
+   goal-driven pattern above (task in `goal` + `{"type":"user_instruction"}`
+   wake message) — that one verifiably stages and executes SQL and lands
+   memory events. Until DF-CONSENSUS-6 is fixed, treat any docs example
+   using `{"role":...}` as broken.
+1. **Neither README quickstart works from a clean machine** (DF-CONSENSUS-7,
+   verified on an ephemeral bunker agent 2026-09-03): `docker pull
+   ghcr.io/wojons/consensus:latest` → `denied` (image not anonymously
+   pullable; the same agent pulls alpine fine), and the GitHub repo is not
+   anonymously cloneable. With repo access the verified fallback is:
+   tar the tree over, bootstrap Go 1.26.5 (agent has no Go, no sudo —
+   set GOPATH away from the extracted GOROOT), `go build` ≈ 61 s,
+   init/serve/health-200 PASS.
+2. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
    retrieval is harness-internal; don't look for a search API.
-2. **H3 is a library, not mounted**: `consensus serve` does not expose
+3. **H3 is a library, not mounted**: `consensus serve` does not expose
    `/v1/*`; mount `internal/shim/h3` yourself (INTEGRATION.md §2.3 has a
    runnable keyless example — reads PORT env, defaults to 8095, since
    DOGFOOD-107 → `0389a05`).
+4. **Session create ignores the requested model** (DF-CONSENSUS-9):
+   `POST /sessions` with `model:"deepseek-chat"` (or `model_id`) still
+   returns `"model":"default"` — model selection comes from config/registry.
+5. **Undocumented required create fields, still** (DF-CONSENSUS-2, verified
+   again 2026-09-03): `agent_name` (and in practice `goal`) are mandatory —
+   the documented minimal payload 400s with `agent_name is required`.
+6. **Heartbeat auto-resume burns tokens on abandoned sessions**: a session
+   left in `planning` keeps making real LLM calls (~10 turns × ~1.7k prompt
+   tokens) until max_turns/timeout. PATCH the session to `pause`/`cancel`
+   before walking away from a scratch run.
+7. **bunker-hosted agents: use the bunkerd socket, not the systemd unit**
+   (DF-CONSENSUS-9): the spawn-time rootless dockerd owns
+   `/run/user/<uid>/dockerd-rootless`; `systemctl --user start docker`
+   deadlocks ("failed to lock ... another RootlessKit is running") and
+   restart-loops. Use the socket printed by `bunker spawn`
+   (`/run/bunker/<agent>/docker.sock`).
 
 ## FIXED since the 2026-08-04 run (do NOT re-report these)
 
@@ -151,7 +191,12 @@ Compiles first try; verified against a live server both runs.
   INTEGRATION.md §2.3's example reads PORT env (default 8095) instead of
   hardcoding the port.
 
-## Crash recovery (verified both runs)
+## Crash recovery (verified three runs)
 
 `kill -9` the server → DB intact → restart with the same config → sessions
-and memory events all there. This claim is real.
+and memory events all there. This claim is real (re-verified 2026-09-03:
+heartbeat auto-resumed the in-flight session). Caveat (DF-CONSENSUS-8): what
+you recover is your own input plus session state — an in-flight conversational
+run emits zero durable output, so there is no agent work to recover unless the
+goal-driven path had already committed it. `staging_buffer` keeps stranded
+rows from abnormal exits; check it to see what a run *tried* to do.

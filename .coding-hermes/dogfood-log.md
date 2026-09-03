@@ -32,4 +32,25 @@ Run details (2026-08-15):
 - Foreman: not woken (CooldownS=3600 < 14400; enabled, healthy). P0s will be
   picked up on the next tick.
 2026-09-01 | PROMISING-BUT-ROUGH | 45s t2fs | friction 9 | 5 findings
+2026-09-03 | PROMISING-BUT-ROUGH | goal-exec works, chat path dead | friction 6 | 4 findings | t2fs ~120s | install_seconds=61 (tar+Go bootstrap fallback; documented paths FAIL: ghcr denied + repo private) | bunker=las-01 agent=af56fcf2 (las-03 pool exhausted) | smoke=ok
+
+Run details (2026-09-03):
+- Real use: scratch sqlite :18201 + real DeepSeek key. Fresh init flow exact
+  per docs; REST sweep (sessions/memory/context/iterations/health/openapi);
+  A/B isolated the message-path defect; goal-driven execution verified with
+  real staged SQL → memory event; kill -9 crash recovery re-verified live
+  (heartbeat auto-resume); MCP/SSE/Chronicle/doc-api probes.
+- Headline finding DF-CONSENSUS-6 (P0): user message never reaches the LLM
+  (messages=2 every turn, ~30 calls), no reply ever produced/observable,
+  tokens/billing/audit/commits all 0 after 4 runs.
+- DF-CONSENSUS-7 (P0): README docker quickstart image not anonymously
+  pullable (ghcr denied) + repo not anonymously cloneable; verified fallback
+  install 61s build + smoke PASS on ephemeral bunker agent (destroyed OK).
+- Tasks written: DF-CONSENSUS-6 (P0), DF-CONSENSUS-7 (P0), DF-CONSENSUS-8
+  (P1), DF-CONSENSUS-9 (P2) — pending on the board (JSONL).
+- Artifacts: docs/dogfood/2026-09-03-integration.md,
+  docs/dogfood/diagnostics-2026-09-03.md, skills/consensus-usage/SKILL.md
+  v2.4.0 (landmines 0-7, goal-driven pattern marked verified).
+- Foreman: woken (CooldownS 43200 → 900) — 4 new board tasks incl. 2×P0.
+
 
