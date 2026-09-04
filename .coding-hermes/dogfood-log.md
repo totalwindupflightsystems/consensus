@@ -54,3 +54,4 @@ Run details (2026-09-03):
 - Foreman: woken (CooldownS 43200 → 900) — 4 new board tasks incl. 2×P0.
 
 
+2026-09-04 | PROMISING-BUT-ROUGH | 58s t2fs | friction 7 | 5 findings
