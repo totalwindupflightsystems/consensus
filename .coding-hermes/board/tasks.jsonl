@@ -173,3 +173,1330 @@
 {"status":"pending","id":"QA-CONSENSUS-4","title":"[P3] bunker-qa.sh spawn_agent() retries same --server 3x then aborts whole battery — no fallback","detail":"/home/kara/.hermes/scripts/bunker-qa.sh:28-34: spawn_agent() retries the SAME --server 3x with 5s sleeps, then aborts the battery; no BUNKER_CONFIG env, no HOME passthrough, no fallback to other registered servers (las-01/02/04). One missing config entry in the sandbox kills every downstream cell. Fix: HOME=/home/kara pinning on invocations.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"/home/kara/.hermes/scripts/bunker-qa.sh:28-34: spawn_agent() retries the SAME --server 3x with 5s sleeps, then aborts the battery; no BUNKER_CONFIG env, no HOME passthrough, no fallback to other registered servers (las-01/02/04). One missing config entry in the sandbox kills every downstream cell. Fix: HOME=/home/kara pinning on invocations.","ts":"2026-09-05T16:09:34.750Z"}
 {"status":"pending","id":"QA-CONSENSUS-5","title":"[P3] P0 dogfood row DF-CONSENSUS-6 stuck — repeated dry-run ticks, no worker dispatch","detail":"DF-CONSENSUS-6 [P0] 'Conversational message path is broken end-to-end' still pending; events.jsonl ids 300/301 (09-04 22:53, 09-05 05:04) show worker=dry-run, guard=not_run, commit=none — no real worker ever dispatched on a P0.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: (board probe))"},"review_notes":"DF-CONSENSUS-6 [P0] 'Conversational message path is broken end-to-end' still pending; events.jsonl ids 300/301 (09-04 22:53, 09-05 05:04) show worker=dry-run, guard=not_run, commit=none — no real worker ever dispatched on a P0.","ts":"2026-09-05T16:09:34.750Z"}
 
+{"status":"pending","id":"QA-CONSENSUS-1","title":"[P1] run_battery produced zero cells — consensus UNVERIFIED despite bunker-las-03 being ONLINE","detail":"Cell outcomes: (no cells recorded). Verified live: ── bunker-las-03 ──
+  Hostname: bunker-las-03
+  URL:      http://100.69.3.13:10002
+  Version:  0.1.3
+  Status:   ONLINE
+  Uptime:   14h 7m 46s
+  Agents:   7/8
+  CPU:      163.2%
+  Memory:   10.3 GB / 31.1 GB
+  Disk:     31% (67.8 GB/220.6 GB)
+  Docker:   9 containers → Status: ONLINE (v0.1.3, http://100.69.3.13:10002), so the zero-cell outcome is not a dead server; the battery never executed and consensus brittleness remains unverified (board row QA-CONSENSUS-1 'run_battery FAIL — battery never ran, consensus UNVERIFIED' filed 33×).","priority":"P1","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"Cell outcomes: (no cells recorded). Verified live: ── bunker-las-03 ──
+  Hostname: bunker-las-03
+  URL:      http://100.69.3.13:10002
+  Version:  0.1.3
+  Status:   ONLINE
+  Uptime:   14h 7m 47s
+  Agents:   7/8
+  CPU:      104.0%
+  Memory:   10.3 GB / 31.1 GB
+  Disk:     31% (67.8 GB/220.6 GB)
+  Docker:   9 containers → Status: ONLINE (v0.1.3, http://100.69.3.13:10002), so the zero-cell outcome is not a dead server; the battery never executed and consensus brittleness remains unverified (board row QA-CONSENSUS-1 'run_battery FAIL — battery never ran, consensus UNVERIFIED' filed 33×).","ts":"2026-09-05T18:28:19.241Z"}
+{"status":"pending","id":"QA-CONSENSUS-2","title":"[P2] DF-CONSENSUS-6 (P0 dogfood) stuck: 6 consecutive dry-run ticks, no worker dispatch","detail":"events.jsonl ids 299-303 + 1: all  for DF-CONSENSUS-6, latest 2026-09-05 18:13:31 — a P0 'conversational message path broken end-to-end' row pending for days with only dry-run ticks and no commit; stuck-task pattern per interpreter rules.","priority":"P2","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: DF-CONSENSUS-6)"},"review_notes":"events.jsonl ids 299-303 + 1: all  for DF-CONSENSUS-6, latest 2026-09-05 18:13:31 — a P0 'conversational message path broken end-to-end' row pending for days with only dry-run ticks and no commit; stuck-task pattern per interpreter rules.","ts":"2026-09-05T18:28:19.241Z"}
+{"status":"pending","id":"QA-CONSENSUS-3","title":"[P3] Board duplicate churn: QA-CONSENSUS-1 filed 33×, QA-CONSENSUS-2 23× as separate pending rows","detail":"tasks.jsonl: 86 pending rows;  → QA-CONSENSUS-1 ×33, QA-CONSENSUS-2 ×23, QA-CONSENSUS-3 ×11; row QA-CONSENSUS-5 itself admits 'Repeated finding churn: QA-CONSENSUS-1 filed 17×, QA-CONSENSUS-2 10× as separate pending rows' — same battery-blocked condition re-filed every cycle, board unusable as a queue.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: board/tasks.jsonl)"},"review_notes":"tasks.jsonl: 86 pending rows;  → QA-CONSENSUS-1 ×33, QA-CONSENSUS-2 ×23, QA-CONSENSUS-3 ×11; row QA-CONSENSUS-5 itself admits 'Repeated finding churn: QA-CONSENSUS-1 filed 17×, QA-CONSENSUS-2 10× as separate pending rows' — same battery-blocked condition re-filed every cycle, board unusable as a queue.","ts":"2026-09-05T18:28:19.241Z"}
+{"status":"pending","id":"QA-CONSENSUS-4","title":"[P3] .gitreins/tasks.yaml git-tracked and dirty (+340 lines) despite AGENTS.md forbidding it","detail":"?? $HOME/
+?? --games
+?? .9router/
+?? .Xauthority
+?? .aws/
+?? .axiom-venv/
+?? .bash_history
+?? .bash_logout
+?? .bashrc
+?? .blogwatcher-cli/
+?? .browser-driver-manager/
+?? .bun/
+?? .bunker/
+?? .cache/
+?? .canopy/
+?? .cargo/
+?? .chimera/
+?? .cline/
+?? .codex/
+?? .coding-hermes/
+?? .config/
+?? .consensus/
+?? .dexdat-memory/
+?? .docker/
+?? .dogfood-dexdat-scratch/
+?? .dsh/
+?? .duckbrain/
+?? .duckdb/
+?? .git-commit-template
+?? .git-remotes/
+?? .gitconfig
+?? .gitmessage
+?? .gitreins/
+?? .gnupg/
+?? .helios/
+?? .helix/
+?? .hermes/
+?? .hilo/
+?? .hivemind/
+?? .hplip/
+?? .kobayashi/
+?? .lmstudio-home-pointer
+?? .lmstudio/
+?? .local/
+?? .memory-bank/
+?? .memoryd/
+?? .muster/
+?? .musterflow/
+?? .mythos/
+?? .npm/
+?? .obsidian/
+?? .ollama/
+?? .opencode/
+?? .ossindex/
+?? .pi/
+?? .pki/
+?? .profile
+?? .python_history
+?? .rabbit-hole/
+?? .rorca/
+?? .rustup/
+?? .sabnzbd/
+?? .semgrep/
+?? .speclang/
+?? .ssh/
+?? .sync-workdirs/
+?? .tmp/
+?? .var/
+?? .venv/
+?? .vfs/
+?? .viminfo
+?? .webui_secret_key
+?? .wget-hsts
+?? .zshrc
+?? 1
+?? 9router-0.5.55.tgz
+?? 9router-deploy/
+?? 9router/
+?? =
+?? =1.0.0,
+?? Bane/
+?? BaneObsidian/
+?? Crier-PRD.html
+?? Desktop
+?? Documents/
+?? Downloads/
+?? DuckBrain/
+?? EduOS-Alpha/
+?? "GitReins Brochure.html"
+?? H3-PRD-Spec-Summary.html
+?? HermesMD/
+?? JACKELIN_BRIEFING.md
+?? KaraHermes-MDE/
+?? Knowledge-Vault/
+?? Kobayashi-Maru/
+?? MDE/
+?? Nextcloud/
+?? Notebase/
+?? Obsidian-Vault/
+?? Obsidian-Vaults/
+?? Obsidian/
+?? ObsidianNotes/
+?? ObsidianVault/
+?? PRD-s3-native.html
+?? Projects/
+?? RyzenAI-SW/
+?? "SELECT project, command, interval_seconds, provider, model FROM schedule WHERE project LIKE '%warpfs%';"
+?? SpecLang.corrupted.20260628-1913/
+?? SpecLang/
+?? "Star Fox 64 (USA) (Rev A).n64"
+?? Syncthing/
+?? "Ultimate ROM Collection Guide.md"
+?? Videos/
+?? __pycache__/
+?? _index.json
+?? _validate.py
+?? actions-runner/
+?? add_0813.py
+?? agenttrace-v2.html
+?? agenttrace-v3.html
+?? agenttrace.html
+?? ai-buildout-investigation.html
+?? ai-model-race-briefing-august-2026.md
+?? ai-plays-poke-prd.html
+?? ai_plays_poke/
+?? ana_maria_analysis/
+?? andrea_eurani_analysis/
+?? andrea_lindarte_analysis/
+?? apoc_store_2026-09-01.py
+?? apoc_store_2026-09-02.py
+?? apocalyptic_news_log.json
+?? asce/
+?? axiom-gitlab/
+?? axiom/
+?? backups/
+?? bane-fleet-setup.html
+?? bane-hermes-stack.html
+?? bankai-quality-review-2026-08-27.html
+?? batch-char-verify.py
+?? bin/
+?? blog/
+?? bog-mad-trip3.html
+?? bunker-agent-pain-points.md
+?? bunker-fleet-setup/
+?? bunker/
+?? canopy-bankai-release-report.html
+?? canopy-usage-guide.html
+?? check_0813_tier.py
+?? check_chain.py
+?? check_disabled.py
+?? check_index.py
+?? check_provs.py
+?? chimera-v2/
+?? chimera/
+?? chroma_chats/
+?? chrome-cdp.sh
+?? cleanup_tmp.sh
+?? cli/
+?? cline-kimi-proxy/
+?? clinepass-proxy.js
+?? cloudflared/
+?? coding-hermes-boardctl/
+?? coding-hermes-fleet-report-2026-07-17.html
+?? coding-hermes-prd.html
+?? coding-hermes-scheduler/
+?? coding-herms-scheduler/
+?? colombia-election-2026/
+?? colombia-madrid-trips.html
+?? conduwuit/
+?? conscientiousness/
+?? consensus-fleet-report-2026-07-24.md
+?? consensus/
+?? copy_perf_0813.py
+?? cost-baseline-2026-08-24.md
+?? count_query.sql
+?? count_records.py
+?? coverage.out
+?? crier-prd.html
+?? crier/
+?? cron-inventory-search-2026-08-27.html
+?? cron-router-audit-2026-08-27.html
+?? dagger-fleet-report.html
+?? dagger-review-package-2026-08-28.html
+?? dagger.db
+?? daggers-source-2026-08-28.zip
+?? debug_chain_p0.py
+?? debug_deepseek_chain.py
+?? debug_deepseek_rank.py
+?? debug_diversity.py
+?? debug_diversity_real.py
+?? debug_diversity_real2.py
+?? debug_env.py
+?? debug_exact_test.py
+?? debug_exact_test2.py
+?? debug_fallback.py
+?? debug_golden.py
+?? debug_metrics_home.py
+?? debug_run_test_body.py
+?? debug_spawn.py
+?? debug_spawn2.py
+?? debug_spawn3.py
+?? debug_spawn_busy.py
+?? debug_spawn_ledger.py
+?? debug_spawn_subdir.py
+?? debug_spawn_toplevel.py
+?? debug_time.py
+?? debug_why_no_deepseek.py
+?? debug_wrapper.py
+?? deepseek-dashboard-prd.html
+?? deepseek-dashboard/
+?? deepseek-harness/
+?? deliverables/
+?? detect_duplicates.py
+?? dev.db
+?? dexdat-compose.yml
+?? dexdat-core/
+?? dexdat-loader-v2.py
+?? dexdat-loader-v3.py
+?? dexdat-memory-prd.html
+?? dexdat-memory/
+?? dexdat-mono/
+?? dexdat-remaining.tar.gz
+?? dexdat-specs/
+?? diana_arango_briefing.md
+?? diana_family.txt
+?? diana_intimacy.txt
+?? diana_last3m.txt
+?? diana_love.txt
+?? diana_money.txt
+?? diana_risk.txt
+?? diana_wants.txt
+?? distributed-dagger-proposal-v2.html
+?? distributed-dagger-proposal-v2.txt
+?? distributed-dagger-proposal.html
+?? distributed-dagger-proposal.txt
+?? distributed-dagger-v3-direction.html
+?? dogfood-final.js
+?? dogfood-final2.js
+?? dogfood-output/
+?? dogfood-qa.js
+?? dogfood-qa2.js
+?? dogfood-qa3.js
+?? dogfood-qa4.js
+?? dogfood-qa5.js
+?? dogfood-qa6.js
+?? dogfood-qa7.js
+?? dogfood-qa8.js
+?? dogfood-race.js
+?? dogfood-race2.js
+?? dogfood-race3.js
+?? dogfood-race4.js
+?? dogfood-race5.js
+?? downloads/
+?? dsh-dump-session.py
+?? dsh-mock-openai.py
+?? dsh-probe-select.py
+?? dsh-probe-select2.py
+?? dsh-router-e2e.py
+?? duckbrain-duckbrain-prd.html
+?? duckbrain-master-comparison.md
+?? duckbrain-verification-2026-08-22.html
+?? duckbrain.config.json
+?? duckbrain/
+?? duckbrain_apoc.py
+?? duckbrain_sync.py
+?? duckbrain_write_facts.py
+?? duckdb-card-game/
+?? e2e-output/
+?? eduos-fleet-mirror-archive/
+?? eduos-prd-summary.html
+?? eduos.dexdat.com.co/
+?? eduos/
+?? escalation-doctrine-retrospective-2026-09-01.html
+?? escalation-doctrine/
+?? europe-welfare-analysis/
+?? evidence-site/
+?? extra-verify.py
+?? extract_jackelin.py
+?? extract_skills.py
+?? fetch_problems.py
+?? find_foreman.py
+?? fix_placeholders.py
+?? fix_review.py
+?? fix_review_tier.py
+?? fleet-era-comparison.html
+?? fleet-report-2026-07-15.html
+?? fleet-report-2026-07-18.html
+?? fleet-report-2026-07-21.html
+?? fleet-report-20260713-1208.html
+?? fleet-report-20260731-0527.html
+?? fleet-report-20260808.html
+?? fleet-report-20260817.html
+?? fleet-report-20260818.html
+?? fleet-report-latest.html
+?? fleet-report.html
+?? fleet_report_20260723.html
+?? foreman-dagger-contract.html
+?? foreman-dagger-nightbuild-v3.html
+?? frontiers-ghost-audit/
+?? frontiers-ghost-backup/
+?? frontiers-ghost-verify.py
+?? frontiers-ghost/
+?? gateway_health.py
+?? gemini_debug.py
+?? get-h3/
+?? gh_competitor_scan.py
+?? gh_round2.py
+?? gh_round3.py
+?? gh_round4.py
+?? gh_tokdash2.py
+?? gitlab_scan_june12-16.json
+?? gitreins-90day-review.html
+?? gitreins-agent-update-v076.md
+?? gitreins-agent-update-v079.md
+?? gitreins-bugs-improvements.html
+?? gitreins-poc/
+?? go.work.stray-20260831
+?? go/
+?? google-flights-mcp/
+?? gpu-cost-per-person.md
+?? gpu-mutual-infrastructure-draft.md
+?? h3-harness-go/
+?? h3.html
+?? h4f-scorecard.py
+?? hbm-supply-briefing-2026.md
+?? heading-mock.db
+?? heading/
+?? helena_check.py
+?? helios-junk-archive/
+?? helios-prd-summary.html
+?? helios-work/
+?? helios/
+?? helix-commit-msg.txt
+?? helix-sandbox/
+?? helix-specs/
+?? helix/
+?? hermes-agent-tj/
+?? hermes-canopy/
+?? hermes-coding-architecture/
+?? hermes-dagger-feature-catalog.md
+?? hermes-dagger-gap-analysis.md
+?? hermes-dagger-phase3-testing.html
+?? hermes-dagger-prd.html
+?? hermes-dagger-sqlite-bump/
+?? hermes-dagger-status-report.html
+?? hermes-dagger-status.html
+?? hermes-dagger-templates/
+?? hermes-dagger-testing-report.html
+?? hermes-dagger-v3/
+?? hermes-dagger/
+?? hermes-fleet-report.html
+?? hermes-friends-infra/
+?? hermes-observatory/
+?? hermes-vault/
+?? hermes-vfs/
+?? hermes-webui-legacy/
+?? hermes-webui/
+?? hermes4friends-infra/
+?? hermes4friends/
+?? hivemind-retro-2026-06-20_09-01.html
+?? hivemind-work/
+?? hivemind/
+?? hm-probe
+?? imhotep-demo/
+?? imhotep/
+?? improvements-report-2026-08-27.html
+?? inference-estimator/
+?? infrastructure/
+?? inspect_fallback.py
+?? investigation-workbench-section5.md
+?? jackelin_affection.txt
+?? jackelin_amounts.txt
+?? jackelin_comm.txt
+?? jackelin_crisis.txt
+?? jackelin_deal.txt
+?? jackelin_drugs.txt
+?? jackelin_family.txt
+?? jackelin_intimacy.txt
+?? jackelin_last3months.txt
+?? jackelin_money.txt
+?? jackelin_msgs.jsonl
+?? jackelin_threats.txt
+?? jackelin_wants.txt
+?? jovanna_analysis/
+?? jovanna_old_analysis/
+?? kelly-import/
+?? kelly_lorena_analysis/
+?? kobayashi-maru-90day-retro.html
+?? kobayashi-maru-results/
+?? last3m_diana.py
+?? linda_analysis/
+?? list_models.py
+?? lsp-idle-reaper.patch
+?? lucy_analysis/
+?? mafia-ai-benchmark/
+?? mafia.config.json
+?? mallard-prd-v14.html
+?? mallard-prd.html
+?? mde-mad-flights.html
+?? mf-gap4/
+?? mf-gap5/
+?? milestones_diana.py
+?? ming_lee_analysis/
+?? minimal_spawn.py
+?? minimal_spawn2.py
+?? mock-cline-server.js
+?? model-router-routing-view.html
+?? model-routing-audit-2026-08-31.md
+?? model-routing-plan-mechanics-2026-08-24.md
+?? model-token-usage-dashboard.html
+?? model_bench/
+?? models/
+?? monitors/
+?? muster-improvements-2026-08-27.html
+?? muster-retro-2026-09-01.html
+?? muster-retrospective.html
+?? muster/
+?? musterflow-landing/
+?? musterflow/
+?? my-project/
+?? mythos-fleet-report.html
+?? mythos-galaxy-2/
+?? mythos-galaxy-temp/
+?? mythos-retrospective.html
+?? mythos-session-20260609-corrections.md
+?? mythos/
+?? n100-arreglar-conexion-es.html
+?? n100-guia-configuracion-es.html
+?? n100-setup-guide.html
+?? namespaces/
+?? nobody-asked-agents-draft.md
+?? nobody-asked-agents-es.md
+?? node_modules/
+?? non-coding-skills-survey.md
+?? nvidia_china_competitive_position_briefing.md
+?? obo-test.db-shm
+?? obo-test.db-wal
+?? observatory-prd.html
+?? obsidian-nb/
+?? obsidian-vault/
+?? obsidian/
+?? off-by-one/
+?? opencode-baseline.tar.gz
+?? opencode-containers/
+?? opencode-update/
+?? opencode-watch-2026-07-15.md
+?? opencode-watch/
+?? original-info-signature.txt
+?? original-model-signature.txt
+?? package-lock.json
+?? paris-briefing/
+?? pei-mad-flights.html
+?? prd-spec-summary.html
+?? project-justification-2026-09-02.html
+?? project-justification-2026-09-02.md
+?? project-justification-report-2026-09-02.html
+?? prompt-engineering-lessons-mythos.md
+?? prompt_p1.txt
+?? q2_jackelin.py
+?? q3_jackelin.py
+?? q4_jackelin.py
+?? q5_jackelin.py
+?? q6_jackelin.py
+?? q7_jackelin.py
+?? q_jackelin.py
+?? quick_verify.py
+?? qwen38-gemma4-finetune-research.html
+?? rabbit-hole/
+?? rebuild_0813_tier.py
+?? relocated-from-tmp/
+?? reportes/
+?? reports-repo/
+?? restaurantes-casco-viejo.html
+?? rethinkdb-prd.html
+?? rethinkdb/
+?? retro-90day-coding-hermes.html
+?? retro-workspace-Kobayashi-Maru/
+?? retro-workspace-coding-hermes-scheduler/
+?? retro-workspace-fleet/
+?? retro-workspace-hermes4friends-infra/
+?? retro-workspace-hivemind-work/
+?? retro-workspace-muster/
+?? retro-workspace-rethinkdb/
+?? retro-workspace-uhlp/
+?? retro-workspace-wojons-mythos/
+?? retro-workspace/
+?? revert_data_tables.py
+?? rh123_neverdone.py
+?? rh123_task_verified.py
+?? rh_tick123_query.py
+?? ring-runner/
+?? rorca-check/
+?? rr-shots/
+?? rr-shots2/
+?? rr-shots3/
+?? rr-shots4/
+?? rr2-capture.cjs
+?? rr3-boss.cjs
+?? rr4-capture.cjs
+?? run_single_test.py
+?? runtime_verify.py
+?? scan_diana.py
+?? sdk-go/
+?? sdk-python/
+?? sdk-typescript/
+?? sdk/
+?? serve
+?? shim/
+?? sim_fallback.py
+?? sim_gated_subs.py
+?? sim_no_state.py
+?? sim_open_chain.py
+?? sim_quota_open.py
+?? sitrep-duckbrain/
+?? sitrep-prd-2026-08-02.pdf
+?? snap/
+?? speclang/
+?? specs/
+?? stand-in-pm-d5s-walkthrough.html
+?? stand-in-pm-ts-report.html
+?? standin-dryrun-summary.html
+?? standin-pm-value-report.html
+?? standin-side-by-side-report.html
+?? state-recovery/
+?? submit_problems.py
+?? sweep_diana.py
+?? sweep_jackelin.py
+?? sweep_write_2026-08-31.py
+?? sync-tmp/
+?? task-router-full-crosscheck-2026-08-27-v2.html
+?? task-router-full-crosscheck-2026-08-27.html
+?? task-router/
+?? taxonomy-audit-v10.md
+?? telegram-archive/
+?? temple-runner/
+?? temporal-vector-index/
+?? temporalvec/
+?? terminal-jail-report.html
+?? terminal-jail/
+?? test-build.yaml
+?? test-cobra/
+?? test-exports/
+?? test-shallow/
+?? test-temp-bootstrap/
+?? test-temp-meta/
+?? test.spec.md
+?? test_flights.py
+?? test_lib_smoke.py
+?? test_stepfun.py
+?? tmp/
+?? tokyo-london-jul2026.html
+?? totalstack/
+?? totalwindupflightsystems/
+?? ts-probe/
+?? uhlp-overview.html
+?? uhlp-retro-2026-09-01.html
+?? uhlp-sitrep/
+?? uhlp.lock
+?? uhlp/
+?? valentina_analysis.txt
+?? valentina_analysis2.txt
+?? valentina_analyze.py
+?? valentina_analyze2.py
+?? valentina_analyze3.py
+?? valentina_briefing.md
+?? valentina_dump.json
+?? valentina_probe.py
+?? vault/
+?? vaults/
+?? verify_char_sheets.py
+?? verify_chars.py
+?? vision_test.py
+?? vision_verify.py
+?? vision_verify_aurora.py
+?? vision_verify_fg.py
+?? warpfs/
+?? watson-ent/
+?? why-duckbrain.html
+?? why_not_eligible.py
+?? wojons-mythos/
+?? xdna-driver/
+?? ximena_chat_report.md
+?? yt_transcript_87DyyMV0kCY.txt
+?? "{pattern.pattern[:60]})\n\"" →  (+340 insertions); AGENTS.md: 'Never: Commit .gitreins/tasks.yaml — it's local task state'. Also untracked strays dagger.db (40KB) and .vfs/graph/.last_reconcile, while .vfs/graph/edges.jsonl + .vfs/manifest.yaml are tracked cache files.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: git status)"},"review_notes":"?? $HOME/
+?? --games
+?? .9router/
+?? .Xauthority
+?? .aws/
+?? .axiom-venv/
+?? .bash_history
+?? .bash_logout
+?? .bashrc
+?? .blogwatcher-cli/
+?? .browser-driver-manager/
+?? .bun/
+?? .bunker/
+?? .cache/
+?? .canopy/
+?? .cargo/
+?? .chimera/
+?? .cline/
+?? .codex/
+?? .coding-hermes/
+?? .config/
+?? .consensus/
+?? .dexdat-memory/
+?? .docker/
+?? .dogfood-dexdat-scratch/
+?? .dsh/
+?? .duckbrain/
+?? .duckdb/
+?? .git-commit-template
+?? .git-remotes/
+?? .gitconfig
+?? .gitmessage
+?? .gitreins/
+?? .gnupg/
+?? .helios/
+?? .helix/
+?? .hermes/
+?? .hilo/
+?? .hivemind/
+?? .hplip/
+?? .kobayashi/
+?? .lmstudio-home-pointer
+?? .lmstudio/
+?? .local/
+?? .memory-bank/
+?? .memoryd/
+?? .muster/
+?? .musterflow/
+?? .mythos/
+?? .npm/
+?? .obsidian/
+?? .ollama/
+?? .opencode/
+?? .ossindex/
+?? .pi/
+?? .pki/
+?? .profile
+?? .python_history
+?? .rabbit-hole/
+?? .rorca/
+?? .rustup/
+?? .sabnzbd/
+?? .semgrep/
+?? .speclang/
+?? .ssh/
+?? .sync-workdirs/
+?? .tmp/
+?? .var/
+?? .venv/
+?? .vfs/
+?? .viminfo
+?? .webui_secret_key
+?? .wget-hsts
+?? .zshrc
+?? 1
+?? 9router-0.5.55.tgz
+?? 9router-deploy/
+?? 9router/
+?? =
+?? =1.0.0,
+?? Bane/
+?? BaneObsidian/
+?? Crier-PRD.html
+?? Desktop
+?? Documents/
+?? Downloads/
+?? DuckBrain/
+?? EduOS-Alpha/
+?? "GitReins Brochure.html"
+?? H3-PRD-Spec-Summary.html
+?? HermesMD/
+?? JACKELIN_BRIEFING.md
+?? KaraHermes-MDE/
+?? Knowledge-Vault/
+?? Kobayashi-Maru/
+?? MDE/
+?? Nextcloud/
+?? Notebase/
+?? Obsidian-Vault/
+?? Obsidian-Vaults/
+?? Obsidian/
+?? ObsidianNotes/
+?? ObsidianVault/
+?? PRD-s3-native.html
+?? Projects/
+?? RyzenAI-SW/
+?? "SELECT project, command, interval_seconds, provider, model FROM schedule WHERE project LIKE '%warpfs%';"
+?? SpecLang.corrupted.20260628-1913/
+?? SpecLang/
+?? "Star Fox 64 (USA) (Rev A).n64"
+?? Syncthing/
+?? "Ultimate ROM Collection Guide.md"
+?? Videos/
+?? __pycache__/
+?? _index.json
+?? _validate.py
+?? actions-runner/
+?? add_0813.py
+?? agenttrace-v2.html
+?? agenttrace-v3.html
+?? agenttrace.html
+?? ai-buildout-investigation.html
+?? ai-model-race-briefing-august-2026.md
+?? ai-plays-poke-prd.html
+?? ai_plays_poke/
+?? ana_maria_analysis/
+?? andrea_eurani_analysis/
+?? andrea_lindarte_analysis/
+?? apoc_store_2026-09-01.py
+?? apoc_store_2026-09-02.py
+?? apocalyptic_news_log.json
+?? asce/
+?? axiom-gitlab/
+?? axiom/
+?? backups/
+?? bane-fleet-setup.html
+?? bane-hermes-stack.html
+?? bankai-quality-review-2026-08-27.html
+?? batch-char-verify.py
+?? bin/
+?? blog/
+?? bog-mad-trip3.html
+?? bunker-agent-pain-points.md
+?? bunker-fleet-setup/
+?? bunker/
+?? canopy-bankai-release-report.html
+?? canopy-usage-guide.html
+?? check_0813_tier.py
+?? check_chain.py
+?? check_disabled.py
+?? check_index.py
+?? check_provs.py
+?? chimera-v2/
+?? chimera/
+?? chroma_chats/
+?? chrome-cdp.sh
+?? cleanup_tmp.sh
+?? cli/
+?? cline-kimi-proxy/
+?? clinepass-proxy.js
+?? cloudflared/
+?? coding-hermes-boardctl/
+?? coding-hermes-fleet-report-2026-07-17.html
+?? coding-hermes-prd.html
+?? coding-hermes-scheduler/
+?? coding-herms-scheduler/
+?? colombia-election-2026/
+?? colombia-madrid-trips.html
+?? conduwuit/
+?? conscientiousness/
+?? consensus-fleet-report-2026-07-24.md
+?? consensus/
+?? copy_perf_0813.py
+?? cost-baseline-2026-08-24.md
+?? count_query.sql
+?? count_records.py
+?? coverage.out
+?? crier-prd.html
+?? crier/
+?? cron-inventory-search-2026-08-27.html
+?? cron-router-audit-2026-08-27.html
+?? dagger-fleet-report.html
+?? dagger-review-package-2026-08-28.html
+?? dagger.db
+?? daggers-source-2026-08-28.zip
+?? debug_chain_p0.py
+?? debug_deepseek_chain.py
+?? debug_deepseek_rank.py
+?? debug_diversity.py
+?? debug_diversity_real.py
+?? debug_diversity_real2.py
+?? debug_env.py
+?? debug_exact_test.py
+?? debug_exact_test2.py
+?? debug_fallback.py
+?? debug_golden.py
+?? debug_metrics_home.py
+?? debug_run_test_body.py
+?? debug_spawn.py
+?? debug_spawn2.py
+?? debug_spawn3.py
+?? debug_spawn_busy.py
+?? debug_spawn_ledger.py
+?? debug_spawn_subdir.py
+?? debug_spawn_toplevel.py
+?? debug_time.py
+?? debug_why_no_deepseek.py
+?? debug_wrapper.py
+?? deepseek-dashboard-prd.html
+?? deepseek-dashboard/
+?? deepseek-harness/
+?? deliverables/
+?? detect_duplicates.py
+?? dev.db
+?? dexdat-compose.yml
+?? dexdat-core/
+?? dexdat-loader-v2.py
+?? dexdat-loader-v3.py
+?? dexdat-memory-prd.html
+?? dexdat-memory/
+?? dexdat-mono/
+?? dexdat-remaining.tar.gz
+?? dexdat-specs/
+?? diana_arango_briefing.md
+?? diana_family.txt
+?? diana_intimacy.txt
+?? diana_last3m.txt
+?? diana_love.txt
+?? diana_money.txt
+?? diana_risk.txt
+?? diana_wants.txt
+?? distributed-dagger-proposal-v2.html
+?? distributed-dagger-proposal-v2.txt
+?? distributed-dagger-proposal.html
+?? distributed-dagger-proposal.txt
+?? distributed-dagger-v3-direction.html
+?? dogfood-final.js
+?? dogfood-final2.js
+?? dogfood-output/
+?? dogfood-qa.js
+?? dogfood-qa2.js
+?? dogfood-qa3.js
+?? dogfood-qa4.js
+?? dogfood-qa5.js
+?? dogfood-qa6.js
+?? dogfood-qa7.js
+?? dogfood-qa8.js
+?? dogfood-race.js
+?? dogfood-race2.js
+?? dogfood-race3.js
+?? dogfood-race4.js
+?? dogfood-race5.js
+?? downloads/
+?? dsh-dump-session.py
+?? dsh-mock-openai.py
+?? dsh-probe-select.py
+?? dsh-probe-select2.py
+?? dsh-router-e2e.py
+?? duckbrain-duckbrain-prd.html
+?? duckbrain-master-comparison.md
+?? duckbrain-verification-2026-08-22.html
+?? duckbrain.config.json
+?? duckbrain/
+?? duckbrain_apoc.py
+?? duckbrain_sync.py
+?? duckbrain_write_facts.py
+?? duckdb-card-game/
+?? e2e-output/
+?? eduos-fleet-mirror-archive/
+?? eduos-prd-summary.html
+?? eduos.dexdat.com.co/
+?? eduos/
+?? escalation-doctrine-retrospective-2026-09-01.html
+?? escalation-doctrine/
+?? europe-welfare-analysis/
+?? evidence-site/
+?? extra-verify.py
+?? extract_jackelin.py
+?? extract_skills.py
+?? fetch_problems.py
+?? find_foreman.py
+?? fix_placeholders.py
+?? fix_review.py
+?? fix_review_tier.py
+?? fleet-era-comparison.html
+?? fleet-report-2026-07-15.html
+?? fleet-report-2026-07-18.html
+?? fleet-report-2026-07-21.html
+?? fleet-report-20260713-1208.html
+?? fleet-report-20260731-0527.html
+?? fleet-report-20260808.html
+?? fleet-report-20260817.html
+?? fleet-report-20260818.html
+?? fleet-report-latest.html
+?? fleet-report.html
+?? fleet_report_20260723.html
+?? foreman-dagger-contract.html
+?? foreman-dagger-nightbuild-v3.html
+?? frontiers-ghost-audit/
+?? frontiers-ghost-backup/
+?? frontiers-ghost-verify.py
+?? frontiers-ghost/
+?? gateway_health.py
+?? gemini_debug.py
+?? get-h3/
+?? gh_competitor_scan.py
+?? gh_round2.py
+?? gh_round3.py
+?? gh_round4.py
+?? gh_tokdash2.py
+?? gitlab_scan_june12-16.json
+?? gitreins-90day-review.html
+?? gitreins-agent-update-v076.md
+?? gitreins-agent-update-v079.md
+?? gitreins-bugs-improvements.html
+?? gitreins-poc/
+?? go.work.stray-20260831
+?? go/
+?? google-flights-mcp/
+?? gpu-cost-per-person.md
+?? gpu-mutual-infrastructure-draft.md
+?? h3-harness-go/
+?? h3.html
+?? h4f-scorecard.py
+?? hbm-supply-briefing-2026.md
+?? heading-mock.db
+?? heading/
+?? helena_check.py
+?? helios-junk-archive/
+?? helios-prd-summary.html
+?? helios-work/
+?? helios/
+?? helix-commit-msg.txt
+?? helix-sandbox/
+?? helix-specs/
+?? helix/
+?? hermes-agent-tj/
+?? hermes-canopy/
+?? hermes-coding-architecture/
+?? hermes-dagger-feature-catalog.md
+?? hermes-dagger-gap-analysis.md
+?? hermes-dagger-phase3-testing.html
+?? hermes-dagger-prd.html
+?? hermes-dagger-sqlite-bump/
+?? hermes-dagger-status-report.html
+?? hermes-dagger-status.html
+?? hermes-dagger-templates/
+?? hermes-dagger-testing-report.html
+?? hermes-dagger-v3/
+?? hermes-dagger/
+?? hermes-fleet-report.html
+?? hermes-friends-infra/
+?? hermes-observatory/
+?? hermes-vault/
+?? hermes-vfs/
+?? hermes-webui-legacy/
+?? hermes-webui/
+?? hermes4friends-infra/
+?? hermes4friends/
+?? hivemind-retro-2026-06-20_09-01.html
+?? hivemind-work/
+?? hivemind/
+?? hm-probe
+?? imhotep-demo/
+?? imhotep/
+?? improvements-report-2026-08-27.html
+?? inference-estimator/
+?? infrastructure/
+?? inspect_fallback.py
+?? investigation-workbench-section5.md
+?? jackelin_affection.txt
+?? jackelin_amounts.txt
+?? jackelin_comm.txt
+?? jackelin_crisis.txt
+?? jackelin_deal.txt
+?? jackelin_drugs.txt
+?? jackelin_family.txt
+?? jackelin_intimacy.txt
+?? jackelin_last3months.txt
+?? jackelin_money.txt
+?? jackelin_msgs.jsonl
+?? jackelin_threats.txt
+?? jackelin_wants.txt
+?? jovanna_analysis/
+?? jovanna_old_analysis/
+?? kelly-import/
+?? kelly_lorena_analysis/
+?? kobayashi-maru-90day-retro.html
+?? kobayashi-maru-results/
+?? last3m_diana.py
+?? linda_analysis/
+?? list_models.py
+?? lsp-idle-reaper.patch
+?? lucy_analysis/
+?? mafia-ai-benchmark/
+?? mafia.config.json
+?? mallard-prd-v14.html
+?? mallard-prd.html
+?? mde-mad-flights.html
+?? mf-gap4/
+?? mf-gap5/
+?? milestones_diana.py
+?? ming_lee_analysis/
+?? minimal_spawn.py
+?? minimal_spawn2.py
+?? mock-cline-server.js
+?? model-router-routing-view.html
+?? model-routing-audit-2026-08-31.md
+?? model-routing-plan-mechanics-2026-08-24.md
+?? model-token-usage-dashboard.html
+?? model_bench/
+?? models/
+?? monitors/
+?? muster-improvements-2026-08-27.html
+?? muster-retro-2026-09-01.html
+?? muster-retrospective.html
+?? muster/
+?? musterflow-landing/
+?? musterflow/
+?? my-project/
+?? mythos-fleet-report.html
+?? mythos-galaxy-2/
+?? mythos-galaxy-temp/
+?? mythos-retrospective.html
+?? mythos-session-20260609-corrections.md
+?? mythos/
+?? n100-arreglar-conexion-es.html
+?? n100-guia-configuracion-es.html
+?? n100-setup-guide.html
+?? namespaces/
+?? nobody-asked-agents-draft.md
+?? nobody-asked-agents-es.md
+?? node_modules/
+?? non-coding-skills-survey.md
+?? nvidia_china_competitive_position_briefing.md
+?? obo-test.db-shm
+?? obo-test.db-wal
+?? observatory-prd.html
+?? obsidian-nb/
+?? obsidian-vault/
+?? obsidian/
+?? off-by-one/
+?? opencode-baseline.tar.gz
+?? opencode-containers/
+?? opencode-update/
+?? opencode-watch-2026-07-15.md
+?? opencode-watch/
+?? original-info-signature.txt
+?? original-model-signature.txt
+?? package-lock.json
+?? paris-briefing/
+?? pei-mad-flights.html
+?? prd-spec-summary.html
+?? project-justification-2026-09-02.html
+?? project-justification-2026-09-02.md
+?? project-justification-report-2026-09-02.html
+?? prompt-engineering-lessons-mythos.md
+?? prompt_p1.txt
+?? q2_jackelin.py
+?? q3_jackelin.py
+?? q4_jackelin.py
+?? q5_jackelin.py
+?? q6_jackelin.py
+?? q7_jackelin.py
+?? q_jackelin.py
+?? quick_verify.py
+?? qwen38-gemma4-finetune-research.html
+?? rabbit-hole/
+?? rebuild_0813_tier.py
+?? relocated-from-tmp/
+?? reportes/
+?? reports-repo/
+?? restaurantes-casco-viejo.html
+?? rethinkdb-prd.html
+?? rethinkdb/
+?? retro-90day-coding-hermes.html
+?? retro-workspace-Kobayashi-Maru/
+?? retro-workspace-coding-hermes-scheduler/
+?? retro-workspace-fleet/
+?? retro-workspace-hermes4friends-infra/
+?? retro-workspace-hivemind-work/
+?? retro-workspace-muster/
+?? retro-workspace-rethinkdb/
+?? retro-workspace-uhlp/
+?? retro-workspace-wojons-mythos/
+?? retro-workspace/
+?? revert_data_tables.py
+?? rh123_neverdone.py
+?? rh123_task_verified.py
+?? rh_tick123_query.py
+?? ring-runner/
+?? rorca-check/
+?? rr-shots/
+?? rr-shots2/
+?? rr-shots3/
+?? rr-shots4/
+?? rr2-capture.cjs
+?? rr3-boss.cjs
+?? rr4-capture.cjs
+?? run_single_test.py
+?? runtime_verify.py
+?? scan_diana.py
+?? sdk-go/
+?? sdk-python/
+?? sdk-typescript/
+?? sdk/
+?? serve
+?? shim/
+?? sim_fallback.py
+?? sim_gated_subs.py
+?? sim_no_state.py
+?? sim_open_chain.py
+?? sim_quota_open.py
+?? sitrep-duckbrain/
+?? sitrep-prd-2026-08-02.pdf
+?? snap/
+?? speclang/
+?? specs/
+?? stand-in-pm-d5s-walkthrough.html
+?? stand-in-pm-ts-report.html
+?? standin-dryrun-summary.html
+?? standin-pm-value-report.html
+?? standin-side-by-side-report.html
+?? state-recovery/
+?? submit_problems.py
+?? sweep_diana.py
+?? sweep_jackelin.py
+?? sweep_write_2026-08-31.py
+?? sync-tmp/
+?? task-router-full-crosscheck-2026-08-27-v2.html
+?? task-router-full-crosscheck-2026-08-27.html
+?? task-router/
+?? taxonomy-audit-v10.md
+?? telegram-archive/
+?? temple-runner/
+?? temporal-vector-index/
+?? temporalvec/
+?? terminal-jail-report.html
+?? terminal-jail/
+?? test-build.yaml
+?? test-cobra/
+?? test-exports/
+?? test-shallow/
+?? test-temp-bootstrap/
+?? test-temp-meta/
+?? test.spec.md
+?? test_flights.py
+?? test_lib_smoke.py
+?? test_stepfun.py
+?? tmp/
+?? tokyo-london-jul2026.html
+?? totalstack/
+?? totalwindupflightsystems/
+?? ts-probe/
+?? uhlp-overview.html
+?? uhlp-retro-2026-09-01.html
+?? uhlp-sitrep/
+?? uhlp.lock
+?? uhlp/
+?? valentina_analysis.txt
+?? valentina_analysis2.txt
+?? valentina_analyze.py
+?? valentina_analyze2.py
+?? valentina_analyze3.py
+?? valentina_briefing.md
+?? valentina_dump.json
+?? valentina_probe.py
+?? vault/
+?? vaults/
+?? verify_char_sheets.py
+?? verify_chars.py
+?? vision_test.py
+?? vision_verify.py
+?? vision_verify_aurora.py
+?? vision_verify_fg.py
+?? warpfs/
+?? watson-ent/
+?? why-duckbrain.html
+?? why_not_eligible.py
+?? wojons-mythos/
+?? xdna-driver/
+?? ximena_chat_report.md
+?? yt_transcript_87DyyMV0kCY.txt
+?? "{pattern.pattern[:60]})\n\"" →  (+340 insertions); AGENTS.md: 'Never: Commit .gitreins/tasks.yaml — it's local task state'. Also untracked strays dagger.db (40KB) and .vfs/graph/.last_reconcile, while .vfs/graph/edges.jsonl + .vfs/manifest.yaml are tracked cache files.","ts":"2026-09-05T18:28:19.241Z"}
+{"status":"pending","id":"QA-CONSENSUS-5","title":"[P3] CI unpinned GitReins install: ci.yml:113 Collecting gitreins
+  Using cached gitreins-0.12.1-py3-none-any.whl.metadata (16 kB)
+Collecting mcp<3,>=2.0.0 (from gitreins)
+  Using cached mcp-2.1.1-py3-none-any.whl.metadata (7.8 kB)
+Requirement already satisfied: pyyaml>=6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (6.0.3)
+Requirement already satisfied: requests>=2.28 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (2.32.5)
+Requirement already satisfied: packaging>=21.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (26.0)
+Requirement already satisfied: anyio>=4.9 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.12.1)
+Collecting httpx2>=2.5.0 (from mcp<3,>=2.0.0->gitreins)
+  Using cached httpx2-2.12.0-py3-none-any.whl.metadata (9.5 kB)
+Requirement already satisfied: jsonschema>=4.20.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.26.0)
+Collecting mcp-types==2.1.1 (from mcp<3,>=2.0.0->gitreins)
+  Using cached mcp_types-2.1.1-py3-none-any.whl.metadata (1.9 kB)
+Collecting opentelemetry-api>=1.28.0 (from mcp<3,>=2.0.0->gitreins)
+  Using cached opentelemetry_api-1.44.0-py3-none-any.whl.metadata (1.4 kB)
+Requirement already satisfied: pydantic>=2.12.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.12.5)
+Collecting pyjwt>=2.10.1 (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins)
+  Using cached pyjwt-2.13.0-py3-none-any.whl.metadata (3.4 kB)
+Collecting python-multipart>=0.0.9 (from mcp<3,>=2.0.0->gitreins)
+  Using cached python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
+Collecting sse-starlette>=3.0.0 (from mcp<3,>=2.0.0->gitreins)
+  Downloading sse_starlette-3.4.11-py3-none-any.whl.metadata (15 kB)
+Collecting starlette>=0.27 (from mcp<3,>=2.0.0->gitreins)
+  Using cached starlette-1.6.0-py3-none-any.whl.metadata (6.4 kB)
+Requirement already satisfied: typing-extensions>=4.13.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.4.2)
+Collecting uvicorn>=0.31.1 (from mcp<3,>=2.0.0->gitreins)
+  Using cached uvicorn-0.52.4-py3-none-any.whl.metadata (6.6 kB)
+Requirement already satisfied: idna>=2.8 in ./totalstack/.venv/lib/python3.13/site-packages (from anyio>=4.9->mcp<3,>=2.0.0->gitreins) (3.11)
+Collecting httpcore2==2.12.0 (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins)
+  Using cached httpcore2-2.12.0-py3-none-any.whl.metadata (25 kB)
+Collecting idna>=2.8 (from anyio>=4.9->mcp<3,>=2.0.0->gitreins)
+  Using cached idna-3.19-py3-none-any.whl.metadata (9.2 kB)
+Collecting truststore>=0.10 (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins)
+  Using cached truststore-0.10.4-py3-none-any.whl.metadata (4.4 kB)
+Requirement already satisfied: h11>=0.16 in ./totalstack/.venv/lib/python3.13/site-packages (from httpcore2==2.12.0->httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (0.16.0)
+Requirement already satisfied: attrs>=22.2.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (25.4.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (2025.9.1)
+Requirement already satisfied: referencing>=0.28.4 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.36.2)
+Requirement already satisfied: rpds-py>=0.25.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.30.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (2.41.5)
+Requirement already satisfied: cryptography>=3.4.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (46.0.5)
+Requirement already satisfied: cffi>=2.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (2.0.0)
+Requirement already satisfied: pycparser in ./totalstack/.venv/lib/python3.13/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (3.0)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2026.2.25)
+Requirement already satisfied: click>=7.0 in ./totalstack/.venv/lib/python3.13/site-packages (from uvicorn>=0.31.1->mcp<3,>=2.0.0->gitreins) (8.3.1)
+Using cached gitreins-0.12.1-py3-none-any.whl (159 kB)
+Using cached mcp-2.1.1-py3-none-any.whl (357 kB)
+Using cached mcp_types-2.1.1-py3-none-any.whl (69 kB)
+Using cached httpx2-2.12.0-py3-none-any.whl (95 kB)
+Using cached httpcore2-2.12.0-py3-none-any.whl (83 kB)
+Using cached idna-3.19-py3-none-any.whl (68 kB)
+Using cached opentelemetry_api-1.44.0-py3-none-any.whl (60 kB)
+Using cached pyjwt-2.13.0-py3-none-any.whl (31 kB)
+Using cached python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Downloading sse_starlette-3.4.11-py3-none-any.whl (17 kB)
+Using cached starlette-1.6.0-py3-none-any.whl (75 kB)
+Using cached truststore-0.10.4-py3-none-any.whl (18 kB)
+Using cached uvicorn-0.52.4-py3-none-any.whl (79 kB)
+Installing collected packages: uvicorn, truststore, python-multipart, pyjwt, opentelemetry-api, idna, httpcore2, starlette, mcp-types, httpx2, sse-starlette, mcp, gitreins
+  Attempting uninstall: idna
+    Found existing installation: idna 3.11
+    Uninstalling idna-3.11:
+      Successfully uninstalled idna-3.11
+
+Successfully installed gitreins-0.12.1 httpcore2-2.12.0 httpx2-2.12.0 idna-3.19 mcp-2.1.1 mcp-types-2.1.1 opentelemetry-api-1.44.0 pyjwt-2.13.0 python-multipart-0.0.32 sse-starlette-3.4.11 starlette-1.6.0 truststore-0.10.4 uvicorn-0.52.4 (live HEAD) vs pinned ==0.3.0 in eval job","detail":".github/workflows/ci.yml:113 (secrets-scan job) runs Requirement already satisfied: gitreins in ./totalstack/.venv/lib/python3.13/site-packages (0.12.1)
+Requirement already satisfied: mcp<3,>=2.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (2.1.1)
+Requirement already satisfied: pyyaml>=6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (6.0.3)
+Requirement already satisfied: requests>=2.28 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (2.32.5)
+Requirement already satisfied: packaging>=21.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (26.0)
+Requirement already satisfied: anyio>=4.9 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.12.1)
+Requirement already satisfied: httpx2>=2.5.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.12.0)
+Requirement already satisfied: jsonschema>=4.20.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.26.0)
+Requirement already satisfied: mcp-types==2.1.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.1.1)
+Requirement already satisfied: opentelemetry-api>=1.28.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (1.44.0)
+Requirement already satisfied: pydantic>=2.12.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.12.5)
+Requirement already satisfied: pyjwt>=2.10.1 in ./totalstack/.venv/lib/python3.13/site-packages (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (2.13.0)
+Requirement already satisfied: python-multipart>=0.0.9 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.0.32)
+Requirement already satisfied: sse-starlette>=3.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (3.4.11)
+Requirement already satisfied: starlette>=0.27 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (1.6.0)
+Requirement already satisfied: typing-extensions>=4.13.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.4.2)
+Requirement already satisfied: uvicorn>=0.31.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.52.4)
+Requirement already satisfied: idna>=2.8 in ./totalstack/.venv/lib/python3.13/site-packages (from anyio>=4.9->mcp<3,>=2.0.0->gitreins) (3.19)
+Requirement already satisfied: httpcore2==2.12.0 in ./totalstack/.venv/lib/python3.13/site-packages (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (2.12.0)
+Requirement already satisfied: truststore>=0.10 in ./totalstack/.venv/lib/python3.13/site-packages (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (0.10.4)
+Requirement already satisfied: h11>=0.16 in ./totalstack/.venv/lib/python3.13/site-packages (from httpcore2==2.12.0->httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (0.16.0)
+Requirement already satisfied: attrs>=22.2.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (25.4.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (2025.9.1)
+Requirement already satisfied: referencing>=0.28.4 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.36.2)
+Requirement already satisfied: rpds-py>=0.25.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.30.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (2.41.5)
+Requirement already satisfied: cryptography>=3.4.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (46.0.5)
+Requirement already satisfied: cffi>=2.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (2.0.0)
+Requirement already satisfied: pycparser in ./totalstack/.venv/lib/python3.13/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (3.0)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2026.2.25)
+Requirement already satisfied: click>=7.0 in ./totalstack/.venv/lib/python3.13/site-packages (from uvicorn>=0.31.1->mcp<3,>=2.0.0->gitreins) (8.3.1) unpinned — non-reproducible guard install; line 133 pins  — the two jobs disagree on version source.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: ci.yml)"},"review_notes":".github/workflows/ci.yml:113 (secrets-scan job) runs Requirement already satisfied: gitreins in ./totalstack/.venv/lib/python3.13/site-packages (0.12.1)
+Requirement already satisfied: mcp<3,>=2.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (2.1.1)
+Requirement already satisfied: pyyaml>=6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (6.0.3)
+Requirement already satisfied: requests>=2.28 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (2.32.5)
+Requirement already satisfied: packaging>=21.0 in ./totalstack/.venv/lib/python3.13/site-packages (from gitreins) (26.0)
+Requirement already satisfied: anyio>=4.9 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.12.1)
+Requirement already satisfied: httpx2>=2.5.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.12.0)
+Requirement already satisfied: jsonschema>=4.20.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.26.0)
+Requirement already satisfied: mcp-types==2.1.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.1.1)
+Requirement already satisfied: opentelemetry-api>=1.28.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (1.44.0)
+Requirement already satisfied: pydantic>=2.12.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (2.12.5)
+Requirement already satisfied: pyjwt>=2.10.1 in ./totalstack/.venv/lib/python3.13/site-packages (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (2.13.0)
+Requirement already satisfied: python-multipart>=0.0.9 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.0.32)
+Requirement already satisfied: sse-starlette>=3.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (3.4.11)
+Requirement already satisfied: starlette>=0.27 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (1.6.0)
+Requirement already satisfied: typing-extensions>=4.13.0 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.4.2)
+Requirement already satisfied: uvicorn>=0.31.1 in ./totalstack/.venv/lib/python3.13/site-packages (from mcp<3,>=2.0.0->gitreins) (0.52.4)
+Requirement already satisfied: idna>=2.8 in ./totalstack/.venv/lib/python3.13/site-packages (from anyio>=4.9->mcp<3,>=2.0.0->gitreins) (3.19)
+Requirement already satisfied: httpcore2==2.12.0 in ./totalstack/.venv/lib/python3.13/site-packages (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (2.12.0)
+Requirement already satisfied: truststore>=0.10 in ./totalstack/.venv/lib/python3.13/site-packages (from httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (0.10.4)
+Requirement already satisfied: h11>=0.16 in ./totalstack/.venv/lib/python3.13/site-packages (from httpcore2==2.12.0->httpx2>=2.5.0->mcp<3,>=2.0.0->gitreins) (0.16.0)
+Requirement already satisfied: attrs>=22.2.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (25.4.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (2025.9.1)
+Requirement already satisfied: referencing>=0.28.4 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.36.2)
+Requirement already satisfied: rpds-py>=0.25.0 in ./totalstack/.venv/lib/python3.13/site-packages (from jsonschema>=4.20.0->mcp<3,>=2.0.0->gitreins) (0.30.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in ./totalstack/.venv/lib/python3.13/site-packages (from pydantic>=2.12.0->mcp<3,>=2.0.0->gitreins) (2.41.5)
+Requirement already satisfied: cryptography>=3.4.0 in ./totalstack/.venv/lib/python3.13/site-packages (from pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (46.0.5)
+Requirement already satisfied: cffi>=2.0.0 in ./totalstack/.venv/lib/python3.13/site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (2.0.0)
+Requirement already satisfied: pycparser in ./totalstack/.venv/lib/python3.13/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp<3,>=2.0.0->gitreins) (3.0)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in ./totalstack/.venv/lib/python3.13/site-packages (from requests>=2.28->gitreins) (2026.2.25)
+Requirement already satisfied: click>=7.0 in ./totalstack/.venv/lib/python3.13/site-packages (from uvicorn>=0.31.1->mcp<3,>=2.0.0->gitreins) (8.3.1) unpinned — non-reproducible guard install; line 133 pins  — the two jobs disagree on version source.","ts":"2026-09-05T18:28:19.241Z"}
