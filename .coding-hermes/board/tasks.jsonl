@@ -132,3 +132,38 @@
 {"status":"pending","id":"QA-CONSENSUS-1","title":"[P1] run_battery FAIL — port range pool exhausted on bunker-las-03 despite only 2/8 agents live","detail":"spawn attempt 2 failed: bunker: spawn agent: internal: port range allocation: no free port ranges available (pool exhausted: 10 ranges). HOME=/home/kara (real, not sandbox artifact); bunker status shows ONliNE, Agents 2/8, 2 Docker containers, uptime 14h 51m — 10 ranges held with 2 live agents means leaked ranges, not capacity. Same exhaustion class as 2026-09-04 (h3-sdk-typescript) and 09-05 (chimera-v2).","priority":"P1","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"spawn attempt 2 failed: bunker: spawn agent: internal: port range allocation: no free port ranges available (pool exhausted: 10 ranges). HOME=/home/kara (real, not sandbox artifact); bunker status shows ONliNE, Agents 2/8, 2 Docker containers, uptime 14h 51m — 10 ranges held with 2 live agents means leaked ranges, not capacity. Same exhaustion class as 2026-09-04 (h3-sdk-typescript) and 09-05 (chi","ts":"2026-09-05T02:54:15.626Z"}
 {"status":"pending","id":"QA-CONSENSUS-2","title":"[P1] Leak fix not deployed — server binary predates the fix","detail":"bunker 0.1.3 commit 4af949d built 2026-08-27T18:39:44Z; leak fix b4c3c48 (2026-09-04, frees port range on non-force destroy not_found path, manager_destroy.go:85-99) is absent from the running binary; server started ~07:05 today predates it. Pool exhaustion will recur on every battery until redeploy.","priority":"P1","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"bunker 0.1.3 commit 4af949d built 2026-08-27T18:39:44Z; leak fix b4c3c48 (2026-09-04, frees port range on non-force destroy not_found path, manager_destroy.go:85-99) is absent from the running binary; server started ~07:05 today predates it. Pool exhaustion will recur on every battery until redeploy.","ts":"2026-09-05T02:54:15.626Z"}
 {"status":"pending","id":"QA-CONSENSUS-3","title":"[P3] Repo carries untracked strays: dagger.db and .vfs/graph/.last_reconcile","detail":"git status -s shows '?? dagger.db' and '?? .vfs/graph/.last_reconcile' (plus expected local .gitreins/tasks.yaml modification per AGENTS.md). Uncommitted runtime artifacts risk leaking into commits or masking state drift.","priority":"P3","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"git status -s shows '?? dagger.db' and '?? .vfs/graph/.last_reconcile' (plus expected local .gitreins/tasks.yaml modification per AGENTS.md). Uncommitted runtime artifacts risk leaking into commits or masking state drift.","ts":"2026-09-05T02:54:15.627Z"}
+{"status":"pending","id":"QA-CONSENSUS-1","title":"[P1] Battery blocked: port-range pool exhausted with only 1/8 agents live","detail":"run_battery FAIL: spawn failed on bunker-las-03 — 'spawn attempt 2 failed: bunker: spawn agent: internal: port range allocation: no free port ranges available (pool exhausted: 10 ranges)'. Probe confirms the contradiction: ── bunker-las-03 ──
+  Hostname: bunker-las-03
+  URL:      http://100.69.3.13:10002
+  Version:  0.1.3
+  Status:   ONLINE
+  Uptime:   15h 55m 34s
+  Agents:   1/8
+  CPU:      106.9%
+  Memory:   13.8 GB / 31.1 GB
+  Disk:     9% (19.1 GB/220.6 GB)
+  Docker:   1 containers shows bunker-las-03 ONLINE, 'Agents: 1/8', and 
+══════════ Agents ══════════
+
+  Agent ID       Status     Disk                   Created                   Public URL
+  ────────       ──────     ────────────────────   ───────                   ──────────
+  219ef0c3       running    0% (306.2 MB/64.0 GB)  2026-09-04T17:46:59-07:00 (no URL)
+
+Total: 1 agents (server: bunker-las-03) shows exactly 1 running agent (219ef0c3), yet all 10 port ranges are consumed — leaked allocations from previously destroyed agents are never reclaimed (bunkerd keeps orphaned ranges in memory). Any battery run on this host dies before the suite starts; recovery requires server-side range cleanup/restart.","priority":"P1","source":"qa-dagger","reasoning":{"note":"QA foreman cycle 2026-09-05 — fresh-system CI pass (bunker cell: run_battery)"},"review_notes":"run_battery FAIL: spawn failed on bunker-las-03 — 'spawn attempt 2 failed: bunker: spawn agent: internal: port range allocation: no free port ranges available (pool exhausted: 10 ranges)'. Probe confirms the contradiction: ── bunker-las-03 ──
+  Hostname: bunker-las-03
+  URL:      http://100.69.3.13:10002
+  Version:  0.1.3
+  Status:   ONLINE
+  Uptime:   15h 55m 34s
+  Agents:   1/8
+  CPU:      108.6%
+  Memory:   13.8 GB / 31.1 GB
+  Disk:     9% (19.1 GB/220.6 GB)
+  Docker:   1 containers shows bunker-las-03 ONLINE, 'Agents: 1/8', and 
+══════════ Agents ══════════
+
+  Agent ID       Status     Disk                   Created                   Public URL
+  ────────       ──────     ────────────────────   ───────                   ──────────
+  219ef0c3       running    0% (306.2 MB/64.0 GB)  2026-09-04T17:46:59-07:00 (no URL)
+
+Total: 1 agents (server: bunker-las-03) shows exactly 1 running agent (219ef0c3), yet all 10 port ranges are consumed — leaked allocations f","ts":"2026-09-05T03:58:06.434Z"}
