@@ -59,7 +59,7 @@ func (s *Server) validateAuth(req *JSONRPCRequest, sess *mcpSession) *JSONRPCErr
 
 	ctx := context.Background()
 	rows, err := s.db.Query(ctx,
-		`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > datetime('now'))`,
+		`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
 		prefix, hash,
 	)
 	if err != nil || len(rows) == 0 {

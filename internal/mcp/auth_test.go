@@ -4,8 +4,14 @@
 package mcp
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/wojons/consensus/internal/db"
 )
 
 // ============================================================================
@@ -17,6 +23,62 @@ func TestCheckAdminScope_AdminPasses(t *testing.T) {
 	err := (&Server{}).checkAdminScope(sess)
 	if err != nil {
 		t.Errorf("admin should pass admin scope check: %v", err)
+	}
+}
+
+// TestValidateAuth_QueryUsesPostgresTimestamp guards against the SQLite
+// datetime('now') regression (DF-DEXDAT-CORE-1): the api_keys lookup runs
+// against Postgres, where datetime() does not exist and every key fails
+// with -32001. The query must use backend-neutral CURRENT_TIMESTAMP.
+func TestValidateAuth_QueryUsesPostgresTimestamp(t *testing.T) {
+	mock := &sequentialMockDB{
+		results: [][]db.Row{
+			{{"id": "key-1", "scope": "admin", "session_id": nil}},
+		},
+	}
+	srv := NewServer(mock)
+	srv.sessions["s1"] = &mcpSession{id: "s1"}
+
+	body, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "initialize",
+		"params": map[string]any{
+			"protocolVersion": "2024-11-05",
+			"capabilities":    map[string]any{},
+			"clientInfo":      map[string]any{"name": "test", "version": "1.0"},
+			"_meta":           map[string]any{"authorization": "Bearer cs_ak_testkey"},
+		},
+	})
+	w := httptest.NewRecorder()
+	srv.HandleMessage(w, httptest.NewRequest(http.MethodPost, "/mcp/message?sessionId=s1", bytes.NewReader(body)))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid response: %v", err)
+	}
+	if _, ok := resp["error"]; ok {
+		t.Fatalf("initialize with valid key failed: %v", resp["error"])
+	}
+
+	var authQuery string
+	for _, q := range mock.queries {
+		if strings.Contains(q, "api_keys") {
+			authQuery = q
+			break
+		}
+	}
+	if authQuery == "" {
+		t.Fatal("no api_keys query recorded")
+	}
+	if strings.Contains(authQuery, "datetime('now')") || strings.Contains(authQuery, `datetime("now")`) {
+		t.Errorf("api_keys query uses SQLite datetime('now') — breaks on Postgres: %s", authQuery)
+	}
+	if !strings.Contains(authQuery, "CURRENT_TIMESTAMP") {
+		t.Errorf("api_keys query should use CURRENT_TIMESTAMP for Postgres compatibility: %s", authQuery)
 	}
 }
 
