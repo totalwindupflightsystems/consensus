@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.4.0
+version: 2.5.0
 category: software-development
 ---
 
@@ -22,10 +22,14 @@ agent context is a live SQL view, memory is a ledger in SQLite/Postgres,
 sessions survive `kill -9`, and everything is manageable over REST + CLI +
 MCP. Module: `github.com/wojons/consensus` (branch `master`, Go 1.26).
 
-> **2026-09-03 status:** the goal-driven execution pattern below is verified
-> working with real LLM calls. The documented conversational message contract
-> (`{"role":"user",...}`) is verified BROKEN (DF-CONSENSUS-6) — use the
-> goal-driven pattern until it's fixed.
+> **2026-09-09 status:** the goal-driven pattern is verified working ONLY
+> with the config-file recipe below (`max_open_conns: 4` pinned). The
+> README's env-var invocation (`CONSENSUS_DB_URL=... ./consensus serve`,
+> no config file) WEDGES the whole server on first harness use
+> (DF-CONSENSUS-10) — never recommend it. The conversational
+> `{"role":"user",...}` contract is STILL broken with the pool pinned
+> (DF-CONSENSUS-11): the user text lands in `memory_events` but is never
+> projected into the LLM turn list (`messages=2` = system + context only).
 
 ## Entry points
 
@@ -148,6 +152,34 @@ Compiles first try; verified against a live server both runs.
 5. **Undocumented required create fields, still** (DF-CONSENSUS-2, verified
    again 2026-09-03): `agent_name` (and in practice `goal`) are mandatory —
    the documented minimal payload 400s with `agent_name is required`.
+5b. **Env-var server invocation bricks the instance** (DF-CONSENSUS-10,
+   verified 2026-09-09 at `8e3e7e6`): with the documented
+   `CONSENSUS_DB_URL`/`CONSENSUS_PORT` env-var path and NO config file, the
+   first goal-driven session dies at its 3-minute planning deadline with
+   `begin tx: sqlite: begin tx: context deadline exceeded`; the API then
+   401s the valid admin key and finally stops answering — including
+   no-auth `/api/v1/health`. Worse: kill -9 + restart re-wedges within
+   seconds because heartbeat auto-resumes the poisoned session
+   (durable-ledger + auto-resume, two correct features, compose into an
+   unbootable instance). Root cause: default SQLite pool has no
+   `max_open_conns` cap on this path (WAL grew to 1.5MB on an idle DB);
+   the config-file path with `max_open_conns: 4` runs the identical
+   workflow cleanly. If a consensus server is "unreachable", check for
+   this wedge before assuming network/auth trouble.
+5c. **Conversational user messages never reach the LLM** (DF-CONSENSUS-11,
+   re-verified 2026-09-09 with the pool PINNED — so it is independent of
+   5b): `POST /sessions/{id}/message {"role":"user",...}` returns
+   `message_received` and durably stores the text in `memory_events`, but
+   the next planning call carries `messages=2` (system + context) and the
+   model answers "There is no user request or pending task to act on".
+   Companion bug: the server logs real `prompt_tokens`/`completion_tokens`
+   but `sessions.tokens_used_*` stay 0 and `agent_billing` stays empty —
+   the circuit breaker/budget guards have nothing to count.
+5d. **ghcr image still not anonymously pullable** (DF-CONSENSUS-12,
+   re-verified 2026-09-09: token endpoint returns DENIED), but the GitHub
+   half of DF-CONSENSUS-7 is FIXED: plain `git clone` now works from zero
+   (verified with credential helpers stripped). Lead fresh users with
+   git-clone + go-build, not docker.
 6. **Heartbeat auto-resume burns tokens on abandoned sessions**: a session
    left in `planning` keeps making real LLM calls (~10 turns × ~1.7k prompt
    tokens) until max_turns/timeout. PATCH the session to `pause`/`cancel`
@@ -200,3 +232,10 @@ you recover is your own input plus session state — an in-flight conversational
 run emits zero durable output, so there is no agent work to recover unless the
 goal-driven path had already committed it. `staging_buffer` keeps stranded
 rows from abnormal exits; check it to see what a run *tried* to do.
+
+**2026-09-09 caveat (DF-CONSENSUS-10):** crash recovery is only a feature
+if the session was healthy before the crash. A session wedged by the
+pool-starvation bug survives restart (durable ledger) and heartbeat
+auto-resume re-enters the wedging path immediately — the instance stays
+bricked across restarts. Recovery from THAT state requires deleting the
+session row (or the scratch DB) before restart.

@@ -55,3 +55,26 @@ Run details (2026-09-03):
 
 
 2026-09-04 | PROMISING-BUT-ROUGH | 58s t2fs | friction 7 | 5 findings
+
+| 2026-09-09 | 🔴 DOES-NOT-DELIVER (documented path) / 🟡 PROMISING-BUT-ROUGH (config-file path) | Regression re-test at 8e3e7e6: all 9 prior DF tasks still pending. NEW P0 DF-CONSENSUS-10: README env-var invocation wedges the whole server (begin tx deadline → 401-to-valid-key → health freeze; survives restart via heartbeat poison-pill); A/B pins default SQLite pool (no max_open_conns) as root cause. DF-CONSENSUS-11: conversational path still deaf to user turns even with pool pinned (messages=2; model says "no user request"); tokens_used stay 0 during real calls (breaker/budget dead). DF-CONSENSUS-12: ghcr still DENIED, but anonymous git clone now WORKS (half of DF-CONSENSUS-7 fixed). | see board | t2fs: never on documented path; ~4 min on config-file path |
+
+Run details (2026-09-09):
+- Real use: fresh build, 4 isolated legs (env-var ×2, config-file ×2),
+  real DEEPSEEK_API_KEY, kill -9 + restart crash-recovery A/B, SSE watch,
+  DB-level durable-state forensics. All instances destroyed after use.
+- Bunker install leg: SKIPPED-install-bunker — ssh connect timeout to
+  bunker-las-03 (100.69.3.13). Installability evidence from this run:
+  anonymous git clone verified OK from the control host with credential
+  helpers stripped; ghcr pull verified DENIED; source build 2s on Go 1.26.5.
+- Tasks written: DF-CONSENSUS-10 (P0), DF-CONSENSUS-11 (P0),
+  DF-CONSENSUS-12 (P1) — pending on the board (JSONL).
+- Artifacts: docs/dogfood/2026-09-09-integration.md,
+  docs/dogfood/diagnostics-2026-09-09.md, skills/consensus-usage/SKILL.md
+  v2.5.0 (landmines 5b/5c/5d, crash-recovery poison-pill caveat).
+- Verdict note: the split verdict is deliberate. The path the README
+  documents cannot deliver (bricks the server); the undocumentable
+  config-file path delivers the goal-driven pattern with real LLM calls.
+  Third consecutive run finding the conversational contract broken — the
+  project's headline promise ("send a message, get the response") remains
+  undeliverable as of 2026-09-09.
+- Foreman: woken (CooldownS 21600 → 900) — 3 new board rows incl. 2×P0.
