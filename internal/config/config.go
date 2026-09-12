@@ -116,12 +116,19 @@ type CompressionConfig struct {
 // AdaptersConfig holds protocol adapter settings (SPEC-017).
 type AdaptersConfig struct {
 	OpenCode OpenCodeAdapterConfig `yaml:"opencode"`
+	H3       H3AdapterConfig       `yaml:"h3"`
 }
 
 // OpenCodeAdapterConfig holds the opencode shim adapter settings.
 type OpenCodeAdapterConfig struct {
 	Enabled  bool   `yaml:"enabled"`
 	AdminKey string `yaml:"admin_key"` // Admin API key for auth translation
+}
+
+// H3AdapterConfig holds the H3 protocol shim adapter settings (get-h3
+// battery / Hermes h3 plugin clients).
+type H3AdapterConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // Defaults returns a Config populated with safe defaults.
@@ -173,6 +180,9 @@ func Defaults() Config {
 		},
 		Adapters: AdaptersConfig{
 			OpenCode: OpenCodeAdapterConfig{
+				Enabled: true,
+			},
+			H3: H3AdapterConfig{
 				Enabled: true,
 			},
 		},

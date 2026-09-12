@@ -269,6 +269,15 @@ func NewServer(database db.DB, svc SessionService) *Server {
 }
 
 // Handler returns the http.Handler for mounting on the consensus router.
+//
+// MountPatterns lists the chi router patterns required to expose the H3 shim
+// under a parent router. Same chi v5 trailing-slash rule as the opencode
+// shim's MountPatterns (BUG-009): exact patterns register the bare endpoint,
+// /* wildcards register sub-paths.
+var MountPatterns = []string{
+	"/v1", "/v1/*",
+}
+
 func (s *Server) Handler() http.Handler {
 	return s.mux
 }

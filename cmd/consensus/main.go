@@ -36,6 +36,7 @@ import (
 	"github.com/wojons/consensus/internal/db/postgres"
 	"github.com/wojons/consensus/internal/harness"
 	"github.com/wojons/consensus/internal/hitl"
+	"github.com/wojons/consensus/internal/shim/h3"
 	"github.com/wojons/consensus/internal/llm"
 	"github.com/wojons/consensus/internal/mcp"
 	"github.com/wojons/consensus/internal/migrate"
@@ -361,6 +362,18 @@ func runServer() {
 			apiMux.Handle(pattern, shimSrv.Handler())
 		}
 		slog.Info("consensus: opencode shim enabled")
+	}
+
+	// H3 Protocol Shim — serves the get-h3 H3 protocol (health/process/result/
+	// sessions/cancel) for Hermes h3-plugin clients. Enabled by default.
+	// The ServiceAdapter bridges the synchronous H3 protocol onto Consensus's
+	// asynchronous heartbeat agent loop.
+	if cfg.Adapters.H3.Enabled {
+		h3Srv := h3.NewServer(database, h3.NewServiceAdapter(apiSrv.Service()))
+		for _, pattern := range h3.MountPatterns {
+			apiMux.Handle(pattern, h3Srv.Handler())
+		}
+		slog.Info("consensus: H3 shim enabled")
 	}
 
 	backend, _ := db.DetectBackend(cfg.Database.URL)
