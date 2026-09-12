@@ -153,7 +153,7 @@ func Defaults() Config {
 		},
 		Database: db.Config{
 			URL:          resolveDBURL("sqlite://$HOME/.consensus/consensus.db"),
-			MaxOpenConns: 1,
+			MaxOpenConns: 8, // POOL-FIX-PROOF: 1 wedges under concurrent heartbeat+planning+polling
 		},
 		HITL: HITLConfig{
 			AutoPauseOnErrorThreshold:       3,
