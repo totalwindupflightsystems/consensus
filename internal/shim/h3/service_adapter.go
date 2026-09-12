@@ -84,8 +84,17 @@ func (a *ServiceAdapter) ProcessMessage(ctx context.Context, sessionID, message 
 }
 
 // FeedToolResult feeds a tool result back and waits for the next agent turn.
-// Results are stored as a text_block memory event (the shim's parseToolCall
-// reads tool_requests JSON from the returned text).
+// Results are stored as a user_message memory event whose content is a JSON
+// envelope (the shim's parseToolCall reads tool_requests JSON from the
+// returned text).
+//
+// Planning suspends to 'tool_exec' when the LLM requests tools
+// (handleToolCallDuringPlanning) and waits for the external executor to hand
+// the session back — a bare SendMessage is NOT enough because the wake path
+// only fires for idle/booting sessions (service.go SendMessage). So after
+// storing the result we re-wake the session via UpdateSessionFields
+// (status='thinking' + heartbeat bump), the same convention every other
+// entry point uses.
 func (a *ServiceAdapter) FeedToolResult(ctx context.Context, sessionID, toolName string, success bool, data any) (string, error) {
 	payload := fmt.Sprintf(`{"tool_result":{"tool_name":%q,"success":%t,"data":%s}}`,
 		toolName, success, marshalData(data))
@@ -95,6 +104,19 @@ func (a *ServiceAdapter) FeedToolResult(ctx context.Context, sessionID, toolName
 		MsgType:   "user_instruction",
 	}); err != nil {
 		return "", err
+	}
+	// Re-wake suspended sessions: tool_exec (planning suspended for this
+	// result), executing/waiting_sub (executor flow). Never touch
+	// paused/failed — those are deliberate holds.
+	if status, err := a.GetSession(ctx, sessionID); err == nil {
+		switch status {
+		case "tool_exec", "executing", "waiting_sub":
+			if err := a.svc.Sessions.UpdateSessionFields(ctx, sessionID, map[string]string{
+				"status": "thinking",
+			}); err != nil {
+				return "", fmt.Errorf("h3: re-wake %s session: %w", status, err)
+			}
+		}
 	}
 	return a.waitForTurn(ctx, sessionID)
 }
