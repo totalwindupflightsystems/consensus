@@ -150,6 +150,9 @@ func runServer() {
 		os.Exit(1)
 	}
 	h := harness.New(database, llmClient)
+	if cfg.Harness.HeartbeatIntervalSec > 0 {
+		h.HeartbeatConfig.Interval = time.Duration(cfg.Harness.HeartbeatIntervalSec) * time.Second
+	}
 	if cfg.Harness.MaxConsecutiveErrors > 0 {
 		h.MaxConsecutiveErrors = cfg.Harness.MaxConsecutiveErrors
 	}
