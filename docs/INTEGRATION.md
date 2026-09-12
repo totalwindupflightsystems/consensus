@@ -148,10 +148,12 @@ as an external agent brain. It translates H3's `/v1/process` (send a message)
 and `/v1/result` (feed back a tool result) calls into Consensus session
 operations, and answers with H3 **decision** objects.
 
-> **Status: library, not yet mounted.** As of this writing the shim is a
-> self-contained Go package with zero wiring in `cmd/consensus` — `consensus
-> serve` does **not** expose `/v1/*` H3 endpoints yet. Section 2.3 shows the
-> exact mount contract and a complete runnable example.
+> **Status: MOUNTED and shipped (2026-09-12).** `consensus serve` exposes the
+> shim at `/v1/*` by default (`adapters.h3.enabled: true` in config). The
+> `ServiceAdapter` (§2.3 note below) bridges the synchronous H3 protocol onto
+> the asynchronous heartbeat agent loop: send message → poll status until the
+> loop settles back to `idle` → return the agent's final monologue
+> (`memory_events` type `text_block`). Battery: 46/46 (get-h3 h3-test).
 
 ### 2.1 Endpoints
 
