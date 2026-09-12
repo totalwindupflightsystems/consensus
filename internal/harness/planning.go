@@ -358,7 +358,16 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		case ActionToolCall:
 			turnsWithWork++
 			slog.Info("planning: tool call requested", "turn", turn, "tools", len(plan.ToolRequests))
-			// Record tool_call_ref entries in staging buffer so agent sees them next turn
+			// Suspend FIRST, then persist the hand-off rows on a fresh
+			// connection. The tool_call_ref entries are the payload the
+			// external tool executor reads after suspension — writing them
+			// inside the planning tx destroyed them with its rollback
+			// (handleToolCallDuringPlanning), leaving suspended sessions
+			// with an empty hand-off (H3 E2E, 2026-09-12).
+			result, err := h.handleToolCallDuringPlanning(ctx, tx, sessionID, plan, turn)
+			if err != nil {
+				return nil, err
+			}
 			for i, tr := range plan.ToolRequests {
 				payload, _ := json.Marshal(tr)
 				entry := &StagingEntry{
@@ -370,10 +379,11 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 					Description: fmt.Sprintf("tool_call: %s", tr.ToolName),
 					Status:      BufferExecuted,
 				}
-				h.insertStagingEntry(ctx, tx, sessionID, entry, config)
+				if insErr := h.insertStagingEntryDurable(ctx, sessionID, entry); insErr != nil {
+					slog.Error("planning: failed to persist tool_call_ref", "session_id", sessionID, "error", insErr)
+				}
 			}
-			// Suspend transaction, execute tools outside, then return control
-			return h.handleToolCallDuringPlanning(ctx, tx, sessionID, plan, turn)
+			return result, nil
 
 		case ActionCommit:
 			// Apply memory_state_changes before commit (HARDEN-PLAN-MEM)
@@ -493,6 +503,23 @@ func (h *Harness) insertStagingEntry(ctx context.Context, tx db.Tx, sessionID st
 	}
 
 	return tx.Exec(ctx, `
+		INSERT INTO staging_buffer
+			(session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
+		VALUES ($1, 0, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+	`, sessionID, entry.Turn, entry.Seq, string(entry.CmdType),
+		string(payloadJSON), entry.Description, string(entry.Status))
+}
+
+// insertStagingEntryDurable persists a staging entry outside the planning
+// transaction, on a fresh connection. Used for tool_call_ref hand-off rows
+// that must SURVIVE the planning-tx rollback when the loop suspends to
+// tool_exec — the external executor reads them after suspension.
+func (h *Harness) insertStagingEntryDurable(ctx context.Context, sessionID string, entry *StagingEntry) error {
+	payloadJSON, err := json.Marshal(string(entry.Payload))
+	if err != nil {
+		payloadJSON, _ = json.Marshal(entry.Payload)
+	}
+	return h.db.Exec(ctx, `
 		INSERT INTO staging_buffer
 			(session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
 		VALUES ($1, 0, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
