@@ -190,7 +190,15 @@ func (a *ServiceAdapter) stagedToolRequests(ctx context.Context, sessionID strin
 	for _, r := range rows {
 		raw := toStringAny(r["payload"])
 		var tr map[string]any
-		if json.Unmarshal([]byte(raw), &tr) == nil {
+		if err := json.Unmarshal([]byte(raw), &tr); err != nil {
+			// insertStagingEntry* marshals the payload as a JSON string
+			// (json.Marshal(string(payload))) — unwrap that outer layer.
+			var inner string
+			if json.Unmarshal([]byte(raw), &inner) == nil && inner != "" {
+				_ = json.Unmarshal([]byte(inner), &tr)
+			}
+		}
+		if len(tr) > 0 {
 			reqs = append(reqs, tr)
 		}
 	}
