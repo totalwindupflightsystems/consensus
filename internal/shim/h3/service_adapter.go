@@ -100,6 +100,12 @@ func (a *ServiceAdapter) ProcessMessage(ctx context.Context, sessionID, message 
 func (a *ServiceAdapter) FeedToolResult(ctx context.Context, sessionID, toolName string, success bool, data any) (string, error) {
 	payload := fmt.Sprintf(`{"tool_result":{"tool_name":%q,"success":%t,"data":%s}}`,
 		toolName, success, marshalData(data))
+	// Write the result into the newest unanswered tool_call_ref staging rows
+	// FIRST: the planning context shows the staging buffer with per-entry
+	// results (formatBufferStateV2), so this is what the brain actually
+	// reads on its next turn. (The memory_events copy alone is invisible to
+	// the planner — without this it re-requests the tool forever.)
+	a.recordToolResultIntoStaging(ctx, sessionID, payload)
 	if err := a.svc.Messages.SendMessage(ctx, api.SendMessageInput{
 		SessionID: sessionID,
 		Content:   payload,
@@ -213,6 +219,26 @@ func (a *ServiceAdapter) stagedToolRequests(ctx context.Context, sessionID strin
 		return ""
 	}
 	return string(out)
+}
+
+// recordToolResultIntoStaging writes the tool result JSON into the `result`
+// column of the newest unanswered tool_call_ref rows for the session, so the
+// planning context (formatBufferStateV2 → "Result: ...") shows the brain what
+// its requested tool returned. Also flips status executed→executed is already
+// the row state; result is the missing piece.
+func (a *ServiceAdapter) recordToolResultIntoStaging(ctx context.Context, sessionID, resultJSON string) {
+	err := a.db.Exec(ctx, `
+		UPDATE staging_buffer
+		SET result = $1
+		WHERE id IN (
+			SELECT id FROM staging_buffer
+			WHERE session_id = $2 AND cmd_type = 'tool_call_ref'
+			  AND (result IS NULL OR result = '')
+			ORDER BY id DESC LIMIT 3
+		)`, resultJSON, sessionID)
+	if err != nil {
+		slog.Warn("h3: failed to record tool result into staging", "session_id", sessionID, "error", err)
+	}
 }
 
 func toStringAny(v any) string {
