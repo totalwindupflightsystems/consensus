@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/db"
 )
 
 // poll settings for the async agent loop.
@@ -42,11 +43,12 @@ const (
 // ServiceAdapter wraps api.Service to satisfy h3.SessionService.
 type ServiceAdapter struct {
 	svc *api.Service
+	db  db.DB
 }
 
 // NewServiceAdapter creates an H3-shim-compatible service wrapper around the API service.
-func NewServiceAdapter(svc *api.Service) *ServiceAdapter {
-	return &ServiceAdapter{svc: svc}
+func NewServiceAdapter(svc *api.Service, database db.DB) *ServiceAdapter {
+	return &ServiceAdapter{svc: svc, db: database}
 }
 
 func (a *ServiceAdapter) CreateSession(ctx context.Context, agentName, goal, modelID, projectID string, contextBudget int) (string, string, error) {
@@ -121,9 +123,11 @@ func (a *ServiceAdapter) FeedToolResult(ctx context.Context, sessionID, toolName
 	return a.waitForTurn(ctx, sessionID)
 }
 
-// waitForTurn polls the session status until the agent loop has settled back
-// to idle, then returns the newest text_block memory event (the final
-// monologue of the turn).
+// waitForTurn polls the session status until the agent turn reaches a client
+// hand-off point: idle (final answer in text_block) or tool_exec (the planning
+// loop suspended for THIS client to execute tools — the staged tool_call_ref
+// entries are returned as the decision text). Three consecutive observations
+// of the settle status guard against transient claims.
 func (a *ServiceAdapter) waitForTurn(ctx context.Context, sessionID string) (string, error) {
 	deadline := time.Now().Add(pollTimeout)
 
@@ -146,14 +150,73 @@ func (a *ServiceAdapter) waitForTurn(ctx context.Context, sessionID string) (str
 			if status == "idle" && consecutiveIdle >= settleChecks {
 				return a.latestOutput(ctx, sessionID)
 			}
+		case "tool_exec":
+			// Planning suspended for the external executor (this client).
+			// Give the status a tick to stabilize, then hand back the
+			// staged tool requests as the decision text.
+			if !woke {
+				break // suspension before first wake = still booting artifacts
+			}
+			consecutiveIdle++
+			if consecutiveIdle >= settleChecks {
+				if tr := a.stagedToolRequests(ctx, sessionID); tr != "" {
+					return tr, nil
+				}
+				return "", nil
+			}
 		default:
-			// thinking / planning / tool_exec / executing / waiting_sub — loop is live
+			// thinking / planning / executing / waiting_sub — loop is live
 			woke = true
 			consecutiveIdle = 0
 		}
 		time.Sleep(pollInterval)
 	}
 	return "", fmt.Errorf("consensus agent turn did not settle within %s (session %s)", pollTimeout, sessionID)
+}
+
+// stagedToolRequests returns the newest tool_call_ref staging entries for the
+// session serialized in Consensus AgentOutput JSON form, so the shim's
+// parseToolCall can convert them into an H3 TOOL_CALL decision.
+func (a *ServiceAdapter) stagedToolRequests(ctx context.Context, sessionID string) string {
+	rows, err := a.db.Query(ctx, `
+		SELECT payload FROM staging_buffer
+		WHERE session_id = $1 AND cmd_type = 'tool_call_ref'
+		ORDER BY id DESC LIMIT 5`, sessionID)
+	if err != nil {
+		slog.Debug("h3: no tool_call_ref staging rows", "session_id", sessionID)
+		return ""
+	}
+	reqs := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		raw := toStringAny(r["payload"])
+		var tr map[string]any
+		if json.Unmarshal([]byte(raw), &tr) == nil {
+			reqs = append(reqs, tr)
+		}
+	}
+	if len(reqs) == 0 {
+		return ""
+	}
+	out, err := json.Marshal(map[string]any{
+		"tool_requests":      reqs,
+		"internal_monologue": "consensus planning requested external tool execution",
+	})
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+func toStringAny(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case []byte:
+		return string(t)
+	default:
+		b, _ := json.Marshal(v)
+		return string(b)
+	}
 }
 
 // latestOutput returns the newest text_block memory event for the session —

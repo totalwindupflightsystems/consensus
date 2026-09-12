@@ -372,7 +372,7 @@ func runServer() {
 	// The ServiceAdapter bridges the synchronous H3 protocol onto Consensus's
 	// asynchronous heartbeat agent loop.
 	if cfg.Adapters.H3.Enabled {
-		h3Srv := h3.NewServer(database, h3.NewServiceAdapter(apiSrv.Service()))
+		h3Srv := h3.NewServer(database, h3.NewServiceAdapter(apiSrv.Service(), database))
 		for _, pattern := range h3.MountPatterns {
 			apiMux.Handle(pattern, h3Srv.Handler())
 		}
