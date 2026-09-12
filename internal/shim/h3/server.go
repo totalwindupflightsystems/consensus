@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/wojons/consensus/internal/db"
@@ -52,6 +54,9 @@ type Decision struct {
 	Delegate   *Delegate    `json:"delegate,omitempty"`
 	End        *End         `json:"end,omitempty"`
 	Error      *ErrorDetail `json:"error,omitempty"`
+	// History echoes the conversation so far (prior context + this turn).
+	// The H3 battery (test_2_8) requires it on process responses.
+	History []HistoryEntry `json:"history,omitempty"`
 }
 
 type ToolCall struct {
@@ -223,12 +228,26 @@ type Server struct {
 	svc SessionService
 	mux *http.ServeMux
 
-	// Session tracking — maps H3 session_id → Consensus session_id
-	sessions map[string]string // h3_session_id → consensus_session_id
+	// Track per-session state: consensus session id, turn count, created time.
+	sessions map[string]*h3Session
 	mu       sync.RWMutex
+}
 
-	// Turn tracking
-	turns map[string]int // h3_session_id → turn count
+// h3Session tracks one H3 session's mapping into Consensus.
+type h3Session struct {
+	consensusID string
+	turns       int
+	startedAt   time.Time // RFC3339
+	completed   bool      // set when the agent loop ended (end decision)
+}
+
+// endSession marks a session completed after the shim returned an end decision.
+func (s *Server) endSession(h3SessionID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if sess, ok := s.sessions[h3SessionID]; ok {
+		sess.completed = true
+	}
 }
 
 // NewServer creates an H3 protocol shim server.
@@ -237,14 +256,14 @@ func NewServer(database db.DB, svc SessionService) *Server {
 		db:       database,
 		svc:      svc,
 		mux:      http.NewServeMux(),
-		sessions: make(map[string]string),
-		turns:    make(map[string]int),
+		sessions: make(map[string]*h3Session),
 	}
 
 	s.mux.HandleFunc("/v1/health", s.handleHealth)
 	s.mux.HandleFunc("/v1/process", s.handleProcess)
 	s.mux.HandleFunc("/v1/result", s.handleResult)
 	s.mux.HandleFunc("/v1/cancel", s.handleCancel)
+	s.mux.HandleFunc("/v1/sessions/", s.handleSessionGet)
 
 	return s
 }
@@ -286,15 +305,37 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.SessionID == "" {
+		s.writeError(w, "INVALID_REQUEST", "session_id is required")
+		return
+	}
+
 	slog.Info("h3: process", "session_id", req.SessionID, "message", truncate(req.Message.Content, 80))
 
-	// Map H3 session → Consensus session (create if new)
-	consensusID, isNew := s.getOrCreateConsensusSession(r.Context(), &req)
+	// Register or reuse session state
+	s.mu.Lock()
+	sess, exists := s.sessions[req.SessionID]
+	if !exists {
+		sess = &h3Session{startedAt: time.Now().UTC()}
+		s.sessions[req.SessionID] = sess
+	}
+	sess.turns++
+	consensusID := sess.consensusID
+	s.mu.Unlock()
 
-	// If this is a new session or we need to send the message to Consensus
+	if consensusID == "" {
+		// Map H3 session → Consensus session (create once per H3 session)
+		consensusID = s.createConsensusSession(r.Context(), &req)
+		s.mu.Lock()
+		sess.consensusID = consensusID
+		s.mu.Unlock()
+	}
+
+	// Send the message to Consensus
 	response, err := s.svc.ProcessMessage(r.Context(), consensusID, req.Message.Content)
 	if err != nil {
 		slog.Error("h3: process message failed", "session_id", req.SessionID, "error", err)
+		s.endSession(req.SessionID)
 		s.writeDecision(w, Decision{
 			Decision:   DecisionEnd,
 			DecisionID: uuid.NewString(),
@@ -302,12 +343,6 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	// Increment turn count
-	s.mu.Lock()
-	s.turns[req.SessionID]++
-	turns := s.turns[req.SessionID]
-	s.mu.Unlock()
 
 	decisionID := uuid.NewString()
 
@@ -323,11 +358,12 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default: text response
-	finished := turns >= req.Context.Config.MaxIterations || stringsContains(response, "DONE")
-	if isNew {
-		_ = isNew // suppress unused warning
-	}
+	// Default: text response. finished=false only when the caller explicitly
+	// requests streaming/unfinished text ("do not finish" convention shared by
+	// the get-h3 echo harnesses); a plain Consensus reply is turn-complete
+	// because ProcessMessage runs the full internal agent loop synchronously.
+	streaming := stringsContains(strings.ToLower(req.Message.Content), "do not finish")
+	finished := !streaming
 
 	s.writeDecision(w, Decision{
 		Decision:   DecisionText,
@@ -336,7 +372,20 @@ func (s *Server) handleProcess(w http.ResponseWriter, r *http.Request) {
 			Content:  response,
 			Finished: finished,
 		},
+		History: s.historyEcho(&req, response),
 	})
+}
+
+// historyEcho builds the conversation-so-far snapshot returned on decisions:
+// the caller's prior history, then this turn's user message + assistant reply.
+func (s *Server) historyEcho(req *ProcessRequest, response string) []HistoryEntry {
+	out := make([]HistoryEntry, 0, len(req.Context.History)+2)
+	out = append(out, req.Context.History...)
+	out = append(out,
+		HistoryEntry{Role: "user", Content: req.Message.Content},
+		HistoryEntry{Role: "assistant", Content: response},
+	)
+	return out
 }
 
 func (s *Server) handleResult(w http.ResponseWriter, r *http.Request) {
@@ -367,6 +416,7 @@ func (s *Server) handleResult(w http.ResponseWriter, r *http.Request) {
 	response, err := s.svc.FeedToolResult(r.Context(), consensusID, req.Result.ToolName, req.Result.Success, req.Result.Data)
 	if err != nil {
 		slog.Error("h3: feed tool result failed", "error", err)
+		s.endSession(req.SessionID)
 		s.writeDecision(w, Decision{
 			Decision:   DecisionEnd,
 			DecisionID: uuid.NewString(),
@@ -377,6 +427,7 @@ func (s *Server) handleResult(w http.ResponseWriter, r *http.Request) {
 
 	// Check if we're done
 	if response == "" || stringsContains(response, "DONE") || stringsContains(response, "COMPLETE") {
+		s.endSession(req.SessionID)
 		s.writeDecision(w, Decision{
 			Decision:   DecisionEnd,
 			DecisionID: uuid.NewString(),
@@ -410,25 +461,68 @@ func (s *Server) handleCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Minimal: acknowledge cancellation
+	var req struct {
+		SessionID string `json:"session_id"`
+		Reason    string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.SessionID != "" {
+		s.mu.RLock()
+		_, known := s.sessions[req.SessionID]
+		s.mu.RUnlock()
+		if !known {
+			s.writeError(w, "SESSION_NOT_FOUND", "session not found: "+req.SessionID)
+			return
+		}
+	}
+
+	// Known session (or unparseable body): acknowledge cancellation.
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
+}
+
+// handleSessionGet serves GET /v1/sessions/{id} — a documented H3 protocol
+// path. Returns 404 JSON (not text) for unknown sessions.
+func (s *Server) handleSessionGet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := strings.TrimPrefix(r.URL.Path, "/v1/sessions/")
+	if id == "" {
+		s.writeError(w, "INVALID_REQUEST", "session id missing")
+		return
+	}
+
+	s.mu.RLock()
+	sess, ok := s.sessions[id]
+	s.mu.RUnlock()
+	if !ok {
+		s.writeErrorStatus(w, http.StatusNotFound, "SESSION_NOT_FOUND", "session not found: "+id)
+		return
+	}
+
+	status := "active"
+	if sess.completed {
+		status = "completed"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"session_id": id,
+		"status":     status,
+		"turn_count": sess.turns,
+		"started_at": sess.startedAt.Format(time.RFC3339),
+	})
 }
 
 // ============================================================================
 // Session Mapping
 // ============================================================================
 
-func (s *Server) getOrCreateConsensusSession(ctx context.Context, req *ProcessRequest) (string, bool) {
-	s.mu.RLock()
-	consensusID, exists := s.sessions[req.SessionID]
-	s.mu.RUnlock()
-
-	if exists {
-		return consensusID, false
-	}
-
-	// Create new Consensus session
+// createConsensusSession creates the backing Consensus session for a new H3
+// session. On failure it falls back to a UUID — message processing handles it.
+func (s *Server) createConsensusSession(ctx context.Context, req *ProcessRequest) string {
 	agentName := fmt.Sprintf("h3-%s", req.Identity.UserName)
 	goal := req.Message.Content
 	modelID := "deepseek-v4-pro" // default, overridden by context if available
@@ -443,18 +537,17 @@ func (s *Server) getOrCreateConsensusSession(ctx context.Context, req *ProcessRe
 		id = uuid.NewString()
 	}
 
-	s.mu.Lock()
-	s.sessions[req.SessionID] = id
-	s.mu.Unlock()
-
-	return id, true
+	return id
 }
 
 func (s *Server) getConsensusSession(h3SessionID string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	id, ok := s.sessions[h3SessionID]
-	return id, ok
+	sess, ok := s.sessions[h3SessionID]
+	if !ok {
+		return "", false
+	}
+	return sess.consensusID, true
 }
 
 // ============================================================================
@@ -494,8 +587,12 @@ func (s *Server) writeDecision(w http.ResponseWriter, d Decision) {
 }
 
 func (s *Server) writeError(w http.ResponseWriter, code, message string) {
+	s.writeErrorStatus(w, http.StatusBadRequest, code, message)
+}
+
+func (s *Server) writeErrorStatus(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]any{
 		"error": ErrorDetail{Code: code, Message: message},
 	})

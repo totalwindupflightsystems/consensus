@@ -243,8 +243,8 @@ func TestProcessTextDecision(t *testing.T) {
 	if d.Text == nil || d.Text.Content != "hello from consensus" {
 		t.Errorf("text content = %+v, want echoed response", d.Text)
 	}
-	if d.Text != nil && d.Text.Finished {
-		t.Errorf("text finished = true, want false (1 turn < max 5, no DONE)")
+	if d.Text != nil && !d.Text.Finished {
+		t.Errorf("text finished = false, want true (plain consensus reply = turn-complete; no DONE, no 'do not finish')")
 	}
 
 	// CreateSession must be called once with the mapped arguments.
@@ -566,8 +566,8 @@ func TestSmokeProcessResultRoundTrip(t *testing.T) {
 	if d1.Decision != DecisionText || d1.Text == nil || d1.Text.Content != "searching..." {
 		t.Fatalf("phase 1 decision = %+v, want text 'searching...'", d1)
 	}
-	if d1.Text.Finished {
-		t.Fatal("phase 1 finished = true, want false")
+	if !d1.Text.Finished {
+		t.Fatal("phase 1 finished = false, want true (plain consensus reply = turn-complete)")
 	}
 
 	// Phase 2: feed a tool result → agent requests another tool.
