@@ -43,6 +43,11 @@ type IterationContext struct {
 	// LLM messages (system prompt + formatted Markdown context)
 	Messages []Message
 
+	// PendingUserMessages are visible user_message ledger rows waiting to be
+	// delivered as first-class user turns. They are hidden only after a
+	// successful model response is committed.
+	PendingUserMessages []PendingUserMessage
+
 	// Budget & constraints
 	ContextBudget        int
 	TokensUsedIn         int64
@@ -81,6 +86,12 @@ type Message struct {
 	Content string `json:"content"` // message body
 }
 
+// PendingUserMessage ties an LLM user turn to its durable memory_events row.
+type PendingUserMessage struct {
+	ID      int64
+	Content string
+}
+
 // ============================================================================
 // Agent Output (LLM JSON Response) — SPEC-007, SPEC-008
 // ============================================================================
@@ -98,6 +109,10 @@ type AgentOutput struct {
 
 	// SystemActions are session-level operations (status changes, etc).
 	SystemActions []string `json:"system_actions"`
+
+	// MessageToUser is the user-visible assistant response. It is persisted as
+	// a text_block when system_actions contains "respond".
+	MessageToUser string `json:"message_to_user"`
 
 	// ToolRequests are external tool invocations requested by the agent.
 	// These are written to the tool_requests table and executed outside the

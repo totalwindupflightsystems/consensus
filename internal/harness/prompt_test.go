@@ -535,12 +535,9 @@ func TestExtractJSONField_Empty(t *testing.T) {
 // ============================================================================
 
 func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
-	// Regression: formatPlanningSystemPromptV2 told the LLM to output
-	// {"action": "...", "staged_commands": [...], "message_to_user": "..."}
-	// but the AgentOutput parser reads:
-	// {"memory_state_changes": [...], "system_actions": [...], "tool_requests": [...]}
-	// The "action" and "staged_commands" fields were completely ignored,
-	// causing all turns to parse as ActionNoOp.
+	// Regression: formatPlanningSystemPromptV2 once told the LLM to output
+	// action/staged_commands fields that AgentOutput ignored. Keep the prompt
+	// locked to the parser's canonical fields, including message_to_user.
 	//
 	// This test verifies the prompt:
 	// 1. Includes "memory_state_changes" (what the parser reads)
@@ -548,7 +545,7 @@ func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
 	// 3. Includes "tool_requests" (what the parser reads for tool calls)
 	// 4. Does NOT include "action" as a standalone field name (deprecated format)
 	// 5. Does NOT include "staged_commands" (deprecated format)
-	// 6. Does NOT include "message_to_user" (deprecated format)
+	// 6. Includes "message_to_user" for the durable conversational response
 
 	h := &Harness{}
 
@@ -576,14 +573,15 @@ func TestPromptFormatMatchesAgentOutputStruct(t *testing.T) {
 		`"system_actions"`,
 		`"tool_requests"`,
 		`"internal_monologue"`,
+		`"message_to_user"`,
 	}
 
 	// Must NOT include deprecated/alternative field names
 	deprecatedFields := []string{
 		`"action"`,          // deprecated — parser ignores this field
 		`"staged_commands"`, // deprecated — parser reads memory_state_changes
-		`"message_to_user"`, // deprecated — parser reads system_actions
-		`"end_iteration"`,   // deprecated — parser uses system_actions
+
+		`"end_iteration"`, // deprecated — parser uses system_actions
 	}
 
 	for _, field := range requiredFields {

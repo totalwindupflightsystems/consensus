@@ -71,6 +71,35 @@ func TestParseAgentResponse_MinimalOutput(t *testing.T) {
 	}
 }
 
+func TestParseAgentResponse_RespondRequiresMessageToUser(t *testing.T) {
+	_, err := ParseAgentResponse([]byte(`{
+		"internal_monologue": "answering",
+		"memory_state_changes": [],
+		"system_actions": ["respond"],
+		"message_to_user": "",
+		"tool_requests": [],
+		"sub_agent_spawns": []
+	}`))
+	if err == nil || !stringsContains(err.Error(), "message_to_user") {
+		t.Fatalf("empty conversational response error = %v, want message_to_user validation", err)
+	}
+
+	output, err := ParseAgentResponse([]byte(`{
+		"internal_monologue": "answering",
+		"memory_state_changes": [],
+		"system_actions": ["respond"],
+		"message_to_user": "4",
+		"tool_requests": [],
+		"sub_agent_spawns": []
+	}`))
+	if err != nil {
+		t.Fatalf("valid conversational response: %v", err)
+	}
+	if output.MessageToUser != "4" {
+		t.Fatalf("message_to_user = %q, want 4", output.MessageToUser)
+	}
+}
+
 func TestParseAgentResponse_EmptyInput(t *testing.T) {
 	_, err := ParseAgentResponse([]byte{})
 	if err == nil {

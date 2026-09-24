@@ -273,6 +273,26 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 		return nil, fmt.Errorf("read memory: %w", err)
 	}
 
+	// user_message rows are conversational input, not context prose. Project
+	// them as ordered LLM user turns and remove them from the formatted memory
+	// section so each message is delivered exactly once per call.
+	pendingUserMessages := make([]PendingUserMessage, 0)
+	contextMemories := make([]MemoryEventInfo, 0, len(memories))
+	for _, event := range memories {
+		if event.Type == "user_message" {
+			pendingUserMessages = append(pendingUserMessages, PendingUserMessage{
+				ID:      event.ID,
+				Content: event.Content,
+			})
+			continue
+		}
+		contextMemories = append(contextMemories, event)
+	}
+	sort.SliceStable(pendingUserMessages, func(i, j int) bool {
+		return pendingUserMessages[i].ID < pendingUserMessages[j].ID
+	})
+	memories = contextMemories
+
 	// Sort by cache tier for prompt caching optimization (SPEC-003 §6.2)
 	// Layer 1 (static system) first, Layer 2 (immutable ledger) next, Layer 3 (dynamic) last
 	h.sortByCacheTier(memories)
@@ -302,6 +322,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 		MaxIterations:        session.MaxIterations,
 		MaxConsecutiveErrors: session.MaxConsecutiveErrors,
 		IsSubAgent:           isSubAgent,
+		PendingUserMessages:  pendingUserMessages,
 	}
 
 	// Format Markdown messages
@@ -314,6 +335,9 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 			Role:    "user",
 			Content: h.formatContextMarkdown(ic, memories, tools),
 		},
+	}
+	for _, pending := range pendingUserMessages {
+		ic.Messages = append(ic.Messages, Message{Role: "user", Content: pending.Content})
 	}
 
 	// Commit the read transaction

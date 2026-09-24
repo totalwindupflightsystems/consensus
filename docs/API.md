@@ -161,7 +161,12 @@ curl -X POST http://localhost:8090/api/v1/sessions/<session-uuid>/message \
   -d '{"role":"user","content":"Summarize the ledger."}'
 ```
 
-Triggers the harness loop; returns the agent response.
+Queues the user turn and returns `200` with `{"status":"message_received",...}`.
+Processing is asynchronous. Poll `GET /api/v1/sessions/{id}` until the session
+returns to `idle`; the durable assistant reply is then available in
+`last_message`, and token totals are exposed as `tokens_used_in` and
+`tokens_used_out`. The same reply is also listed as a `text_block` by
+`GET /api/v1/sessions/{id}/memory`.
 
 ---
 

@@ -256,10 +256,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		// Format turn context and call LLM
 		turnContext := h.formatTurnContextV2(ic, buffer, turn, config, memoryStateChanges)
 
-		messages := []Message{
-			{Role: "system", Content: h.formatPlanningSystemPromptV2(ic, buffer, turn, config)},
-			{Role: "user", Content: turnContext},
-		}
+		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext)
 
 		output, err := h.LLMClient.Call(ctx, messages)
 		if err != nil {
@@ -267,17 +264,24 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			return h.handleLLMPlanningError(ctx, tx, sessionID, err)
 		}
 
+		// A successful response consumes the user turns and accounts usage in the
+		// same transaction as the eventual assistant response/session transition.
+		// If the planning transaction rolls back, both effects roll back together.
+		if turn == 1 {
+			if err := h.markUserMessagesRead(ctx, tx, sessionID, ic.Iteration, ic.PendingUserMessages); err != nil {
+				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("consume user messages: %w", err))
+			}
+		}
+		if err := h.recordLLMUsageTx(ctx, tx, sessionID, ic.Iteration, output); err != nil {
+			return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("record LLM usage: %w", err))
+		}
+
 		// Parse into TurnPlan
 		plan := h.outputToTurnPlanV2(output.Output)
 
-		// Record billing after each LLM call
+		// Check the configured budget after each LLM call. Usage persistence is
+		// handled transactionally above rather than through the best-effort tracker.
 		if h.BillingTracker != nil {
-			h.BillingTracker.RecordBilling(ctx, sessionID, ic.Iteration, output.ModelID, "planning",
-				output.Usage.PromptTokens, output.Usage.CompletionTokens,
-				output.Usage.CacheReadTokens, output.Usage.CacheWriteTokens,
-				0.0)
-
-			// Check budget after recording
 			exceeded, bErr := h.BillingTracker.BudgetCheck(ctx, sessionID, ic.BudgetLimitCents)
 			if bErr != nil {
 				slog.Error("planning: budget check failed", "session_id", sessionID, "error", bErr)
@@ -420,18 +424,8 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			memoryStateChanges = nil // clear pending changes
 
 		case ActionRespond:
-			// Reply to user without committing (HARDEN-PLAN-03)
-			tx.Rollback()
 			slog.Info("planning: responding to user", "turn", turn)
-			return &IterationResult{
-				Status:     "success",
-				NextStatus: string(session.StatusIdle),
-				AuditEntry: AuditEntry{
-					SessionID: sessionID,
-					Monologue: plan.Monologue,
-					Result:    "responded",
-				},
-			}, nil
+			return h.handleRespond(ctx, tx, sessionID, ic.Iteration, plan)
 
 		case ActionNoOp:
 			slog.Info("planning: no-op turn", "turn", turn)
@@ -682,6 +676,98 @@ func (h *Harness) handleCommitV2(ctx context.Context, tx db.Tx, sessionID string
 		Status:     "success",
 		NextStatus: string(session.StatusIdle),
 	}, nil
+}
+
+func (h *Harness) handleRespond(ctx context.Context, tx db.Tx, sessionID string, iteration int64, plan TurnPlan) (*IterationResult, error) {
+	message := strings.TrimSpace(plan.MessageToUser)
+	if message == "" {
+		return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("respond action requires message_to_user"))
+	}
+
+	if err := tx.Exec(ctx, `
+		INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		VALUES ('text_block', $1, $2, $3, CURRENT_TIMESTAMP)
+	`, message, sessionID, iteration); err != nil {
+		return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("respond: persist assistant message: %w", err))
+	}
+	if err := tx.Exec(ctx, `
+		UPDATE sessions
+		SET status = 'idle', heartbeat_at = CURRENT_TIMESTAMP, iteration = iteration + 1
+		WHERE id = $1
+	`, sessionID); err != nil {
+		return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("respond: update session: %w", err))
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("respond: commit: %w", err)
+	}
+
+	h.resetConsecutiveErrors(ctx, sessionID)
+	return &IterationResult{
+		Status:     "success",
+		NextStatus: string(session.StatusIdle),
+		AuditEntry: AuditEntry{
+			SessionID: sessionID,
+			Monologue: plan.Monologue,
+			Result:    "responded",
+		},
+	}, nil
+}
+
+func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, turnContext string) []Message {
+	messages := []Message{
+		{Role: "system", Content: h.formatPlanningSystemPromptV2(ic, buffer, turn, config)},
+		{Role: "user", Content: turnContext},
+	}
+	if turn == 1 {
+		for _, pending := range ic.PendingUserMessages {
+			messages = append(messages, Message{Role: "user", Content: pending.Content})
+		}
+	}
+	return messages
+}
+
+func (h *Harness) markUserMessagesRead(ctx context.Context, tx db.Tx, sessionID string, iteration int64, messages []PendingUserMessage) error {
+	for _, message := range messages {
+		if err := tx.Exec(ctx, `
+			INSERT INTO display_modes (memory_id, mode, set_at, set_by_iteration, session_id)
+			VALUES ($1, 'hidden', CURRENT_TIMESTAMP, $2, $3)
+			ON CONFLICT (memory_id) DO UPDATE SET
+				mode = 'hidden', set_at = CURRENT_TIMESTAMP, set_by_iteration = $2
+		`, message.ID, iteration, sessionID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *Harness) recordLLMUsageTx(ctx context.Context, tx db.Tx, sessionID string, iteration int64, response *LLMResponse) error {
+	if response == nil {
+		return fmt.Errorf("nil LLM response")
+	}
+	promptTokens := max(response.Usage.PromptTokens, 0)
+	completionTokens := max(response.Usage.CompletionTokens, 0)
+	cacheReadTokens := max(response.Usage.CacheReadTokens, 0)
+	cacheWriteTokens := max(response.Usage.CacheWriteTokens, 0)
+	modelID := response.ModelID
+	if modelID == "" {
+		modelID = "unknown"
+	}
+	costUSD := h.calculateCostUSD(ctx, modelID, promptTokens, completionTokens, cacheReadTokens, cacheWriteTokens)
+
+	if err := tx.Exec(ctx, `
+		UPDATE sessions
+		SET tokens_used_in = COALESCE(tokens_used_in, 0) + $1,
+		    tokens_used_out = COALESCE(tokens_used_out, 0) + $2
+		WHERE id = $3
+	`, promptTokens, completionTokens, sessionID); err != nil {
+		return err
+	}
+	return tx.Exec(ctx, `
+		INSERT INTO agent_billing
+			(session_id, iteration, model_id, category, prompt_tokens, completion_tokens,
+			 cache_read_tokens, cache_write_tokens, cost_usd)
+		VALUES ($1, $2, $3, 'cognition', $4, $5, $6, $7, $8)
+	`, sessionID, iteration, modelID, promptTokens, completionTokens, cacheReadTokens, cacheWriteTokens, costUSD)
 }
 
 func (h *Harness) handleRollbackAndEnd(ctx context.Context, tx db.Tx, sessionID string, turn int, messageToUser string) (*IterationResult, error) {
@@ -977,6 +1063,7 @@ psql session.
     "SQL statement 2"
   ],
   "system_actions": [],
+  "message_to_user": "assistant response for the user, or empty string",
   "tool_requests": [],
   "sub_agent_spawns": []
 }
@@ -992,6 +1079,7 @@ Each entry is raw executable SQL. Example of creating a table (session_id is in 
 **system_actions:** ["commit"] to finalize and end the session. ["rollback"] to undo.
 ["respond"] to reply without committing. ["respond", "end"] to reply and end the session.
 Empty array [] means continue planning.
+**message_to_user:** Required and non-empty when system_actions includes "respond"; otherwise use "".
 **tool_requests:** [{"tool_name": "name", "parameters": {...}}] — external tool calls.
 **sub_agent_spawns:** [{"agent_name": "...", "goal": "...", "model": "..."}] — fork a sub-agent.`, ic.Goal, ic.SessionID, turn, config.MaxTurns, schemaSection)
 }
@@ -1002,8 +1090,9 @@ Empty array [] means continue planning.
 
 func (h *Harness) outputToTurnPlanV2(output *AgentOutput) TurnPlan {
 	plan := TurnPlan{
-		Action:    ActionNoOp,
-		Monologue: output.InternalMonologue,
+		Action:        ActionNoOp,
+		MessageToUser: output.MessageToUser,
+		Monologue:     output.InternalMonologue,
 	}
 
 	// Check for tool requests first (they take priority)

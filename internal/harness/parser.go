@@ -76,6 +76,11 @@ func validateOutput(output *AgentOutput) error {
 	if output.SystemActions == nil {
 		return &ParseError{Message: "missing required field: system_actions"}
 	}
+	for _, action := range output.SystemActions {
+		if strings.Contains(strings.ToLower(action), "respond") && strings.TrimSpace(output.MessageToUser) == "" {
+			return &ParseError{Message: "respond action requires message_to_user"}
+		}
+	}
 
 	// Validate tool_requests entries
 	for i, tr := range output.ToolRequests {

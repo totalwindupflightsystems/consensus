@@ -316,11 +316,15 @@ func TestOutputToTurnPlanV2_Respond(t *testing.T) {
 	output := &AgentOutput{
 		InternalMonologue: "I need to ask the user a question",
 		SystemActions:     []string{"respond"},
+		MessageToUser:     "Which option do you prefer?",
 	}
 
 	plan := h.outputToTurnPlanV2(output)
 	if plan.Action != ActionRespond {
 		t.Errorf("action = %s, want respond", plan.Action)
+	}
+	if plan.MessageToUser != "Which option do you prefer?" {
+		t.Errorf("message_to_user = %q", plan.MessageToUser)
 	}
 }
 

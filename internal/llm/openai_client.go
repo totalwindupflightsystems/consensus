@@ -386,6 +386,10 @@ func agentOutputJSONSchema() map[string]any {
 				"description": "Session-level operations (status changes)",
 				"items":       map[string]any{"type": "string"},
 			},
+			"message_to_user": map[string]any{
+				"type":        []string{"string", "null"},
+				"description": "User-visible response; required when system_actions contains respond",
+			},
 			"tool_requests": map[string]any{
 				"type":        "array",
 				"description": "External tool invocations",
@@ -419,7 +423,7 @@ func agentOutputJSONSchema() map[string]any {
 				},
 			},
 		},
-		"required":             []string{"internal_monologue", "memory_state_changes", "system_actions", "tool_requests", "sub_agent_spawns"},
+		"required":             []string{"internal_monologue", "memory_state_changes", "system_actions", "message_to_user", "tool_requests", "sub_agent_spawns"},
 		"additionalProperties": false,
 	}
 }
