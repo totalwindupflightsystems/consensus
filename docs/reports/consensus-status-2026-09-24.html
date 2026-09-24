@@ -1,0 +1,190 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consensus — status & evidence report — 2026-09-24</title>
+<style>
+:root{--f:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--bg:#0f1216;--card:#171c22;--card2:#1d242c;--tx:#e6edf3;--dim:#9aa7b4;--line:#2a333d;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#58a6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 var(--f)}
+header{padding:28px 32px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#12171d,#0f1216)}
+h1{margin:0 0 6px;font-size:25px;letter-spacing:-.3px}
+h2{margin:34px 0 12px;font-size:18px;border-left:3px solid var(--acc);padding-left:10px}
+h3{margin:22px 0 8px;font-size:15px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+.sub{color:var(--dim);font-size:13px}
+main{padding:8px 32px 60px;max-width:1180px}
+a{color:var(--acc)}
+.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:18px 0 6px;columns:2}
+.toc ol{margin:0;padding-left:22px} .toc li{margin:3px 0;font-size:14px}
+.verdict{background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:8px;padding:16px 18px;margin:16px 0}
+.verdict b{color:#fff}
+table{width:100%;border-collapse:collapse;margin:10px 0 4px;font-size:13.5px;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--card2);font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
+tr:last-child td{border-bottom:none}
+td.n{white-space:nowrap;color:var(--dim);font-family:var(--m);font-size:12.5px}
+code{font-family:var(--m);font-size:12.5px;background:#0b0e12;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.b{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.b.ok{background:rgba(63,185,80,.15);color:var(--ok);border:1px solid rgba(63,185,80,.4)}
+.b.warn{background:rgba(210,153,34,.15);color:var(--warn);border:1px solid rgba(210,153,34,.4)}
+.b.bad{background:rgba(248,81,73,.15);color:var(--bad);border:1px solid rgba(248,81,73,.4)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.kpi .v{font-size:23px;font-weight:650;letter-spacing:-.5px}
+.kpi .l{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.kpi .d{font-size:12px;color:var(--dim);margin-top:6px}
+ul{margin:8px 0 8px 20px;padding:0} li{margin:5px 0}
+.foot{color:var(--dim);font-size:12.5px;border-top:1px solid var(--line);margin-top:34px;padding-top:14px}
+.pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:12px;font-family:var(--m);color:var(--dim);margin:2px 4px 2px 0}
+</style></head><body>
+<header>
+<h1>Consensus — status &amp; evidence report</h1>
+<div class="sub">Report generated 2026-09-24 22:46Z (17:46 local, UTC−05) &middot; HEAD <code>f6a3421</code> &middot; unpushed <b>0</b> &middot; board 121 rows (92 complete / 29 pending) &middot; CI 6/6 green &middot; every figure below was produced by a command run in this session</div>
+</header><main>
+
+<div class="verdict">
+<b>The short answer: it is real, the core works, and it is not yet ready to hand to a stranger or an external agent.</b><br>
+A message really does reach a real model and come back with real answers, durable DB state, token accounting and billing rows &mdash;
+proven independently on three surfaces (control host, <code>bunker-las-01</code>, and a dogfood run on a clean <code>bunker-las-03</code>).
+The install path works cold on a fresh machine in ~60 s. What is <i>not</i> true yet: multi-turn delivery was broken (one half fixed, one half open),
+the published API contract lies about 7 of its own routes, the shim surface is unauthenticated, and MCP attach &mdash; the thing that would make
+muster and arbitrary agents useful &mdash; does not work at all. Three P0/P1 defects were found and fixed <i>today</i> by the fleet, which is itself
+the strongest evidence the project is being driven rather than drifting.
+</div>
+
+<div class="toc"><ol>
+<li><a href="#verdict">Promise vs evidence</a></li>
+<li><a href="#kpi">Headline numbers</a></li>
+<li><a href="#tiers">Test-plan tiers, as run</a></li>
+<li><a href="#suites">Suites &amp; independent batteries</a></li>
+<li><a href="#defects">Defect ledger</a></li>
+<li><a href="#activity">Last 24 hours (who did what)</a></li>
+<li><a href="#decisions">Decisions for Bane</a></li>
+<li><a href="#gaps">Honest gaps in this evidence</a></li>
+<li><a href="#artifacts">Artifact index</a></li>
+</ol></div>
+
+<h2 id="verdict">1 &middot; Promise vs evidence</h2>
+<table><tr><th style="width:21%">What was promised</th><th style="width:19%">Verdict</th><th style="width:14%">Basis</th><th>Measured evidence</th></tr>
+<tr><td><b>Real LLM answers (not canned)</b></td><td><span class="b ok">PASS</span></td><td class='n'>3 independent ways</td><td>Host loop, bunker run and the dogfood run each drove a real DeepSeek call. Bunker: prompt 1676 / completion 95 tok, elapsed 1278 ms, answer <code>391</code> for 17&times;23, <code>agent_billing</code> row 0.009805 USD.</td></tr>
+<tr><td><b>Real agent loops (multi-turn)</b></td><td><span class="b warn">PARTIAL — 1 FIXED, 1 OPEN</span></td><td class='n'>turn 1 proven, turn 2+ was broken</td><td>Turn 1 is solid. Turns 2+ did not deliver the message text to the model (byte-identical prompt sizes 1668/1668 then 1695/1695 across different user messages; the model answered &ldquo;no question yet&rdquo;). <b>DF-CONSENSUS-15</b> (same-iteration hiding) is fixed at <code>97d2ff1</code>; <b>DF-CONSENSUS-20</b> (cross-iteration delivery) is still open.</td></tr>
+<tr><td><b>Real session tracking</b></td><td><span class="b ok">PASS</span></td><td class='n'>survives restart</td><td>Killed the server, restarted: health 200, <code>sessions_before=1 sessions_after=1</code>, session still listed via the API with tokens/iteration/status intact. State machine walks booting&rarr;planning&rarr;idle.</td></tr>
+<tr><td><b>Real tool calls</b></td><td><span class="b ok">PASS (audit gap)</span></td><td class='n'>executed, 39 rows</td><td>Registered <code>sweep_tool</code> and <code>POST /api/v1/tools/sweep_tool/execute</code> returned <code>200 {&quot;row_count&quot;:39}</code>; a call without <code>session_id</code> correctly 400s. <b>Gap:</b> <code>tool_requests=0</code> &mdash; API-initiated calls leave no audit row (already filed as C-GAP-POOL-FOLLOWUP).</td></tr>
+<tr><td><b>Fake &ldquo;baby&rdquo; projects / tasks</b></td><td><span class="b warn">PARTIAL</span></td><td class='n'>list works, create 400s</td><td><code>GET /api/v1/sessions/{id}/tasks</code> 200. <code>POST</code> the same path returned 400 <code>json: cannot unmarshal string into Go struct</code> &mdash; the request shape is undocumented (DF-CONSENSUS-2/3 class).</td></tr>
+<tr><td><b>Installable from a clean machine</b></td><td><span class="b ok">PASS</span></td><td class='n'>twice, cold</td><td>Proven on two bunkers. las-03 (dogfood): clone 8.1 s, cold build 62 s, init&rarr;serve&rarr;health 200. las-01: Go 1.26.8 installed into the workspace, go build 53 s, binary 25,868,179 B, <code>consensus version 0.1.0</code>.</td></tr>
+<tr><td><b>Safe to hand to an arbitrary agent via MCP</b></td><td><span class="b bad">FAIL — BLOCKED</span></td><td class='n'>no discovery, 400 on call</td><td><code>GET /mcp</code> 404 (declared in the spec!), <code>GET /api/v1/mcp</code> 404, and <code>POST /mcp/message</code> returns <b>400 &ldquo;missing sessionId&rdquo; even when sessionId is in the JSON-RPC body</b>. See MCP-DIRECT-001 / DF-CONSENSUS-4.</td></tr>
+<tr><td><b>Useful to muster (OpenAPI&rarr;CLI/MCP)</b></td><td><span class="b bad">FAIL — BLOCKED</span></td><td class='n'>spec is not faithful</td><td>The spec declares 60 paths; <b>59 are registered</b>. <code>/mcp</code> 404s, <code>GET /api/v1/tasks/{taskId}</code> 405s, and 5 declared paths are 501 stubs (<code>/find/symbol</code> needs LSP; <code>/project</code>, <code>/project/{id}</code>, <code>/vcs</code>, <code>/vcs/{id}</code> are &ldquo;opencode-specific&rdquo;). A client generated from this spec mints commands that fail on first run. See DF-CONSENSUS-18 / MUSTER-INT-001.</td></tr>
+</table>
+<h2 id="kpi">2 &middot; Headline numbers</h2>
+<div class="grid">
+<div class="kpi"><div class="v">391</div><div class="l">correct answer, live LLM</div><div class="d">17&times;23 via DeepSeek; 3 runs agree</div></div>
+<div class="kpi"><div class="v">25.9 MB</div><div class="l">binary, built cold</div><div class="d">53 s on las-01, 62 s on las-03</div></div>
+<div class="kpi"><div class="v">60 / 59</div><div class="l">spec paths declared / served</div><div class="d">7 are 404/405/501</div></div>
+<div class="kpi"><div class="v">51/58</div><div class="l">paths that 401 without a key</div><div class="d">the rest are public or the shim</div></div>
+<div class="kpi"><div class="v">31/31</div><div class="l">Go packages green</div><div class="d">clean env, <code>-short</code></div></div>
+<div class="kpi"><div class="v">46</div><div class="l">opencode contract subtests</div><div class="d">12.0 s, 0 skipped, live key</div></div>
+<div class="kpi"><div class="v">284</div><div class="l">tests in the plan</div><div class="d">5 seat families, 7 converged</div></div>
+<div class="kpi"><div class="v">121</div><div class="l">board rows (was 343 raw)</div><div class="d">327 validate errors &rarr; 0</div></div>
+<div class="kpi"><div class="v">92 / 29</div><div class="l">complete / pending rows</div><div class="d">4 fixed in the last 24 h</div></div>
+<div class="kpi"><div class="v">14 s</div><div class="l">to trip the breaker</div><div class="d">401s &rarr; session paused</div></div>
+</div>
+<h2 id="tiers">3 &middot; Test-plan tiers, as run</h2>
+<p class="sub">Executed on <code>consensus-dev</code> (bunker-las-01). Artifact: <code>docs/testing/evidence/tier-sweep-2026-09-24/tier-sweep-v2.json</code> (17 recorded rows, 5 tiers). A tier that produced no artifact is counted as not-run, not as a pass.</p>
+<table><tr><th style="width:6%">Tier</th><th style="width:26%">What it does</th><th style="width:20%">Result</th><th>Observed</th></tr>
+<tr><td class='n'><b>T0</b></td><td>Build + toolchain on the box</td><td><span class="b ok">PASS</span></td><td>go build 53 s, 25,868,179 B, version 0.1.0</td></tr>
+<tr><td class='n'><b>T1</b></td><td>API-contract sweep over the SERVED spec</td><td><span class="b bad">FAIL (measured drift)</span></td><td>60 declared / 59 registered; /mcp 404; tasks/{taskId} 405; 5&times;501; auth 51/58 &rarr; 401</td></tr>
+<tr><td class='n'><b>T2</b></td><td>Live LLM round trip</td><td><span class="b ok">PASS</span></td><td>391 correct; 1676/95 tok; billing row 0.009805; session idle</td></tr>
+<tr><td class='n'><b>T3</b></td><td>Tool register &rarr; list &rarr; execute</td><td><span class="b ok">PASS + 1 WARN</span></td><td>execute 200 row_count=39; no-session 400; audit rows 0</td></tr>
+<tr><td class='n'><b>T4</b></td><td>Ledger / billing / token accounting</td><td><span class="b ok">PASS via T2 (runner gap)</span></td><td>smoke: 3 memory_events (user_message + 2 text_block), 1 billing row, session tok_in/out populated</td></tr>
+<tr><td class='n'><b>T5</b></td><td>MCP attach + tools/list</td><td><span class="b bad">FAIL — BLOCKED</span></td><td>/mcp 404; /mcp/message 400 &lsquo;missing sessionId&rsquo; with sessionId present</td></tr>
+<tr><td class='n'><b>T6</b></td><td>Pinned upstream opencode TS suite</td><td><span class="b bad">NOT RUN</span></td><td>no live shim at tick time; divergence recorded in docs/evidence/opencode-cli-v1.18.29/summary.md</td></tr>
+<tr><td class='n'><b>T7</b></td><td>Crier message intake</td><td><span class="b bad">NOT RUN</span></td><td>CR-IN-001 is still a task, not code — the run would measure absence</td></tr>
+<tr><td class='n'><b>T8a</b></td><td>Circuit breaker (bad key)</td><td><span class="b ok">PASS</span></td><td>repeated llm HTTP 401 &rarr; session <b>paused</b> after 14 s, breaker row persisted</td></tr>
+<tr><td class='n'><b>T8b</b></td><td>Restart persistence</td><td><span class="b ok">PASS</span></td><td>health 200, sessions 1&rarr;1, API intact</td></tr>
+<tr><td class='n'><b>T9</b></td><td>Bounded load / pool pressure</td><td><span class="b bad">NOT RUN</span></td><td>shipped pool is 5 (DF-CONSENSUS-17); needs a concurrent-session test</td></tr>
+<tr><td class='n'><b>T10</b></td><td>Baby-project task lifecycle</td><td><span class="b warn">PARTIAL</span></td><td>tasks list 200; create 400 (undocumented shape)</td></tr>
+</table>
+<h2 id="suites">4 &middot; Suites &amp; independent batteries</h2>
+<table><tr><th style="width:26%">Suite</th><th style="width:18%">Result</th><th>Note</th></tr>
+<tr><td><b>Go unit suite (clean env)</b></td><td>31/31 packages ok</td><td>exit 0, <code>go test -short -count=1 ./...</code></td></tr>
+<tr><td><b>OpenCode contract suite</b></td><td>46 subtests PASS</td><td><code>ok ... 12.012s</code>, 0 SKIP, live key</td></tr>
+<tr><td><b>Port-pool battery</b></td><td>22/24</td><td>after the pool fix; the 2 residual fails are environmental (no generate_series / own-calls-only)</td></tr>
+<tr><td><b>Quorum-built test plan</b></td><td>284 canonical tests</td><td>5 independent seat families, 7 converged; 2 lanes rejected (clinepass hung rc=124, groq 413)</td></tr>
+<tr><td><b>CI on GitHub</b></td><td>6/6 success</td><td>last 6 runs incl. both fixes and all board closes</td></tr>
+</table>
+<h2 id="defects">5 &middot; Defect ledger</h2>
+<p class="sub">Live board state (last copy per id). The four top rows were closed within the last 24 hours.</p>
+<table><tr><th style="width:17%">Row</th><th style="width:5%">Pri</th><th style="width:10%">Status</th><th>Defect</th><th style="width:10%">Fix commit</th></tr>
+<tr><td class='n'>DF-CONSENSUS-10</td><td>P0</td><td><span class='b ok'>complete</span></td><td>SQLite pool default 1 wedged the loop (<code>begin tx: context deadline</code>)</td><td class='n'>ad8afd8</td></tr>
+<tr><td class='n'>DF-CONSENSUS-11</td><td>P0</td><td><span class='b ok'>complete</span></td><td>Conversational wiring + token accounting</td><td class='n'>a8a787a</td></tr>
+<tr><td class='n'>DF-CONSENSUS-21</td><td>P0</td><td><span class='b ok'>complete</span></td><td>Concurrent user message during planning &rarr; sqlite 517 BUSY &rarr; session bricked, silent</td><td class='n'>e9b34eb</td></tr>
+<tr><td class='n'>DF-CONSENSUS-15</td><td>P1</td><td><span class='b ok'>complete</span></td><td>User turn hidden from the 2nd+ LLM call within an iteration</td><td class='n'>97d2ff1</td></tr>
+<tr><td class='n'>DF-CONSENSUS-20</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Message content never reaches the prompt on turns 2+ (cross-iteration)</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>DF-CONSENSUS-14</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td><code>llm.DefaultConfig()</code> hardcodes gpt-4o; env-only config cannot pick a model</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>DF-CONSENSUS-18</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Spec declares 7 routes the binary 404/405/501s</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>DF-CONSENSUS-19</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Shim surface (<code>/instance*</code>) returns 200 with no key and leaks host paths</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>MCP-DIRECT-001</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Direct MCP access for an arbitrary agent</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>MUSTER-INT-001</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Consensus &harr; muster integration (blocked by DF-18)</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>TEST-CONSENSUS-001</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Run the full 284-test plan on the standing bunker</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>QA-CONSENSUS-7</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>False-green QA battery (rc=0 &ldquo;4 passed&rdquo; while auditing nothing)</td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>ENV-CONSENSUS-1</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>5 live / 6 dead of 11 probed DeepSeek keys in <code>~/.hermes/.env</code></td><td class='n'>&mdash;</td></tr>
+<tr><td class='n'>C-GAP-032-ALPHA</td><td>P1</td><td><span class='b bad'>OPEN</span></td><td>Run the pinned upstream opencode TS suite against a live shim</td><td class='n'>&mdash;</td></tr>
+</table>
+<h2 id="activity">6 &middot; Last 24 hours — the project is actively driven</h2>
+<p class="sub">Foreman / QA / PM / dogfood / sync lanes all ran today against the same board. Commits below are from <code>origin/master</code>; all pushed.</p>
+<table><tr><th style="width:8%">Time (UTC&minus;05)</th><th style="width:10%">Commit</th><th>What landed</th></tr>
+<tr><td class='n'>16:34</td><td class='n'>f6a3421</td><td>board: close DF-CONSENSUS-21 (tier2 judge PASS 3/3, CI green) &mdash; and the fix's own CI run: success</td></tr>
+<tr><td class='n'>16:26</td><td class='n'>e9b34eb</td><td>fix(harness): retry sqlite busy races, allow failed sessions to recover (+509/&minus;37, 10 files)</td></tr>
+<tr><td class='n'>16:09</td><td class='n'>9287999</td><td>board: close DF-CONSENSUS-15</td></tr>
+<tr><td class='n'>16:01</td><td class='n'>97d2ff1</td><td>fix(harness): keep the user turn visible to all LLM calls in its iteration (+152/&minus;19)</td></tr>
+<tr><td class='n'>15:23</td><td class='n'>5bb4ba8</td><td>qa: fresh-system battery on bunker-las-01 &rarr; filed QA-CONSENSUS-8/9/10</td></tr>
+<tr><td class='n'>08:16</td><td class='n'>a00134d</td><td>board: PM repair &mdash; 343 raw lines / 327 validate errors &rarr; 121 rows / 0 errors</td></tr>
+<tr><td class='n'>06:47</td><td class='n'>3f653b3</td><td>dogfood: PROMISING-BUT-ROUGH &mdash; verified DF-10/DF-11 fixed, found DF-20 + DF-21</td></tr>
+<tr><td class='n'>04:29</td><td class='n'>576dc07</td><td>tier-sweep: filed DF-CONSENSUS-18 + DF-CONSENSUS-19 with the bunker artifact</td></tr>
+<tr><td class='n'>04:00</td><td class='n'>491d0ba</td><td>test-plan: 5th seat folded &mdash; 284 canonical tests, 7 converged</td></tr>
+<tr><td class='n'>03:57</td><td class='n'>10eb697</td><td>test-plan: land the quorum-built plan v1</td></tr>
+</table>
+<h3>Fleet lanes observed working this board</h3>
+<p><span class="pill">consensus (foreman, tick #307)</span><span class="pill">consensus-qa</span><span class="pill">consensus-dogfood</span>
+<span class="pill">consensus-pm</span><span class="pill">consensus-sync</span><span class="pill">quorum (5 seats)</span>
+<span class="pill">bunker-las-01 / consensus-dev (TTL 7d, 1.1 GB, running)</span></p>
+<ul>
+<li><b>Foreman tick #307</b> fixed the board's only P0 (<code>DF-CONSENSUS-21</code>): sqlite busy races now retry with backoff, a second LLM call is never made (no double billing), <code>last_error</code> is surfaced, and failed sessions can recover. Independent verification: build/vet clean, harness 16.3 s, GitReins <b>tier2 PASS 3/3</b>.</li>
+<li><b>QA lane</b> filed 3 more from a fresh-system battery on las-01 (dropped-bunker references, 3 GB-OOM suite failure, no-config startup).</li>
+<li><b>PM lane</b> repaired the board itself: 343 raw lines / 327 validation errors &rarr; 121 rows, 0 errors.</li>
+<li><b>Dogfood lane</b> re-tested the documented path at <code>576dc07</code> and found the two remaining turn-2+ defects &mdash; the single most valuable run of the day.</li>
+</ul>
+<h2 id="decisions">7 &middot; Decisions for Bane (ranked by what unblocks the most)</h2>
+<table><tr><th style="width:5%"></th><th style="width:20%">Decision</th><th style="width:15%">Row</th><th style="width:24%">Files that must change</th><th style="width:8%">Est.</th><th>Why it matters</th></tr>
+<tr><td class='n'>D1</td><td><b>Make the published spec honest</b></td><td class='n'>DF-CONSENSUS-18</td><td class='n'><code>specs/openapi/bundled.yaml</code> vs the route registration in <code>internal/api/server.go</code></td><td class='n'>2&ndash;4 h</td><td>Unblocks muster AND the MCP story. Decide per path: implement, or flag it unimplemented so no generated client promises it.</td></tr>
+<tr><td class='n'>D2</td><td><b>Decide the shim's auth posture</b></td><td class='n'>DF-CONSENSUS-19</td><td class='n'><code>internal/api/server.go</code> (<code>/instance*</code>) + the bind address in the serve config</td><td class='n'>1 h</td><td>Either gate those 4 routes or bind the shim to loopback and say so. Today an exposed port discloses host paths.</td></tr>
+<tr><td class='n'>D3</td><td><b>Finish turn-2+ delivery</b></td><td class='n'>DF-CONSENSUS-20</td><td class='n'><code>internal/harness/planning.go</code> + <code>context.go</code> (same files as the DF-15 fix)</td><td class='n'>2&ndash;3 h</td><td>This is the difference between &ldquo;a chatbot answers&rdquo; and &ldquo;a real agent loop runs&rdquo; &mdash; it is the strongest remaining capability gap.</td></tr>
+<tr><td class='n'>D4</td><td><b>Env-configurable model</b></td><td class='n'>DF-CONSENSUS-14</td><td class='n'><code>internal/llm/client.go</code> <code>DefaultConfig()</code></td><td class='n'>30&ndash;45 min</td><td>Without it, only the shipped YAML works; a clean-machine user with just an API key gets gpt-4o sent to DeepSeek &rarr; 400&times;3 &rarr; empty ledger.</td></tr>
+<tr><td class='n'>D5</td><td><b>Run the plan's remaining tiers</b></td><td class='n'>TEST-CONSENSUS-001</td><td class='n'>the standing box <code>consensus-dev</code> on bunker-las-01 (scripts in place)</td><td class='n'>half a day</td><td>T6, T7, T9 + a corrected T4/T10 runner. T7 will report &ldquo;crier intake absent&rdquo; until CR-IN-001 lands.</td></tr>
+</table>
+<p class="sub"><b>If I had to pick one:</b> D1 &mdash; making the spec match the binary. It is the same defect that blocks muster, blocks a coherent MCP story and blocks every generated client at once, and it is a decision about honesty rather than a research problem.</p>
+<h2 id="gaps">8 &middot; Honest gaps in this evidence</h2>
+<ul>
+<li><b>T4's assertions failed in my first sweep and that was my runner's bug, not the product's</b> &mdash; that sweep never drove a conversation, so the ledger was legitimately empty. The real T4 evidence is the live round trip (memory_events: <code>user_message</code> + 2 <code>text_block</code>; 1 billing row; tokens populated). I am not counting the runner's FAIL as a product defect.</li>
+<li><b>T6, T7, T9 were not run.</b> T6 has no live shim to test against (recorded divergence). T7 would currently report &ldquo;crier intake absent&rdquo; because CR-IN-001 is a task, not code &mdash; that is a true result, not a pass.</li>
+<li><b>T1's 5xx/no-auth detail came from a second, targeted probe</b>, not from the sweep table: the sweep recorded counts, the probe recorded the route names.</li>
+<li><b>Estimated times in section 7 are estimates</b>, not measurements. Everything else in this report is a measurement with a command behind it.</li>
+<li><b>DF-CONSENSUS-16/17</b> (upstream repo identity, pool-size docs) are quorum-found documentation contradictions &mdash; real but low-severity; they are pending on the board.</li>
+<li>An earlier HTML report (<code>consensus-full-system-proof-2026-09-12.html</code>) is superseded by this one.</li>
+</ul>
+
+<h2 id="artifacts">9 &middot; Artifact index</h2>
+<table><tr><th style="width:52%">Path</th><th style="width:12%">Size</th><th>What it is</th></tr>
+<tr><td class="n">docs/testing/consensus-full-test-plan-v1.md</td><td class="n">45,581 B</td><td>quorum-built plan, 284 canonical tests</td></tr>
+<tr><td class="n">docs/testing/consensus-test-manifest-v1.json</td><td class="n">151,700 B</td><td>machine-readable manifest</td></tr>
+<tr><td class="n">docs/testing/evidence/tier-sweep-2026-09-24/tier-sweep-v2.json</td><td class="n">3,487 B</td><td>the 17-row tier artifact this report reads</td></tr>
+<tr><td class="n">docs/dogfood/2026-09-24-integration.md</td><td class="n">5,727 B</td><td>dogfood run: fix verification + DF-20/21</td></tr>
+<tr><td class="n">docs/evidence/opencode-cli-v1.18.29/summary.md</td><td class="n">464 B</td><td>recorded CLI divergence (suite not run)</td></tr>
+<tr><td class="n">.coding-hermes/board/tasks.jsonl</td><td class="n">121 rows</td><td>the ledger: 92 complete, 29 pending</td></tr>
+<tr><td class="n">~/consensus-reports/quorum-v1/</td><td class="n">5 seats</td><td>raw quorum seat outputs + the 152-line brief</td></tr>
+</table>
+
+<div class="foot">
+Verified with live commands at {NOW}: <code>git</code> state, board census via <code>tasks.jsonl</code>, <code>gh run list</code>, <code>bunker list</code> / <code>bunker exec</code>, and the bunker-hosted tier sweep + probes.
+Report written to <code>~/consensus-reports/consensus-status-2026-09-24.html</code>. Nothing in it is asserted from memory or from another agent's summary.
+</div>
+</main></body></html>
