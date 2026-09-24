@@ -132,14 +132,16 @@ Compiles first try; verified against a live server both runs.
    wake message) — that one verifiably stages and executes SQL and lands
    memory events. Until DF-CONSENSUS-6 is fixed, treat any docs example
    using `{"role":...}` as broken.
-1. **Neither README quickstart works from a clean machine** (DF-CONSENSUS-7,
-   verified on an ephemeral bunker agent 2026-09-03): `docker pull
-   ghcr.io/wojons/consensus:latest` → `denied` (image not anonymously
-   pullable; the same agent pulls alpine fine), and the GitHub repo is not
-   anonymously cloneable. With repo access the verified fallback is:
-   tar the tree over, bootstrap Go 1.26.5 (agent has no Go, no sudo —
-   set GOPATH away from the extracted GOROOT), `go build` ≈ 61 s,
-   init/serve/health-200 PASS.
+1. **Historical Docker quickstart failure** (DF-CONSENSUS-7, verified on an
+   ephemeral bunker agent 2026-09-03): the old documented path,
+   `ghcr.io/wojons/consensus:latest`, returned `denied` while the same agent
+   pulled Alpine successfully. CI now publishes the current repository path,
+   `ghcr.io/totalwindupflightsystems/consensus:latest`, but anonymous pulls
+   still return HTTP 401. Use the source-build quickstart for a zero-auth
+   install; for Docker, run `docker login ghcr.io` with a GitHub token carrying
+   `read:packages` before pulling the current image. The verified source-build
+   fallback is: clone the public repository, install Go 1.26.5 when needed,
+   `go build -o bin/consensus ./cmd/consensus/`, then init/serve/health-200.
 2. **Semantic retrieval has no public endpoint** (unchanged since Aug-4):
    retrieval is harness-internal; don't look for a search API.
 3. **H3 is a library, not mounted**: `consensus serve` does not expose
