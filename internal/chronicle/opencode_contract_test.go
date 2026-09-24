@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -223,25 +222,16 @@ type contractSession struct {
 func startConsensusForContract(t *testing.T) (string, *contractSession, func()) {
 	t.Helper()
 
-	_, thisFile, _, _ := runtime.Caller(0)
-	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
+	apiKey := os.Getenv("DEEPSEEK_API_KEY")
+	if apiKey == "" {
+		t.Skip("DEEPSEEK_API_KEY not set — skipping contract test (needs real LLM)")
+	}
 
 	tmpDir, err := os.MkdirTemp("", "consensus-contract-test-*")
 	if err != nil {
 		t.Fatalf("mkdtemp: %v", err)
 	}
-
-	binPath := filepath.Join(tmpDir, "consensus")
-	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/consensus")
-	buildCmd.Dir = projectRoot
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("build consensus: %v\n%s", err, out)
-	}
-
-	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		t.Skip("DEEPSEEK_API_KEY not set — skipping contract test (needs real LLM)")
-	}
+	binPath := contractBinaryFixture.get(t)
 
 	dbURL := "sqlite://" + filepath.Join(tmpDir, "test.db") + "?_journal_mode=WAL"
 
