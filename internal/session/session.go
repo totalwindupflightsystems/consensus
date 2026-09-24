@@ -33,7 +33,9 @@ const (
 	StatusPaused     Status = "paused"
 )
 
-// TerminalStatuses returns the set of statuses from which no further transitions are allowed.
+// TerminalStatuses returns statuses that stop automatic processing. Completed
+// sessions are immutable; failed sessions require an explicit user/operator
+// recovery transition before the harness may process them again.
 func TerminalStatuses() []Status {
 	return []Status{StatusCompleted, StatusFailed}
 }
@@ -77,8 +79,8 @@ var validTransitions = map[Status][]Status{
 	StatusExecuting:  {StatusIdle, StatusThinking, StatusPaused, StatusCompleted, StatusFailed},
 	StatusWaitingSub: {StatusIdle, StatusThinking, StatusPaused, StatusFailed},
 	StatusPaused:     {StatusIdle, StatusThinking, StatusPlanning, StatusFailed},
-	StatusCompleted:  {}, // terminal
-	StatusFailed:     {}, // terminal
+	StatusCompleted:  {},                           // immutable terminal state
+	StatusFailed:     {StatusIdle, StatusThinking}, // explicit resume or a new user message
 }
 
 // ValidTransition checks whether a transition from one status to another is allowed.
@@ -104,7 +106,7 @@ func MustTransition(from, to Status) error {
 	if from == to {
 		return nil
 	}
-	if from.IsTerminal() {
+	if from.IsTerminal() && from != StatusFailed {
 		return fmt.Errorf("session: cannot transition from terminal status %q", from)
 	}
 	if !ValidTransition(from, to) {
@@ -150,15 +152,19 @@ type Session struct {
 
 // Transition applies a validated status transition to the session.
 func (s *Session) Transition(newStatus Status) error {
-	if err := MustTransition(s.Status, newStatus); err != nil {
+	previousStatus := s.Status
+	if err := MustTransition(previousStatus, newStatus); err != nil {
 		return err
 	}
 	s.Status = newStatus
 
-	// Auto-complete timestamp on terminal states
+	// Auto-complete timestamp on terminal states. Explicit recovery from a
+	// failed session clears the old completion marker.
 	if newStatus.IsTerminal() {
 		now := time.Now()
 		s.CompletedAt = &now
+	} else if previousStatus == StatusFailed {
+		s.CompletedAt = nil
 	}
 	return nil
 }

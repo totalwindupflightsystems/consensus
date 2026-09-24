@@ -19,6 +19,7 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -269,8 +270,10 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		// for future iterations. Context reads keep rows marked by this iteration
 		// visible until the session iteration rolls over.
 		if turn == 1 {
-			if err := h.markUserMessagesRead(ctx, tx, sessionID, ic.Iteration, ic.PendingUserMessages); err != nil {
-				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("consume user messages: %w", err))
+			var consumeErr error
+			tx, consumeErr = h.markUserMessagesReadWithRetry(ctx, tx, sessionID, ic.Iteration, ic.PendingUserMessages)
+			if consumeErr != nil {
+				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("consume user messages: %w", consumeErr))
 			}
 		}
 		if err := h.recordLLMUsageTx(ctx, tx, sessionID, ic.Iteration, output); err != nil {
@@ -752,6 +755,66 @@ func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuf
 	return messages
 }
 
+const (
+	consumeUserMessagesMaxRetries = 3
+	consumeUserMessagesBackoff    = 10 * time.Millisecond
+)
+
+type sqliteCodeError interface {
+	Code() int
+}
+
+// isSQLiteBusyError recognizes both SQLITE_BUSY (5) and extended busy codes
+// such as SQLITE_BUSY_SNAPSHOT (517). Extended SQLite codes keep the primary
+// result code in their low byte.
+func isSQLiteBusyError(err error) bool {
+	var codeErr sqliteCodeError
+	return errors.As(err, &codeErr) && codeErr.Code()&0xff == 5
+}
+
+// markUserMessagesReadWithRetry recovers from a WAL read-upgrade race without
+// repeating the already-successful LLM call. SQLITE_BUSY_SNAPSHOT cannot be
+// repaired by waiting on the stale transaction: it must be rolled back and the
+// write retried in a fresh transaction. The returned transaction is always the
+// one the caller must continue with or pass to its failure handler.
+func (h *Harness) markUserMessagesReadWithRetry(ctx context.Context, tx db.Tx, sessionID string, iteration int64, messages []PendingUserMessage) (db.Tx, error) {
+	currentTx := tx
+	for attempt := 0; ; attempt++ {
+		err := h.markUserMessagesRead(ctx, currentTx, sessionID, iteration, messages)
+		if err == nil {
+			return currentTx, nil
+		}
+		if !isSQLiteBusyError(err) || attempt >= consumeUserMessagesMaxRetries {
+			return currentTx, err
+		}
+
+		if currentTx.IsActive() {
+			_ = currentTx.Rollback()
+		}
+		delay := consumeUserMessagesBackoff << attempt
+		slog.Warn("planning: retrying user-message consumption after sqlite busy",
+			"session_id", sessionID, "attempt", attempt+1, "backoff", delay, "error", err)
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return currentTx, ctx.Err()
+		case <-timer.C:
+		}
+
+		nextTx, beginErr := h.db.BeginTx(context.Background())
+		if beginErr != nil {
+			return currentTx, fmt.Errorf("re-open transaction after sqlite busy: %w", beginErr)
+		}
+		currentTx = nextTx
+		if contextErr := currentTx.SetSessionContext(ctx, sessionID); contextErr != nil {
+			return currentTx, fmt.Errorf("restore session context after sqlite busy: %w", contextErr)
+		}
+	}
+}
+
 func (h *Harness) markUserMessagesRead(ctx context.Context, tx db.Tx, sessionID string, iteration int64, messages []PendingUserMessage) error {
 	for _, message := range messages {
 		if err := tx.Exec(ctx, `
@@ -902,19 +965,38 @@ func (h *Harness) handleLLMPlanningError(ctx context.Context, tx db.Tx, sessionI
 	}, nil
 }
 
-func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID string, err error) (*IterationResult, error) {
-	slog.Error("planning: error", "error", err)
+func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID string, planningErr error) (*IterationResult, error) {
+	slog.Error("planning: error", "error", planningErr)
 
 	if tx.IsActive() {
 		tx.Rollback()
 	}
 
+	// The failed transaction cannot persist its own diagnostics. Record the
+	// failure through the pool after rollback so GET /sessions/{id} can expose
+	// audit_logs.error_message as last_error.
+	iteration := int64(0)
+	if row, queryErr := h.db.QueryRow(ctx, `SELECT iteration FROM sessions WHERE id = $1`, sessionID); queryErr == nil && row != nil {
+		iteration = toInt64(row["iteration"])
+	}
+	if auditErr := h.WriteAuditLog(ctx, &AuditEntry{
+		SessionID:    sessionID,
+		Iteration:    iteration,
+		SQLExecuted:  nil,
+		Result:       "rolled_back",
+		ErrorMessage: planningErr.Error(),
+	}); auditErr != nil {
+		slog.Error("planning: failed to write error audit", "session_id", sessionID, "error", auditErr)
+	}
+
 	// Mark staging buffer as failed and transition session to failed.
-	// Without the status update, the session stays stuck in "planning" forever.
-	tx.Exec(ctx, `
+	// These writes must use the pool because tx was rolled back above.
+	if err := h.db.Exec(ctx, `
 		UPDATE staging_buffer SET status = 'failed'
 		WHERE session_id = $1 AND status IN ('staged', 'executed')
-	`, sessionID)
+	`, sessionID); err != nil {
+		slog.Error("planning: failed to mark staging buffer after error", "session_id", sessionID, "error", err)
+	}
 
 	if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'failed', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
 		slog.Error("planning: failed to update session status to failed after error", "session_id", sessionID, "error", err)
@@ -922,8 +1004,8 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 
 	return &IterationResult{
 		Status:        "error",
-		Error:         err,
-		ErrorInjected: err.Error(),
+		Error:         planningErr,
+		ErrorInjected: planningErr.Error(),
 	}, nil
 }
 

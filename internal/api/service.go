@@ -270,8 +270,8 @@ func (svc *SessionService) UpdateSession(ctx context.Context, id string, action 
 		targetStatus = "paused"
 
 	case "resume":
-		if currentStatus != "paused" {
-			return fmt.Errorf("can only resume paused sessions, current status is %q", currentStatus)
+		if currentStatus != "paused" && currentStatus != "failed" {
+			return fmt.Errorf("can only resume paused or failed sessions, current status is %q", currentStatus)
 		}
 		targetStatus = "idle"
 
@@ -294,7 +294,7 @@ func (svc *SessionService) UpdateSession(ctx context.Context, id string, action 
 			targetStatus, now, id)
 	} else {
 		execErr = svc.db.Exec(ctx,
-			`UPDATE sessions SET status = $1, heartbeat_at = $2 WHERE id = $3`,
+			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = NULL WHERE id = $3`,
 			targetStatus, now, id)
 	}
 

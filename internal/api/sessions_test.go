@@ -534,6 +534,37 @@ func TestUpdateSession_Resume(t *testing.T) {
 	}
 }
 
+func TestUpdateSession_ResumeFailed(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, completed_at, created_at, heartbeat_at) VALUES ('sess-recover', 'test', 'gpt-4o', 'failed', 'Goal', datetime('now'), datetime('now'), datetime('now'))`)
+
+	body := `{"status":"resume"}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/sessions/sess-recover", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	row, err := srv.conn.QueryRow(ctx, `SELECT status, completed_at FROM sessions WHERE id = 'sess-recover'`)
+	if err != nil {
+		t.Fatalf("query resumed session: %v", err)
+	}
+	if got := toString(row["status"]); got != "idle" {
+		t.Errorf("expected 'idle', got %q", got)
+	}
+	if row["completed_at"] != nil {
+		t.Errorf("expected completed_at cleared, got %v", row["completed_at"])
+	}
+}
+
 func TestUpdateSession_Cancel(t *testing.T) {
 	srv := newIntegrationServer(t)
 	defer srv.close()

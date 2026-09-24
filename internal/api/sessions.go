@@ -140,7 +140,7 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 	// Validate status transition
 	validTransitions := map[string][]string{
 		"paused": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"},
-		"resume": {"paused"},
+		"resume": {"paused", "failed"},
 		"cancel": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub", "paused"},
 		"idle":   {"thinking", "planning"},                                                  // sent by harness
 		"failed": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"}, // sent by harness
@@ -180,9 +180,17 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 		targetStatus = "paused"
 
 	case "resume":
-		if currentStatus != "paused" {
+		allowed := validTransitions["resume"]
+		found := false
+		for _, candidate := range allowed {
+			if candidate == currentStatus {
+				found = true
+				break
+			}
+		}
+		if !found {
 			writeError(w, r, http.StatusConflict, "CONFLICT",
-				fmt.Sprintf("can only resume paused sessions, current status is %q", currentStatus))
+				fmt.Sprintf("can only resume paused or failed sessions, current status is %q", currentStatus))
 			return
 		}
 		targetStatus = "idle"
@@ -209,7 +217,7 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 			targetStatus, now, *completedAt, id)
 	} else {
 		execErr = s.db.Exec(ctx,
-			`UPDATE sessions SET status = $1, heartbeat_at = $2 WHERE id = $3`,
+			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = NULL WHERE id = $3`,
 			targetStatus, now, id)
 	}
 
@@ -318,13 +326,17 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 
-	// If session is idle or booting, transition to thinking to wake it.
-	// Booting sessions are newly created and haven't been processed yet —
-	// receiving a message should wake them into the thinking state.
-	if currentStatus == "idle" || currentStatus == "booting" {
-		s.db.Exec(ctx,
-			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1 WHERE id = $2`,
-			now, id)
+	// Idle and booting sessions wake normally. A new message also explicitly
+	// recovers a failed session: clear its terminal timestamp and send it through
+	// the same thinking -> planning claim as any other conversational turn.
+	if currentStatus == "idle" || currentStatus == "booting" || currentStatus == "failed" {
+		if err := s.db.Exec(ctx,
+			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1, completed_at = NULL WHERE id = $2`,
+			now, id); err != nil {
+			slog.Error("api: failed to wake session for message", "session_id", id, "error", err)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to resume session")
+			return
+		}
 		s.events.PublishSessionUpdate(id, "thinking", currentIteration+1)
 	} else if currentStatus == "paused" {
 		// Message queues for next iteration, leave paused

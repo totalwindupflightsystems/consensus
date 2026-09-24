@@ -162,9 +162,17 @@ axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.m
 }
 
 // The message is inserted into memory_events and agent_messages
-// If the session is 'idle', it transitions to 'thinking'
+// If the session is 'idle' or 'booting', it transitions to 'thinking'
+// If the session is 'failed', the failure completion marker is cleared and it
+// transitions to 'thinking' so the harness re-runs planning normally
 // If 'paused', it queues for the next iteration
 ```
+
+A `PATCH /api/v1/sessions/:id` request with `{"status":"resume"}` accepts
+both `paused` and `failed` sessions. It returns either state to `idle` and clears
+`completed_at`; a subsequent message wakes the normal planning loop. Sending a
+message directly to a failed session combines those steps and wakes it
+immediately.
 
 ### 3.2 Memory & Context
 

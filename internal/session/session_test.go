@@ -134,7 +134,6 @@ func TestValidTransition_InvalidTransitions(t *testing.T) {
 		// Cannot revert from terminal
 		{StatusCompleted, StatusIdle},
 		{StatusCompleted, StatusThinking},
-		{StatusFailed, StatusIdle},
 		{StatusFailed, StatusBooting},
 		// Cannot go to booting after initial
 		{StatusIdle, StatusBooting},
@@ -200,14 +199,21 @@ func TestMustTransition_Invalid(t *testing.T) {
 	}
 }
 
-func TestMustTransition_TerminalFrom(t *testing.T) {
+func TestMustTransition_CompletedIsImmutable(t *testing.T) {
 	err := MustTransition(StatusCompleted, StatusIdle)
 	if err == nil {
-		t.Fatal("expected error for transition from terminal")
+		t.Fatal("expected error for transition from completed terminal status")
 	}
-	err2 := MustTransition(StatusFailed, StatusIdle)
-	if err2 == nil {
-		t.Fatal("expected error for transition from terminal")
+}
+
+func TestMustTransition_FailedCanRecover(t *testing.T) {
+	for _, target := range []Status{StatusIdle, StatusThinking} {
+		if err := MustTransition(StatusFailed, target); err != nil {
+			t.Errorf("failed -> %s should be recoverable: %v", target, err)
+		}
+	}
+	if err := MustTransition(StatusFailed, StatusBooting); err == nil {
+		t.Fatal("failed -> booting should remain invalid")
 	}
 }
 
@@ -322,6 +328,25 @@ func TestSession_Fail(t *testing.T) {
 	}
 	if s.CompletedAt == nil {
 		t.Error("completed_at should be set on fail")
+	}
+}
+
+func TestSession_FailThenRecoverClearsCompletedAt(t *testing.T) {
+	s := &Session{ID: "s-recover", Status: StatusThinking}
+	if err := s.Fail(); err != nil {
+		t.Fatalf("fail session: %v", err)
+	}
+	if s.CompletedAt == nil {
+		t.Fatal("completed_at should be set on fail")
+	}
+	if err := s.Transition(StatusIdle); err != nil {
+		t.Fatalf("recover session: %v", err)
+	}
+	if s.Status != StatusIdle {
+		t.Errorf("status = %s, want idle", s.Status)
+	}
+	if s.CompletedAt != nil {
+		t.Errorf("completed_at = %v, want nil after recovery", s.CompletedAt)
 	}
 }
 
