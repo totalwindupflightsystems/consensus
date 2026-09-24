@@ -1,0 +1,84 @@
+{
+  "skill_requirements": {
+    "name": "api-documentation-generator",
+    "description": "Generate comprehensive API documentation from code comments and OpenAPI specifications",
+    "category": "documentation",
+    "primary_use_cases": [
+      "Documenting REST APIs",
+      "Generating OpenAPI specifications",
+      "Creating API reference documentation",
+      "Maintaining API documentation sync with code"
+    ],
+    "target_audience": "developers",
+    "complexity_level": "intermediate"
+  },
+  "capabilities": {
+    "core_functions": [
+      "Parse code comments for API endpoints",
+      "Extract endpoint information (paths, methods, parameters)",
+      "Generate OpenAPI JSON specification",
+      "Create markdown documentation with examples",
+      "Validate OpenAPI spec compliance",
+      "Generate Postman collection"
+    ],
+    "scripts_needed": [
+      "parse-comments.sh",
+      "generate-openapi.sh",
+      "create-docs.sh",
+      "validate-spec.sh"
+    ],
+    "references_needed": [
+      "openapi-specification",
+      "markdown-templates",
+      "api-guidelines",
+      "postman-collection-format"
+    ],
+    "assets_needed": [
+      "templates/openapi-template.yaml",
+      "templates/markdown-template.md",
+      "examples/",
+      "schemas/"
+    ]
+  },
+  "constraints": {
+    "compatibility_requirements": [
+      "opencode",
+      "claude-code",
+      "cursor",
+      "codex"
+    ],
+    "security_constraints": [
+      "No code execution from untrusted sources",
+      "Validate all input files before processing",
+      "Sandbox script execution when possible",
+      "No API keys or credentials in examples"
+    ],
+    "privacy_constraints": [
+      "No PII extraction from code comments",
+      "Anonymize example data",
+      "Minimal logging of user data"
+    ],
+    "performance_constraints": [
+      "Process files < 100ms each",
+      "Memory limit 512MB",
+      "Support files up to 10MB"
+    ]
+  },
+  "edge_cases": [
+    "No code comments present",
+    "Invalid OpenAPI spec",
+    "Large codebase (1000+ files)",
+    "Network timeout during external validation",
+    "Missing dependencies",
+    "Permission errors",
+    "Disk space exhaustion",
+    "Unsupported file formats",
+    "Circular references in API spec",
+    "Unicode/encoding issues",
+    "Concurrent access conflicts",
+    "Version mismatch in dependencies",
+    "API rate limiting",
+    "Authentication failures",
+    "Partial success scenarios"
+  ]
+}

@@ -1,0 +1,827 @@
+/* ============================================================================
+   Chronicle Entity Graph Visualizer (§7) — Force-Directed Relationship Graph
+   Phase 1.6 · Spec: specs/026-dashboard-ui.md §7
+   ============================================================================
+   Dark-theme styles matching Chronicle design tokens. Uses design-system
+   custom properties exclusively (no hardcoded colors).
+   ============================================================================ */
+
+/* ==========================================================================
+   §7.1 — Container (full-bleed view, zero padding)
+   ========================================================================== */
+
+#entity-graph-view {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+}
+
+.eg-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   §7.2 — Toolbar (44px, sticky top)
+   ========================================================================== */
+
+.eg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--color-glass-light, var(--color-bg-surface));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border-default);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.eg-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.eg-toolbar-spacer {
+  flex: 1;
+  min-width: var(--space-3);
+}
+
+/* Entity filter chips (reuses tl-chip aesthetic) */
+.eg-entity-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.eg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+  user-select: none;
+}
+
+.eg-chip:hover {
+  background: var(--color-bg-hover-muted);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.eg-chip.active {
+  border-color: var(--eg-entity-color, var(--color-accent-primary));
+  background: color-mix(in oklch, var(--eg-entity-color, var(--color-accent-primary)) 12%, transparent);
+  color: var(--eg-entity-color, var(--color-text-primary));
+}
+
+.eg-chip.inactive {
+  opacity: 0.4;
+}
+
+.eg-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--eg-entity-color, var(--color-accent-primary));
+  flex-shrink: 0;
+}
+
+.eg-chip-count {
+  font-size: var(--text-micro);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.eg-chip.active .eg-chip-count {
+  color: var(--eg-entity-color, var(--color-text-primary));
+  background: color-mix(in oklch, var(--eg-entity-color, var(--color-accent-primary)) 18%, transparent);
+}
+
+/* Search */
+.eg-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  height: 30px;
+  padding: 0 var(--space-3);
+  width: 240px;
+  transition:
+    border-color var(--duration-fast) var(--ease-default),
+    background var(--duration-fast) var(--ease-default);
+}
+
+.eg-search-wrap:focus-within {
+  border-color: var(--color-border-focus);
+  background: var(--color-bg-input-focus);
+}
+
+.eg-search-icon {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.eg-search {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: var(--text-small);
+  font-family: inherit;
+}
+
+.eg-search::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.eg-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 4px;
+  display: none;
+}
+
+.eg-search-wrap.has-value .eg-search-clear {
+  display: inline-block;
+}
+
+.eg-search-clear:hover {
+  color: var(--color-text-primary);
+}
+
+/* Stats display */
+.eg-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  height: 30px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.eg-stats strong {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+#eg-node-count, #eg-edge-count {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* Zoom controls (right side of toolbar) */
+.eg-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.eg-control-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+}
+
+.eg-control-btn:hover {
+  background: var(--color-bg-hover-muted);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.eg-control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   §7.3 — Canvas (SVG)
+   ========================================================================== */
+
+.eg-canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in oklch, var(--color-accent-primary) 3%, transparent) 0%, transparent 70%),
+    var(--color-bg-canvas);
+}
+
+.eg-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.eg-canvas:active {
+  cursor: grabbing;
+}
+
+/* Subtle dotted grid backdrop */
+.eg-grid {
+  fill: none;
+  stroke: var(--color-border-subtle);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+/* Edges (SVG lines) */
+.eg-link {
+  stroke: var(--color-border-strong);
+  stroke-opacity: 0.35;
+  fill: none;
+  pointer-events: none;
+  transition:
+    stroke-opacity var(--duration-fast) var(--ease-default),
+    stroke var(--duration-fast) var(--ease-default),
+    stroke-width var(--duration-fast) var(--ease-default);
+}
+
+.eg-link.highlight {
+  stroke: var(--color-accent-primary);
+  stroke-opacity: 0.95;
+  stroke-width: 2px;
+}
+
+.eg-link.dim {
+  stroke-opacity: 0.08;
+}
+
+.eg-link-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  fill: var(--color-text-tertiary);
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--color-bg-canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.eg-link.highlight .eg-link-label {
+  fill: var(--color-accent-primary);
+}
+
+/* Nodes */
+.eg-node {
+  cursor: pointer;
+  transition: filter var(--duration-fast) var(--ease-default);
+}
+
+.eg-node:hover {
+  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--eg-node-color, var(--color-accent-primary)) 50%, transparent));
+}
+
+.eg-node-circle {
+  stroke: var(--color-bg-canvas);
+  stroke-width: 2;
+  fill: var(--eg-node-color, var(--color-accent-primary));
+  transition:
+    fill var(--duration-fast) var(--ease-default),
+    stroke var(--duration-fast) var(--ease-default);
+}
+
+.eg-node.highlighted .eg-node-circle {
+  stroke: var(--color-accent-primary);
+  stroke-width: 3;
+}
+
+.eg-node.selected .eg-node-circle {
+  stroke: var(--color-accent-warning, #fbbf24);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px var(--color-accent-warning, #fbbf24));
+}
+
+.eg-node.dim {
+  opacity: 0.18;
+}
+
+.eg-node-hidden {
+  display: none;
+}
+
+.eg-node-filtered {
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+/* Per-entity-type colors (matches --color-entity-* tokens) */
+.eg-node--session   { --eg-node-color: var(--color-entity-session);  }
+.eg-node--memory    { --eg-node-color: var(--color-entity-memory);   }
+.eg-node--finding   { --eg-node-color: var(--color-entity-finding);  }
+.eg-node--evidence  { --eg-node-color: var(--color-entity-evidence); }
+.eg-node--anomaly   { --eg-node-color: var(--color-entity-anomaly);  }
+.eg-node--entity    { --eg-node-color: var(--color-entity-tool);    }
+
+/* Anomaly node — distinctive dashed ring */
+.eg-node--anomaly .eg-node-circle {
+  stroke-dasharray: 4 3;
+}
+
+/* Approval-type indicator (used for findings that are approval points) */
+.eg-node-icon {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  fill: var(--color-text-inverse);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Node labels */
+.eg-node-label {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  fill: var(--color-text-primary);
+  text-anchor: middle;
+  dominant-baseline: hanging;
+  pointer-events: none;
+  user-select: none;
+  paint-order: stroke;
+  stroke: var(--color-bg-canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.eg-node-label.selected {
+  fill: var(--color-accent-warning, #fbbf24);
+  font-weight: var(--weight-semibold);
+}
+
+.eg-node.dim .eg-node-label {
+  opacity: 0.5;
+}
+
+/* Sub-label (entity type tag under the label) */
+.eg-node-sublabel {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  fill: var(--color-text-tertiary);
+  text-anchor: middle;
+  dominant-baseline: hanging;
+  pointer-events: none;
+  user-select: none;
+  paint-order: stroke;
+  stroke: var(--color-bg-canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* ==========================================================================
+   §7.4 — Legend (bottom-right)
+   ========================================================================== */
+
+.eg-legend {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 200px;
+  background: color-mix(in oklch, var(--color-bg-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-3) var(--space-4);
+  z-index: 8;
+  font-size: var(--text-caption);
+}
+
+.eg-legend-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eg-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 0;
+  color: var(--color-text-secondary);
+}
+
+.eg-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-bg-canvas);
+}
+
+.eg-legend-row--session  .eg-legend-dot { background: var(--color-entity-session);  }
+.eg-legend-row--memory   .eg-legend-dot { background: var(--color-entity-memory);   }
+.eg-legend-row--finding  .eg-legend-dot { background: var(--color-entity-finding);  }
+.eg-legend-row--evidence .eg-legend-dot { background: var(--color-entity-evidence); }
+.eg-legend-row--anomaly  .eg-legend-dot { background: var(--color-entity-anomaly);  }
+.eg-legend-row--entity   .eg-legend-dot { background: var(--color-entity-tool);    }
+
+.eg-legend-row--anomaly .eg-legend-dot {
+  border-style: dashed;
+  border-color: var(--color-entity-anomaly);
+  background: transparent;
+}
+
+.eg-legend-label {
+  flex: 1;
+}
+
+.eg-legend-count {
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ==========================================================================
+   §7.5 — Tooltip
+   ========================================================================== */
+
+.eg-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  background: var(--color-bg-surface-overlay);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-3);
+  min-width: 220px;
+  max-width: 320px;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.eg-tooltip.visible {
+  opacity: 1;
+}
+
+.eg-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.eg-tooltip-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-inverse);
+  background: var(--eg-tt-color, var(--color-accent-primary));
+  flex-shrink: 0;
+}
+
+.eg-tooltip-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eg-tooltip-type {
+  font-size: var(--text-micro);
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--eg-tt-color, var(--color-text-tertiary));
+}
+
+.eg-tooltip-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 4px;
+  align-items: baseline;
+}
+
+.eg-tooltip-key {
+  color: var(--color-text-tertiary);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.eg-tooltip-value {
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   §7.6 — Detail Panel (right side, on selection)
+   ========================================================================== */
+
+.eg-detail {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  width: 280px;
+  max-height: calc(100vh - 140px);
+  background: color-mix(in oklch, var(--color-bg-surface) 95%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
+  z-index: 12;
+  overflow-y: auto;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transform: translateX(8px);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-default),
+    transform var(--duration-fast) var(--ease-default);
+}
+
+.eg-detail.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.eg-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.eg-detail-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.eg-detail-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.eg-detail-close:hover {
+  color: var(--color-text-primary);
+}
+
+.eg-detail-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 6px;
+  align-items: baseline;
+}
+
+.eg-detail-key {
+  color: var(--color-text-tertiary);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.eg-detail-value {
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+.eg-detail-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--eg-detail-color, var(--color-accent-primary)) 12%, transparent);
+  color: var(--eg-detail-color, var(--color-text-primary));
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid color-mix(in oklch, var(--eg-detail-color, var(--color-accent-primary)) 30%, transparent);
+}
+
+/* Connection list inside detail panel */
+.eg-detail-connections {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.eg-detail-connections-title {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+}
+
+.eg-detail-connection-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+
+.eg-detail-connection-item:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.eg-detail-connection-arrow {
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.eg-detail-connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.eg-detail-connection-text {
+  flex: 1;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+}
+
+/* ==========================================================================
+   §7.7 — Empty state
+   ========================================================================== */
+
+.eg-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.eg-empty-icon {
+  font-size: 56px;
+  margin-bottom: var(--space-3);
+  opacity: 0.6;
+}
+
+.eg-empty-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.eg-empty-subtitle {
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+  max-width: 320px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   §7.8 — Loading skeleton
+   ========================================================================== */
+
+.eg-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.eg-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border-default);
+  border-top-color: var(--color-accent-primary);
+  border-radius: var(--radius-full);
+  animation: eg-spin 1s linear infinite;
+}
+
+@keyframes eg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   §7.9 — Mobile / responsive (basic)
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  .eg-toolbar { gap: var(--space-2); padding: 0 var(--space-2); }
+  .eg-search-wrap { width: 140px; }
+  .eg-legend { width: 160px; padding: var(--space-2) var(--space-3); }
+  .eg-detail { width: calc(100vw - 32px); right: 16px; left: 16px; }
+}
+
+/* ==========================================================================
+   §7.10 — Reduced-motion handling
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .eg-control-btn,
+  .eg-chip,
+  .eg-search-wrap,
+  .eg-link,
+  .eg-node,
+  .eg-detail {
+    transition: none;
+  }
+}

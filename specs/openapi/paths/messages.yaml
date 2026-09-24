@@ -1,0 +1,39 @@
+# Message endpoint (SPEC-015 §3.1).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# POST /api/v1/sessions/{sessionId}/message
+post:
+  tags: [Sessions]
+  summary: Send a message to an agent session
+  operationId: sendMessage
+  description: |
+    Sends a message to a running agent session. The message is inserted into
+    memory_events and the session is transitioned to 'thinking' if idle.
+    If the session is paused, the message is queued for the next iteration.
+  security:
+    - BearerAuth: []
+  parameters:
+    - $ref: "../components/parameters.yaml#/SessionId"
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../components/schemas.yaml#/SendMessageRequest"
+  responses:
+    "200":
+      description: Message received.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/MessageReceivedResponse"
+    "400":
+      $ref: "../components/responses.yaml#/BadRequest"
+    "401":
+      $ref: "../components/responses.yaml#/Unauthorized"
+    "403":
+      $ref: "../components/responses.yaml#/Forbidden"
+    "404":
+      $ref: "../components/responses.yaml#/NotFound"
+    "500":
+      $ref: "../components/responses.yaml#/InternalError"

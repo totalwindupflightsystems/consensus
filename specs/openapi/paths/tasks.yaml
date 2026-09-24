@@ -1,0 +1,132 @@
+# Task endpoint paths (SPEC-015 §3.3).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET/POST /api/v1/sessions/{sessionId}/tasks
+tasks:
+  post:
+    tags: [Tasks]
+    summary: Create a task
+    operationId: createTask
+    description: Creates a new task in the given session's work queue.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateTaskRequest"
+    responses:
+      "201":
+        description: Task created.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Task"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+  get:
+    tags: [Tasks]
+    summary: List tasks for a session
+    operationId: listTasks
+    description: Lists tasks for a session, optionally filtered by status.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - $ref: "../components/parameters.yaml#/StatusFilter"
+    responses:
+      "200":
+        description: List of tasks.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/Task"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# PATCH /api/v1/tasks/{taskId}
+task:
+  patch:
+    tags: [Tasks]
+    summary: Update task status
+    operationId: updateTask
+    description: |
+      Updates the status of a task. Valid transitions:
+      - pending → claimed, in_progress, failed, cancelled
+      - claimed → in_progress, failed, cancelled
+      - in_progress → reviewed, failed, cancelled
+      - reviewed → published
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/TaskId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/UpdateTaskRequest"
+    responses:
+      "200":
+        description: Updated task.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Task"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# POST /api/v1/tasks/{taskId}/claim
+claim:
+  post:
+    tags: [Tasks]
+    summary: Claim a task
+    operationId: claimTask
+    description: |
+      Claims a pending task by locking it to the requesting session.
+      Only one session can hold the lock at a time.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/TaskId"
+    responses:
+      "200":
+        description: Task claimed.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Task"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

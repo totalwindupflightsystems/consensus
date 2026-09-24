@@ -1,0 +1,137 @@
+# Memory & context endpoint paths (SPEC-015 §3.2).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET/POST /api/v1/sessions/{sessionId}/memory
+memory:
+  get:
+    tags: [Memory]
+    summary: List memory events
+    operationId: listMemory
+    description: |
+      Lists memory events for a session, ordered by ID descending (newest first).
+      Supports type filtering and limit.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - $ref: "../components/parameters.yaml#/TypeFilter"
+      - $ref: "../components/parameters.yaml#/Limit"
+    responses:
+      "200":
+        description: List of memory events.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/MemoryEvent"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/memory/{memoryId}
+memoryItem:
+  get:
+    tags: [Memory]
+    summary: Get a single memory event
+    operationId: getMemoryEvent
+    description: Returns a single memory event by its ID.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - $ref: "../components/parameters.yaml#/MemoryId"
+    responses:
+      "200":
+        description: Memory event details.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/MemoryEvent"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/context
+context:
+  get:
+    tags: [Memory]
+    summary: Get active context (rendered)
+    operationId: getActiveContext
+    description: |
+      Returns the active context view for a session — memory events rendered
+      according to their display_mode (full, compressed, or hidden).
+      This is what the harness formats into Markdown for the LLM.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 200
+        description: Maximum context items to return.
+    responses:
+      "200":
+        description: Rendered active context items.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/ActiveContextItem"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/iterations
+iterations:
+  get:
+    tags: [Memory]
+    summary: List iteration commits
+    operationId: listIterations
+    description: |
+      Lists iteration commits for a session — each commit records the active
+      memory pointers, display rules, LLM response, and SQL executed at that
+      point in time.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+        description: Maximum iterations to return.
+    responses:
+      "200":
+        description: List of iteration commits.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/IterationCommit"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

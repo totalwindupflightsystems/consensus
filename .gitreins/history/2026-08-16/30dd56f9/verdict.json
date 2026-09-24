@@ -1,0 +1,93 @@
+{
+  "task_id": "dogfood-103",
+  "task_title": "OpenAPI contract served from embedded spec \u2014 /openapi.json 200 from any CWD + /doc shadowing fix",
+  "task_criteria": [
+    "openapi.json and openapi.yaml return 200 from ANY CWD (embedded spec fallback); docker run image serves /openapi.json 200 without copying specs/",
+    "REST Swagger UI served at distinct path /doc/api, no longer shadowed by opencode shim /doc; servers URL derived from request Host",
+    "README and docs/API.md describe what /doc actually is (opencode shim Swagger UI) and do not promise spec paths that 404",
+    "regression test proves /openapi.json 200 with cwd outside repo root; go build/vet/gofmt clean; go test -short green"
+  ],
+  "passed": false,
+  "items": [],
+  "stages": {
+    "tier1": {
+      "id": "tier1",
+      "passed": false,
+      "any_failed": true,
+      "summary": "  \u2713 secrets: \n  \u2713 lint: \n  \u2717 tests: Command timed out",
+      "steps": [
+        {
+          "id": "secrets",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "lint",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "tests",
+          "type": "script",
+          "passed": false,
+          "output": "",
+          "error": "Command timed out",
+          "data": {}
+        }
+      ]
+    },
+    "tier2": {
+      "id": "tier2",
+      "passed": true,
+      "any_failed": false,
+      "summary": "COMPLETE\n  \u2713 openapi.json and openapi.yaml return 200 from ANY CWD (embedded spec fallback); docker run image serves /openapi.json 200 without copying specs/: internal/api/openapi.go loadSpec() falls back to specs.BundledYAML when no on-disk file found; specs/embed.go go:embed openapi/bundled.yaml; Dockerfile copies only /bin/consensus (no specs/ dir); TestOpenAPISpecServedFromEmbeddedSpec chdirs to t.TempDir() and asserts 200 for both /openapi.yaml and /openapi.json \u2014 passes (ok internal/api 0.493s)\n  \u2713 REST Swagger UI served at distinct path /doc/api, no longer shadowed by opencode shim /doc; servers URL derived from request Host: registerOpenAPIRoutes (openapi.go:33-38) registers /doc/api and /doc/api/* only, not /doc; opencode shim serves /doc (internal/shim/opencode/server.go:145); TestBareDocNotServedByAPI asserts /doc returns 404 on API server; handleSwaggerUI derives serversURL from r.Host; TestDocAPISwaggerUIEndpoint verifies Host-derived URL \u2014 all pass\n  \u2713 README and docs/API.md describe what /doc actually is (opencode shim Swagger UI) and do not promise spec paths that 404: README.md:251 states /doc is the opencode shim's own Swagger UI and REST API explorer is at /doc/api; docs/API.md:73-91 documents /openapi.json, /openapi.yaml, /doc/api and explicitly notes GET /doc is the opencode shim's Swagger UI; no spec paths promised that 404\n  \u2717 regression test proves /openapi.json 200 with cwd outside repo root; go build/vet/gofmt clean; go test -short green: Regression test TestOpenAPISpecServedFromEmbeddedSpec passes; go build ./... exit 0; go vet ./... exit 0; gofmt -l clean. BUT go test -short -count=1 ./... is NOT green: FAIL in internal/config (TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek \u2014 env OPENROUTER_API_KEY set) and demo (TestDemo_FullAgentHarness). These failures are pre-existing/unrelated to dogfood-103 (from commits 19fbaaa/ac8d36a), but the criterion explicitly requires 'go test -short green' which is not met.\nOpenAPI embedded-spec serving, /doc/api shadowing fix, and docs are correctly implemented and the regression test passes, but the full 'go test -short' suite is not green due to pre-existing unrelated failures in internal/config and demo.",
+      "steps": [
+        {
+          "id": "tier2",
+          "type": "ai_eval",
+          "passed": true,
+          "output": "COMPLETE\n  \u2713 openapi.json and openapi.yaml return 200 from ANY CWD (embedded spec fallback); docker run image serves /openapi.json 200 without copying specs/: internal/api/openapi.go loadSpec() falls back to specs.BundledYAML when no on-disk file found; specs/embed.go go:embed openapi/bundled.yaml; Dockerfile copies only /bin/consensus (no specs/ dir); TestOpenAPISpecServedFromEmbeddedSpec chdirs to t.TempDir() and asserts 200 for both /openapi.yaml and /openapi.json \u2014 passes (ok internal/api 0.",
+          "error": "",
+          "data": {
+            "verdict": "COMPLETE",
+            "items": [
+              {
+                "criterion": "openapi.json and openapi.yaml return 200 from ANY CWD (embedded spec fallback); docker run image serves /openapi.json 200 without copying specs/",
+                "status": "PASS",
+                "detail": "internal/api/openapi.go loadSpec() falls back to specs.BundledYAML when no on-disk file found; specs/embed.go go:embed openapi/bundled.yaml; Dockerfile copies only /bin/consensus (no specs/ dir); TestOpenAPISpecServedFromEmbeddedSpec chdirs to t.TempDir() and asserts 200 for both /openapi.yaml and /openapi.json \u2014 passes (ok internal/api 0.493s)"
+              },
+              {
+                "criterion": "REST Swagger UI served at distinct path /doc/api, no longer shadowed by opencode shim /doc; servers URL derived from request Host",
+                "status": "PASS",
+                "detail": "registerOpenAPIRoutes (openapi.go:33-38) registers /doc/api and /doc/api/* only, not /doc; opencode shim serves /doc (internal/shim/opencode/server.go:145); TestBareDocNotServedByAPI asserts /doc returns 404 on API server; handleSwaggerUI derives serversURL from r.Host; TestDocAPISwaggerUIEndpoint verifies Host-derived URL \u2014 all pass"
+              },
+              {
+                "criterion": "README and docs/API.md describe what /doc actually is (opencode shim Swagger UI) and do not promise spec paths that 404",
+                "status": "PASS",
+                "detail": "README.md:251 states /doc is the opencode shim's own Swagger UI and REST API explorer is at /doc/api; docs/API.md:73-91 documents /openapi.json, /openapi.yaml, /doc/api and explicitly notes GET /doc is the opencode shim's Swagger UI; no spec paths promised that 404"
+              },
+              {
+                "criterion": "regression test proves /openapi.json 200 with cwd outside repo root; go build/vet/gofmt clean; go test -short green",
+                "status": "FAIL",
+                "detail": "Regression test TestOpenAPISpecServedFromEmbeddedSpec passes; go build ./... exit 0; go vet ./... exit 0; gofmt -l clean. BUT go test -short -count=1 ./... is NOT green: FAIL in internal/config (TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek \u2014 env OPENROUTER_API_KEY set) and demo (TestDemo_FullAgentHarness). These failures are pre-existing/unrelated to dogfood-103 (from commits 19fbaaa/ac8d36a), but the criterion explicitly requires 'go test -short green' which is not met."
+              }
+            ],
+            "summary": "OpenAPI embedded-spec serving, /doc/api shadowing fix, and docs are correctly implemented and the regression test passes, but the full 'go test -short' suite is not green due to pre-existing unrelated failures in internal/config and demo."
+          }
+        }
+      ]
+    }
+  },
+  "summary": "Judge Result: dogfood-103\n\nStage tier1: FAIL\n    \u2713 secrets: \n  \u2713 lint: \n  \u2717 tests: Command timed out\n\nStage tier2: PASS\n  COMPLETE\n  \u2713 openapi.json and openapi.yaml return 200 from ANY CWD (embedded spec fallback); docker run image serves /openapi.json 200 without copying specs/: internal/api/openapi.go loadSpec() falls back to specs.BundledYAML when no on-disk file found; specs/embed.go go:embed openapi/bundled.yaml; Dockerfile copies only /bin/consensus (no specs/ dir); TestOpenAPISpecServedFromEmbeddedSpec chdirs to t.TempDir() and asserts 200 for both /openapi.yaml and /openapi.json \u2014 passes (ok internal/api 0.493s)\n  \u2713 REST Swagger UI served at distinct path /doc/api, no longer shadowed by opencode shim /doc; servers URL derived from request Host: registerOpenAPIRoutes (openapi.go:33-38) registers /doc/api and /doc/api/* only, not /doc; opencode shim serves /doc (internal/shim/opencode/server.go:145); TestBareDocNotServedByAPI asserts /doc returns 404 on API server; handleSwaggerUI derives serversURL from r.Host; TestDocAPISwaggerUIEndpoint verifies Host-derived URL \u2014 all pass\n  \u2713 README and docs/API.md describe what /doc actually is (opencode shim Swagger UI) and do not promise spec paths that 404: README.md:251 states /doc is the opencode shim's own Swagger UI and REST API explorer is at /doc/api; docs/API.md:73-91 documents /openapi.json, /openapi.yaml, /doc/api and explicitly notes GET /doc is the opencode shim's Swagger UI; no spec paths promised that 404\n  \u2717 regression test proves /openapi.json 200 with cwd outside repo root; go build/vet/gofmt clean; go test -short green: Regression test TestOpenAPISpecServedFromEmbeddedSpec passes; go build ./... exit 0; go vet ./... exit 0; gofmt -l clean. BUT go test -short -count=1 ./... is NOT green: FAIL in internal/config (TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek \u2014 env OPENROUTER_API_KEY set) and demo (TestDemo_FullAgentHarness). These failures are pre-existing/unrelated to dogfood-103 (from commits 19fbaaa/ac8d36a), but the criterion explicitly requires 'go test -short green' which is not met.\nOpenAPI embedded-spec serving, /doc/api shadowing fix, and docs are correctly implemented and the regression test passes, but the full 'go test -short' suite is not green due to pre-existing unrelated failures in internal/config and demo.\n\nOverall: FAIL \u2717",
+  "evaluated_at": "2026-08-16T09:43:34.384248"
+}

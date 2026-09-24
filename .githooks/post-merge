@@ -1,0 +1,313 @@
+#!/usr/bin/env bash
+# .githooks/post-merge — Axiom release automation hook
+#
+# Runs automatically after every successful merge. On merges to the primary
+# branch (default: main), it:
+#   1. Reads release config from .axiom/axiom.config.yaml
+#   2. Bumps VERSION + package.json via scripts/version_bump.py
+#   3. Appends a CHANGELOG.md entry via scripts/changelog_gen.py
+#   4. Amends the merge commit to include the version files
+#   5. Creates a git tag (if auto_tag_on_merge: true)
+#   6. Pushes the tag (if auto_push_tags: true)
+#
+# Escape hatch: AXIOM_NO_RELEASE=1 git merge ...
+#
+# Install: git config core.hooksPath .githooks  (already set in this repo)
+#
+# axiom:trace work_item=release-automation-01 spec=specs/06-Project-Configuration.md#release-section plan=P-release-automation/phase-ra-1/task-ra-1-1/step-ra-1-1-1 jira_ref=SWDE-6
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_log()  { echo "[axiom-release] $*"; }
+_warn() { echo "[axiom-release] WARNING: $*" >&2; }
+_err()  { echo "[axiom-release] ERROR: $*" >&2; }
+
+# Read a scalar value from .axiom/axiom.config.yaml using Python.
+# Falls back to $3 (default) if the key is missing or yaml is unavailable.
+_config_get() {
+    local section="$1"
+    local key="$2"
+    local default="$3"
+    python3 - <<PYEOF 2>/dev/null || echo "$default"
+import sys
+try:
+    import yaml
+    with open('.axiom/axiom.config.yaml', 'r') as f:
+        data = yaml.safe_load(f)
+    val = (data or {}).get('$section', {}).get('$key')
+    print(str(val).lower() if isinstance(val, bool) else (val if val is not None else '$default'))
+except Exception:
+    print('$default')
+PYEOF
+}
+
+# ---------------------------------------------------------------------------
+# Guard: escape hatch
+# ---------------------------------------------------------------------------
+
+if [[ "${AXIOM_NO_RELEASE:-}" == "1" ]]; then
+    _log "AXIOM_NO_RELEASE=1 — skipping release automation."
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Guard: only run on the primary branch
+# ---------------------------------------------------------------------------
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+PRIMARY_BRANCH="$(_config_get release primary_branch main)"
+
+# Detect the merged branch name from the merge commit subject.
+# e.g., "Merge branch 'axiom/wt-release-automation'" → "axiom/wt-release-automation"
+# This is used to pass --merged-branch to version_bump.py so that branch-name
+# keyword detection works correctly even when the current branch is 'main'.
+# NOTE: Only handles local merge formats ('Merge branch 'name'' and 'Merge branch "name"').
+# GitHub PR merges ('Merge pull request #N') are NOT detected — bump falls back to
+# conventional commit scanning or worktree/direct-commit defaults.
+MERGED_BRANCH=""
+MERGE_SUBJECT="$(git log -1 --format=%s HEAD 2>/dev/null || echo '')"
+if [[ "$MERGE_SUBJECT" =~ ^Merge\ branch\ \'([^\']+)\' ]]; then
+    MERGED_BRANCH="${BASH_REMATCH[1]}"
+elif [[ "$MERGE_SUBJECT" =~ ^Merge\ branch\ \"([^\"]+)\" ]]; then
+    MERGED_BRANCH="${BASH_REMATCH[1]}"
+fi
+
+if [[ "$CURRENT_BRANCH" != "$PRIMARY_BRANCH" ]]; then
+    # Not on primary branch — skip silently
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Guard: auto_bump_on_merge must be enabled
+# ---------------------------------------------------------------------------
+
+AUTO_BUMP="$(_config_get release auto_bump_on_merge true)"
+if [[ "$AUTO_BUMP" != "true" ]]; then
+    _log "release.auto_bump_on_merge is disabled — skipping."
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Guard: scripts must exist
+# ---------------------------------------------------------------------------
+
+VERSION_SCRIPT="$REPO_ROOT/scripts/version_bump.py"
+CHANGELOG_SCRIPT="$REPO_ROOT/scripts/changelog_gen.py"
+
+if [[ ! -f "$VERSION_SCRIPT" ]]; then
+    _warn "scripts/version_bump.py not found — skipping release automation."
+    exit 0
+fi
+
+if [[ ! -f "$CHANGELOG_SCRIPT" ]]; then
+    _warn "scripts/changelog_gen.py not found — skipping release automation."
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Guard: VERSION file must exist
+# ---------------------------------------------------------------------------
+
+VERSION_FILE="$(_config_get release version_file VERSION)"
+if [[ ! -f "$REPO_ROOT/$VERSION_FILE" ]]; then
+    _warn "$VERSION_FILE not found — skipping release automation."
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Step 1: Compute + apply version bump
+# ---------------------------------------------------------------------------
+
+_log "Computing version bump..."
+
+# Run version_bump.py in --apply --from-hook --json mode.
+# Pass --merged-branch when we detected the source branch from the merge commit
+# subject, so that branch-name keyword detection works on the primary branch.
+# Use a bash array for BUMP_ARGS to handle branch names with spaces or special
+# characters correctly (avoids word-splitting on unquoted string expansion).
+BUMP_ARGS=(--apply --from-hook --json)
+if [[ -n "$MERGED_BRANCH" ]]; then
+    BUMP_ARGS+=(--merged-branch "$MERGED_BRANCH")
+fi
+BUMP_JSON="$(python3 "$VERSION_SCRIPT" "${BUMP_ARGS[@]}" 2>&1)" || {
+    _err "version_bump.py failed:"
+    echo "$BUMP_JSON" >&2
+    _warn "Skipping release automation due to bump failure."
+    exit 0
+}
+
+# Parse the new version from JSON output
+NEW_VERSION="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    if d.get('status') in ('skipped', 'error'):
+        print('')
+    else:
+        print(d.get('new_version', ''))
+except Exception:
+    print('')
+" 2>/dev/null)"
+
+if [[ -z "$NEW_VERSION" ]]; then
+    _log "No version bump needed (feature branch or no changes)."
+    exit 0
+fi
+
+OLD_VERSION="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('current_version', ''))
+except Exception:
+    print('')
+" 2>/dev/null)"
+
+BUMP_LEVEL="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('bump_level', 'patch'))
+except Exception:
+    print('patch')
+" 2>/dev/null)"
+
+BUMP_REASON="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('reason', ''))
+except Exception:
+    print('')
+" 2>/dev/null)"
+
+COMMIT_COUNT="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('commit_count', 0))
+except Exception:
+    print(0)
+" 2>/dev/null)"
+
+_log "Bumped: $OLD_VERSION → $NEW_VERSION ($BUMP_LEVEL)"
+
+# ---------------------------------------------------------------------------
+# Step 2: Append CHANGELOG.md entry for this merge
+# ---------------------------------------------------------------------------
+
+CHANGELOG_PATH="$(_config_get release changelog_path CHANGELOG.md)"
+
+if [[ -f "$REPO_ROOT/$CHANGELOG_PATH" ]]; then
+    _log "Appending CHANGELOG.md entry..."
+    python3 "$CHANGELOG_SCRIPT" \
+        --append-last-merge \
+        --version "$NEW_VERSION" \
+        --prepend "$CHANGELOG_PATH" 2>/dev/null || {
+        _warn "changelog_gen.py failed — continuing without changelog update."
+    }
+else
+    _log "No $CHANGELOG_PATH found — skipping changelog update."
+fi
+
+# ---------------------------------------------------------------------------
+# Step 3: Amend the merge commit to include version files
+# ---------------------------------------------------------------------------
+
+# Collect files that were modified by the bump
+MODIFIED_FILES="$(echo "$BUMP_JSON" | python3 -c "
+import sys, json, os
+try:
+    d = json.load(sys.stdin)
+    files = d.get('modified_files', [])
+    repo_root = os.path.abspath('.')
+    rel_files = []
+    for f in files:
+        try:
+            rel = os.path.relpath(f, repo_root)
+            rel_files.append(rel)
+        except ValueError:
+            rel_files.append(f)
+    print('\n'.join(rel_files))
+except Exception:
+    pass
+" 2>/dev/null)"
+
+# Also stage CHANGELOG.md if it was updated
+FILES_TO_STAGE=()
+while IFS= read -r f; do
+    [[ -n "$f" ]] && FILES_TO_STAGE+=("$f")
+done <<< "$MODIFIED_FILES"
+
+# Add CHANGELOG.md if it exists and isn't already in the list
+if [[ -f "$REPO_ROOT/$CHANGELOG_PATH" ]]; then
+    already_staged=false
+    for f in "${FILES_TO_STAGE[@]:-}"; do
+        if [[ "$f" == "$CHANGELOG_PATH" ]]; then
+            already_staged=true
+            break
+        fi
+    done
+    if [[ "$already_staged" == "false" ]]; then
+        FILES_TO_STAGE+=("$CHANGELOG_PATH")
+    fi
+fi
+
+if [[ ${#FILES_TO_STAGE[@]} -gt 0 ]]; then
+    _log "Staging version files: ${FILES_TO_STAGE[*]}"
+    git add "${FILES_TO_STAGE[@]}" 2>/dev/null || {
+        _warn "Could not stage version files — skipping amend."
+    }
+
+    # Amend the merge commit to include the version bump
+    # Use GIT_EDITOR=true to avoid opening an editor
+    GIT_EDITOR=true git commit --amend --no-edit 2>/dev/null || {
+        _warn "Could not amend merge commit — version files staged but not committed."
+        _warn "Run: git commit --amend --no-edit"
+    }
+    _log "Merge commit amended with version files."
+fi
+
+# ---------------------------------------------------------------------------
+# Step 4: Create git tag
+# ---------------------------------------------------------------------------
+
+AUTO_TAG="$(_config_get release auto_tag_on_merge true)"
+TAG_PREFIX="$(_config_get release tag_prefix v)"
+TAG_NAME="${TAG_PREFIX}${NEW_VERSION}"
+
+if [[ "$AUTO_TAG" == "true" ]]; then
+    if git tag "$TAG_NAME" 2>/dev/null; then
+        _log "Created tag: $TAG_NAME"
+    else
+        _warn "Tag $TAG_NAME already exists or could not be created."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Step 5: Push tag (optional)
+# ---------------------------------------------------------------------------
+
+AUTO_PUSH="$(_config_get release auto_push_tags false)"
+
+if [[ "$AUTO_PUSH" == "true" ]] && [[ "$AUTO_TAG" == "true" ]]; then
+    _log "Pushing tag $TAG_NAME to origin..."
+    git push origin "$TAG_NAME" 2>/dev/null || {
+        _warn "Could not push tag $TAG_NAME. Push manually: git push origin $TAG_NAME"
+    }
+fi
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+
+echo ""
+echo "📦 Released $TAG_NAME — $COMMIT_COUNT commits, $BUMP_LEVEL bump ($BUMP_REASON)"
+echo ""

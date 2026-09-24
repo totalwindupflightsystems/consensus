@@ -1,0 +1,82 @@
+# Metrics, Billing, Config, and Health endpoint paths (SPEC-015 §3.6-3.7).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+# GET /api/v1/metrics
+metrics:
+  get:
+    tags: [Metrics]
+    summary: System-wide metrics
+    operationId: getMetrics
+    description: |
+      Returns system-wide metrics including active sessions, pending tasks,
+      pending approvals, total sessions, and cumulative cost.
+      Admin or readonly scope required.
+    security:
+      - BearerAuth: []
+    responses:
+      "200":
+        description: System metrics.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Metrics"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/billing
+billing:
+  get:
+    tags: [Metrics]
+    summary: Per-session cost breakdown
+    operationId: getSessionBilling
+    description: |
+      Returns the complete billing breakdown for a session —
+      per-iteration token usage and cost, plus totals.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    responses:
+      "200":
+        description: Session billing details.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/SessionBilling"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/config
+config:
+  get:
+    tags: [Metrics]
+    summary: System configuration
+    operationId: getConfig
+    description: |
+      Returns the current system configuration including LLM, HITL,
+      harness, database, and logging settings. Admin scope required.
+    security:
+      - BearerAuth: []
+    responses:
+      "200":
+        description: System configuration.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Config"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

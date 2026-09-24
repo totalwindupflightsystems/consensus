@@ -1,0 +1,1596 @@
+/* ============================================================================
+   Chronicle Timeline Explorer (§6) — Zoomable Chronological Canvas
+   Spec: specs/026-dashboard-ui.md §6 Timeline Explorer
+   ============================================================================
+   Timeline-specific styles. Uses design-system custom properties exclusively.
+   Theme-aware: inherits data-theme="dark" / "light" from html element.
+   ============================================================================ */
+
+/* ==========================================================================
+   §6.1 — Container (full-bleed view, zero padding)
+   ========================================================================== */
+
+/* Override the default .content-view padding/max-width so timeline fills area */
+#timeline-view {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+}
+
+.tl-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   §6.1 — Toolbar (44px, sticky top)
+   ========================================================================== */
+
+.tl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--color-glass-light);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border-default);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.tl-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tl-toolbar-spacer {
+  flex: 1;
+  min-width: var(--space-3);
+}
+
+/* --- Bookmark trigger button --- */
+.tl-bookmarks-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition-hover);
+}
+
+.tl-bookmarks-btn:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+.tl-bookmarks-btn.has-bookmarks {
+  color: var(--color-accent-warning);
+  border-color: var(--color-accent-warning);
+}
+
+.tl-bookmarks-btn .tl-star {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tl-bookmarks-btn .tl-bookmark-count {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Annotate button (placeholder) --- */
+.tl-annotate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+  cursor: pointer;
+  transition: var(--transition-hover);
+}
+
+.tl-annotate-btn:hover {
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+/* --- Filter chips (§6.7.1) --- */
+.tl-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.tl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-hover);
+  flex-shrink: 0;
+}
+
+.tl-chip:hover {
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+.tl-chip-icon {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.tl-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-badge);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Active (chip enabled): tinted with entity color */
+.tl-chip.active {
+  background: var(--tl-chip-active-bg, var(--color-accent-primary-muted));
+  border-color: var(--tl-chip-color, var(--color-accent-primary));
+  color: var(--tl-chip-color, var(--color-accent-primary));
+}
+
+.tl-chip.active .tl-chip-icon {
+  opacity: 1;
+}
+
+.tl-chip.active .tl-chip-count {
+  background: var(--tl-chip-active-strong, var(--color-accent-primary));
+  color: var(--color-text-inverse);
+}
+
+/* Chip-specific color mapping */
+.tl-chip[data-type="all"]      { --tl-chip-color: var(--color-accent-primary); --tl-chip-active-bg: var(--color-accent-primary-muted); --tl-chip-active-strong: var(--color-accent-primary); }
+.tl-chip[data-type="session"]  { --tl-chip-color: var(--color-entity-session);  --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-session)  15%, transparent); --tl-chip-active-strong: var(--color-entity-session); }
+.tl-chip[data-type="memory"]   { --tl-chip-color: var(--color-entity-memory);   --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-memory)   15%, transparent); --tl-chip-active-strong: var(--color-entity-memory); }
+.tl-chip[data-type="finding"]  { --tl-chip-color: var(--color-entity-finding);  --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-finding)  15%, transparent); --tl-chip-active-strong: var(--color-entity-finding); }
+.tl-chip[data-type="task"]     { --tl-chip-color: var(--color-entity-task);     --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-task)     15%, transparent); --tl-chip-active-strong: var(--color-entity-task); }
+.tl-chip[data-type="approval"] { --tl-chip-color: var(--color-entity-approval); --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-approval) 15%, transparent); --tl-chip-active-strong: var(--color-entity-approval); }
+.tl-chip[data-type="anomaly"]  { --tl-chip-color: var(--color-entity-anomaly);  --tl-chip-active-bg: color-mix(in oklch, var(--color-entity-anomaly)  15%, transparent); --tl-chip-active-strong: var(--color-entity-anomaly); }
+
+/* --- Search input (§6.7.3) --- */
+.tl-search-wrap {
+  position: relative;
+  width: 200px;
+  transition: width var(--duration-fast) var(--ease-default);
+}
+
+.tl-search-wrap:focus-within {
+  width: 300px;
+}
+
+.tl-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-6) 0 32px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--text-small);
+  outline: none;
+  transition: var(--transition-hover);
+}
+
+.tl-search-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.tl-search-input:focus {
+  border-color: var(--color-border-focus);
+  background: var(--color-bg-input-focus);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.tl-search-input.no-results {
+  border-color: var(--color-border-warning);
+}
+
+.tl-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.tl-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  display: none;
+}
+
+.tl-search-clear:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.tl-search-wrap.has-value .tl-search-clear {
+  display: block;
+}
+
+.tl-search-meta {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  padding: 2px 8px;
+  pointer-events: none;
+}
+
+.tl-search-meta.no-results {
+  color: var(--color-accent-warning);
+}
+
+/* --- Session dropdown (§6.7.2) --- */
+.tl-session-dropdown {
+  position: relative;
+}
+
+.tl-session-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--text-small);
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 160px;
+  max-width: 240px;
+  transition: var(--transition-hover);
+}
+
+.tl-session-trigger:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-hover-muted);
+}
+
+.tl-session-trigger .tl-session-status {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.tl-session-trigger .tl-session-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.tl-session-trigger .tl-session-chevron {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  transition: transform var(--duration-fast) var(--ease-default);
+}
+
+.tl-session-dropdown.open .tl-session-trigger .tl-session-chevron {
+  transform: rotate(180deg);
+}
+
+.tl-session-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 280px;
+  max-height: 360px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tl-session-dropdown.open .tl-session-menu {
+  display: flex;
+}
+
+.tl-session-menu-header {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.tl-session-menu-search {
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-2) 0 var(--space-6);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--text-small);
+  outline: none;
+}
+
+.tl-session-menu-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.tl-session-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+.tl-session-menu-item:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.tl-session-menu-item.selected {
+  background: var(--color-bg-selection-muted);
+}
+
+.tl-session-menu-item .tl-session-status {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.tl-session-menu-item .tl-session-menu-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-session-menu-item .tl-session-menu-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+.tl-session-menu-item .tl-session-menu-count {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-session-menu-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  margin: var(--space-1) 0;
+}
+
+/* --- Time range buttons (§6.7.4) --- */
+.tl-range-buttons {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.tl-range-btn {
+  height: 26px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition-hover);
+}
+
+.tl-range-btn:hover {
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+.tl-range-btn.active {
+  background: var(--color-accent-primary-muted);
+  color: var(--color-accent-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* ==========================================================================
+   §6.2 — Time Ruler (40px, sticky)
+   ========================================================================== */
+
+.tl-ruler-wrap {
+  position: sticky;
+  top: 44px; /* directly below toolbar */
+  height: 40px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+  overflow: hidden;
+  z-index: 9;
+  flex-shrink: 0;
+}
+
+.tl-ruler-inner {
+  position: relative;
+  height: 100%;
+}
+
+.tl-ruler-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border-subtle);
+  pointer-events: none;
+}
+
+.tl-ruler-tick.major {
+  height: 16px;
+  background: var(--color-text-secondary);
+}
+
+.tl-ruler-tick.minor {
+  height: 8px;
+  background: var(--color-border-subtle);
+}
+
+.tl-ruler-label {
+  position: absolute;
+  top: 4px;
+  font-size: var(--text-micro);
+  color: var(--color-text-tertiary);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tl-ruler-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-accent-primary);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tl-ruler-now::before {
+  content: "NOW";
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+  animation: chronicle-pulse-thinking 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+.tl-ruler-tz {
+  position: absolute;
+  top: 4px;
+  right: 12px;
+  font-size: var(--text-micro);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-ruler-now-arrow {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-accent-primary);
+  border-radius: var(--radius-full);
+  color: var(--color-accent-primary);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  z-index: 3;
+}
+
+.tl-ruler-now-arrow.visible {
+  display: inline-flex;
+}
+
+/* ==========================================================================
+   §6.1 — Canvas
+   ========================================================================== */
+
+.tl-canvas-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  scroll-behavior: auto; /* programmatic scroll is instant */
+  background: var(--color-bg-canvas);
+  /* thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) transparent;
+}
+
+.tl-canvas-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tl-canvas-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tl-canvas-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: var(--radius-full);
+}
+
+.tl-canvas-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+.tl-canvas {
+  position: relative;
+  min-height: 100%;
+  /* width set dynamically via inline style */
+}
+
+/* Cursor states */
+.tl-canvas-scroll:not(.panning) { cursor: grab; }
+.tl-canvas-scroll.panning       { cursor: grabbing; user-select: none; }
+.tl-canvas-scroll.marquee-mode  { cursor: crosshair; }
+
+/* ==========================================================================
+   §6.6 — Date Group
+   ========================================================================== */
+
+.tl-date-group {
+  position: relative;
+  width: 100%;
+}
+
+.tl-date-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-4);
+  background: var(--color-bg-canvas);
+  border-bottom: 1px solid var(--color-border-subtle);
+  position: sticky;
+  top: 0; /* inside the canvas-scroll, sticks below ruler */
+  z-index: 5;
+}
+
+.tl-date-group-label {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.tl-date-group-count {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-date-group-toggle {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-hover);
+}
+
+.tl-date-group-toggle:hover {
+  background: var(--color-bg-hover-muted);
+  color: var(--color-text-primary);
+}
+
+.tl-date-group.collapsed .tl-date-group-toggle {
+  transform: rotate(-90deg);
+}
+
+.tl-date-group.collapsed .tl-date-group-events {
+  display: none;
+}
+
+.tl-date-group-events {
+  position: relative;
+  /* width set dynamically via inline style on lanes */
+}
+
+/* ==========================================================================
+   §6.4 — Event Cards
+   ========================================================================== */
+
+.tl-event {
+  position: absolute;
+  width: 320px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--tl-entity-color, var(--color-accent-primary));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    transform var(--duration-fast) var(--ease-default),
+    box-shadow var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    background var(--duration-fast) var(--ease-default),
+    opacity var(--duration-normal) var(--ease-default);
+  overflow: hidden;
+  user-select: none;
+}
+
+.tl-event.compact {
+  height: 72px;
+}
+
+.tl-event.expanded {
+  height: 96px;
+}
+
+.tl-event:hover {
+  background: var(--color-bg-hover-muted);
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-md);
+  z-index: 3;
+  transform: translateY(-1px);
+}
+
+/* Entity color border-left (set via inline CSS variable too, this is fallback) */
+.tl-event[data-type="session"]  { --tl-entity-color: var(--color-entity-session); }
+.tl-event[data-type="memory"]   { --tl-entity-color: var(--color-entity-memory); }
+.tl-event[data-type="finding"]  { --tl-entity-color: var(--color-entity-finding); }
+.tl-event[data-type="task"]     { --tl-entity-color: var(--color-entity-task); }
+.tl-event[data-type="approval"] { --tl-entity-color: var(--color-entity-approval); }
+.tl-event[data-type="anomaly"]  { --tl-entity-color: var(--color-entity-anomaly); }
+
+/* Anomaly — distinctive dashed border */
+.tl-event[data-type="anomaly"] {
+  border: 2px dashed color-mix(in oklch, var(--color-entity-anomaly) 50%, transparent);
+  border-left: 3px solid var(--color-entity-anomaly);
+  background: color-mix(in oklch, var(--color-accent-error) 3%, var(--color-bg-surface));
+}
+
+/* Header row */
+.tl-event-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 6px 10px 0;
+  flex-shrink: 0;
+}
+
+.tl-event-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--tl-entity-color);
+  flex-shrink: 0;
+}
+
+.tl-event-entity-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.tl-event-time {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.tl-event-bookmark {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-spring), color var(--duration-fast) var(--ease-default);
+}
+
+.tl-event-bookmark:hover {
+  color: var(--color-accent-warning);
+}
+
+.tl-event-bookmark.bookmarked {
+  color: var(--color-accent-warning);
+}
+
+.tl-event-bookmark.bounce {
+  animation: chronicle-bookmark-bounce 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes chronicle-bookmark-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* Divider */
+.tl-event-divider {
+  height: 1px;
+  margin: 4px 10px 2px;
+  background: var(--tl-entity-color);
+  opacity: 0.2;
+}
+
+/* Content row */
+.tl-event-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 0 10px 4px;
+  flex: 1;
+  min-height: 0;
+}
+
+.tl-event-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--tl-entity-color) 10%, transparent);
+  color: var(--tl-entity-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tl-event-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tl-event-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.tl-event-description {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.tl-event.compact .tl-event-description {
+  -webkit-line-clamp: 1;
+}
+
+.tl-event.expanded .tl-event-description {
+  -webkit-line-clamp: 2;
+}
+
+/* Tags row */
+.tl-event-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 10px 6px;
+  flex-shrink: 0;
+}
+
+.tl-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 1px 6px;
+  background: color-mix(in oklch, var(--tl-entity-color) 8%, transparent);
+  color: var(--color-text-secondary);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-tag-overflow {
+  font-size: var(--text-micro);
+  color: var(--color-text-tertiary);
+  padding: 0 4px;
+}
+
+/* Connector handle (visible on hover) */
+.tl-event-handle {
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--tl-entity-color);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-default);
+  cursor: crosshair;
+  z-index: 4;
+}
+
+.tl-event:hover .tl-event-handle {
+  opacity: 0.85;
+}
+
+/* Approval pending pulse */
+.tl-event[data-type="approval"][data-status="pending"] {
+  animation: chronicle-approval-pulse 2s ease-in-out infinite;
+}
+
+@keyframes chronicle-approval-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-entity-approval) 0%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-entity-approval) 25%, transparent); }
+}
+
+/* --- Card states (§6.4.2) --- */
+
+.tl-event.selected {
+  background: var(--color-bg-selection-muted);
+  border-color: var(--color-accent-primary);
+  border-left-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-glow-primary);
+  z-index: 3;
+}
+
+.tl-event.multi-selected {
+  background: var(--color-bg-selection-muted);
+  border: 1px dashed var(--color-accent-primary);
+  border-left: 3px solid var(--color-accent-primary);
+  opacity: 0.95;
+}
+
+.tl-event.focused {
+  box-shadow: var(--shadow-glow-primary), var(--shadow-sm);
+}
+
+/* Selected checkmark badge */
+.tl-event-selected-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  border: 2px solid var(--color-bg-canvas);
+  z-index: 4;
+}
+
+.tl-event.multi-selected .tl-event-selected-badge {
+  display: inline-flex;
+}
+
+/* Selection order badge (top-left) */
+.tl-event-order-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  border: 2px solid var(--color-bg-canvas);
+  z-index: 4;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-event.multi-selected .tl-event-order-badge {
+  display: inline-flex;
+}
+
+/* Loading skeleton */
+.tl-event.loading {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-skeleton) 25%,
+    var(--color-bg-surface-raised) 50%,
+    var(--color-bg-skeleton) 75%
+  );
+  background-size: 200% 100%;
+  animation: chronicle-shimmer 1.5s var(--ease-in-out) infinite;
+  pointer-events: none;
+}
+
+.tl-event.loading > * {
+  visibility: hidden;
+}
+
+/* Error state */
+.tl-event.error {
+  opacity: 0.6;
+  border-left-color: var(--color-accent-error);
+  border-color: var(--color-border-error);
+}
+
+.tl-event.error .tl-event-title {
+  color: var(--color-text-error);
+  font-family: var(--font-mono);
+}
+
+/* Filtered out (disabled via filter chips) */
+.tl-event.filtered-out {
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* Search dim (non-matching while a query is active) */
+.tl-event.search-dim {
+  opacity: 0.2;
+}
+
+.tl-event.search-match {
+  box-shadow: var(--shadow-glow-primary), var(--shadow-sm);
+}
+
+/* ==========================================================================
+   §6.5 — Connector Lines (SVG overlay)
+   ========================================================================== */
+
+.tl-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.tl-connector {
+  fill: none;
+  stroke: var(--tl-connector-color, var(--color-entity-session));
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.4;
+  transition: stroke-width var(--duration-fast) var(--ease-default), opacity var(--duration-fast) var(--ease-default);
+  pointer-events: stroke;
+  filter: none;
+  shape-rendering: geometricPrecision;
+}
+
+.tl-connector:hover {
+  stroke-width: 3;
+  opacity: 0.7;
+}
+
+.tl-connector.filtered-out {
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.tl-connector-hitzone {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* Session streak background (lane highlight behind connected cards) */
+.tl-streak {
+  position: absolute;
+  background: color-mix(in oklch, var(--tl-entity-color, var(--color-entity-session)) 3%, transparent);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tl-streak-label {
+  position: absolute;
+  font-size: var(--text-micro);
+  color: var(--tl-entity-color, var(--color-entity-session));
+  font-weight: var(--weight-semibold);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   §6.11 — Density bar (toolbar indicator)
+   ========================================================================== */
+
+.tl-density-bar {
+  display: flex;
+  align-items: stretch;
+  height: 20px;
+  width: 160px;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.tl-density-segment {
+  flex: 1;
+  height: 100%;
+  transition: background-color 200ms var(--ease-out);
+  min-width: 1px;
+}
+
+/* ==========================================================================
+   §6.8 — Bookmarks panel (dropdown)
+   ========================================================================== */
+
+.tl-bookmarks-panel {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  width: 320px;
+  max-height: 400px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tl-bookmarks-panel.open {
+  display: flex;
+}
+
+.tl-bookmarks-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.tl-bookmarks-panel-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.tl-bookmarks-clear-all {
+  background: transparent;
+  border: none;
+  color: var(--color-accent-error);
+  font-size: var(--text-small);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.tl-bookmarks-clear-all:hover {
+  background: var(--color-accent-error-muted);
+}
+
+.tl-bookmarks-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.tl-bookmarks-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 8px var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+
+.tl-bookmarks-item:last-child {
+  border-bottom: none;
+}
+
+.tl-bookmarks-item:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+.tl-bookmarks-item .tl-event-icon-wrap {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.tl-bookmarks-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.tl-bookmarks-item-title {
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-bookmarks-item-subtitle {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-bookmarks-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tl-bookmarks-item-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.tl-bookmarks-item-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.tl-bookmarks-empty {
+  padding: var(--space-8) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.tl-bookmarks-empty-icon {
+  font-size: 48px;
+  color: var(--color-text-disabled);
+  line-height: 1;
+}
+
+.tl-bookmarks-empty-text {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.tl-bookmarks-empty-hint {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   §6.9 — Selection counter (toolbar)
+   ========================================================================== */
+
+.tl-selection-counter {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  height: 32px;
+  color: var(--color-accent-primary);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+}
+
+.tl-selection-counter.active {
+  display: inline-flex;
+}
+
+.tl-selection-counter button {
+  background: transparent;
+  border: none;
+  color: var(--color-text-link);
+  cursor: pointer;
+  font-size: var(--text-small);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.tl-selection-counter button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-link-hover);
+}
+
+/* ==========================================================================
+   §6.17 — Empty / loading / error states
+   ========================================================================== */
+
+.tl-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  max-width: 360px;
+  z-index: 5;
+}
+
+.tl-empty-icon {
+  font-size: 64px;
+  color: var(--color-text-disabled);
+  line-height: 1;
+}
+
+.tl-empty-title {
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.tl-empty-subtitle {
+  font-size: var(--text-small);
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
+
+.tl-empty-action {
+  margin-top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tl-empty-action:hover {
+  background: var(--color-accent-primary-hover);
+}
+
+.tl-empty-action.secondary {
+  background: transparent;
+  color: var(--color-text-link);
+  border: 1px solid var(--color-border-default);
+}
+
+.tl-empty-action.secondary:hover {
+  background: var(--color-bg-hover-muted);
+}
+
+/* Loading skeleton group */
+.tl-loading-group {
+  position: relative;
+  margin-bottom: var(--space-6);
+}
+
+.tl-skeleton-card {
+  width: 320px;
+  height: 72px;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-skeleton) 25%,
+    var(--color-bg-surface-raised) 50%,
+    var(--color-bg-skeleton) 75%
+  );
+  background-size: 200% 100%;
+  animation: chronicle-shimmer 1.5s var(--ease-in-out) infinite;
+  border-radius: var(--radius-md);
+  margin: 8px var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+}
+
+/* Error banner */
+.tl-error-banner {
+  position: sticky;
+  top: 84px; /* below toolbar + ruler */
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent-error-muted);
+  border-bottom: 2px solid var(--color-border-error);
+  color: var(--color-text-error);
+  font-size: var(--text-small);
+}
+
+.tl-error-banner button {
+  background: transparent;
+  border: 1px solid var(--color-border-error);
+  color: var(--color-text-error);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-caption);
+}
+
+.tl-error-banner button:hover {
+  background: color-mix(in oklch, var(--color-accent-error) 15%, transparent);
+}
+
+/* ==========================================================================
+   §6.3 — Zoom indicator overlay
+   ========================================================================== */
+
+.tl-zoom-indicator {
+  position: absolute;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-bg-surface-overlay);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-primary);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  z-index: 50;
+  box-shadow: var(--shadow-md);
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.tl-zoom-indicator.visible {
+  display: inline-flex;
+  opacity: 1;
+}
+
+.tl-zoom-indicator-bar {
+  display: inline-flex;
+  align-items: center;
+  width: 120px;
+  height: 4px;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.tl-zoom-indicator-fill {
+  height: 100%;
+  background: var(--color-accent-primary);
+  border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   §6.3 — Marquee selection box
+   ========================================================================== */
+
+.tl-marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--color-accent-primary);
+  background: color-mix(in oklch, var(--color-accent-primary) 5%, transparent);
+  z-index: 4;
+}
+
+/* ==========================================================================
+   §6.15 — Reduced motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-event,
+  .tl-connector,
+  .tl-zoom-indicator,
+  .tl-event-bookmark,
+  .tl-event-handle {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1023px) {
+  .tl-toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 44px;
+    padding: var(--space-2);
+  }
+  .tl-event {
+    width: 260px;
+  }
+  .tl-event.compact { height: 64px; }
+  .tl-event.expanded { height: 88px; }
+  .tl-density-bar { display: none; }
+}
+
+@media (max-width: 767px) {
+  .tl-search-wrap { width: 140px; }
+  .tl-search-wrap:focus-within { width: 200px; }
+  .tl-event {
+    width: calc(100vw - 32px);
+    max-width: 320px;
+  }
+  .tl-event.compact { height: 56px; }
+  .tl-event.expanded { height: 80px; }
+  .tl-range-buttons { display: none; }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .tl-toolbar,
+  .tl-ruler-wrap,
+  .tl-connectors,
+  .tl-zoom-indicator,
+  .tl-bookmarks-panel,
+  .tl-marquee,
+  .tl-event-handle {
+    display: none !important;
+  }
+  .tl-event {
+    position: static !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid var(--color-border-default) !important;
+    border-radius: 0 !important;
+    margin-bottom: var(--space-2);
+    page-break-inside: avoid;
+  }
+}

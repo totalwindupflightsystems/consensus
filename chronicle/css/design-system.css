@@ -1,0 +1,541 @@
+/* ============================================================================
+   Chronicle Design System — CSS Custom Properties
+   Spec: specs/026-dashboard-ui.md §1
+   DESIGN.md reference: ~/consensus/DESIGN.md
+   ============================================================================
+   This file is the single source of truth for all visual tokens.
+   No hardcoded color, spacing, or typography values appear elsewhere.
+   ============================================================================ */
+
+/* ==========================================================================
+   1.2 Color Tokens
+   ========================================================================== */
+
+/* --- 1.2.1 Background Tokens --- */
+:root {
+  --color-bg-canvas:            oklch(12% 0.02 260);
+  --color-bg-surface:           oklch(14.5% 0.02 260);
+  --color-bg-surface-raised:    oklch(17.5% 0.02 260);
+  --color-bg-surface-overlay:   oklch(21% 0.02 260);
+  --color-bg-surface-sunken:    oklch(9.5% 0.01 260);
+  --color-bg-selection:         oklch(30% 0.12 265);
+  --color-bg-selection-muted:   oklch(22% 0.06 265);
+  --color-bg-hover:             oklch(21% 0.04 265);
+  --color-bg-hover-muted:       oklch(18% 0.02 265);
+  --color-bg-disabled:          oklch(16% 0.00 0);
+  --color-bg-input:             oklch(9.5% 0.01 260);
+  --color-bg-input-focus:       oklch(11% 0.02 260);
+  --color-bg-code:              oklch(10% 0.01 260);
+  --color-bg-code-inline:       oklch(17% 0.01 260);
+  --color-bg-toast-success:     oklch(20% 0.06 145);
+  --color-bg-toast-error:       oklch(20% 0.06 20);
+  --color-bg-toast-warning:     oklch(20% 0.06 85);
+  --color-bg-toast-info:        oklch(20% 0.04 250);
+  --color-bg-badge:             oklch(22% 0.04 265 / 0.15);
+  --color-bg-skeleton:          oklch(18% 0.01 260);
+
+  /* --- 1.2.2 Border Tokens --- */
+  --color-border-default:       oklch(25% 0.02 260 / 0.6);
+  --color-border-strong:        oklch(30% 0.02 260 / 0.8);
+  --color-border-hover:         oklch(35% 0.03 260 / 0.8);
+  --color-border-focus:         oklch(55% 0.15 265);
+  --color-border-active:        oklch(45% 0.10 265);
+  --color-border-error:         oklch(50% 0.18 20 / 0.8);
+  --color-border-error-strong:  oklch(50% 0.18 20);
+  --color-border-success:       oklch(50% 0.15 145 / 0.8);
+  --color-border-warning:       oklch(50% 0.12 85 / 0.8);
+  --color-border-info:          oklch(45% 0.08 250 / 0.8);
+  --color-border-subtle:        oklch(20% 0.01 260 / 0.4);
+
+  /* --- 1.2.3 Text Tokens --- */
+  --color-text-primary:         oklch(90% 0.02 260);
+  --color-text-secondary:       oklch(65% 0.02 260);
+  --color-text-tertiary:        oklch(45% 0.02 260);
+  --color-text-disabled:        oklch(35% 0.01 260);
+  --color-text-link:            oklch(70% 0.15 250);
+  --color-text-link-hover:      oklch(80% 0.15 250);
+  --color-text-link-visited:    oklch(60% 0.12 300);
+  --color-text-code:            oklch(75% 0.10 150);
+  --color-text-placeholder:     oklch(40% 0.02 260);
+  --color-text-inverse:         oklch(10% 0.02 260);
+  --color-text-success:         oklch(65% 0.12 145);
+  --color-text-warning:         oklch(65% 0.12 85);
+  --color-text-error:           oklch(60% 0.18 20);
+  --color-text-info:            oklch(65% 0.10 250);
+  --color-text-accent:          oklch(70% 0.18 265);
+  --color-text-heading:         oklch(95% 0.02 260);
+
+  /* --- 1.2.4 Accent Tokens --- */
+  --color-accent-primary:        oklch(60% 0.18 265);
+  --color-accent-primary-hover:  oklch(70% 0.18 265);
+  --color-accent-primary-active: oklch(50% 0.18 265);
+  --color-accent-primary-muted:  oklch(60% 0.18 265 / 0.15);
+  --color-accent-primary-glow:   oklch(60% 0.18 265 / 0.3);
+  --color-accent-success:        oklch(55% 0.18 145);
+  --color-accent-success-hover:  oklch(65% 0.18 145);
+  --color-accent-success-muted:  oklch(55% 0.18 145 / 0.15);
+  --color-accent-warning:        oklch(55% 0.15 85);
+  --color-accent-warning-hover:  oklch(65% 0.15 85);
+  --color-accent-warning-muted:  oklch(55% 0.15 85 / 0.15);
+  --color-accent-error:          oklch(50% 0.20 20);
+  --color-accent-error-hover:    oklch(60% 0.20 20);
+  --color-accent-error-muted:    oklch(50% 0.20 20 / 0.15);
+  --color-accent-info:           oklch(50% 0.10 210);
+  --color-accent-purple:         oklch(55% 0.20 300);
+  --color-accent-cyan:           oklch(60% 0.15 200);
+  --color-accent-pink:           oklch(55% 0.18 340);
+
+  /* --- 1.2.5 Data Visualization Palette --- */
+  --color-data-0:  oklch(60% 0.20 30);
+  --color-data-1:  oklch(55% 0.18 90);
+  --color-data-2:  oklch(55% 0.18 140);
+  --color-data-3:  oklch(55% 0.15 200);
+  --color-data-4:  oklch(55% 0.18 260);
+  --color-data-5:  oklch(55% 0.18 295);
+  --color-data-6:  oklch(55% 0.16 340);
+  --color-data-7:  oklch(55% 0.16 55);
+  --color-data-8:  oklch(55% 0.14 160);
+  --color-data-9:  oklch(55% 0.12 225);
+  --color-data-10: oklch(55% 0.12 310);
+  --color-data-11: oklch(55% 0.08 15);
+
+  /* --- 1.2.6 Semantic Entity Color Mapping --- */
+  --color-entity-session:   oklch(60% 0.18 265);
+  --color-entity-memory:    oklch(60% 0.15 200);
+  --color-entity-finding:   oklch(55% 0.18 145);
+  --color-entity-task:      oklch(55% 0.15 85);
+  --color-entity-approval:  oklch(50% 0.20 20);
+  --color-entity-evidence:  oklch(55% 0.16 340);
+  --color-entity-anomaly:   oklch(55% 0.18 30);
+  --color-entity-tool:      oklch(55% 0.12 225);
+  --color-entity-skill:     oklch(55% 0.18 295);
+  --color-entity-user:      oklch(55% 0.08 15);
+  --color-entity-system:    oklch(45% 0.02 260);
+
+  /* --- 1.2.7 Status Color Encoding --- */
+  --color-status-booting:       oklch(45% 0.02 260);
+  --color-status-idle:          oklch(60% 0.08 260);
+  --color-status-thinking:      oklch(55% 0.18 295);
+  --color-status-tool_exec:     oklch(55% 0.15 85);
+  --color-status-waiting_sub:   oklch(55% 0.12 200);
+  --color-status-paused:        oklch(50% 0.10 85);
+  --color-status-completed:     oklch(55% 0.18 145);
+  --color-status-failed:        oklch(50% 0.20 20);
+  --color-status-cancelled:     oklch(45% 0.02 260);
+  --color-status-stalled:       oklch(55% 0.18 30);
+
+  /* --- 1.2.8 Trust Level Color Encoding --- */
+  --color-trust-verified:    oklch(55% 0.18 145);
+  --color-trust-high:        oklch(60% 0.15 265);
+  --color-trust-medium:      oklch(55% 0.15 85);
+  --color-trust-low:         oklch(55% 0.16 55);
+  --color-trust-quarantine:  oklch(50% 0.20 20);
+
+  /* --- 1.2.9 Glass Overlays (DESIGN.md §colors.glass-*) --- */
+  --color-glass-light:   rgba(22, 27, 34, 0.92);
+  --color-glass-medium:  rgba(22, 27, 34, 0.85);
+  --color-glass-heavy:   rgba(22, 27, 34, 0.75);
+}
+
+/* ==========================================================================
+   1.3 Typography System
+   ========================================================================== */
+
+:root {
+  /* --- 1.3.1 Font Stack --- */
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+  --font-display: 'Inter Display', 'Inter', sans-serif;
+  --font-data:    'Inter', 'SF Pro Text', system-ui;
+
+  /* --- 1.3.2 Complete Type Scale --- */
+  --text-micro:       0.625rem;
+  --text-caption:     0.6875rem;
+  --text-small:       0.8125rem;
+  --text-body:        0.875rem;
+  --text-body-lg:     1.0rem;
+  --text-subtitle:    1.125rem;
+  --text-heading-3:   1.25rem;
+  --text-heading-2:   1.5rem;
+  --text-heading-1:   1.875rem;
+  --text-display-2:   2.25rem;
+  --text-display-1:   3.0rem;
+
+  /* Mono scale */
+  --text-mono-sm:     0.75rem;
+  --text-mono-base:   0.8125rem;
+  --text-mono-lg:     0.875rem;
+
+  /* Line heights */
+  --leading-micro:     1.0rem;
+  --leading-caption:   1.0rem;
+  --leading-small:     1.25rem;
+  --leading-body:      1.375rem;
+  --leading-body-lg:   1.5rem;
+  --leading-subtitle:  1.5rem;
+  --leading-h3:        1.5rem;
+  --leading-h2:        1.75rem;
+  --leading-h1:        2.25rem;
+  --leading-display-2: 2.75rem;
+  --leading-display-1: 3.5rem;
+  --leading-mono-sm:   1.25rem;
+  --leading-mono-base: 1.375rem;
+  --leading-mono-lg:   1.5rem;
+
+  /* Font weights */
+  --weight-normal:  400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+  --weight-extrabold: 800;
+
+  /* Letter spacing */
+  --tracking-tight:     -0.025em;
+  --tracking-heading:   -0.015em;
+  --tracking-display:   -0.035em;
+  --tracking-wider:     +0.02em;
+  --tracking-normal:    0;
+
+  /* --- 1.3.4 Text Rendering --- */
+  --text-underline-offset: 0.2em;
+  --text-decoration-thickness: 1px;
+}
+
+/* ==========================================================================
+   1.4 Spacing System
+   ========================================================================== */
+
+:root {
+  /* 4px base grid */
+  --space-0:   0;
+  --space-1:   0.25rem;  /*  4px */
+  --space-2:   0.5rem;   /*  8px */
+  --space-3:   0.75rem;  /* 12px */
+  --space-4:   1.0rem;   /* 16px */
+  --space-5:   1.25rem;  /* 20px */
+  --space-6:   1.5rem;   /* 24px */
+  --space-8:   2.0rem;   /* 32px */
+  --space-10:  2.5rem;   /* 40px */
+  --space-12:  3.0rem;   /* 48px */
+  --space-16:  4.0rem;   /* 64px */
+  --space-20:  5.0rem;   /* 80px */
+  --space-24:  6.0rem;   /* 96px */
+
+  /* Semantic spacing */
+  --gap-xs:    var(--space-1);
+  --gap-sm:    var(--space-2);
+  --gap-md:    var(--space-4);
+  --gap-lg:    var(--space-6);
+  --gap-xl:    var(--space-8);
+
+  /* Layout spacing */
+  --sidebar-width:      260px;
+  --sidebar-collapsed:  48px;
+  --header-height:      48px;
+  --footer-height:      32px;
+  --panel-min-width:    320px;
+  --panel-max-width:    480px;
+  --content-max-width:  1280px;
+
+  /* Component spacing */
+  --input-padding-y:    var(--space-2);
+  --input-padding-x:    var(--space-3);
+  --card-padding:       var(--space-4);
+  --card-padding-lg:    var(--space-6);
+  --button-padding-y:   var(--space-1);
+  --button-padding-x:   var(--space-3);
+  --table-cell-padding-y: var(--space-2);
+  --table-cell-padding-x: var(--space-3);
+
+  /* Radius */
+  --radius-none:   0;
+  --radius-sm:     4px;
+  --radius-md:     6px;
+  --radius-lg:     8px;
+  --radius-xl:     12px;
+  --radius-full:   9999px;
+
+  /* Shadows / depth */
+  --shadow-none:    none;
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:      0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl:      0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-glow-primary: 0 0 0 2px oklch(60% 0.18 265 / 0.3);
+  --shadow-glow-error:   0 0 0 2px oklch(50% 0.20 20 / 0.3);
+}
+
+/* ==========================================================================
+   1.5 Iconography
+   ========================================================================== */
+
+:root {
+  --icon-size-sm:  14px;
+  --icon-size-md:  18px;
+  --icon-size-lg:  24px;
+  --icon-size-xl:  32px;
+
+  /* Icon colors map to existing text/accent tokens */
+  /* Entity icons use --color-entity-* tokens */
+  /* Status icons use --color-status-* tokens */
+}
+
+/* ==========================================================================
+   1.6 Animation Tokens
+   ========================================================================== */
+
+:root {
+  /* Durations */
+  --duration-instant:  0ms;
+  --duration-fast:     100ms;
+  --duration-normal:   200ms;
+  --duration-slow:     300ms;
+  --duration-deliberate: 500ms;
+  --duration-reveal:   800ms;
+
+  /* Easings */
+  --ease-default:      cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:           cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:          cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out:       cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:       cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce:       cubic-bezier(0.68, -0.55, 0.27, 1.55);
+
+  /* Named transitions */
+  --transition-hover:  background var(--duration-fast) var(--ease-default),
+                       color var(--duration-fast) var(--ease-default),
+                       border-color var(--duration-fast) var(--ease-default);
+  --transition-modal:  opacity var(--duration-normal) var(--ease-out),
+                       transform var(--duration-normal) var(--ease-spring);
+  --transition-slide:  transform var(--duration-slow) var(--ease-in-out),
+                       opacity var(--duration-slow) var(--ease-in-out);
+
+  /* Status pulse animations */
+  --pulse-thinking:    chronicle-pulse-thinking 2s ease-in-out infinite;
+  --pulse-booting:     chronicle-pulse-booting 2s ease-in-out infinite;
+  --pulse-waiting:     chronicle-pulse-waiting 3s ease-in-out infinite;
+  --pulse-stalled:     chronicle-pulse-stalled 0.5s ease-in-out infinite;
+}
+
+/* Status pulse keyframes */
+@keyframes chronicle-pulse-thinking {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+@keyframes chronicle-pulse-booting {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+@keyframes chronicle-pulse-waiting {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+@keyframes chronicle-pulse-stalled {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+/* Shimmer loading animation */
+@keyframes chronicle-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ==========================================================================
+   1.7 Theme Support (Light Theme — secondary)
+   ========================================================================== */
+
+/* Light theme override — activate with [data-theme="light"] */
+[data-theme="light"] {
+  --color-bg-canvas:            oklch(98% 0.01 260);
+  --color-bg-surface:           oklch(100% 0 0);
+  --color-bg-surface-raised:    oklch(95% 0.01 260);
+  --color-bg-surface-overlay:   oklch(90% 0.01 260);
+  --color-bg-surface-sunken:    oklch(93% 0.01 260);
+  --color-bg-input:             oklch(96% 0.01 260);
+  --color-bg-input-focus:       oklch(100% 0 0);
+  --color-bg-code:              oklch(95% 0.01 260);
+  --color-bg-code-inline:       oklch(92% 0.01 260);
+  --color-bg-selection:         oklch(80% 0.12 265);
+  --color-bg-hover:             oklch(93% 0.02 265);
+  --color-bg-skeleton:          oklch(90% 0.01 260);
+
+  --color-text-primary:         oklch(15% 0.02 260);
+  --color-text-secondary:       oklch(35% 0.02 260);
+  --color-text-tertiary:        oklch(55% 0.02 260);
+  --color-text-heading:         oklch(10% 0.02 260);
+
+  --color-border-default:       oklch(85% 0.01 260 / 0.8);
+  --color-border-strong:        oklch(75% 0.01 260 / 0.8);
+
+  --color-glass-light:   rgba(255, 255, 255, 0.92);
+  --color-glass-medium:  rgba(255, 255, 255, 0.85);
+  --color-glass-heavy:   rgba(255, 255, 255, 0.75);
+
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ==========================================================================
+   Global Reset & Base Styles
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--color-bg-selection);
+  color: var(--color-text-primary);
+}
+
+/* Code rendering — no antialiasing override to preserve glyph precision */
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-smoothing: auto;
+}
+
+/* Links */
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+  text-underline-offset: var(--text-underline-offset);
+  text-decoration-thickness: var(--text-decoration-thickness);
+}
+
+a:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow-primary);
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(30% 0.02 260);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(40% 0.02 260);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/* Typography utilities */
+.text-micro     { font-size: var(--text-micro); line-height: var(--leading-micro); }
+.text-caption   { font-size: var(--text-caption); line-height: var(--leading-caption); }
+.text-small     { font-size: var(--text-small); line-height: var(--leading-small); }
+.text-body      { font-size: var(--text-body); line-height: var(--leading-body); }
+.text-body-lg   { font-size: var(--text-body-lg); line-height: var(--leading-body-lg); }
+.text-subtitle  { font-size: var(--text-subtitle); line-height: var(--leading-subtitle); font-weight: var(--weight-semibold); }
+.text-heading-3 { font-size: var(--text-heading-3); line-height: var(--leading-h3); font-weight: var(--weight-semibold); }
+.text-heading-2 { font-size: var(--text-heading-2); line-height: var(--leading-h2); font-weight: var(--weight-bold); }
+.text-heading-1 { font-size: var(--text-heading-1); line-height: var(--leading-h1); font-weight: var(--weight-bold); }
+
+.text-mono      { font-family: var(--font-mono); }
+.text-mono-sm   { font-size: var(--text-mono-sm); line-height: var(--leading-mono-sm); font-family: var(--font-mono); }
+.text-mono-base { font-size: var(--text-mono-base); line-height: var(--leading-mono-base); font-family: var(--font-mono); }
+.text-mono-lg   { font-size: var(--text-mono-lg); line-height: var(--leading-mono-lg); font-family: var(--font-mono); }
+
+.tabular-nums   { font-variant-numeric: tabular-nums; }
+
+/* Truncation */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-skeleton) 25%,
+    var(--color-bg-surface-raised) 50%,
+    var(--color-bg-skeleton) 75%
+  );
+  background-size: 200% 100%;
+  animation: chronicle-shimmer 1.5s var(--ease-in-out) infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Status dots */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.status-booting    { background: var(--color-status-booting); animation: var(--pulse-booting); }
+.status-idle       { background: var(--color-status-idle); }
+.status-thinking   { background: var(--color-status-thinking); animation: var(--pulse-thinking); }
+.status-tool_exec  { background: var(--color-status-tool_exec); }
+.status-waiting_sub{ background: var(--color-status-waiting_sub); animation: var(--pulse-waiting); }
+.status-paused     { background: var(--color-status-paused); }
+.status-completed  { background: var(--color-status-completed); }
+.status-failed     { background: var(--color-status-failed); }
+.status-cancelled  { background: var(--color-status-cancelled); }
+.status-stalled    { background: var(--color-status-stalled); animation: var(--pulse-stalled); }
+
+/* Trust badges */
+.trust-verified   { color: var(--color-trust-verified); }
+.trust-high       { color: var(--color-trust-high); }
+.trust-medium     { color: var(--color-trust-medium); }
+.trust-low        { color: var(--color-trust-low); }
+.trust-quarantine { color: var(--color-trust-quarantine); }
+
+/* Entity colors */
+.entity-session  { color: var(--color-entity-session); }
+.entity-memory   { color: var(--color-entity-memory); }
+.entity-finding  { color: var(--color-entity-finding); }
+.entity-task     { color: var(--color-entity-task); }
+.entity-approval { color: var(--color-entity-approval); }
+.entity-evidence { color: var(--color-entity-evidence); }
+.entity-anomaly  { color: var(--color-entity-anomaly); }
+.entity-tool     { color: var(--color-entity-tool); }
+.entity-skill    { color: var(--color-entity-skill); }
+.entity-user     { color: var(--color-entity-user); }
+.entity-system   { color: var(--color-entity-system); }

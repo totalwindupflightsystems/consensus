@@ -1,0 +1,6 @@
+# Axiom configuration — committed minimal skeleton (C-GAP-017).
+# AGENTS.md "Git and Workspace Hygiene" reads git.co_author as the
+# Co-authored-by identity for AI agent commits; the prepare-commit-msg
+# hook appends the trailer with this identity on every commit.
+git:
+  co_author: "Alexis Okuwa <wojonstech@gmail.com>"

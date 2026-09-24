@@ -1,0 +1,16 @@
+# Health endpoint (no auth required).
+# axiom:trace work_item=interfaces-api-cli-01 spec=specs/018-openapi-contract.md plan=phase-5/task-5-1/step-5-1-1
+
+get:
+  tags: [System]
+  summary: Health check
+  operationId: healthCheck
+  description: Returns server health status. No authentication required.
+  security: []
+  responses:
+    "200":
+      description: Server is healthy.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/HealthResponse"
