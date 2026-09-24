@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,9 +23,25 @@ import (
 	"time"
 )
 
-// smokePort must not collide with demoPort (18885) — both tests run in the
-// same package binary.
-const smokePort = 18886
+func reserveSmokePort(t *testing.T) (net.Listener, int) {
+	t.Helper()
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("smoke: reserve loopback port: %v", err)
+	}
+	return listener, listener.Addr().(*net.TCPAddr).Port
+}
+
+func TestSmokePortReservationsAreIndependent(t *testing.T) {
+	first, firstPort := reserveSmokePort(t)
+	defer first.Close()
+	second, secondPort := reserveSmokePort(t)
+	defer second.Close()
+
+	if firstPort == secondPort {
+		t.Fatalf("concurrent smoke reservations reused port %d", firstPort)
+	}
+}
 
 // TestSmokeKeyless is the keyless smoke path for a fresh checkout: it proves
 // the server boots, migrates a scratch SQLite DB, serves the API, claims a
@@ -36,6 +53,9 @@ func TestSmokeKeyless(t *testing.T) {
 	fmt.Println("║     CONSENSUS — Keyless Smoke Test (mocked LLM)             ║")
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
+
+	portReservation, smokePort := reserveSmokePort(t)
+	t.Cleanup(func() { _ = portReservation.Close() })
 
 	// ---- Phase 1: mock OpenAI-compatible /v1/chat/completions endpoint ----
 	var mu sync.Mutex
@@ -99,6 +119,9 @@ compression:
 	}
 
 	// ---- Phase 3: start the real server binary (built once in TestMain) ----
+	if err := portReservation.Close(); err != nil {
+		t.Fatalf("smoke: release loopback port reservation: %v", err)
+	}
 	adminKey, cmd, serverLog, err := startServer(t, configPath)
 	if err != nil {
 		t.Fatalf("smoke: start server: %v", err)
