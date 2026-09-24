@@ -1,0 +1,138 @@
+[
+ {
+  "tier": "T1",
+  "id": "openapi-paths",
+  "expected": ">=60 path objects in the SERVED spec",
+  "observed": "60",
+  "verdict": "PASS",
+  "note": ""
+ },
+ {
+  "tier": "T1",
+  "id": "session-create",
+  "expected": "201 + id",
+  "observed": "201 id_len=36",
+  "verdict": "PASS",
+  "note": ""
+ },
+ {
+  "tier": "T1",
+  "id": "route-registration",
+  "expected": "every spec path is registered",
+  "observed": "59/60 registered; unregistered=['/mcp']",
+  "verdict": "FAIL",
+  "note": ""
+ },
+ {
+  "tier": "T1",
+  "id": "no-5xx",
+  "expected": "no spec route answers 5xx to a trivial request",
+  "observed": "5 routes 5xx",
+  "verdict": "FAIL",
+  "note": "[('/find/symbol', 501), ('/project', 501), ('/project/{projectId}', 501), ('/vcs', 501)]"
+ },
+ {
+  "tier": "T1",
+  "id": "auth-negative",
+  "expected": "every non-public path 401s without a key",
+  "observed": "51/58 -> 401",
+  "verdict": "FAIL",
+  "note": ""
+ },
+ {
+  "tier": "T5",
+  "id": "mcp-tools-list",
+  "expected": "initialize + tools/list works with a session",
+  "observed": "400 tools=0",
+  "verdict": "FAIL",
+  "note": "missing sessionId "
+ },
+ {
+  "tier": "T5",
+  "id": "mcp-discovery",
+  "expected": "a client can DISCOVER the MCP endpoint unaided (MCP-DIRECT-001 / DF-CONSENSUS-4)",
+  "observed": "GET /mcp -> 404",
+  "verdict": "FAIL",
+  "note": "404/401 here == the filed discovery gap"
+ },
+ {
+  "tier": "T3",
+  "id": "tool-register",
+  "expected": "a tool row exists (hemisphere limited to internal|external)",
+  "observed": "sweep_tool inserted",
+  "verdict": "PASS",
+  "note": ""
+ },
+ {
+  "tier": "T3",
+  "id": "tools-list",
+  "expected": "GET /api/v1/tools lists registered tools",
+  "observed": "200 listed=1",
+  "verdict": "PASS",
+  "note": "[{\"id\":\"sweep-tool-1\",\"name\":\"sweep_tool\",\"description\":\"zero-arg TVF\",\"hemisphere\":\"inter"
+ },
+ {
+  "tier": "T3",
+  "id": "tool-execute",
+  "expected": "tool executes and returns a structured result",
+  "observed": "200 {\"tool_name\":\"sweep_tool\",\"result\":{\"row_count\":39},\"rows_affected\":39,\"is_error\":false}",
+  "verdict": "PASS",
+  "note": ""
+ },
+ {
+  "tier": "T3",
+  "id": "tool-execute-no-session",
+  "expected": "4xx when session_id is missing (never 5xx)",
+  "observed": "400",
+  "verdict": "PASS",
+  "note": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"session_id is required\",\"details\":"
+ },
+ {
+  "tier": "T3",
+  "id": "tool-audit-rows",
+  "expected": "tool activity recorded",
+  "observed": "tool_requests=0 tool_results=0",
+  "verdict": "WARN",
+  "note": "audit path covered only for harness-initiated calls"
+ },
+ {
+  "tier": "T10",
+  "id": "task-create",
+  "expected": "201 + task id",
+  "observed": "400 id_len=0",
+  "verdict": "FAIL",
+  "note": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"malformed request body: json: cannot unmarshal string into Go st"
+ },
+ {
+  "tier": "T10",
+  "id": "task-list",
+  "expected": "the task is readable in the session",
+  "observed": "200",
+  "verdict": "PASS",
+  "note": "[] "
+ },
+ {
+  "tier": "T4",
+  "id": "ledger-types",
+  "expected": "typed append-only ledger populated",
+  "observed": "types={}",
+  "verdict": "FAIL",
+  "note": ""
+ },
+ {
+  "tier": "T4",
+  "id": "session-tokens",
+  "expected": "token accounting on the session row",
+  "observed": "('failed', 0, 0)",
+  "verdict": "PASS",
+  "note": ""
+ },
+ {
+  "tier": "T4",
+  "id": "billing-rows",
+  "expected": "billing rows exist for real LLM work",
+  "observed": "0 rows",
+  "verdict": "FAIL",
+  "note": ""
+ }
+]
