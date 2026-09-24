@@ -167,21 +167,30 @@ CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
 
 ### Option 2: Docker (registry access currently required)
 
-Anonymous pulls of `ghcr.io/wojons/consensus:latest` are currently denied by
-GHCR. That registry visibility issue is tracked separately; this documentation
-change does not widen package or repository visibility. Use this path only if
-your GitHub account already has package access and `docker login ghcr.io`
-succeeds.
+CI publishes `ghcr.io/totalwindupflightsystems/consensus:latest` — the image
+path follows this repository
+(`github.com/totalwindupflightsystems/consensus`). Anonymous GHCR pulls of it
+currently return HTTP 401; package visibility is not something this
+repository's documentation can change, so prefer the source build above. If
+your GitHub account already has package access, log in first (username: your
+GitHub username; password: a personal access token with the `read:packages`
+scope):
 
 ```bash
-docker pull ghcr.io/wojons/consensus:latest
+docker login ghcr.io
+```
+
+Then pull and run:
+
+```bash
+docker pull ghcr.io/totalwindupflightsystems/consensus:latest
 
 docker run -d \
   --name consensus \
   -p 8090:8090 \
   -v consensus-data:/home/consensus/data \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  ghcr.io/wojons/consensus:latest
+  ghcr.io/totalwindupflightsystems/consensus:latest
 
 curl http://localhost:8090/api/v1/health
 ```
@@ -195,7 +204,7 @@ docker run -d \
   -e CONSENSUS_DB_URL="postgres://user:***@host:5432/consensus?sslmode=require" \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
   -e CONSENSUS_API_KEY="cs_ak_your_secret_key" \
-  ghcr.io/wojons/consensus:latest
+  ghcr.io/totalwindupflightsystems/consensus:latest
 ```
 
 #### Port 8090 already in use? (stale sidecar shadowing)
@@ -293,7 +302,7 @@ services:
       start_period: 10s
 
   consensus:
-    image: ghcr.io/wojons/consensus:latest
+    image: ghcr.io/totalwindupflightsystems/consensus:latest
     container_name: consensus-runtime
     restart: unless-stopped
     depends_on:

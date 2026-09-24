@@ -36,8 +36,11 @@ services:
       - consensus-net
 
   # ── Consensus Runtime ────────────────────────────────────────────
+  # Image published by .github/workflows/ci.yml from this repo. Anonymous
+  # GHCR pulls currently return 401: run `docker login ghcr.io` first with
+  # a personal access token that has read:packages.
   consensus:
-    image: ghcr.io/wojons/consensus:latest
+    image: ghcr.io/totalwindupflightsystems/consensus:latest
     container_name: consensus-runtime
     restart: unless-stopped
     depends_on:

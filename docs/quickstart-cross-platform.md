@@ -61,15 +61,22 @@ CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
 
 ## Option 2: Docker (Currently Requires Registry Access)
 
-Anonymous pulls of `ghcr.io/wojons/consensus:latest` are currently denied by
-GHCR. The registry visibility issue is tracked separately. Do not use this as a
-fresh-user path unless your GitHub account already has package access and
-`docker login ghcr.io` succeeds.
+CI publishes `ghcr.io/totalwindupflightsystems/consensus:latest` — the image
+path follows the repository, which lives at
+`github.com/totalwindupflightsystems/consensus`. Anonymous GHCR pulls of it
+currently return HTTP 401, so prefer the source build above. If your GitHub
+account already has package access, log in first — username is your GitHub
+username, password is a personal access token (PAT) with the `read:packages`
+scope:
+
+```bash
+docker login ghcr.io
+```
 
 ### Step 1: Pull the image
 
 ```bash
-docker pull ghcr.io/wojons/consensus:latest
+docker pull ghcr.io/totalwindupflightsystems/consensus:latest
 ```
 
 > ⚠️ **Gotcha:** First pull downloads ~300 MB. On slow connections this can take several minutes. You'll see progress bars — wait for them to complete.
@@ -82,7 +89,7 @@ docker run -d \
   -p 8090:8090 \
   -v consensus-data:/home/consensus/data \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  ghcr.io/wojons/consensus:latest
+  ghcr.io/totalwindupflightsystems/consensus:latest
 ```
 
 ### Step 3: Verify
