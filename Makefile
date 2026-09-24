@@ -7,7 +7,7 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build fresh dev dev-pg test test-short smoke lint clean run docker
+.PHONY: build fresh dev dev-pg test test-short test-opencode-upstream smoke lint clean run docker
 
 # --- Build ---
 
@@ -36,6 +36,16 @@ test:
 
 test-short:
 	$(CGO_FLAGS) $(GO) test $(PKG) -v -short -count=1
+
+# Opt-in direct execution of the pinned upstream OpenCode TypeScript suites.
+# Requires a running Consensus opencode shim and a live base URL; unlike the
+# ordinary Go test targets this target may fetch the pinned upstream checkout.
+test-opencode-upstream:
+	@if [ -z "$$CONSENSUS_OPENCODE_BASE_URL" ]; then \
+		echo "ERROR: CONSENSUS_OPENCODE_BASE_URL is required (for example http://127.0.0.1:8090)" >&2; \
+		exit 2; \
+	fi
+	sh scripts/test-opencode-upstream.sh --base-url "$$CONSENSUS_OPENCODE_BASE_URL"
 
 # Keyless end-to-end smoke (C-GAP-019): real server + mocked LLM, no API key.
 # Validates the install in under 60 seconds. See demo/README.md.

@@ -1,0 +1,157 @@
+diff --git a/packages/opencode/test/server/httpapi-instance.test.ts b/packages/opencode/test/server/httpapi-instance.test.ts
+index 5bbd6d7cc..fe49eb069 100644
+--- a/packages/opencode/test/server/httpapi-instance.test.ts
++++ b/packages/opencode/test/server/httpapi-instance.test.ts
+@@ -53,12 +53,27 @@ const httpApiServerLayer = servedRoutes.pipe(
+ const it = testEffect(Layer.mergeAll(testStateLayer, httpApiServerLayer))
+ const handlerContext = Context.empty() as Context.Context<unknown>
+ 
++// CONSENSUS_ADAPTER: the assertions below stay upstream-owned; only their
++// transport is redirected to the live Consensus shim under test.
++const consensusBaseURL = process.env.CONSENSUS_OPENCODE_BASE_URL
++if (!consensusBaseURL) throw new Error("CONSENSUS_OPENCODE_BASE_URL is required")
++const consensusURL = (pathname: string) => new URL(pathname, consensusBaseURL).toString()
++const externalFetch = (pathname: string, init?: RequestInit) => fetch(consensusURL(pathname), init)
++const externalClient = (pathname: string, init?: RequestInit) =>
++  Effect.promise(() => externalFetch(pathname, init)).pipe(
++    Effect.map((response) => ({
++      status: response.status,
++      headers: Object.fromEntries(response.headers.entries()),
++      json: Effect.promise(() => response.json()),
++    })),
++  )
++
+ const directoryHeader = (dir: string) => HttpClientRequest.setHeader("x-opencode-directory", dir)
+ 
+ describe("instance HttpApi", () => {
+   it.live("serves the OpenAPI document", () =>
+     Effect.gen(function* () {
+-      const response = yield* HttpClient.get("/doc")
++      const response = yield* externalClient("/doc")
+ 
+       expect(response.status).toBe(200)
+       expect(response.headers["content-type"]).toContain("application/json")
+@@ -84,11 +99,11 @@ describe("instance HttpApi", () => {
+       )
+ 
+       const dir = yield* tmpdirScoped({ git: true })
+-      const response = yield* HttpClientRequest.post(SessionPaths.create).pipe(
+-        directoryHeader(dir),
+-        HttpClientRequest.bodyJson({ title: "fenced" }),
+-        Effect.flatMap(HttpClient.execute),
+-      )
++      const response = yield* externalClient(SessionPaths.create, {
++        method: "POST",
++        headers: { "x-opencode-directory": dir, "content-type": "application/json" },
++        body: JSON.stringify({ title: "fenced" }),
++      })
+ 
+       expect(response.status).toBe(200)
+       expect(JSON.parse(response.headers[FenceHeader] ?? "{}")).not.toEqual({})
+@@ -106,12 +121,14 @@ describe("instance HttpApi", () => {
+       )
+ 
+       const dir = yield* tmpdirScoped({ git: true })
+-      const read = yield* HttpClientRequest.get(InstancePaths.path).pipe(directoryHeader(dir), HttpClient.execute)
+-      const log = yield* HttpClientRequest.post(ControlPaths.log).pipe(
+-        directoryHeader(dir),
+-        HttpClientRequest.bodyJson({ service: "fence-test", level: "info", message: "noop" }),
+-        Effect.flatMap(HttpClient.execute),
+-      )
++      const read = yield* externalClient(InstancePaths.path, {
++        headers: { "x-opencode-directory": dir },
++      })
++      const log = yield* externalClient(ControlPaths.log, {
++        method: "POST",
++        headers: { "x-opencode-directory": dir, "content-type": "application/json" },
++        body: JSON.stringify({ service: "fence-test", level: "info", message: "noop" }),
++      })
+ 
+       expect(read.status).toBe(200)
+       expect(read.headers[FenceHeader]).toBeUndefined()
+@@ -125,13 +142,10 @@ describe("instance HttpApi", () => {
+       const dir = yield* tmpdirScoped({ git: true })
+       const request = (path: string, init?: RequestInit) =>
+         Effect.promise(() =>
+-          HttpApiApp.webHandler().handler(
+-            new Request(`http://localhost${path}`, {
+-              ...init,
+-              headers: { "x-opencode-directory": dir, "content-type": "application/json", ...init?.headers },
+-            }),
+-            handlerContext,
+-          ),
++          externalFetch(path, {
++            ...init,
++            headers: { "x-opencode-directory": dir, "content-type": "application/json", ...init?.headers },
++          }),
+         )
+       const [permission, questionReply, questionReject] = yield* Effect.all(
+         [
+@@ -159,13 +173,10 @@ describe("instance HttpApi", () => {
+       const dir = yield* tmpdirScoped({ git: true })
+       const request = (path: string, init?: RequestInit) =>
+         Effect.promise(() =>
+-          HttpApiApp.webHandler().handler(
+-            new Request(`http://localhost${path}`, {
+-              ...init,
+-              headers: { "x-opencode-directory": dir, "content-type": "application/json", ...init?.headers },
+-            }),
+-            handlerContext,
+-          ),
++          externalFetch(path, {
++            ...init,
++            headers: { "x-opencode-directory": dir, "content-type": "application/json", ...init?.headers },
++          }),
+         )
+       const permissionID = PermissionV1.ID.ascending()
+       const questionReplyID = QuestionID.ascending()
+@@ -211,14 +222,11 @@ describe("instance HttpApi", () => {
+       const dir = yield* tmpdirScoped({ git: true })
+       const projectID = ProjectV2.ID.make("project_missing")
+       const response = yield* Effect.promise(() =>
+-        HttpApiApp.webHandler().handler(
+-          new Request(`http://localhost/project/${projectID}`, {
+-            method: "PATCH",
+-            headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+-            body: JSON.stringify({ name: "Missing" }),
+-          }),
+-          handlerContext,
+-        ),
++        externalFetch(`/project/${projectID}`, {
++          method: "PATCH",
++          headers: { "x-opencode-directory": dir, "content-type": "application/json" },
++          body: JSON.stringify({ name: "Missing" }),
++        }),
+       )
+ 
+       expect(response.status).toBe(404)
+@@ -239,13 +247,9 @@ describe("instance HttpApi", () => {
+ 
+       const [paths, vcs, diff] = yield* Effect.all(
+         [
+-          HttpClientRequest.get(InstancePaths.path).pipe(directoryHeader(dir), HttpClient.execute),
+-          HttpClientRequest.get(InstancePaths.vcs).pipe(directoryHeader(dir), HttpClient.execute),
+-          HttpClientRequest.get(InstancePaths.vcsDiff).pipe(
+-            HttpClientRequest.setUrlParam("mode", "git"),
+-            directoryHeader(dir),
+-            HttpClient.execute,
+-          ),
++          externalClient(InstancePaths.path, { headers: { "x-opencode-directory": dir } }),
++          externalClient(InstancePaths.vcs, { headers: { "x-opencode-directory": dir } }),
++          externalClient(`${InstancePaths.vcsDiff}?mode=git`, { headers: { "x-opencode-directory": dir } }),
+         ],
+         { concurrency: "unbounded" },
+       )
+diff --git a/packages/opencode/test/server/sdk-error-shape.test.ts b/packages/opencode/test/server/sdk-error-shape.test.ts
+index 1d67c6958..e4e7f152e 100644
+--- a/packages/opencode/test/server/sdk-error-shape.test.ts
++++ b/packages/opencode/test/server/sdk-error-shape.test.ts
+@@ -22,7 +22,7 @@ function client(directory: string) {
+   return createOpencodeClient({
+     baseUrl: "http://test",
+     directory,
+-    fetch: ((req: Request) => Server.Default().app.fetch(req)) as unknown as typeof fetch,
++    fetch: ((req: Request) => globalThis.fetch(req)) as unknown as typeof fetch, // CONSENSUS_ADAPTER
+   })
+ }
+ 

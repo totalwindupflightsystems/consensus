@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/anomalyco/opencode.git",
+  "revision": "16747470f976aca3d362ad730bcd3fe82ecc2c9a",
+  "version": "1.18.29",
+  "lock_sha256": "e4a33f0dce76bd625ceef88b2fe44cfa75d0653a3ccba0c7066ac558896ff239",
+  "suites": [
+    {
+      "path": "packages/opencode/test/server/httpapi-instance.test.ts",
+      "sha256": "40b0b2a4161c8cc71fb213553c1c70d8cfd5ac443fb4e76e6e06a790be918ce1",
+      "transport": "adapter.patch + fetch preload"
+    },
+    {
+      "path": "packages/opencode/test/server/httpapi-sdk.test.ts",
+      "sha256": "5c77c49091e2ba83d8e3735570f9913ddb63b0d0c7e849761e9d3a89fc1c3562",
+      "transport": "fetch preload"
+    },
+    {
+      "path": "packages/opencode/test/server/sdk-error-shape.test.ts",
+      "sha256": "fdd44f6fc14268546fc70841a8da718c4cedb79c652b4685269da25c8a68d386",
+      "transport": "adapter.patch + fetch preload"
+    },
+    {
+      "path": "packages/client/test/promise.test.ts",
+      "sha256": "0365ea4fbba26d8c5d4d61eb539e485f3f46b49a43df851c1f1c27a58bcd89ab",
+      "transport": "self-contained SDK contract; no live HTTP transport"
+    }
+  ]
+}

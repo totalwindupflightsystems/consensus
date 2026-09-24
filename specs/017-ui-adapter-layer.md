@@ -462,6 +462,34 @@ Other upstream `/instance/*` sub-paths (`dispose`, `vcs/status`, `vcs/diff/raw`,
 
 Response shapes mirror the upstream opencode server protocol (`sst/opencode` `packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts` and `src/project/vcs.ts`) so bridged opencode clients are indistinguishable from a native server.
 
+### 3.11 Pinned Upstream Compatibility Verification
+
+The compatibility baseline is opencode `v1.18.29`, upstream commit
+`16747470f976aca3d362ad730bcd3fe82ecc2c9a`. The dedicated compatibility
+runner executes these upstream-owned TypeScript suites without copying them
+into this repository:
+
+- `packages/opencode/test/server/httpapi-instance.test.ts`
+- `packages/opencode/test/server/httpapi-sdk.test.ts`
+- `packages/opencode/test/server/sdk-error-shape.test.ts`
+- `packages/client/test/promise.test.ts`
+
+The runner fetches that exact Git object, installs from its committed
+`bun.lock` with frozen resolution, verifies the revision before execution,
+and redirects the upstream clients to a caller-supplied live Consensus shim
+base URL. The source assertions remain upstream-owned; adapter changes are
+limited to transport injection in a disposable checkout and are reported in
+the evidence output.
+
+This is an opt-in compatibility gate because acquiring the pinned upstream
+object and dependencies requires network access. The ordinary Go short suite
+must remain offline and instead verifies the runner's pin, suite inventory,
+and transport-adapter behavior. A compatibility run may finish with explicit
+failures: every failing upstream assertion is a durable compatibility gap and
+must remain visible in the generated evidence artifact until the shim closes
+it. The runner must never reinterpret such failures as passes or silently
+exclude tests.
+
 ---
 
 ## 4. MCP Server (Tool-Level Integration)
