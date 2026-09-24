@@ -332,6 +332,27 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("CONSENSUS_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
 	}
+	// LLM base URL precedence (DF-CONSENSUS-1). The shipped consensus.yaml pins
+	// llm.base_url to https://api.deepseek.com/v1, and before this fix the
+	// resolver in cmd/consensus returned that config value first, so both
+	// documented environment overrides were silently ignored. Environment
+	// resolution lives here (as it does for every other setting), giving one
+	// coherent ladder:
+	//
+	//   CONSENSUS_LLM_BASE_URL > OPENROUTER_BASE_URL > config llm.base_url
+	//   > provider default (resolved by the client factories)
+	//
+	// baseURLFromEnv records that the effective value came from the environment,
+	// so the OPENROUTER_API_KEY branch below can drop a stale CONFIG-file
+	// endpoint without clobbering an explicit one.
+	baseURLFromEnv := false
+	if v := os.Getenv("CONSENSUS_LLM_BASE_URL"); v != "" {
+		cfg.LLM.BaseURL = v
+		baseURLFromEnv = true
+	} else if v := os.Getenv("OPENROUTER_BASE_URL"); v != "" {
+		cfg.LLM.BaseURL = v
+		baseURLFromEnv = true
+	}
 	if v := os.Getenv("OPENAI_API_KEY"); v != "" && cfg.LLM.Provider == "openai" && cfg.LLM.APIKey == "" {
 		cfg.LLM.APIKey = v
 	}
@@ -348,9 +369,19 @@ func applyEnvOverrides(cfg *Config) {
 	// CONSENSUS_LLM_BASE_URL/OPENROUTER_BASE_URL is required. Checked after
 	// DEEPSEEK_API_KEY so an explicitly-set OpenRouter key wins over a
 	// leftover DeepSeek key in the shell environment. (C-GAP-015)
+	//
+	// DF-CONSENSUS-1: the provider switch alone was not enough while the
+	// shipped consensus.yaml pinned llm.base_url to https://api.deepseek.com/v1
+	// — that config value kept routing OpenRouter calls to DeepSeek (401).
+	// A base URL from the config FILE is provider-specific and must not
+	// survive the switch; an environment-supplied base URL is an explicit
+	// operator choice and is preserved.
 	if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v
 		cfg.LLM.Provider = "openrouter"
+		if !baseURLFromEnv {
+			cfg.LLM.BaseURL = ""
+		}
 	}
 }
 

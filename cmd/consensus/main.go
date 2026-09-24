@@ -36,12 +36,12 @@ import (
 	"github.com/wojons/consensus/internal/db/postgres"
 	"github.com/wojons/consensus/internal/harness"
 	"github.com/wojons/consensus/internal/hitl"
-	"github.com/wojons/consensus/internal/shim/h3"
 	"github.com/wojons/consensus/internal/llm"
 	"github.com/wojons/consensus/internal/mcp"
 	"github.com/wojons/consensus/internal/migrate"
 	"github.com/wojons/consensus/internal/modelsync"
 	"github.com/wojons/consensus/internal/quarantine"
+	"github.com/wojons/consensus/internal/shim/h3"
 	"github.com/wojons/consensus/internal/shim/opencode"
 	"github.com/wojons/consensus/internal/web"
 	"github.com/wojons/consensus/internal/webhook"
@@ -163,34 +163,17 @@ func runServer() {
 	if cfg.Compression.Enabled {
 		// Embedding client uses the same API key as the main LLM client by default
 		embCfg := llm.EmbeddingConfig{
-			BaseURL: resolveLLMBaseURL(cfg) + "/../..", // embeddings use /v1/embeddings, not /v1/chat/completions
+			BaseURL: embeddingBaseURL(cfg), // embeddings use /v1/embeddings, not /v1/chat/completions
 			APIKey:  cfg.LLM.APIKey,
 			Model:   cfg.Compression.EmbeddingModel,
 		}
-		// Reset baseURL — embeddings endpoint is at the same base without /chat
-		if cfg.LLM.BaseURL != "" {
-			embCfg.BaseURL = cfg.LLM.BaseURL
-		} else {
-			switch cfg.LLM.Provider {
-			case "openrouter":
-				embCfg.BaseURL = "https://openrouter.ai/api/v1"
-			default:
-				embCfg.BaseURL = "https://api.openai.com/v1"
-			}
-		}
+		// Embedding endpoint shares the LLM provider host; when no base URL is
+		// configured the provider default applies (see embeddingBaseURL).
 
 		embedClient := llm.NewEmbeddingClient(embCfg)
 
 		// Summarizer uses the same API config
-		summBaseURL := cfg.LLM.BaseURL
-		if summBaseURL == "" {
-			switch cfg.LLM.Provider {
-			case "openrouter":
-				summBaseURL = "https://openrouter.ai/api/v1"
-			default:
-				summBaseURL = "https://api.openai.com/v1"
-			}
-		}
+		summBaseURL := embeddingBaseURL(cfg)
 		summarizer := compression.NewOpenAISummarizer(summBaseURL, cfg.LLM.APIKey)
 
 		// Configure compression worker
@@ -619,22 +602,35 @@ func addrString(sc config.ServerConfig) string {
 	return fmt.Sprintf("%s:%d", sc.Hostname, sc.Port)
 }
 
-// resolveLLMBaseURL returns the LLM provider base URL from config or environment.
-// Supports OpenRouter via CONSENSUS_LLM_BASE_URL or OPENROUTER_BASE_URL env vars.
+// resolveLLMBaseURL returns the effective LLM provider base URL.
+//
+// Precedence is resolved once, in internal/config (applyEnvOverrides), so the
+// ladder is identical for every caller:
+//
+//	CONSENSUS_LLM_BASE_URL > OPENROUTER_BASE_URL > config llm.base_url
+//	> provider default (applied by the client factory when this is empty)
+//
+// This function must NOT re-read the environment. Doing so here is what made
+// the config-file pin defeat both documented overrides: the config value was
+// returned first, so the env lookups below it were dead code (DF-CONSENSUS-1).
 func resolveLLMBaseURL(cfg config.Config) string {
-	// Config file takes priority
-	if cfg.LLM.BaseURL != "" {
-		return cfg.LLM.BaseURL
-	}
-	// Environment variable overrides
-	if v := os.Getenv("CONSENSUS_LLM_BASE_URL"); v != "" {
+	return cfg.LLM.BaseURL
+}
+
+// embeddingBaseURL returns the base URL for the OpenAI-compatible embedding
+// and summarization endpoints (same host as the LLM provider), falling back to
+// the provider default when no base URL is configured. Kept separate from
+// resolveLLMBaseURL because the fallback must follow cfg.LLM.Provider — the
+// LLM client factory applies that default internally, but the embedding client
+// defaults to OpenAI regardless of provider.
+func embeddingBaseURL(cfg config.Config) string {
+	if v := resolveLLMBaseURL(cfg); v != "" {
 		return v
 	}
-	if v := os.Getenv("OPENROUTER_BASE_URL"); v != "" {
-		return v
+	if cfg.LLM.Provider == "openrouter" {
+		return "https://openrouter.ai/api/v1"
 	}
-	// Let NewOpenAIClient pick the default based on provider
-	return ""
+	return "https://api.openai.com/v1"
 }
 
 // shimEventBridge adapts the api.Server's EventBus to the opencode shim's

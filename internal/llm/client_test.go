@@ -279,3 +279,52 @@ func TestMockClient_WithSubAgentSpawns(t *testing.T) {
 		t.Errorf("agent name = %q, want summarizer", output.Output.SubAgentSpawns[0].AgentName)
 	}
 }
+
+// ============================================================================
+// Provider Default Base URL (DF-CONSENSUS-1 contract)
+// ============================================================================
+
+// TestNewOpenAIClient_ProviderDefaultBaseURL pins the mapping an EMPTY base URL
+// resolves to. cmd/consensus relies on it: when OPENROUTER_API_KEY selects the
+// OpenRouter provider it clears a config-file base URL, so the effective
+// endpoint is this provider default rather than the shipped DeepSeek pin.
+func TestNewOpenAIClient_ProviderDefaultBaseURL(t *testing.T) {
+	cases := []struct {
+		name     string
+		provider Provider
+		want     string
+	}{
+		{"openrouter default", ProviderOpenRouter, "https://openrouter.ai/api/v1"},
+		{"openai default", ProviderOpenAI, "https://api.openai.com/v1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := NewOpenAIClient(&Config{Provider: tc.provider, Model: "gpt-4o"})
+			oc, ok := client.(*openaiClient)
+			if !ok {
+				t.Fatalf("expected *openaiClient, got %T", client)
+			}
+			if oc.baseURL != tc.want {
+				t.Errorf("baseURL = %q, want %q", oc.baseURL, tc.want)
+			}
+		})
+	}
+}
+
+// TestNewOpenAIClient_ExplicitBaseURLBeatsProviderDefault: an explicit base URL
+// is used verbatim (trailing slash trimmed), never overridden by the provider
+// default — the preservation half of the DF-CONSENSUS-1 precedence.
+func TestNewOpenAIClient_ExplicitBaseURLBeatsProviderDefault(t *testing.T) {
+	client := NewOpenAIClient(&Config{
+		Provider: ProviderOpenRouter,
+		Model:    "gpt-4o",
+		BaseURL:  "https://api.deepseek.com/v1/",
+	})
+	oc, ok := client.(*openaiClient)
+	if !ok {
+		t.Fatalf("expected *openaiClient, got %T", client)
+	}
+	if oc.baseURL != "https://api.deepseek.com/v1" {
+		t.Errorf("baseURL = %q, want the explicit value with the trailing slash trimmed", oc.baseURL)
+	}
+}

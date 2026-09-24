@@ -2,9 +2,39 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// hermeticEnv clears every LLM-related environment variable these tests
+// branch on, so a developer shell exporting e.g. OPENROUTER_API_KEY or
+// CONSENSUS_LLM_BASE_URL cannot flip the assertions (env-contamination fix).
+// t.Setenv restores the original values at test end.
+func hermeticEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"CONSENSUS_LLM_BASE_URL",
+		"OPENROUTER_BASE_URL",
+		"OPENROUTER_API_KEY",
+		"OPENAI_API_KEY",
+		"ANTHROPIC_API_KEY",
+		"DEEPSEEK_API_KEY",
+		"CONSENSUS_API_KEY",
+		"CONSENSUS_CONFIG",
+	} {
+		t.Setenv(k, "")
+	}
+}
+
+// shippedLikeLLMYAML mirrors the llm block of the repository's committed
+// consensus.yaml: provider openai pinned to the DeepSeek endpoint.
+const shippedLikeLLMYAML = `llm:
+  default_model: deepseek-v4-flash
+  provider: openai
+  base_url: https://api.deepseek.com/v1
+  api_key: ${DEEPSEEK_API_KEY}
+`
 
 // axiom:trace work_item=repo-bootstrap-01 spec=specs/016-cli-interface.md,specs/021-repository-layout.md plan=phase-1/task-1/step-2 test=internal/config/config_test.go
 
@@ -308,5 +338,146 @@ func TestEnvOverrideDBURLTildeExpansion(t *testing.T) {
 	}
 	if cfg.Database.URL != "sqlite:///tmp/cgap026-home/tilde.db" {
 		t.Errorf("expected env override with expanded ~, got %q", cfg.Database.URL)
+	}
+}
+
+// --- LLM base URL precedence (DF-CONSENSUS-1) ---
+//
+// The shipped consensus.yaml pins llm.base_url to https://api.deepseek.com/v1.
+// Before this fix, resolveLLMBaseURL (cmd/consensus/main.go) returned
+// cfg.LLM.BaseURL before consulting CONSENSUS_LLM_BASE_URL / OPENROUTER_BASE_URL,
+// so the documented environment overrides were silently ignored and an
+// OPENROUTER_API_KEY run still called api.deepseek.com — contradicting the
+// README's "no separate CONSENSUS_LLM_BASE_URL required". Env resolution lives
+// wholly in config (applyEnvOverrides), so the precedence is fixed here:
+//
+//	CONSENSUS_LLM_BASE_URL > OPENROUTER_BASE_URL > YAML base_url
+//	> provider default (OpenRouter when OPENROUTER_API_KEY is set)
+
+// writeConfig writes YAML into a temp dir and returns its path.
+func writeConfig(t *testing.T, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "consensus.yaml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	return path
+}
+
+func TestEnvOverride_LLMBaseURLAlwaysWins(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://openrouter.ai/api/v1")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "https://openrouter.ai/api/v1" {
+		t.Errorf("expected CONSENSUS_LLM_BASE_URL to override the YAML base_url, got %q", cfg.LLM.BaseURL)
+	}
+}
+
+func TestEnvOverride_OpenRouterBaseURLOverridesConfig(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+	t.Setenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "https://openrouter.ai/api/v1" {
+		t.Errorf("expected OPENROUTER_BASE_URL to override the YAML base_url, got %q", cfg.LLM.BaseURL)
+	}
+}
+
+// TestEnvOverride_ConsensusBaseURLBeatsOpenRouterBaseURL pins the relative
+// order of the two env vars: the provider-agnostic override is the most
+// explicit, so it wins.
+func TestEnvOverride_ConsensusBaseURLBeatsOpenRouterBaseURL(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://proxy.internal/v1")
+	t.Setenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "https://proxy.internal/v1" {
+		t.Errorf("expected CONSENSUS_LLM_BASE_URL to beat OPENROUTER_BASE_URL, got %q", cfg.LLM.BaseURL)
+	}
+}
+
+// TestEnvOverride_OpenRouterKeyDropsShippedDeepSeekBaseURL is the shipped-config
+// regression: consensus.yaml pins the DeepSeek endpoint, OPENROUTER_API_KEY
+// selects OpenRouter, and the effective base URL must no longer be DeepSeek.
+// The empty value lets NewOpenAIClient/NewEmbeddingClient pick OpenRouter's
+// provider default (https://openrouter.ai/api/v1).
+func TestEnvOverride_OpenRouterKeyDropsShippedDeepSeekBaseURL(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-test")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.Provider != "openrouter" {
+		t.Fatalf("expected provider openrouter, got %q", cfg.LLM.Provider)
+	}
+	if cfg.LLM.BaseURL != "" {
+		t.Errorf("expected the shipped DeepSeek base_url to be cleared for OpenRouter (provider default applies), got %q", cfg.LLM.BaseURL)
+	}
+}
+
+// TestEnvOverride_OpenRouterKeyKeepsExplicitEnvBaseURL: clearing the stale
+// YAML endpoint must not clobber a base URL the user set explicitly.
+func TestEnvOverride_OpenRouterKeyKeepsExplicitEnvBaseURL(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-test")
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://proxy.internal/v1")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "https://proxy.internal/v1" {
+		t.Errorf("expected explicit CONSENSUS_LLM_BASE_URL to survive provider switch, got %q", cfg.LLM.BaseURL)
+	}
+}
+
+// TestLoad_NoOverrideKeepsConfigBaseURL is the preservation guard: with no
+// override env set, the YAML base_url is untouched (existing behavior).
+func TestLoad_NoOverrideKeepsConfigBaseURL(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, shippedLikeLLMYAML))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "https://api.deepseek.com/v1" {
+		t.Errorf("expected YAML base_url preserved when no override is set, got %q", cfg.LLM.BaseURL)
+	}
+	if cfg.LLM.Provider != "openai" {
+		t.Errorf("expected provider from YAML when no override is set, got %q", cfg.LLM.Provider)
+	}
+}
+
+// TestLoad_NoConfigNoOverrideLeavesBaseURLEmpty: no YAML, no env → empty base
+// URL so the client factory applies the provider default.
+func TestLoad_NoConfigNoOverrideLeavesBaseURLEmpty(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.BaseURL != "" {
+		t.Errorf("expected empty base URL with no config and no override, got %q", cfg.LLM.BaseURL)
 	}
 }
