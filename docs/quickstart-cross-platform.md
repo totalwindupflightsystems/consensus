@@ -6,11 +6,11 @@ This guide covers Consensus setup on **Linux**, **macOS**, and **Windows (WSL2)*
 
 ## Quick Reference
 
-| Platform | Docker | Go Binary | Primary Gotcha |
-|----------|--------|-----------|----------------|
-| Linux | `docker run` | `go build` + `./bin/consensus serve` | Port 8090 conflicts, `init` reports wrong port |
-| macOS | Docker Desktop | `go build` + Homebrew Go | Docker resource limits, Apple Silicon architecture |
-| Windows | Docker Desktop (WSL2) | Go in WSL2 | WSL2 networking, Firewall blocks, line endings |
+| Platform | Docker (GHCR access required) | Go Binary | Primary Gotcha |
+|----------|-------------------------------|-----------|----------------|
+| Linux | Authenticated `docker run` | `git clone` + `go build` | Port 8090 conflicts, `init` reports wrong port |
+| macOS | Authenticated Docker Desktop | `git clone` + Homebrew Go | Docker resource limits, Apple Silicon architecture |
+| Windows | Authenticated Docker Desktop (WSL2) | Git + Go in WSL2 | WSL2 networking, Firewall blocks, line endings |
 
 ---
 
@@ -19,14 +19,52 @@ This guide covers Consensus setup on **Linux**, **macOS**, and **Windows (WSL2)*
 Before you start:
 
 1. **API Key**: You need a [DeepSeek API key](https://platform.deepseek.com/api_keys) (or OpenRouter key)
-2. **Docker** (recommended) OR **Go 1.23+** (for binary builds)
-3. **~1 GB disk space** (Docker image) OR **~50 MB** (Go binary + sources)
+2. **Go 1.23+** for the recommended source build
+3. **Git** and **~50 MB** for the binary + sources
+4. **Docker** is optional, but the GHCR image currently requires authenticated package access
 
 ---
 
-## Option 1: Docker (Recommended — All Platforms)
+## Option 1: Build from the public repository (Recommended)
 
-Docker is the easiest path. One command to pull, one to run.
+This is the working fresh-user path on Linux, macOS, and WSL2. The repository
+is anonymously cloneable, and its shipped config explicitly pins
+`database.max_open_conns: 5`:
+
+```bash
+git clone https://github.com/totalwindupflightsystems/consensus.git
+cd consensus
+export DEEPSEEK_API_KEY="sk-..."
+go build -o bin/consensus ./cmd/consensus/
+./bin/consensus init --config consensus.yaml
+./bin/consensus serve --config consensus.yaml
+```
+
+Save the one-time admin key printed by `init`. In a second terminal:
+
+```bash
+curl http://localhost:8090/api/v1/health
+# → {"status":"ok",...}
+```
+
+The config-file path is recommended because the pool limit is explicit and
+reviewable. An environment-only launch now relies on the safe default pool of
+8 connections, so it is supported when a separate config file is inconvenient:
+
+```bash
+CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" ./bin/consensus init
+CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
+  ./bin/consensus serve
+```
+
+---
+
+## Option 2: Docker (Currently Requires Registry Access)
+
+Anonymous pulls of `ghcr.io/wojons/consensus:latest` are currently denied by
+GHCR. The registry visibility issue is tracked separately. Do not use this as a
+fresh-user path unless your GitHub account already has package access and
+`docker login ghcr.io` succeeds.
 
 ### Step 1: Pull the image
 
@@ -111,11 +149,10 @@ xdg-open http://localhost:8090/chronicle/
 
 ---
 
-## Option 2: Go Binary (Local Development)
+## Installing Go (if needed)
 
-If you prefer to run without Docker, build from source.
-
-### Step 1: Install Go
+Install Go, then return to [Option 1](#option-1-build-from-the-public-repository-recommended)
+for the clone, build, config-file init, and serve commands.
 
 ```bash
 # Linux (Ubuntu/Debian)
@@ -128,34 +165,7 @@ brew install go
 sudo apt install golang-go -y
 ```
 
-Verify: `go version` → should show Go 1.23 or later.
-
-### Step 2: Clone and build
-
-```bash
-git clone https://github.com/wojons/consensus.git
-cd consensus
-go build -o bin/consensus ./cmd/consensus/
-```
-
-### Step 3: Initialize
-
-```bash
-./bin/consensus init
-```
-
-### Step 4: Serve
-
-```bash
-export DEEPSEEK_API_KEY="sk-..."
-./bin/consensus serve
-```
-
-### Step 5: Verify
-
-```bash
-curl http://localhost:8090/api/v1/health
-```
+Verify: `go version` should show Go 1.23 or later.
 
 ---
 
@@ -211,7 +221,7 @@ Once Consensus is running:
 |---------|------------------|-------|
 | `connection refused` | Server not running | `docker ps` or `ps aux | grep consensus` |
 | `404 Not Found` on `/api/v1/health` | Wrong port or non-Consensus service on 8090 | `ss -tlnp \| grep 8090` |
-| `401 Unauthorized` | Missing or wrong `DEEPSEEK_API_KEY` | `echo $DEEPSEEK_API_KEY` — must start with `sk-` |
+| `401 Unauthorized` on protected API routes | Missing or wrong Consensus API key | Send the key printed by `init` as `Authorization: Bearer $CONSENSUS_API_KEY` |
 | `500 Internal Server Error` | Database migration failed | Check logs: `docker logs consensus` or `journalctl -u consensus` |
 | Chronicle page blank | Static assets not served | Check browser console for 404s on CSS/JS files |
 | Docker exits immediately | `DEEPSEEK_API_KEY` not set | Container requires the env var — check `docker logs consensus` |

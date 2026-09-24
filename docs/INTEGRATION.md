@@ -46,12 +46,21 @@ the key against the `api_keys` table).
 
 ### 1.2 SSE transport, step by step (curl)
 
-**Step 1 — start the server** (SQLite, no API key needed to *boot*):
+**Step 1 — start the server** (SQLite, no API key needed to *boot*).
+Use a config file so the database pool is explicit:
 
 ```bash
-consensus init --db-url sqlite:///tmp/cs-mcp.db
-consensus serve --db-url sqlite:///tmp/cs-mcp.db   # prints the admin key once
+cat >/tmp/cs-mcp.yaml <<'EOF'
+server: { hostname: 127.0.0.1, port: 8090 }
+database: { url: "sqlite:///tmp/cs-mcp.db", max_open_conns: 4 }
+EOF
+consensus init --config /tmp/cs-mcp.yaml
+consensus serve --config /tmp/cs-mcp.yaml   # prints the admin key once
 ```
+
+The config-file path is recommended. An env-only launch is also safe after the
+pool fix: without `database.max_open_conns`, Consensus now uses the default of
+8 connections.
 
 **Step 2 — open the SSE stream.** The server assigns a session and immediately
 sends the message endpoint URL:

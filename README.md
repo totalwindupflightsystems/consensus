@@ -120,53 +120,41 @@ similarity ≥0.85 acceptance threshold.
 
 ## 5-Minute Setup
 
-### Option 1: Docker (recommended)
+### Option 1: Build from the public repository (recommended)
 
-Pull the image and run. That's it.
-
-```bash
-# Pull the image
-docker pull ghcr.io/wojons/consensus:latest
-
-# Run with SQLite (zero config — data persists in a volume)
-docker run -d \
-  --name consensus \
-  -p 8090:8090 \
-  -v consensus-data:/home/consensus/data \
-  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  ghcr.io/wojons/consensus:latest
-
-# Verify it's alive
-curl http://localhost:8090/api/v1/health
-# → {"status":"ok","version":"0.1.0","uptime_seconds":8,"api_latency_ms":0,"db_latency_ms":0.1,
-#    "llm_latency_ms":0,"error_rate_pct":0,"db_backend":"sqlite","db_path":"/home/consensus/data/consensus.db",
-#    "db_size_mb":0.00390625,"db_tables":37,"db_migrations":22,"schema_version":23,
-#    "active_connections":{"websocket":0,"db_pool_active":0,"db_pool_max":0,"llm_active":0,"api_requests_last_min":0},
-#    "system_log":[]}
-# Key fields: status (ok|degraded|unhealthy), db_backend (sqlite|postgres), schema_version.
-
-# Check the Chronicle dashboard
-open http://localhost:8090/chronicle/
-```
-
-**Production (PostgreSQL + pgvector):**
+The repository is anonymously cloneable, so the source build is the working
+fresh-user path:
 
 ```bash
-docker run -d \
-  --name consensus \
-  -p 8090:8090 \
-  -e CONSENSUS_DB_URL="postgres://user:pass@host:5432/consensus?sslmode=require" \
-  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  -e CONSENSUS_API_KEY="cs_ak_your_secret_key" \
-  ghcr.io/wojons/consensus:latest
-```
-
-### Option 2: Go binary (local development)
-
-```bash
+git clone https://github.com/totalwindupflightsystems/consensus.git
+cd consensus
+export DEEPSEEK_API_KEY="sk-..."
 go build -o bin/consensus ./cmd/consensus/
-./bin/consensus init
-./bin/consensus serve
+
+# The shipped config explicitly pins database.max_open_conns: 5.
+./bin/consensus init --config consensus.yaml
+./bin/consensus serve --config consensus.yaml
+```
+
+Save the one-time admin key printed by `init`. In a second terminal, verify the
+server and open Chronicle:
+
+```bash
+curl http://localhost:8090/api/v1/health
+# → {"status":"ok",...}
+open http://localhost:8090/chronicle/    # macOS
+# xdg-open http://localhost:8090/chronicle/  # Linux desktop
+```
+
+The config-file path is recommended because its database pool is explicit and
+reviewable. The environment-only path is also safe now: when no
+`database.max_open_conns` is supplied, Consensus uses the fixed default pool of
+8 connections. For example:
+
+```bash
+CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" ./bin/consensus init
+CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
+  ./bin/consensus serve
 ```
 
 > **⚠ Always build before you run.** Never execute a stale binary: the
@@ -176,6 +164,39 @@ go build -o bin/consensus ./cmd/consensus/
 > ./cmd/consensus/` (or `make build`; `make fresh` also removes the stray
 > root binary). Confirm what you're about to run with
 > `bin/consensus --version`.
+
+### Option 2: Docker (registry access currently required)
+
+Anonymous pulls of `ghcr.io/wojons/consensus:latest` are currently denied by
+GHCR. That registry visibility issue is tracked separately; this documentation
+change does not widen package or repository visibility. Use this path only if
+your GitHub account already has package access and `docker login ghcr.io`
+succeeds.
+
+```bash
+docker pull ghcr.io/wojons/consensus:latest
+
+docker run -d \
+  --name consensus \
+  -p 8090:8090 \
+  -v consensus-data:/home/consensus/data \
+  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  ghcr.io/wojons/consensus:latest
+
+curl http://localhost:8090/api/v1/health
+```
+
+**Production (PostgreSQL + pgvector; same GHCR access requirement):**
+
+```bash
+docker run -d \
+  --name consensus \
+  -p 8090:8090 \
+  -e CONSENSUS_DB_URL="postgres://user:***@host:5432/consensus?sslmode=require" \
+  -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  -e CONSENSUS_API_KEY="cs_ak_your_secret_key" \
+  ghcr.io/wojons/consensus:latest
+```
 
 #### Port 8090 already in use? (stale sidecar shadowing)
 
@@ -252,7 +273,9 @@ no expiry).
 | `CONSENSUS_PORT` | `8090` | Server listen port (if occupied by a stale sidecar, see [Port 8090 already in use?](#port-8090-already-in-use-stale-sidecar-shadowing)) |
 | `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`)
 
-**Docker Compose** (docker-compose.prod.yml — full stack, Consensus + PostgreSQL):
+**Docker Compose** (`docker-compose.prod.yml` — full stack, Consensus +
+PostgreSQL) also requires authenticated access to the currently private GHCR
+image:
 
 ```yaml
 services:
