@@ -256,7 +256,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 	// On SQLite: Go-level fallback with manual page resolution (SPEC-002 §5)
 	var memories []MemoryEventInfo
 	if h.db != nil && h.db.Backend() == db.BackendPostgres {
-		memories, err = h.readMemoriesFromView(ctx, tx, sessionID)
+		memories, err = h.readMemoriesFromView(ctx, tx, sessionID, session.Iteration)
 	} else {
 		// SQLite: resolve memory pages and read memory events via direct SQL
 		pageIDs, pgErr := h.resolvePageMemoryIDsTx(ctx, tx, sessionID)
@@ -264,7 +264,7 @@ func (h *Harness) ReadActiveContext(ctx context.Context, sessionID string) (*Ite
 			// Page resolution failure is non-fatal — proceed without page expansion
 			pageIDs = pageMemoryIDs{}
 		}
-		memories, err = h.readMemoryEventsTx(ctx, tx, sessionID)
+		memories, err = h.readMemoryEventsTx(ctx, tx, sessionID, session.Iteration)
 		if err == nil && len(pageIDs) > 0 {
 			memories = h.annotatePageEvents(memories, pageIDs)
 		}
@@ -572,7 +572,9 @@ func (h *Harness) readSessionTx(ctx context.Context, tx db.Tx, sessionID string)
 
 // readMemoryEventsTx reads memory events within a transaction.
 // Used by the SQLite backend where the enhanced VIEW is not available.
-func (h *Harness) readMemoryEventsTx(ctx context.Context, tx db.Tx, sessionID string) ([]MemoryEventInfo, error) {
+// User turns hidden by the current iteration remain visible until that
+// iteration rolls over; all other hidden events stay excluded.
+func (h *Harness) readMemoryEventsTx(ctx context.Context, tx db.Tx, sessionID string, iteration int64) ([]MemoryEventInfo, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT me.id, me.type,
 		       COALESCE(me.content, '') as content,
@@ -582,10 +584,13 @@ func (h *Harness) readMemoryEventsTx(ctx context.Context, tx db.Tx, sessionID st
 		FROM memory_events me
 		LEFT JOIN display_modes dm ON dm.memory_id = me.id
 		WHERE me.session_id = $1
-		  AND COALESCE(dm.mode, 'full') != 'hidden'
+		  AND (
+		      COALESCE(dm.mode, 'full') != 'hidden'
+		      OR (me.type = 'user_message' AND dm.set_by_iteration = $2)
+		  )
 		ORDER BY me.iteration_created, me.id
 		LIMIT 100
-	`, sessionID)
+	`, sessionID, iteration)
 	if err != nil {
 		return nil, err
 	}
@@ -640,8 +645,28 @@ func (h *Harness) readTools(ctx context.Context) ([]ToolInfo, error) {
 //   - Display mode rendering (CASE: compressed→summary, hidden→NULL)
 //   - Cache tier ordering column (SPEC-003 §6.2)
 //   - RLS isolation via SET LOCAL consensus.session_id
-func (h *Harness) readMemoriesFromView(ctx context.Context, tx db.Tx, sessionID string) ([]MemoryEventInfo, error) {
+//
+// The view excludes every hidden row. Add back only user turns hidden by the
+// current iteration so later planning calls in that iteration retain the turn.
+func (h *Harness) readMemoriesFromView(ctx context.Context, tx db.Tx, sessionID string, iteration int64) ([]MemoryEventInfo, error) {
 	rows, err := tx.Query(ctx, `
+		WITH context_rows AS (
+			SELECT id, session_id, iteration_created, type,
+			       raw_content, summary_text, display_mode, rendered_text,
+			       collapse_status, cache_tier
+			FROM active_context_view
+			UNION ALL
+			SELECT me.id, me.session_id, me.iteration_created, me.type,
+			       me.content AS raw_content, me.summary_text,
+			       dm.mode AS display_mode, me.content AS rendered_text,
+			       'full' AS collapse_status, 3 AS cache_tier
+			FROM memory_events me
+			JOIN display_modes dm ON dm.memory_id = me.id
+			WHERE me.session_id = $1
+			  AND me.type = 'user_message'
+			  AND dm.mode = 'hidden'
+			  AND dm.set_by_iteration = $2
+		)
 		SELECT id, session_id, iteration_created, type,
 		       COALESCE(raw_content, '') AS raw_content,
 		       COALESCE(summary_text, '') AS summary_text,
@@ -649,9 +674,9 @@ func (h *Harness) readMemoriesFromView(ctx context.Context, tx db.Tx, sessionID 
 		       COALESCE(rendered_text, '') AS rendered_text,
 		       collapse_status,
 		       cache_tier
-		FROM active_context_view
+		FROM context_rows
 		ORDER BY cache_tier, iteration_created, id
-	`)
+	`, sessionID, iteration)
 	if err != nil {
 		return nil, fmt.Errorf("query active_context_view: %w", err)
 	}

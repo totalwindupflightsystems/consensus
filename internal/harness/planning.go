@@ -265,9 +265,9 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			return h.handleLLMPlanningError(ctx, tx, sessionID, err)
 		}
 
-		// A successful response consumes the user turns and accounts usage in the
-		// same transaction as the eventual assistant response/session transition.
-		// If the planning transaction rolls back, both effects roll back together.
+		// A successful first response marks the delivered user turns as consumed
+		// for future iterations. Context reads keep rows marked by this iteration
+		// visible until the session iteration rolls over.
 		if turn == 1 {
 			if err := h.markUserMessagesRead(ctx, tx, sessionID, ic.Iteration, ic.PendingUserMessages); err != nil {
 				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("consume user messages: %w", err))
@@ -744,10 +744,10 @@ func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuf
 		{Role: "system", Content: h.formatPlanningSystemPromptV2(ic, buffer, turn, config)},
 		{Role: "user", Content: turnContext},
 	}
-	if turn == 1 {
-		for _, pending := range ic.PendingUserMessages {
-			messages = append(messages, Message{Role: "user", Content: pending.Content})
-		}
+	// The pending turns are the question for this iteration, not one-shot
+	// delivery metadata. Include them on every LLM call until iteration rollover.
+	for _, pending := range ic.PendingUserMessages {
+		messages = append(messages, Message{Role: "user", Content: pending.Content})
 	}
 	return messages
 }

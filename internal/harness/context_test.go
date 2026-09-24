@@ -54,6 +54,7 @@ func setupTestDB(t *testing.T) db.DB {
 	mustExec(t, database, `CREATE TABLE IF NOT EXISTS display_modes (
 		memory_id INTEGER PRIMARY KEY,
 		mode TEXT NOT NULL DEFAULT 'full',
+		set_by_iteration BIGINT,
 		session_id TEXT NOT NULL
 	)`)
 
@@ -227,6 +228,36 @@ func TestReadActiveContext_HiddenEventsExcluded(t *testing.T) {
 	}
 	if strings.Contains(userMsg, "Secret system note") {
 		t.Error("hidden event should NOT appear in context")
+	}
+}
+
+func TestReadActiveContext_HiddenUserTurnScopedToIteration(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration)
+		VALUES ('s1', 'agent', 'gpt-4o', 'planning', 'Answer the user', 7)`)
+	mustExec(t, database, `INSERT INTO memory_events (id, type, content, session_id, iteration_created)
+		VALUES (1, 'user_message', 'Count the active tasks', 's1', 7)`)
+	mustExec(t, database, `INSERT INTO display_modes (memory_id, mode, set_by_iteration, session_id)
+		VALUES (1, 'hidden', 7, 's1')`)
+
+	h := &Harness{db: database}
+	current, err := h.ReadActiveContext(context.Background(), "s1")
+	if err != nil {
+		t.Fatalf("ReadActiveContext current iteration: %v", err)
+	}
+	if len(current.PendingUserMessages) != 1 || current.PendingUserMessages[0].Content != "Count the active tasks" {
+		t.Fatalf("current iteration pending turns = %#v, want the hidden user turn", current.PendingUserMessages)
+	}
+
+	mustExec(t, database, `UPDATE sessions SET iteration = 8 WHERE id = 's1'`)
+	next, err := h.ReadActiveContext(context.Background(), "s1")
+	if err != nil {
+		t.Fatalf("ReadActiveContext next iteration: %v", err)
+	}
+	if len(next.PendingUserMessages) != 0 {
+		t.Fatalf("next iteration pending turns = %#v, want none", next.PendingUserMessages)
 	}
 }
 

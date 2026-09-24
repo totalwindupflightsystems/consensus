@@ -37,6 +37,17 @@ func (c *capturingConversationLLM) Call(_ context.Context, messages []Message) (
 	}, nil
 }
 
+type multiTurnConversationLLM struct {
+	calls   [][]Message
+	outputs []*AgentOutput
+}
+
+func (c *multiTurnConversationLLM) Call(_ context.Context, messages []Message) (*LLMResponse, error) {
+	copied := append([]Message(nil), messages...)
+	c.calls = append(c.calls, copied)
+	return &LLMResponse{Output: c.outputs[len(c.calls)-1], ModelID: "test-model"}, nil
+}
+
 func TestConversationalMessagePathProjectsRepliesAndAccountsTokens(t *testing.T) {
 	llm := &capturingConversationLLM{}
 	th, err := newTestHarness(llm)
@@ -142,7 +153,10 @@ func TestConversationalMessagePathProjectsRepliesAndAccountsTokens(t *testing.T)
 		FROM memory_events me
 		LEFT JOIN display_modes dm ON dm.memory_id = me.id
 		WHERE me.session_id = $1 AND me.type = 'user_message'
-		  AND COALESCE(dm.mode, 'full') != 'hidden'`, sessionID)
+		  AND (
+		      COALESCE(dm.mode, 'full') != 'hidden'
+		      OR dm.set_by_iteration = (SELECT iteration FROM sessions WHERE id = $1)
+		  )`, sessionID)
 	if err != nil {
 		t.Fatalf("query unread messages: %v", err)
 	}
@@ -182,7 +196,70 @@ func TestConversationalMessagePathProjectsRepliesAndAccountsTokens(t *testing.T)
 	}
 }
 
-func TestBuildPlanningMessagesProjectsPendingOnlyOnFirstTurn(t *testing.T) {
+func TestUserTurnRemainsVisibleAcrossPlanningTurnsThenHidesOnRollover(t *testing.T) {
+	const question = "How many active tasks are in the database?"
+	llm := &multiTurnConversationLLM{outputs: []*AgentOutput{
+		{InternalMonologue: "I need another planning turn."},
+		{
+			InternalMonologue: "Answer after reviewing the question again.",
+			SystemActions:     []string{"respond"},
+			MessageToUser:     "There are no active tasks.",
+		},
+	}}
+	th, err := newTestHarness(llm)
+	if err != nil {
+		t.Fatalf("create test harness: %v", err)
+	}
+	defer th.close()
+
+	sessionID, err := th.createTestSession()
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := th.conn.Exec(th.ctx, `
+		INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		VALUES ('user_message', $1, $2, 0, CURRENT_TIMESTAMP)`, question, sessionID); err != nil {
+		t.Fatalf("insert user turn: %v", err)
+	}
+	if err := th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID); err != nil {
+		t.Fatalf("set session thinking: %v", err)
+	}
+
+	cfg := DefaultPlanningConfig()
+	cfg.MaxTurns = 2
+	result, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	if err != nil {
+		t.Fatalf("run planning: %v", err)
+	}
+	if result == nil || result.Status != "success" {
+		t.Fatalf("planning result = %+v, want success", result)
+	}
+	if len(llm.calls) != 2 {
+		t.Fatalf("LLM calls = %d, want 2", len(llm.calls))
+	}
+	for turn, messages := range llm.calls {
+		found := false
+		for _, message := range messages {
+			if message.Role == "user" && message.Content == question {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("planning turn %d did not include the user question: %#v", turn+1, messages)
+		}
+	}
+
+	contextAfterRollover, err := th.ReadActiveContext(th.ctx, sessionID)
+	if err != nil {
+		t.Fatalf("read context after iteration rollover: %v", err)
+	}
+	if len(contextAfterRollover.PendingUserMessages) != 0 {
+		t.Fatalf("pending user turns after rollover = %#v, want none", contextAfterRollover.PendingUserMessages)
+	}
+}
+
+func TestBuildPlanningMessagesProjectsPendingOnEveryTurn(t *testing.T) {
 	h := &Harness{}
 	ic := &IterationContext{
 		SessionID: "conversation",
@@ -198,8 +275,8 @@ func TestBuildPlanningMessagesProjectsPendingOnlyOnFirstTurn(t *testing.T) {
 		t.Fatalf("first-turn messages = %#v, want ordered pending user turns", first)
 	}
 	second := h.buildPlanningMessages(ic, &StagingBuffer{}, 2, cfg, "context")
-	if len(second) != 2 {
-		t.Fatalf("second-turn messages = %#v, pending user turns were redelivered", second)
+	if len(second) != 4 || second[2].Content != "first" || second[3].Content != "second" {
+		t.Fatalf("second-turn messages = %#v, want the same ordered user turns", second)
 	}
 }
 
