@@ -78,3 +78,36 @@ Run details (2026-09-09):
   project's headline promise ("send a message, get the response") remains
   undeliverable as of 2026-09-09.
 - Foreman: woken (CooldownS 21600 → 900) — 3 new board rows incl. 2×P0.
+
+2026-09-24 | 🟡 PROMISING-BUT-ROUGH | t2fs: turn-1 ~15s; turn-2+ never | friction 4 | 2 new findings (P0+P1)
+
+Run details (2026-09-24, regression re-test @ 576dc07):
+- Angle: re-test the three foreman fixes from the 09-09 verdict (pool wedge,
+  conversational deafness, docs drift) + run the bunker install leg that was
+  SKIPPED on 09-09. Prior runs swept the same CLI/env/config surfaces, so the
+  angle was the fixes themselves, not a new surface.
+- Verified fixed: documented env-var install no longer wedges (health 200
+  <5s); turn-1 round trip real (1695in/139out tokens, reply observable in
+  /context and /memory); README quickstart matches reality.
+- Bunker install leg PASSED (first time): agent 89e7da8c on bunker-las-03,
+  anonymous clone 8.1s, cold build 62s, init→serve→health 200, agent destroyed.
+- DF-CONSENSUS-20 (P1): user message content never enters the LLM prompt on
+  turns 2+ — prompt_tokens byte-identical across turns (1668/1668, 1695/1695)
+  while memory_events stores the user_message rows; model answers "no question
+  yet". Goal text is the only input that always reaches the model.
+- DF-CONSENSUS-21 (P0): "consume user messages: sqlite tx: exec: database is
+  locked (517)" during planning permanently bricks sessions (status=failed,
+  last_error=null, retry dies the same way); billed LLM calls wasted; hit 4/4
+  turns under a 0.5s-polling client late in the run, incl. a fresh session's
+  first turn.
+- Perf: headline round trip unmeasurable this run — the 517 race killed every
+  timed turn; no PERF row filed (can't benchmark a failing path; gated by
+  DF-CONSENSUS-21). Reference: LLM call 1.3–3.3s, local API <50ms, build
+  9.5s/62s, clone 2.4s/8.1s.
+- Tasks written: DF-CONSENSUS-20 (P1), DF-CONSENSUS-21 (P0) — board JSONL,
+  commit 3f653b3 (surgical, 2 rows, numstat-verified).
+- Artifacts: docs/dogfood/2026-09-24-integration.md (this run), prior
+  diagnostics unchanged.
+- Foreman: NOT woken — scheduler API :9090 timed out at report time
+  (pre-existing scheduler slowness). Foreman is active regardless (ticks and
+  merges landed 2026-09-24 02:17–04:29); DF-CONSENSUS-20/21 are on the board.
