@@ -1,0 +1,37 @@
+{
+  "tick": "consensus-2026-09-24-02-17-07",
+  "project": "consensus",
+  "budget": 3,
+  "workers_used": 2,
+  "base_sha": "b2100f9",
+  "written_before_dispatch": true,
+  "workers": [
+    {
+      "task_id": "DF-CONSENSUS-12",
+      "title": "[dogfood:P1] Quickstart/docs drift cluster",
+      "worktree": "/home/kara/worktrees/consensus-DF-CONSENSUS-12",
+      "branch": "wt/DF-CONSENSUS-12",
+      "brief": "/tmp/brief-df-consensus-12.md",
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "gitreins_task": "df-consensus-12",
+      "independence": "docs-only diff; no shared files with DOGFOOD-108 (Go test code)"
+    },
+    {
+      "task_id": "DOGFOOD-108",
+      "title": "LOAD-HYGIENE: bound worst-offender test-suite load",
+      "worktree": "/home/kara/worktrees/consensus-DOGFOOD-108",
+      "branch": "wt/DOGFOOD-108",
+      "brief": "/tmp/brief-dogfood-108.md",
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "gitreins_task": "dogfood-108",
+      "independence": "Go test code only; no shared files with DF-CONSENSUS-12 (docs)"
+    }
+  ],
+  "foreman_direct_parallel": [
+    {"task_id": "DF-CONSENSUS-13", "change": "anchor \\bsk- pattern in .gitreins/pre-commit + .git/hooks/pre-commit"},
+    {"task_id": "DF-CONSENSUS-10", "change": "board bookkeeping closure (already fixed by ad8afd8)"}
+  ],
+  "merge_plan": "serial merges on master: DF-CONSENSUS-12 then DOGFOOD-108; gate = gitreins guard + build + vet + short suite per merge; push after each"
+}

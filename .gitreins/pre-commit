@@ -16,7 +16,7 @@ PASS=1
 # ═══════════════════════════════════════════════════════════════
 # Stage 1: Secrets scan — BLOCKING
 # ═══════════════════════════════════════════════════════════════
-SECRET_PATTERNS='sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI|MINIMAX|KIMI)_API_KEY\s*=\s*(sk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'
+SECRET_PATTERNS='\bsk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )PRIVATE KEY-----|(OPENROUTER|DEEPSEEK|ZAI|ANTHROPIC|OPENAI|MINIMAX|KIMI)_API_KEY\s*=\s*(\bsk-[a-zA-Z0-9_-]{20,}|[A-Za-z0-9+/=]{32,})'
 while IFS= read -r file; do
   [ ! -f "$file" ] && continue
   git check-ignore -q "$file" 2>/dev/null && continue
