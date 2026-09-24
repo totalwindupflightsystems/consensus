@@ -7,7 +7,7 @@ examples. The canonical machine-readable contract is the bundled OpenAPI spec �
 see [OpenAPI](#openapi-specification) below.
 
 - Base URL: `http://<host>:8090` (default port, configurable via `CONSENSUS_PORT` / config `server.port`)
-- Auth: `Authorization: Bearer <api-key>` header (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management))
+- Auth: set the `Authorization` header to `Bearer $CONSENSUS_API_KEY` (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management))
 - Errors: JSON envelope `{"error":{"code":"...","message":"...","details":"..."}}` with the appropriate HTTP status
 - Auth failures return `401` with code `UNAUTHORIZED`; missing/invalid UUID path params return `400` with code `INVALID_UUID`
 
@@ -105,18 +105,28 @@ change.
 
 ## Sessions
 
-All routes below require `Authorization: Bearer <api-key>`.
+All routes below require an `Authorization` header with the value
+`Bearer $CONSENSUS_API_KEY`.
 
 ### `POST /api/v1/sessions` — create a session
 
 ```bash
 curl -X POST http://localhost:8090/api/v1/sessions \
-  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"deepseek-chat","system_prompt":"You are a helpful agent."}'
+  -d '{"agent_name":"demo","goal":"Summarize the ledger."}'
 ```
 
-Returns `201` with the created session (id, status, model, created_at).
+`agent_name` and `goal` are required. The optional request fields are
+`model_id`, `context_budget`, `hitl_config`, and `project_id`. Returns `201`
+with the created session (id, status, model, created_at).
+
+> **Model selection:** per-session model selection is not yet honored by the
+> runtime. The JSON field `model` is not part of this request schema and is
+> silently ignored; although `model_id` can be stored on the session, the
+> harness client still executes with the model selected by server configuration
+> (`llm.default_model`) and the model registry. Configure the effective model
+> there instead of expecting a create-session field to switch it.
 
 ### `GET /api/v1/sessions` — list sessions
 
