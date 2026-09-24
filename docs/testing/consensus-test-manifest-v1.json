@@ -12,24 +12,26 @@
   "coordinator": "hermes (merge seat)"
  },
  "counts": {
-  "canonical": 223,
-  "converged": 2,
+  "canonical": 284,
+  "converged": 7,
   "by_tier": {
-   "T0": 20,
-   "T1": 27,
-   "T2": 24,
-   "T3": 19,
-   "T4": 22,
-   "T5": 14,
-   "T6": 17,
-   "T7": 20,
-   "T8": 19,
-   "T9": 15,
-   "T10": 15,
+   "T0": 25,
+   "T1": 34,
+   "T2": 30,
+   "T3": 22,
+   "T4": 28,
+   "T5": 17,
+   "T6": 23,
+   "T7": 29,
+   "T8": 25,
+   "T9": 18,
+   "T10": 19,
    "GATE": 3,
+   "S3": 1,
+   "S4": 4,
+   "S5": 1,
    "T7a": 2,
    "T7b": 1,
-   "S4": 3,
    "S1": 2
   }
  },
@@ -420,9 +422,10 @@
    "falsifier": "Drop trigger in copied DB; control mutation must succeed and detector must fail",
    "defect_gate": "none",
    "proposed_by": [
-    "gpt-5.6-sol@openai-codex"
+    "gpt-5.6-sol@openai-codex",
+    "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": true
   },
   {
    "id": "C-027",
@@ -525,9 +528,10 @@
    "falsifier": "Write session directly to DB; provenance check must fail",
    "defect_gate": "MCP-DIRECT-001",
    "proposed_by": [
-    "gpt-5.6-sol@openai-codex"
+    "gpt-5.6-sol@openai-codex",
+    "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": true
   },
   {
    "id": "C-034",
@@ -1607,9 +1611,10 @@
    "falsifier": "unsigned retrieve returning 200 (signature enforcement off)",
    "defect_gate": "-",
    "proposed_by": [
-    "deepseek-v4.1-flash@synthetic"
+    "deepseek-v4.1-flash@synthetic",
+    "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": true
   },
   {
    "id": "C-106",
@@ -1899,6 +1904,953 @@
   {
    "id": "C-125",
    "tier": "T0",
+   "title": "Provenance: dirty-tree abort",
+   "command": "git rev-parse HEAD && git status --porcelain",
+   "expected": "clean tree at pinned commit",
+   "artifact": "artifacts/provenance.txt",
+   "pass_criteria": "HEAD == pinned commit; no uncommitted changes",
+   "falsifier": "dirty worktree -> run tested an uncontrolled tree",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-126",
+   "tier": "T0",
+   "title": "Fresh build removes stale root binary",
+   "command": "make fresh && ./bin/consensus --version && test ! -x ./consensus",
+   "expected": "bin/consensus built; root ./consensus absent",
+   "artifact": "artifacts/provenance.txt",
+   "pass_criteria": "version prints, root binary absent",
+   "falsifier": "stale gitignored binary executed",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-127",
+   "tier": "T0",
+   "title": "go vet clean",
+   "command": "go vet ./...",
+   "expected": "exit 0",
+   "artifact": "artifacts/t0_unit.log",
+   "pass_criteria": "exit 0, no output",
+   "falsifier": "vet findings ignored",
+   "defect_gate": "none",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default",
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": true
+  },
+  {
+   "id": "C-128",
+   "tier": "T0",
+   "title": "Keyless short suite",
+   "command": "env -u DEEPSEEK_API_KEY -u OPENROUTER_API_KEY go test -short -count=1 ./...",
+   "expected": "0 failures keyless",
+   "artifact": "artifacts/t0_unit.log",
+   "pass_criteria": "ok on all packages",
+   "falsifier": "suite depends on ambient API key (not keyless)",
+   "defect_gate": "QA-CONSENSUS-SMOKEPORT (fixed)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-129",
+   "tier": "T0",
+   "title": "Full suite",
+   "command": "go test -count=1 ./...",
+   "expected": "0 failures",
+   "artifact": "artifacts/t0_unit.log",
+   "pass_criteria": "exit 0",
+   "falsifier": "short-only green hides full-suite failures",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-130",
+   "tier": "T0",
+   "title": "Keyless smoke",
+   "command": "make smoke",
+   "expected": "smoke passes <60s",
+   "artifact": "artifacts/t0_unit.log",
+   "pass_criteria": "exit 0",
+   "falsifier": "port-collision or mocked-only path claimed as live",
+   "defect_gate": "QA-CONSENSUS-SMOKEPORT",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-131",
+   "tier": "T1",
+   "title": "OpenAPI served == bundled source, 60 paths",
+   "command": "curl -s :8090/openapi.json | jq '.paths|length'",
+   "expected": "60 paths; bytes match specs/openapi/bundled.yaml content",
+   "artifact": "artifacts/t1_paths.json",
+   "pass_criteria": "count==60 and served spec matches repo bundle",
+   "falsifier": "embedded copy stale vs source",
+   "defect_gate": "MUSTER-INT-001",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-132",
+   "tier": "T1",
+   "title": "Every bundled.yaml path exercised",
+   "command": "jq path-matrix from bundled.yaml -> curl each -> coverage.json",
+   "expected": "all 60 paths probed with expected statuses",
+   "artifact": "artifacts/t1_paths.json",
+   "pass_criteria": "coverage 60/60, audited_targets==60 printed",
+   "falsifier": "runner reports success with 0 audited targets",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-133",
+   "tier": "T1",
+   "title": "Auth negatives",
+   "command": "POST /api/v1/sessions with no key / fake key / admin key",
+   "expected": "401 / 401 / 201",
+   "artifact": "artifacts/t1_auth.log",
+   "pass_criteria": "401,401,201 in order; JSON error bodies per spec",
+   "falsifier": "unauthenticated write succeeds",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-134",
+   "tier": "T1",
+   "title": "Scoped key minting + revocation",
+   "command": "POST /api/v1/auth/keys {scope:readonly}; use it; DELETE it",
+   "expected": "readonly denied on admin route, allowed on read route, revoked after delete",
+   "artifact": "artifacts/t1_auth.log",
+   "pass_criteria": "403-or-401 then 200 then 401",
+   "falsifier": "scope not enforced",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-135",
+   "tier": "T1",
+   "title": "Error shapes",
+   "command": "GET /api/v1/sessions/{unknown-id}; POST malformed body",
+   "expected": "404 JSON / 400 JSON per bundled components",
+   "artifact": "artifacts/t1_paths.json",
+   "pass_criteria": "typed JSON errors, not HTML",
+   "falsifier": "HTML error pages",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-136",
+   "tier": "T1",
+   "title": "Health + doc surfaces",
+   "command": "curl /api/v1/health; /doc/api; /api/v1/metrics",
+   "expected": "200 ok / 200 UI / 200 metrics",
+   "artifact": "artifacts/t1_paths.json",
+   "pass_criteria": "health body {\"status\":\"ok\"}",
+   "falsifier": "404 on health = stale sidecar owns port",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-137",
+   "tier": "T1",
+   "title": "No public semantic-search endpoint",
+   "command": "probe retrieval-ish paths",
+   "expected": "404 (retrieval is harness-internal)",
+   "artifact": "artifacts/t1_paths.json",
+   "pass_criteria": "no public search route answers 200",
+   "falsifier": "public search endpoint exists, contradicting README:96",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-138",
+   "tier": "T2",
+   "title": "Live-key pre-probe",
+   "command": "1-token deepseek chat call with chosen key",
+   "expected": "200",
+   "artifact": "artifacts/t2_keyprobe.log",
+   "pass_criteria": "probe 200 before any tier runs; abort with last-4 on 401",
+   "falsifier": "dead key misdiagnosed as product failure",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-139",
+   "tier": "T2",
+   "title": "Single live round trip (config path)",
+   "command": "init+serve --config consensus.yaml; POST session; POST message; poll",
+   "expected": "status=idle, iteration=2, text_block persisted, tokens_used_in/out>0, 1 agent_billing row, log 'llm: response received'",
+   "artifact": "artifacts/t2_llm.log",
+   "pass_criteria": "all five observables present",
+   "falsifier": "idle with zero billing rows = mock/dead key",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-140",
+   "tier": "T2",
+   "title": "Multi-turn context retention",
+   "command": "turn 2: 'quote your previous question and answer it in one sentence'",
+   "expected": "reply contains turn-1 question text; iteration>=3; 2nd billing row",
+   "artifact": "artifacts/t2_llm.log",
+   "pass_criteria": "quote matches, new billing row",
+   "falsifier": "agent says no prior question (ledger lost the turn)",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-141",
+   "tier": "T2",
+   "title": "Multi-call planning keeps user turn",
+   "command": "ask DB-count question; assert tool_requests>0 within one iteration",
+   "expected": "tool_requests>0",
+   "artifact": "artifacts/t2_llm.log",
+   "pass_criteria": "agent calls a tool in the same iteration",
+   "falsifier": "second LLM call has messages=2 and agent asks to clarify (the defect)",
+   "defect_gate": "DF-CONSENSUS-15 (XFAIL while pending)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-142",
+   "tier": "T2",
+   "title": "Env-only configuration round trip",
+   "command": "no config file; CONSENSUS_LLM_BASE_URL + DEEPSEEK_API_KEY only; full round trip",
+   "expected": "idle with tokens>0 (post-fix)",
+   "artifact": "artifacts/t2_llm.log",
+   "pass_criteria": "no 3x400 breaker pause",
+   "falsifier": "model stays gpt-4o, breaker trips, empty ledger (current defect)",
+   "defect_gate": "DF-CONSENSUS-14 (XFAIL while pending)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-143",
+   "tier": "T2",
+   "title": "OpenRouter alternate provider",
+   "command": "OPENROUTER_API_KEY round trip",
+   "expected": "idle, tokens>0, billing row with OR model",
+   "artifact": "artifacts/t2_llm.log",
+   "pass_criteria": "same as T2-01 via OR base URL",
+   "falsifier": "skip without OR key is not printed in report",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-144",
+   "tier": "T3",
+   "title": "Tool registry non-empty with typed schemas",
+   "command": "GET /api/v1/tools",
+   "expected": "count>0, each has input schema",
+   "artifact": "artifacts/t3_tools.log",
+   "pass_criteria": "count>0 AND schemas present",
+   "falsifier": "empty list passes an exists-only check",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-145",
+   "tier": "T3",
+   "title": "Direct tool execute",
+   "command": "POST /api/v1/tools/{tool}/execute (read-only SQL)",
+   "expected": "result rows returned",
+   "artifact": "artifacts/t3_tools.log",
+   "pass_criteria": "non-empty result for known table",
+   "falsifier": "empty result set treated as success",
+   "defect_gate": "none",
+   "proposed_by": [
+    "kimi-k3@neuralwatt",
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": true
+  },
+  {
+   "id": "C-146",
+   "tier": "T3",
+   "title": "Agent-driven tool use end to end",
+   "command": "DB question -> memory_events shows tool_call + tool_result + citing text_block",
+   "expected": "tool_requests>0; staging_buffer executed; answer cites the number",
+   "artifact": "artifacts/t3_ledger.json",
+   "pass_criteria": "all three row types present",
+   "falsifier": "API execute works but agent path has tool_requests=0",
+   "defect_gate": "DF-CONSENSUS-15 (XFAIL while pending)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-147",
+   "tier": "T3",
+   "title": "Tool result visible to agent",
+   "command": "follow-up: 'what was the row count you found?'",
+   "expected": "same number returned from context",
+   "artifact": "artifacts/t3_ledger.json",
+   "pass_criteria": "answer matches earlier tool_result",
+   "falsifier": "result only in DB, not in agent context",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-148",
+   "tier": "T4",
+   "title": "Typed event vocabulary",
+   "command": "SELECT DISTINCT type FROM memory_events",
+   "expected": "subset of spec-002 types",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "no unknown types",
+   "falsifier": "free-form types",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-149",
+   "tier": "T4",
+   "title": "Token ledger balance",
+   "command": "SQL join sessions vs agent_billing",
+   "expected": "tokens_used_in/out == summed billing tokens",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "equality with billing rows>0",
+   "falsifier": "vacuous equality on 0 rows",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-150",
+   "tier": "T4",
+   "title": "Cost recompute vs registry",
+   "command": "recompute cost from registry price table; compare cost_usd",
+   "expected": "variance <=10% or explained",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "documented price table reconciles",
+   "falsifier": "unexplained >10% variance (0.009775 vs sticker math)",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-151",
+   "tier": "T4",
+   "title": "Session isolation",
+   "command": "two sessions; cross-read memory via API and SQL scope",
+   "expected": "no cross-session rows",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "B cannot read A via API; DB rows session-scoped",
+   "falsifier": "leak, or vacuous pass with 0 rows in either session",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-152",
+   "tier": "T4",
+   "title": "Compression cosine gate",
+   "command": "drive context past compression threshold; inspect summary rows",
+   "expected": "every summary has cosine >=0.85 or escalation",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "scores present and passing",
+   "falsifier": "sub-0.85 summary silently accepted",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-153",
+   "tier": "T4",
+   "title": "Audit trail exists",
+   "command": "SELECT count FROM audit_logs after T2/T3",
+   "expected": "rows for state changes",
+   "artifact": "artifacts/t4_integrity.sql.out",
+   "pass_criteria": "count>0 and correlates to session ids",
+   "falsifier": "audit_logs empty after real activity",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-154",
+   "tier": "T5",
+   "title": "MCP initialize + tools/list",
+   "command": "POST /mcp/message JSON-RPC initialize; tools/list",
+   "expected": "valid initialize result; >=6 tools with typed schemas",
+   "artifact": "artifacts/t5_mcp.log",
+   "pass_criteria": "tools/list non-empty with descriptions",
+   "falsifier": "bare tool names only (failed attach)",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-155",
+   "tier": "T5",
+   "title": "MCP auth negative",
+   "command": "initialize without API key",
+   "expected": "401",
+   "artifact": "artifacts/t5_mcp.log",
+   "pass_criteria": "401",
+   "falsifier": "unauthenticated MCP access",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-156",
+   "tier": "T5",
+   "title": "MCP discoverability",
+   "command": "GET /mcp; GET /api/v1/mcp",
+   "expected": "discoverable endpoint (or pinned failure)",
+   "artifact": "artifacts/t5_mcp.log",
+   "pass_criteria": "a client can find MCP without out-of-band docs",
+   "falsifier": "/mcp 501 stub (current state)",
+   "defect_gate": "MCP-DIRECT-001 (XFAIL while pending)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-157",
+   "tier": "T6",
+   "title": "Upstream runner self-test",
+   "command": "scripts/test-opencode-upstream.sh --self-test",
+   "expected": "offline adapter contract passes",
+   "artifact": "artifacts/t6_upstream.log",
+   "pass_criteria": "exit 0",
+   "falsifier": "adapter broken offline yet run online",
+   "defect_gate": "C-GAP-032",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-158",
+   "tier": "T6",
+   "title": "Upstream checkout fetch",
+   "command": "runner clones pinned rev 1674747 (v1.18.29)",
+   "expected": "cache dir populated",
+   "artifact": "docs/evidence/opencode-upstream-v1.18.29",
+   "pass_criteria": "checkout at pinned revision",
+   "falsifier": "suite runs against wrong rev",
+   "defect_gate": "C-GAP-032",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-159",
+   "tier": "T6",
+   "title": "LITERAL upstream TS suites vs live shim",
+   "command": "make test-opencode-upstream (CONSENSUS_OPENCODE_BASE_URL set)",
+   "expected": "4 suites execute; per-suite counts >0; failures fail the suite",
+   "artifact": "docs/evidence/opencode-upstream-v1.18.29",
+   "pass_criteria": "all suites pass with test counts>0 in summary",
+   "falsifier": "0 executed tests reported as pass (phantom suite)",
+   "defect_gate": "C-GAP-032",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-160",
+   "tier": "T6",
+   "title": "Go port suite (secondary signal)",
+   "command": "go test ./internal/chronicle/ -run TestOpenCode -count=1 -v",
+   "expected": "46 sub-tests pass",
+   "artifact": "artifacts/t6_upstream.log",
+   "pass_criteria": "46 ok",
+   "falsifier": "port suite green reported as 'upstream ran'",
+   "defect_gate": "C-GAP-032",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-161",
+   "tier": "T6",
+   "title": "Real TUI/CLI probe",
+   "command": "scripts/prove-opencode-cli.sh",
+   "expected": "CLI works against live shim",
+   "artifact": "artifacts/t6_upstream.log",
+   "pass_criteria": "exit 0",
+   "falsifier": "only HTTP-level checks passed",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-162",
+   "tier": "T6",
+   "title": "Shim Swagger UI",
+   "command": "curl /doc",
+   "expected": "200 UI",
+   "artifact": "artifacts/t6_upstream.log",
+   "pass_criteria": "200",
+   "falsifier": "doc route dead",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-163",
+   "tier": "T7",
+   "title": "Crier wiring pre-check",
+   "command": "grep -rl crier internal/ cmd/",
+   "expected": "non-empty AFTER CR-IN-001 lands",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "wiring exists; else tier BLOCKED with id",
+   "falsifier": "tier runs with zero wiring (phantom)",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-164",
+   "tier": "T7",
+   "title": "Crier server up",
+   "command": "CR_GUARD_ENABLED=false ./bin/crier -port 8767; curl /health",
+   "expected": "200",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "health 200",
+   "falsifier": "guard fails-open unnoticed",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-165",
+   "tier": "T7",
+   "title": "Register consensus agent",
+   "command": "openssl genpkey ED25519; POST /agents with pubkey",
+   "expected": "201",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "201 with id",
+   "falsifier": "unsigned registry accepted silently",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-166",
+   "tier": "T7",
+   "title": "Deliver to inbox",
+   "command": "POST /agents/consensus-qa/inbox with question payload",
+   "expected": "delivery:\"inbox\"",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "durable inbox holds message",
+   "falsifier": "delivery:\"webhook\" misread as inbox",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-167",
+   "tier": "T7",
+   "title": "Message becomes agent-visible user turn",
+   "command": "consensus intake consumes crier message; inspect memory_events",
+   "expected": "user_message row with crier origin/provenance; LLM call in serve log",
+   "artifact": "artifacts/t7_crier_ledger.json",
+   "pass_criteria": "row exists, payload matches, origin names crier",
+   "falsifier": "row injected via consensus API directly (no provenance)",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-168",
+   "tier": "T7",
+   "title": "Agent answers crier-delivered question",
+   "command": "poll consensus session after intake",
+   "expected": "text_block answer persisted",
+   "artifact": "artifacts/t7_crier_ledger.json",
+   "pass_criteria": "answer row exists with billing row",
+   "falsifier": "intake stores but never processes",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-169",
+   "tier": "T7",
+   "title": "Ack drains inbox",
+   "command": "signed POST ack; GET stats",
+   "expected": "queue_depth 0",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "0 undelivered after ack",
+   "falsifier": "message redelivered forever",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-170",
+   "tier": "T7",
+   "title": "Negative: other agent's message not consumed",
+   "command": "deliver to other-agent; assert no consensus intake",
+   "expected": "no consensus memory_event for it",
+   "artifact": "artifacts/t7_crier_ledger.json",
+   "pass_criteria": "zero rows",
+   "falsifier": "consensus consumes foreign messages",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-171",
+   "tier": "T7",
+   "title": "Relay pub/sub leg",
+   "command": "WS subscribe topic; POST /relay/publish",
+   "expected": "frame received on WS",
+   "artifact": "artifacts/t7_crier.log",
+   "pass_criteria": "publish-after-subscribe delivered",
+   "falsifier": "publish-before-subscribe counted as delivered",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-172",
+   "tier": "T8",
+   "title": "Circuit breaker on dead key",
+   "command": "serve with sk-dead key; post message",
+   "expected": "3 failures -> agent_circuit_breakers row; session paused; empty assistant ledger",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "breaker row + paused status",
+   "falsifier": "infinite retry loop burning tokens",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-173",
+   "tier": "T8",
+   "title": "No billed tokens for failed calls",
+   "command": "SQL: billing rows for the dead-key session",
+   "expected": "0 cost rows (or zero-cost) for failed calls",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "no positive cost for failed calls",
+   "falsifier": "paid tokens claimed as delivered",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-174",
+   "tier": "T8",
+   "title": "SQLite pool pressure under polling+SSE",
+   "command": "2s poller + held SSE + 2 concurrent sessions, 5 min bounded",
+   "expected": "zero 'begin tx: context deadline exceeded'; no stuck planning; pool=8",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "clean log, all sessions reach terminal state",
+   "falsifier": "wedge reproduced (regression of ad8afd8)",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-175",
+   "tier": "T8",
+   "title": "Restart recovery",
+   "command": "SIGKILL mid-iteration; restart on same DB",
+   "expected": "committed artifact survives; open txn rolled back; staging residue reported",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "artifact readable via API post-restart; diagnostics printed",
+   "falsifier": "uncommitted work claimed as recovered",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-176",
+   "tier": "T8",
+   "title": "Crash demo (README claim)",
+   "command": "DEEPSEEK_API_KEY=... go test -v -run TestDemo ./demo/",
+   "expected": "demo assertions pass",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "exit 0 with live key",
+   "falsifier": "demo skipped for lack of key and reported green",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-177",
+   "tier": "T8",
+   "title": "Port-shadow preflight",
+   "command": "ss -tlnp | grep :8090 before start",
+   "expected": "port free; health returns ok JSON",
+   "artifact": "artifacts/t8_resilience.log",
+   "pass_criteria": "health body is {\"status\":\"ok\"}",
+   "falsifier": "stale sidecar answers 404 on all paths",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-178",
+   "tier": "T9",
+   "title": "Load gate preflight",
+   "command": "cat /proc/loadavg; skip-with-record if 1m >= 8",
+   "expected": "recorded skip (exit 3 semantics) or proceed",
+   "artifact": "artifacts/t9_load.json",
+   "pass_criteria": "gate decision recorded either way",
+   "falsifier": "unbounded burn on a loaded host",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-179",
+   "tier": "T9",
+   "title": "Bounded concurrency cell",
+   "command": "4 sessions x 1 turn, waves<=4, timeout 300",
+   "expected": "all idle; 4 billing rows; no error lines",
+   "artifact": "artifacts/t9_load.json",
+   "pass_criteria": "4/4 idle, billing reconciled to log",
+   "falsifier": "errors swallowed by polling timeout",
+   "defect_gate": "DF-CONSENSUS-15 (multi-call billing reconciliation)",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-180",
+   "tier": "T9",
+   "title": "Post-run process hygiene",
+   "command": "pgrep -c consensus; loadavg re-check",
+   "expected": "no orphans; loadavg back under gate",
+   "artifact": "artifacts/t9_load.json",
+   "pass_criteria": "0 stray processes 60s after run",
+   "falsifier": "orphaned pollers peg the bunker",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-181",
+   "tier": "T10",
+   "title": "Baby project fixture",
+   "command": "mkdir babyproj; seed README with unique 5 facts",
+   "expected": "fixture on disk, mtimes recorded",
+   "artifact": "artifacts/t10_babyproj/",
+   "pass_criteria": "seed hash recorded pre-run",
+   "falsifier": "contaminated fixture from earlier runs",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-182",
+   "tier": "T10",
+   "title": "Drive goal via sessions/tasks API",
+   "command": "create session goal; kick-off message; poll to idle",
+   "expected": "agent plans and executes",
+   "artifact": "artifacts/t10_babyproj.log",
+   "pass_criteria": "session reaches idle with tool activity",
+   "falsifier": "goal never dispatched, session idle on arrival",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-183",
+   "tier": "T10",
+   "title": "Artifact verified on disk",
+   "command": "stat babyproj/plan.md; diff content vs seeded facts",
+   "expected": "plan.md exists, mtime>run start, 5 bullets matching facts",
+   "artifact": "artifacts/t10_babyproj.log",
+   "pass_criteria": "on-disk content matches ledger tool events",
+   "falsifier": "file written by harness, not agent (no tool events)",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-184",
+   "tier": "T10",
+   "title": "Task lifecycle",
+   "command": "tasks API create -> claim -> complete",
+   "expected": "status transitions persisted",
+   "artifact": "artifacts/t10_babyproj.log",
+   "pass_criteria": "DB rows show transitions",
+   "falsifier": "task API claims success without DB rows",
+   "defect_gate": "none",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-185",
+   "tier": "S3",
+   "title": "Defect census re-read",
+   "command": "re-read board last-wins at run start and finish",
+   "expected": "all open P1s fixed or xfail-pinned with ids",
+   "artifact": "artifacts/defect_gate.json",
+   "pass_criteria": "GREEN only if gate table clean",
+   "falsifier": "green over open P1s",
+   "defect_gate": "DF-CONSENSUS-14,DF-CONSENSUS-15,ENV-CONSENSUS-1,QA-CONSENSUS-7,MCP-DIRECT-001,CR-IN-001,C-GAP-032",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-186",
+   "tier": "S4",
+   "title": "Evidence bundle completeness",
+   "command": "verify artifacts/ contains logs+dumps+results.json+report.html",
+   "expected": "all present; every number names its artifact",
+   "artifact": "~/consensus-reports/run-<date>/",
+   "pass_criteria": "third party can re-derive each number",
+   "falsifier": "report cites runner claims without artifacts",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-187",
+   "tier": "S5",
+   "title": "Zero-target battery impossibility",
+   "command": "every battery step exits 2 when audited_targets==0",
+   "expected": "impossible to report success over zero coverage",
+   "artifact": "artifacts/results.json",
+   "pass_criteria": "audited_targets>0 printed in every pass line",
+   "falsifier": "rc=0 with 0 audited (the measured QA-CONSENSUS-7 shape)",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "qwen3.7-max@opencode-go"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-188",
+   "tier": "T0",
    "title": "Record commit identity under test",
    "command": "cd /home/kara/consensus && git rev-parse HEAD | tee evidence/t0/commit.txt",
    "expected": "non-empty 40-hex sha equal to deployed build commit",
@@ -1912,7 +2864,7 @@
    "converged": false
   },
   {
-   "id": "C-126",
+   "id": "C-189",
    "tier": "T0",
    "title": "Fresh build, no stale root binary",
    "command": "make fresh && ls ./consensus 2>&1; ./bin/consensus --version | tee evidence/t0/version.txt",
@@ -1927,22 +2879,7 @@
    "converged": false
   },
   {
-   "id": "C-127",
-   "tier": "T0",
-   "title": "go vet clean",
-   "command": "go vet ./... 2>&1 | tee evidence/t0/vet.txt",
-   "expected": "exit 0, no findings",
-   "artifact": "evidence/t0/vet.txt",
-   "pass_criteria": "exit 0",
-   "falsifier": "warnings present but exit 0 swallowed by tee",
-   "defect_gate": "",
-   "proposed_by": [
-    "glm-5.3-flash@zai-glm-default"
-   ],
-   "converged": false
-  },
-  {
-   "id": "C-128",
+   "id": "C-190",
    "tier": "T0",
    "title": "env-clean unit suite",
    "command": "CGO_ENABLED=0 go test -short -count=1 ./... 2>&1 | tee evidence/t0/unit.log",
@@ -1957,7 +2894,7 @@
    "converged": false
   },
   {
-   "id": "C-129",
+   "id": "C-191",
    "tier": "T0",
    "title": "Pool fix commit in tree",
    "command": "git log --oneline | grep ad8afd8 || git merge-base --is-ancestor ad8afd8 HEAD && echo IN-TREE",
@@ -1972,7 +2909,7 @@
    "converged": false
   },
   {
-   "id": "C-130",
+   "id": "C-192",
    "tier": "T1",
    "title": "OpenAPI path census = 60",
    "command": "jq -r '.paths|keys[]' specs/openapi/bundled.yaml | tee evidence/t1/paths.txt; test $(wc -l < evidence/t1/paths.txt) -ge 60",
@@ -1988,7 +2925,7 @@
    "converged": false
   },
   {
-   "id": "C-131",
+   "id": "C-193",
    "tier": "T1",
    "title": "Every REST path exercised with expected status",
    "command": "scripts/battery/t1_contract.sh $SRV",
@@ -2003,7 +2940,7 @@
    "converged": false
   },
   {
-   "id": "C-132",
+   "id": "C-194",
    "tier": "T1",
    "title": "Auth ladder on all authenticated paths",
    "command": "scripts/battery/t1_auth.sh $SRV",
@@ -2018,7 +2955,7 @@
    "converged": false
   },
   {
-   "id": "C-133",
+   "id": "C-195",
    "tier": "T1",
    "title": "Error body shape on 4xx",
    "command": "scripts/battery/t1_errors.sh $SRV",
@@ -2033,7 +2970,7 @@
    "converged": false
   },
   {
-   "id": "C-134",
+   "id": "C-196",
    "tier": "T1",
    "title": "SSE + OpenAPI serving endpoints live",
    "command": "curl -N --max-time 5 $SRV/global/event | head -3; curl -so /dev/null -w '%{http_code}' $SRV/openapi.yaml",
@@ -2048,7 +2985,7 @@
    "converged": false
   },
   {
-   "id": "C-135",
+   "id": "C-197",
    "tier": "T2",
    "title": "Live LLM key validated pre-run",
    "command": "curl -s -o evidence/t2/key-check.json -w '%{http_code}' https://api.deepseek.com/v1/chat/completions -H \"Authorization: Bearer $KEY\" -d '{\"model\":\"deepseek-v4-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":4}'",
@@ -2063,7 +3000,7 @@
    "converged": false
   },
   {
-   "id": "C-136",
+   "id": "C-198",
    "tier": "T2",
    "title": "Single-turn real round trip",
    "command": "scripts/battery/t2_single.sh $SRV $KEY",
@@ -2078,7 +3015,7 @@
    "converged": false
   },
   {
-   "id": "C-137",
+   "id": "C-199",
    "tier": "T2",
    "title": "Multi-turn cell A: next-iteration continuity",
    "command": "scripts/battery/t2_multiturn.sh $SRV $KEY",
@@ -2093,7 +3030,7 @@
    "converged": false
   },
   {
-   "id": "C-138",
+   "id": "C-200",
    "tier": "T2",
    "title": "Multi-turn cell B: within-iteration visibility (DF-15)",
    "command": "scripts/battery/t2_df15.sh $SRV $KEY",
@@ -2108,7 +3045,7 @@
    "converged": false
   },
   {
-   "id": "C-139",
+   "id": "C-201",
    "tier": "T2",
    "title": "Env-only model override regression (DF-14)",
    "command": "scripts/battery/t2_df14.sh $SRV",
@@ -2123,7 +3060,7 @@
    "converged": false
   },
   {
-   "id": "C-140",
+   "id": "C-202",
    "tier": "T2",
    "title": "Billing row model stamp matches served model",
    "command": "jq '.agent_billing[].model' evidence/t2/session.json",
@@ -2138,7 +3075,7 @@
    "converged": false
   },
   {
-   "id": "C-141",
+   "id": "C-203",
    "tier": "T3",
    "title": "Tool registry register + list",
    "command": "scripts/battery/t3_register.sh $SRV $KEY",
@@ -2153,7 +3090,7 @@
    "converged": false
   },
   {
-   "id": "C-142",
+   "id": "C-204",
    "tier": "T3",
    "title": "Direct tool execute returns real DB count",
    "command": "scripts/battery/t3_execute.sh $SRV $KEY; ssh <agent> sqlite3 <db> 'SELECT COUNT(*) FROM sessions'",
@@ -2168,7 +3105,7 @@
    "converged": false
   },
   {
-   "id": "C-143",
+   "id": "C-205",
    "tier": "T3",
    "title": "Tool sandbox negatives rejected",
    "command": "scripts/battery/t3_negative.sh $SRV $KEY",
@@ -2183,7 +3120,7 @@
    "converged": false
   },
   {
-   "id": "C-144",
+   "id": "C-206",
    "tier": "T3",
    "title": "Agent USES the tool end-to-end (DF-15 dependent)",
    "command": "scripts/battery/t3_agent_chain.sh $SRV $KEY",
@@ -2198,7 +3135,7 @@
    "converged": false
   },
   {
-   "id": "C-145",
+   "id": "C-207",
    "tier": "T4",
    "title": "Append-only triggers enforce the ledger",
    "command": "ssh <agent> sqlite3 <db> 'UPDATE memory_events SET ...'; ssh <agent> sqlite3 <db> 'DELETE FROM memory_events ...'",
@@ -2213,7 +3150,7 @@
    "converged": false
   },
   {
-   "id": "C-146",
+   "id": "C-208",
    "tier": "T4",
    "title": "Typed memory_events census matches SPEC-002",
    "command": "ssh <agent> sqlite3 <db> 'SELECT type,COUNT(*) FROM memory_events GROUP BY type' | tee evidence/t4/census.csv",
@@ -2228,7 +3165,7 @@
    "converged": false
   },
   {
-   "id": "C-147",
+   "id": "C-209",
    "tier": "T4",
    "title": "Token reconciliation billing<->sessions",
    "command": "scripts/battery/rederive.sh --tokens evidence/t4/db.dump",
@@ -2243,7 +3180,7 @@
    "converged": false
   },
   {
-   "id": "C-148",
+   "id": "C-210",
    "tier": "T4",
    "title": "Cost sanity vs sticker price",
    "command": "scripts/battery/cost_check.sh evidence/t4/billing.csv",
@@ -2258,7 +3195,7 @@
    "converged": false
   },
   {
-   "id": "C-149",
+   "id": "C-211",
    "tier": "T4",
    "title": "Session isolation at DB layer (C5)",
    "command": "scripts/battery/t4_isolation.sh $SRV $KEY",
@@ -2273,7 +3210,7 @@
    "converged": false
   },
   {
-   "id": "C-150",
+   "id": "C-212",
    "tier": "T5",
    "title": "MCP tools/list + tools/call real execution",
    "command": "scripts/battery/t5_mcp_call.sh $SRV $KEY",
@@ -2288,7 +3225,7 @@
    "converged": false
   },
   {
-   "id": "C-151",
+   "id": "C-213",
    "tier": "T5",
    "title": "MCP unknown method shaped error",
    "command": "scripts/battery/t5_mcp_err.sh $SRV",
@@ -2303,7 +3240,7 @@
    "converged": false
   },
   {
-   "id": "C-152",
+   "id": "C-214",
    "tier": "T6",
    "title": "Go-port chronicle suite baseline",
    "command": "CGO_ENABLED=0 go test -count=1 ./internal/chronicle/ -run TestOpencode -v | tee evidence/t6/goport.log",
@@ -2318,7 +3255,7 @@
    "converged": false
   },
   {
-   "id": "C-153",
+   "id": "C-215",
    "tier": "T6",
    "title": "Runner adapter self-test (gate only)",
    "command": "scripts/test-opencode-upstream.sh --self-test | tee evidence/t6/selftest.log",
@@ -2333,7 +3270,7 @@
    "converged": false
   },
   {
-   "id": "C-154",
+   "id": "C-216",
    "tier": "T6",
    "title": "LITERAL upstream TS suites vs live shim (first-ever run)",
    "command": "CONSENSUS_OPENCODE_BASE_URL=$SRV make test-opencode-upstream 2>&1 | tee evidence/t6/upstream.log",
@@ -2348,7 +3285,7 @@
    "converged": false
   },
   {
-   "id": "C-155",
+   "id": "C-217",
    "tier": "T6",
    "title": "Real-TUI / CLI proof",
    "command": "sh scripts/prove-opencode-cli.sh $SRV 2>&1 | tee evidence/t6/cli.log",
@@ -2363,7 +3300,7 @@
    "converged": false
   },
   {
-   "id": "C-156",
+   "id": "C-218",
    "tier": "T7a",
    "title": "Crier register (signed) accepted; unsigned rejected",
    "command": "CR_REQUIRE_AGENT_SIG=1 ./bin/crier -port 8767 & trap-driven; scripts/battery/t7_register.sh",
@@ -2378,7 +3315,7 @@
    "converged": false
   },
   {
-   "id": "C-157",
+   "id": "C-219",
    "tier": "T7a",
    "title": "Crier deliver -> lease retrieve -> ack round trip",
    "command": "scripts/battery/t7_roundtrip.sh (models /home/kara/crier/examples/demo.sh against live :8767)",
@@ -2393,7 +3330,7 @@
    "converged": false
   },
   {
-   "id": "C-158",
+   "id": "C-220",
    "tier": "T7b",
    "title": "Consensus consumes a crier-delivered message (CR-IN-001)",
    "command": "scripts/battery/t7_intake.sh $SRV $KEY",
@@ -2408,7 +3345,7 @@
    "converged": false
   },
   {
-   "id": "C-159",
+   "id": "C-221",
    "tier": "T8",
    "title": "Dead-key circuit breaker (C6)",
    "command": "scripts/battery/t8_breaker.sh $SRV",
@@ -2423,7 +3360,7 @@
    "converged": false
   },
   {
-   "id": "C-160",
+   "id": "C-222",
    "tier": "T8",
    "title": "SQLite pool pressure: polling + SSE + planning (C11)",
    "command": "scripts/battery/t8_pool.sh $SRV",
@@ -2438,7 +3375,7 @@
    "converged": false
   },
   {
-   "id": "C-161",
+   "id": "C-223",
    "tier": "T8",
    "title": "Crash recovery: kill -9 mid-flight (C4)",
    "command": "scripts/battery/t8_crash.sh $SRV (records artifact, second iteration, kill -9, restart, re-read)",
@@ -2453,7 +3390,7 @@
    "converged": false
   },
   {
-   "id": "C-162",
+   "id": "C-224",
    "tier": "T8",
    "title": "Keyless crash demo reproduces (C14)",
    "command": "DEEPSEEK_API_KEY=$KEY go test -v -run TestDemo -timeout 300s ./demo/ | tee evidence/t8/demo.log",
@@ -2468,7 +3405,7 @@
    "converged": false
   },
   {
-   "id": "C-163",
+   "id": "C-225",
    "tier": "T9",
    "title": "Load-gate pre-flight",
    "command": "cat /proc/loadavg # on bunker; exit 3 skip if 1-min >= 8",
@@ -2483,7 +3420,7 @@
    "converged": false
   },
   {
-   "id": "C-164",
+   "id": "C-226",
    "tier": "T9",
    "title": "Bounded 4-session concurrency cell",
    "command": "scripts/battery/t9_load.sh $SRV $KEY --sessions 4 --wall 300s",
@@ -2498,7 +3435,7 @@
    "converged": false
   },
   {
-   "id": "C-165",
+   "id": "C-227",
    "tier": "T9",
    "title": "Scratch-dir leak census (QA-CONSENSUS-6 regression)",
    "command": "ls -d /tmp/consensus-test* 2>/dev/null | wc -l (before/after)",
@@ -2513,7 +3450,7 @@
    "converged": false
   },
   {
-   "id": "C-166",
+   "id": "C-228",
    "tier": "T10",
    "title": "Baby project: goal -> disk artifact",
    "command": "scripts/battery/t10_baby.sh $SRV $KEY",
@@ -2528,7 +3465,7 @@
    "converged": false
   },
   {
-   "id": "C-167",
+   "id": "C-229",
    "tier": "T10",
    "title": "Baby project billing closure",
    "command": "jq '.agent_billing|length' evidence/t10/ledger.json",
@@ -2543,7 +3480,7 @@
    "converged": false
   },
   {
-   "id": "C-168",
+   "id": "C-230",
    "tier": "S4",
    "title": "Evidence tree assembled + third-party rederivation",
    "command": "scripts/battery/rederive.sh ~/consensus-reports/run-2026-09-24/",
@@ -2558,7 +3495,7 @@
    "converged": false
   },
   {
-   "id": "C-169",
+   "id": "C-231",
    "tier": "S4",
    "title": "Secret hygiene on artifacts",
    "command": "grep -r 'sk-' ~/consensus-reports/run-2026-09-24/ | grep -v REDACTED; echo rc=$?",
@@ -2573,7 +3510,7 @@
    "converged": false
   },
   {
-   "id": "C-170",
+   "id": "C-232",
    "tier": "T0",
    "title": "Full build",
    "command": "go build ./...",
@@ -2588,7 +3525,7 @@
    "converged": false
   },
   {
-   "id": "C-171",
+   "id": "C-233",
    "tier": "T0",
    "title": "Env-clean short suite",
    "command": "env -i PATH=$PATH HOME=$HOME TMPDIR=$PWD/.tmp go test -count=1 -short ./...",
@@ -2603,7 +3540,7 @@
    "converged": false
   },
   {
-   "id": "C-172",
+   "id": "C-234",
    "tier": "T0",
    "title": "TVF probe (generate_series)",
    "command": "go run ./scripts/probe-tvf.go && sqlite3 :memory: \"select value from generate_series(1,3)\"",
@@ -2618,7 +3555,7 @@
    "converged": false
   },
   {
-   "id": "C-173",
+   "id": "C-235",
    "tier": "T0",
    "title": "Tool registry handler tests",
    "command": "go test -count=1 -run TestToolRegistry ./internal/harness/ ./internal/api/",
@@ -2633,7 +3570,7 @@
    "converged": false
   },
   {
-   "id": "C-174",
+   "id": "C-236",
    "tier": "T0",
    "title": "Guard + fmt drift",
    "command": "gitreins guard && test -z \"$(gofmt -l $(git ls-files '*.go'))\"",
@@ -2648,7 +3585,7 @@
    "converged": false
   },
   {
-   "id": "C-175",
+   "id": "C-237",
    "tier": "S1",
    "title": "Key health probe",
    "command": "probe all 11 sk- keys against api.deepseek.com/v1/models",
@@ -2663,7 +3600,7 @@
    "converged": false
   },
   {
-   "id": "C-176",
+   "id": "C-238",
    "tier": "S1",
    "title": "Bunker provision",
    "command": "apt install uidmap fuse-overlayfs slirp4netns dbus-user-session golang-go nodejs npm; clone; checkout 77b990b; build; sha256sum",
@@ -2678,7 +3615,7 @@
    "converged": false
   },
   {
-   "id": "C-177",
+   "id": "C-239",
    "tier": "T1",
    "title": "Auth ladder",
    "command": "curl health (200 public) / sessions no-key / fake-key / admin-key",
@@ -2693,7 +3630,7 @@
    "converged": false
   },
   {
-   "id": "C-178",
+   "id": "C-240",
    "tier": "T1",
    "title": "Full 60-path sweep",
    "command": "./t1-contract.sh (inventory generated from bundled.yaml)",
@@ -2708,7 +3645,7 @@
    "converged": false
   },
   {
-   "id": "C-179",
+   "id": "C-241",
    "tier": "T1",
    "title": "Error shape consistency",
    "command": "malformed JSON / unknown-id probes on 5+ paths",
@@ -2723,7 +3660,7 @@
    "converged": false
   },
   {
-   "id": "C-180",
+   "id": "C-242",
    "tier": "T1",
    "title": "Served spec == bundled spec",
    "command": "diff served openapi vs bundled.yaml path-sets",
@@ -2738,7 +3675,7 @@
    "converged": false
   },
   {
-   "id": "C-181",
+   "id": "C-243",
    "tier": "T1",
    "title": "DF-2 probe: documented-only fields",
    "command": "POST /api/v1/sessions with spec-documented fields only",
@@ -2753,7 +3690,7 @@
    "converged": false
   },
   {
-   "id": "C-182",
+   "id": "C-244",
    "tier": "T1",
    "title": "SSE liveness",
    "command": "timeout 5 curl -N $B/global/event -H \"Authorization: Bearer $A\"",
@@ -2768,7 +3705,7 @@
    "converged": false
   },
   {
-   "id": "C-183",
+   "id": "C-245",
    "tier": "T2",
    "title": "Baseline round trip",
    "command": "create session; send 'Reply with exactly: PONG'; poll to idle",
@@ -2783,7 +3720,7 @@
    "converged": false
   },
   {
-   "id": "C-184",
+   "id": "C-246",
    "tier": "T2",
    "title": "DF-15 multi-call planning",
    "command": "prompt forcing sql_query tool then report; count sessions rows",
@@ -2798,7 +3735,7 @@
    "converged": false
   },
   {
-   "id": "C-185",
+   "id": "C-247",
    "tier": "T2",
    "title": "Multi-iteration user-turn visibility",
    "command": "3 sequential turns; run context.go:581 SELECT on DB",
@@ -2813,7 +3750,7 @@
    "converged": false
   },
   {
-   "id": "C-186",
+   "id": "C-248",
    "tier": "T2",
    "title": "Billing sanity band",
    "command": "recompute run cost from public DeepSeek rates; compare cost_usd",
@@ -2828,7 +3765,7 @@
    "converged": false
   },
   {
-   "id": "C-187",
+   "id": "C-249",
    "tier": "T2",
    "title": "DF-14 model override probe",
    "command": "restart with CONSENSUS_LLM_BASE_URL set, no model env; inspect model= log line",
@@ -2843,7 +3780,7 @@
    "converged": false
   },
   {
-   "id": "C-188",
+   "id": "C-250",
    "tier": "T3",
    "title": "Registry non-empty",
    "command": "GET registry path; compare to specs/010 inventory",
@@ -2858,22 +3795,7 @@
    "converged": false
   },
   {
-   "id": "C-189",
-   "tier": "T3",
-   "title": "Direct tool execute",
-   "command": "execute sql_query select 41+1",
-   "expected": "result contains 42 per spec shape",
-   "artifact": "plan-evidence/t3-2.log",
-   "pass_criteria": "shape+value",
-   "falsifier": "500 or stringy shellout",
-   "defect_gate": "",
-   "proposed_by": [
-    "kimi-k3@neuralwatt"
-   ],
-   "converged": false
-  },
-  {
-   "id": "C-190",
+   "id": "C-251",
    "tier": "T3",
    "title": "Agent uses tool end-to-end",
    "command": "6*7 via mandated tool; assert chain in memory_events",
@@ -2888,7 +3810,7 @@
    "converged": false
   },
   {
-   "id": "C-191",
+   "id": "C-252",
    "tier": "T3",
    "title": "Tool error path",
    "command": "execute select * from nope; inspect memory_events",
@@ -2903,7 +3825,7 @@
    "converged": false
   },
   {
-   "id": "C-192",
+   "id": "C-253",
    "tier": "T3",
    "title": "Tool sandbox refusal",
    "command": "attempt ATTACH DATABASE '/etc/passwd' class escape",
@@ -2918,7 +3840,7 @@
    "converged": false
   },
   {
-   "id": "C-193",
+   "id": "C-254",
    "tier": "T4",
    "title": "Append-only ledger triggers",
    "command": "UPDATE/DELETE a memory_events row",
@@ -2933,7 +3855,7 @@
    "converged": false
   },
   {
-   "id": "C-194",
+   "id": "C-255",
    "tier": "T4",
    "title": "Token sums equality",
    "command": "sessions sums vs agent_billing sums",
@@ -2948,7 +3870,7 @@
    "converged": false
   },
   {
-   "id": "C-195",
+   "id": "C-256",
    "tier": "T4",
    "title": "Typed events census",
    "command": "group_by type vs specs/002 set",
@@ -2963,7 +3885,7 @@
    "converged": false
   },
   {
-   "id": "C-196",
+   "id": "C-257",
    "tier": "T4",
    "title": "Cost sanity + money cap",
    "command": "monotonicity spots + total < $1.00",
@@ -2978,7 +3900,7 @@
    "converged": false
   },
   {
-   "id": "C-197",
+   "id": "C-258",
    "tier": "T4",
    "title": "DB session isolation",
    "command": "S1 attempts S2-scoped read via agent surface",
@@ -2993,7 +3915,7 @@
    "converged": false
   },
   {
-   "id": "C-198",
+   "id": "C-259",
    "tier": "T4",
    "title": "Billing 1:1 with LLM calls",
    "command": "count log LLM lines vs billing rows",
@@ -3008,7 +3930,7 @@
    "converged": false
   },
   {
-   "id": "C-199",
+   "id": "C-260",
    "tier": "T5",
    "title": "MCP route truth",
    "command": "GET /mcp, /api/v1/mcp, POST /mcp/message status census",
@@ -3023,7 +3945,7 @@
    "converged": false
   },
   {
-   "id": "C-200",
+   "id": "C-261",
    "tier": "T5",
    "title": "MCP handshake + tools",
    "command": "initialize, tools/list, tools/call",
@@ -3038,7 +3960,7 @@
    "converged": false
   },
   {
-   "id": "C-201",
+   "id": "C-262",
    "tier": "T5",
    "title": "MCP auth ladder",
    "command": "no/fake key on /mcp/message",
@@ -3053,7 +3975,7 @@
    "converged": false
   },
   {
-   "id": "C-202",
+   "id": "C-263",
    "tier": "T5",
    "title": "External MCP attach (2 clients)",
    "command": "two concurrent clients, list tools, isolation check",
@@ -3068,7 +3990,7 @@
    "converged": false
   },
   {
-   "id": "C-203",
+   "id": "C-264",
    "tier": "T6",
    "title": "Go port suite count",
    "command": "go test -count=1 -run TestOpenCode -v ./internal/chronicle/",
@@ -3083,7 +4005,7 @@
    "converged": false
   },
   {
-   "id": "C-204",
+   "id": "C-265",
    "tier": "T6",
    "title": "Literal upstream TS suite vs live shim",
    "command": "CONSENSUS_OPENCODE_BASE_URL=$B sh scripts/test-opencode-upstream.sh",
@@ -3098,7 +4020,7 @@
    "converged": false
   },
   {
-   "id": "C-205",
+   "id": "C-266",
    "tier": "T6",
    "title": "Real TUI smoke",
    "command": "pinned opencode TUI 1.18.29 against shim; scripted pty round trip",
@@ -3113,7 +4035,7 @@
    "converged": false
   },
   {
-   "id": "C-206",
+   "id": "C-267",
    "tier": "T7",
    "title": "Crier control round trip",
    "command": "register(ed25519) -> deliver inbox -> retrieve lease -> ack; byte-compare body",
@@ -3128,7 +4050,7 @@
    "converged": false
   },
   {
-   "id": "C-207",
+   "id": "C-268",
    "tier": "T7",
    "title": "Wiring existence census",
    "command": "grep -ri crier internal/ cmd/ specs/",
@@ -3143,7 +4065,7 @@
    "converged": false
   },
   {
-   "id": "C-208",
+   "id": "C-269",
    "tier": "T7",
    "title": "Crier message becomes agent-visible input",
    "command": "crier deliver -> consensus ingest -> agent answers 4",
@@ -3158,7 +4080,7 @@
    "converged": false
   },
   {
-   "id": "C-209",
+   "id": "C-270",
    "tier": "T7",
    "title": "Lease crash safety",
    "command": "kill -9 consensus mid-consume; restart; assert redelivery-or-ack",
@@ -3173,7 +4095,7 @@
    "converged": false
   },
   {
-   "id": "C-210",
+   "id": "C-271",
    "tier": "T7",
    "title": "Signature negatives",
    "command": "deliver with bogus ed25519 sig / unknown agent id",
@@ -3188,7 +4110,7 @@
    "converged": false
   },
   {
-   "id": "C-211",
+   "id": "C-272",
    "tier": "T8",
    "title": "Circuit breaker on verified-dead key",
    "command": "re-probe key dead; run session; assert pause + breaker row + zero billing",
@@ -3203,7 +4125,7 @@
    "converged": false
   },
   {
-   "id": "C-212",
+   "id": "C-273",
    "tier": "T8",
    "title": "Pool pressure regression",
    "command": "held SSE + 4x pollers 2s + planning session, 60s bounded",
@@ -3218,7 +4140,7 @@
    "converged": false
   },
   {
-   "id": "C-213",
+   "id": "C-274",
    "tier": "T8",
    "title": "Crash demo (keyed E2E)",
    "command": "DEEPSEEK_API_KEY=$LIVE go test -v -run TestDemo -timeout 300s ./demo/ + manual kill -9 repro",
@@ -3233,7 +4155,7 @@
    "converged": false
   },
   {
-   "id": "C-214",
+   "id": "C-275",
    "tier": "T8",
    "title": "Corrupted DB boot",
    "command": "truncate copy; boot; PRAGMA integrity_check",
@@ -3248,7 +4170,7 @@
    "converged": false
   },
   {
-   "id": "C-215",
+   "id": "C-276",
    "tier": "T9",
    "title": "Load gate",
    "command": "1m loadavg < 12 else skip rc=3",
@@ -3263,7 +4185,7 @@
    "converged": false
   },
   {
-   "id": "C-216",
+   "id": "C-277",
    "tier": "T9",
    "title": "8 concurrent sessions",
    "command": "8 sessions x 1 turn, <=300s",
@@ -3278,7 +4200,7 @@
    "converged": false
   },
   {
-   "id": "C-217",
+   "id": "C-278",
    "tier": "T9",
    "title": "Concurrent billing join",
    "command": "billing rows vs log call count across 8 sessions",
@@ -3293,7 +4215,7 @@
    "converged": false
   },
   {
-   "id": "C-218",
+   "id": "C-279",
    "tier": "T9",
    "title": "Postgres spot check (optional)",
    "command": "rerun T1 sweep + T4-2 against PG DSN if available",
@@ -3308,7 +4230,7 @@
    "converged": false
   },
   {
-   "id": "C-219",
+   "id": "C-280",
    "tier": "T10",
    "title": "Baby project setup",
    "command": "git init /tmp/babyproj; broken calc.py (41)",
@@ -3323,7 +4245,7 @@
    "converged": false
   },
   {
-   "id": "C-220",
+   "id": "C-281",
    "tier": "T10",
    "title": "Goal-driven session",
    "command": "session goal: fix calc.py to 42 via tasks+tools, <=10 iterations, 900s cap",
@@ -3338,7 +4260,7 @@
    "converged": false
   },
   {
-   "id": "C-221",
+   "id": "C-282",
    "tier": "T10",
    "title": "Disk verification",
    "command": "runner runs python3 calc.py; adbms",
@@ -3353,7 +4275,7 @@
    "converged": false
   },
   {
-   "id": "C-222",
+   "id": "C-283",
    "tier": "T10",
    "title": "Independent ground truth",
    "command": "python3 -c 'print(6*7)' + git diff review",
@@ -3368,7 +4290,7 @@
    "converged": false
   },
   {
-   "id": "C-223",
+   "id": "C-284",
    "tier": "S4",
    "title": "HTML report + re-derivation",
    "command": "build single-file HTML w/ TOC + per-claim recompute commands",

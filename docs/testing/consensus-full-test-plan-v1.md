@@ -1,14 +1,22 @@
 # Consensus — Full Test Plan v1
 
 **Provenance.** Built by a quorum round (定足数) on 2026-09-24: a shared claim-checklist brief
-(`/tmp/quorum-consensus-plan/brief.txt`) fanned to 5 candidate lanes; 4 landed and were merged, one per
-model family, plus one still running (`qwen3.7-max@opencode-go`). Each seat worked the WHOLE checklist
-independently; nothing was divided between seats.
+(`/tmp/quorum-consensus-plan/brief.txt`) fanned to 5 candidate lanes; **all 5 landed**, one per model
+family. Each seat worked the WHOLE checklist independently; nothing was divided between seats.
+
+Two lanes were probed and rejected before launch (clinepass hung past 150s; groq answered a 4-word
+prompt with HTTP 413), so the seats that ran are the ones whose keys resolved live.
+
+Merge-integrity notes: (a) seat-6's JSON manifest arrived with one mechanical typo
+(`"expected">"":` instead of `"expected":`), repaired by the merge seat before parsing and recorded
+here rather than silently dropped; (b) seat-1 observed HEAD `2c51cee` and flagged that the repo had
+advanced past the brief's stated baseline, which is correct — the brief pinned 1685ab7.
 
 | seat | lane | output |
 |---|---|---|
 | seat-1 | gpt-5.6-sol@openai-codex | 76590 B, detector line present |
 | seat-4 | deepseek-v4.1-flash@synthetic | 94286 B, detector line present |
+| seat-6 | qwen3.7-max@opencode-go | 55333 B, detector line present |
 | seat-7 | glm-5.3-flash@zai-glm-default | 50877 B, detector line present |
 | seat-8 | kimi-k3@neuralwatt | 60710 B, detector line present |
 
@@ -17,10 +25,10 @@ Merge seat: hermes (this document). The merge **invents nothing** — every test
 was allowed into this document (see the ledger in §1).
 
 
-Machine-readable manifest: `consensus-test-manifest-v1.json` — **223 canonical tests** (from 225 seat entries), `proposed_by` attribution per test, `converged: true` where 2+ independent seats proposed it.
+Machine-readable manifest: `consensus-test-manifest-v1.json` — **284 canonical tests** (from 225 seat entries), `proposed_by` attribution per test, `converged: true` where 2+ independent seats proposed it.
 
 
-Test counts per tier: **T0**: 20, **T1**: 27, **T2**: 24, **T3**: 19, **T4**: 22, **T5**: 14, **T6**: 17, **T7**: 20, **T8**: 19, **T9**: 15, **T10**: 15, **GATE**: 3, **S1**: 2, **S4**: 3
+Test counts per tier: **T0**: 25, **T1**: 34, **T2**: 30, **T3**: 22, **T4**: 28, **T5**: 17, **T6**: 23, **T7**: 29, **T8**: 25, **T9**: 18, **T10**: 19, **GATE**: 3, **S1**: 2, **S4**: 4
 
 
 ---
@@ -83,213 +91,214 @@ DB choice: run BOTH shapes at least once — the shipped `sqlite://` config (poo
 ## 4. S2 — Tiers (index; per-test detail + commands live in the manifest)
 
 
-### T0 — Build / unit — compile, vet, env-clean full Go suite.  (20 tests)
+### T0 — Build / unit — compile, vet, env-clean full Go suite.  (25 tests)
 | id | title | proposed by |
 |---|---|---|
 | C-002 | Build all Go packages | gpt-5.6-sol |
-| C-171 | Env-clean short suite | kimi-k3 |
+| C-233 | Env-clean short suite | kimi-k3 |
 | C-004 | Environment-clean fresh tests | gpt-5.6-sol |
-| C-126 | Fresh build, no stale root binary | glm-5.3-flash |
-| C-170 | Full build | kimi-k3 |
-| C-174 | Guard + fmt drift | kimi-k3 |
+| C-126 | Fresh build removes stale root binary | qwen3.7-max |
+| C-189 | Fresh build, no stale root binary | glm-5.3-flash |
+| C-232 | Full build | kimi-k3 |
+| C-129 | Full suite | qwen3.7-max |
+| C-236 | Guard + fmt drift | kimi-k3 |
 | C-005 | Keyless mock smoke | gpt-5.6-sol |
-| C-129 | Pool fix commit in tree | glm-5.3-flash |
-| C-125 | Record commit identity under test | glm-5.3-flash |
-| C-001 | Source and binary provenance | gpt-5.6-sol |
-| C-172 | TVF probe (generate_series) | kimi-k3 |
-| C-173 | Tool registry handler tests | kimi-k3 |
-| C-003 | Vet all Go packages | gpt-5.6-sol |
-| C-063 | env-clean keyless short suite | deepseek-v4.1-flash |
-| … | *6 more in the manifest* | |
+| C-128 | Keyless short suite | qwen3.7-max |
+| C-130 | Keyless smoke | qwen3.7-max |
+| C-191 | Pool fix commit in tree | glm-5.3-flash |
+| C-125 | Provenance: dirty-tree abort | qwen3.7-max |
+| C-188 | Record commit identity under test | glm-5.3-flash |
+| … | *11 more in the manifest* | |
 
-### T1 — HTTP API contract — every path in specs/openapi/bundled.yaml (60 path objects), auth negatives, error shapes.  (27 tests)
+### T1 — HTTP API contract — every path in specs/openapi/bundled.yaml (60 path objects), auth negatives, error shapes.  (34 tests)
 | id | title | proposed by |
 |---|---|---|
 | C-013 | API lifecycle and revocation | gpt-5.6-sol |
 | C-011 | Admin-key acceptance | gpt-5.6-sol |
-| C-177 | Auth ladder | kimi-k3 |
-| C-132 | Auth ladder on all authenticated paths | glm-5.3-flash |
-| C-181 | DF-2 probe: documented-only fields | kimi-k3 |
-| C-133 | Error body shape on 4xx | glm-5.3-flash |
-| C-179 | Error shape consistency | kimi-k3 |
-| C-131 | Every REST path exercised with expected status | glm-5.3-flash |
+| C-239 | Auth ladder | kimi-k3 |
+| C-194 | Auth ladder on all authenticated paths | glm-5.3-flash |
+| C-133 | Auth negatives | qwen3.7-max |
+| C-243 | DF-2 probe: documented-only fields | kimi-k3 |
+| C-195 | Error body shape on 4xx | glm-5.3-flash |
+| C-241 | Error shape consistency | kimi-k3 |
+| C-135 | Error shapes | qwen3.7-max |
+| C-193 | Every REST path exercised with expected status | glm-5.3-flash |
+| C-132 | Every bundled.yaml path exercised | qwen3.7-max |
 | C-008 | Every declared operation exercised | gpt-5.6-sol |
 | C-010 | Fake-key rejection | gpt-5.6-sol |
-| C-178 | Full 60-path sweep | kimi-k3 |
-| C-012 | Invalid UUID error contract | gpt-5.6-sol |
-| C-007 | OpenAPI operation census is nonempty | gpt-5.6-sol |
-| C-130 | OpenAPI path census = 60 | glm-5.3-flash |
-| … | *13 more in the manifest* | |
+| C-240 | Full 60-path sweep | kimi-k3 |
+| … | *20 more in the manifest* | |
 
-### T2 — Live-LLM agent loop INCLUDING MULTI-TURN (the DF-CONSENSUS-15 path) with token + billing assertions.  (24 tests)
+### T2 — Live-LLM agent loop INCLUDING MULTI-TURN (the DF-CONSENSUS-15 path) with token + billing assertions.  (30 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-183 | Baseline round trip | kimi-k3 |
-| C-140 | Billing row model stamp matches served model | glm-5.3-flash |
-| C-186 | Billing sanity band | kimi-k3 |
-| C-187 | DF-14 model override probe | kimi-k3 |
-| C-184 | DF-15 multi-call planning | kimi-k3 |
+| C-245 | Baseline round trip | kimi-k3 |
+| C-202 | Billing row model stamp matches served model | glm-5.3-flash |
+| C-248 | Billing sanity band | kimi-k3 |
+| C-249 | DF-14 model override probe | kimi-k3 |
+| C-246 | DF-15 multi-call planning | kimi-k3 |
 | C-080 | ENV-ONLY path (no consensus.yaml in cwd) | deepseek-v4.1-flash |
-| C-139 | Env-only model override regression (DF-14) | glm-5.3-flash |
+| C-142 | Env-only configuration round trip | qwen3.7-max |
+| C-201 | Env-only model override regression (DF-14) | glm-5.3-flash |
 | C-019 | Environment-only LLM configuration | gpt-5.6-sol |
 | C-014 | Exact live-key preflight | gpt-5.6-sol |
-| C-135 | Live LLM key validated pre-run | glm-5.3-flash |
+| C-197 | Live LLM key validated pre-run | glm-5.3-flash |
 | C-018 | Live multi-call database question | gpt-5.6-sol |
+| C-138 | Live-key pre-probe | qwen3.7-max |
 | C-077 | MULTI-TURN: user turn survives the 2nd LLM call in the same iteration | deepseek-v4.1-flash |
-| C-185 | Multi-iteration user-turn visibility | kimi-k3 |
-| C-137 | Multi-turn cell A: next-iteration continuity | glm-5.3-flash |
-| … | *10 more in the manifest* | |
+| … | *16 more in the manifest* | |
 
-### T3 — Tool calls end to end: registry -> execute -> result -> AGENT-VISIBLE -> the agent actually uses it.  (19 tests)
+### T3 — Tool calls end to end: registry -> execute -> result -> AGENT-VISIBLE -> the agent actually uses it.  (22 tests)
 | id | title | proposed by |
 |---|---|---|
 | C-082 | API-level tool execute (documented path) | deepseek-v4.1-flash |
-| C-144 | Agent USES the tool end-to-end (DF-15 dependent) | glm-5.3-flash |
+| C-206 | Agent USES the tool end-to-end (DF-15 dependent) | glm-5.3-flash |
 | C-022 | Agent requests tool | gpt-5.6-sol |
-| C-190 | Agent uses tool end-to-end | kimi-k3 |
+| C-251 | Agent uses tool end-to-end | kimi-k3 |
 | C-024 | Agent uses tool result | gpt-5.6-sol |
+| C-146 | Agent-driven tool use end to end | qwen3.7-max |
 | C-021 | Direct deterministic query-tool execution | gpt-5.6-sol |
-| C-189 | Direct tool execute | kimi-k3 |
-| C-142 | Direct tool execute returns real DB count | glm-5.3-flash |
-| C-188 | Registry non-empty | kimi-k3 |
-| C-191 | Tool error path | kimi-k3 |
+| C-145 | Direct tool execute | kimi-k3,qwen3.7-max |
+| C-204 | Direct tool execute returns real DB count | glm-5.3-flash |
+| C-250 | Registry non-empty | kimi-k3 |
+| C-252 | Tool error path | kimi-k3 |
 | C-020 | Tool registry discovery | gpt-5.6-sol |
-| C-141 | Tool registry register + list | glm-5.3-flash |
-| C-023 | Tool result reinjected into agent context | gpt-5.6-sol |
-| C-143 | Tool sandbox negatives rejected | glm-5.3-flash |
-| … | *5 more in the manifest* | |
-
-### T4 — Sessions / ledger / billing integrity (append-only memory_events, tokens_used_in/out, agent_billing rows).  (22 tests)
-| id | title | proposed by |
-|---|---|---|
-| C-026 | Append-only enforcement | gpt-5.6-sol |
-| C-193 | Append-only ledger triggers | kimi-k3 |
-| C-145 | Append-only triggers enforce the ledger | glm-5.3-flash |
-| C-029 | Atomic rollback | gpt-5.6-sol |
-| C-198 | Billing 1:1 with LLM calls | kimi-k3 |
-| C-196 | Cost sanity + money cap | kimi-k3 |
-| C-148 | Cost sanity vs sticker price | glm-5.3-flash |
-| C-197 | DB session isolation | kimi-k3 |
-| C-149 | Session isolation at DB layer (C5) | glm-5.3-flash |
-| C-028 | Session-key isolation | gpt-5.6-sol |
-| C-027 | Token and billing reconciliation | gpt-5.6-sol |
-| C-147 | Token reconciliation billing<->sessions | glm-5.3-flash |
-| C-194 | Token sums equality | kimi-k3 |
-| C-195 | Typed events census | kimi-k3 |
+| C-144 | Tool registry non-empty with typed schemas | qwen3.7-max |
+| C-203 | Tool registry register + list | glm-5.3-flash |
 | … | *8 more in the manifest* | |
 
-### T5 — MCP surface — /mcp/message plus the discoverability requirement in MCP-DIRECT-001.  (14 tests)
+### T4 — Sessions / ledger / billing integrity (append-only memory_events, tokens_used_in/out, agent_billing rows).  (28 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-202 | External MCP attach (2 clients) | kimi-k3 |
+| C-026 | Append-only enforcement | gpt-5.6-sol,qwen3.7-max |
+| C-254 | Append-only ledger triggers | kimi-k3 |
+| C-207 | Append-only triggers enforce the ledger | glm-5.3-flash |
+| C-029 | Atomic rollback | gpt-5.6-sol |
+| C-153 | Audit trail exists | qwen3.7-max |
+| C-259 | Billing 1:1 with LLM calls | kimi-k3 |
+| C-152 | Compression cosine gate | qwen3.7-max |
+| C-150 | Cost recompute vs registry | qwen3.7-max |
+| C-257 | Cost sanity + money cap | kimi-k3 |
+| C-210 | Cost sanity vs sticker price | glm-5.3-flash |
+| C-258 | DB session isolation | kimi-k3 |
+| C-151 | Session isolation | qwen3.7-max |
+| C-211 | Session isolation at DB layer (C5) | glm-5.3-flash |
+| C-028 | Session-key isolation | gpt-5.6-sol |
+| … | *14 more in the manifest* | |
+
+### T5 — MCP surface — /mcp/message plus the discoverability requirement in MCP-DIRECT-001.  (17 tests)
+| id | title | proposed by |
+|---|---|---|
+| C-263 | External MCP attach (2 clients) | kimi-k3 |
 | C-094 | MCP auth enforced on non-initialize methods | deepseek-v4.1-flash |
-| C-201 | MCP auth ladder | kimi-k3 |
+| C-262 | MCP auth ladder | kimi-k3 |
+| C-155 | MCP auth negative | qwen3.7-max |
 | C-032 | MCP authentication negatives | gpt-5.6-sol |
-| C-200 | MCP handshake + tools | kimi-k3 |
+| C-156 | MCP discoverability | qwen3.7-max |
+| C-261 | MCP handshake + tools | kimi-k3 |
 | C-030 | MCP initialize | gpt-5.6-sol |
+| C-154 | MCP initialize + tools/list | qwen3.7-max |
 | C-092 | MCP initialize over /mcp/message | deepseek-v4.1-flash,glm-5.3-flash |
-| C-199 | MCP route truth | kimi-k3 |
-| C-150 | MCP tools/list + tools/call real execution | glm-5.3-flash |
+| C-260 | MCP route truth | kimi-k3 |
+| C-212 | MCP tools/list + tools/call real execution | glm-5.3-flash |
 | C-093 | MCP tools/list with auth, count and uniqueness | deepseek-v4.1-flash |
 | C-031 | MCP typed tool discovery | gpt-5.6-sol |
-| C-151 | MCP unknown method shaped error | glm-5.3-flash |
-| C-095 | MCP unknown tool returns a JSON-RPC error | deepseek-v4.1-flash |
-| C-033 | MCP-only session lifecycle | gpt-5.6-sol |
+| … | *3 more in the manifest* | |
 
-### T6 — OpenCode / shim compatibility — including the LITERAL pinned upstream TypeScript suite and a real-TUI case.  (17 tests)
+### T6 — OpenCode / shim compatibility — including the LITERAL pinned upstream TypeScript suite and a real-TUI case.  (23 tests)
 | id | title | proposed by |
 |---|---|---|
 | C-034 | Go OpenCode compatibility port | gpt-5.6-sol |
-| C-203 | Go port suite count | kimi-k3 |
-| C-152 | Go-port chronicle suite baseline | glm-5.3-flash |
+| C-160 | Go port suite (secondary signal) | qwen3.7-max |
+| C-264 | Go port suite count | kimi-k3 |
+| C-214 | Go-port chronicle suite baseline | glm-5.3-flash |
 | C-100 | Go-port suite retained for the record, excluded from the gate | deepseek-v4.1-flash |
-| C-154 | LITERAL upstream TS suites vs live shim (first-ever run) | glm-5.3-flash |
-| C-204 | Literal upstream TS suite vs live shim | kimi-k3 |
+| C-159 | LITERAL upstream TS suites vs live shim | qwen3.7-max |
+| C-216 | LITERAL upstream TS suites vs live shim (first-ever run) | glm-5.3-flash |
+| C-265 | Literal upstream TS suite vs live shim | kimi-k3 |
 | C-035 | Pinned literal upstream suites | gpt-5.6-sol |
 | C-037 | Real OpenCode TUI attach and chat | gpt-5.6-sol |
-| C-205 | Real TUI smoke | kimi-k3 |
-| C-155 | Real-TUI / CLI proof | glm-5.3-flash |
-| C-153 | Runner adapter self-test (gate only) | glm-5.3-flash |
-| C-038 | Shim SSE event mapping | gpt-5.6-sol |
-| C-036 | Upstream source and lock integrity | gpt-5.6-sol |
-| C-098 | literal upstream TS suites against the live shim | deepseek-v4.1-flash |
-| … | *3 more in the manifest* | |
+| C-266 | Real TUI smoke | kimi-k3 |
+| C-161 | Real TUI/CLI probe | qwen3.7-max |
+| C-217 | Real-TUI / CLI proof | glm-5.3-flash |
+| C-215 | Runner adapter self-test (gate only) | glm-5.3-flash |
+| … | *9 more in the manifest* | |
 
-### T7 — CRIER message transport — consensus RECEIVES a message through crier and it becomes an agent-visible turn.  (20 tests)
+### T7 — CRIER message transport — consensus RECEIVES a message through crier and it becomes an agent-visible turn.  (29 tests)
 | id | title | proposed by |
 |---|---|---|
+| C-169 | Ack drains inbox | qwen3.7-max |
 | C-044 | Ack, restart and idempotent redelivery | gpt-5.6-sol |
+| C-168 | Agent answers crier-delivered question | qwen3.7-max |
 | C-039 | Consensus Crier wiring exists | gpt-5.6-sol |
-| C-206 | Crier control round trip | kimi-k3 |
+| C-267 | Crier control round trip | kimi-k3 |
 | C-042 | Crier message becomes Consensus user input | gpt-5.6-sol |
-| C-208 | Crier message becomes agent-visible input | kimi-k3 |
+| C-269 | Crier message becomes agent-visible input | kimi-k3 |
+| C-164 | Crier server up | qwen3.7-max |
+| C-163 | Crier wiring pre-check | qwen3.7-max |
+| C-166 | Deliver to inbox | qwen3.7-max |
 | C-043 | Different-agent message isolation | gpt-5.6-sol |
-| C-209 | Lease crash safety | kimi-k3 |
-| C-041 | Register Consensus Crier identity | gpt-5.6-sol |
-| C-210 | Signature negatives | kimi-k3 |
-| C-040 | Standalone signed Crier inbox lifecycle | gpt-5.6-sol |
-| C-207 | Wiring existence census | kimi-k3 |
-| C-107 | ack drains the queue | deepseek-v4.1-flash |
-| C-108 | consensus-side crier intake (XFAIL, build gate) | deepseek-v4.1-flash |
-| C-101 | crier builds and serves | deepseek-v4.1-flash |
-| … | *6 more in the manifest* | |
+| C-270 | Lease crash safety | kimi-k3 |
+| C-167 | Message becomes agent-visible user turn | qwen3.7-max |
+| C-170 | Negative: other agent's message not consumed | qwen3.7-max |
+| … | *15 more in the manifest* | |
 
-### T8 — Resilience — dead-key circuit breaker, sqlite pool pressure under polling + held-open SSE, restart/recovery, crash demo.  (19 tests)
+### T8 — Resilience — dead-key circuit breaker, sqlite pool pressure under polling + held-open SSE, restart/recovery, crash demo.  (25 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-211 | Circuit breaker on verified-dead key | kimi-k3 |
+| C-172 | Circuit breaker on dead key | qwen3.7-max |
+| C-272 | Circuit breaker on verified-dead key | kimi-k3 |
 | C-048 | Clean process restart durability | gpt-5.6-sol |
 | C-050 | Corrupt-copy refusal | gpt-5.6-sol |
-| C-214 | Corrupted DB boot | kimi-k3 |
+| C-275 | Corrupted DB boot | kimi-k3 |
 | C-049 | Crash demo | gpt-5.6-sol |
-| C-213 | Crash demo (keyed E2E) | kimi-k3 |
-| C-161 | Crash recovery: kill -9 mid-flight (C4) | glm-5.3-flash |
+| C-176 | Crash demo (README claim) | qwen3.7-max |
+| C-274 | Crash demo (keyed E2E) | kimi-k3 |
+| C-223 | Crash recovery: kill -9 mid-flight (C4) | glm-5.3-flash |
 | C-045 | Dead-key circuit breaker | gpt-5.6-sol |
-| C-159 | Dead-key circuit breaker (C6) | glm-5.3-flash |
+| C-221 | Dead-key circuit breaker (C6) | glm-5.3-flash |
 | C-047 | Environment-only pool default | gpt-5.6-sol |
 | C-046 | Held SSE plus polling pressure | gpt-5.6-sol |
-| C-162 | Keyless crash demo reproduces (C14) | glm-5.3-flash |
-| C-212 | Pool pressure regression | kimi-k3 |
-| C-113 | SIGTERM restart preserves committed ledger | deepseek-v4.1-flash |
-| … | *5 more in the manifest* | |
+| C-224 | Keyless crash demo reproduces (C14) | glm-5.3-flash |
+| … | *11 more in the manifest* | |
 
-### T9 — Bounded load / concurrency (host load gate respected; never an unbounded burn loop).  (15 tests)
+### T9 — Bounded load / concurrency (host load gate respected; never an unbounded burn loop).  (18 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-216 | 8 concurrent sessions | kimi-k3 |
-| C-164 | Bounded 4-session concurrency cell | glm-5.3-flash |
+| C-277 | 8 concurrent sessions | kimi-k3 |
+| C-226 | Bounded 4-session concurrency cell | glm-5.3-flash |
+| C-179 | Bounded concurrency cell | qwen3.7-max |
 | C-052 | Bounded four-worker load | gpt-5.6-sol |
-| C-217 | Concurrent billing join | kimi-k3 |
+| C-278 | Concurrent billing join | kimi-k3 |
 | C-053 | Concurrent session isolation | gpt-5.6-sol |
 | C-051 | Host load gate | gpt-5.6-sol |
-| C-215 | Load gate | kimi-k3 |
-| C-163 | Load-gate pre-flight | glm-5.3-flash |
+| C-276 | Load gate | kimi-k3 |
+| C-178 | Load gate preflight | qwen3.7-max |
+| C-225 | Load-gate pre-flight | glm-5.3-flash |
 | C-054 | Post-load health and cleanup | gpt-5.6-sol |
-| C-218 | Postgres spot check (optional) | kimi-k3 |
-| C-165 | Scratch-dir leak census (QA-CONSENSUS-6 regression) | glm-5.3-flash |
-| C-116 | bounded concurrency: exactly 200 sessions over 8 workers | deepseek-v4.1-flash |
-| C-118 | host load bounded; no SQLITE_BUSY | deepseek-v4.1-flash |
-| C-115 | load gate respected before the cell | deepseek-v4.1-flash |
-| … | *1 more in the manifest* | |
+| C-180 | Post-run process hygiene | qwen3.7-max |
+| C-279 | Postgres spot check (optional) | kimi-k3 |
+| C-227 | Scratch-dir leak census (QA-CONSENSUS-6 regression) | glm-5.3-flash |
+| … | *4 more in the manifest* | |
 
-### T10 — End-to-end "baby project" — fresh fake project + goal driven through sessions/tasks/tools, verified on disk.  (15 tests)
+### T10 — End-to-end "baby project" — fresh fake project + goal driven through sessions/tasks/tools, verified on disk.  (19 tests)
 | id | title | proposed by |
 |---|---|---|
 | C-057 | Agent file and command tools | gpt-5.6-sol |
-| C-167 | Baby project billing closure | glm-5.3-flash |
-| C-219 | Baby project setup | kimi-k3 |
+| C-183 | Artifact verified on disk | qwen3.7-max |
+| C-229 | Baby project billing closure | glm-5.3-flash |
+| C-181 | Baby project fixture | qwen3.7-max |
+| C-280 | Baby project setup | kimi-k3 |
 | C-060 | Baby project survives Consensus restart | gpt-5.6-sol |
 | C-058 | Baby project verified on disk | gpt-5.6-sol |
-| C-166 | Baby project: goal -> disk artifact | glm-5.3-flash |
-| C-221 | Disk verification | kimi-k3 |
+| C-228 | Baby project: goal -> disk artifact | glm-5.3-flash |
+| C-282 | Disk verification | kimi-k3 |
 | C-059 | Disk-to-ledger fidelity | gpt-5.6-sol |
+| C-182 | Drive goal via sessions/tasks API | qwen3.7-max |
 | C-055 | Fresh baby-project precondition | gpt-5.6-sol |
 | C-056 | Goal and task creation | gpt-5.6-sol |
-| C-220 | Goal-driven session | kimi-k3 |
-| C-222 | Independent ground truth | kimi-k3 |
-| C-120 | baby project: agent used a tool and produced numbers | deepseek-v4.1-flash |
-| C-119 | baby project: goal -> tasks created | deepseek-v4.1-flash |
-| … | *1 more in the manifest* | |
+| C-281 | Goal-driven session | kimi-k3 |
+| … | *5 more in the manifest* | |
 
 ### GATE — Defect gate and false-green guards (run-blocking).  (3 tests)
 | id | title | proposed by |
@@ -301,15 +310,16 @@ DB choice: run BOTH shapes at least once — the shipped `sqlite://` config (poo
 ### S1 — Bunker topology / provisioning assertions.  (2 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-176 | Bunker provision | kimi-k3 |
-| C-175 | Key health probe | kimi-k3 |
+| C-238 | Bunker provision | kimi-k3 |
+| C-237 | Key health probe | kimi-k3 |
 
-### S4 — Evidence + reporting contract assertions.  (3 tests)
+### S4 — Evidence + reporting contract assertions.  (4 tests)
 | id | title | proposed by |
 |---|---|---|
-| C-168 | Evidence tree assembled + third-party rederivation | glm-5.3-flash |
-| C-223 | HTML report + re-derivation | kimi-k3 |
-| C-169 | Secret hygiene on artifacts | glm-5.3-flash |
+| C-186 | Evidence bundle completeness | qwen3.7-max |
+| C-230 | Evidence tree assembled + third-party rederivation | glm-5.3-flash |
+| C-284 | HTML report + re-derivation | kimi-k3 |
+| C-231 | Secret hygiene on artifacts | glm-5.3-flash |
 
 ---
 
@@ -404,6 +414,22 @@ session_id: 20260924_034404_5a2c41
 PLAN REVIEW COMPLETE
 
 session_id: 20260924_034404_ebe67c
+
+### from qwen3.7-max@opencode-go
+1. **Dead-key misdiagnosis (ENV-CONSENSUS-1, 6 of 11 keys dead)** — the single most likely false-red. Countermeasure: T2-00 key probe gate; abort naming last-4.
+2. **DF-CONSENSUS-15 still open at run time** — every agent-driven tool test would fail. Countermeasure: pinned XFAILs with the board id; gate blocks GREEN.
+3. **T6 upstream suite cannot run on the bunker (no node/pnpm/egress)** — the highest-risk phantom-wiring recurrence. Countermeasure: S6 unknown #2 resolved BEFORE the run; if unresolvable, T6 is reported PARTIAL, never green.
+4. **T7 crier intake not implemented** — tier is phantom by construction today. Countermeasure: T7-00 grep gate; BLOCKED is a visible outcome with CR-IN-001.
+5. **SQLite pool wedge regression under the T8 load shape** — flaky reds on a tier that also tests recovery. Countermeasure: bounded 5-min cell, one retry, log-preserved evidence; regression of ad8afd8 is a real finding, not noise.
+6. **Stale binary / wrong checkout on the bunker** — Countermeasure: make fresh, --version + HEAD in provenance, report refuses mismatch.
+7. **Port-shadowed serve (stale sidecar)** — Countermeasure: ss preflight + health-body + version match.
+8. **Billing numbers unreconcilable** — cost_usd 0.009775 doesn't match sticker math (see contradictions). Countermeasure: re-derive from the registry's own price table; treat unexplained variance as a finding with both numbers, not a pass/fail guess.
+9. **Upstream runner fetch drift** (pinned rev vs cache poisoning) — Countermeasure: cache dir per run-date; verify checkout rev inside the runner evidence summary.
+10. **Bunker host instability mid-run** (known port-pool exhaustion class, QA-CONSENSUS-3/4) — Countermeasure: every tier writes incremental artifacts; the report names any tier that never completed rather than inferring from absence.
+
+PLAN REVIEW COMPLETE
+
+session_id: 20260924_034559_9abe8a
 
 ### from glm-5.3-flash@zai-glm-default
 1. **DF-CONSENSUS-15 stays open → T2-04/T3-04/T10-01 all xfail** and the headline agent capability (tools) is unproven. Countermeasure: fix DF-15 BEFORE the run (iteration-scoped hide in planning.go/context.go); it is the single highest-leverage pre-run fix.
@@ -515,6 +541,14 @@ So pre-run fact 1 is *internally* reproducible but proves **the billing table, n
 
 **C-5 — The API surface is drifted in BOTH directions.**
 `specs/openapi/bundled.yaml` declares exactly 60 paths. `internal/api/server.go` registers native routes that are **not** in that set — `server.go:121 GET /api/v1/events` (SSE), `server.go:172-174 POST /api/v1/quarantine`, `/api/v1/quarantine/{qID}/approve|reject`, plus `PATCH`/`DEL
+
+### qwen3.7-max@opencode-go
+1. **Fact 8 numbers contradict the board's corrected census.** The brief says "5 of the 11 `sk-` keys are DEAD". The board row ENV-CONSENSUS-1's second (corrected) occurrence says the measured split is **5 LIVE / 6 DEAD** (live last-4: efc1, ff13, f591, d746, 3c4c; dead: 2e8c, 2117, 067c, de32, NSG3, urew). Evidence: `.coding-hermes/board/tasks.jsonl`, ENV-CONSENSUS-1 corrected row. The plan uses the corrected 5-live/6-dead split.
+2. **`make contract-test` cannot pass its own steps — the target is broken at HEAD.** Makefile lines 122 and 126 use `$$CONS..._KEY` inside the curl header. In shell, `$$CONS` expands the undefined variable `CONS` to empty and the literal `..._KEY` remains, so the header sent is `Authorization: Bearer ..._KEY` — the contract test's own authenticated steps [3/5] and [4/5] run with a garbage bearer and report `✗ Expected 200`/`✗ Expected 201/200`. Evidence: /home/kara/consensus/Makefile:122,126. Any plan that uses `make contract-test` as a Tier-1 gate would go red for a runner bug, not a product bug; this plan drives the API directly and files the Makefile bug as a finding.
+3. **T7 (crier intake) has ZERO wiring in the consensus repo today.** `grep -rln crier internal/ cmd/ scripts/` in /home/kara/consensus returns nothing. CR-IN-001 (`pending`, P2) is the commissioning row; the literal TS-suite fact and the crier fact are both confirmed, but any plan that presents T7 as runnable against current HEAD is planning phantom wiring. This plan pins T7 as defect-gated: it runs only after CR-IN-001 lands, with a hard pre-check that the wiring exists.
+4. **MCP discoverability is a known stub, not a claim the API makes.** Board MCP-DIRECT-001 (measured 2026-09-24): `/mcp` is a 501 stub, `/api/v1/mcp` 404s, only `POST /mcp/message` works, documented solely in docs/INTEGRATION.md. Tier T5 tests `/mcp/message` only, and pins discoverability as an expected failure with id MCP-DIRECT-001.
+5. **Billing spot-check cannot be reconciled from public sticker prices offline.** Fact 1: 1682 in / 91 out → cost_usd 0.009775 for deepseek-flash. DeepSeek flash sticker (0.15/0.60 per M, even ×2 peak) gives ≈0.0003-0.0006. This plan does NOT hardcode an expected dollar figure; T4-04 re-derives cost from the registry's own price table and flags >10% unexplained variance instead of trusting either number.
+6. No other repo claim was falsifiable from this seat. The DF-CONSENSUS-15 mechanism is CONFIRMED exactly as briefed: `internal/harness/planning.go:272` calls `markUserMessagesRead`, which at `planning.go:755-761` inserts `display_modes (mode='hidden', set_by_iteration=$2)`, and `internal/harness/context.go:583-585` filters `COALESCE(dm.mode,'full') != 'hidden'` with no iteration scoping — so the second LLM call in the same iteration loses the user turn.
 
 ### glm-5.3-flash@zai-glm-default
 1. **"upstream sst/opencode TypeScript suite" — the pinned runner does not target sst/opencode.** `scripts/test-opencode-upstream.sh:23-24` pins `REPOSITORY=https://github.com/anomalyco/opencode.git`, `REVISION=16747470f976aca3d362ad730bcd3fe82ecc2c9a`, `VERSION=1.18.29`. Either the brief's "sst/opencode" label is wrong or the pin is. Evidence: file cited above. Impact: T6 tests the pinned anomalyco suites; the plan records the pin, not the brand.
