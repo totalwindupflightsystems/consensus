@@ -246,8 +246,9 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		default:
 		}
 
-		// Load staging buffer from database for this turn's context
-		buffer, err := h.loadStagingBuffer(ctx, sessionID)
+		// Load staging buffer through the open transaction so this turn can see
+		// staged commands and failures written by prior turns before commit.
+		buffer, err := h.loadStagingBufferWith(ctx, tx, sessionID)
 		if err != nil {
 			return h.handlePlanningError(ctx, tx, sessionID, err)
 		}
@@ -342,8 +343,13 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 					// Execute within the open transaction
 					result, execErr := h.executeStagedEntry(ctx, tx, entry, ic.Iteration)
 					if execErr != nil {
-						// Don't fail the whole session — mark entry as failed, let agent decide
-						h.updateStagingStatus(ctx, tx, entry.ID, BufferFailed, &json.RawMessage{})
+						// Don't fail the whole session — persist the failure so the agent can recover next turn.
+						failureResult, _ := json.Marshal(map[string]string{
+							"status": string(BufferFailed),
+							"error":  execErr.Error(),
+						})
+						failureRaw := json.RawMessage(failureResult)
+						h.updateStagingStatus(ctx, tx, entry.ID, BufferFailed, &failureRaw)
 						slog.Warn("planning: staged command failed", "turn", turn, "cmd_type", cmd.CmdType, "error", execErr)
 
 						// If the error breaks the transaction, rollback and fail
@@ -496,12 +502,18 @@ func (h *Harness) insertStagingEntry(ctx context.Context, tx db.Tx, sessionID st
 		payloadJSON, _ = json.Marshal(entry.Payload)
 	}
 
-	return tx.Exec(ctx, `
+	row, err := tx.QueryRow(ctx, `
 		INSERT INTO staging_buffer
 			(session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
 		VALUES ($1, 0, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+		RETURNING id
 	`, sessionID, entry.Turn, entry.Seq, string(entry.CmdType),
 		string(payloadJSON), entry.Description, string(entry.Status))
+	if err != nil {
+		return err
+	}
+	entry.ID = toInt64(row["id"])
+	return nil
 }
 
 // insertStagingEntryDurable persists a staging entry outside the planning
@@ -522,10 +534,14 @@ func (h *Harness) insertStagingEntryDurable(ctx context.Context, sessionID strin
 }
 
 func (h *Harness) updateStagingStatus(ctx context.Context, tx db.Tx, entryID int64, status BufferStatus, result *json.RawMessage) error {
+	var resultJSON any
+	if result != nil {
+		resultJSON = string(*result)
+	}
 	return tx.Exec(ctx, `
-		UPDATE staging_buffer SET status = $1, executed = $2, executed_at = CURRENT_TIMESTAMP
+		UPDATE staging_buffer SET status = $1, executed = $2, executed_at = CURRENT_TIMESTAMP, result = $4
 		WHERE id = $3
-	`, string(status), status == BufferExecuted, entryID)
+	`, string(status), status == BufferExecuted, entryID, resultJSON)
 }
 
 func (h *Harness) updateStagingResult(ctx context.Context, tx db.Tx, entryID int64, result *json.RawMessage) error {
@@ -583,12 +599,22 @@ func (h *Harness) executeStagedEntry(ctx context.Context, tx db.Tx, entry *Stagi
 	}
 }
 
-// loadStagingBuffer reads all staging entries for this session from the database.
+type stagingBufferQuerier interface {
+	Query(ctx context.Context, query string, args ...any) ([]db.Row, error)
+}
+
+// loadStagingBuffer reads committed staging entries for callers outside the
+// planning transaction.
 func (h *Harness) loadStagingBuffer(ctx context.Context, sessionID string) (*StagingBuffer, error) {
-	rows, err := h.db.Query(ctx, `
+	return h.loadStagingBufferWith(ctx, h.db, sessionID)
+}
+
+// loadStagingBufferWith reads through the supplied database or transaction.
+func (h *Harness) loadStagingBufferWith(ctx context.Context, queryer stagingBufferQuerier, sessionID string) (*StagingBuffer, error) {
+	rows, err := queryer.Query(ctx, `
 		SELECT id, session_id, turn, seq, cmd_type, payload, description, executed, result, status, created_at
 		FROM staging_buffer
-		WHERE session_id = $1 AND status IN ('staged', 'executed')
+		WHERE session_id = $1 AND status IN ('staged', 'executed', 'failed')
 		ORDER BY turn, seq
 	`, sessionID)
 	if err != nil {
