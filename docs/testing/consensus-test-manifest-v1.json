@@ -1,0 +1,3386 @@
+{
+ "provenance": {
+  "round": "quorum-consensus-test-plan-v1",
+  "date": "2026-09-24",
+  "seats_landed": {
+   "seat-1": "gpt-5.6-sol@openai-codex",
+   "seat-4": "deepseek-v4.1-flash@synthetic",
+   "seat-7": "glm-5.3-flash@zai-glm-default",
+   "seat-8": "kimi-k3@neuralwatt",
+   "seat-6": "qwen3.7-max@opencode-go"
+  },
+  "coordinator": "hermes (merge seat)"
+ },
+ "counts": {
+  "canonical": 223,
+  "converged": 2,
+  "by_tier": {
+   "T0": 20,
+   "T1": 27,
+   "T2": 24,
+   "T3": 19,
+   "T4": 22,
+   "T5": 14,
+   "T6": 17,
+   "T7": 20,
+   "T8": 19,
+   "T9": 15,
+   "T10": 15,
+   "GATE": 3,
+   "T7a": 2,
+   "T7b": 1,
+   "S4": 3,
+   "S1": 2
+  }
+ },
+ "tests": [
+  {
+   "id": "C-001",
+   "tier": "T0",
+   "title": "Source and binary provenance",
+   "command": "test \"$(git rev-parse HEAD)\" = \"$TARGET_SHA\" && test -z \"$(git status --porcelain)\" && ./bin/consensus --version | tee \"$RUN_ROOT/t0/version.txt\"",
+   "expected": "Exact reviewed SHA, clean tree, non-empty version output",
+   "artifact": "t0/version.txt",
+   "pass_criteria": "Exit 0 and recorded SHA equals TARGET_SHA",
+   "falsifier": "Checkout a different commit; command must fail",
+   "defect_gate": "TEST-CONSENSUS-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-002",
+   "tier": "T0",
+   "title": "Build all Go packages",
+   "command": "go build ./... 2>&1 | tee \"$RUN_ROOT/t0/go-build.log\"",
+   "expected": "Exit 0",
+   "artifact": "t0/go-build.log",
+   "pass_criteria": "No compile error",
+   "falsifier": "Introduce an invalid identifier in a copied control tree; build must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-003",
+   "tier": "T0",
+   "title": "Vet all Go packages",
+   "command": "go vet ./... 2>&1 | tee \"$RUN_ROOT/t0/go-vet.log\"",
+   "expected": "Exit 0",
+   "artifact": "t0/go-vet.log",
+   "pass_criteria": "No vet finding",
+   "falsifier": "Run vet against a known bad fixture and require nonzero",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-004",
+   "tier": "T0",
+   "title": "Environment-clean fresh tests",
+   "command": "env -i HOME=\"$HOME\" PATH=\"$PATH\" TMPDIR=\"$RUN_ROOT/t0/tmp\" CGO_ENABLED=0 go test -count=1 ./... 2>&1 | tee \"$RUN_ROOT/t0/go-test.log\"",
+   "expected": "Exit 0; nonzero package census",
+   "artifact": "t0/go-test.log",
+   "pass_criteria": "Every discovered package completes without cached-only evidence",
+   "falsifier": "Force one package test to fail in a control copy; suite must return nonzero",
+   "defect_gate": "all open product defects surfaced by tests",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-005",
+   "tier": "T0",
+   "title": "Keyless mock smoke",
+   "command": "make smoke 2>&1 | tee \"$RUN_ROOT/t0/smoke.log\"",
+   "expected": "Mock LLM receives at least one call and session reaches idle or completed",
+   "artifact": "t0/smoke.log",
+   "pass_criteria": "Exit 0 and explicit mock call count greater than zero",
+   "falsifier": "Point mock URL to a closed port; smoke must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-006",
+   "tier": "T1",
+   "title": "Served OpenAPI path census",
+   "command": "curl -fsS \"$BASE/openapi.json\" >\"$RUN_ROOT/t1/openapi.live.json\" && jq -e '.paths|length==60' \"$RUN_ROOT/t1/openapi.live.json\"",
+   "expected": "Exactly 60 paths",
+   "artifact": "t1/openapi.live.json",
+   "pass_criteria": "Exit 0 and path count 60",
+   "falsifier": "Use a health-only server; count assertion must fail",
+   "defect_gate": "MUSTER-INT-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-007",
+   "tier": "T1",
+   "title": "OpenAPI operation census is nonempty",
+   "command": "jq -r '.paths|to_entries[] as $p|$p.value|keys[]|select(IN(\"get\",\"post\",\"put\",\"patch\",\"delete\",\"head\",\"options\"))|[$p.key,.]|@tsv' \"$RUN_ROOT/t1/openapi.live.json\" | sort -u >\"$RUN_ROOT/t1/declared-operations.tsv\" && test -s \"$RUN_ROOT/t1/declared-operations.tsv\"",
+   "expected": "Nonempty unique operation ledger",
+   "artifact": "t1/declared-operations.tsv",
+   "pass_criteria": "Exit 0",
+   "falsifier": "Replace paths with an empty object; test must fail",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-008",
+   "tier": "T1",
+   "title": "Every declared operation exercised",
+   "command": "uvx --from 'schemathesis==3.39.16' schemathesis run --base-url \"$BASE\" --header \"Authorization: Bearer $ADMIN_KEY\" --checks all --stateful=links --hypothesis-max-examples=10 --junit-xml \"$RUN_ROOT/t1/schemathesis.xml\" \"$RUN_ROOT/t1/openapi.live.json\" 2>&1 | tee \"$RUN_ROOT/t1/schemathesis.log\"",
+   "expected": "All declared operations attempted; zero unexpected 5xx",
+   "artifact": "t1/schemathesis.xml",
+   "pass_criteria": "Exit 0 and executed-operation set equals declared-operation set",
+   "falsifier": "Remove fixture IDs or point to a closed port; command must fail",
+   "defect_gate": "DF-CONSENSUS-2, DF-CONSENSUS-3",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-009",
+   "tier": "T1",
+   "title": "Unauthenticated protected route rejection",
+   "command": "code=$(curl -sS -o \"$RUN_ROOT/t1/noauth.json\" -w '%{http_code}' \"$BASE/api/v1/sessions\"); test \"$code\" = 401 && jq -e '.error.code|test(\"UNAUTH\")' \"$RUN_ROOT/t1/noauth.json\"",
+   "expected": "401 standard error envelope",
+   "artifact": "t1/noauth.json",
+   "pass_criteria": "HTTP 401 and auth error code",
+   "falsifier": "Make route public; test must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-010",
+   "tier": "T1",
+   "title": "Fake-key rejection",
+   "command": "code=$(curl -sS -o \"$RUN_ROOT/t1/fake-key.json\" -w '%{http_code}' \"$BASE/api/v1/sessions\" -H 'Authorization: Bearer cs_ak_definitely_fake'); test \"$code\" = 401",
+   "expected": "401",
+   "artifact": "t1/fake-key.json",
+   "pass_criteria": "HTTP 401",
+   "falsifier": "Auth middleware accepts arbitrary bearer; test must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-011",
+   "tier": "T1",
+   "title": "Admin-key acceptance",
+   "command": "curl -fsS \"$BASE/api/v1/sessions\" -H \"Authorization: Bearer $ADMIN_KEY\" >\"$RUN_ROOT/t1/admin-sessions.json\" && jq -e 'type==\"array\"' \"$RUN_ROOT/t1/admin-sessions.json\"",
+   "expected": "200 JSON array",
+   "artifact": "t1/admin-sessions.json",
+   "pass_criteria": "Exit 0 and array body",
+   "falsifier": "Use revoked key; request must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-012",
+   "tier": "T1",
+   "title": "Invalid UUID error contract",
+   "command": "code=$(curl -sS -o \"$RUN_ROOT/t1/invalid-uuid.json\" -w '%{http_code}' \"$BASE/api/v1/sessions/00000000-0000-0000-0000-00000000000Z\" -H \"Authorization: Bearer $ADMIN_KEY\"); test \"$code\" = 400 && jq -e '.error.code==\"INVALID_UUID\"' \"$RUN_ROOT/t1/invalid-uuid.json\"",
+   "expected": "400 INVALID_UUID",
+   "artifact": "t1/invalid-uuid.json",
+   "pass_criteria": "Exact status and code",
+   "falsifier": "Return HTML or 404; test must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-013",
+   "tier": "T1",
+   "title": "API lifecycle and revocation",
+   "command": "sh \"$RUN_ROOT/meta/api-lifecycle.sh\" 2>&1 | tee \"$RUN_ROOT/t1/api-lifecycle.log\"",
+   "expected": "Create session/task/key, use scoped key, reject cross-session access, revoke key, then 401",
+   "artifact": "t1/api-lifecycle.log",
+   "pass_criteria": "Every expected status and body assertion passes",
+   "falsifier": "Skip revocation readback; validator must reject incomplete lifecycle",
+   "defect_gate": "DF-CONSENSUS-2, DF-CONSENSUS-3",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-014",
+   "tier": "T2",
+   "title": "Exact live-key preflight",
+   "command": "sh \"$RUN_ROOT/meta/deepseek-key-preflight.sh\" 2>&1 | tee \"$RUN_ROOT/t2/key-preflight.log\"",
+   "expected": "HTTP 200 from deepseek-flash; no secret printed",
+   "artifact": "t2/key-preflight.log",
+   "pass_criteria": "Exit 0 and sanitized last-four/status only",
+   "falsifier": "Use a known dead key; preflight must stop the run",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-015",
+   "tier": "T2",
+   "title": "Real single-turn response",
+   "command": "sh \"$RUN_ROOT/meta/live-session.sh\" single \"single-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/single.log\"",
+   "expected": "Idle/completed session, text_block contains nonce, nonzero tokens and billing",
+   "artifact": "t2/single.log",
+   "pass_criteria": "All DB/API assertions true",
+   "falsifier": "Switch base URL to mock; provider-origin assertion must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-016",
+   "tier": "T2",
+   "title": "Two conversational user turns",
+   "command": "sh \"$RUN_ROOT/meta/live-session.sh\" conversation \"conversation-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/conversation.log\"",
+   "expected": "Second answer recalls first nonce and answers second request",
+   "artifact": "t2/conversation.log",
+   "pass_criteria": "Both nonce and new answer present after second user turn",
+   "falsifier": "Delete first-turn memory before turn two; recall assertion must fail",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-017",
+   "tier": "T2",
+   "title": "User turn retained across calls within one iteration",
+   "command": "go test -count=1 -v ./internal/harness -run 'Test.*User.*Across.*Planning.*Turns' 2>&1 | tee \"$RUN_ROOT/t2/user-turn-regression.log\"",
+   "expected": "Recorded second and later LLM calls still contain the original user nonce",
+   "artifact": "t2/user-turn-regression.log",
+   "pass_criteria": "Exit 0 and at least two captured calls",
+   "falsifier": "Restore turn==1-only message inclusion; regression must fail",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-018",
+   "tier": "T2",
+   "title": "Live multi-call database question",
+   "command": "sh \"$RUN_ROOT/meta/live-session.sh\" db-question \"dbq-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/db-question.log\"",
+   "expected": "More than one provider call, tool request/result, exact independently measured sessions count",
+   "artifact": "t2/db-question.log",
+   "pass_criteria": "All correlation and answer assertions pass",
+   "falsifier": "Remove tool result before next call; final-use assertion must fail",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-019",
+   "tier": "T2",
+   "title": "Environment-only LLM configuration",
+   "command": "sh \"$RUN_ROOT/meta/env-only-live.sh\" 2>&1 | tee \"$RUN_ROOT/t2/env-only.log\"",
+   "expected": "No config file; DeepSeek URL/model/provider honored; idle session with tokens",
+   "artifact": "t2/env-only.log",
+   "pass_criteria": "No gpt-4o request and no paused session",
+   "falsifier": "Unset CONSENSUS_LLM_MODEL; test must expose fallback mismatch",
+   "defect_gate": "DF-CONSENSUS-14",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-020",
+   "tier": "T3",
+   "title": "Tool registry discovery",
+   "command": "curl -fsS \"$BASE/api/v1/tools\" -H \"Authorization: Bearer $ADMIN_KEY\" >\"$RUN_ROOT/t3/tools.json\" && jq -e 'length>0 and any(.[]; .enabled==true)' \"$RUN_ROOT/t3/tools.json\"",
+   "expected": "Nonempty enabled tool registry",
+   "artifact": "t3/tools.json",
+   "pass_criteria": "Exit 0",
+   "falsifier": "Return empty array; assertion must fail",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-021",
+   "tier": "T3",
+   "title": "Direct deterministic query-tool execution",
+   "command": "curl -fsS -X POST \"$BASE/api/v1/tools/query/execute\" -H \"Authorization: Bearer $ADMIN_KEY\" -H 'Content-Type: application/json' -d '{\"query\":\"WITH expected(v) AS (VALUES (\\\"tool-e2e-'\"$RUN_ID\"'\\\")) SELECT v FROM expected\"}' >\"$RUN_ROOT/t3/direct.json\" && grep -F \"tool-e2e-$RUN_ID\" \"$RUN_ROOT/t3/direct.json\"",
+   "expected": "Exact nonce returned",
+   "artifact": "t3/direct.json",
+   "pass_criteria": "Exit 0 and nonce present",
+   "falsifier": "Use generate_series; unsupported-function test must fail with explicit error",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-022",
+   "tier": "T3",
+   "title": "Agent requests tool",
+   "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" request 2>&1 | tee \"$RUN_ROOT/t3/request.log\"",
+   "expected": "At least one tool_requests row with run correlation ID",
+   "artifact": "t3/request.log",
+   "pass_criteria": "Count greater than zero",
+   "falsifier": "Agent only narrates a call; durable-row assertion must fail",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-023",
+   "tier": "T3",
+   "title": "Tool result reinjected into agent context",
+   "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" reinjection 2>&1 | tee \"$RUN_ROOT/t3/reinjection.log\"",
+   "expected": "Matching tool_results row and next LLM context contains exact nonce",
+   "artifact": "t3/reinjection.log",
+   "pass_criteria": "Request/result IDs correlate and captured context contains result",
+   "falsifier": "Insert an unrelated tool result; correlation check must fail",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-024",
+   "tier": "T3",
+   "title": "Agent uses tool result",
+   "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" final 2>&1 | tee \"$RUN_ROOT/t3/final.log\"",
+   "expected": "Final text_block includes exact tool nonce and interpreted value",
+   "artifact": "t3/final.log",
+   "pass_criteria": "Nonce and result semantics present",
+   "falsifier": "Replace result after execution; mismatch must fail",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-025",
+   "tier": "T4",
+   "title": "Typed memory-event ledger",
+   "command": "sqlite3 -json \"$RUN_ROOT/db/consensus.db\" 'SELECT id,session_id,type,content,iteration_created FROM memory_events ORDER BY id' >\"$RUN_ROOT/t4/memory.json\" && jq -e 'length>0 and all(.[]; (.type|type)==\"string\")' \"$RUN_ROOT/t4/memory.json\"",
+   "expected": "Nonempty typed ordered ledger",
+   "artifact": "t4/memory.json",
+   "pass_criteria": "Exit 0",
+   "falsifier": "Run against empty DB; nonempty assertion must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-026",
+   "tier": "T4",
+   "title": "Append-only enforcement",
+   "command": "sh \"$RUN_ROOT/meta/append-only-negative.sh\" 2>&1 | tee \"$RUN_ROOT/t4/append-only.log\"",
+   "expected": "UPDATE and DELETE fail; row hash unchanged",
+   "artifact": "t4/append-only.log",
+   "pass_criteria": "Both negatives rejected for append-only reason",
+   "falsifier": "Drop trigger in copied DB; control mutation must succeed and detector must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-027",
+   "tier": "T4",
+   "title": "Token and billing reconciliation",
+   "command": "sh \"$RUN_ROOT/meta/reconcile-billing.sh\" 2>&1 | tee \"$RUN_ROOT/t4/billing.log\"",
+   "expected": "Session token totals equal billing sums; cost finite and nonnegative",
+   "artifact": "t4/billing.log",
+   "pass_criteria": "Zero mismatch rows",
+   "falsifier": "Increment copied session token total by one; recomputation must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-028",
+   "tier": "T4",
+   "title": "Session-key isolation",
+   "command": "sh \"$RUN_ROOT/meta/session-isolation.sh\" 2>&1 | tee \"$RUN_ROOT/t4/isolation.log\"",
+   "expected": "Own session 200; other session 403; no foreign content",
+   "artifact": "t4/isolation.log",
+   "pass_criteria": "Exact statuses and nonce isolation",
+   "falsifier": "Use admin key for negative; harness must reject invalid test setup",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-029",
+   "tier": "T4",
+   "title": "Atomic rollback",
+   "command": "sh \"$RUN_ROOT/meta/atomic-rollback.sh\" 2>&1 | tee \"$RUN_ROOT/t4/rollback.log\"",
+   "expected": "Forced second-statement failure leaves first statement absent",
+   "artifact": "t4/rollback.log",
+   "pass_criteria": "Transaction fails and residue count is zero",
+   "falsifier": "Execute statements outside one transaction; setup validator must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-030",
+   "tier": "T5",
+   "title": "MCP initialize",
+   "command": "curl -fsS -X POST \"$BASE/mcp/message\" -H \"Authorization: Bearer $ADMIN_KEY\" -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"acceptance\",\"version\":\"1\"}}}' >\"$RUN_ROOT/t5/initialize.json\" && jq -e '.jsonrpc==\"2.0\" and .id==1 and .result!=null' \"$RUN_ROOT/t5/initialize.json\"",
+   "expected": "Valid initialize response",
+   "artifact": "t5/initialize.json",
+   "pass_criteria": "Exit 0",
+   "falsifier": "POST to /mcp stub; 501 must fail",
+   "defect_gate": "DF-CONSENSUS-4, MCP-DIRECT-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-031",
+   "tier": "T5",
+   "title": "MCP typed tool discovery",
+   "command": "sh \"$RUN_ROOT/meta/mcp-call.sh\" tools/list '{}' >\"$RUN_ROOT/t5/tools-list.json\" && jq -e '[.result.tools[] | select((.description|length)>0 and .inputSchema.type==\"object\")]|length>=6' \"$RUN_ROOT/t5/tools-list.json\"",
+   "expected": "At least six described typed tools",
+   "artifact": "t5/tools-list.json",
+   "pass_criteria": "Exit 0 and required verbs present",
+   "falsifier": "Return bare names; schema assertion must fail",
+   "defect_gate": "MCP-DIRECT-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-032",
+   "tier": "T5",
+   "title": "MCP authentication negatives",
+   "command": "sh \"$RUN_ROOT/meta/mcp-auth-negative.sh\" 2>&1 | tee \"$RUN_ROOT/t5/auth.log\"",
+   "expected": "No key 401; fake key 401; admin succeeds; revoked key 401",
+   "artifact": "t5/auth.log",
+   "pass_criteria": "All exact statuses observed",
+   "falsifier": "Skip revoked-key case; result validator must fail",
+   "defect_gate": "MCP-DIRECT-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-033",
+   "tier": "T5",
+   "title": "MCP-only session lifecycle",
+   "command": "sh \"$RUN_ROOT/meta/mcp-lifecycle.sh\" 2>&1 | tee \"$RUN_ROOT/t5/lifecycle.log\"",
+   "expected": "Create, message, poll, memory and task operations complete through discovered tools",
+   "artifact": "t5/lifecycle.log",
+   "pass_criteria": "IDs cross-check through REST and DB",
+   "falsifier": "Write session directly to DB; provenance check must fail",
+   "defect_gate": "MCP-DIRECT-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-034",
+   "tier": "T6",
+   "title": "Go OpenCode compatibility port",
+   "command": "go test -count=1 -v ./internal/chronicle -run OpenCode 2>&1 | tee \"$RUN_ROOT/t6/go-opencode-contract.log\"",
+   "expected": "All named subtests pass, including the 46-test contract port",
+   "artifact": "t6/go-opencode-contract.log",
+   "pass_criteria": "Exit 0 and nonzero subtest census",
+   "falsifier": "Filter to a nonexistent test; zero-test guard must fail",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-035",
+   "tier": "T6",
+   "title": "Pinned literal upstream suites",
+   "command": "CONSENSUS_OPENCODE_BASE_URL=\"$BASE\" sh scripts/test-opencode-upstream.sh --base-url \"$BASE\" --evidence-dir \"$RUN_ROOT/t6/upstream\" 2>&1 | tee \"$RUN_ROOT/t6/upstream-runner.log\"",
+   "expected": "Four pinned upstream suites exit 0",
+   "artifact": "t6/upstream/summary.md",
+   "pass_criteria": "Every suite nonzero test count and zero failures",
+   "falsifier": "Use unused port; runner must exit nonzero",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-036",
+   "tier": "T6",
+   "title": "Upstream source and lock integrity",
+   "command": "grep -F '16747470f976aca3d362ad730bcd3fe82ecc2c9a' \"$RUN_ROOT/t6/upstream/summary.md\" && grep -F 'Lock SHA-256' \"$RUN_ROOT/t6/upstream/summary.md\"",
+   "expected": "Pinned revision and lock hash recorded",
+   "artifact": "t6/upstream/summary.md",
+   "pass_criteria": "Both fields present and runner self-test passed",
+   "falsifier": "Modify one suite in checkout; hash verification must fail",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-037",
+   "tier": "T6",
+   "title": "Real OpenCode TUI attach and chat",
+   "command": "sh \"$RUN_ROOT/meta/opencode-tui.sh\" 2>&1 | tee \"$RUN_ROOT/t6/tui.log\"",
+   "expected": "TUI attaches to BASE and renders unique agent reply",
+   "artifact": "t6/tui-final.txt",
+   "pass_criteria": "Unique nonce appears in captured pane and DB",
+   "falsifier": "Stop target shim; attach must fail rather than use local backend",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-038",
+   "tier": "T6",
+   "title": "Shim SSE event mapping",
+   "command": "sh \"$RUN_ROOT/meta/opencode-sse.sh\" 2>&1 | tee \"$RUN_ROOT/t6/sse.log\"",
+   "expected": "session.updated and message.created for TUI session",
+   "artifact": "t6/sse-frames.txt",
+   "pass_criteria": "Both events carry the same session ID",
+   "falsifier": "Listen on unrelated session; correlation assertion must fail",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-039",
+   "tier": "T7",
+   "title": "Consensus Crier wiring exists",
+   "command": "grep -RIn 'CRIER_HTTP_URL\\|crier.*inbox\\|transport.*crier' internal cmd specs migrations | tee \"$RUN_ROOT/t7/wiring.txt\" && test -s \"$RUN_ROOT/t7/wiring.txt\"",
+   "expected": "Runtime config, consumer, provenance schema and spec references",
+   "artifact": "t7/wiring.txt",
+   "pass_criteria": "Nonempty implementation-backed wiring census",
+   "falsifier": "Documentation-only matches with no runtime symbol must fail review",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-040",
+   "tier": "T7",
+   "title": "Standalone signed Crier inbox lifecycle",
+   "command": "CRIER_URL=\"$CRIER_BASE\" CR_AUTH_TOKEN=\"$CRIER_TOKEN\" ./examples/demo.sh 2>&1 | tee \"$RUN_ROOT/t7/crier-demo.log\"",
+   "expected": "Register, deliver, signed retrieve, ack and empty stats pass",
+   "artifact": "t7/crier-demo.log",
+   "pass_criteria": "Exit 0 and all five legs present",
+   "falsifier": "Ack without message_ids; must fail 400",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-041",
+   "tier": "T7",
+   "title": "Register Consensus Crier identity",
+   "command": "sh \"$RUN_ROOT/meta/crier-register-consensus.sh\" 2>&1 | tee \"$RUN_ROOT/t7/register.log\"",
+   "expected": "201 with matching agent ID and public-key fingerprint",
+   "artifact": "t7/register.log",
+   "pass_criteria": "Registry readback matches",
+   "falsifier": "Register wrong public key; signed retrieval must later 401",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-042",
+   "tier": "T7",
+   "title": "Crier message becomes Consensus user input",
+   "command": "sh \"$RUN_ROOT/meta/crier-to-consensus.sh\" positive 2>&1 | tee \"$RUN_ROOT/t7/positive.log\"",
+   "expected": "One Crier delivery becomes one user_message and agent response uses nonce",
+   "artifact": "t7/positive.log",
+   "pass_criteria": "Message ID, session ID, provenance and response correlate",
+   "falsifier": "Stop consumer before delivery; no memory row means failure",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-043",
+   "tier": "T7",
+   "title": "Different-agent message isolation",
+   "command": "sh \"$RUN_ROOT/meta/crier-to-consensus.sh\" wrong-agent 2>&1 | tee \"$RUN_ROOT/t7/wrong-agent.log\"",
+   "expected": "Message to another agent never enters Consensus ledger",
+   "artifact": "t7/wrong-agent.log",
+   "pass_criteria": "Zero matching rows after two poll intervals",
+   "falsifier": "Subscribe with wildcard/all-agent identity; negative must fail",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-044",
+   "tier": "T7",
+   "title": "Ack, restart and idempotent redelivery",
+   "command": "sh \"$RUN_ROOT/meta/crier-to-consensus.sh\" durability 2>&1 | tee \"$RUN_ROOT/t7/durability.log\"",
+   "expected": "Queue drains after commit; restart preserves pending message; redelivery creates no duplicate",
+   "artifact": "t7/durability.log",
+   "pass_criteria": "queue_depth 0 after ack and ledger count exactly one",
+   "falsifier": "Ack before Consensus commit then crash; test must detect loss",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-045",
+   "tier": "T8",
+   "title": "Dead-key circuit breaker",
+   "command": "sh \"$RUN_ROOT/meta/dead-key-breaker.sh\" 2>&1 | tee \"$RUN_ROOT/t8/dead-key.log\"",
+   "expected": "Configured threshold reached, breaker row recorded, session paused, no assistant reply",
+   "artifact": "t8/dead-key.log",
+   "pass_criteria": "Exact error count and paused state",
+   "falsifier": "Treat no reply alone as pass; manifest validator must fail missing breaker row",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-046",
+   "tier": "T8",
+   "title": "Held SSE plus polling pressure",
+   "command": "timeout 45 sh \"$RUN_ROOT/meta/sqlite-pressure.sh\" 2>&1 | tee \"$RUN_ROOT/t8/pressure.log\"",
+   "expected": "SSE remains connected, polling succeeds and four sessions progress",
+   "artifact": "t8/pressure.log",
+   "pass_criteria": "No pool timeout/lock signature and no stuck planning session",
+   "falsifier": "Set max_open_conns=1 in control run; detector must reproduce failure",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-047",
+   "tier": "T8",
+   "title": "Environment-only pool default",
+   "command": "go test -count=1 -v ./internal/db/sqlite -run 'Test.*Default.*MaxOpen' 2>&1 | tee \"$RUN_ROOT/t8/pool-default.log\"",
+   "expected": "Unconfigured SQLite pool default equals documented 8",
+   "artifact": "t8/pool-default.log",
+   "pass_criteria": "Exit 0 with explicit expected value 8",
+   "falsifier": "Current value 4 must fail",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-048",
+   "tier": "T8",
+   "title": "Clean process restart durability",
+   "command": "sh \"$RUN_ROOT/meta/restart-durability.sh\" 2>&1 | tee \"$RUN_ROOT/t8/restart.log\"",
+   "expected": "Committed session, memory and billing rows unchanged after restart",
+   "artifact": "t8/restart.log",
+   "pass_criteria": "Before/after hashes and counts match",
+   "falsifier": "Use a new empty volume on restart; identity assertion must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-049",
+   "tier": "T8",
+   "title": "Crash demo",
+   "command": "sh \"$RUN_ROOT/meta/run-crash-demo.sh\" 2>&1 | tee \"$RUN_ROOT/t8/crash-demo.log\"",
+   "expected": "Committed artifact survives kill; open transaction not claimed; recovery diagnostics printed",
+   "artifact": "t8/crash-demo.log",
+   "pass_criteria": "Exit 0 and all three assertions present",
+   "falsifier": "Count uncommitted staging residue as recovered; semantic check must fail",
+   "defect_gate": "QA-CONSENSUS-5",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-050",
+   "tier": "T8",
+   "title": "Corrupt-copy refusal",
+   "command": "sh \"$RUN_ROOT/meta/corrupt-copy.sh\" 2>&1 | tee \"$RUN_ROOT/t8/corruption.log\"",
+   "expected": "Integrity check and startup reject a truncated copy; primary DB remains healthy",
+   "artifact": "t8/corruption.log",
+   "pass_criteria": "Corrupt copy fails and primary health stays 200",
+   "falsifier": "Run only integrity_check on intact DB; setup validator must fail",
+   "defect_gate": "QA-CONSENSUS-5",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-051",
+   "tier": "T9",
+   "title": "Host load gate",
+   "command": "LOAD1=$(cut -d' ' -f1 /proc/loadavg); printf '%s\\n' \"$LOAD1\" >\"$RUN_ROOT/t9/load-before.txt\"; awk -v load=\"$LOAD1\" 'BEGIN{exit !(load<8.0)}'",
+   "expected": "One-minute load below 8.0",
+   "artifact": "t9/load-before.txt",
+   "pass_criteria": "Exit 0",
+   "falsifier": "Force threshold below measured load; gate must block",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-052",
+   "tier": "T9",
+   "title": "Bounded four-worker load",
+   "command": "timeout 30 xargs -P4 -n1 sh \"$RUN_ROOT/meta/one-load-session.sh\" <\"$RUN_ROOT/t9/targets.txt\" >\"$RUN_ROOT/t9/responses.tsv\" 2>\"$RUN_ROOT/t9/load-errors.log\"",
+   "expected": "Finite nonempty target set, maximum four workers, bounded 30 seconds",
+   "artifact": "t9/responses.tsv",
+   "pass_criteria": "Every target has one terminal result and no orphan process",
+   "falsifier": "Empty targets file must fail audited_targets assertion",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-053",
+   "tier": "T9",
+   "title": "Concurrent session isolation",
+   "command": "sh \"$RUN_ROOT/meta/check-load-isolation.sh\" 2>&1 | tee \"$RUN_ROOT/t9/isolation.log\"",
+   "expected": "Each session contains only its own nonce",
+   "artifact": "t9/isolation.log",
+   "pass_criteria": "Zero foreign-nonce matches",
+   "falsifier": "Swap two session IDs in control manifest; check must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-054",
+   "tier": "T9",
+   "title": "Post-load health and cleanup",
+   "command": "curl -fsS \"$BASE/api/v1/health\" >\"$RUN_ROOT/t9/health-after.json\" && jq -e '.status==\"ok\"' \"$RUN_ROOT/t9/health-after.json\" && sh \"$RUN_ROOT/meta/assert-no-stuck-sessions.sh\"",
+   "expected": "Health 200, no stuck planning sessions, no load children remain",
+   "artifact": "t9/health-after.json",
+   "pass_criteria": "All assertions pass",
+   "falsifier": "Leave one test session planning; stuck-session assertion must fail",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-055",
+   "tier": "T10",
+   "title": "Fresh baby-project precondition",
+   "command": "sh \"$RUN_ROOT/meta/create-baby-project.sh\" 2>&1 | tee \"$RUN_ROOT/t10/precondition.log\"",
+   "expected": "Fresh git repo with only go.mod; expected output files absent",
+   "artifact": "t10/precondition.log",
+   "pass_criteria": "Base commit recorded and contamination count zero",
+   "falsifier": "Pre-create message.go; precondition must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-056",
+   "tier": "T10",
+   "title": "Goal and task creation",
+   "command": "sh \"$RUN_ROOT/meta/baby-project-api.sh\" create 2>&1 | tee \"$RUN_ROOT/t10/create.log\"",
+   "expected": "Session and task created through public API with workspace binding",
+   "artifact": "t10/create.log",
+   "pass_criteria": "201 responses and IDs read back",
+   "falsifier": "Insert task directly in DB; API provenance check must fail",
+   "defect_gate": "DF-CONSENSUS-2",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-057",
+   "tier": "T10",
+   "title": "Agent file and command tools",
+   "command": "sh \"$RUN_ROOT/meta/baby-project-api.sh\" run 2>&1 | tee \"$RUN_ROOT/t10/agent.log\"",
+   "expected": "File-write/edit and command tool request/result chains complete",
+   "artifact": "t10/agent.log",
+   "pass_criteria": "Required tool families and correlation IDs present",
+   "falsifier": "Agent narrates edits without tool rows; test must fail",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-058",
+   "tier": "T10",
+   "title": "Baby project verified on disk",
+   "command": "cd \"$RUN_ROOT/t10/baby-project\" && test -f message.go && test -f message_test.go && grep -F \"baby-$RUN_ID\" message.go && go test -count=1 ./... 2>&1 | tee \"$RUN_ROOT/t10/baby-go-test.log\"",
+   "expected": "Files exist, nonce matches and tests pass",
+   "artifact": "t10/baby-go-test.log",
+   "pass_criteria": "Exit 0",
+   "falsifier": "Remove one generated file; command must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-059",
+   "tier": "T10",
+   "title": "Disk-to-ledger fidelity",
+   "command": "sh \"$RUN_ROOT/meta/baby-project-fidelity.sh\" 2>&1 | tee \"$RUN_ROOT/t10/fidelity.log\"",
+   "expected": "Disk hashes and tool-result claims agree; final response names actual files and test result",
+   "artifact": "t10/fidelity.log",
+   "pass_criteria": "Zero mismatches",
+   "falsifier": "Modify a file after tool completion; hash comparison must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-060",
+   "tier": "T10",
+   "title": "Baby project survives Consensus restart",
+   "command": "sh \"$RUN_ROOT/meta/baby-project-restart.sh\" 2>&1 | tee \"$RUN_ROOT/t10/restart.log\"",
+   "expected": "Session, task, memory and tool evidence readable after restart; disk remains green",
+   "artifact": "t10/restart.log",
+   "pass_criteria": "All pre/post IDs and hashes match",
+   "falsifier": "Restart against a new volume; persistence assertion must fail",
+   "defect_gate": "none",
+   "proposed_by": [
+    "gpt-5.6-sol@openai-codex"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-061",
+   "tier": "T0",
+   "title": "go build ./... on the pinned commit",
+   "command": "cd /srv/consensus-src && git checkout 2c51cee3 && go build ./... 2>&1 | tee $EV/T0-build-all.log",
+   "expected": "exit 0, no output beyond nothing",
+   "artifact": "$EV/T0-build-all.log",
+   "pass_criteria": "rc==0 and log has no 'cannot find'/'undefined'",
+   "falsifier": "green build from a different working tree than 04-commit.txt",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-062",
+   "tier": "T0",
+   "title": "go vet ./...",
+   "command": "go vet ./... 2>&1 | tee $EV/T0-vet.log; echo rc=$?",
+   "expected": "rc=0, empty log",
+   "artifact": "$EV/T0-vet.log",
+   "pass_criteria": "rc==0",
+   "falsifier": "vet warnings swallowed by a wrapper (never use `make lint`, Makefile:58 always exits 0)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic",
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": true
+  },
+  {
+   "id": "C-063",
+   "tier": "T0",
+   "title": "env-clean keyless short suite",
+   "command": "env -u DEEPSEEK_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u OPENROUTER_API_KEY CGO_ENABLED=0 go test -count=1 -short ./... 2>&1 | tee $EV/T0-test-short.log",
+   "expected": "0 FAIL, ok-count>0",
+   "artifact": "$EV/T0-test-short.log",
+   "pass_criteria": "grep -c '^FAIL' == 0 AND ok-count >= 25 AND argv contains -count=1",
+   "falsifier": "cached result (no -count=1) or FAIL hidden by `|| true`",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-064",
+   "tier": "T0",
+   "title": "stale-binary elimination",
+   "command": "rm -f consensus && make fresh && sha256sum bin/consensus | tee $EV/06-binary-sha256.txt && bin/consensus --version | tee $EV/07-version.txt && test ! -e ./consensus",
+   "expected": "root ./consensus absent; --version prints 'dev' (C-GAP-027 pinned)",
+   "artifact": "$EV/06-binary-sha256.txt, $EV/07-version.txt",
+   "pass_criteria": "test ! -e ./consensus AND version line recorded",
+   "falsifier": "a run whose binary sha differs from the one just built",
+   "defect_gate": "C-GAP-023, C-GAP-027",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-065",
+   "tier": "T0",
+   "title": "fresh DB at t0 (no seeded state)",
+   "command": "test ! -e $RUN/consensus.db || exit 1; test ! -e /srv/consensus-src/dev.db || exit 1",
+   "expected": "both paths absent",
+   "artifact": "$EV/T0-fresh-db.txt",
+   "pass_criteria": "both absent, recorded",
+   "falsifier": "cwd-relative DSN silently reusing a prior run's DB",
+   "defect_gate": "QA-CONSENSUS-5",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-066",
+   "tier": "T1",
+   "title": "listener identity (no stale sidecar)",
+   "command": "ss -tlnp | grep :8090 | tee $EV/T1-listener.txt; ss -tlnp | grep :8090 | grep -q pid=$(cat $RUN/consensus.pid)",
+   "expected": "the :8090 holder is our pid",
+   "artifact": "$EV/T1-listener.txt",
+   "pass_criteria": "pid match AND curl health body contains \"status\":\"ok\"",
+   "falsifier": "a 404-for-everything impostor owning the port (C-GAP-038/DF-CONSENSUS-5)",
+   "defect_gate": "DF-CONSENSUS-5",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-067",
+   "tier": "T1",
+   "title": "contract path census == 60",
+   "command": "yq -r '.paths|keys[]' specs/openapi/bundled.yaml | sort | tee $EV/T1-spec-paths.txt; wc -l < $EV/T1-spec-paths.txt | tee $EV/T1-spec-path-count.txt",
+   "expected": "60",
+   "artifact": "$EV/T1-spec-paths.txt, $EV/T1-spec-path-count.txt",
+   "pass_criteria": "count == 60",
+   "falsifier": "board/spec claims 58 (C-GAP-036) or the plan reads a different file than the server embeds",
+   "defect_gate": "C-GAP-036",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-068",
+   "tier": "T1",
+   "title": "no declared path returns 404",
+   "command": "loop over $EV/T1-spec-paths.txt with placeholder substitution -> $EV/T1-spec-path-codes.tsv; awk -F'\\t' '$2==404'",
+   "expected": "0 rows",
+   "artifact": "$EV/T1-spec-path-codes.tsv, $EV/T1-404s.txt",
+   "pass_criteria": "$EV/T1-404s.txt empty OR every row carries a newly filed board id",
+   "falsifier": "404s absorbed as 'not implemented yet' without a row",
+   "defect_gate": "C-GAP-031",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-069",
+   "tier": "T1",
+   "title": "auth ladder exact",
+   "command": "curl /api/v1/sessions with no header, fake bearer, admin bearer",
+   "expected": "401, 401, 200",
+   "artifact": "$EV/T1-auth-ladder.txt",
+   "pass_criteria": "exactly those three codes in order",
+   "falsifier": "200 on the unauthenticated call; or 'auth works' certified with no positive control",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-070",
+   "tier": "T1",
+   "title": "session create contract: 400 then 201",
+   "command": "POST /api/v1/sessions -d '{}' ; POST with {agent_name,goal}",
+   "expected": "400 with an error field; 201 with an id",
+   "artifact": "$EV/T1-create-400.json, $EV/T1-create-201.json",
+   "pass_criteria": "both codes AND 201 body has id",
+   "falsifier": "201 on {} (undocumented-field defect silently fixed/regressed) or 400 without an error shape",
+   "defect_gate": "DF-CONSENSUS-2",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-071",
+   "tier": "T1",
+   "title": "served OpenAPI parity",
+   "command": "curl -s $BASE/openapi.yaml | sha256sum ; sha256sum specs/openapi/bundled.yaml",
+   "expected": "either identical, or the delta is reported as a finding",
+   "artifact": "$EV/T1-spec-parity.txt",
+   "pass_criteria": "both hashes recorded; a mismatch is a FINDING, never a pass",
+   "falsifier": "mismatch reported as 'PASS (spec served)'",
+   "defect_gate": "C-GAP-039",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-072",
+   "tier": "T1",
+   "title": "error shape on unknown resource",
+   "command": "GET /api/v1/sessions/00000000-0000-0000-0000-0000000000ff",
+   "expected": "404 with a documented error body (not an empty 200)",
+   "artifact": "$EV/T1-404-shape.json",
+   "pass_criteria": "404 AND body parses as JSON with an error/message field",
+   "falsifier": "200 with empty body (silent no-op counted as pass)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-073",
+   "tier": "T1",
+   "title": "PG full integration cell (time-boxed)",
+   "command": "CONSENSUS_TEST_POSTGRES_URL=... make test-pg-full | tee $EV/T1-pg.log",
+   "expected": "TestPostgresFullIntegration PASS; no SKIP",
+   "artifact": "$EV/T1-pg.log",
+   "pass_criteria": "PASS AND grep -c SKIP == 0",
+   "falsifier": "exit 0 with SKIP (postgres absent = testing the harness)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-074",
+   "tier": "T2",
+   "title": "serve starts on the explicit config",
+   "command": "bin/consensus serve --config consensus.yaml > $EV/T2-serve.log 2>&1 & echo $! > consensus.pid",
+   "expected": "health 200 within 10s",
+   "artifact": "$EV/T2-serve.log",
+   "pass_criteria": "health body has \\\"status\\\":\\\"ok\\\"",
+   "falsifier": "port shadowed by a sidecar that answers 404",
+   "defect_gate": "C-GAP-038",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-075",
+   "tier": "T2",
+   "title": "single-turn live LLM round trip",
+   "command": "POST session + POST message + poll status; sqlite3 select status,iteration,tokens_used_in,tokens_used_out",
+   "expected": "status=idle, tokens_used_in>0, tokens_used_out>0, >=1 text_block",
+   "artifact": "$EV/T2.1-session.txt, $EV/T2.1-events.txt",
+   "pass_criteria": "all four plus >=1 agent_billing row",
+   "falsifier": "status=paused with an empty ledger and a DEAD key in play (ENV-CONSENSUS-1 signature)",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-076",
+   "tier": "T2",
+   "title": "anti-mock: the real provider was called",
+   "command": "grep -c 'llm: calling provider url=https://api.deepseek.com/v1/chat/completions' $EV/T2-serve.log; grep -c 'llm: response received' $EV/T2-serve.log",
+   "expected": ">=1 and >=1",
+   "artifact": "$EV/T2.1-calls.txt",
+   "pass_criteria": "both counts >= 1 AND zero matches for 127.0.0.1:[0-9]{4}",
+   "falsifier": "the mock provider (/make smoke, demo/smoke_test.go) standing in for DeepSeek",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-077",
+   "tier": "T2",
+   "title": "MULTI-TURN: user turn survives the 2nd LLM call in the same iteration",
+   "command": "grep -oE 'messages=[0-9]+' $EV/T2-serve.log | tee $EV/T2.2-call-shapes.txt",
+   "expected": "no messages=2 following messages=3 within one iteration; 2nd call >= 1st",
+   "artifact": "$EV/T2.2-call-shapes.txt, $EV/T2.2-events.txt",
+   "pass_criteria": "monotone non-decreasing messages within an iteration",
+   "falsifier": "messages=2 after messages=3 = DF-CONSENSUS-15 live = T2 FAILS (context.go:585 has no iteration predicate)",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-078",
+   "tier": "T2",
+   "title": "agent does not abstain for lack of a question",
+   "command": "sqlite3 consensus.db \"select content from memory_events where session_id='$S2' and kind='text_block'\"",
+   "expected": "no 'no user question'/'clarify what data' abstention in the persisted answer",
+   "artifact": "$EV/T2.2-events.txt",
+   "pass_criteria": "abstention string absent AND the answer contains a number",
+   "falsifier": "an abstention text_block reported as a pass because the session reached idle",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-079",
+   "tier": "T2",
+   "title": "billing arithmetic reconciliation",
+   "command": "awk recompute i*in/1e6+o*out/1e6 vs agent_billing.cost_usd; sqlite3 select * from model_registry where enabled=1",
+   "expected": "cost_usd == ROUND(sum,6) under the effective price source",
+   "artifact": "$EV/T4-billing.txt, $EV/T2.2-pricing.txt",
+   "pass_criteria": "equality under the conditional formula; model_registry state recorded",
+   "falsifier": "cost_usd>0 asserted with no price source: the unknown fallback (5.00/15.00) overstates flash by 31.9x (0.009775 vs 0.000307)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-080",
+   "tier": "T2",
+   "title": "ENV-ONLY path (no consensus.yaml in cwd)",
+   "command": "mkdir -p /tmp/envonly && cd /tmp/envonly && DEEPSEEK_API_KEY=$K CONSENSUS_LLM_BASE_URL=https://api.deepseek.com/v1 bin/consensus serve --db-url sqlite:///tmp/envonly/e.db",
+   "expected": "a completed round trip (status=idle)",
+   "artifact": "$EV/T2.7-envonly.log",
+   "pass_criteria": "GREEN after the fix; today XFAIL-pinned to DF-CONSENSUS-14",
+   "falsifier": "3x HTTP 400 then paused, reported as a pass because the server started",
+   "defect_gate": "DF-CONSENSUS-14",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-081",
+   "tier": "T3",
+   "title": "tool registry enumerates",
+   "command": "curl -H auth $BASE/api/v1/tools | jq -r '.[].name // .tools[].name' | sort -u",
+   "expected": ">=1 tool name",
+   "artifact": "$EV/T3-tools.json, $EV/T3-tool-names.txt",
+   "pass_criteria": "count >= 1",
+   "falsifier": "empty registry counted as pass (no tools is not 'all tools healthy')",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-082",
+   "tier": "T3",
+   "title": "API-level tool execute (documented path)",
+   "command": "POST /api/v1/tools/sql_query/execute -d '{\"query\":\"select 1 as one\"}'",
+   "expected": "200 with a result row {one:1}",
+   "artifact": "$EV/T3a-api-exec.json",
+   "pass_criteria": "result contains one=1",
+   "falsifier": "only this test run, then 'tool calls work' claimed end-to-end",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-083",
+   "tier": "T3",
+   "title": "agent-initiated tool call writes tool_requests",
+   "command": "sqlite3 select count(*) from tool_requests where session_id='$S3'",
+   "expected": ">=1",
+   "artifact": "$EV/T3b-req.txt",
+   "pass_criteria": ">=1",
+   "falsifier": "API-direct exec leaves tool_requests empty and that is read as covered",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-084",
+   "tier": "T3",
+   "title": "tool result reaches the model",
+   "command": "sqlite3 select substr(result,1,20) from tool_results where session_id='$S3' limit 1; grep it in the serve log",
+   "expected": "the result's prefix appears in a later LLM call context/response",
+   "artifact": "$EV/T3b-visible.txt",
+   "pass_criteria": "grep hit == YES and the session's answer contains the tool's integer",
+   "falsifier": "tool_results rows exist but the answer number differs (result never reached the model)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-085",
+   "tier": "T3",
+   "title": "unknown tool is an error, not a silent 200",
+   "command": "POST /api/v1/tools/no_such_tool/execute",
+   "expected": "404/400 with an error body",
+   "artifact": "$EV/T3-unknown-tool.json",
+   "pass_criteria": "non-2xx OR a JSON error field",
+   "falsifier": "200 with an empty result counted as pass",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-086",
+   "tier": "T4",
+   "title": "memory_events is append-only under a real mutation attempt",
+   "command": "sqlite3 \"update memory_events set content='TAMPERED' where id=(select min(id) from memory_events where session_id='$S1')\"; then count TAMPERED rows",
+   "expected": "error string AND count==0",
+   "artifact": "$EV/T4-append-only-update.txt, $EV/T4-tamper-count.txt",
+   "pass_criteria": "count == 0 AND an error text was captured",
+   "falsifier": "the UPDATE succeeds silently = README:40-41 is a docstring, not a trigger",
+   "defect_gate": "DF-CONSENSUS-8",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-087",
+   "tier": "T4",
+   "title": "append-only trigger actually exists in schema",
+   "command": "sqlite3 \"select name,sql from sqlite_master where type='trigger' and tbl_name='memory_events'\"",
+   "expected": ">=1 trigger row",
+   "artifact": "$EV/T4-schema-memory_events.txt",
+   "pass_criteria": ">=1 row OR T4-01 error is evidence of enforcement at another layer (state which)",
+   "falsifier": "neither a trigger nor an error: enforcement claimed with no mechanism",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-088",
+   "tier": "T4",
+   "title": "session isolation on the memory endpoint",
+   "command": "GET /api/v1/sessions/$S1/memory and $S2/memory -> distinct session_id sets",
+   "expected": "each listing contains exactly one session id",
+   "artifact": "$EV/T4-mem-S1.txt, $EV/T4-mem-S2.txt",
+   "pass_criteria": "no cross-session id in either",
+   "falsifier": "a shared ledger claimed as isolated (README:97)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-089",
+   "tier": "T4",
+   "title": "token ledger reconciliation",
+   "command": "sqlite3 select s.tokens_used_in, s.tokens_used_out, sum(prompt_tokens) join llm_calls",
+   "expected": "tokens_used_in == sum(prompt_tokens) (+ documented cache accounting)",
+   "artifact": "$EV/T4-token-recon.txt",
+   "pass_criteria": "equality or a stated, evidenced cache delta",
+   "falsifier": "tokens_used_in=0 while the serve log shows a completed call",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-090",
+   "tier": "T4",
+   "title": "agent_billing row present per billable session",
+   "command": "sqlite3 select session_id,model,category,cost_usd from agent_billing",
+   "expected": ">=1 row per session with >=1 LLM call; category populated",
+   "artifact": "$EV/T4-billing.txt",
+   "pass_criteria": "row count >= billable session count",
+   "falsifier": "billing asserted from cost_usd>0 without a per-session join",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-091",
+   "tier": "T4",
+   "title": "compression threshold constant + execution evidence",
+   "command": "grep -rn '0\\.85\\|cosine' internal/compression/*.go; sqlite3 select count(*) from compression_queue",
+   "expected": "the constant is present AND queue/completed evidence recorded",
+   "artifact": "$EV/T4-compression-const.txt, $EV/T4-compression-rows.txt",
+   "pass_criteria": "constant found AND (>=1 completed compression row OR the compression cell is reported as NOT EXERCISED)",
+   "falsifier": "'vector-validated compression verified' claimed from a constant with no run",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-092",
+   "tier": "T5",
+   "title": "MCP initialize over /mcp/message",
+   "command": "POST $BASE/mcp/message?sessionId=x -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}'",
+   "expected": "200 with a JSON-RPC result",
+   "artifact": "$EV/T5a-initialize.json",
+   "pass_criteria": "result present",
+   "falsifier": "404 (chi mount reverted to the trailing-slash pattern, chi_mount_test.go:16-36)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic",
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": true
+  },
+  {
+   "id": "C-093",
+   "tier": "T5",
+   "title": "MCP tools/list with auth, count and uniqueness",
+   "command": "POST tools/list with admin key; jq '.result.tools|length'; jq names | sort | uniq -d",
+   "expected": "count>=1 and zero duplicate names",
+   "artifact": "$EV/T5b-tools-list.json, $EV/T5b-tool-count.txt, $EV/T5b-dupes.txt",
+   "pass_criteria": "count>=1 AND dupes empty",
+   "falsifier": "deterministic/duplicate ids (DOGFOOD-102 class) or an empty list counted as pass",
+   "defect_gate": "DOGFOOD-102",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-094",
+   "tier": "T5",
+   "title": "MCP auth enforced on non-initialize methods",
+   "command": "POST tools/list with no header and with a fake bearer",
+   "expected": "401 and 401",
+   "artifact": "$EV/T5d-unauth-code.txt, $EV/T5e-fake-code.txt",
+   "pass_criteria": "both 401",
+   "falsifier": "tools/list served unauthenticated (the DOGFOOD-101 regression)",
+   "defect_gate": "DOGFOOD-101",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-095",
+   "tier": "T5",
+   "title": "MCP unknown tool returns a JSON-RPC error",
+   "command": "POST tools/call {name:nonexistent_tool}",
+   "expected": "a JSON-RPC error object",
+   "artifact": "$EV/T5c-bad-tool.json",
+   "pass_criteria": "error field present",
+   "falsifier": "200 with an empty result",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-096",
+   "tier": "T6",
+   "title": "upstream pin is the anomalyco rev, not sst/opencode",
+   "command": "grep -E '^(REVISION|VERSION|REPOSITORY)=' scripts/test-opencode-upstream.sh",
+   "expected": "REVISION=16747470f976aca3d362ad730bcd3fe82ecc2c9a VERSION=1.18.29 REPOSITORY=.../anomalyco/opencode.git",
+   "artifact": "$EV/T6-pin.txt",
+   "pass_criteria": "exact strings",
+   "falsifier": "a run that fetches sst/opencode (wrong tree, green over the wrong artifact)",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-097",
+   "tier": "T6",
+   "title": "runner adapter self-test",
+   "command": "sh scripts/test-opencode-upstream.sh --self-test",
+   "expected": "rc=0",
+   "artifact": "$EV/T6a-selftest.log",
+   "pass_criteria": "rc==0",
+   "falsifier": "self-test substituting for the live run",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-098",
+   "tier": "T6",
+   "title": "literal upstream TS suites against the live shim",
+   "command": "CONSENSUS_OPENCODE_BASE_URL=$BASE make test-opencode-upstream",
+   "expected": "the four pinned upstream suites executed; summary naming the revision; divergences mapped to board ids",
+   "artifact": "$EV/T6b-upstream.log, docs/evidence/opencode-upstream-v1.18.29/",
+   "pass_criteria": "summary exists AND asserts assertion_count>0 AND revision string present AND failure list empty-or-id-mapped",
+   "falsifier": "the Go port (internal/chronicle/opencode_full_contract_test.go) standing in; or exit 0 with 0 upstream assertions run",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-099",
+   "tier": "T6",
+   "title": "real OpenCode TUI session against the shim",
+   "command": "timeout 180 opencode run --base-url $BASE 'list the files in this directory' > $EV/T6c-tui.log",
+   "expected": "a transcript produced through the shim",
+   "artifact": "$EV/T6c-tui.log, $EV/T6c-tui-version.txt",
+   "pass_criteria": "transcript non-empty AND the shim's serve log shows the corresponding requests",
+   "falsifier": "TUI pointed at a local/mock provider (no shim requests in the serve log)",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-100",
+   "tier": "T6",
+   "title": "Go-port suite retained for the record, excluded from the gate",
+   "command": "go test -count=1 -v ./internal/chronicle/ -run OpenCodeFullContract",
+   "expected": "46 subtests PASS",
+   "artifact": "$EV/T6d-go-port.log",
+   "pass_criteria": "recorded only; must NOT be cited as upstream evidence",
+   "falsifier": "citing 46/46 as 'upstream compliance proven'",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-101",
+   "tier": "T7",
+   "title": "crier builds and serves",
+   "command": "cd /srv/crier && make build && CRIER_PORT=8767 ./bin/crier &",
+   "expected": "/health 200 on :8767",
+   "artifact": "$EV/T7-build.txt, $EV/T7-crier.log",
+   "pass_criteria": "health 200",
+   "falsifier": "crier assumed present without a build/health probe",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-102",
+   "tier": "T7",
+   "title": "crier shipped round-trip demo",
+   "command": "CRIER_URL=http://127.0.0.1:8767 bash examples/demo.sh",
+   "expected": "register->deliver->signed retrieve->ack, each leg 2xx",
+   "artifact": "$EV/T7a-demo.log",
+   "pass_criteria": "transcript contains each leg's status line",
+   "falsifier": "rc=0 with zero curl legs executed",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-103",
+   "tier": "T7",
+   "title": "ed25519 agent registration",
+   "command": "POST /agents {name,public_key}",
+   "expected": "2xx + agent id",
+   "artifact": "$EV/T7a-register.json",
+   "pass_criteria": "2xx with id",
+   "falsifier": "unsigned registration accepted while CR_REQUIRE_AGENT_SIG is claimed true",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-104",
+   "tier": "T7",
+   "title": "deliver to a durable inbox",
+   "command": "POST /agents/$AG/inbox -d '{from,topic,payload}'",
+   "expected": "2xx + message id (or 202 webhook transport named)",
+   "artifact": "$EV/T7a-deliver.json",
+   "pass_criteria": "2xx AND (id present OR transport=webhook named)",
+   "falsifier": "403 GUARD_BLOCKED silently treated as a delivery (CR_GUARD_ENABLED default true)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-105",
+   "tier": "T7",
+   "title": "signed retrieve with lease",
+   "command": "GET /agents/$AG/inbox with X-Agent-ID/-Ts/-Sig over 'GET\\n/path\\nunix'",
+   "expected": "messages[].id + lease_id + queue_depth + leased_count",
+   "artifact": "$EV/T7a-retrieve.json",
+   "pass_criteria": "the delivered id appears exactly once with a lease_id",
+   "falsifier": "unsigned retrieve returning 200 (signature enforcement off)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-106",
+   "tier": "T7",
+   "title": "lease prevents double delivery, empty != lost",
+   "command": "second signed retrieve immediately after the first",
+   "expected": "messages=[] AND leased_count>0",
+   "artifact": "$EV/T7a-retrieve2.json",
+   "pass_criteria": "leased_count>0 with an empty array",
+   "falsifier": "the same message returned twice; OR messages=[] with leased_count=0 (the message vanished and a naive 'empty inbox' assertion passes)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-107",
+   "tier": "T7",
+   "title": "ack drains the queue",
+   "command": "POST /agents/$AG/inbox/ack {lease_id,message_ids}; then GET inbox/stats",
+   "expected": "queue_depth=0, leased_count=0",
+   "artifact": "$EV/T7a-ack.json, $EV/T7a-stats.json",
+   "pass_criteria": "both zero",
+   "falsifier": "ack 2xx but stats still holding the lease",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-108",
+   "tier": "T7",
+   "title": "consensus-side crier intake (XFAIL, build gate)",
+   "command": "grep -rn -il crier --include=*.go --include=*.yaml /srv/consensus-src; then deliver a message and count crier-origin user_message rows for $S4",
+   "expected": "0 today -> XFAIL(CR-IN-001); >=1 after the feature lands",
+   "artifact": "$EV/T7b-code-census.txt, $EV/T7b-intake.txt, $EV/T7b-verdict.txt",
+   "pass_criteria": "a definitive verdict line, GREEN or XFAIL with the board id",
+   "falsifier": "PASS with crier_origin_events=0 (phantom wiring green); no crier code in tree yet 'intake verified'",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-109",
+   "tier": "T7",
+   "title": "negative control: another agent's message is NOT consumed",
+   "command": "deliver SHOULD-NOT-APPEAR to a different agent id; count matching memory_events for $S4",
+   "expected": "0",
+   "artifact": "$EV/T7b-negative-control.txt",
+   "pass_criteria": "== 0",
+   "falsifier": "a non-zero count (cross-agent consumption) or the control never executed (assertion over nothing)",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-110",
+   "tier": "T8",
+   "title": "circuit breaker trips on a dead key",
+   "command": "session with a fake key -> 3 calls -> sqlite3 select status; select * from circuit_breakers",
+   "expected": "status=paused AND >=1 breaker row AND >=2 consecutive llm errors",
+   "artifact": "$EV/T8a-status.txt, $EV/T8a-breakers.txt, $EV/T8a-llm-errors.txt",
+   "pass_criteria": "all three",
+   "falsifier": "paused reported as a product defect while a dead key was in play (ENV-CONSENSUS-1)",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-111",
+   "tier": "T8",
+   "title": "pool pressure: 8 pollers + held-open SSE for 60s",
+   "command": "8x curl loops + curl -N --max-time 60 /api/v1/events; then grep the serve log",
+   "expected": "0 'begin tx: context deadline exceeded', 0 stuck sessions",
+   "artifact": "$EV/T8b-deadline-count.txt, $EV/T8b-stuck.txt",
+   "pass_criteria": "both 0",
+   "falsifier": "the wedge returns (DF-CONSENSUS-10 regression) and the SSE log is empty while 'SSE exercised' is claimed",
+   "defect_gate": "DF-CONSENSUS-10",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-112",
+   "tier": "T8",
+   "title": "SSE actually emits events",
+   "command": "grep -oE '\"type\":\"[a-z_]+\"' $EV/T8b-sse.log | sort | uniq -c",
+   "expected": ">=1 event line",
+   "artifact": "$EV/T8b-sse-events.txt",
+   "pass_criteria": "event count > 0 AND >=1 session status transition observed",
+   "falsifier": "an empty stream reported as a pass because the connection opened (200)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-113",
+   "tier": "T8",
+   "title": "SIGTERM restart preserves committed ledger",
+   "command": "kill -TERM $(cat consensus.pid); restart; recount memory_events for $S1",
+   "expected": "identical count before/after",
+   "artifact": "$EV/T8c-after-restart.txt",
+   "pass_criteria": "counts equal",
+   "falsifier": "a count taken after a re-created DB",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-114",
+   "tier": "T8",
+   "title": "crash demo (kill -9) with real LLM",
+   "command": "DEEPSEEK_API_KEY=$K go test -v -count=1 -run TestDemo -timeout 300s ./demo/",
+   "expected": "TestDemo PASS; staging_buffer diagnostics with stranded counts",
+   "artifact": "$EV/T8d-crash-demo.log",
+   "pass_criteria": "PASS AND staging_buffer diagnostics present AND the log shows api.deepseek.com",
+   "falsifier": "PASS from the mocked demo; or an assertion that all tokens survived (README:123-125 does NOT claim that)",
+   "defect_gate": "DF-CONSENSUS-8",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-115",
+   "tier": "T9",
+   "title": "load gate respected before the cell",
+   "command": "awk '{exit ($1 < 8.0) ? 0 : 3}' /proc/loadavg",
+   "expected": "exit 0 (proceed) or 3 (SKIP with reason)",
+   "artifact": "$EV/T9-loadavg-before.txt",
+   "pass_criteria": "the decision is recorded, and a SKIP is reported as SKIP, never PASS",
+   "falsifier": "a burn loop run through the gate",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-116",
+   "tier": "T9",
+   "title": "bounded concurrency: exactly 200 sessions over 8 workers",
+   "command": "seq 1 8 | xargs -P 8 ... (25 creates each, id+memory read)",
+   "expected": "exactly 200 distinct sessions created",
+   "artifact": "$EV/T9-concurrent.log, $EV/T9-created.txt",
+   "pass_criteria": "created==200 AND count(distinct id)==200",
+   "falsifier": "created==0 with rc=0 (xargs swallowed failures: the QA-CONSENSUS-7 shape)",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-117",
+   "tier": "T9",
+   "title": "no session starvation under concurrency",
+   "command": "sqlite3 count(*) from sessions where status='planning' and updated_at < now-5min",
+   "expected": "0",
+   "artifact": "$EV/T9-stuck.txt",
+   "pass_criteria": "== 0",
+   "falsifier": "stuck rows while the tier claims concurrency safety",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-118",
+   "tier": "T9",
+   "title": "host load bounded; no SQLITE_BUSY",
+   "command": "awk over /proc/loadavg after; grep -c 'database is locked|SQLITE_BUSY'",
+   "expected": "loadavg1 < 12 AND busy==0",
+   "artifact": "$EV/T9-loadavg-after.txt, $EV/T9-busy.txt",
+   "pass_criteria": "both",
+   "falsifier": "loadavg >= 12 (the plan itself became a fleet violation)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-119",
+   "tier": "T10",
+   "title": "baby project: goal -> tasks created",
+   "command": "create session t10-baby, post the 3-task instruction, poll to idle, GET /tasks",
+   "expected": "task_count >= 1 and each task has a status",
+   "artifact": "$EV/T10-tasks.json, $EV/T10-task-count.txt",
+   "pass_criteria": "count >= 1",
+   "falsifier": "count==0 with rc=0 (empty-result pass)",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-120",
+   "tier": "T10",
+   "title": "baby project: agent used a tool and produced numbers",
+   "command": "sqlite3 count tool_requests for $P; compare with the answer numbers",
+   "expected": "tool_requests >= 1 and the answer integers match row counts",
+   "artifact": "$EV/T10-tool-requests.txt, $EV/T10-final.json",
+   "pass_criteria": "both",
+   "falsifier": "tasks created but never claimed, with 'the API works' claimed as project success",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-121",
+   "tier": "T10",
+   "title": "on-disk verifiable end state",
+   "command": "sqlite3 $RUN/consensus.db .backup $EV/T10-final.db; query the copy",
+   "expected": "the copy opens standalone and reproduces the ledger mix + billing",
+   "artifact": "$EV/T10-final.db, $EV/T10-ledger-mix.txt",
+   "pass_criteria": "user_message + text_block present; billing row for $P",
+   "falsifier": "the outcome derived from runner-held variables instead of the DB copy",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-122",
+   "tier": "GATE",
+   "title": "defect gate evaluation",
+   "command": "re-read .coding-hermes/board/tasks.jsonl last-wins for the S3 id list; emit GREEN/RED/VOID",
+   "expected": "GREEN only when no gate row is open unpinned",
+   "artifact": "$EV/GATE-verdict.txt",
+   "pass_criteria": "verdict emitted with the per-id state table",
+   "falsifier": "GREEN emitted while DF-CONSENSUS-14/15, C-GAP-032-ALPHA, CR-IN-001, ENV-CONSENSUS-1 or QA-CONSENSUS-7 is open unpinned",
+   "defect_gate": "all",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-123",
+   "tier": "GATE",
+   "title": "VOID detection (any tier with zero observables)",
+   "command": "for each tier: assert its primary counter > 0, else VOID",
+   "expected": "no tier has a zero counter",
+   "artifact": "$EV/GATE-void.txt",
+   "pass_criteria": "all tier counters > 0",
+   "falsifier": "a run reporting RED when it actually audited nothing (wrong-host class) or GREEN with zero targets",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-124",
+   "tier": "GATE",
+   "title": "secret hygiene of the evidence bundle",
+   "command": "grep -rIl 'sk-[A-Za-z0-9]\\{16,\\}' $EV | tee $EV/GATE-secret-scan.txt",
+   "expected": "empty",
+   "artifact": "$EV/GATE-secret-scan.txt",
+   "pass_criteria": "empty",
+   "falsifier": "a key leaked into an artifact, making the run unreportable",
+   "defect_gate": "-",
+   "proposed_by": [
+    "deepseek-v4.1-flash@synthetic"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-125",
+   "tier": "T0",
+   "title": "Record commit identity under test",
+   "command": "cd /home/kara/consensus && git rev-parse HEAD | tee evidence/t0/commit.txt",
+   "expected": "non-empty 40-hex sha equal to deployed build commit",
+   "artifact": "evidence/t0/commit.txt",
+   "pass_criteria": "sha present and referenced by report header",
+   "falsifier": "report cites a different sha than artifact",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-126",
+   "tier": "T0",
+   "title": "Fresh build, no stale root binary",
+   "command": "make fresh && ls ./consensus 2>&1; ./bin/consensus --version | tee evidence/t0/version.txt",
+   "expected": "repo-root ./consensus absent; bin/consensus --version prints current version",
+   "artifact": "evidence/t0/version.txt",
+   "pass_criteria": "version matches VERSION file; root binary absent",
+   "falsifier": "a pre-existing stale ./consensus was executed (C-GAP-023)",
+   "defect_gate": "QA-CONSENSUS-2",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-127",
+   "tier": "T0",
+   "title": "go vet clean",
+   "command": "go vet ./... 2>&1 | tee evidence/t0/vet.txt",
+   "expected": "exit 0, no findings",
+   "artifact": "evidence/t0/vet.txt",
+   "pass_criteria": "exit 0",
+   "falsifier": "warnings present but exit 0 swallowed by tee",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-128",
+   "tier": "T0",
+   "title": "env-clean unit suite",
+   "command": "CGO_ENABLED=0 go test -short -count=1 ./... 2>&1 | tee evidence/t0/unit.log",
+   "expected": "exit 0; all packages ok",
+   "artifact": "evidence/t0/unit.log",
+   "pass_criteria": "exit 0; package count recorded",
+   "falsifier": "PASS claimed without -count=1 (cached results)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-129",
+   "tier": "T0",
+   "title": "Pool fix commit in tree",
+   "command": "git log --oneline | grep ad8afd8 || git merge-base --is-ancestor ad8afd8 HEAD && echo IN-TREE",
+   "expected": "ad8afd8 (MaxOpenConns 1->8) is ancestor of HEAD",
+   "artifact": "evidence/t0/pool-fix.txt",
+   "pass_criteria": "in-tree",
+   "falsifier": "binary built from pre-fix checkout; T8 pool cell would then mis-xpass",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-130",
+   "tier": "T1",
+   "title": "OpenAPI path census = 60",
+   "command": "jq -r '.paths|keys[]' specs/openapi/bundled.yaml | tee evidence/t1/paths.txt; test $(wc -l < evidence/t1/paths.txt) -ge 60",
+   "expected": "60 paths enumerated",
+   "artifact": "evidence/t1/paths.txt",
+   "pass_criteria": "count == 60",
+   "forsifier": "",
+   "falsifier": "bundle/spec drift or partial bundle silently accepted",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-131",
+   "tier": "T1",
+   "title": "Every REST path exercised with expected status",
+   "command": "scripts/battery/t1_contract.sh $SRV",
+   "expected": "each path/method returns its spec'd status or a documented dependent-skip with reason",
+   "artifact": "evidence/t1/results.json",
+   "pass_criteria": "0 unexplained non-2xx; results.json length >= 60",
+   "falsifier": "runner records only successes; 0-audit shape impossible",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-132",
+   "tier": "T1",
+   "title": "Auth ladder on all authenticated paths",
+   "command": "scripts/battery/t1_auth.sh $SRV",
+   "expected": "no-key 401 / fake-key 401 / admin-key 2xx per path",
+   "artifact": "evidence/t1/auth-negatives.json",
+   "pass_criteria": "all three codes correct per path",
+   "falsifier": "admin key accepted on a path spec'd readonly-only",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-133",
+   "tier": "T1",
+   "title": "Error body shape on 4xx",
+   "command": "scripts/battery/t1_errors.sh $SRV",
+   "expected": "every 4xx body is JSON with error/message field",
+   "artifact": "evidence/t1/error-bodies/",
+   "pass_criteria": "0 malformed error bodies",
+   "falsifier": "HTML 404 page counted as a 'documented error'",
+   "defect_gate": "DF-CONSENSUS-5",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-134",
+   "tier": "T1",
+   "title": "SSE + OpenAPI serving endpoints live",
+   "command": "curl -N --max-time 5 $SRV/global/event | head -3; curl -so /dev/null -w '%{http_code}' $SRV/openapi.yaml",
+   "expected": "event frames stream; openapi 200",
+   "artifact": "evidence/t1/sse-openapi.txt",
+   "pass_criteria": "both observable",
+   "falsifier": "404-from-stale-sidecar counted as pass (README shadowing trap)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-135",
+   "tier": "T2",
+   "title": "Live LLM key validated pre-run",
+   "command": "curl -s -o evidence/t2/key-check.json -w '%{http_code}' https://api.deepseek.com/v1/chat/completions -H \"Authorization: Bearer $KEY\" -d '{\"model\":\"deepseek-v4-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":4}'",
+   "expected": "HTTP 200",
+   "artifact": "evidence/t2/key-check.json",
+   "pass_criteria": "200 before any T2 cell",
+   "falsifier": "dead key (5 of 11 dead, ENV-CONSENSUS-1) -> 'no reply' blamed on agent",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-136",
+   "tier": "T2",
+   "title": "Single-turn real round trip",
+   "command": "scripts/battery/t2_single.sh $SRV $KEY",
+   "expected": "status idle, iteration>=2, text_block persisted, tokens_in>0 tokens_out>0, agent_billing row cost_usd>0 model=deepseek-flash",
+   "artifact": "evidence/t2/session.json",
+   "pass_criteria": "all assertions true AND serve.log contains 'llm: response received' with api.deepseek.com URL",
+   "falsifier": "mock provider / dead key / billing row absent while reply present",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-137",
+   "tier": "T2",
+   "title": "Multi-turn cell A: next-iteration continuity",
+   "command": "scripts/battery/t2_multiturn.sh $SRV $KEY",
+   "expected": "second user turn answered referencing prior content; messages>=3 in second call log",
+   "artifact": "evidence/t2/multiturn.json",
+   "pass_criteria": "new text_block present; tokens_in cumulative grows",
+   "falsifier": "agent answers from memory_event cache alone with zero new LLM call (billing rowcount unchanged)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-138",
+   "tier": "T2",
+   "title": "Multi-turn cell B: within-iteration visibility (DF-15)",
+   "command": "scripts/battery/t2_df15.sh $SRV $KEY",
+   "expected": "tool_requests>0 for a DB question",
+   "artifact": "evidence/t2/df15.json",
+   "pass_criteria": "PASS only if fixed (commit hash recorded) else XFAIL",
+   "falsifier": "xfail xpass without pin update = gate violation",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-139",
+   "tier": "T2",
+   "title": "Env-only model override regression (DF-14)",
+   "command": "scripts/battery/t2_df14.sh $SRV",
+   "expected": "env-only config: base URL honored, model stays gpt-4o -> documented 400x3 -> paused, empty ledger",
+   "artifact": "evidence/t2/df14.json",
+   "pass_criteria": "matches pinned defect shape or PASSes post-fix",
+   "falsifier": "config file accidentally present makes the repro cell vacuous (GET /api/v1/config dumped as evidence)",
+   "defect_gate": "DF-CONSENSUS-14",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-140",
+   "tier": "T2",
+   "title": "Billing row model stamp matches served model",
+   "command": "jq '.agent_billing[].model' evidence/t2/session.json",
+   "expected": "deepseek-flash (or configured model), never gpt-4o when config file used",
+   "artifact": "evidence/t2/billing-stamp.json",
+   "pass_criteria": "stamp == served model from log",
+   "falsifier": "billing_provider restamped by gateway defaults (state.db lesson) \u2014 count by immutable fields",
+   "defect_gate": "DF-CONSENSUS-14",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-141",
+   "tier": "T3",
+   "title": "Tool registry register + list",
+   "command": "scripts/battery/t3_register.sh $SRV $KEY",
+   "expected": "POST /api/v1/tools 2xx; GET lists the sql-reader tool",
+   "artifact": "evidence/t3/registry.json",
+   "pass_criteria": "tool listed with read-only scope",
+   "falsifier": "registry write 200 but list 404 (phantom route)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-142",
+   "tier": "T3",
+   "title": "Direct tool execute returns real DB count",
+   "command": "scripts/battery/t3_execute.sh $SRV $KEY; ssh <agent> sqlite3 <db> 'SELECT COUNT(*) FROM sessions'",
+   "expected": "API result equals direct sqlite count, > 0",
+   "artifact": "evidence/t3/execute.json",
+   "pass_criteria": "numbers equal; count>0",
+   "falsifier": "result fabricated without DB read; or generate_series-based query (unavailable TVF) failing for the wrong reason",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-143",
+   "tier": "T3",
+   "title": "Tool sandbox negatives rejected",
+   "command": "scripts/battery/t3_negative.sh $SRV $KEY",
+   "expected": "UPDATE/DELETE via tool rejected",
+   "artifact": "evidence/t3/negatives.json",
+   "pass_criteria": "rejected with shaped error",
+   "falsifier": "rejection via 500 (unshaped) counted as pass",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-144",
+   "tier": "T3",
+   "title": "Agent USES the tool end-to-end (DF-15 dependent)",
+   "command": "scripts/battery/t3_agent_chain.sh $SRV $KEY",
+   "expected": "tool_requests>0 AND tool_results>0 AND agent text contains the direct-execute number",
+   "artifact": "evidence/t3/agent-chain.json",
+   "pass_criteria": "PASS if fixed else XFAIL to DF-CONSENSUS-15",
+   "falsifier": "success reported with tool_requests=0 (DF-15 signature)",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-145",
+   "tier": "T4",
+   "title": "Append-only triggers enforce the ledger",
+   "command": "ssh <agent> sqlite3 <db> 'UPDATE memory_events SET ...'; ssh <agent> sqlite3 <db> 'DELETE FROM memory_events ...'",
+   "expected": "both blocked by trigger",
+   "artifact": "evidence/t4/triggers.txt",
+   "pass_criteria": "both attempts fail with trigger error",
+   "falsifier": "attempts run as root bypassing the app role (test the app path)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-146",
+   "tier": "T4",
+   "title": "Typed memory_events census matches SPEC-002",
+   "command": "ssh <agent> sqlite3 <db> 'SELECT type,COUNT(*) FROM memory_events GROUP BY type' | tee evidence/t4/census.csv",
+   "expected": "text_block/tool_request/tool_result/memory_state_change present",
+   "artifact": "evidence/t4/census.csv",
+   "pass_criteria": "all expected types present, census rowcount>0",
+   "falsifier": "empty census passes vacuously",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-147",
+   "tier": "T4",
+   "title": "Token reconciliation billing<->sessions",
+   "command": "scripts/battery/rederive.sh --tokens evidence/t4/db.dump",
+   "expected": "SUM(prompt_tokens)==tokens_used_in per session; same for out",
+   "artifact": "evidence/t4/reconciliation.json",
+   "pass_criteria": "exact equality; agent_billing rowcount>0 asserted FIRST",
+   "falsifier": "reconciliation over 0 billing rows",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-148",
+   "tier": "T4",
+   "title": "Cost sanity vs sticker price",
+   "command": "scripts/battery/cost_check.sh evidence/t4/billing.csv",
+   "expected": "cost_usd within [0.5x,2x] of public per-token price for the model",
+   "artifact": "evidence/t4/cost-sanity.json",
+   "pass_criteria": "in band",
+   "falsifier": "0.009775-class rows without a checked band",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-149",
+   "tier": "T4",
+   "title": "Session isolation at DB layer (C5)",
+   "command": "scripts/battery/t4_isolation.sh $SRV $KEY",
+   "expected": "session B memory/context contains no session A ids",
+   "artifact": "evidence/t4/isolation.json",
+   "pass_criteria": "0 cross-refs across sampled 20 rows each",
+   "falsifier": "hidden display_modes mistaken for isolation",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-150",
+   "tier": "T5",
+   "title": "MCP tools/list + tools/call real execution",
+   "command": "scripts/battery/t5_mcp_call.sh $SRV $KEY",
+   "expected": "tools/list non-empty; tools/call executes the registered sql-reader and returns its result",
+   "artifact": "evidence/t5/call.json",
+   "pass_criteria": "call result matches direct API execute",
+   "falsifier": "call returns canned echo",
+   "defect_gate": "MCP-DIRECT-001",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-151",
+   "tier": "T5",
+   "title": "MCP unknown method shaped error",
+   "command": "scripts/battery/t5_mcp_err.sh $SRV",
+   "expected": "JSON-RPC error object, not 500 HTML",
+   "artifact": "evidence/t5/error.json",
+   "pass_criteria": "error object with code",
+   "falsifier": "stack trace counted as error handling",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-152",
+   "tier": "T6",
+   "title": "Go-port chronicle suite baseline",
+   "command": "CGO_ENABLED=0 go test -count=1 ./internal/chronicle/ -run TestOpencode -v | tee evidence/t6/goport.log",
+   "expected": "46 sub-tests pass",
+   "artifact": "evidence/t6/goport.log",
+   "pass_criteria": "all 46 pass; count asserted from log",
+   "falsifier": "sub-test count changed silently vs baseline",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-153",
+   "tier": "T6",
+   "title": "Runner adapter self-test (gate only)",
+   "command": "scripts/test-opencode-upstream.sh --self-test | tee evidence/t6/selftest.log",
+   "expected": "exit 0",
+   "artifact": "evidence/t6/selftest.log",
+   "pass_criteria": "exit 0 \u2014 recorded as GATE, never as evidence",
+   "falsifier": "self-test green reported as 'upstream ran'",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-154",
+   "tier": "T6",
+   "title": "LITERAL upstream TS suites vs live shim (first-ever run)",
+   "command": "CONSENSUS_OPENCODE_BASE_URL=$SRV make test-opencode-upstream 2>&1 | tee evidence/t6/upstream.log",
+   "expected": "four suites' own exit codes, truthfully recorded; failures expected while C-GAP-032-ALPHA open",
+   "artifact": "evidence/t6/summary.json + upstream.log + docs/evidence/opencode-upstream-v1.18.29/",
+   "pass_criteria": "summary.json has per-suite exit codes; pinned revision 16747470 echoed and matched",
+   "falsifier": "stale cache checkout (manifest diff) or self-test substituted; failures silently waived",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-155",
+   "tier": "T6",
+   "title": "Real-TUI / CLI proof",
+   "command": "sh scripts/prove-opencode-cli.sh $SRV 2>&1 | tee evidence/t6/cli.log",
+   "expected": "shim serves the CLI path per script's assertions",
+   "artifact": "evidence/t6/cli.log",
+   "pass_criteria": "script exit 0",
+   "falsifier": "script passing against its own mock",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-156",
+   "tier": "T7a",
+   "title": "Crier register (signed) accepted; unsigned rejected",
+   "command": "CR_REQUIRE_AGENT_SIG=1 ./bin/crier -port 8767 & trap-driven; scripts/battery/t7_register.sh",
+   "expected": "ed25519-signed register 2xx; unsigned register 4xx",
+   "artifact": "evidence/t7/register.json",
+   "pass_criteria": "both observable; rejection code recorded",
+   "falsifier": "server started without CR_REQUIRE_AGENT_SIG so unsigned pass is vacuous",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-157",
+   "tier": "T7a",
+   "title": "Crier deliver -> lease retrieve -> ack round trip",
+   "command": "scripts/battery/t7_roundtrip.sh (models /home/kara/crier/examples/demo.sh against live :8767)",
+   "expected": "deliver 2xx; retrieve returns leased message; second retrieve without ack re-delivers; post-ack retrieve empty",
+   "artifact": "evidence/t7/crier-roundtrip.json",
+   "pass_criteria": "all four observable states in order",
+   "falsifier": "retrieve succeeding without lease/ack cycle (durable-inbox semantics broken but 200)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-158",
+   "tier": "T7b",
+   "title": "Consensus consumes a crier-delivered message (CR-IN-001)",
+   "command": "scripts/battery/t7_intake.sh $SRV $KEY",
+   "expected": "delivered crier message id appears as user_message memory_event in target session; agent-visible in next context window",
+   "artifact": "evidence/t7/intake.json",
+   "pass_criteria": "PASS only if CR-IN-001 implemented (commit hash recorded) else XFAIL pinned",
+   "falsifier": "message injected directly into consensus DB bypassing crier (cross-system id join required as evidence)",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-159",
+   "tier": "T8",
+   "title": "Dead-key circuit breaker (C6)",
+   "command": "scripts/battery/t8_breaker.sh $SRV",
+   "expected": "2 consecutive LLM errors -> session paused; circuit_breakers row; ledger error records; recovers after key restore",
+   "artifact": "evidence/t8/breaker.json",
+   "pass_criteria": "paused status + breaker row + recovery",
+   "falsifier": "dead key never reached LLM (no error rows) \u2014 breaker 'passed' on a no-op",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-160",
+   "tier": "T8",
+   "title": "SQLite pool pressure: polling + SSE + planning (C11)",
+   "command": "scripts/battery/t8_pool.sh $SRV",
+   "expected": "5-min cell: zero 'begin tx: context deadline exceeded'; zero sessions stuck planning; conns<=8",
+   "artifact": "evidence/t8/pool.json + serve.log excerpt",
+   "pass_criteria": "all three negatives true; concurrent session reached idle",
+   "falsifier": "cell ran with no concurrent planning (no billing rows) \u2014 pressure never applied",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-161",
+   "tier": "T8",
+   "title": "Crash recovery: kill -9 mid-flight (C4)",
+   "command": "scripts/battery/t8_crash.sh $SRV (records artifact, second iteration, kill -9, restart, re-read)",
+   "expected": "committed artifact identical after restart; staging_buffer residue reported by recoverydiag; open tx rolled back",
+   "artifact": "evidence/t8/restart.json",
+   "pass_criteria": "artifact equal; residue reported honestly",
+   "falsifier": "server 'restarted' via SIGTERM checkpoint \u2014 process log must show SIGKILL",
+   "defect_gate": "QA-CONSENSUS-5",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-162",
+   "tier": "T8",
+   "title": "Keyless crash demo reproduces (C14)",
+   "command": "DEEPSEEK_API_KEY=$KEY go test -v -run TestDemo -timeout 300s ./demo/ | tee evidence/t8/demo.log",
+   "expected": "TestDemo pass with real LLM calls",
+   "artifact": "evidence/t8/demo.log",
+   "pass_criteria": "PASS + real-call evidence in log",
+   "falsifier": "demo silently mocked (no provider URL in log)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-163",
+   "tier": "T9",
+   "title": "Load-gate pre-flight",
+   "command": "cat /proc/loadavg # on bunker; exit 3 skip if 1-min >= 8",
+   "expected": "skip recorded with reason, or cell runs",
+   "artifact": "evidence/t9/loadgate.txt",
+   "pass_criteria": "gate observed (skip is a recorded outcome, not a silent pass)",
+   "falsifier": "burn loop dispatched at load 20 (unbounded burn violates fleet law)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-164",
+   "tier": "T9",
+   "title": "Bounded 4-session concurrency cell",
+   "command": "scripts/battery/t9_load.sh $SRV $KEY --sessions 4 --wall 300s",
+   "expected": "all 4 idle; zero begin-tx errors; billing rows == 12; latency p99 recorded",
+   "artifact": "evidence/t9/load.json",
+   "pass_criteria": "sessions_tested>=4 asserted BEFORE any PASS; wall<=300s; polling 2s no busy-wait",
+   "falsifier": "timer-killed sessions counted idle; stats over 0 sessions",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-165",
+   "tier": "T9",
+   "title": "Scratch-dir leak census (QA-CONSENSUS-6 regression)",
+   "command": "ls -d /tmp/consensus-test* 2>/dev/null | wc -l (before/after)",
+   "expected": "delta ~0",
+   "artifact": "evidence/t9/tmp-census.txt",
+   "pass_criteria": "no new leak dirs",
+   "falsifier": "8.5GB-class leak counted as green",
+   "defect_gate": "QA-CONSENSUS-6",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-166",
+   "tier": "T10",
+   "title": "Baby project: goal -> disk artifact",
+   "command": "scripts/battery/t10_baby.sh $SRV $KEY",
+   "expected": "~/baby-<ts>/hello.txt contains HELLO-CONSENSUS; ledger chain task->tool_request->tool_result->text_block complete; tool_results>0",
+   "artifact": "evidence/t10/{disk-proof.txt,ledger.json}",
+   "pass_criteria": "disk content exact AND chain complete AND tool_results>0",
+   "falsifier": "session reports success with tool_results=0 (DF-15 coincidence, not causation)",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-167",
+   "tier": "T10",
+   "title": "Baby project billing closure",
+   "command": "jq '.agent_billing|length' evidence/t10/ledger.json",
+   "expected": "every LLM call in the scenario billed",
+   "artifact": "evidence/t10/cost.json",
+   "pass_criteria": "billing rowcount == observed llm call count",
+   "falsifier": "unbilled calls (cost leaks)",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-168",
+   "tier": "S4",
+   "title": "Evidence tree assembled + third-party rederivation",
+   "command": "scripts/battery/rederive.sh ~/consensus-reports/run-2026-09-24/",
+   "expected": "every report number recomputable from artifacts alone",
+   "artifact": "~/consensus-reports/run-2026-09-24/{results.json,index.html,rederive-out.json}",
+   "pass_criteria": "rederive.sh reproduces every headline number with zero runner state",
+   "falsifier": "report numbers differing from rederive output",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-169",
+   "tier": "S4",
+   "title": "Secret hygiene on artifacts",
+   "command": "grep -r 'sk-' ~/consensus-reports/run-2026-09-24/ | grep -v REDACTED; echo rc=$?",
+   "expected": "no live keys in evidence (rc=1)",
+   "artifact": "evidence/secret-scan.txt",
+   "pass_criteria": "no unredacted keys in the delivered tree",
+   "falsifier": "API key shipped inside serve.log",
+   "defect_gate": "",
+   "proposed_by": [
+    "glm-5.3-flash@zai-glm-default"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-170",
+   "tier": "T0",
+   "title": "Full build",
+   "command": "go build ./...",
+   "expected": "rc=0, empty stderr",
+   "artifact": "plan-evidence/t0-1.log",
+   "pass_criteria": "rc=0",
+   "falsifier": "any build diagnostic",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-171",
+   "tier": "T0",
+   "title": "Env-clean short suite",
+   "command": "env -i PATH=$PATH HOME=$HOME TMPDIR=$PWD/.tmp go test -count=1 -short ./...",
+   "expected": "rc=0, zero FAIL, zero /tmp leak delta",
+   "artifact": "plan-evidence/t0-3.log",
+   "pass_criteria": "rc=0 and /tmp scratch-dir delta == 0 and no FAIL lines",
+   "falsifier": "passes only with keys in env, or tmp droppings grow",
+   "defect_gate": "QA-CONSENSUS-6",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-172",
+   "tier": "T0",
+   "title": "TVF probe (generate_series)",
+   "command": "go run ./scripts/probe-tvf.go && sqlite3 :memory: \"select value from generate_series(1,3)\"",
+   "expected": "driver result recorded; tool tests use only proven TVFs",
+   "artifact": "plan-evidence/tvf-probe.txt",
+   "pass_criteria": "probe executes and outcome is recorded and consumed",
+   "falsifier": "T0-5 assumes an unprobed TVF",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-173",
+   "tier": "T0",
+   "title": "Tool registry handler tests",
+   "command": "go test -count=1 -run TestToolRegistry ./internal/harness/ ./internal/api/",
+   "expected": "rc=0",
+   "artifact": "plan-evidence/t0-5.log",
+   "pass_criteria": "rc=0, no skips",
+   "falsifier": "skip-by-env counts as pass",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-174",
+   "tier": "T0",
+   "title": "Guard + fmt drift",
+   "command": "gitreins guard && test -z \"$(gofmt -l $(git ls-files '*.go'))\"",
+   "expected": "guard PASS, gofmt list empty",
+   "artifact": "plan-evidence/t0-6.log",
+   "pass_criteria": "both rc=0",
+   "falsifier": "guard vacuous PASS (scope line says 0 files covered)",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-175",
+   "tier": "S1",
+   "title": "Key health probe",
+   "command": "probe all 11 sk- keys against api.deepseek.com/v1/models",
+   "expected": "live/dead census printed; only live keys proceed",
+   "artifact": "plan-evidence/key-probe.json",
+   "pass_criteria": ">=1 live key; census != assumed census is recorded",
+   "falsifier": "trusting the board census without re-probing",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-176",
+   "tier": "S1",
+   "title": "Bunker provision",
+   "command": "apt install uidmap fuse-overlayfs slirp4netns dbus-user-session golang-go nodejs npm; clone; checkout 77b990b; build; sha256sum",
+   "expected": "binary sha256 in env.txt; node live; egress OK",
+   "artifact": "plan-evidence/env.txt",
+   "pass_criteria": "env.txt complete, HEAD == intended",
+   "falsifier": "deploying agent's live checkout or stale binary",
+   "defect_gate": "QA-CONSENSUS-2,QA-CONSENSUS-4",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-177",
+   "tier": "T1",
+   "title": "Auth ladder",
+   "command": "curl health (200 public) / sessions no-key / fake-key / admin-key",
+   "expected": "404? no: 401,401,200 ladder",
+   "artifact": "plan-evidence/t1-auth.log",
+   "pass_criteria": "exact ladder + JSON error envelope on 401s",
+   "falsifier": "404 from stale sidecar (README trap) counted as 401",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-178",
+   "tier": "T1",
+   "title": "Full 60-path sweep",
+   "command": "./t1-contract.sh (inventory generated from bundled.yaml)",
+   "expected": "60 paths x methods; zero 404; zero 500; schema spot-checks pass",
+   "artifact": "plan-evidence/t1-sweep.jsonl",
+   "pass_criteria": "inventory-count==60 twice-derived AND executed==60 AND failures==0",
+   "falsifier": "empty inventory sweeping nothing",
+   "defect_gate": "QA-CONSENSUS-7",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-179",
+   "tier": "T1",
+   "title": "Error shape consistency",
+   "command": "malformed JSON / unknown-id probes on 5+ paths",
+   "expected": "one envelope shape across handlers",
+   "artifact": "plan-evidence/t1-neg.log",
+   "pass_criteria": "shape diff empty",
+   "falsifier": "per-handler folklore shapes = RED",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-180",
+   "tier": "T1",
+   "title": "Served spec == bundled spec",
+   "command": "diff served openapi vs bundled.yaml path-sets",
+   "expected": "identical 60-path sets",
+   "artifact": "plan-evidence/served-vs-bundled.diff",
+   "pass_criteria": "empty diff",
+   "falsifier": "doc drift silently shipped",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-181",
+   "tier": "T1",
+   "title": "DF-2 probe: documented-only fields",
+   "command": "POST /api/v1/sessions with spec-documented fields only",
+   "expected": "if 400 -> EXPECTED-FAIL DF-CONSENSUS-2; if 201 defect fixed",
+   "artifact": "plan-evidence/t1-5.log",
+   "pass_criteria": "outcome classified and pinned to board id",
+   "falsifier": "sweep quietly uses undocumented fields without reporting",
+   "defect_gate": "DF-CONSENSUS-2",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-182",
+   "tier": "T1",
+   "title": "SSE liveness",
+   "command": "timeout 5 curl -N $B/global/event -H \"Authorization: Bearer $A\"",
+   "expected": "200 + text/event-stream + >=1 event line in 5s",
+   "artifact": "plan-evidence/t1-6.log",
+   "pass_criteria": "byte growth observed",
+   "falsifier": "200 with zero bytes = dead SSE",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-183",
+   "tier": "T2",
+   "title": "Baseline round trip",
+   "command": "create session; send 'Reply with exactly: PONG'; poll to idle",
+   "expected": "text_block PONG; tokens>0; billing rows present; iteration>=1; idle",
+   "artifact": "plan-evidence/t2-1.log + db snapshot",
+   "pass_criteria": "all assertions true AND log shows api.deepseek.com",
+   "falsifier": "mock URL / zero tokens while idle",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-184",
+   "tier": "T2",
+   "title": "DF-15 multi-call planning",
+   "command": "prompt forcing sql_query tool then report; count sessions rows",
+   "expected": "tool_requests>0 AND tool_results>0 AND correct number AND messages count non-shrinking; else EXPECTED-FAIL DF-CONSENSUS-15",
+   "artifact": "plan-evidence/t2-2.log",
+   "pass_criteria": "classified with board id; zero-tool correct answer = RED",
+   "falsifier": "agent hallucinates count with 0 tool calls and is graded PASS",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-185",
+   "tier": "T2",
+   "title": "Multi-iteration user-turn visibility",
+   "command": "3 sequential turns; run context.go:581 SELECT on DB",
+   "expected": "current-turn user rows visible in planning context; hidden only for precedent turns per fix contract",
+   "artifact": "plan-evidence/t2-3.sql",
+   "pass_criteria": "fix-presence or bug-presence explicitly asserted",
+   "falsifier": "assertion absent and outcome narrated",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-186",
+   "tier": "T2",
+   "title": "Billing sanity band",
+   "command": "recompute run cost from public DeepSeek rates; compare cost_usd",
+   "expected": "within +/-50% band; both numbers printed",
+   "artifact": "plan-evidence/t2-4.json",
+   "pass_criteria": "both values recorded",
+   "falsifier": "exactness claimed from sticker",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-187",
+   "tier": "T2",
+   "title": "DF-14 model override probe",
+   "command": "restart with CONSENSUS_LLM_BASE_URL set, no model env; inspect model= log line",
+   "expected": "override exists and works, or EXPECTED-FAIL DF-CONSENSUS-14",
+   "artifact": "plan-evidence/t2-5.log",
+   "pass_criteria": "classified with board id",
+   "falsifier": "source-grep-only classification without live run",
+   "defect_gate": "DF-CONSENSUS-14",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-188",
+   "tier": "T3",
+   "title": "Registry non-empty",
+   "command": "GET registry path; compare to specs/010 inventory",
+   "expected": "set-equality",
+   "artifact": "plan-evidence/t3-1.json",
+   "pass_criteria": "sets equal",
+   "falsifier": "hardcoded list drifted from spec",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-189",
+   "tier": "T3",
+   "title": "Direct tool execute",
+   "command": "execute sql_query select 41+1",
+   "expected": "result contains 42 per spec shape",
+   "artifact": "plan-evidence/t3-2.log",
+   "pass_criteria": "shape+value",
+   "falsifier": "500 or stringy shellout",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-190",
+   "tier": "T3",
+   "title": "Agent uses tool end-to-end",
+   "command": "6*7 via mandated tool; assert chain in memory_events",
+   "expected": "tool_requests>=1, result has 42, answer has 42, ordering invariant holds",
+   "artifact": "plan-evidence/t3-3.log",
+   "pass_criteria": "ALL four assertions",
+   "falsifier": "0 tool calls + correct answer = RED",
+   "defect_gate": "DF-CONSENSUS-15",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-191",
+   "tier": "T3",
+   "title": "Tool error path",
+   "command": "execute select * from nope; inspect memory_events",
+   "expected": "structured error, visible to next agent turn",
+   "artifact": "plan-evidence/t3-4.log",
+   "pass_criteria": "no 500 + error ledgered",
+   "falsifier": "error swallowed",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-192",
+   "tier": "T3",
+   "title": "Tool sandbox refusal",
+   "command": "attempt ATTACH DATABASE '/etc/passwd' class escape",
+   "expected": "refusal",
+   "artifact": "plan-evidence/t3-5.log",
+   "pass_criteria": "refused",
+   "falsifier": "executed = RED stop",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-193",
+   "tier": "T4",
+   "title": "Append-only ledger triggers",
+   "command": "UPDATE/DELETE a memory_events row",
+   "expected": "trigger rejection",
+   "artifact": "plan-evidence/t4-1.log",
+   "pass_criteria": "both rejected",
+   "falsifier": "forgery succeeds = spec breach",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-194",
+   "tier": "T4",
+   "title": "Token sums equality",
+   "command": "sessions sums vs agent_billing sums",
+   "expected": "exact equality both directions",
+   "artifact": "plan-evidence/integrity.json",
+   "pass_criteria": "diff == 0",
+   "falsifier": "approx claims",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-195",
+   "tier": "T4",
+   "title": "Typed events census",
+   "command": "group_by type vs specs/002 set",
+   "expected": "all known, none NULL",
+   "artifact": "plan-evidence/t4-3.json",
+   "pass_criteria": "set match",
+   "falsifier": "unknown types introduced under test",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-196",
+   "tier": "T4",
+   "title": "Cost sanity + money cap",
+   "command": "monotonicity spots + total < $1.00",
+   "expected": "under cap",
+   "artifact": "plan-evidence/t2-4.json",
+   "pass_criteria": "total_cost<1.00 else halt run",
+   "falsifier": "runaway billing loop",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-197",
+   "tier": "T4",
+   "title": "DB session isolation",
+   "command": "S1 attempts S2-scoped read via agent surface",
+   "expected": "refused/empty",
+   "artifact": "plan-evidence/t4-5.log",
+   "pass_criteria": "no cross-rows via agent surface",
+   "falsifier": "testing sqlite directly and claiming isolation",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-198",
+   "tier": "T4",
+   "title": "Billing 1:1 with LLM calls",
+   "command": "count log LLM lines vs billing rows",
+   "expected": "equal",
+   "artifact": "plan-evidence/t4-6.json",
+   "pass_criteria": "equal",
+   "falsifier": "calls without billing or phantom billing",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-199",
+   "tier": "T5",
+   "title": "MCP route truth",
+   "command": "GET /mcp, /api/v1/mcp, POST /mcp/message status census",
+   "expected": "route table matches docs or EXPECTED-FAIL DF-CONSENSUS-4",
+   "artifact": "plan-evidence/t5-1.log",
+   "pass_criteria": "classified with board id",
+   "falsifier": "assuming /mcp/message without probing",
+   "defect_gate": "DF-CONSENSUS-4",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-200",
+   "tier": "T5",
+   "title": "MCP handshake + tools",
+   "command": "initialize, tools/list, tools/call",
+   "expected": "non-empty list; call works; MCP tools == HTTP registry",
+   "artifact": "plan-evidence/t5-2.log",
+   "pass_criteria": "set equality",
+   "falsifier": "empty or divergent tool list",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-201",
+   "tier": "T5",
+   "title": "MCP auth ladder",
+   "command": "no/fake key on /mcp/message",
+   "expected": "401,401",
+   "artifact": "plan-evidence/t5-3.log",
+   "pass_criteria": "ladder exact",
+   "falsifier": "MCP path unprotected",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-202",
+   "tier": "T5",
+   "title": "External MCP attach (2 clients)",
+   "command": "two concurrent clients, list tools, isolation check",
+   "expected": "works with distinct sessions or EXPECTED-FAIL MCP-DIRECT-001",
+   "artifact": "plan-evidence/t5-4.log",
+   "pass_criteria": "classified with board id",
+   "falsifier": "single-client pass claimed as attach",
+   "defect_gate": "MCP-DIRECT-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-203",
+   "tier": "T6",
+   "title": "Go port suite count",
+   "command": "go test -count=1 -run TestOpenCode -v ./internal/chronicle/",
+   "expected": "exactly 46 PASS",
+   "artifact": "plan-evidence/t6-1.log",
+   "pass_criteria": "count==46, rc=0",
+   "falsifier": "eyeballing; count drift unflagged",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-204",
+   "tier": "T6",
+   "title": "Literal upstream TS suite vs live shim",
+   "command": "CONSENSUS_OPENCODE_BASE_URL=$B sh scripts/test-opencode-upstream.sh",
+   "expected": "executed count>0; pass-rate reported; failures triaged",
+   "artifact": "docs/evidence/opencode-upstream-v1.18.29/ + t6-2.log",
+   "pass_criteria": "count>0 AND honest rate; 100% closes C-GAP-032-ALPHA",
+   "falsifier": "0 executed tests reported as pass",
+   "defect_gate": "C-GAP-032-ALPHA",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-205",
+   "tier": "T6",
+   "title": "Real TUI smoke",
+   "command": "pinned opencode TUI 1.18.29 against shim; scripted pty round trip",
+   "expected": "response visible in pane capture",
+   "artifact": "plan-evidence/t6-3.cast",
+   "pass_criteria": "captured response text; else manual-checklist downgrade recorded",
+   "falsifier": "BASE_URL pointing at upstream real server",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-206",
+   "tier": "T7",
+   "title": "Crier control round trip",
+   "command": "register(ed25519) -> deliver inbox -> retrieve lease -> ack; byte-compare body",
+   "expected": "identical bytes end-to-end",
+   "artifact": "plan-evidence/t7-0.json",
+   "pass_criteria": "byte equality + ack recorded",
+   "falsifier": "claiming from logs without ack; consensus blamed for crier failure",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-207",
+   "tier": "T7",
+   "title": "Wiring existence census",
+   "command": "grep -ri crier internal/ cmd/ specs/",
+   "expected": "0 hits at HEAD -> T7-2/3 EXPECTED-FAIL by construction",
+   "artifact": "plan-evidence/t7-1.log",
+   "pass_criteria": "census printed and drives gating",
+   "falsifier": "T7 silently skipped",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-208",
+   "tier": "T7",
+   "title": "Crier message becomes agent-visible input",
+   "command": "crier deliver -> consensus ingest -> agent answers 4",
+   "expected": "ledger row with crier provenance + agent answer 4 + inbox ack, three stores agree",
+   "artifact": "plan-evidence/t7-2.{json,log,sql}",
+   "pass_criteria": "three-store agreement; else EXPECTED-FAIL CR-IN-001",
+   "falsifier": "shared sqlite file or test-side echo as evidence",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-209",
+   "tier": "T7",
+   "title": "Lease crash safety",
+   "command": "kill -9 consensus mid-consume; restart; assert redelivery-or-ack",
+   "expected": "no message loss per documented delivery contract",
+   "artifact": "plan-evidence/t7-3.log",
+   "pass_criteria": "exactly-once or at-least-once honored as documented",
+   "falsifier": "silent drop counted",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-210",
+   "tier": "T7",
+   "title": "Signature negatives",
+   "command": "deliver with bogus ed25519 sig / unknown agent id",
+   "expected": "rejected; consensus ledger unchanged",
+   "artifact": "plan-evidence/t7-4.log",
+   "pass_criteria": "reject + unchanged ledger",
+   "falsifier": "unsigned ingest written",
+   "defect_gate": "CR-IN-001",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-211",
+   "tier": "T8",
+   "title": "Circuit breaker on verified-dead key",
+   "command": "re-probe key dead; run session; assert pause + breaker row + zero billing",
+   "expected": "paused after 2 errors; no billed failures; resume works",
+   "artifact": "plan-evidence/t8-1.log",
+   "pass_criteria": "status==paused, breaker open, billing rows == 0",
+   "falsifier": "failed calls billed, or census used unverified",
+   "defect_gate": "ENV-CONSENSUS-1",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-212",
+   "tier": "T8",
+   "title": "Pool pressure regression",
+   "command": "held SSE + 4x pollers 2s + planning session, 60s bounded",
+   "expected": "zero 'context deadline exceeded'; no stuck planning; log evidence MaxOpenConns=8",
+   "artifact": "plan-evidence/t8-2.log",
+   "pass_criteria": "zero wedge lines + SSE byte growth proven",
+   "falsifier": "SSE died at t=1 while test green",
+   "defect_gate": "C-GAP-POOL-FOLLOWUP",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-213",
+   "tier": "T8",
+   "title": "Crash demo (keyed E2E)",
+   "command": "DEEPSEEK_API_KEY=$LIVE go test -v -run TestDemo -timeout 300s ./demo/ + manual kill -9 repro",
+   "expected": "committed artifact survives; staging residue reported; rollback honest",
+   "artifact": "plan-evidence/t8-3.log",
+   "pass_criteria": "both demo and manual repro match README transcript",
+   "falsifier": "demo tests fixture not product",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-214",
+   "tier": "T8",
+   "title": "Corrupted DB boot",
+   "command": "truncate copy; boot; PRAGMA integrity_check",
+   "expected": "loud named failure; no silent re-init",
+   "artifact": "plan-evidence/t8-4.log",
+   "pass_criteria": "loud failure; else EXPECTED-FAIL QA-CONSENSUS-5",
+   "falsifier": "silent ledger discard",
+   "defect_gate": "QA-CONSENSUS-5",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-215",
+   "tier": "T9",
+   "title": "Load gate",
+   "command": "1m loadavg < 12 else skip rc=3",
+   "expected": "gate decision recorded",
+   "artifact": "plan-evidence/env.txt",
+   "pass_criteria": "verdict recorded either way",
+   "falsifier": "burning a loaded host",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-216",
+   "tier": "T9",
+   "title": "8 concurrent sessions",
+   "command": "8 sessions x 1 turn, <=300s",
+   "expected": "all idle; zero cross-rows; RSS < 2x start",
+   "artifact": "plan-evidence/t9-1.log",
+   "pass_criteria": "all three assertions",
+   "falsifier": "serial run labelled concurrent",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-217",
+   "tier": "T9",
+   "title": "Concurrent billing join",
+   "command": "billing rows vs log call count across 8 sessions",
+   "expected": "equality",
+   "artifact": "plan-evidence/t9-2.json",
+   "pass_criteria": "equal",
+   "falsifier": "aggregate-only comparison",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-218",
+   "tier": "T9",
+   "title": "Postgres spot check (optional)",
+   "command": "rerun T1 sweep + T4-2 against PG DSN if available",
+   "expected": "green or recorded skip with reason",
+   "artifact": "plan-evidence/t9-3.log",
+   "pass_criteria": "either outcome recorded explicitly",
+   "falsifier": "silent absence",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-219",
+   "tier": "T10",
+   "title": "Baby project setup",
+   "command": "git init /tmp/babyproj; broken calc.py (41)",
+   "expected": "fixture verified broken by runner",
+   "artifact": "plan-evidence/t10-1.log",
+   "pass_criteria": "runner confirms 41 pre-run",
+   "falsifier": "fixture already correct",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-220",
+   "tier": "T10",
+   "title": "Goal-driven session",
+   "command": "session goal: fix calc.py to 42 via tasks+tools, <=10 iterations, 900s cap",
+   "expected": "tasks created+closed; tools used; bounded",
+   "artifact": "plan-evidence/t10-2.log",
+   "pass_criteria": "bounded completion or honest timeout verdict",
+   "falsifier": "unbounded iteration",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-221",
+   "tier": "T10",
+   "title": "Disk verification",
+   "command": "runner runs python3 calc.py; adbms",
+   "expected": "prints 42; session billing < $0.50",
+   "artifact": "plan-evidence/t10-3.log",
+   "pass_criteria": "disk truth 42 AND transcript agreement",
+   "falsifier": "transcript success with disk still 41 -> RED",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-222",
+   "tier": "T10",
+   "title": "Independent ground truth",
+   "command": "python3 -c 'print(6*7)' + git diff review",
+   "expected": "42; diff is the only change",
+   "artifact": "plan-evidence/t10-4.diff",
+   "pass_criteria": "both recorded",
+   "falsifier": "agent touched unexpected files",
+   "defect_gate": "",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  },
+  {
+   "id": "C-223",
+   "tier": "S4",
+   "title": "HTML report + re-derivation",
+   "command": "build single-file HTML w/ TOC + per-claim recompute commands",
+   "expected": "every number hyperlinked to raw artifact + command",
+   "artifact": "plan-evidence/report.html",
+   "pass_criteria": "S3 disposition table complete, no open-unmapped P1/P2",
+   "falsifier": "numbers not re-derivable from dumps",
+   "defect_gate": "TEST-CONSENSUS-001,QA-CONSENSUS-7",
+   "proposed_by": [
+    "kimi-k3@neuralwatt"
+   ],
+   "converged": false
+  }
+ ]
+}
