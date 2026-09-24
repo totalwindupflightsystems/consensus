@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -42,19 +41,12 @@ type fcSession struct {
 
 func startConsensus(t *testing.T) (string, *fcSession, func()) {
 	t.Helper()
-	_, thisFile, _, _ := runtime.Caller(0)
-	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
-	tmpDir, _ := os.MkdirTemp("", "consensus-fc-*")
-	binPath := filepath.Join(tmpDir, "consensus")
-	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/consensus")
-	buildCmd.Dir = projectRoot
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, out)
-	}
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
 	if apiKey == "" {
 		t.Skip("DEEPSEEK_API_KEY not set")
 	}
+	tmpDir, _ := os.MkdirTemp("", "consensus-fc-*")
+	binPath := contractBinaryFixture.get(t)
 	dbURL := "sqlite://" + filepath.Join(tmpDir, "test.db") + "?_journal_mode=WAL"
 	initCmd := exec.Command(binPath, "init", "--db-url", dbURL, "--llm-provider", "openai")
 	initCmd.Env = append(os.Environ(), "DEEPSEEK_API_KEY="+apiKey)
