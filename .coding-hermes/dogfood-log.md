@@ -151,3 +151,4 @@ Run details (2026-09-25 PM, angle = MCP surface, first run since MCP-DIRECT-001 
 - Artifacts: docs/dogfood/2026-09-25-mcp-surface.md, skills/consensus-usage/SKILL.md
   v2.7.0 (MCP-surface section).
 - Foreman: see tick report.
+| 2026-09-25b | 🟡 PROMISING-BUT-ROUGH | (2nd run today; ANGLE = REST API + crash-recovery + isolation claims; morning run did MCP) DB-native runtime: async REST turns, billing, key scoping, session lifecycle, SIGKILL recovery. | 1. P1 agent_billing never records + tokens stay 0 through real LLM turns (log shows 1638/158). 2. P1 DELETE /sessions/{id} returns 200 but row survives, stays listed, still takes messages. 3. P1 key-mint response api_key = "cs_sk_...NNN" placeholder — scoped keys dead on arrival. | ~4 min |
