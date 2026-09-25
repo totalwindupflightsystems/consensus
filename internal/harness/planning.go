@@ -227,6 +227,19 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("planning: set session context: %w", err)
 	}
 
+	// DF-CONSENSUS-27: LLM usage captured during the loop is flushed in its
+	// own committed pool transaction AFTER the iteration tx resolves. Order
+	// matters — the planning tx holds the SQLite WAL write lock from turn 1
+	// (markUserMessagesRead), so a pool-level usage write issued mid-loop
+	// would block on it; Go defers run LIFO, so this flush (registered after
+	// the tx-rollback defer above) runs once the tx is closed, on EVERY
+	// terminal: commit, respond, rollback+end, tool hand-off, timeout,
+	// error, max-turns.
+	pendingUsage := []capturedLLMUsage{}
+	defer func() {
+		h.flushPendingUsage(ctx, sessionID, pendingUsage)
+	}()
+
 	// Track state
 	rollbackCount := 0
 	turnsWithWork := 0
@@ -276,15 +289,21 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("consume user messages: %w", consumeErr))
 			}
 		}
-		if err := h.recordLLMUsageTx(ctx, tx, sessionID, ic.Iteration, output); err != nil {
-			return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("record LLM usage: %w", err))
+		usage, usageErr := h.captureLLMUsage(ctx, sessionID, ic.Iteration, output)
+		if usageErr != nil {
+			return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("capture LLM usage: %w", usageErr))
 		}
+		// Held for the durable flush below; never written through tx — the
+		// iteration's terminal path (commit OR rollback) must not decide
+		// whether paid usage reaches the ledger (DF-CONSENSUS-27).
+		pendingUsage = append(pendingUsage, usage)
 
 		// Parse into TurnPlan
 		plan := h.outputToTurnPlanV2(output.Output)
 
-		// Check the configured budget after each LLM call. Usage persistence is
-		// handled transactionally above rather than through the best-effort tracker.
+		// Check the configured budget after each LLM call. Usage persistence
+		// happens in its own committed transaction at iteration end (the
+		// pendingUsage flush), not through the best-effort tracker.
 		if h.BillingTracker != nil {
 			exceeded, bErr := h.BillingTracker.BudgetCheck(ctx, sessionID, ic.BudgetLimitCents)
 			if bErr != nil {
@@ -829,34 +848,106 @@ func (h *Harness) markUserMessagesRead(ctx context.Context, tx db.Tx, sessionID 
 	return nil
 }
 
-func (h *Harness) recordLLMUsageTx(ctx context.Context, tx db.Tx, sessionID string, iteration int64, response *LLMResponse) error {
+// capturedLLMUsage is one LLM call's usage snapshot, held until the
+// iteration's transaction resolves. DF-CONSENSUS-27.
+type capturedLLMUsage struct {
+	iteration        int64
+	modelID          string
+	promptTokens     int64
+	completionTokens int64
+	cacheReadTokens  int64
+	cacheWriteTokens int64
+}
+
+// captureLLMUsage validates a response and snapshots its usage for the
+// durable flush at iteration end. It performs NO database writes — usage
+// must survive every terminal path, including the ones that roll the
+// iteration transaction back (DF-CONSENSUS-27).
+func (h *Harness) captureLLMUsage(ctx context.Context, sessionID string, iteration int64, response *LLMResponse) (capturedLLMUsage, error) {
 	if response == nil {
-		return fmt.Errorf("nil LLM response")
+		return capturedLLMUsage{}, fmt.Errorf("nil LLM response")
 	}
-	promptTokens := max(response.Usage.PromptTokens, 0)
-	completionTokens := max(response.Usage.CompletionTokens, 0)
-	cacheReadTokens := max(response.Usage.CacheReadTokens, 0)
-	cacheWriteTokens := max(response.Usage.CacheWriteTokens, 0)
 	modelID := response.ModelID
 	if modelID == "" {
 		modelID = "unknown"
 	}
-	costUSD := h.calculateCostUSD(ctx, modelID, promptTokens, completionTokens, cacheReadTokens, cacheWriteTokens)
+	return capturedLLMUsage{
+		iteration:        iteration,
+		modelID:          modelID,
+		promptTokens:     max(response.Usage.PromptTokens, 0),
+		completionTokens: max(response.Usage.CompletionTokens, 0),
+		cacheReadTokens:  max(response.Usage.CacheReadTokens, 0),
+		cacheWriteTokens: max(response.Usage.CacheWriteTokens, 0),
+	}, nil
+}
 
-	if err := tx.Exec(ctx, `
-		UPDATE sessions
-		SET tokens_used_in = COALESCE(tokens_used_in, 0) + $1,
-		    tokens_used_out = COALESCE(tokens_used_out, 0) + $2
-		WHERE id = $3
-	`, promptTokens, completionTokens, sessionID); err != nil {
-		return err
+// flushPendingUsage writes captured LLM usage to the sessions token totals
+// and agent_billing in ONE committed pool transaction, independent of the
+// iteration transaction. Registered as a deferred call so it runs after the
+// iteration tx is closed on every terminal path — a rollback can no longer
+// erase paid usage (DF-CONSENSUS-27). It uses a fresh background context
+// because it may run after the planning timeout expired the caller's
+// context; the write itself is fast and bounded by its own timeout.
+func (h *Harness) flushPendingUsage(ctx context.Context, sessionID string, pending []capturedLLMUsage) {
+	if len(pending) == 0 {
+		return
 	}
-	return tx.Exec(ctx, `
-		INSERT INTO agent_billing
-			(session_id, iteration, model_id, category, prompt_tokens, completion_tokens,
-			 cache_read_tokens, cache_write_tokens, cost_usd)
-		VALUES ($1, $2, $3, 'cognition', $4, $5, $6, $7, $8)
-	`, sessionID, iteration, modelID, promptTokens, completionTokens, cacheReadTokens, cacheWriteTokens, costUSD)
+	var promptTotal, completionTotal int64
+	for _, usage := range pending {
+		promptTotal += usage.promptTokens
+		completionTotal += usage.completionTokens
+	}
+
+	flushCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	flush := func() error {
+		tx, err := h.db.BeginTx(flushCtx)
+		if err != nil {
+			return fmt.Errorf("begin usage tx: %w", err)
+		}
+		defer func() {
+			if tx.IsActive() {
+				tx.Rollback()
+			}
+		}()
+		if err := tx.SetSessionContext(flushCtx, sessionID); err != nil {
+			return fmt.Errorf("usage flush: set session context: %w", err)
+		}
+		if err := tx.Exec(flushCtx, `
+			UPDATE sessions
+			SET tokens_used_in = COALESCE(tokens_used_in, 0) + $1,
+			    tokens_used_out = COALESCE(tokens_used_out, 0) + $2
+			WHERE id = $3
+		`, promptTotal, completionTotal, sessionID); err != nil {
+			return err
+		}
+		for _, usage := range pending {
+			costUSD := h.calculateCostUSD(flushCtx, usage.modelID, usage.promptTokens, usage.completionTokens, usage.cacheReadTokens, usage.cacheWriteTokens)
+			if err := tx.Exec(flushCtx, `
+				INSERT INTO agent_billing
+					(session_id, iteration, model_id, category, prompt_tokens, completion_tokens,
+					 cache_read_tokens, cache_write_tokens, cost_usd)
+				VALUES ($1, $2, $3, 'cognition', $4, $5, $6, $7, $8)
+			`, sessionID, usage.iteration, usage.modelID, usage.promptTokens, usage.completionTokens, usage.cacheReadTokens, usage.cacheWriteTokens, costUSD); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	}
+
+	if err := flush(); err != nil {
+		// One retry: the most likely transient failure is SQLITE_BUSY while
+		// a sibling connection finalizes its own write. Silently losing
+		// usage is the defect this flush exists to prevent — log loudly if
+		// it still fails.
+		slog.Warn("planning: usage flush failed, retrying once", "session_id", sessionID, "error", err)
+		if retryErr := flush(); retryErr != nil {
+			slog.Error("planning: usage flush failed twice — LLM usage NOT recorded",
+				"session_id", sessionID, "calls", len(pending),
+				"prompt_tokens", promptTotal, "completion_tokens", completionTotal, "error", retryErr)
+		}
+	}
 }
 
 func (h *Harness) handleRollbackAndEnd(ctx context.Context, tx db.Tx, sessionID string, turn int, messageToUser string) (*IterationResult, error) {

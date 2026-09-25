@@ -346,7 +346,7 @@ func TestBuildPlanningMessagesProjectsPendingOnEveryTurn(t *testing.T) {
 	}
 }
 
-func TestRecordLLMUsageTxPersistsMissingUsageAsZero(t *testing.T) {
+func TestFlushPendingUsagePersistsMissingUsageAsZero(t *testing.T) {
 	th, err := newTestHarness(&capturingConversationLLM{})
 	if err != nil {
 		t.Fatalf("create test harness: %v", err)
@@ -357,24 +357,11 @@ func TestRecordLLMUsageTxPersistsMissingUsageAsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	tx, err := th.conn.BeginTx(th.ctx)
+	usage, err := th.captureLLMUsage(th.ctx, sessionID, 0, &LLMResponse{})
 	if err != nil {
-		t.Fatalf("begin transaction: %v", err)
+		t.Fatalf("capture zero usage: %v", err)
 	}
-	defer func() {
-		if tx.IsActive() {
-			_ = tx.Rollback()
-		}
-	}()
-	if err := tx.SetSessionContext(th.ctx, sessionID); err != nil {
-		t.Fatalf("set session context: %v", err)
-	}
-	if err := th.recordLLMUsageTx(th.ctx, tx, sessionID, 0, &LLMResponse{}); err != nil {
-		t.Fatalf("record zero usage: %v", err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("commit zero usage: %v", err)
-	}
+	th.flushPendingUsage(th.ctx, sessionID, []capturedLLMUsage{usage})
 
 	rows, err := th.conn.Query(th.ctx, `
 		SELECT s.tokens_used_in, s.tokens_used_out, b.model_id,
