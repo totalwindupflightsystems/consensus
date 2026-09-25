@@ -75,6 +75,10 @@ func TestDefaults(t *testing.T) {
 	if cfg.Logging.Level != "info" {
 		t.Errorf("expected info log level, got %s", cfg.Logging.Level)
 	}
+	// PERF-CONSENSUS-11: pprof debug listener defaults to loopback 127.0.0.1:8095.
+	if cfg.Server.PprofAddr != "127.0.0.1:8095" {
+		t.Errorf("expected default pprof address 127.0.0.1:8095, got %q", cfg.Server.PprofAddr)
+	}
 }
 
 func TestLoadNoFileUsesDefaults(t *testing.T) {

@@ -54,6 +54,10 @@ type Server struct {
 
 	addr string
 
+	// wake is the optional PERF-CONSENSUS-11 fire-on-message hook (see
+	// ServerConfig.Wake). Nil = tick-only dispatch (pre-existing behavior).
+	wake func(sessionID string)
+
 	mu sync.RWMutex
 
 	// apiRates maps scope name to requests-per-minute limit.
@@ -81,6 +85,15 @@ type ServerConfig struct {
 	SessionRate  int
 	ReadonlyRate int
 	WebhookRate  int
+
+	// Wake signals the harness to dispatch a session immediately
+	// (PERF-CONSENSUS-11 fire-on-message wake). Called by the message POST
+	// handler after it flips a session to 'thinking'; the harness side
+	// (Harness.RequestWake) is non-blocking and deduplicates via its
+	// inFlight guard. Optional — nil keeps the tick-only behavior.
+	// Injected as a function rather than a *harness.Harness because harness
+	// tests import this package (an api → harness import would cycle).
+	Wake func(sessionID string)
 }
 
 // NewServer creates a new API server with all middleware and routes.
@@ -102,6 +115,7 @@ func NewServer(cfg ServerConfig) *Server {
 		hitl:          cfg.HITL,
 		quarantineSvc: cfg.QuarantineService,
 		apiRates:      resolveRates(cfg),
+		wake:          cfg.Wake,
 	}
 	s.svc.Sessions.events = s.events
 	s.svc.Messages.events = s.events

@@ -41,6 +41,10 @@ func (c *Config) Path() string { return c.configPath }
 type ServerConfig struct {
 	Hostname string `yaml:"hostname"`
 	Port     int    `yaml:"port"`
+	// PprofAddr is the loopback-only address for the pprof debug listener
+	// (PERF-CONSENSUS-11). Empty disables the listener. It must never point
+	// at a public interface — pprof handlers are unauthenticated.
+	PprofAddr string `yaml:"pprof_addr"`
 }
 
 // LLMConfig holds LLM provider configuration.
@@ -136,8 +140,9 @@ type H3AdapterConfig struct {
 func Defaults() Config {
 	return Config{
 		Server: ServerConfig{
-			Hostname: "127.0.0.1",
-			Port:     8090,
+			Hostname:  "127.0.0.1",
+			Port:      8090,
+			PprofAddr: "127.0.0.1:8095", // PERF-CONSENSUS-11: loopback-only pprof
 		},
 		LLM: LLMConfig{
 			Provider:   "openai",

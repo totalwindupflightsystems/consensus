@@ -158,6 +158,15 @@ func runServer() {
 	}
 	go h.StartHeartbeatLoop(ctx)
 
+	// PERF-CONSENSUS-11: loopback-only pprof debug listener for goroutine
+	// dumps / heap profiles on the serve binary. Address comes from
+	// server.pprof_addr (default 127.0.0.1:8095, empty disables). The
+	// public API router never mounts /debug/pprof (unauthenticated —
+	// DF-CONSENSUS-19 exposure class).
+	if pprofLn := api.StartPprofListener(cfg.Server.PprofAddr); pprofLn != nil {
+		defer pprofLn.Close()
+	}
+
 	// Compression Worker (WI-012, CS-GAP-001) — background memory compression pipeline.
 	// SPAN: SPEC-002 §8, SPEC-011 §10
 	if cfg.Compression.Enabled {
@@ -244,6 +253,11 @@ func runServer() {
 		SessionRate:       cfg.APIRate.SessionLimit,
 		ReadonlyRate:      cfg.APIRate.ReadonlyLimit,
 		WebhookRate:       cfg.APIRate.WebhookLimit,
+		// PERF-CONSENSUS-11 fire-on-message wake: the POST message handler
+		// signals the heartbeat loop to dispatch the session immediately
+		// instead of waiting up to one full tick. Non-blocking on the
+		// harness side; duplicates are prevented by the inFlight guard.
+		Wake: h.RequestWake,
 	})
 
 	// models.dev auto-sync (--auto-sync flag)

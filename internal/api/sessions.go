@@ -338,6 +338,13 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 			return
 		}
 		s.events.PublishSessionUpdate(id, "thinking", currentIteration+1)
+		// PERF-CONSENSUS-11 fire-on-message wake: signal the harness to
+		// dispatch this session now instead of waiting for the next
+		// heartbeat tick. The hook is non-blocking on the harness side and
+		// a no-op when unconfigured (nil).
+		if s.wake != nil {
+			s.wake(id)
+		}
 	} else if currentStatus == "paused" {
 		// Message queues for next iteration, leave paused
 	}

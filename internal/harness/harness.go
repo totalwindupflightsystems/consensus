@@ -195,11 +195,24 @@ type Harness struct {
 	// see maxConsecutiveErrors() in circuit.go (DOGFOOD-003).
 	MaxConsecutiveErrors int
 
-	// inFlight tracks sessions currently inside RunInteractivePlanning.
-	// Prevents the heartbeat loop from dispatching duplicate goroutines for
-	// the same session (which causes SQLITE_BUSY).
-	inFlight   map[string]bool
+	// inFlight tracks sessions currently inside RunInteractivePlanning, with
+	// the time each claim was taken. Prevents the heartbeat loop from
+	// dispatching duplicate goroutines for the same session (which causes
+	// SQLITE_BUSY). PERF-CONSENSUS-11: claims expire after inFlightTTL so a
+	// stuck/parked planning goroutine can never permanently block
+	// redispatch — the normal release path remains the dispatch goroutine's
+	// delete-on-exit defer.
+	inFlight   map[string]time.Time
 	inFlightMu sync.Mutex
+
+	// wakeCh carries fire-on-message wake signals (PERF-CONSENSUS-11).
+	// The HTTP layer calls RequestWake when it flips a session to
+	// 'thinking'; StartHeartbeatLoop drains it alongside the ticker and
+	// dispatches woken sessions through the normal pollAndDispatch path
+	// (the inFlight guard still prevents duplicates). Buffered + non-
+	// blocking send: a full channel drops the wake and the next tick
+	// catches the session anyway.
+	wakeCh chan string
 }
 
 // BillingTracker records billing rows and enforces budget limits.
@@ -236,7 +249,8 @@ func New(database db.DB, llm LLMClient) *Harness {
 			Interval: 5 * time.Second,
 		},
 		MaxConsecutiveErrors: 3, // SPEC-006 §Circuit Breakers default; config may override
-		inFlight:             make(map[string]bool),
+		inFlight:             make(map[string]time.Time),
+		wakeCh:               make(chan string, wakeChannelCapacity),
 	}
 }
 

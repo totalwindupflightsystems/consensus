@@ -598,8 +598,106 @@ func (h *Harness) buildRollbackResult(sessionID string, ic *IterationContext, ou
 // Heartbeat — task polling loop (SPEC-008 §Heartbeat)
 // ============================================================================
 
+// PERF-CONSENSUS-11 wake-path tuning constants.
+const (
+	// wakeChannelCapacity bounds the buffered wake channel. The send side
+	// (HTTP handler) is non-blocking — on overflow the wake is dropped and
+	// the next tick's DB scan dispatches the session anyway.
+	wakeChannelCapacity = 64
+
+	// maxWakeBatch caps how many wake signals are drained per loop pass so
+	// a wake storm cannot starve the ticker branch of the select.
+	maxWakeBatch = 16
+
+	// inFlightTTL bounds how long an inFlight claim may block redispatch.
+	// Planning runs take seconds to minutes (planning timeout defaults to
+	// 180s), never 15 — so a claim older than this is a parked/stuck
+	// goroutine or a lost delete, and must not block the session forever.
+	inFlightTTL = 15 * time.Minute
+)
+
+// RequestWake signals the heartbeat loop to dispatch the given session as
+// soon as possible instead of waiting for the next tick (PERF-CONSENSUS-11
+// fire-on-message wake). Safe for concurrent use and never blocks: if the
+// channel is full the signal is dropped and the next tick's DB scan catches
+// the session anyway.
+func (h *Harness) RequestWake(sessionID string) {
+	select {
+	case h.wakeCh <- sessionID:
+	default:
+	}
+}
+
+// drainWake removes up to max wake signals, coalescing duplicates. Returns
+// nil for a nil channel or when nothing is pending.
+func drainWake(ch <-chan string, max int) []string {
+	if ch == nil {
+		return nil
+	}
+	var ids []string
+	seen := make(map[string]bool, max)
+	for len(ids) < max {
+		select {
+		case sid := <-ch:
+			if sid == "" || seen[sid] {
+				continue
+			}
+			seen[sid] = true
+			ids = append(ids, sid)
+		default:
+			return ids
+		}
+	}
+	return ids
+}
+
+// claimSession atomically claims sessionID for planning dispatch. A fresh
+// claim (younger than inFlightTTL) blocks; an expired claim is evicted with
+// a loud warning and reclaimed; a missing entry claims normally.
+func (h *Harness) claimSession(sessionID string) bool {
+	now := time.Now()
+	h.inFlightMu.Lock()
+	defer h.inFlightMu.Unlock()
+	if claimAt, ok := h.inFlight[sessionID]; ok {
+		if held := now.Sub(claimAt); held > inFlightTTL {
+			slog.Warn("harness: expired inFlight claim reclaimed",
+				"session_id", sessionID,
+				"held_for", held.Round(time.Second),
+				"ttl", inFlightTTL,
+			)
+		} else {
+			return false // fresh claim — another goroutine owns this session
+		}
+	}
+	h.inFlight[sessionID] = now
+	return true
+}
+
+// evictExpiredInFlight drops stale inFlight entries so they cannot
+// permanently block the "only claim tasks when no planning sessions are
+// in-flight" gate below.
+func (h *Harness) evictExpiredInFlight() {
+	now := time.Now()
+	h.inFlightMu.Lock()
+	for sid, claimAt := range h.inFlight {
+		if now.Sub(claimAt) > inFlightTTL {
+			slog.Warn("harness: evicting expired inFlight claim",
+				"session_id", sid,
+				"held_for", now.Sub(claimAt).Round(time.Second),
+				"ttl", inFlightTTL,
+			)
+			delete(h.inFlight, sid)
+		}
+	}
+	h.inFlightMu.Unlock()
+}
+
 // StartHeartbeatLoop begins the task polling loop. It continuously polls the
 // database for pending tasks and dispatches them to RunAgentIteration.
+//
+// PERF-CONSENSUS-11: alongside the ticker it selects on the wake channel —
+// a message POST signals RequestWake for the session it flipped to
+// 'thinking', and this loop dispatches it between ticks.
 //
 // This is designed to be called as a goroutine from cmd/consensus/main.go.
 func (h *Harness) StartHeartbeatLoop(ctx context.Context) {
@@ -614,25 +712,49 @@ func (h *Harness) StartHeartbeatLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			h.pollAndDispatch(ctx)
+		default:
+			// PERF-CONSENSUS-11: drain pending wake signals before waiting
+			// on the next tick or timer event. Bounded so a wake storm
+			// cannot starve the ticker; woken sessions dispatch through
+			// pollAndDispatch's normal inFlight-guarded path.
+			woken := drainWake(h.wakeCh, maxWakeBatch)
+			if len(woken) == 0 {
+				// Nothing pending: block until the next tick, cancel, or
+				// wake instead of spinning on the default branch.
+				select {
+				case <-ctx.Done():
+					slog.Info("harness: heartbeat loop stopped")
+					return
+				case <-ticker.C:
+					h.pollAndDispatch(ctx)
+				case <-h.wakeCh:
+					h.pollAndDispatch(ctx)
+				}
+				continue
+			}
+			h.pollAndDispatch(ctx)
 		}
 	}
 }
 
 // pollAndDispatch checks for ready tasks and dispatches them.
 func (h *Harness) pollAndDispatch(ctx context.Context) {
+	// PERF-CONSENSUS-11: housekeeping first — stale claims (parked planning
+	// goroutines, lost deletes) must not starve new dispatches or the
+	// task-claim gate below.
+	h.evictExpiredInFlight()
+
 	// Check for sessions in planning/tool_exec that need to continue
 	sessions, err := h.findActiveSessions(ctx)
 	if err == nil && len(sessions) > 0 {
 		for _, sid := range sessions {
 			// Skip sessions already being processed in another goroutine.
 			// Prevents duplicate RunInteractivePlanning calls that cause SQLITE_BUSY.
-			h.inFlightMu.Lock()
-			if h.inFlight[sid] {
-				h.inFlightMu.Unlock()
+			// PERF-CONSENSUS-11: claims are bounded — an entry older than
+			// inFlightTTL is evicted (with a warning) and reclaimed here.
+			if !h.claimSession(sid) {
 				continue
 			}
-			h.inFlight[sid] = true
-			h.inFlightMu.Unlock()
 
 			slog.Info("harness: found active session", "session_id", sid)
 			go func(sessionID string) {
