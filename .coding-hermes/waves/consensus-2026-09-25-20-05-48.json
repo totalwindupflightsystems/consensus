@@ -1,0 +1,19 @@
+{
+  "tick_id": "consensus-2026-09-25-20-05-48",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "note": "1 worker; wave-ineligible candidate set — remaining P1s (DF-27/28/29) all live in the internal/api band (same middle-out band, shared import root), consensus lane caps one worker per tick",
+  "base_sha": "7a587dc",
+  "workers": [
+    {
+      "task": "DF-CONSENSUS-28",
+      "worktree": "~/worktrees/consensus-DF-CONSENSUS-28",
+      "branch": "wt/DF-CONSENSUS-28",
+      "base": "origin/master",
+      "base_sha": "7a587dc",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "brief": "/tmp/df-consensus-28-brief.md"
+    }
+  ]
+}
