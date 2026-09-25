@@ -39,7 +39,8 @@ logging:
   format: text
 
 compression:
-  enabled: true
+  # DeepSeek (shipped llm.base_url) has no embeddings endpoint; compression off by default. (DF-CONSENSUS-22)
+  enabled: false
   poll_interval_seconds: 5
   batch_size: 5
   cosine_threshold: 0.85
