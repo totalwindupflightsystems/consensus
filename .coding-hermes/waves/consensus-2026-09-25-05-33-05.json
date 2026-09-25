@@ -1,0 +1,32 @@
+{
+  "tick": "consensus-2026-09-25-05-33-05",
+  "project": "consensus",
+  "workdir": "/home/kara/consensus",
+  "budget": 7,
+  "workers": [
+    {
+      "task": "DF-CONSENSUS-18",
+      "worktree": "/home/kara/worktrees/consensus-df-consensus-18",
+      "branch": "wt/df-consensus-18",
+      "base_sha": "cf65ba0",
+      "brief": "/tmp/consensus-2026-09-25-05-33-05-df18-brief.txt",
+      "log": "/tmp/consensus-2026-09-25-05-33-05-df18.log",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "gitreins_task": "df-consensus-18",
+      "scope": "internal/api + specs/openapi (served-spec drift: /mcp 404, GET /api/v1/tasks/{taskID} 405, 5x 501 stubs)"
+    },
+    {
+      "task": "DF-CONSENSUS-19",
+      "worktree": "/home/kara/worktrees/consensus-df-consensus-19",
+      "branch": "wt/df-consensus-19",
+      "base_sha": "cf65ba0",
+      "brief": "/tmp/consensus-2026-09-25-05-33-05-df19-brief.txt",
+      "log": "/tmp/consensus-2026-09-25-05-33-05-df19.log",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "gitreins_task": "df-consensus-19",
+      "scope": "internal/shim/opencode + config + docs (loopback-bind the auth-free /instance/* surface)"
+    }
+  ]
+}
