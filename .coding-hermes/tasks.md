@@ -31,3 +31,14 @@ Promise: {"entry_point":"Go CLI binary `consensus` (cmd/consensus) — subcomman
 - [P1] Docker distribution path broken — image cannot be pulled — `docker pull ghcr.io/wojons/consensus:latest` returns 'denied' from the registry, so the documented `docker run` command is unusable without ghcr auth. The promise explicitly distributes via this image; no auth instructions are provided.
 - [P2] Documented session-create curl example fails as written — The docs' POST /api/v1/sessions example 400s twice because agent_name and goal are required but omitted from the documented curl. Core session flow works once the fields are supplied, but the quickstart example is a dead end for new users.
 - [P2] CLI flag and port friction across serve/mcp-stdio — `serve` rejects --llm-key with a bare 'unknown flag' (no hint that it's init-only or that DEEPSEEK_API_KEY is the way); mcp-stdio initialize fails without --api-key though the README example shows none; port-occupied 404 symptom was documented but still cost time to identify and re-port.
+
+## Dogfood Findings (2026-09-25)
+Verdict: SHIPPABLE on the conversational promise (one P1 perf watch item)
+Promise: "Send a message to a session via POST /api/v1/sessions/{id}/message and get the agent's response" — multi-turn, with real LLM calls, on a database-native harness that survives crashes.
+
+Reality at 235efdb: both 2026-09-24 defects are LIVE-VERIFIED FIXED — DF-CONSENSUS-21 (P0 517 lock race): the exact race fired on turn 2 and the new retry path recovered it (attempt=1 backoff=10ms); burst battery executed literally (20 rapid sends, 4 sessions, 5 parallel each): 20/20 HTTP 200, all sessions idle, last_error=null everywhere, 5/5 busy-race retries, 0 bricked sessions. DF-CONSENSUS-20 (P1 turns 2+ deaf): turn-2 prompt_tokens differs from turn 1 (1683 vs 1679), model quotes turn-2-only tokens verbatim, replies exactly correct. Install leg PASSED (bunker fa023371: clone 4.8s, Go installed manually, build 58s cold, init/serve/health 200, destroyed).
+
+- [P1] PERF-CONSENSUS-11 — Heartbeat dispatch stall: 2 of ~30 turns took 94.7s and 108.2s POST→reply-observable (LLM call itself 1.6s; POST accept 0.03s); serve log shows 'found active session' gaps of 6m25s and ~4m for the bursty session while a fresh session in the same window picked up in 6.3s and the same session's next turn ran 2.8s — intermittent, self-healing, hot path internal/harness/executor.go:607 (5s ticker → pollAndDispatch) + inFlight map :624. No profile captured (stall cleared; pprof not wired). Details in docs/dogfood/2026-09-25-integration.md.
+- [P2] DF-CONSENSUS-22 — Shipped consensus.yaml still has compression enabled against DeepSeek (no embeddings endpoint): every serve boot logs a DISABLED warning; C-GAP-002 fixed the compiled default but not the shipped file.
+
+Install (bunker, mandatory leg): PASSED — bunker-las-03, agent=fa023371, destroy confirmed; install_seconds=58 (build; Go install excluded). Smoke: PASS.

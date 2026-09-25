@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.5.0
+version: 2.6.0
 category: software-development
 ---
 
@@ -120,10 +120,29 @@ Compiles first try; verified against a live server both runs.
   `_meta.authorization`, so initialize authenticates instead of returning
   "Authentication required".
 
-## Current landmines (from the 2026-09-03 run — DO NOT assume fixed)
+## Verified working (2026-09-25 @ 235efdb — supersedes the landmines below where they conflict)
+
+- **Multi-turn conversation WORKS.** DF-CONSENSUS-20 (turns 2+ deaf) and
+  DF-CONSENSUS-21 (517 lock race bricks sessions) are FIXED and live-verified
+  with a real DeepSeek key: turn-2 prompt_tokens differs from turn 1, the model
+  echoes turn-2-only tokens correctly, 20 rapid sends across 4 sessions → 0
+  failed sessions, 5/5 busy-race retries recovered. `POST
+  /api/v1/sessions/{id}/message` with `{"content": ...}` is the right surface;
+  the goal-only workaround is no longer required.
+- **Watch item PERF-CONSENSUS-11:** the heartbeat dispatcher
+  (internal/harness/executor.go:607) can stall minutes on a previously-bursty
+  session (observed 94.7s and 108.2s POST→reply on 2 of ~30 turns; LLM call
+  itself 1.6s; fresh sessions in the same window picked up in 6.3s). If a turn
+  sits in message_received for minutes, poll /context — the reply lands when
+  the loop recovers. Intermittent, self-heals.
+- **Install from zero works**: anonymous clone → build → init → serve → health
+  200 on a bare Debian bunker (58s cold build; install Go yourself — README
+  doesn't name the toolchain).
+
+## Historical landmines (2026-08/09-03 era — see "Verified working" above)
 
 0. **The documented conversational path is DEAD (DF-CONSENSUS-6, verified
-   2026-09-03 with real LLM calls).** `POST /sessions/{id}/message` with
+   2026-09-03 with real LLM calls).** [FIXED as of 2026-09-24/25 — see above.] `POST /sessions/{id}/message` with
    docs/API.md's `{"role":"user","content":...}` payload never reaches the
    LLM: the planning prompt stays `messages=2` every turn, the model itself
    reports "No user-supplied text is present in this turn", no assistant

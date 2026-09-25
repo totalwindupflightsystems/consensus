@@ -200,3 +200,30 @@ logs should surface it instead of the parse error.
    until DOGFOOD-103.
 5. H3: mount `internal/shim/h3` yourself (still a library, not wired into
    `consensus serve` — INTEGRATION.md §2.3, honest about it).
+
+## 2026-09-25 addendum — dispatch stall anatomy (PERF-CONSENSUS-11)
+
+How message pickup works: POST /sessions/{id}/message only flips the session to
+'thinking' and appends a user_message row (0.03s). The actual planning run is
+dispatched by a single heartbeat goroutine (internal/harness/executor.go:607,
+time.NewTicker(h.HeartbeatConfig.Interval), default 5s) whose pollAndDispatch
+queries findActiveSessions() (status IN thinking/planning/tool_exec, LIMIT 5)
+and spawns RunInteractivePlanning per session behind an inFlight map. A user's
+message therefore waits up to one tick (~5s worst case) — that part is by
+design.
+
+The defect class: that single dispatcher goroutine can stall for minutes
+without dying — observed gaps of 6m25s and ~4m between a message landing and
+the next "harness: found active session" log line, while the HTTP server stayed
+healthy and a FRESH session sent during the same window picked up in 6.3s (the
+stalled session's next turn also ran 2.8s). Because dispatch is serialized
+through one goroutine and guarded by the inFlight map, a slow/hung prior
+planning goroutine (or a delayed inFlight delete) on that session starves its
+own future dispatches; anything that blocks pollAndDispatch between ticks
+blocks every session's pickup. The right way to diagnose it: grep the serve log
+for 'found active session' timestamps vs message timestamps — the gap IS the
+evidence; a CPU profile will show nothing because the goroutine is parked, not
+busy. Fix direction for the foreman: per-session dispatch (not one shared
+tick), a fire-on-message wake path instead of poll-only, and/or pprof
+(net/http/pprof) wired into serve so the parked goroutine stack can be dumped
+next time (goroutine?debug=2 would name the holder immediately).
