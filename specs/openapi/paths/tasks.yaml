@@ -62,6 +62,33 @@ tasks:
 
 # PATCH /api/v1/tasks/{taskId}
 task:
+  get:
+    tags: [Tasks]
+    summary: Get a single task
+    operationId: getTask
+    description: |
+      Returns one task by ID, including its status, priority, lock holder
+      and timestamps. Returns 404 when the task does not exist.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/TaskId"
+    responses:
+      "200":
+        description: The task.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Task"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
   patch:
     tags: [Tasks]
     summary: Update task status

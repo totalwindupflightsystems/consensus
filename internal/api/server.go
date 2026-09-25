@@ -157,6 +157,7 @@ func NewServer(cfg ServerConfig) *Server {
 		r.Get("/api/v1/sessions/{id}/billing", extractSessionID(s.handleGetSessionBilling))
 
 		// Tasks
+		r.Get("/api/v1/tasks/{taskID}", extractTaskID(s.handleGetTask))
 		r.Patch("/api/v1/tasks/{taskID}", extractTaskID(s.handleUpdateTask))
 		r.Post("/api/v1/tasks/{taskID}/claim", extractTaskID(s.handleClaimTask))
 

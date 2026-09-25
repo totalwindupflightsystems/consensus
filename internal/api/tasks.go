@@ -243,6 +243,36 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request, taskID
 }
 
 // ============================================================================
+// GET /api/v1/tasks/{tid} — Get a single task
+// ============================================================================
+
+// handleGetTask returns one task by ID (DF-CONSENSUS-18). The served OpenAPI
+// contract declares GET /api/v1/tasks/{taskId}; this handler is the runtime
+// counterpart. Mirrors the lookup pattern of handleUpdateTask: find the task,
+// enforce session-scoped access on its owning session, then return the task
+// (or 404 with the standard error shape when the ID does not exist).
+func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request, taskID string) {
+	ctx := r.Context()
+
+	row, err := s.db.QueryRow(ctx,
+		`SELECT id, session_id, parent_task_id, title, description, status, priority,
+		        locked_by_agent, prerequisite_ids, result_memory_id,
+		        created_at, claimed_at, completed_at
+		 FROM tasks WHERE id = $1`, taskID)
+	if err != nil || row == nil {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "task not found")
+		return
+	}
+
+	// Enforce session-scoped access (same policy as PATCH / claim)
+	if !s.checkSessionAccess(w, r, toString(row["session_id"])) {
+		return
+	}
+
+	writeJSON(w, rowToTaskResponse(row))
+}
+
+// ============================================================================
 // POST /api/v1/tasks/{tid}/claim — Claim a task
 // ============================================================================
 
