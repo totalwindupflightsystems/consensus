@@ -1,0 +1,38 @@
+{
+  "tick_id": "consensus-2026-09-25-22-26-20",
+  "project": "consensus",
+  "mode": "wave",
+  "recovered_from": "consensus-2026-09-25-20-05-48",
+  "recovery_note": "Recovered wave's single worker (DF-CONSENSUS-28) was already merged (b79bebc, tier2 PASS COMPLETE on disk) with board row complete, worktree removed, branch deleted, master at parity. Only the manifest close had been missed; closed this tick with finished_at. No fixup needed.",
+  "base_sha": "0944b48",
+  "workers": [
+    {
+      "task": "DF-CONSENSUS-27",
+      "worktree": "~/worktrees/consensus-DF-CONSENSUS-27",
+      "branch": "wt/DF-CONSENSUS-27",
+      "base": "origin/master",
+      "base_sha": "0944b48",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "brief": "/tmp/df-consensus-27-brief.md",
+      "band": "internal/harness planning/executor + billing regression tests",
+      "depends_on": []
+    },
+    {
+      "task": "DF-CONSENSUS-29",
+      "worktree": "~/worktrees/consensus-DF-CONSENSUS-29",
+      "branch": "wt/DF-CONSENSUS-29",
+      "base": "origin/master",
+      "base_sha": "0944b48",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "brief": "/tmp/df-consensus-29-brief.md",
+      "band": "internal/api auth-keys mint path + api tests",
+      "depends_on": []
+    }
+  ],
+  "independence_note": "No depends_on edges between rows; disjoint bands (harness planning vs api billing/auth); DF-2/DF-3 (stale premises, probed this tick) and same-band DF-27/29 siblings excluded; QA/TEST/MUSTER P1s are infra/outside-repo scope, not wave-eligible.",
+  "dispatched_at": "2026-09-25 17:39:19",
+  "finished_at": null,
+  "merge": []
+}

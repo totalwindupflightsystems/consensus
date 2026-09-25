@@ -2,7 +2,7 @@
   "tick_id": "consensus-2026-09-25-20-05-48",
   "project": "consensus",
   "mode": "serial-fallback",
-  "note": "1 worker; wave-ineligible candidate set — remaining P1s (DF-27/28/29) all live in the internal/api band (same middle-out band, shared import root), consensus lane caps one worker per tick",
+  "note": "1 worker; wave-ineligible candidate set \u2014 remaining P1s (DF-27/28/29) all live in the internal/api band (same middle-out band, shared import root), consensus lane caps one worker per tick",
   "base_sha": "7a587dc",
   "workers": [
     {
@@ -15,5 +15,7 @@
       "provider": "xkiro",
       "brief": "/tmp/df-consensus-28-brief.md"
     }
-  ]
+  ],
+  "finished_at": "2026-09-25 17:39:19",
+  "close_note": "Closed by recovery tick consensus-2026-09-25-22-26-20: worker work merged as b79bebc pre-tick, tier2 PASS COMPLETE verified on disk (.gitreins/history/2026-09-25/641daf1a/), board row complete, worktree removed, branch deleted, master parity 0/0."
 }
