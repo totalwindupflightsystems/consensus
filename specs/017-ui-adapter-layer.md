@@ -462,7 +462,7 @@ C-GAP-031: `/instance/*` translates the opencode server protocol into native Con
 
 Other upstream `/instance/*` sub-paths (`dispose`, `vcs/status`, `vcs/diff/raw`, `vcs/apply`, `command`, `agent`, `skill`, `lsp`, `formatter`) return `501 NOT_IMPLEMENTED` (same convention as `/session` subpaths in §3.9); unknown sub-paths return `404 NOT_FOUND`.
 
-Response shapes mirror the upstream opencode server protocol (`sst/opencode` `packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts` and `src/project/vcs.ts`) so bridged opencode clients are indistinguishable from a native server.
+Response shapes mirror the upstream opencode server protocol (`anomalyco/opencode` `packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts` and `src/project/vcs.ts`) so bridged opencode clients are indistinguishable from a native server.
 
 ### 3.11 Pinned Upstream Compatibility Verification
 

@@ -1,7 +1,7 @@
 // Package chronicle: OpenCode HTTP contract adapter test.
 //
 // Validates Consensus's shim against the OpenCode HTTP contract.
-// Expectations extracted from sst/opencode server test suite:
+// Expectations extracted from anomalyco/opencode's server test suite (v1.18.29 pin per scripts/test-opencode-upstream.sh; formerly sst/opencode):
 //
 //	packages/opencode/test/server/httpapi-instance.test.ts  (server endpoint tests)
 //	packages/opencode/test/server/httpapi-sdk.test.ts       (SDK-driven tests)
@@ -25,7 +25,7 @@ import (
 
 // --------------------------------------------------------------------------
 // OpenCode Contract Test Suite
-// Each test method maps to an expectation from the sst/opencode test suite.
+// Each test method maps to an expectation from the anomalyco/opencode test suite.
 // --------------------------------------------------------------------------
 
 // --- Contract C01: GET /doc serves OpenAPI document (httpapi-instance.test.ts:59) ---

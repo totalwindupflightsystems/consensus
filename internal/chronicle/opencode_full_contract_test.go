@@ -1,6 +1,7 @@
 // Package chronicle: Full OpenCode HTTP contract validation.
 //
-// This test covers EVERY expectation from sst/opencode's server test suite:
+// This test covers EVERY expectation from anomalyco/opencode's server test suite
+// (v1.18.29 pin per scripts/test-opencode-upstream.sh; project formerly at sst/opencode):
 //
 //	packages/opencode/test/server/httpapi-instance.test.ts
 //	packages/opencode/test/server/httpapi-sdk.test.ts
