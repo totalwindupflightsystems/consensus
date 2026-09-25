@@ -283,8 +283,8 @@ func (s *Server) toolSendMessage(args json.RawMessage, sess *mcpSession) (any, *
 		return nil, &JSONRPCErrObj{Code: -32603, Message: "Internal error", Data: err.Error()}
 	}
 
-	// If session is idle or paused, wake it to thinking
-	if status == "idle" || status == "paused" {
+	// If session is idle, paused, or booting, wake it to thinking
+	if status == "idle" || status == "paused" || status == "booting" {
 		s.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`,
 			input.SessionID,

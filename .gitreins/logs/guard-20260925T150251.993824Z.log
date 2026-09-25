@@ -1,0 +1,44 @@
+GitReins guard run log — full output (the console summary is bounded)
+run_utc: 2026-09-25T15:02:51Z
+workdir: /home/kara/consensus
+test_mode: diff
+test_targets: full suite (safety trigger)
+overall: PASS (DEGRADED — skipped checks)
+guards: 5 (0 failed, 3 skipped)
+diagnostics:
+  first_failing_test: none detected
+  secrets_scanners: clean (gitleaks + builtin cross-check)
+skipped_steps:
+  - go_build: No Go files staged
+  - go_lint: No Go files staged
+  - go_tests: No Go files staged
+
+==============================================================================
+[PASS] secrets  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+gitleaks: clean
+
+==============================================================================
+[PASS] static_analysis  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+Go compiler covers static analysis — skipped
+
+==============================================================================
+[SKIP] go_build  passed=true  exit_code=n/a  skip_reason=No Go files staged
+==============================================================================
+--- output (untruncated) ---
+No Go files staged
+
+==============================================================================
+[SKIP] go_lint  passed=true  exit_code=n/a  skip_reason=No Go files staged
+==============================================================================
+--- output (untruncated) ---
+No Go files staged
+
+==============================================================================
+[SKIP] go_tests  passed=true  exit_code=n/a  skip_reason=No Go files staged
+==============================================================================
+--- output (untruncated) ---
+No Go files staged

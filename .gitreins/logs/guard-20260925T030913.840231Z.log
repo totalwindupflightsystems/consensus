@@ -1,0 +1,49 @@
+GitReins guard run log — full output (the console summary is bounded)
+run_utc: 2026-09-25T03:09:13Z
+workdir: /home/kara/consensus
+test_mode: diff
+test_targets: full suite (safety trigger)
+overall: PASS
+guards: 5 (0 failed, 0 skipped)
+diagnostics:
+  first_failing_test: none detected
+  secrets_scanners: clean (gitleaks + builtin cross-check)
+
+==============================================================================
+[PASS] secrets  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+gitleaks: clean
+
+==============================================================================
+[PASS] static_analysis  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+Go compiler covers static analysis — skipped
+
+==============================================================================
+[PASS] go_build  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+go build: ok
+
+==============================================================================
+[PASS] go_lint  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+golangci-lint: clean
+
+==============================================================================
+[PASS] go_tests  passed=true  exit_code=n/a
+==============================================================================
+--- output (untruncated) ---
+files]
+ok  	github.com/wojons/consensus/cmd/consensus	0.007s
+ok  	github.com/wojons/consensus/demo	7.610s
+ok  	github.com/wojons/consensus/internal/api	0.867s
+ok  	github.com/wojons/consensus/internal/billing	0.016s
+ok  	github.com/wojons/consensus/internal/bootstrap	0.292s
+ok  	github.com/wojons/consensus/internal/chronicle	0.470s
+ok  	github.com/wojons/consensus/internal/cli	0.164s
+ok  	github.com/wojons/consensus/internal/compression	0.073s
+ok  	github.com/wojons/consensus/internal/config	0.0

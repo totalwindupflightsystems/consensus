@@ -465,3 +465,114 @@ tasks:
   status: complete
   created_at: '2026-09-24T20:30:37.784327+00:00'
   completed_at: '2026-09-24T21:03:07.340747+00:00'
+- id: cons-df21
+  title: Retry-and-recover sqlite 517/SQLITE_BUSY races in the planning consume-user-messages
+    path
+  criteria:
+  - The consume-user-messages tx retries with backoff on 517/SQLITE_BUSY instead of
+    failing the session
+  - GET /sessions/{id} surfaces the planning error via last_error (audit_logs error_message)
+    instead of null
+  - a status=failed session accepts a new message and resumes instead of dying again
+    on the same locked tx
+  status: complete
+  created_at: '2026-09-24T21:15:44.578759+00:00'
+  completed_at: '2026-09-24T21:29:25.683283+00:00'
+- id: df-consensus-14
+  title: 'Env-only LLM setup: CONSENSUS_LLM_MODEL/PROVIDER overrides + DeepSeek-valid
+    default'
+  criteria:
+  - applyEnvOverrides reads CONSENSUS_LLM_MODEL and CONSENSUS_LLM_PROVIDER, both taking
+    precedence over config-file values
+  - With DEEPSEEK_API_KEY set and an api.deepseek.com effective base URL and no explicit
+    model, the effective model defaults to deepseek-v4-flash instead of the OpenAI
+    default gpt-4o
+  - A non-DeepSeek effective base URL never receives the DeepSeek default, and an
+    explicit env or config model survives
+  - Regression tests cover override precedence, the DeepSeek default, the non-DeepSeek
+    negative case, and explicit-model survival; go build + go vet clean
+  status: complete
+  created_at: '2026-09-25T03:15:36.797292+00:00'
+  completed_at: '2026-09-25T03:15:41.215541+00:00'
+- id: perf-consensus-11
+  title: Fix heartbeat dispatch stall - fire-on-message wake, bounded inFlight, pprof
+  criteria:
+  - A message POST to an idle session triggers planning dispatch immediately without
+    waiting for the 5s heartbeat tick (wake path reuses the inFlight guard so no duplicate
+    dispatch)
+  - inFlight entries have a bounded lifetime (timestamp + reaper or equivalent) so
+    a stuck entry cannot permanently block redispatch of a session
+  - net/http/pprof handlers are reachable on the serve binary for goroutine dumps
+  - go build ./... and go vet ./... pass and go test -short -count=1 ./... is green
+  status: complete
+  created_at: '2026-09-25T03:34:06.444211+00:00'
+  completed_at: '2026-09-25T04:27:01.042687+00:00'
+- id: df-consensus-22
+  title: Shipped consensus.yaml disables compression against embeddings-less provider
+  criteria:
+  - Loading the shipped consensus.yaml through the serve validation path produces
+    no 'Compression worker DISABLED' warning and cfg.Compression.Enabled==false
+  - The regression test is RED against enabled:true and GREEN after the fix
+  status: complete
+  created_at: '2026-09-25T04:54:50.804020+00:00'
+  completed_at: '2026-09-25T05:08:16.047604+00:00'
+- id: df-consensus-18
+  title: Align served OpenAPI spec with runtime routes
+  criteria:
+  - Every path+method in the embedded served spec answers a registered route (no 404
+    page-not-found, no 405); declared-but-unimplemented paths carry x-not-implemented;
+    a machine check test in internal/api enforces it
+  status: complete
+  created_at: '2026-09-25T05:42:45.524041+00:00'
+  completed_at: '2026-09-25T07:24:24.339813+00:00'
+- id: df-consensus-19
+  title: Bind opencode shim surface to loopback by default
+  criteria:
+  - Shim HTTP listener defaults to 127.0.0.1; constraint documented in SPEC-017; a
+    test fails if the default bind becomes wildcard
+  status: complete
+  created_at: '2026-09-25T05:42:45.708355+00:00'
+  completed_at: '2026-09-25T07:24:45.213532+00:00'
+- id: mcp-direct-001
+  title: Direct MCP access for any external agent
+  criteria:
+  - POST /mcp answers initialize + tools/list on a bare server with no out-of-band
+    knowledge; GET /mcp serves the streamable-HTTP SSE stream; legacy POST /mcp/message
+    still works; auth enforced with an explicit 401 negative; list_tasks + claim_task
+    appear in tools/list with typed schemas (>=8 tools); client recipes in docs/INTEGRATION.md
+  status: complete
+  created_at: '2026-09-25T07:49:47.624504+00:00'
+  completed_at: '2026-09-25T11:41:09.501528+00:00'
+- id: df-consensus-16
+  title: Reconcile upstream naming to anomalyco/opencode
+  criteria:
+  - grep -rn 'sst/opencode' --include='*.go' --include='*.md' . residue is only intentional
+    historical mentions; docs/testing/consensus-full-test-plan-v1.md names the pinned
+    commit 16747470f976aca3d362ad730bcd3fe82ecc2c9a (anomalyco/opencode v1.18.29);
+    zero behavior changes
+  status: complete
+  created_at: '2026-09-25T07:49:47.787795+00:00'
+  completed_at: '2026-09-25T10:31:35.814115+00:00'
+- id: df-consensus-23
+  title: Mount MCP handler at bare /mcp in production wiring
+  criteria:
+  - POST /mcp initialize on a binary built from HEAD returns a JSON-RPC response (HTTP
+    200), not 404; GET /mcp is also routed per specs/openapi/bundled.yaml; the openapi_paths
+    test mounts exactly the production shape; a live-wiring assertion proves the bare
+    mount exists in production wiring
+  status: complete
+  created_at: '2026-09-25T13:06:07.125541+00:00'
+  completed_at: '2026-09-25T13:32:43.682766+00:00'
+- id: df-consensus-24
+  title: 'DF-CONSENSUS-24: Fix documented contract gaps'
+  criteria:
+  - Docs match live API behavior
+  status: in_progress
+  created_at: '2026-09-25T15:15:16.887851+00:00'
+- id: DF-CONSENSUS-24
+  title: MCP send_message on booting session is silent dead letter
+  criteria:
+  - MCP create_session + MCP send_message -> reply appears with no REST call; toolSendMessage
+    delegates to MessageService.SendMessage or adds booting to wake condition
+  status: in_progress
+  created_at: '2026-09-25T15:19:15.563575+00:00'
