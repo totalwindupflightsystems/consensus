@@ -48,7 +48,7 @@ pipeline:
     true:
     - pre-eval
     condition: 'true'
-    max_iterations: 100
+    max_iterations: 250
     tools:
     - read_file
     - run_command
@@ -57,7 +57,7 @@ pipeline:
     - sandbox
 evaluator:
   file_scope: full
-  max_iterations: 100
+  max_iterations: 250
   max_time: 30m
   max_input_tokens: 2M
   max_output_tokens: 0.5M
