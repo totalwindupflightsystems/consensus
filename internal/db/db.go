@@ -73,10 +73,12 @@ type Config struct {
 	// SQLite:   sqlite://path/to/db/file
 	URL string `yaml:"url" json:"url"`
 
-	// MaxOpenConns is the maximum number of open connections (Postgres only).
+	// MaxOpenConns is the maximum number of open connections, applied by both
+	// backends: Postgres pool sizing and SQLite SetMaxOpenConns (<= 0 falls back to 4).
 	MaxOpenConns int `yaml:"max_open_conns" json:"max_open_conns"`
 
-	// MaxIdleConns is the maximum number of idle connections (Postgres only).
+	// MaxIdleConns is the maximum number of idle connections (Postgres only;
+	// the SQLite backend does not consume this value yet).
 	MaxIdleConns int `yaml:"max_idle_conns" json:"max_idle_conns"`
 
 	// BusyTimeoutMs is the SQLite busy timeout in milliseconds.
