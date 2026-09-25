@@ -457,6 +457,33 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get a single task
+      operationId: getTask
+      description: |
+        Returns one task by ID, including its status, priority, lock holder
+        and timestamps. Returns 404 when the task does not exist.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       tags:
         - Tasks
@@ -1517,6 +1544,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /find/symbol:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
@@ -1738,6 +1766,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
   /mcp:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
@@ -1808,6 +1837,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
   /project:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
@@ -1824,6 +1854,7 @@ paths:
         '501':
           $ref: '#/components/responses/NotImplemented'
   /project/{projectId}:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
@@ -1843,6 +1874,7 @@ paths:
         '501':
           $ref: '#/components/responses/NotImplemented'
   /vcs:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
@@ -1859,6 +1891,7 @@ paths:
         '501':
           $ref: '#/components/responses/NotImplemented'
   /vcs/{vcsId}:
+    x-not-implemented: true
     get:
       tags:
         - Opencode Shim

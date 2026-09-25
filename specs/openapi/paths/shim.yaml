@@ -599,6 +599,8 @@ findFile:
         $ref: "../components/responses.yaml#/InternalError"
 
 findSymbol:
+  # DF-CONSENSUS-18: declared 501 stub — no runtime symbol search.
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: Find symbols (stub)
@@ -814,6 +816,12 @@ lsp:
         $ref: "../components/responses.yaml#/Unauthorized"
 
 mcp:
+  # DF-CONSENSUS-18: no GET handler is mounted for /mcp in a stock
+  # deployment (the shim's own /mcp stub surface is not mounted — /mcp is
+  # absent from MountPatterns), so the declared operation answers 404.
+  # Marked not-implemented until MCP-DIRECT-001 builds the discoverable
+  # surface; do not remove /mcp/message.
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: MCP management (stub)
@@ -892,6 +900,9 @@ event:
 # contract expects it: /project and /vcs require auth on GET (401
 # unauthenticated) while non-GET methods reach the stub.
 project:
+  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9) — opencode-specific,
+  # not implemented by the Consensus shim.
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: Project info (stub)
@@ -908,6 +919,8 @@ project:
         $ref: "../components/responses.yaml#/NotImplemented"
 
 projectItem:
+  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9).
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: Project item (stub)
@@ -927,6 +940,9 @@ projectItem:
         $ref: "../components/responses.yaml#/NotImplemented"
 
 vcs:
+  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9) — opencode-specific,
+  # not implemented by the Consensus shim.
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: VCS info (stub)
@@ -943,6 +959,8 @@ vcs:
         $ref: "../components/responses.yaml#/NotImplemented"
 
 vcsItem:
+  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9).
+  x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: VCS item (stub)
