@@ -1,0 +1,33 @@
+{
+  "tick": "consensus-2026-09-25-05-33-05-r2",
+  "refires": "consensus-2026-09-25-05-33-05",
+  "project": "consensus",
+  "workdir": "/home/kara/consensus",
+  "budget": 7,
+  "workers": [
+    {
+      "task": "MCP-DIRECT-001",
+      "worktree": "~/worktrees/consensus-mcp-direct-001",
+      "branch": "wt/mcp-direct-001",
+      "base_sha": "8863a19",
+      "brief": "/tmp/consensus-2026-09-25-05-33-05-r2-mcp-brief.txt",
+      "log": "/tmp/consensus-2026-09-25-05-33-05-r2-mcp.log",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "gitreins_task": "mcp-direct-001",
+      "scope": "internal/mcp + internal/api + docs (streamable-HTTP transport + discoverability + 2 new tools + client recipes)"
+    },
+    {
+      "task": "DF-CONSENSUS-16",
+      "worktree": "~/worktrees/consensus-df-consensus-16",
+      "branch": "wt/df-consensus-16",
+      "base_sha": "8863a19",
+      "brief": "/tmp/consensus-2026-09-25-05-33-05-r2-df16-brief.txt",
+      "log": "/tmp/consensus-2026-09-25-05-33-05-r2-df16.log",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "gitreins_task": "df-consensus-16",
+      "scope": "docs+comments only (reconcile sst/opencode vs anomalyco/opencode naming; pin stays)"
+    }
+  ]
+}

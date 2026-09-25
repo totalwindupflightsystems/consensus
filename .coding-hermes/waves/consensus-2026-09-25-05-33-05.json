@@ -28,5 +28,24 @@
       "gitreins_task": "df-consensus-19",
       "scope": "internal/shim/opencode + config + docs (loopback-bind the auth-free /instance/* surface)"
     }
-  ]
+  ],
+  "outcomes": [
+    {
+      "task": "DF-CONSENSUS-18",
+      "branch": "wt/df-consensus-18",
+      "commit": "f9c0ec3",
+      "merged": "4b00dd2",
+      "board": "8863a19",
+      "tier2": "PASS (df-consensus-18, evaluated 2026-09-25T07:26Z)"
+    },
+    {
+      "task": "DF-CONSENSUS-19",
+      "branch": "wt/df-consensus-19",
+      "commit": "e52acc3",
+      "merged": "4b00dd2",
+      "board": "8863a19",
+      "tier2": "PASS (df-consensus-19, evaluated 2026-09-25T07:29Z)"
+    }
+  ],
+  "finished_at": "2026-09-25T07:35:00Z"
 }
