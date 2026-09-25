@@ -25,6 +25,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -55,17 +58,17 @@ func (emptyDB) Backend() db.Backend { return db.BackendSQLite }
 func (emptyDB) Close() error        { return nil }
 
 // newFullDeployServer wires the API server the way cmd/consensus/main.go does:
-// MCP handler on /mcp/* and the opencode shim on each of its MountPatterns, so
-// the machine check exercises the real production handler tree rather than the
-// bare API router (36 of the 60 declared paths live on the shim surface).
+// MCP handler on both /mcp/* and /mcp, plus the opencode shim on each of its
+// MountPatterns, so the machine check exercises the real production handler
+// tree rather than the bare API router (36 of the 60 declared paths live on the
+// shim surface).
 func newFullDeployServer() http.Handler {
 	apiSrv := api.NewServer(api.ServerConfig{DB: emptyDB{}, Addr: ":0"})
 	mux := apiSrv.Handler().(chi.Router)
 
 	mux.Handle("/mcp/*", mcp.NewServer(emptyDB{}).Handler())
-	// MCP-DIRECT-001: the bare /mcp mount is part of the full deployment —
-	// chi's "/mcp/*" wildcard does not match "/mcp" itself, so it needs its
-	// own registration (mirrors cmd/consensus/main.go).
+	// The bare mount mirrors production wiring: chi's "/mcp/*" wildcard does
+	// not match "/mcp" itself, so both registrations are required.
 	mux.Handle("/mcp", mcp.NewServer(emptyDB{}).Handler())
 
 	shimSrv := opencode.NewServer(emptyDB{}, "", nil, opencode.NewServiceAdapter(apiSrv.Service()))
@@ -73,6 +76,25 @@ func newFullDeployServer() http.Handler {
 		mux.Handle(pattern, shimSrv.Handler())
 	}
 	return apiSrv.Handler()
+}
+
+// TestProductionWiringMountsBareMCPAlongsideWildcard prevents the full-deploy
+// test fixture above from drifting ahead of the production handler tree again.
+func TestProductionWiringMountsBareMCPAlongsideWildcard(t *testing.T) {
+	_, testFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve openapi_paths_test.go location")
+	}
+	mainPath := filepath.Join(filepath.Dir(testFile), "..", "..", "cmd", "consensus", "main.go")
+	source, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read production wiring %s: %v", mainPath, err)
+	}
+
+	const pairedMounts = "	apiMux.Handle(\"/mcp/*\", mcpSrv.Handler())\n	apiMux.Handle(\"/mcp\", mcpSrv.Handler())"
+	if !strings.Contains(string(source), pairedMounts) {
+		t.Fatal("production wiring must mount the MCP handler at adjacent /mcp/* and /mcp routes")
+	}
 }
 
 // specHTTPMethods are the OpenAPI operation keys that map to HTTP verbs;
