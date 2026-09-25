@@ -1,0 +1,13 @@
+{
+  "tick_id": "consensus-2026-09-25-16-47-42",
+  "project": "consensus",
+  "created_at": "2026-09-25T17:20:00Z",
+  "finished_at": "2026-09-25T18:12:00Z",
+  "base_sha": "322ce5f",
+  "wave_budget": 8,
+  "outcomes": {
+    "DF-CONSENSUS-26": {"branch": "wt/DF-CONSENSUS-26", "commit": "718f2a4fc52c6c47f19dbeb46dee2cc16bf0c72c", "merged_as": "8f27d629c1f0d861b4e4e6f304f9406f6e4c7e9f", "merge": "clean", "tier1": "PASS", "tier2": "PASS COMPLETE (3c70bcc8)", "status": "complete"},
+    "ENV-CONSENSUS-1": {"branch": "wt/ENV-CONSENSUS-1", "commit": "6dda2661d621d58287995ff0a95d44145a3e18fb", "merged_as": "56e0a2d3", "merge": "clean", "tier1": "PASS", "tier2": "PASS COMPLETE (96a2a2de)", "status": "complete", "note": "worker re-dispatched once (state.db write contention at first spawn)"},
+    "C-GAP-POOL-FOLLOWUP": {"branch": "wt/C-GAP-POOL-FOLLOWUP", "commit": "4821d538682c44df820e2e9df7b33aaa8ab3fb30", "merged_as": "8f27d629c1f0d861b4e4e6f304f9406f6e4c7e9f", "merge": "clean", "tier1": "PASS", "tier2": "PASS COMPLETE (1e12fd81)", "status": "complete", "note": "worker re-dispatched once (state.db write contention at first spawn)"}
+  }
+}

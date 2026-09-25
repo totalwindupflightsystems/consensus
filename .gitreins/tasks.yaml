@@ -574,3 +574,32 @@ tasks:
   status: complete
   created_at: '2026-09-25T16:01:10.760072+00:00'
   completed_at: '2026-09-25T16:32:03.735526+00:00'
+- id: DF-CONSENSUS-26
+  title: Ship consensus version command + Go toolchain quickstart note
+  criteria:
+  - consensus version subcommand prints the same version string as --version flag
+  - README quickstart states the required Go toolchain version before any build instruction
+  status: complete
+  created_at: '2026-09-25T17:22:39.778497+00:00'
+  completed_at: '2026-09-25T17:53:08.759502+00:00'
+- id: ENV-CONSENSUS-1
+  title: Startup LLM key probe with loud last-4 diagnostics
+  criteria:
+  - serve starts with a probe of the configured LLM API key and prints a clear verdict
+    including the key last-4
+  - a configured but invalid key produces a loud startup diagnostic naming last-4
+    and the auth-failure class instead of only a later opaque LLM 401
+  status: complete
+  created_at: '2026-09-25T17:22:39.984977+00:00'
+  completed_at: '2026-09-25T18:08:29.796872+00:00'
+- id: C-GAP-POOL-FOLLOWUP
+  title: 'Pool follow-ups: max_open_conns override coverage + agent tool_call ledger
+    rows'
+  criteria:
+  - max_open_conns override is verified working for sqlite and postgres with docs
+    naming the override path for both backends
+  - agent-initiated tool calls produce tool_requests and audit_logs rows end-to-end,
+    with tests
+  status: complete
+  created_at: '2026-09-25T17:22:40.500160+00:00'
+  completed_at: '2026-09-25T17:53:21.732773+00:00'
