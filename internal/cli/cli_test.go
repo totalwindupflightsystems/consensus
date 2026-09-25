@@ -2528,6 +2528,50 @@ func TestRootCommandVersionFlag(t *testing.T) {
 	}
 }
 
+func TestRootCommandVersionSubcommand(t *testing.T) {
+	// Fresh-machine users reach for `consensus version` before the --version
+	// flag (DF-CONSENSUS-26). It must print the same string the root Version
+	// field yields and must run with no server reachable: the default
+	// --server target is left in place on purpose, so if PersistentPreRunE
+	// ever drops the "version" skip, VerifyIdentity fails against the
+	// implicit localhost:8090 and this test fails with it.
+	//
+	// Output is captured from os.Stdout because formatter output in this
+	// package is hardwired to os.Stdout (root.go newFormatter); cobra
+	// SetOut/SetErr are not consulted by sibling commands either.
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = w
+	t.Cleanup(func() { os.Stdout = oldStdout })
+
+	cmd := NewRootCommand()
+	cmd.SetArgs([]string{"version"})
+
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("consensus version failed: %v", err)
+	}
+	os.Stdout = oldStdout
+	if err := w.Close(); err != nil {
+		t.Fatalf("close pipe: %v", err)
+	}
+	outBytes, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read captured output: %v", err)
+	}
+	out := string(outBytes)
+
+	if !strings.Contains(out, "consensus version") {
+		t.Errorf("expected version output to contain \"consensus version\", got: %q", out)
+	}
+	if !strings.Contains(out, version) {
+		t.Errorf("expected version output to contain %q, got: %q", version, out)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // C-GAP-038 — port occupant classification (portprobe.go)
 // ---------------------------------------------------------------------------

@@ -134,6 +134,10 @@ uses a cosine similarity ≥0.85 acceptance threshold.
 The repository is anonymously cloneable, so the source build is the working
 fresh-user path:
 
+**Requirements:** building requires the Go toolchain — go.mod targets
+`go 1.26.0` (toolchain `go1.26.5`); install Go from https://go.dev/dl/ if
+`go version` fails.
+
 ```bash
 git clone https://github.com/totalwindupflightsystems/consensus.git
 cd consensus
@@ -145,7 +149,9 @@ go build -o bin/consensus ./cmd/consensus/
 ./bin/consensus serve --config consensus.yaml
 ```
 
-Save the one-time admin key printed by `init`. In a second terminal, verify the
+Save the one-time admin key printed by `init`. On first boot, `serve` also
+prints the bootstrap admin key once on stdout (stored hashed, never printed
+again) — save it when you see it. In a second terminal, verify the
 server and open Chronicle:
 
 ```bash

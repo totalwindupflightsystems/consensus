@@ -59,10 +59,10 @@ approvals, running migrations, and inspecting system state.`,
 		// (or set CONSENSUS_SERVER) are trusted to know what they're doing.
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip for subcommands that don't need a running server: serve IS
-			// the server, init is first-time setup.
+			// the server, init is first-time setup, version is offline metadata.
 			name := cmd.Name()
 			switch name {
-			case "serve", "init", "mcp-stdio", "completion", "help", "consensus":
+			case "serve", "init", "mcp-stdio", "completion", "help", "consensus", "version":
 				return nil
 			}
 			// Skip when the user explicitly pointed at a non-default server.
@@ -104,6 +104,7 @@ approvals, running migrations, and inspecting system state.`,
 		newToolCmd(),
 		newSkillCmd(),
 		newCompletionCmd(),
+		newVersionCmd(),
 	)
 
 	return root
