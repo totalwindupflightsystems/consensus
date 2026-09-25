@@ -149,6 +149,12 @@ func runServer() {
 		fmt.Fprintf(os.Stderr, "consensus: llm client init failed: %v\n", err)
 		os.Exit(1)
 	}
+	// ENV-CONSENSUS-1: probe the configured LLM key BEFORE the harness takes
+	// traffic. A dead key mimics a product defect (no assistant reply, empty
+	// ledger) and must fail loudly here, naming the key's last 4 characters —
+	// never later as "the product is broken". Startup-only: no probe exists
+	// on request paths.
+	runLLMKeyProbe(llmCfg.Provider, llmCfg.BaseURL, llmCfg.APIKey, llmCfg.Model)
 	h := harness.New(database, llmClient)
 	if cfg.Harness.HeartbeatIntervalSec > 0 {
 		h.HeartbeatConfig.Interval = time.Duration(cfg.Harness.HeartbeatIntervalSec) * time.Second

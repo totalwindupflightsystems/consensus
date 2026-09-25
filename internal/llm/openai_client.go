@@ -47,15 +47,9 @@ type openaiClient struct {
 // NewOpenAIClient creates a real OpenAI-compatible HTTP client.
 // The base URL defaults to OpenAI but can be overridden for OpenRouter, etc.
 func NewOpenAIClient(cfg *Config) harness.LLMClient {
-	baseURL := strings.TrimRight(cfg.BaseURL, "/")
-	if baseURL == "" {
-		switch cfg.Provider {
-		case ProviderOpenRouter:
-			baseURL = "https://openrouter.ai/api/v1"
-		default:
-			baseURL = "https://api.openai.com/v1"
-		}
-	}
+	// ENV-CONSENSUS-1: provider-default mapping shared with the startup key
+	// probe so both always target the same host for the same config.
+	baseURL := ProviderBaseURL(cfg.Provider, cfg.BaseURL)
 
 	// Default response format
 	responseFormat := cfg.ResponseFormat
