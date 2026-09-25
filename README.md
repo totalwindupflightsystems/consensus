@@ -367,6 +367,21 @@ volumes:
 
 - **[HTTP API Reference](docs/API.md)** — every REST endpoint with request/response examples, auth requirements, and error codes
 - **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
+
+  MCP clients attach to a running `consensus serve` on three surfaces, all JSON-RPC 2.0 (the server listens on `127.0.0.1:8090` by default; worked examples in the guide's §1):
+
+  - **Streamable HTTP** — `POST /mcp` with a JSON-RPC request body answers a JSON-RPC response (`application/json`); the `initialize` response carries your session id in the `Mcp-Session-Id` header (send it back on every follow-up call). `GET /mcp` serves the SSE stream for server-initiated messages.
+  - **SSE over HTTP** — `GET /mcp/sse` opens the event stream; its first `endpoint` event carries the POST target (`data: /mcp/message?sessionId=<id>`). POST each JSON-RPC message there with that `sessionId` — a missing one is a 400, a stale one is 410 Gone.
+  - **stdio** — `consensus mcp-stdio` speaks JSON-RPC on stdin/stdout (authenticate with `--api-key cs_ak_...` or `CONSENSUS_API_KEY`).
+
+  The SSE handshake, end to end:
+
+  ```bash
+  curl -N http://127.0.0.1:8090/mcp/sse
+  # → event: endpoint
+  #   data: /mcp/message?sessionId=<YOUR_SESSION_ID>
+  ```
+
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
 - **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract served at `/openapi.json` and `/openapi.yaml` (embedded in the binary — available from any working directory and in the Docker image), with the REST API Swagger UI at `/doc/api` on a running server (`/doc` is the opencode shim's own Swagger UI)
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
