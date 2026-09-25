@@ -1118,6 +1118,10 @@ func TestVCSEndpointReturns501(t *testing.T) {
 // makeGitRepo creates a temp git repo with one committed file, one staged new
 // file (dirty.txt) and one untracked file (untracked.txt, 3 lines). Returns
 // the repo dir; skips when git is unavailable.
+//
+// Fixture git calls use gitEnv() (defined in server.go) — stripping
+// GIT_DIR/GIT_INDEX_FILE etc. so the hook-exported repo location cannot
+// hijack the fixture into the real repo (DF-CONSENSUS-19 incident).
 func makeGitRepo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -1126,6 +1130,7 @@ func makeGitRepo(t *testing.T) string {
 	dir := t.TempDir()
 	run := func(args ...string) string {
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = gitEnv()
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
@@ -1340,7 +1345,9 @@ func TestInstanceVCSDiffEndpoint_GET(t *testing.T) {
 	t.Run("clean git workspace", func(t *testing.T) {
 		repo := makeGitRepo(t)
 		// reset the staged file and remove the untracked one → clean tree
-		if out, err := exec.Command("git", "-C", repo, "reset", "--hard", "HEAD").CombinedOutput(); err != nil {
+		resetCmd := exec.Command("git", "-C", repo, "reset", "--hard", "HEAD")
+		resetCmd.Env = gitEnv()
+		if out, err := resetCmd.CombinedOutput(); err != nil {
 			t.Fatalf("git reset: %v\n%s", err, out)
 		}
 		if err := os.Remove(filepath.Join(repo, "untracked.txt")); err != nil {

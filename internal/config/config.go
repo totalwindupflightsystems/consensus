@@ -9,6 +9,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -419,6 +420,13 @@ func applyEnvOverrides(cfg *Config) {
 // C-GAP-003: with no LLM API key (empty, or still a ${...} YAML template
 // literal that yaml.v3 could not resolve), every LLM call fails with an
 // opaque 401. A warning at startup makes the misconfiguration obvious.
+//
+// DF-CONSENSUS-19: the opencode shim's /instance/* surface is intentionally
+// auth-free for protocol compatibility (SPEC-017 §3.10) and discloses host
+// layout, so the shared listener that serves it must bind loopback. An
+// explicit non-loopback (or unresolvable) server.hostname still works, but
+// it warns loudly so the exposure is a stated operator choice, not a
+// surprise.
 func (cfg *Config) ApplyStartupValidations() []string {
 	var warns []string
 
@@ -431,5 +439,35 @@ func (cfg *Config) ApplyStartupValidations() []string {
 		warns = append(warns, "Compression worker DISABLED — provider DeepSeek has no embeddings endpoint (set compression.enabled=false or configure an OpenAI-compatible embeddings provider)")
 	}
 
+	// DF-CONSENSUS-19: fail closed on "cannot prove loopback". A wildcard or
+	// unresolvable hostname must warn — only a resolvable loopback address
+	// keeps the auth-free shim surface private.
+	if h := cfg.Server.Hostname; !hostnameIsLoopback(h) {
+		warns = append(warns, fmt.Sprintf(
+			"server.hostname %q is not loopback — the opencode shim /instance/* surface is intentionally auth-free (SPEC-017 §3.10) and discloses host layout, so it is reachable from any network that can reach this listener; bind 127.0.0.1 (server.hostname / CONSENSUS_HOSTNAME) and publish selectively, or tunnel instead",
+			h))
+	}
+
 	return warns
+}
+
+// hostnameIsLoopback reports whether h provably resolves to a loopback
+// address. Literal loopback IPs (127.0.0.0/8, ::1) are accepted directly;
+// anything else must resolve to loopback or the bind is treated as exposed
+// (DF-CONSENSUS-19). Hostnames like "localhost" resolve via the system
+// resolver, so the check stays honest for non-literal loopback names.
+func hostnameIsLoopback(h string) bool {
+	if ip := net.ParseIP(h); ip != nil {
+		return ip.IsLoopback()
+	}
+	addrs, err := net.LookupHost(h)
+	if err != nil || len(addrs) == 0 {
+		return false
+	}
+	for _, a := range addrs {
+		if ip := net.ParseIP(a); ip == nil || !ip.IsLoopback() {
+			return false
+		}
+	}
+	return true
 }

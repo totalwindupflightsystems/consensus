@@ -451,6 +451,8 @@ C-GAP-031: `/instance/*` translates the opencode server protocol into native Con
 
 **Auth policy:** `/instance/*` is fully public — no auth — because the opencode contract probes these endpoints unauthenticated and expects 200 with real workspace data (full-contract suite C19). `isStubPath` no longer covers `/instance`; the auth skip lives directly in the auth middleware.
 
+**Bind constraint (DF-CONSENSUS-19):** the shim instance surface is intentionally auth-free for opencode protocol compatibility and therefore binds loopback-only; do not expose it on a non-loopback interface. The shim has no listener of its own: it mounts on the main server's HTTP listener, so the loopback-only guarantee comes from the server bind (`config server.hostname` / `CONSENSUS_HOSTNAME` / `serve --hostname`, all default `127.0.0.1`). `/instance/path` returns absolute home, config and workspace paths, so a non-loopback bind is a host-layout disclosure; an explicit non-loopback override still works but produces a startup warning from `config.ApplyStartupValidations`.
+
 | Endpoint | Response |
 |---|---|
 | `GET /instance` | Singleton instance list: `[{id, path, createdAt, updatedAt}]` — `id` is a stable hash of the workspace directory; timestamps come from the server process. |

@@ -264,6 +264,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		// /instance/* is fully public but implemented (SPEC-017 §3.10) — the
 		// opencode contract probes these endpoints unauthenticated and expects
 		// 200 with real workspace data (full-contract suite C19).
+		// DF-CONSENSUS-19: because this surface is auth-free by protocol
+		// compatibility and discloses host layout, it must be served on a
+		// loopback-bound listener (the default); do not expose it on a
+		// non-loopback interface.
 		if p := r.URL.Path; p == "/instance" || strings.HasPrefix(p, "/instance/") {
 			next.ServeHTTP(w, r)
 			return
@@ -1192,10 +1196,35 @@ func instanceID(dir string) string {
 	return "consensus-" + hex.EncodeToString(sum[:])[:12]
 }
 
+// gitEnv returns the process environment with git-repository location
+// variables stripped. Pre-commit hooks (gitreins) export GIT_DIR /
+// GIT_INDEX_FILE into their children, and any test or tool process that
+// shells out to git for a scratch fixture repo inherits them — the fixture
+// call then resolves to the repo being committed instead of the -C target
+// (DF-CONSENSUS-19 commit incident, 2026-09-25). Stripping the vars makes
+// runGit/execGitStatus resolve the repo from dir/cwd alone, and makes the
+// shim's workspace git calls immune to a caller's leaked git env.
+func gitEnv() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		switch {
+		case strings.HasPrefix(kv, "GIT_DIR="),
+			strings.HasPrefix(kv, "GIT_WORK_TREE="),
+			strings.HasPrefix(kv, "GIT_INDEX_FILE="),
+			strings.HasPrefix(kv, "GIT_OBJECT_DIRECTORY="),
+			strings.HasPrefix(kv, "GIT_ALTERNATE_OBJECT_DIRECTORIES="):
+			continue
+		}
+		env = append(env, kv)
+	}
+	return env
+}
+
 // runGit runs git -C dir <args...> and returns trimmed stdout; errors are
 // returned so callers can fall back to neutral shapes (never fatal).
 func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = gitEnv()
 	out, err := cmd.Output()
 	return strings.TrimSpace(string(out)), err
 }
@@ -2258,6 +2287,7 @@ func generateAPIKey() string {
 // execGitStatus runs "git status --porcelain" as a fallback when no service layer is available.
 func execGitStatus(ctx context.Context) (map[string]any, error) {
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
+	cmd.Env = gitEnv()
 	output, err := cmd.Output()
 	if err != nil {
 		return map[string]any{

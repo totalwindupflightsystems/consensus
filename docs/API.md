@@ -6,7 +6,7 @@ opencode shim). This reference covers every endpoint with request/response
 examples. The canonical machine-readable contract is the bundled OpenAPI spec —
 see [OpenAPI](#openapi-specification) below.
 
-- Base URL: `http://<host>:8090` (default port, configurable via `CONSENSUS_PORT` / config `server.port`)
+- Base URL: `http://<host>:8090` (default port, configurable via `CONSENSUS_PORT` / config `server.port`; default bind `127.0.0.1` via config `server.hostname` — the opencode shim surface, including the auth-free public `/instance/*` endpoints, must stay on a loopback bind, see SPEC-017 §3.10)
 - Auth: set the `Authorization` header to `Bearer $CONSENSUS_API_KEY` (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management))
 - Errors: JSON envelope `{"error":{"code":"...","message":"...","details":"..."}}` with the appropriate HTTP status
 - Auth failures return `401` with code `UNAUTHORIZED`; missing/invalid UUID path params return `400` with code `INVALID_UUID`
