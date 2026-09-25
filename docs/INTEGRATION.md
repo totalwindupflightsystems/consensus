@@ -120,9 +120,9 @@ curl -s -X POST 'http://127.0.0.1:8090/mcp/message?sessionId=<YOUR_SESSION_ID>' 
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
-The server registers six tools: `create_session`, `send_message`,
-`get_session_status`, `list_memory`, `review_approval`, `query_tool`
-(*verified against:* `internal/mcp/tools.go`).
+The server registers eight tools: `create_session`, `send_message`,
+`get_session_status`, `list_memory`, `review_approval`, `query_tool`,
+`list_tasks`, `claim_task` (*verified against:* `internal/mcp/tools.go`).
 
 Create a session, then message it:
 
@@ -136,6 +136,115 @@ Create a session, then message it:
 *Verified against:* `internal/mcp/server.go` — requests without an `id` are
 treated as notifications (no response); `POST` only; a missing `sessionId`
 query param yields 400, an unknown one yields 404.
+
+### 1.3 Streamable-HTTP transport — attach with nothing but a URL and a key (MCP-DIRECT-001)
+
+`/mcp` (no subpath) is the **discoverable** MCP surface: the same JSON-RPC
+dispatch as SSE, in the streamable-HTTP shape. `POST /mcp` takes a JSON-RPC
+request and answers a JSON-RPC response (`application/json`); `GET /mcp`
+serves the SSE stream for server-initiated messages. The `initialize`
+response carries your session id in the **`Mcp-Session-Id`** response header —
+send it back on every follow-up call. The legacy `/mcp/sse` +
+`/mcp/message?sessionId=...` endpoints keep working unchanged.
+
+*Verified against:* `internal/mcp/streamable.go` (`HandleStreamable`),
+`internal/mcp/server.go` (`Handler()` also serves `/mcp`),
+`cmd/consensus/main.go` (mounts the handler under `/mcp/*` **and** `/mcp` on
+the API router), `internal/shim/opencode/server.go` (`handleMCPEndpoint`
+delegates MCP client traffic on the shim's `/mcp` mount to the real handler
+instead of answering its 501 stub).
+
+#### Claude Desktop / Cursor-style client config
+
+MCP clients that speak streamable HTTP attach with a plain URL entry. Header
+name as implemented: **`Mcp-Session-Id`** is issued *by the server* on
+initialize — clients only need to send the API key. The key travels in the
+initialize request's `_meta.authorization` field (same as SSE — see §1.1);
+clients with a "headers" field for the endpoint can also send
+`Authorization: Bearer cs_ak_...`, which streamable-capable clients forward
+into the handshake.
+
+```json
+{
+  "mcpServers": {
+    "consensus": {
+      "url": "http://127.0.0.1:8090/mcp",
+      "headers": {
+        "Authorization": "Bearer cs_ak_YOUR_KEY"
+      }
+    }
+  }
+}
+```
+
+> **Note:** a client that does not support headers will still authenticate if
+> it forwards the key in `initialize.params._meta.authorization` — that is the
+> field the server reads (`internal/mcp/auth.go validateAuth`).
+
+#### Raw curl recipe (initialize → initialized → tools/list → tools/call)
+
+```bash
+# 1) initialize — no session header needed; the response carries
+#    Mcp-Session-Id: <YOUR_SESSION_ID>
+curl -s -D /tmp/mcp-headers -X POST http://127.0.0.1:8090/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc": "2.0", "id": 1, "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": {"name": "curl", "version": "1.0"},
+      "_meta": {"authorization": "cs_ak_..."}
+    }
+  }'
+# → result.serverInfo = {"name":"consensus","version":"0.1.0"}
+#    header: Mcp-Session-Id: <YOUR_SESSION_ID>
+
+MCP_SESSION=$(grep -i '^mcp-session-id:' /tmp/mcp-headers | tr -d '\r' | awk '{print $2}')
+
+# 2) notifications/initialized (no body comes back — HTTP 202)
+curl -s -X POST http://127.0.0.1:8090/mcp \
+  -H 'Content-Type: application/json' \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+
+# 3) tools/list — eight tools, incl. list_tasks and claim_task
+curl -s -X POST http://127.0.0.1:8090/mcp \
+  -H 'Content-Type: application/json' \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+
+# 4) tools/call create_session
+curl -s -X POST http://127.0.0.1:8090/mcp \
+  -H 'Content-Type: application/json' \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_session","arguments":{"agent_name":"demo","goal":"list my memory"}}}'
+```
+
+#### The 401 negative (what an unauthenticated call looks like)
+
+Every method except `initialize` / `notifications/initialized` / `ping`
+requires a session that completed an authenticated initialize (DOGFOOD-101).
+On the streamable transport that refusal is an **HTTP 401** whose body is
+still a JSON-RPC error object:
+
+```bash
+# tools/list with no session and no key:
+curl -s -i -X POST http://127.0.0.1:8090/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{}}'
+```
+
+```
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":9,"error":{"code":-32002,"message":"Forbidden","data":"session not authenticated — initialize with a valid API key (--api-key / CONSENSUS_API_KEY) first"}}
+```
+
+An unknown/expired `Mcp-Session-Id` header answers the same 401 shape
+(`internal/mcp/streamable.go` — a stale session is treated as an
+authentication failure, not a routing one).
 
 ### 1.3 stdio transport
 

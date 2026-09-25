@@ -297,6 +297,8 @@ func TestToolsList_ReturnsAllTools(t *testing.T) {
 	expectedTools := []string{
 		"create_session", "send_message", "get_session_status",
 		"list_memory", "review_approval", "query_tool",
+		// MCP-DIRECT-001: task surface over MCP
+		"list_tasks", "claim_task",
 	}
 	if len(tools) != len(expectedTools) {
 		t.Errorf("expected %d tools, got %d", len(expectedTools), len(tools))

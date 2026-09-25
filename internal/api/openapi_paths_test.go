@@ -63,6 +63,10 @@ func newFullDeployServer() http.Handler {
 	mux := apiSrv.Handler().(chi.Router)
 
 	mux.Handle("/mcp/*", mcp.NewServer(emptyDB{}).Handler())
+	// MCP-DIRECT-001: the bare /mcp mount is part of the full deployment —
+	// chi's "/mcp/*" wildcard does not match "/mcp" itself, so it needs its
+	// own registration (mirrors cmd/consensus/main.go).
+	mux.Handle("/mcp", mcp.NewServer(emptyDB{}).Handler())
 
 	shimSrv := opencode.NewServer(emptyDB{}, "", nil, opencode.NewServiceAdapter(apiSrv.Service()))
 	for _, pattern := range opencode.MountPatterns {
