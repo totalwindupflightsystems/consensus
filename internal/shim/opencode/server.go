@@ -1078,7 +1078,7 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 // Instance Endpoints (SPEC-017 §3.10) — opencode /instance/* translation
 // ============================================================================
 //
-// The opencode server protocol (sst/opencode httpapi-instance.test.ts) probes
+// The opencode server protocol (anomalyco/opencode httpapi-instance.test.ts) probes
 // /instance/path, /instance/vcs and /instance/vcs/diff unauthenticated and
 // expects 200 with real workspace data. The Consensus shim treats the server
 // as a singleton instance rooted at the workspace directory.
