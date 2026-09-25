@@ -178,7 +178,7 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 	if scope == "session" && sessionID != "" {
 		rows, err := svc.db.Query(ctx,
 			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
-			 FROM sessions WHERE id = $1`, sessionID)
+			 FROM sessions WHERE id = $1 AND deleted_at IS NULL`, sessionID)
 		if err != nil {
 			return nil, err
 		}
@@ -198,13 +198,13 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 		}
 		query := fmt.Sprintf(
 			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
-			 FROM sessions WHERE status IN (%s) ORDER BY created_at DESC LIMIT 50`,
+			 FROM sessions WHERE status IN (%s) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50`,
 			strings.Join(placeholders, ","))
 		rows, err = svc.db.Query(ctx, query, args...)
 	} else {
 		rows, err = svc.db.Query(ctx,
 			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
-			 FROM sessions ORDER BY created_at DESC LIMIT 50`)
+			 FROM sessions WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 50`)
 	}
 	if err != nil {
 		return nil, err
@@ -213,12 +213,13 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 	return rowsToSessionResponses(rows), nil
 }
 
-// GetSession returns a single session by ID.
+// GetSession returns a single session by ID. A soft-deleted (tombstoned)
+// session is treated as nonexistent.
 func (svc *SessionService) GetSession(ctx context.Context, id string) (*SessionResponse, error) {
 	row, err := svc.db.QueryRow(ctx,
 		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget,
 		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
-		 FROM sessions WHERE id = $1`, id)
+		 FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil || row == nil {
 		return nil, fmt.Errorf("session not found")
 	}
@@ -242,8 +243,9 @@ func (svc *SessionService) GetSession(ctx context.Context, id string) (*SessionR
 }
 
 // GetSessionStatus returns just the status and iteration for a session (lightweight).
+// A soft-deleted (tombstoned) session is treated as nonexistent.
 func (svc *SessionService) GetSessionStatus(ctx context.Context, id string) (string, int64, error) {
-	row, err := svc.db.QueryRow(ctx, `SELECT status, iteration FROM sessions WHERE id = $1`, id)
+	row, err := svc.db.QueryRow(ctx, `SELECT status, iteration FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil || row == nil {
 		return "", 0, fmt.Errorf("session not found")
 	}
@@ -349,15 +351,21 @@ func (svc *SessionService) UpdateSessionFields(ctx context.Context, id string, f
 	return svc.db.Exec(ctx, query, args...)
 }
 
-// DeleteSession marks a session as failed (soft delete).
+// DeleteSession soft-deletes a session by setting its deleted_at tombstone
+// (SPEC-003 §2.1, SPEC-015 §3.1). The row is never removed — this is a soft
+// delete. Idempotent: deleting an already-deleted session is a no-op that
+// succeeds (the predicate skips rows that already carry a tombstone, so the
+// original deleted_at timestamp is preserved). Every API surface — list, get,
+// message, patch — treats a tombstoned session as nonexistent.
 func (svc *SessionService) DeleteSession(ctx context.Context, id string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	return svc.db.Exec(ctx,
-		`UPDATE sessions SET status = 'failed', completed_at = $1, heartbeat_at = $1 WHERE id = $2`,
+		`UPDATE sessions SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL`,
 		now, id)
 }
 
-// AbortSession is an alias for DeleteSession that sets status to 'failed'.
+// AbortSession is an alias for DeleteSession (soft-delete tombstone; the
+// session is hidden from the API, not marked 'failed').
 func (svc *SessionService) AbortSession(ctx context.Context, id string) error {
 	return svc.DeleteSession(ctx, id)
 }

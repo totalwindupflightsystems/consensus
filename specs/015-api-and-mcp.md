@@ -129,6 +129,21 @@ axiom:trace work_item=bootstrap-admin-key-policy-01 spec=specs/015-api-and-mcp.m
 | `DELETE` | `/api/v1/sessions/:id` | Soft-delete session (admin only) | admin |
 | `POST` | `/api/v1/sessions/:id/message` | Send a message to the agent | session |
 
+A deleted session is tombstoned via `sessions.deleted_at` (SPEC-003 §2.1): the
+row survives, but the session is invisible to the API. `DELETE` sets `deleted_at`
+and returns `200 {"status":"deleted"}`; it is idempotent — deleting an
+already-deleted session returns the same `200`. After deletion:
+
+- `GET /api/v1/sessions` and `GET /api/v1/sessions/:id` treat the session as
+  nonexistent (`GET /api/v1/sessions/:id` returns `404 NOT_FOUND`).
+- `POST /api/v1/sessions/:id/message` returns `410 GONE` and writes no
+  `memory_events` row.
+- `PATCH` (pause/resume/cancel) on a deleted session returns `404 NOT_FOUND`.
+
+The admin-only gate is unchanged. Existing pre-delete `memory_events` rows are
+preserved (the ledger is append-only, SPEC-002 §2.1); no new rows are written
+for a deleted session.
+
 #### Create Session
 
 ```json

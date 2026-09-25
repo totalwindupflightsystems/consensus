@@ -1249,7 +1249,8 @@ func (h *Harness) outputToTurnPlanV2(output *AgentOutput) TurnPlan {
 // ============================================================================
 
 // CleanupOrphanedStaging marks staging entries as failed for sessions that
-// are no longer in planning/executing/tool_exec status.
+// are no longer in planning/executing/tool_exec status (or that have been
+// soft-deleted — DF-CONSENSUS-28).
 // This should run as a goroutine on a periodic timer.
 func (h *Harness) CleanupOrphanedStaging(ctx context.Context) error {
 	return h.db.Exec(ctx, `
@@ -1258,6 +1259,7 @@ func (h *Harness) CleanupOrphanedStaging(ctx context.Context) error {
 		WHERE status IN ('staged', 'executed')
 		  AND session_id IN (
 		    SELECT id FROM sessions WHERE status IN ('failed', 'completed')
+		                                       OR deleted_at IS NOT NULL
 		  )
 	`)
 }

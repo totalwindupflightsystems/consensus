@@ -667,8 +667,8 @@ func TestMigrationUnderLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Version after AutoMigrate failed: %v", err)
 	}
-	if lastApplied != 23 {
-		t.Fatalf("expected 23 migrations applied, got version %d", lastApplied)
+	if lastApplied != 24 {
+		t.Fatalf("expected 24 migrations applied, got version %d", lastApplied)
 	}
 	t.Logf("AutoMigrate applied migrations up to version %d", lastApplied)
 
