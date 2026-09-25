@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.6.0
+version: 2.7.0
 category: software-development
 ---
 
@@ -109,8 +109,9 @@ Compiles first try; verified against a live server both runs.
   sessionId → POST `/mcp/message?sessionId=<YOURS>` with JSON-RPC; put the
   key in `initialize`'s `_meta.authorization`. Full MCP surface (verified
   against the internal/mcp/ registry, tick #283):
-  - 6 tools (`tools/list`): create_session, send_message,
-    get_session_status, list_memory, review_approval, query_tool
+  - 8 tools (`tools/list`, verified 2026-09-25 @ 8a6512d): create_session,
+    send_message, get_session_status, list_memory, review_approval, query_tool,
+    **list_tasks, claim_task** (new with MCP-DIRECT-001)
   - 2 resources (`resources/list`): sessions, tools_registry
   - 1 resource template (`resources/templates/list`): session_context
   - 1 prompt (`prompts/list`): agent_status
@@ -138,6 +139,29 @@ Compiles first try; verified against a live server both runs.
 - **Install from zero works**: anonymous clone → build → init → serve → health
   200 on a bare Debian bunker (58s cold build; install Go yourself — README
   doesn't name the toolchain).
+
+## MCP surface 2026-09-25 @ 8a6512d — two P0s open (verified live, control host + fresh bunker clone)
+
+- **Bare /mcp mount is DEAD in the production binary (DF-CONSENSUS-23).**
+  POST/GET `http://host:port/mcp` → 404 plain text, even though
+  specs/openapi/bundled.yaml documents it. Only `/mcp/sse` +
+  `/mcp/message?sessionId=` work (legacy transport). Cause: cmd/consensus/main.go
+  mounts chi `/mcp/*` (subpaths only) and the shim's MountPatterns never include
+  `/mcp`; the unit test mounts bare `/mcp` itself so it can't see the gap.
+- **MCP send_message on a FRESH session is a silent dead letter
+  (DF-CONSENSUS-24).** `create_session` returns status "booting"; MCP
+  `send_message` acks `{"sent":true}` but the session never wakes (internal/
+  mcp/tools.go:287 wakes only idle/paused; REST service.go:433 also wakes
+  booting). Workaround until fixed: create sessions via REST, or send the first
+  message via REST, then use MCP tools freely (send works on idle sessions —
+  turn-2 verified: prompt_tokens grow, model answers).
+- **Legacy session reaping (DF-CONSENSUS-25):** if your /mcp/sse curl drops,
+  the sessionId dies within seconds; POSTs to it return a plain-text 404
+  "session not found" (not JSON-RPC). Keep the SSE stream open for the whole
+  client lifetime; re-handshake on any 404.
+- **Everything else about MCP works**: 8 tools live, auth via
+  `_meta.authorization`, tool latency ~10ms, list_tasks/claim_task functional.
+  MCP tool round trip (send → poll reply) 1058ms warm with deepseek-chat.
 
 ## Historical landmines (2026-08/09-03 era — see "Verified working" above)
 

@@ -129,3 +129,25 @@ Run details (2026-09-25, angle = live P0 verification + multi-turn, @ 235efdb):
   skills/consensus-usage/SKILL.md v2.6.0, board rows PERF-CONSENSUS-11 +
   DF-CONSENSUS-22 (commit 1f99d93, numstat 2 rows verified).
 - Foreman: see tick report.
+
+2026-09-25 (afternoon, MCP-surface angle) | 🟡 PROMISING-BUT-ROUGH | MCP attach + full tool workflow over MCP | 1. DF-CONSENSUS-23 (P0 bare /mcp 404s in production; spec documents it; unit test mounts a shape prod doesn't) 2. DF-CONSENSUS-24 (P0 MCP send_message dead-letters on booting sessions — tools.go:287 vs service.go:433 wake drift) 3. DF-CONSENSUS-25 (P1 stale legacy session → plain-text 404, not JSON-RPC) | t2fs ~4s boot; MCP handshake + tools/list ~2s; but MCP-only first turn never completes (DF-24) | friction 3 | install_seconds=50 (clone 5s + go extract 4s + build 41s; agent ca6b95c0, bunker-las-03, destroyed) | smoke=ok (health 200; bare /mcp 404 reproduced on the fresh clone too)
+
+Run details (2026-09-25 PM, angle = MCP surface, first run since MCP-DIRECT-001 @ df33c39):
+- Control-host scratch :8127 (config-file path, deepseek-chat, key probed first:
+  1 of 11 candidates live per ENV-CONSENSUS-1 procedure).
+- Real MCP client workflow: SSE handshake → initialize → tools/list (8 tools incl.
+  new list_tasks/claim_task) → create_session → send_message → status → list_memory.
+- A/B cross-path: MCP-created session stuck booting 5+ min after MCP send; woke
+  instantly on one REST message; MCP send on idle sessions works (turn-2 answered,
+  TURN2 in ledger). Root cause pinned tools.go:287 vs service.go:433.
+- Bunker install leg PASSED: anonymous clone of totalwindupflightsystems/consensus
+  (wojons/consensus is 404 anon — stale URL in some docs), clone 5s, Go 1.26.6
+  provisioned, build 41s, init→serve→health 200, bare /mcp 404 reproduced on the
+  fresh clone before destroy.
+- Perf (PERF-CONSENSUS-12): MCP warm round trip 1058ms (REST control 1075ms);
+  cold 41.9s = DF-24 dead-letter wait, not compute. Nothing slow enough to profile.
+- Tasks written: DF-CONSENSUS-23 (P0), -24 (P0), -25 (P1), -26 (P2 docs),
+  PERF-CONSENSUS-12 — commit f596c04 (5 rows, numstat-verified).
+- Artifacts: docs/dogfood/2026-09-25-mcp-surface.md, skills/consensus-usage/SKILL.md
+  v2.7.0 (MCP-surface section).
+- Foreman: see tick report.
