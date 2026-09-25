@@ -15,6 +15,8 @@ func hermeticEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{
 		"CONSENSUS_LLM_BASE_URL",
+		"CONSENSUS_LLM_MODEL",
+		"CONSENSUS_LLM_PROVIDER",
 		"OPENROUTER_BASE_URL",
 		"OPENROUTER_API_KEY",
 		"OPENAI_API_KEY",
@@ -256,6 +258,107 @@ func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
 
 	if cfg.LLM.APIKey != "sk-deepseek-test" {
 		t.Errorf("expected DEEPSEEK_API_KEY to apply when OPENROUTER_API_KEY unset, got %q", cfg.LLM.APIKey)
+	}
+}
+
+func TestEnvOverride_LLMModelOverridesConfig(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, `llm:
+  default_model: config-model
+`))
+	t.Setenv("CONSENSUS_LLM_MODEL", "env-model")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.DefaultModel != "env-model" {
+		t.Errorf("expected CONSENSUS_LLM_MODEL to override config model, got %q", cfg.LLM.DefaultModel)
+	}
+}
+
+func TestEnvOverride_LLMProviderOverridesConfig(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, `llm:
+  provider: anthropic
+`))
+	t.Setenv("CONSENSUS_LLM_PROVIDER", "openai")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.Provider != "openai" {
+		t.Errorf("expected CONSENSUS_LLM_PROVIDER to override config provider, got %q", cfg.LLM.Provider)
+	}
+}
+
+func TestLoad_EnvOnlyDeepSeekUsesCompatibleModel(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+	t.Setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://api.deepseek.com/v1")
+	t.Setenv("CONSENSUS_LLM_PROVIDER", "openai")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.DefaultModel != "deepseek-v4-flash" {
+		t.Errorf("expected env-only DeepSeek setup to use deepseek-v4-flash, got %q", cfg.LLM.DefaultModel)
+	}
+	if cfg.LLM.Provider != "openai" {
+		t.Errorf("expected provider from env, got %q", cfg.LLM.Provider)
+	}
+	if cfg.LLM.BaseURL != "https://api.deepseek.com/v1" {
+		t.Errorf("expected base URL from env, got %q", cfg.LLM.BaseURL)
+	}
+	t.Logf("model=%s provider=%s base_url=%s", cfg.LLM.DefaultModel, cfg.LLM.Provider, cfg.LLM.BaseURL)
+}
+
+func TestApplyEnvOverrides_DeepSeekKeyWithNonDeepSeekBaseKeepsModel(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://openrouter.ai/api/v1")
+	cfg := Defaults()
+
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.DefaultModel != "" {
+		t.Errorf("expected non-DeepSeek base URL to leave model untouched, got %q", cfg.LLM.DefaultModel)
+	}
+}
+
+func TestLoad_ExplicitEnvModelSurvivesDeepSeekDefault(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+	t.Setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+	t.Setenv("CONSENSUS_LLM_BASE_URL", "https://api.deepseek.com/v1")
+	t.Setenv("CONSENSUS_LLM_MODEL", "gpt-4o")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.DefaultModel != "gpt-4o" {
+		t.Errorf("expected explicit env model to survive DeepSeek defaulting, got %q", cfg.LLM.DefaultModel)
+	}
+}
+
+func TestLoad_ExplicitModelSurvivesDeepSeekDefault(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, `llm:
+  default_model: operator-model
+  base_url: https://api.deepseek.com/v1
+`))
+	t.Setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.DefaultModel != "operator-model" {
+		t.Errorf("expected explicit config model to survive DeepSeek defaulting, got %q", cfg.LLM.DefaultModel)
 	}
 }
 

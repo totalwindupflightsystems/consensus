@@ -9,6 +9,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -332,6 +333,14 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("CONSENSUS_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
 	}
+	// These explicit overrides make the documented env-only deployment path
+	// take precedence over llm.provider/default_model from a config file.
+	if v := os.Getenv("CONSENSUS_LLM_PROVIDER"); v != "" {
+		cfg.LLM.Provider = v
+	}
+	if v := os.Getenv("CONSENSUS_LLM_MODEL"); v != "" {
+		cfg.LLM.DefaultModel = v
+	}
 	// LLM base URL precedence (DF-CONSENSUS-1). The shipped consensus.yaml pins
 	// llm.base_url to https://api.deepseek.com/v1, and before this fix the
 	// resolver in cmd/consensus returned that config value first, so both
@@ -361,6 +370,13 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
 		cfg.LLM.APIKey = v
+		baseURL, err := url.Parse(cfg.LLM.BaseURL)
+		usesDeepSeek := err == nil && strings.EqualFold(baseURL.Hostname(), "api.deepseek.com")
+		if usesDeepSeek && cfg.LLM.DefaultModel == "" {
+			// DeepSeek rejects the later OpenAI fallback with HTTP 400; use the
+			// shipped model only while the compiled config default is still empty.
+			cfg.LLM.DefaultModel = "deepseek-v4-flash"
+		}
 	}
 	// OPENROUTER_API_KEY selects OpenRouter as the LLM backend (README:
 	// "Alternative: use OpenRouter instead of DeepSeek direct"). Setting the

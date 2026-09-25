@@ -156,13 +156,18 @@ open http://localhost:8090/chronicle/    # macOS
 ```
 
 The config-file path is recommended because its database pool is explicit and
-reviewable. The environment-only path is also safe now: when no
+reviewable, but a config file is no longer required for DeepSeek. With
+`DEEPSEEK_API_KEY` and `CONSENSUS_LLM_BASE_URL=https://api.deepseek.com/v1`,
+Consensus selects the DeepSeek-compatible `deepseek-v4-flash` model instead of
+the OpenAI default. Set `CONSENSUS_LLM_MODEL` to override that model and
+`CONSENSUS_LLM_PROVIDER` to override the provider. When no
 `database.max_open_conns` is supplied, Consensus uses the fixed default pool of
 8 connections. For example:
 
 ```bash
 CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" ./bin/consensus init
 CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
+  CONSENSUS_LLM_BASE_URL="https://api.deepseek.com/v1" \
   ./bin/consensus serve
 ```
 

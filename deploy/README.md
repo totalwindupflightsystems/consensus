@@ -225,6 +225,7 @@ All deployment options use the same `consensus.yaml` config file or environment 
 | `CONSENSUS_HOSTNAME` | `server.hostname` | `127.0.0.1` |
 | `CONSENSUS_LLM_API_KEY` | `llm.api_key` | — |
 | `CONSENSUS_LLM_PROVIDER` | `llm.provider` | `openai` |
+| `CONSENSUS_LLM_MODEL` | `llm.default_model` | Provider-compatible default |
 | `CONSENSUS_LOG_LEVEL` | `logging.level` | `info` |
 
 ---
