@@ -70,6 +70,13 @@ type Server struct {
 
 	// Mutex for shim_session_map writes
 	mu sync.Mutex
+
+	// mcpHandler is the real MCP HTTP handler (internal/mcp), injected via
+	// SetMCPHandler by cmd/consensus/main.go. When set, the shim's bare /mcp
+	// mount delegates MCP client traffic (JSON-RPC POSTs, SSE GETs) to it
+	// instead of answering the 501 stub (MCP-DIRECT-001). Optional by
+	// design: shim-only harnesses that never set it keep the stub.
+	mcpHandler http.Handler
 }
 
 // Service is the minimal interface the shim needs from the API service layer.
@@ -205,6 +212,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/instance/", s.handleInstanceSub)
 
 	return s
+}
+
+// SetMCPHandler wires the real MCP HTTP handler into the shim's bare /mcp
+// mount (MCP-DIRECT-001): MCP client requests that reach the shim mount are
+// delegated to it instead of answering the 501 stub. Passing nil (the
+// zero-value default) keeps the stub answer unchanged.
+func (s *Server) SetMCPHandler(h http.Handler) {
+	s.mcpHandler = h
 }
 
 // Handler returns the http.Handler for mounting under a parent server.
@@ -1676,6 +1691,19 @@ func (s *Server) handleToolIDs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
+	// MCP-DIRECT-001: when an MCP CLIENT (not a browser) speaks to the
+	// shim's bare /mcp mount, delegate to the real MCP handler instead of
+	// answering the 501 stub, so an attach attempt never dies on the shim.
+	// Two probes cover the streamable-HTTP client shapes: a POST with a
+	// JSON-RPC body, and an SSE-negotiating GET (Accept: text/event-stream).
+	// mcpHandler is injected by cmd/consensus/main.go; when nil (shim-only
+	// test harnesses) the stub answer is preserved unchanged.
+	if s.mcpHandler != nil &&
+		((r.Method == http.MethodPost && strings.Contains(r.Header.Get("Content-Type"), "application/json")) ||
+			(r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/event-stream"))) {
+		s.mcpHandler.ServeHTTP(w, r)
+		return
+	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		"MCP management via opencode shim is not implemented; use /mcp/sse directly")
 }

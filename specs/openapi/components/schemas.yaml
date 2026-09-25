@@ -753,3 +753,29 @@ VcsFileDiff:
       enum: [added, deleted, modified]
       description: Change classification.
   description: opencode Vcs.FileDiff translation — patch omitted (optional upstream).
+
+MCPJSONRPCResponse:
+  type: object
+  description: >
+    Loose shape of a JSON-RPC 2.0 response as served by the MCP HTTP
+    endpoints (MCP-DIRECT-001). Result and error are intentionally open —
+    MCP results vary per method.
+  properties:
+    jsonrpc:
+      type: string
+      enum: ["2.0"]
+    id:
+      description: Echo of the request id (null for parse errors).
+    result:
+      description: Method result object (present on success).
+    error:
+      type: object
+      description: JSON-RPC error object (present on failure).
+      properties:
+        code:
+          type: integer
+          description: JSON-RPC error code (-32002 = unauthenticated MCP session).
+        message:
+          type: string
+        data:
+          description: Optional error detail.

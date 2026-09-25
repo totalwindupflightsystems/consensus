@@ -58,6 +58,11 @@ tags:
     description: System metrics, billing, and configuration
   - name: Auth
     description: API key management
+  - name: MCP
+    description: >
+      Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the
+      streamable-HTTP transport at /mcp (POST JSON-RPC + GET SSE stream),
+      plus the legacy /mcp/sse and /mcp/message endpoints.
   - name: Opencode Shim
     description: >
       opencode protocol shim (SPEC-017) — translates the opencode server

@@ -816,23 +816,107 @@ lsp:
         $ref: "../components/responses.yaml#/Unauthorized"
 
 mcp:
-  # DF-CONSENSUS-18: no GET handler is mounted for /mcp in a stock
-  # deployment (the shim's own /mcp stub surface is not mounted — /mcp is
-  # absent from MountPatterns), so the declared operation answers 404.
-  # Marked not-implemented until MCP-DIRECT-001 builds the discoverable
-  # surface; do not remove /mcp/message.
-  x-not-implemented: true
+  # MCP-DIRECT-001: /mcp is the DISCOVERABLE MCP surface. GET serves the
+  # streamable-HTTP SSE stream (server-initiated messages); POST serves the
+  # streamable-HTTP JSON-RPC endpoint (initialize, tools/list, tools/call, …)
+  # with sessions addressed via the Mcp-Session-Id response header. Both
+  # methods are served by the same MCP handler as /mcp/sse and /mcp/message
+  # (internal/mcp). Auth: POST answers HTTP 401 with a JSON-RPC error body
+  # when the session is unauthenticated/unknown (tools/list and every
+  # non-handshake method require an authenticated initialize, DOGFOOD-101);
+  # GET issues a session id without auth — authentication happens inside the
+  # initialize handshake itself.
   get:
-    tags: [Opencode Shim]
-    summary: MCP management (stub)
-    operationId: shimMCPStub
+    tags: [MCP]
+    summary: MCP streamable-HTTP SSE stream
+    operationId: mcpStreamableGet
     description: |
-      Registered stub surface: MCP management via the opencode shim is not
-      implemented — always returns 501 NOT_IMPLEMENTED. Use /mcp/sse
-      directly.
+      Opens the MCP server-initiated message stream (text/event-stream),
+      same handler as GET /mcp/sse. Part of the streamable-HTTP transport:
+      clients POST JSON-RPC requests to POST /mcp and read server-initiated
+      messages here.
     responses:
+      "200":
+        description: SSE stream of server-initiated MCP messages.
+        content:
+          text/event-stream:
+            schema:
+              type: string
+  post:
+    tags: [MCP]
+    summary: MCP streamable-HTTP JSON-RPC endpoint
+    operationId: mcpStreamablePost
+    description: |
+      Accepts a single JSON-RPC 2.0 MCP request and answers the JSON-RPC
+      response (application/json). Initialize returns the session id in the
+      Mcp-Session-Id response header; follow-up calls carry it. Every method
+      except initialize / notifications/initialized / ping requires a session
+      that completed authenticated initialize — unauthenticated calls answer
+      HTTP 401 with a JSON-RPC error object (code -32002 Forbidden).
+      Legacy transports remain available: GET /mcp/sse + POST
+      /mcp/message?sessionId=...
+    responses:
+      "200":
+        description: JSON-RPC response (success or error payload).
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/MCPJSONRPCResponse"
+        headers:
+          Mcp-Session-Id:
+            description: Session id for follow-up MCP calls (set by initialize).
+            schema:
+              type: string
+      "202":
+        description: Accepted — the request was a notification (no response body).
+      "400":
+        description: Malformed request (parse error or invalid JSON-RPC envelope).
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/MCPJSONRPCResponse"
+      "401":
+        description: >
+          Unauthenticated MCP session (unknown/expired Mcp-Session-Id, or a
+          method called before an authenticated initialize). The body is a
+          JSON-RPC error object (code -32002 Forbidden), matching the auth
+          semantics documented in docs/INTEGRATION.md.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/MCPJSONRPCResponse"
+      "405":
+        description: Method not allowed (only GET and POST are served).
       "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+        description: >
+          MCP traffic is not served on this mount — bare deployments without
+          the API-level MCP mount answer 501 NOT_IMPLEMENTED (the opencode
+          shim stub). Mount consensus serve to reach the real surface.
+
+# MCPJSONRPCResponse: loose shape of a JSON-RPC 2.0 response as served by the
+# MCP HTTP endpoints. Result and error are intentionally open (MCP results
+# vary per method).
+mcpJSONRPCResponse:
+  type: object
+  properties:
+    jsonrpc:
+      type: string
+      enum: ["2.0"]
+    id:
+      description: Echo of the request id (null for parse errors).
+    result:
+      description: Method result object (present on success).
+    error:
+      type: object
+      description: JSON-RPC error object (present on failure).
+      properties:
+        code:
+          type: integer
+          description: JSON-RPC error code (-32002 = unauthenticated session).
+        message:
+          type: string
+        data:
+          description: Optional error detail.
 
 # ── Auth management ──
 authItem:

@@ -356,6 +356,10 @@ func runServer() {
 	if cfg.Adapters.OpenCode.Enabled {
 		shimService := opencode.NewServiceAdapter(apiSrv.Service())
 		shimSrv := opencode.NewServer(database, cfg.Adapters.OpenCode.AdminKey, shimEvents, shimService)
+		// MCP-DIRECT-001: an MCP client that speaks to the shim's bare /mcp
+		// mount (a URL guessable from the documented /mcp/sse route) must
+		// reach the real MCP handler, not the shim's 501 stub.
+		shimSrv.SetMCPHandler(mcpSrv.Handler())
 		// Mount shim at root — it handles paths like /session, /config, /event, etc.
 		// Use /* wildcards for sub-path routes (chi v5 trailing-slash prefix can be unreliable).
 		for _, pattern := range opencode.MountPatterns {

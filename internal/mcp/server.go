@@ -576,11 +576,20 @@ func (s *Server) writeError(w http.ResponseWriter, id any, code int, message str
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Handler returns an http.Handler that serves SSE at /mcp/sse and message
-// posts at /mcp/message. Use this with http.ListenAndServe or chi.
+// Handler returns an http.Handler that serves the full MCP HTTP surface:
+//
+//	POST /mcp          — streamable-HTTP JSON-RPC endpoint (MCP-DIRECT-001)
+//	GET  /mcp          — SSE stream for server-initiated messages
+//	GET  /mcp/sse      — legacy SSE endpoint (unchanged)
+//	POST /mcp/message  — legacy message endpoint (unchanged)
+//
+// Use this with http.ListenAndServe or chi. The API router mounts it under
+// /mcp/* (subpaths) and /mcp (the discoverable bare mount) — see
+// cmd/consensus/main.go.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mcp/sse", s.HandleSSE)
 	mux.HandleFunc("/mcp/message", s.HandleMessage)
+	mux.HandleFunc("/mcp", s.handleMCPRoot)
 	return mux
 }
