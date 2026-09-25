@@ -168,7 +168,12 @@ Consensus selects the DeepSeek-compatible `deepseek-v4-flash` model instead of
 the OpenAI default. Set `CONSENSUS_LLM_MODEL` to override that model and
 `CONSENSUS_LLM_PROVIDER` to override the provider. When no
 `database.max_open_conns` is supplied, Consensus uses the fixed default pool of
-8 connections. For example:
+8 connections. The `database.max_open_conns` override applies to both backends:
+SQLite passes it to the driver as the connection cap (falling back to 4
+connections when the key is unset or 0), and PostgreSQL maps it to the pgx
+connection pool's `MaxConns` (fallback 10). The 8-connection default above is
+injected by the config loader before the backend ever sees the value. For
+example:
 
 ```bash
 CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" ./bin/consensus init

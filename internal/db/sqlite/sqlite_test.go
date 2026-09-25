@@ -76,3 +76,36 @@ func TestOpenMemorySkippedParentCreation(t *testing.T) {
 	}
 	defer conn.Close()
 }
+
+// TestOpenMaxOpenConnsOverrideReachesDriver proves the max_open_conns
+// override actually reaches the driver (pool-fix follow-up: the shipped
+// consensus.yaml pins database.max_open_conns: 5 and the no-config
+// default is 8 — both must be honored per-backend, including SQLite).
+// SQLite is in-package, so the wrapped *sql.DB is reachable via d.conn.
+func TestOpenMaxOpenConnsOverrideReachesDriver(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("explicit override", func(t *testing.T) {
+		d, err := Open(ctx, db.Config{URL: "sqlite://:memory:", MaxOpenConns: 3})
+		if err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		defer d.Close()
+
+		if got := d.conn.Stats().MaxOpenConnections; got != 3 {
+			t.Errorf("MaxOpenConnections = %d, want 3 (cfg.MaxOpenConns=3 must reach the driver)", got)
+		}
+	})
+
+	t.Run("zero falls back to 4", func(t *testing.T) {
+		d, err := Open(ctx, db.Config{URL: "sqlite://:memory:", MaxOpenConns: 0})
+		if err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		defer d.Close()
+
+		if got := d.conn.Stats().MaxOpenConnections; got != 4 {
+			t.Errorf("MaxOpenConnections = %d, want 4 (MaxOpenConns<=0 falls back to 4)", got)
+		}
+	})
+}
