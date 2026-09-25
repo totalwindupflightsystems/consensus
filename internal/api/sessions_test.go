@@ -681,10 +681,18 @@ func TestDeleteSession_Admin(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Verify session is now failed/completed
-	rows, _ := srv.conn.Query(ctx, `SELECT status, completed_at FROM sessions WHERE id = 'sess-del'`)
-	if toString(rows[0]["status"]) != "failed" {
-		t.Errorf("expected 'failed', got %q", toString(rows[0]["status"]))
+	// Verify the soft-delete tombstone (DF-CONSENSUS-28). The OLD contract
+	// pinned status=='failed' here — that was the defect: 'failed' is a crash
+	// semantic, so the session stayed visible and messageable. The NEW
+	// contract (SPEC-015 §3.1, SPEC-003 §2.1) tombstones via deleted_at; the
+	// property still protected is that the row SURVIVES (soft delete, never a
+	// hard DELETE) and the session is terminal from the API's perspective.
+	rows, _ := srv.conn.Query(ctx, `SELECT status, completed_at, deleted_at FROM sessions WHERE id = 'sess-del'`)
+	if len(rows) != 1 {
+		t.Fatalf("expected row to survive soft delete, got %d rows", len(rows))
+	}
+	if rows[0]["deleted_at"] == nil {
+		t.Error("expected deleted_at tombstone to be set")
 	}
 }
 

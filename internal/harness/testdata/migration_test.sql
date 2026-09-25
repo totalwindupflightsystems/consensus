@@ -25,7 +25,8 @@ CREATE TABLE sessions (
     heartbeat_at      TEXT NOT NULL DEFAULT (datetime('now')),
     planning_max_turns INTEGER NOT NULL DEFAULT 10,
     created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-    completed_at      TEXT
+    completed_at      TEXT,
+    deleted_at        TEXT
 );
 
 -- model_registry — must exist before sessions FK 

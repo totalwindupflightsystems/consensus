@@ -148,8 +148,10 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 
 	ctx := r.Context()
 
-	// Get current status
-	row, err := s.db.QueryRow(ctx, `SELECT status FROM sessions WHERE id = $1`, id)
+	// Get current status. A soft-deleted (tombstoned) session is API-gone:
+	// it must not be pause/resume/candidate, so 404 like a missing id
+	// (SPEC-015 §3.1).
+	row, err := s.db.QueryRow(ctx, `SELECT status FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
 		return
@@ -258,8 +260,13 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request, id 
 	ctx := r.Context()
 	now := time.Now().UTC().Format(time.RFC3339)
 
+	// Soft delete: set the deleted_at tombstone (SPEC-003 §2.1, SPEC-015 §3.1).
+	// The row is never removed. The deleted_at IS NULL predicate makes this
+	// idempotent — a second DELETE succeeds without changing the original
+	// tombstone timestamp. A nonexistent id updates nothing and still returns
+	// 200 (the route's existing semantics for missing ids).
 	err := s.db.Exec(ctx,
-		`UPDATE sessions SET status = 'failed', completed_at = $1, heartbeat_at = $1 WHERE id = $2`,
+		`UPDATE sessions SET deleted_at = $1 WHERE id = $2 AND deleted_at IS NULL`,
 		now, id)
 	if err != nil {
 		slog.Error("api: failed to delete session", "error", err)
@@ -304,8 +311,21 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 	ctx := r.Context()
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Check current session status, get current iteration
-	row, err := s.db.QueryRow(ctx, `SELECT status, iteration FROM sessions WHERE id = $1`, id)
+	// Check current session status, get current iteration. A soft-deleted
+	// (tombstoned) session must not be resolvable here: 410 GONE, and no
+	// memory_events row is written (SPEC-015 §3.1). A session that never
+	// existed keeps the route's 404 semantics.
+	existsRow, err := s.db.QueryRow(ctx, `SELECT deleted_at FROM sessions WHERE id = $1`, id)
+	if err != nil {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	if existsRow["deleted_at"] != nil {
+		writeError(w, r, http.StatusGone, "GONE", "session has been deleted")
+		return
+	}
+
+	row, err := s.db.QueryRow(ctx, `SELECT status, iteration FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
 		return

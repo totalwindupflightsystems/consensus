@@ -40,7 +40,8 @@ CREATE TABLE sessions (
     heartbeat_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     planning_max_turns INT NOT NULL DEFAULT 10,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    completed_at    TIMESTAMPTZ
+    completed_at    TIMESTAMPTZ,
+    deleted_at      TIMESTAMPTZ
 );
 
 CREATE INDEX idx_sessions_parent ON sessions(parent_id);
@@ -56,6 +57,7 @@ CREATE INDEX idx_sessions_status ON sessions(status) WHERE status IN ('idle', 't
 | `context_budget` | Max token limit for this agent's LLM context window. |
 | `tokens_used_in/out` | Accumulated billing counters. Updated per iteration. |
 | `heartbeat_at` | Last known-alive timestamp. `pg_cron` reaps stale sessions (§7.1). |
+| `deleted_at` | Soft-delete tombstone (SPEC-015 §3.1). Non-NULL hides the session from every list/get and rejects messages; the row itself is never removed. Not a `status` value — the status CHECK vocabulary (SPEC-011 §1) is unchanged. |
 
 ---
 

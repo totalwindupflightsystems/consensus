@@ -826,10 +826,13 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 
 // findActiveSessions queries for sessions that need harness attention:
 // thinking (just received a message), planning (multi-step), or tool_exec (external tool running).
+// Soft-deleted sessions are excluded — a tombstoned session must never be
+// claimed for an iteration (DF-CONSENSUS-28).
 func (h *Harness) findActiveSessions(ctx context.Context) ([]string, error) {
 	rows, err := h.db.Query(ctx, `
 		SELECT id FROM sessions
 		WHERE status IN ('thinking', 'planning', 'tool_exec')
+		  AND deleted_at IS NULL
 		LIMIT 5
 	`)
 	if err != nil {
