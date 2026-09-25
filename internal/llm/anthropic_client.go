@@ -45,10 +45,9 @@ type anthropicClient struct {
 
 // NewAnthropicClient creates a real Anthropic Messages API client.
 func NewAnthropicClient(cfg *Config) harness.LLMClient {
-	baseURL := strings.TrimRight(cfg.BaseURL, "/")
-	if baseURL == "" {
-		baseURL = "https://api.anthropic.com/v1"
-	}
+	// ENV-CONSENSUS-1: provider-default mapping shared with the startup key
+	// probe so both always target the same host for the same config.
+	baseURL := ProviderBaseURL(cfg.Provider, cfg.BaseURL)
 
 	return &anthropicClient{
 		cfg:             cfg,
