@@ -111,3 +111,21 @@ Run details (2026-09-24, regression re-test @ 576dc07):
 - Foreman: NOT woken — scheduler API :9090 timed out at report time
   (pre-existing scheduler slowness). Foreman is active regardless (ticks and
   merges landed 2026-09-24 02:17–04:29); DF-CONSENSUS-20/21 are on the board.
+
+2026-09-25 | SHIPPABLE (conversational promise) | Multi-turn messaging: send message → agent response, every turn, real LLM | 1. PERF-CONSENSUS-11 (P1 heartbeat dispatch stall: 2 turns 94.7s/108.2s vs 1.6s LLM; executor.go:607) 2. DF-CONSENSUS-22 (P2 shipped config boots with compression WARN) 3. both 09-24 defects live-verified FIXED (20-send burst: 0 failed sessions, 5/5 busy-race retries; turn-2 content reaches LLM) | t2fs ~4s (init+serve+health); turn-1 reply ~6s | install_seconds=58 | bunker=las-03 agent=fa023371 | smoke=ok
+
+Run details (2026-09-25, angle = live P0 verification + multi-turn, @ 235efdb):
+- Fresh scratch :8126 (env-var path + consensus.yaml, real DeepSeek key).
+- DF-CONSENSUS-21 pass criterion executed literally: 20 rapid sends across 4
+  sessions (5 parallel each) → 20/20 HTTP 200 (0.03-0.44s), 4/4 idle,
+  last_error=null, 5/5 busy-race retries in log, 0 failed sessions.
+- DF-CONSENSUS-20 retest: turn-2 prompt_tokens 1683 ≠ turn-1 1679; model
+  quoted turn-2-only tokens; replies exact on every probe.
+- PERF: healthy turn 2-6s; anomalous 94.7s + 108.2s on 2 turns (heartbeat
+  pickup stall, log-proven gaps 6m25s/4m, fresh session 6.3s in same window);
+  no profile (stall cleared, pprof not wired). Reference: LLM 1.4-2.9s,
+  POST accept 0.03s, build 15.1s warm / 58s cold, clone 4.8s.
+- Artifacts: docs/dogfood/2026-09-25-integration.md, diagnostics.md addendum,
+  skills/consensus-usage/SKILL.md v2.6.0, board rows PERF-CONSENSUS-11 +
+  DF-CONSENSUS-22 (commit 1f99d93, numstat 2 rows verified).
+- Foreman: see tick report.
