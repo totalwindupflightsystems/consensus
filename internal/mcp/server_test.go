@@ -969,6 +969,113 @@ func TestHandleMessage_NotJSONRPC2(t *testing.T) {
 }
 
 // ============================================================================
+// HandleMessage — Unknown/Stale SessionId (DF-CONSENSUS-25)
+// ============================================================================
+
+// TestHandleMessage_UnknownSession_Returns410JSONRPCError pins the
+// DF-CONSENSUS-25 policy: a POST addressed to a stale/expired/reaped
+// sessionId answers HTTP 410 Gone with a JSON-RPC error envelope
+// (code -32001) that echoes the request id, so a client that lost its SSE
+// stream can machine-detect "session gone — re-handshake" instead of having
+// to parse a plain-text 404.
+func TestHandleMessage_UnknownSession_Returns410JSONRPCError(t *testing.T) {
+	srv := NewServer(&mockMCPDB{})
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp/message?sessionId=stale-or-reaped",
+		bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":42,"method":"ping"}`)))
+	w := httptest.NewRecorder()
+
+	srv.HandleMessage(w, req)
+
+	if w.Code != http.StatusGone {
+		t.Fatalf("expected 410 Gone for unknown session, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("expected application/json content type, got %q", ct)
+	}
+
+	var resp JSONRPCErrorResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("body is not a valid JSON-RPC envelope: %v (body: %s)", err, w.Body.String())
+	}
+	if resp.JSONRPC != "2.0" {
+		t.Errorf("expected jsonrpc 2.0, got %q", resp.JSONRPC)
+	}
+	if resp.ID != float64(42) {
+		t.Errorf("expected request id 42 echoed, got %v", resp.ID)
+	}
+	if resp.Error.Code != -32001 {
+		t.Errorf("expected error code -32001, got %d", resp.Error.Code)
+	}
+	if !strings.Contains(resp.Error.Message, "re-handshake") && !strings.Contains(resp.Error.Message, "stream") {
+		t.Errorf("expected error message to mention re-handshake/stream, got %q", resp.Error.Message)
+	}
+}
+
+// TestHandleMessage_UnparseableBody_UnknownSession_StillJSONRPCEnvelope:
+// even when the body fails to parse AND the session is unknown, the response
+// must be a valid JSON-RPC error envelope with id null — never a plain-text
+// body. The DF-CONSENSUS-25 reorder parses the body before the session
+// lookup, so JSON-RPC precedence holds: the -32700 parse error (HTTP 200,
+// same as the parse path on a live session) fires first; a garbage body is a
+// client bug, session loss is signaled by -32001 only for parseable requests.
+func TestHandleMessage_UnparseableBody_UnknownSession_StillJSONRPCEnvelope(t *testing.T) {
+	srv := NewServer(&mockMCPDB{})
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp/message?sessionId=stale-or-reaped",
+		bytes.NewReader([]byte("not json")))
+	w := httptest.NewRecorder()
+
+	srv.HandleMessage(w, req)
+
+	var resp JSONRPCErrorResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("body is not a valid JSON-RPC envelope (plain-text leak?): %v (body: %s, code: %d)",
+			err, w.Body.String(), w.Code)
+	}
+	if resp.JSONRPC != "2.0" {
+		t.Errorf("expected jsonrpc 2.0, got %q", resp.JSONRPC)
+	}
+	if resp.ID != nil {
+		t.Errorf("expected id null for unparseable body, got %v", resp.ID)
+	}
+	if resp.Error.Code != -32700 {
+		t.Errorf("expected parse error code -32700 to outrank session state, got %d", resp.Error.Code)
+	}
+}
+
+// TestHandleMessage_LiveSession_PingReturns200Result is the positive control
+// for the DF-CONSENSUS-25 reorder: a valid JSON-RPC request addressed to a
+// LIVE session still gets the normal HTTP 200 JSON-RPC response.
+func TestHandleMessage_LiveSession_PingReturns200Result(t *testing.T) {
+	srv := NewServer(&mockMCPDB{})
+	srv.sessions["live-sess"] = &mcpSession{id: "live-sess"}
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp/message?sessionId=live-sess",
+		bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":7,"method":"ping"}`)))
+	w := httptest.NewRecorder()
+
+	srv.HandleMessage(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for live session, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("body is not a valid JSON-RPC envelope: %v (body: %s)", err, w.Body.String())
+	}
+	if resp["result"] == nil {
+		t.Errorf("expected a result for ping, got %v", resp)
+	}
+	if resp["error"] != nil {
+		t.Errorf("expected no error for live-session ping, got %v", resp["error"])
+	}
+	if resp["id"] != float64(7) {
+		t.Errorf("expected id 7 echoed, got %v", resp["id"])
+	}
+}
+
+// ============================================================================
 // handleInitialize — Invalid Params (malformed JSON)
 // ============================================================================
 
@@ -1078,8 +1185,10 @@ func TestHandleMessage_NoSession(t *testing.T) {
 
 	srv.HandleMessage(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected 404 for nonexistent session, got %d", w.Code)
+	// DF-CONSENSUS-25: stale/unknown sessionId now answers 410 Gone with a
+	// JSON-RPC error envelope (code -32001), not a plain-text 404.
+	if w.Code != http.StatusGone {
+		t.Errorf("expected 410 for nonexistent session, got %d", w.Code)
 	}
 }
 

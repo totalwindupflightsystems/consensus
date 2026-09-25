@@ -208,8 +208,9 @@ func TestStreamable_GETMCPReturnsSSEStream(t *testing.T) {
 }
 
 // TestStreamable_LegacyMessageUnchanged guards the legacy path: POST
-// /mcp/message still answers its own handler semantics (404 unknown session),
-// never the streamable endpoint's behavior.
+// /mcp/message still answers its own handler semantics (410 Gone with a
+// JSON-RPC error for unknown/stale sessions, DF-CONSENSUS-25), never the
+// streamable endpoint's behavior.
 func TestStreamable_LegacyMessageUnchanged(t *testing.T) {
 	srv := NewServer(&mockMCPDB{})
 
@@ -217,8 +218,8 @@ func TestStreamable_LegacyMessageUnchanged(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("legacy /mcp/message unknown session: expected 404, got %d", w.Code)
+	if w.Code != http.StatusGone {
+		t.Fatalf("legacy /mcp/message unknown session: expected 410, got %d", w.Code)
 	}
 }
 

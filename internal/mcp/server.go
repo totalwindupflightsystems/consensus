@@ -392,14 +392,11 @@ func (s *Server) HandleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mu.RLock()
-	sess, ok := s.sessions[sessionID]
-	s.mu.RUnlock()
-	if !ok {
-		http.Error(w, "session not found", http.StatusNotFound)
-		return
-	}
-
+	// DF-CONSENSUS-25: read + parse the body BEFORE the session lookup so the
+	// JSON-RPC error response can echo the request id (null when the body is
+	// unparseable) even when the session is already gone. JSON-RPC precedence:
+	// parse errors (-32700) outrank session state; version errors (-32600) do
+	// NOT — session loss must be detectable regardless of body validity.
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -410,6 +407,21 @@ func (s *Server) HandleMessage(w http.ResponseWriter, r *http.Request) {
 	var req JSONRPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		s.writeError(w, nil, -32700, "Parse error", err.Error())
+		return
+	}
+
+	s.mu.RLock()
+	sess, ok := s.sessions[sessionID]
+	s.mu.RUnlock()
+	if !ok {
+		// DF-CONSENSUS-25: unknown/stale/reaped sessionId — the session
+		// existed once (its SSE stream dropped and it was reaped) and is now
+		// gone. Answer 410 Gone with a JSON-RPC error envelope (not a
+		// plain-text 404) so a client that lost its stream can
+		// machine-detect the re-handshake path.
+		s.writeErrorStatus(w, req.ID, http.StatusGone, -32001,
+			"session not found: your SSE stream dropped; re-handshake to obtain a fresh sessionId",
+			map[string]string{"sessionId": sessionID})
 		return
 	}
 
@@ -560,8 +572,16 @@ func sseWrite(w http.ResponseWriter, flusher http.Flusher, event, data string) b
 	return true
 }
 
-// writeError sends a JSON-RPC error response.
+// writeError sends a JSON-RPC error response with HTTP 200 (JSON-RPC errors
+// are HTTP 200). See writeErrorStatus for the full contract.
 func (s *Server) writeError(w http.ResponseWriter, id any, code int, message string, data any) {
+	s.writeErrorStatus(w, id, http.StatusOK, code, message, data)
+}
+
+// writeErrorStatus sends a JSON-RPC error response with an explicit HTTP
+// status. writeError is the HTTP-200 form; the DF-CONSENSUS-25 stale-session
+// path uses 410 Gone with the same envelope shape.
+func (s *Server) writeErrorStatus(w http.ResponseWriter, id any, httpStatus, code int, message string, data any) {
 	resp := JSONRPCErrorResponse{
 		JSONRPC: "2.0",
 		ID:      id,
@@ -572,7 +592,7 @@ func (s *Server) writeError(w http.ResponseWriter, id any, code int, message str
 		},
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK) // JSON-RPC errors are HTTP 200
+	w.WriteHeader(httpStatus)
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -581,7 +601,8 @@ func (s *Server) writeError(w http.ResponseWriter, id any, code int, message str
 //	POST /mcp          — streamable-HTTP JSON-RPC endpoint (MCP-DIRECT-001)
 //	GET  /mcp          — SSE stream for server-initiated messages
 //	GET  /mcp/sse      — legacy SSE endpoint (unchanged)
-//	POST /mcp/message  — legacy message endpoint (unchanged)
+//	POST /mcp/message  — legacy message endpoint (stale sessionId: 410 +
+//	JSON-RPC error -32001, see docs/INTEGRATION.md §1.2)
 //
 // Use this with http.ListenAndServe or chi. The API router mounts it under
 // /mcp/* (subpaths) and /mcp (the discoverable bare mount) — see

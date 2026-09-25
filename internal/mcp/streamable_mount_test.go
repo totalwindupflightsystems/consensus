@@ -294,7 +294,9 @@ func TestStreamableMount_GETReturnsSSEStream(t *testing.T) {
 
 // TestStreamableMount_LegacyMessageStillRegistered proves the legacy
 // POST /mcp/message path is still routed after the /mcp mount work (it must
-// answer its own 404 "session not found", never chi's "404 page not found").
+// answer its own handler-level response for an unknown session — 410 Gone
+// with a JSON-RPC envelope, DF-CONSENSUS-25 — never chi's "404 page not
+// found").
 func TestStreamableMount_LegacyMessageStillRegistered(t *testing.T) {
 	srv := httptest.NewServer(newFullDeployServer(emptyDB{}))
 	defer srv.Close()
@@ -314,8 +316,8 @@ func TestStreamableMount_LegacyMessageStillRegistered(t *testing.T) {
 	if strings.Contains(string(data), "page not found") {
 		t.Fatalf("POST /mcp/message fell through to the router (route lost): %q", strings.TrimSpace(string(data)))
 	}
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("POST /mcp/message with unknown session: expected handler-level 404, got %d (%q)", resp.StatusCode, strings.TrimSpace(string(data)))
+	if resp.StatusCode != http.StatusGone {
+		t.Errorf("POST /mcp/message with unknown session: expected handler-level 410, got %d (%q)", resp.StatusCode, strings.TrimSpace(string(data)))
 	}
 }
 

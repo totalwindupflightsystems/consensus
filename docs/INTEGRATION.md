@@ -77,8 +77,10 @@ data: /mcp/message?sessionId=<YOUR_SESSION_ID>
 > **Note:** `<YOUR_SESSION_ID>` is a placeholder — the server assigns its own
 > session id and sends it to you in this `endpoint` event (the `data:` line of
 > the `GET /mcp/sse` response). Use that value, not a copied one: a missing
-> `sessionId` query param yields 400, and an unknown/mismatched session id
-> yields 404 (session not found).
+> `sessionId` query param yields 400, and an unknown/stale/mismatched session
+> id yields 410 Gone with JSON-RPC error -32001 (see
+> [Stale sessionId: 410 + re-handshake](#stale-sessionid-410--re-handshake)
+> below).
 
 **Step 3 — POST JSON-RPC messages to that endpoint** (each in its own curl,
 same `sessionId`). The wire format is JSON-RPC 2.0:
@@ -135,7 +137,54 @@ Create a session, then message it:
 
 *Verified against:* `internal/mcp/server.go` — requests without an `id` are
 treated as notifications (no response); `POST` only; a missing `sessionId`
-query param yields 400, an unknown one yields 404.
+query param yields 400 (plain text), an unknown/stale one yields 410 Gone
+with a JSON-RPC error envelope (code -32001 — see the stale-sessionId
+section above).
+
+#### Stale sessionId: 410 + re-handshake
+
+The SSE session lives exactly as long as its `GET /mcp/sse` connection: when
+the stream drops (network blip, proxy timeout, restart), the server reaps
+the session. Any POST to the old `/mcp/message?sessionId=...` afterwards —
+and any session id that never existed — gets:
+
+- **HTTP 410 Gone** (the session existed once and is gone — not a 404 URL bug),
+- a **JSON-RPC error envelope** (`Content-Type: application/json`):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "error": {
+    "code": -32001,
+    "message": "session not found: your SSE stream dropped; re-handshake to obtain a fresh sessionId",
+    "data": {"sessionId": "the-id-you-sent"}
+  }
+}
+```
+
+The `id` echoes your request id (null only when the body itself fails to
+parse — a parse error `-32700` outranks session state). Machine clients:
+treat `HTTP 410` + `error.code == -32001` as **reconnect now**, not as a
+malformed request.
+
+Re-handshake recipe:
+
+1. Reopen the SSE stream: `curl -N http://127.0.0.1:8090/mcp/sse` (Step 2).
+2. Take the fresh endpoint from the `event: endpoint` line — the server
+   assigned a NEW `sessionId` (`data: /mcp/message?sessionId=<NEW_ID>`).
+3. POST all subsequent JSON-RPC messages to that new endpoint. Re-run
+   `initialize` with your API key first: the fresh session starts
+   unauthenticated and every other method returns -32002 until you do.
+
+A missing `sessionId` query param (400, plain text) is still a client bug —
+it means you dropped the query string, not that the session died.
+
+*Verified against:* `internal/mcp/server.go` (`HandleMessage` — body parse
+before session lookup; unknown session → `writeErrorStatus` 410 / -32001),
+`internal/mcp/server_test.go` (`TestHandleMessage_UnknownSession_Returns410JSONRPCError`,
+`TestHandleMessage_UnparseableBody_UnknownSession_StillJSONRPCEnvelope`,
+`TestHandleMessage_LiveSession_PingReturns200Result`).
 
 ### 1.3 Streamable-HTTP transport — attach with nothing but a URL and a key (MCP-DIRECT-001)
 
