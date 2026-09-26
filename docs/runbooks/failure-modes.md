@@ -60,7 +60,8 @@ curl -s http://localhost:8090/api/v1/health | jq '.llm'
 ### Prevention
 
 - Configure budget limits per session to prevent runaway costs
-- Set `max_iterations` per session (default: 50)
+- Configure global `harness.max_iterations` (`HarnessConfig.MaxIterations`) to bound harness iterations (default: `100`; see `internal/config/config.go` and `consensus.yaml`)
+- Configure per-session `planning_max_turns` separately to bound planning turns within one iteration (database default: `10`; see `migrations/001_initial_schema.sql` and its consumers in `internal/harness/context.go`); neither bound is documented as overriding the other
 - Use the circuit breaker (`max_consecutive_errors`) to auto-pause failing sessions
 
 ---
@@ -178,7 +179,8 @@ psql "$CONSENSUS_DB_URL" -c "VACUUM;"
 - Monitor disk usage with alerts at 80%, 90%, 95%
 - Configure `memory_compression` to auto-compress old events
 - Set audit_log retention via system_settings table
-- Use `max_iterations` to prevent runaway sessions
+- Bound runaway work at both scopes: global/config `harness.max_iterations` (`HarnessConfig.MaxIterations`) defaults to `100`, while per-session `planning_max_turns` defaults to `10` and bounds planning turns within one iteration; see `internal/config/config.go`, `consensus.yaml`, `migrations/001_initial_schema.sql`, and `internal/harness/context.go`
+- These are separate bounds; neither is documented as overriding the other
 - Set budget limits per session
 
 ---
