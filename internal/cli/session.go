@@ -23,6 +23,7 @@ func newSessionCmd() *cobra.Command {
 		newSessionListCmd(),
 		newSessionShowCmd(),
 		newSessionLogsCmd(),
+		newSessionMessageCmd(),
 		newSessionPauseCmd(),
 		newSessionResumeCmd(),
 		newSessionCancelCmd(),
@@ -58,6 +59,13 @@ func newSessionCreateCmd() *cobra.Command {
 			result, err := client.CreateSession(req)
 			if err != nil {
 				return err
+			}
+
+			// A bare --goal does not wake the harness: a session stays in
+			// "booting" until it receives a user_instruction message
+			// (DOGFOOD row DF-CONSENSUS-34). The create output must say so.
+			if !optQuiet {
+				fm.PrintText("note: the agent will not start until you send it a message: consensus session message %s \"<text>\"\n", valString(result["id"]))
 			}
 
 			return fm.PrintTable(result, []string{"id", "status", "api_key", "created_at"})
@@ -225,6 +233,32 @@ func followSessionLogs(client *Client, fm *Formatter, sessionID string, initial 
 			}
 		}
 	}
+}
+
+func newSessionMessageCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "message <session-id> <text...>",
+		Short: "Send a message to a session's agent",
+		Long: `Send a message to a session. A freshly created session stays in
+"booting" until it receives its first user_instruction message — sending one
+is what starts the agent on its goal.`,
+		// Exactly one session id plus at least one text word; the text may
+		// contain spaces (remaining args are joined).
+		Args: cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := newClient()
+			fm := newFormatter()
+
+			content := strings.Join(args[1:], " ")
+			result, err := client.SendMessage(args[0], map[string]any{"content": content})
+			if err != nil {
+				return err
+			}
+
+			return fm.Print(result)
+		},
+	}
+	return cmd
 }
 
 func newSessionPauseCmd() *cobra.Command {
