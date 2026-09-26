@@ -1,0 +1,58 @@
+{
+  "tick_id": "consensus-2026-09-26-19-31-59",
+  "project": "consensus",
+  "mode": "wave",
+  "base_sha": "0d812fb",
+  "wave_budget": 2,
+  "workers": [
+    {
+      "task": "README-1",
+      "worktree": "~/worktrees/consensus-README-1",
+      "branch": "wt/README-1",
+      "base": "origin/master",
+      "base_sha": "0d812fb",
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "brief": "/tmp/consensus-2026-09-26-19-31-59_msg_README-1.txt",
+      "band": "README.md config table + internal/llm keyprobe + internal/config defaults",
+      "depends_on": []
+    },
+    {
+      "task": "DOC-1",
+      "worktree": "~/worktrees/consensus-DOC-1",
+      "branch": "wt/DOC-1",
+      "base": "origin/master",
+      "base_sha": "0d812fb",
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "brief": "/tmp/consensus-2026-09-26-19-31-59_msg_DOC-1.txt",
+      "band": "docs/API.md webhooks section + specs/openapi paths/bundle + specs/013 headers",
+      "depends_on": []
+    }
+  ],
+  "independence_note": "No depends_on edges between rows; disjoint file bands (README.md+internal/llm+internal/config vs docs/API.md+specs/openapi+specs/013). Premises probed live at pick time: README-1 (keyprobe.go:82 openai default, config.go deepseek-only-when-baseurl-set, README.md:304 claim) and DOC-1 (bundled.yaml zero /webhooks paths, docs/API.md:344 single table row, specs/013:128 single header) both HOLD. Excluded: QA/TEST/MUSTER P1s (infra/outside-repo scope, per 09-25 manifest), QA-CONSENSUS-11 (premise contested — a prior tick prepared and REVERTED the same SERVERS patch after a live host probe), DF-CONSENSUS-41 (stale: the regex-anchor + RUN_ERROR fix already landed in scripts/test-opencode-upstream.sh:224-272; row needs bookkeeping close, not a worker), DF-2/DF-3/DF-9 (stale premises probed in earlier ticks).",
+  "dispatched_at": "2026-09-26 19:44:00",
+  "finished_at": "2026-09-26 20:16:00",
+  "merge": [
+    {
+      "task": "README-1",
+      "merge_commit": "193cf0f",
+      "worker_commit": "9f31bf0",
+      "tier1": "PASS (gitreins task complete --force --skip-tier2)",
+      "tier2": "async judge job-20fc3f52a1484f9591453fa1bd76d1dc dispatched, running at manifest close",
+      "verification": "foreman gates build/vet/gofmt + focused tests green on branch; RED-proof by source-swap: TestLoad_EnvOnlyDeepSeekUsesCompatibleEndpointAndModel fails on pre-fix config.go, passes on the fix; seat identity verified via state.db session_model_usage (gpt-5.6-sol openai-codex)",
+      "gates": "full short suite EXIT 0 on merged tree (post both merges + spec pin)"
+    },
+    {
+      "task": "DOC-1",
+      "merge_commit": "2827513",
+      "worker_commit": "b049f68",
+      "tier1": "PASS (gitreins task complete --force --skip-tier2)",
+      "tier2": "pending serialization behind readme-1 judge (smoke-port collision law)",
+      "verification": "foreman gates green on branch; worker live-probed the /webhooks/{source} 404 (main.go:348 exact-route mount) and documented it honestly; bundled.yaml has /webhooks/{source} (61 paths via make bundle-spec); SPEC-013 lists all three signature headers",
+      "gates": "same merged-tree suite run as README-1",
+      "residual": "WEBHOOK-1 filed (P1) to actually serve /webhooks/{source}; spec path pinned x-not-implemented in c2af1e5 (deliberate snapshot 60->61 in internal/api/openapi_test.go — the repo's spec-vs-runtime parity gate caught the gap after merge)"
+    }
+  ],
+  "close_note": "Wave of 2 landed same tick: workers dispatched 19:44, both exited 0 by ~20:00, merges 193cf0f/2827513 + spec-pin fixup c2af1e5, board rows README-1/DOC-1 closed with worker sessions recorded (boardctl, ~/-form worktree paths), DF-CONSENSUS-41 bookkeeping-closed citing b033bff evidence, WEBHOOK-1 filed for the discovered runtime defect. Full short suite EXIT 0 on the merged tree. Tier-2 verdicts appended post-close if they land this tick; see .gitreins/history for verdict.json files."
+}
