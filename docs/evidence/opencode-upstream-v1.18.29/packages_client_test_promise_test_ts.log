@@ -1,0 +1,2 @@
+bun test v1.3.14 (0d9b296a)
+Failed to scan non-existent root directory for tests: "/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/do-not-run-tests-from-root"
