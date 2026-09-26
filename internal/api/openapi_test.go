@@ -382,12 +382,14 @@ func TestOpenAPISpecIgnoresDecoyOnDisk(t *testing.T) {
 //     (SPEC-005, optional QuarantineService); intentionally excluded until
 //     they are documented in specs/openapi/paths/*.
 //
-// Path-count baseline: the served spec has 60 paths. Live walk 2026-08-31
+// Path-count baseline: the served spec has 61 paths. Live walk 2026-08-31
 // corrects the breakdown from refs/openapi-serving-disk-first.md's
 // "31 native + 4 doc + 25 MCP/shim" to 24 native (/api/v1/*) + 0 doc-serving
 // + 36 MCP/shim (opencode-shim surface, incl. /doc) — the doc-serving routes
 // are the serving surface, not spec paths. Bump this snapshot deliberately
-// when the contract grows.
+// when the contract grows. 2026-09-26 (DOC-1): +1 non-native path
+// /webhooks/{source} (SPEC-013, x-not-implemented until WEBHOOK-1 serves it)
+// → 61 total = 24 native + 37 non-native.
 func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	s := NewServer(ServerConfig{DB: &mockAPIDB{}, Addr: ":0"})
 	srv := httptest.NewServer(s.Handler())
@@ -406,9 +408,10 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	}
 	servedPaths := specPaths(t, doc)
 
-	// Snapshot: 60 paths total = 24 native + 0 doc-serving + 36 MCP/shim.
-	if got := len(servedPaths); got != 60 {
-		t.Fatalf("served spec has %d paths, want 60 (24 native + 0 doc + 36 MCP/shim)", got)
+	// Snapshot: 61 paths total = 24 native + 0 doc-serving + 37 non-native
+	// (36 MCP/shim + /webhooks/{source}, x-not-implemented per WEBHOOK-1).
+	if got := len(servedPaths); got != 61 {
+		t.Fatalf("served spec has %d paths, want 61 (24 native + 0 doc + 37 MCP/shim+webhooks)", got)
 	}
 	native, shim := 0, 0
 	for p := range servedPaths {
@@ -422,8 +425,8 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	if native != 24 {
 		t.Errorf("native (/api/v1/*) path count = %d, want 24 (corrected live-walk baseline)", native)
 	}
-	if shim != 36 {
-		t.Errorf("MCP/shim path count = %d, want 36 (corrected live-walk baseline)", shim)
+	if shim != 37 {
+		t.Errorf("MCP/shim path count = %d, want 37 (36 baseline + /webhooks/{source} 2026-09-26)", shim)
 	}
 
 	// Every chi route pattern (native + 4 doc routes) must exist in the

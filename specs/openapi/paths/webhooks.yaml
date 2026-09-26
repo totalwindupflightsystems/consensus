@@ -1,5 +1,11 @@
 # Webhook ingestion endpoint (SPEC-013 §4).
 # HMAC authentication replaces the global Bearer API-key requirement.
+# WEBHOOK-1: declared + documented here, but NOT served at runtime yet —
+# cmd/consensus/main.go mounts the exact `/webhooks/` route only, so
+# /webhooks/{source} 404s. Pinned with x-not-implemented (the repo's
+# declared-but-unserved convention) until the route carries {source}.
+
+x-not-implemented: true
 
 post:
   tags: [Webhooks]
