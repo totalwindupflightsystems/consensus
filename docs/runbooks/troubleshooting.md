@@ -147,6 +147,13 @@ curl -H "Authorization: Bearer $CONSENSUS_API_KEY" \
    ./bin/consensus migrate status --db-url "$DATABASE_URL"
    ```
 
+   If port 8090 is occupied by a non-Consensus service, the CLI's default-server identity preflight can block a direct database migration. Bypass that probe with a harmless, non-listening custom URL; it is not contacted when `--db-url` selects direct-DB mode:
+   ```bash
+   ./bin/consensus migrate status --server http://127.0.0.1:19999 --db-url "$DATABASE_URL"
+   ./bin/consensus migrate rollback --server http://127.0.0.1:19999 --db-url "$DATABASE_URL"
+   ```
+   The equivalent environment override is `CONSENSUS_SERVER=http://127.0.0.1:19999`.
+
 ### Symptom: LLM initialization fails
 
 ```

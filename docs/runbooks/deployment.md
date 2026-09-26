@@ -74,6 +74,17 @@ Run migrations independently before starting the server:
 ./bin/consensus migrate rollback --db-url postgres://user:pass@host:5432/consensus
 ```
 
+#### Direct-DB migration when port 8090 is occupied
+
+The CLI preflights the implicit Consensus server at port 8090 before running most commands. If that port is occupied by a non-Consensus service, pass a harmless, non-listening custom server URL to bypass that identity probe. The URL is not contacted for a direct `--db-url` migration; the migration still runs against the database URL:
+
+```bash
+./bin/consensus migrate status --server http://127.0.0.1:19999 --db-url sqlite:///tmp/consensus.db
+./bin/consensus migrate rollback --server http://127.0.0.1:19999 --db-url sqlite:///tmp/consensus.db
+```
+
+You can use the equivalent `CONSENSUS_SERVER=http://127.0.0.1:19999` environment variable instead of `--server`.
+
 ### Migration Safety
 
 - All migrations are wrapped in transactions
