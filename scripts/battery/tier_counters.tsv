@@ -1,0 +1,19 @@
+# Primary observable counter per tier (SG-1). A tier whose counter is 0 is VOID,
+# never GREEN. This file is the mapping the plan's C-123 asserted against nothing.
+# tier<TAB>counter_name<TAB>what a nonzero value proves
+T0	packages_ok	go build/vet + unit packages that compiled and passed
+T1	paths_verified	openapi paths actually served (not merely declared)
+T2	llm_replies	real provider round trips that returned an answer
+T3	tool_executions	tool calls that returned a result to the agent
+T4	ledger_rows	memory_events + agent_billing rows written by a real turn
+T5	mcp_tool_calls	MCP JSON-RPC tool calls answered by the server
+T6	upstream_tests_executed	upstream assertions that actually RAN (not setups)
+T7	crier_messages_received	crier-origin messages that became agent turns
+T8	recovery_cells	polls/restarts that exercised the resilience path
+T9	concurrent_sessions	sessions actually driven concurrently under the load gate
+T10	baby_artifacts	files/rows a fake project produced end to end
+GATE	defects_checked	run-blocking defects evaluated against the board
+S1	bunker_agents	agents actually provisioned on the bunker
+S3	defect_rows	defect rows re-read at both ends of the run
+S4	artifacts	evidence artifacts assembled and re-derivable
+S5	zero_target_cells	false-green cells evaluated (must be >0 or the cell is VOID)

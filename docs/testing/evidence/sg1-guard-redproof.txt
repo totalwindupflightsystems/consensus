@@ -1,0 +1,27 @@
+== SG-1 red-proof: can the guards fail, and for the RIGHT reason? ==
+
+  RED-PROOF OK     guard_void, tiers with 0 observables -> VOID   want=2  got=2  voice='guard_void: VOID'
+                   guard_void: VOID — 14 tier(s) have ZERO observables. The run may not be reported green.
+  RED-PROOF OK     zero_target, audited_targets=0 -> VOID         want=2  got=2  voice='zero_target: VOID'
+                   zero_target: VOID — stub battery cell audited ZERO targets; rc must not be read as success
+  RED-PROOF OK     zero_target, missing count -> VOID             want=2  got=2  voice='zero_target: VOID'
+                   zero_target: VOID — stub missing count reported an unauditable count ('')
+  RED-PROOF OK     defect_gate, all complete -> GREEN             want=0  got=0  voice='defect_gate: GREEN'
+                   defect_gate: GREEN — all 1 run-blocking defect(s) complete
+  RED-PROOF OK     defect_gate, an OPEN defect -> RED             want=1  got=1  voice='defect_gate: RED'
+                   defect_gate: RED — 1 of 1 run-blocking defect(s) still open
+  RED-PROOF OK     defect_gate, absent id -> VOID                 want=2  got=2  voice='defect_gate: VOID'
+                   defect_gate: VOID — 1 listed id(s) are absent from the board (cannot judge)
+  RED-PROOF OK     defect_gate, empty id list -> VOID             want=2  got=2  voice='defect_gate: VOID'
+                   defect_gate: VOID — the id list was empty; nothing was evaluated
+  RED-PROOF OK     rederive over an empty run dir -> VOID         want=2  got=2  voice='rederive: VOID'
+                   rederive: VOID — found no artifacts under /tmp/tmp.N1zzHwREGZ/empty-run; rc must not be read as success
+  RED-PROOF OK     POSITIVE CTL guard_void, all observed -> ok    want=0  got=0  voice='guard_void: ok'
+                   guard_void: ok — all 16 tiers report at least one observable.
+  RED-PROOF OK     POSITIVE CTL zero_target, 7 targets -> ok      want=0  got=0  voice='zero_target: ok'
+                   zero_target: ok — positive control audited 7 target(s)
+  RED-PROOF OK     POSITIVE CTL rederive on a real dir -> ok      want=0  got=0  voice='rederive: ok'
+                   rederive: ok — re-derived 1 artifact(s). Copy the commands above to reproduce.
+
+== SG-1 red-proof summary: 11 ok, 0 broken ==
+RESULT: PASS — every guard failed with its own VOID/RED verdict on bad input, and passed on good input.
