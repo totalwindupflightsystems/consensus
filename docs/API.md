@@ -98,9 +98,9 @@ In development the server prefers `specs/openapi/bundled.yaml` relative to
 the process working directory when it exists, so re-running
 `make bundle-spec` picks up live edits without a rebuild.
 
-> `GET /doc` is **not** the REST API explorer — it serves the opencode shim's
-> own Swagger UI (SPEC-017 surface: `/session`, `/config`, `/event`, ...).
-> Use `/doc/api` for the REST API.
+> `GET /doc` serves the machine-readable OpenAPI document (JSON by default;
+> `Accept: application/yaml` returns YAML) for the opencode-compatible surface.
+> The interactive REST API explorer remains at `/doc/api`. The document is public.
 
 ```bash
 curl http://localhost:8090/openapi.json | jq '.paths | keys'
@@ -345,7 +345,7 @@ curl http://localhost:8090/api/v1/metrics \
 | `/ui/` | — | Web admin console (proxies API via its own `/api/` path) |
 | `/chronicle/` | — | Chronicle investigation workbench |
 | `/instance`, `/instance/path`, `/instance/vcs`, `/instance/vcs/diff` | — (public) | opencode protocol shim (SPEC-017 §3.10) — singleton instance list, workspace `PathInfo`, live git branch info, and per-file diff stats; other upstream `/instance/*` sub-paths return 501, unknown sub-paths 404 |
-| `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, `/doc`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls; `/doc` serves the shim's own Swagger UI (the REST API explorer lives at `/doc/api`) |
+| `/session/*`, `/config/*`, `/agent/*`, `/event`, `/permission/*`, `/project/*`, `/doc`, ... | shim admin key | opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls; `/doc` serves the machine-readable shim contract (the REST API explorer lives at `/doc/api`) |
 
 ---
 

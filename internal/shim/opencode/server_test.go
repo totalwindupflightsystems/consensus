@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/wojons/consensus/internal/db"
+	"gopkg.in/yaml.v3"
 )
 
 // ============================================================================
@@ -549,6 +550,12 @@ func TestListToolIDs(t *testing.T) {
 // Doc Endpoint Test
 // ============================================================================
 
+// TestDocEndpoint pins the upstream opencode compatibility contract for
+// GET /doc (httpapi-instance.test.ts:59 "serves the OpenAPI document"):
+// 200 + application/json + a parseable OpenAPI document. The shim must NOT
+// answer HTML here — the pinned upstream suite rejects text/html with
+// "Expected to contain: application/json" (T6, DF-CONSENSUS-36). The
+// interactive REST Swagger UI lives at /doc/api (SPEC-018 §9).
 func TestDocEndpoint(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
@@ -564,8 +571,103 @@ func TestDocEndpoint(t *testing.T) {
 	}
 
 	ct := resp.Header.Get("Content-Type")
-	if ct == "" || !strings.Contains(ct, "html") {
-		t.Errorf("expected HTML content type, got %q", ct)
+	if !strings.Contains(ct, "application/json") {
+		t.Errorf("expected application/json content type (upstream /doc contract), got %q", ct)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read /doc body: %v", err)
+	}
+
+	// The body must parse as a real OpenAPI document, not merely be JSON.
+	var doc struct {
+		OpenAPI string         `json:"openapi"`
+		Info    map[string]any `json:"info"`
+		Paths   map[string]any `json:"paths"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatalf("GET /doc must return a parseable OpenAPI JSON document (content-type %q): %v; body head: %.120s", ct, err, body)
+	}
+	if doc.OpenAPI == "" {
+		t.Error("GET /doc document missing openapi version field")
+	}
+	if doc.Info == nil {
+		t.Error("GET /doc document missing info object")
+	}
+	for _, p := range []string{"/global/health", "/session"} {
+		if _, ok := doc.Paths[p]; !ok {
+			t.Errorf("GET /doc document missing upstream-required path %q", p)
+		}
+	}
+}
+
+// TestDocEndpointYAMLAccept covers the explicit YAML negotiation: only an
+// Accept header containing application/yaml gets the raw embedded YAML
+// document. The default request (no Accept, or a JSON preference) stays
+// application/json — that is the contract the upstream opencode suite pins.
+func TestDocEndpointYAMLAccept(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/doc", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Accept", "application/yaml")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /doc with Accept: application/yaml failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "yaml") {
+		t.Errorf("expected yaml content type for Accept: application/yaml, got %q", ct)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	var doc map[string]any
+	if err := yaml.Unmarshal(body, &doc); err != nil {
+		t.Fatalf("GET /doc (yaml) must be parseable YAML: %v; body head: %.120s", err, body)
+	}
+	if doc["openapi"] == nil || doc["paths"] == nil {
+		t.Error("GET /doc (yaml) document missing openapi/paths")
+	}
+}
+
+// TestDocEndpointNoAuthAndScopedSkip pins the auth contract around /doc:
+// the document route is public (upstream clients fetch the contract without
+// credentials — chronicle C01 and the smoke suite rely on this), while a
+// neighboring protected route in the same unauthenticated harness still 401s,
+// proving the skip is /doc-scoped and not a global auth bypass.
+func TestDocEndpointNoAuthAndScopedSkip(t *testing.T) {
+	s := NewServer(&mockDB{}, "test-key", nil, nil) // auth ON — no skipAuth
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/doc")
+	if err != nil {
+		t.Fatalf("GET /doc failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Errorf("expected /doc to be public (200), got %d", resp.StatusCode)
+	}
+
+	resp2, err := http.Get(srv.URL + "/config")
+	if err != nil {
+		t.Fatalf("GET /config failed: %v", err)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected /config to stay protected (401) in the same harness, got %d", resp2.StatusCode)
 	}
 }
 

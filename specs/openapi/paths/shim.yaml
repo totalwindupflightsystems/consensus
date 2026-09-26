@@ -337,15 +337,17 @@ sessionChildren:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
 
-# ── Doc (shim Swagger UI, no auth) ──
+# ── Doc (shim OpenAPI document, no auth) ──
 doc:
   get:
     tags: [Opencode Shim]
-    summary: opencode shim Swagger UI
+    summary: opencode shim OpenAPI document
     operationId: shimDoc
     description: |
-      Serves the opencode shim's Swagger UI (HTML). No authentication
-      required. The native REST API explorer lives at /doc/api instead.
+      Serves the machine-readable OpenAPI document for the opencode-compatible
+      surface. JSON is returned by default; Accept: application/yaml returns
+      YAML. No authentication is required. The native REST API explorer lives
+      at /doc/api instead.
     security: []
     responses:
       "200":

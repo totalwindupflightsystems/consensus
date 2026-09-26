@@ -403,7 +403,7 @@ datamodel-codegen --input specs/openapi/bundled.yaml --output client/python/
 ### 5.3 Generate Docs
 
 ```bash
-# Swagger UI (served at /doc/api when server is running — /doc is the opencode shim's own UI)
+# Swagger UI (served at /doc/api when server is running)
 npx swagger-ui-watcher specs/openapi/bundled.yaml
 
 # Redoc static HTML
@@ -520,7 +520,7 @@ The Consensus server serves the OpenAPI spec at runtime:
 | Path | Content |
 |---|---|
 | `GET /doc/api` | Swagger UI for the REST API (interactive docs; servers URL derived from the request Host) |
-| `GET /doc` | Swagger UI for the opencode shim surface (SPEC-017) — NOT the REST API docs |
+| `GET /doc` | Machine-readable OpenAPI document for the opencode-compatible surface (JSON by default; YAML when explicitly requested) |
 | `GET /openapi.yaml` | Raw YAML spec |
 | `GET /openapi.json` | JSON spec |
 

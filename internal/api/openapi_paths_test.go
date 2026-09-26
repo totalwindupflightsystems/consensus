@@ -97,6 +97,48 @@ func TestProductionWiringMountsBareMCPAlongsideWildcard(t *testing.T) {
 	}
 }
 
+// TestFullDeployDocServesOpenAPIJSON is the DF-CONSENSUS-36 wiring check:
+// in the full deployment (shim mounted on its MountPatterns), GET /doc must
+// reach the shim's OpenAPI document handler and answer application/json with
+// a parseable document — not the API router's 404 (TestBareDocNotServedByAPI
+// covers the API-only server) and not the shim's old text/html UI. This is
+// the shape the pinned upstream opencode suite asserts (T6).
+func TestFullDeployDocServesOpenAPIJSON(t *testing.T) {
+	srv := httptest.NewServer(newFullDeployServer())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/doc")
+	if err != nil {
+		t.Fatalf("GET /doc on full-deployment tree failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200 for /doc on full-deployment tree, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("expected application/json content type, got %q", ct)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	var doc struct {
+		OpenAPI string         `json:"openapi"`
+		Info    map[string]any `json:"info"`
+		Paths   map[string]any `json:"paths"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatalf("full-deployment /doc must serve a parseable OpenAPI JSON document: %v; body head: %.120s", err, body)
+	}
+	for _, p := range []string{"/global/health", "/session"} {
+		if _, ok := doc.Paths[p]; !ok {
+			t.Errorf("full-deployment /doc missing upstream-required path %q", p)
+		}
+	}
+}
+
 // specHTTPMethods are the OpenAPI operation keys that map to HTTP verbs;
 // every other key on a path item (parameters, x-* extensions, summary) is not
 // a routable operation.

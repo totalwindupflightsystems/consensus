@@ -37,15 +37,30 @@ func TestOpenCodeContract_DocEndpoint(t *testing.T) {
 	adminKey, sess, cleanup := startConsensusForContract(t)
 	defer cleanup()
 
-	t.Run("C01: GET /doc returns OpenAPI JSON or Swagger HTML with OpenAPI spec", func(t *testing.T) {
+	t.Run("C01: GET /doc returns the OpenAPI document (httpapi-instance.test.ts:59)", func(t *testing.T) {
 		resp, body := doGet(t, sess.baseURL+"/doc", adminKey)
 		assertStatus(t, resp, http.StatusOK, body)
 
-		// Consensus serves Swagger UI at /doc with embedded spec — verify paths are present
-		// in the HTML source (they're in the inline spec JSON).
+		// Upstream pins application/json + a parseable OpenAPI document
+		// (T6, DF-CONSENSUS-36). The interactive REST Swagger UI lives at
+		// /doc/api (SPEC-018 §9); HTML at /doc is a contract violation.
+		if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Errorf("C01: expected application/json content type, got %q", ct)
+		}
+		var doc struct {
+			OpenAPI string         `json:"openapi"`
+			Info    map[string]any `json:"info"`
+			Paths   map[string]any `json:"paths"`
+		}
+		if err := json.Unmarshal([]byte(body), &doc); err != nil {
+			t.Fatalf("C01: /doc output must parse as an OpenAPI JSON document: %v; body head: %.120s", err, body)
+		}
+		if doc.OpenAPI == "" || doc.Info == nil {
+			t.Error("C01: /doc document missing openapi/info")
+		}
 		for _, p := range []string{"/global/health", "/session"} {
-			if !strings.Contains(body, p) {
-				t.Errorf("C01: /doc output must reference path %q", p)
+			if _, ok := doc.Paths[p]; !ok {
+				t.Errorf("C01: /doc missing upstream-required path %q", p)
 			}
 		}
 	})

@@ -145,9 +145,26 @@ func TestFullContract_HealthDoc(t *testing.T) {
 	defer clean()
 
 	t.Run("C01: /doc returns OpenAPI with /global/health + /session paths", func(t *testing.T) {
-		_, body := fcGet(t, s.baseURL+"/doc", key)
+		resp, body := fcGet(t, s.baseURL+"/doc", key)
+
+		// Upstream contract (httpapi-instance.test.ts:59): content-type
+		// application/json and a parseable OpenAPI document — HTML is not
+		// acceptable (T6, DF-CONSENSUS-36).
+		if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Errorf("C01: expected application/json content type, got %q", ct)
+		}
+		var doc struct {
+			OpenAPI string         `json:"openapi"`
+			Paths   map[string]any `json:"paths"`
+		}
+		if err := json.Unmarshal([]byte(body), &doc); err != nil {
+			t.Fatalf("C01: /doc must parse as an OpenAPI JSON document: %v; body head: %.120s", err, body)
+		}
+		if doc.OpenAPI == "" {
+			t.Error("C01: /doc document missing openapi version field")
+		}
 		for _, p := range []string{"/global/health", "/session"} {
-			if !strings.Contains(body, p) {
+			if _, ok := doc.Paths[p]; !ok {
 				t.Errorf("C01: /doc missing %q", p)
 			}
 		}

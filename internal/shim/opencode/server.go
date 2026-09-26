@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/specs"
 )
 
 // ============================================================================
@@ -234,6 +235,13 @@ func (s *Server) Handler() http.Handler {
 // sub-paths must be registered with the /* form — otherwise every
 // /session/{id} request 404s before reaching the shim (BUG-009, dexdat
 // sidecar, 2026-08-07).
+//
+// /doc and /doc/*: /doc serves the machine-readable OpenAPI document
+// (upstream opencode compatibility, DF-CONSENSUS-36); /doc/api — the native
+// REST Swagger UI (SPEC-018 §9) — is NOT claimed by the shim (the shim mux
+// has no /doc/api route, so chi's static-route precedence keeps the API
+// server's /doc/api handler authoritative in full deployments). The patterns
+// are still listed so shim sub-path requests never leak to a 404 fallback.
 var MountPatterns = []string{
 	"/global/*",
 	"/session", "/session/*",
@@ -2030,86 +2038,61 @@ func (s *Server) handleLSP(w http.ResponseWriter, r *http.Request) {
 // Doc Endpoint
 // ============================================================================
 
+// handleDoc serves the machine-readable OpenAPI document that the upstream
+// opencode suite pins at GET /doc (httpapi-instance.test.ts:59 "serves the
+// OpenAPI document": 200 + content-type application/json + a parseable
+// document containing /global/health and /session paths). Serving Swagger
+// HTML here failed the pinned upstream contract (T6, DF-CONSENSUS-36); the
+// interactive REST Swagger UI lives at /doc/api (SPEC-018 §9).
+//
+// The document is the same embedded bundle the REST API serves at
+// /openapi.json and /openapi.yaml (SPEC-018 §9): the shim surface and the
+// native REST API are two protocols over one business layer, so one served
+// contract covers both. The default request (no Accept header, or no JSON
+// type in Accept) is JSON; an explicit Accept: application/yaml gets the
+// raw YAML bytes — mirroring the existing API serving conventions.
+//
+// The route is deliberately public (authMiddleware skips /doc*) — upstream
+// clients fetch the contract without credentials, and the document describes
+// only the protocol surface.
 func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Derive the servers URL from the request Host instead of hardcoding
-	// localhost:8090 — the shim can be mounted on any port (DOGFOOD-103).
-	serversURL := "http://" + r.Host
-	if r.TLS != nil {
-		serversURL = "https://" + r.Host
+	if len(specs.BundledYAML) == 0 {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"OpenAPI spec not found. The spec is embedded at build time from specs/openapi/bundled.yaml; rebuild the binary.")
+		return
 	}
-	page := strings.Replace(swaggerUIPage, "{{SHIM_SERVERS_URL}}", serversURL, 1)
-	w.Write([]byte(page))
+
+	if acceptsYAML(r) {
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(specs.BundledYAML)
+		return
+	}
+
+	doc, err := specs.ParsedDocument()
+	if err != nil {
+		slog.Error("opencode-shim: failed to load OpenAPI spec", "error", err)
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to serve OpenAPI spec")
+		return
+	}
+	writeJSON(w, doc)
 }
 
-const swaggerUIPage = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Consensus — opencode Shim API</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-  <style>body{margin:0;background:#fafafa;}.topbar{display:none;}</style>
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    window.onload = function() {
-      SwaggerUIBundle({
-        dom_id: '#swagger-ui',
-        deepLinking: true,
-        layout: "StandaloneLayout",
-        spec: {
-          openapi: "3.1.0",
-          info: { title: "Consensus opencode Shim", version: "0.1.0",
-            description: "opencode server protocol shim for Consensus agent runtime." },
-          servers: [{ url: "{{SHIM_SERVERS_URL}}", description: "Shim server" }],
-          tags: [
-            { name: "Global", description: "Health check and event stream" },
-            { name: "Sessions", description: "Session lifecycle" },
-            { name: "Messages", description: "Message send/receive" },
-            { name: "Config", description: "Configuration and providers" },
-            { name: "Tools", description: "Tool registry" }
-          ],
-          paths: {
-            "/global/health": { get: { tags: ["Global"], summary: "Health check", responses: { "200": { description: "OK" } } } },
-            "/global/event": { get: { tags: ["Global"], summary: "SSE event stream", parameters: [{ name: "session_id", in: "query", schema: { type: "string" } }], responses: { "200": { description: "SSE stream" } } } },
-            "/session": {
-              get: { tags: ["Sessions"], summary: "List sessions", parameters: [{ name: "status", in: "query", schema: { type: "string" } }], responses: { "200": { description: "Session list" } } },
-              post: { tags: ["Sessions"], summary: "Create session", requestBody: { content: { "application/json": { schema: { type: "object", properties: { title: { type: "string" }, goal: { type: "string" }, model: { type: "string" } } } } } }, responses: { "201": { description: "Created" } } }
-            },
-            "/session/{id}": {
-              get: { tags: ["Sessions"], summary: "Get session", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Session details" } } },
-              delete: { tags: ["Sessions"], summary: "Delete session", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Deleted" } } }
-            },
-            "/session/{id}/abort": { post: { tags: ["Sessions"], summary: "Abort session", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Aborted" } } } },
-            "/session/{id}/message": {
-              post: { tags: ["Messages"], summary: "Send message", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], requestBody: { content: { "application/json": { schema: { type: "object", properties: { parts: { type: "array", items: { type: "object", properties: { type: { type: "string" }, text: { type: "string" } } } } } } } } }, responses: { "200": { description: "Response" } } },
-              get: { tags: ["Messages"], summary: "List messages", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Messages" } } }
-            },
-            "/session/{id}/children": { get: { tags: ["Sessions"], summary: "List child sessions", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Children" } } } },
-            "/config": { get: { tags: ["Config"], summary: "Get config", responses: { "200": { description: "Config" } } } },
-            "/config/providers": { get: { tags: ["Config"], summary: "List model providers", responses: { "200": { description: "Providers" } } } },
-            "/provider": { get: { tags: ["Config"], summary: "Get LLM provider info", responses: { "200": { description: "Provider info" } } } },
-            "/agent": { get: { tags: ["Config"], summary: "List agent types", responses: { "200": { description: "Agent types" } } } },
-            "/experimental/tool": { get: { tags: ["Tools"], summary: "List tools", responses: { "200": { description: "Tools" } } } },
-            "/experimental/tool/ids": { get: { tags: ["Tools"], summary: "List tool IDs", responses: { "200": { description: "Tool IDs" } } } },
-            "/find": { get: { tags: ["Files"], summary: "Find files by pattern (grep)", parameters: [{ name: "pattern", in: "query", required: true, schema: { type: "string" } }], responses: { "501": { description: "Not yet wired" } } } },
-            "/find/file": { get: { tags: ["Files"], summary: "Find files by glob", parameters: [{ name: "query", in: "query", required: true, schema: { type: "string" } }], responses: { "501": { description: "Not yet wired" } } } },
-            "/file/content": { get: { tags: ["Files"], summary: "Read file content", parameters: [{ name: "path", in: "query", required: true, schema: { type: "string" } }], responses: { "501": { description: "Not yet wired" } } } },
-            "/file/status": { get: { tags: ["Files"], summary: "Git file status", responses: { "501": { description: "Not yet wired" } } } },
-            "/permission": { get: { tags: ["Permissions"], summary: "List pending permissions/approvals", parameters: [{ name: "session_id", in: "query", schema: { type: "string" } }], responses: { "200": { description: "Permissions" } } } },
-            "/permission/{id}": { get: { tags: ["Permissions"], summary: "Get permission detail", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Permission detail" } } } },
-            "/permission/{id}/resolve": { post: { tags: ["Permissions"], summary: "Resolve permission (approve/reject)", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], requestBody: { content: { "application/json": { schema: { type: "object", properties: { decision: { type: "string", enum: ["approved", "rejected", "modified"] }, reason: { type: "string" } }, required: ["decision"] } } } }, responses: { "200": { description: "Resolved" } } } }
-          }
-        }
-      });
-    };
-  </script>
-</body>
-</html>
-`
+// acceptsYAML reports whether the request's Accept header explicitly asks
+// for YAML. Only an application/yaml preference negotiates YAML; every other
+// request (including no header at all) gets the JSON default so the upstream
+// client always receives machine-readable JSON at /doc.
+func acceptsYAML(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	if strings.TrimSpace(accept) == "" {
+		return false
+	}
+	for _, part := range strings.Split(accept, ",") {
+		if strings.HasPrefix(strings.TrimSpace(part), "application/yaml") {
+			return true
+		}
+	}
+	return false
+}
 
 // ============================================================================
 // Translation Helpers

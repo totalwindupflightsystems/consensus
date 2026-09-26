@@ -1293,7 +1293,7 @@ paths:
     get:
       tags:
         - Opencode Shim
-      summary: opencode shim Swagger UI
+      summary: opencode shim OpenAPI document
       operationId: shimDoc
       description: |
         Serves the opencode shim's Swagger UI (HTML). No authentication
