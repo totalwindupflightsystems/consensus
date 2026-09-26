@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# loadgen — SG-2. The plan's T9 assumes `hey`/`ab`, and BOTH ARE ABSENT on the run host.
+# A missing tool makes a step silently skippable, so T9 gets a declared generator instead.
+# This is not hey: it is curl in a bounded concurrent loop, which is enough to drive the
+# load gate and count outcomes. It refuses to be silent about doing nothing.
+#
+# usage: loadgen <url> <concurrency> <duration_seconds> [http_method]
+# exit 0 = completed with >=1 request; 2 = VOID (no request was made); 1 = usage error
+set -uo pipefail
+URL="${1:-}"; CONC="${2:-}"; DUR="${3:-}"; METHOD="${4:-GET}"
+[ -n "$URL" ] && [ -n "$CONC" ] && [ -n "$DUR" ] || { echo "loadgen: usage: loadgen <url> <concurrency> <seconds> [method]" >&2; exit 1; }
+case "$CONC$DUR" in *[!0-9]*) echo "loadgen: concurrency and duration must be integers" >&2; exit 1;; esac
+command -v curl >/dev/null || { echo "loadgen: VOID — curl absent" >&2; exit 2; }
+
+OUT=$(mktemp -d); trap 'rm -rf "$OUT"' EXIT
+deadline=$(( $(date +%s) + DUR ))
+worker() { # $1 = worker index
+  local n=0 ok=0 bad=0
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' -X "$METHOD" "$URL" 2>/dev/null) || code=000
+    n=$((n+1))
+    case "$code" in 2*|3*) ok=$((ok+1));; *) bad=$((bad+1));; esac
+  done
+  printf '%s %s %s\n' "$n" "$ok" "$bad" > "$OUT/w$1"
+}
+for i in $(seq 1 "$CONC"); do worker "$i" & done
+wait
+
+read -r N OK BAD < <(awk '{n+=$1; o+=$2; b+=$3} END{printf "%d %d %d", n, o, b}' "$OUT"/w* 2>/dev/null)
+N=${N:-0}
+echo "loadgen: url=$URL method=$METHOD concurrency=$CONC duration=${DUR}s"
+echo "loadgen: requests=$N ok=$OK failed=${BAD:-0} rps=$(awk -v n="$N" -v d="$DUR" 'BEGIN{if(d>0) printf "%.1f", n/d; else print 0}')"
+if [ "$N" -eq 0 ]; then
+  echo "loadgen: VOID — made zero requests; the load tier must not be graded on this"; exit 2
+fi
+exit 0

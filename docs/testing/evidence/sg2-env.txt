@@ -1,0 +1,74 @@
+=== SG-2 evidence: env + tools + variable dry-run ===
+date: 2026-09-26T13:04:22Z
+
+--- require_tools ---
+TOOL           STATUS
+bash           ok (/usr/bin/bash)
+jq             ok (/usr/bin/jq)
+curl           ok (/usr/bin/curl)
+sqlite3        ok (/home/kara/.local/bin/sqlite3)
+ss             ok (/usr/bin/ss)
+sha256sum      ok (/usr/bin/sha256sum)
+awk            ok (/usr/bin/awk)
+grep           ok (/usr/bin/grep)
+sed            ok (/usr/bin/sed)
+sort           ok (/usr/bin/sort)
+timeout        ok (/usr/bin/timeout)
+tee            ok (/usr/bin/tee)
+git            ok (/usr/bin/git)
+go             ok (/home/kara/.local/bin/go)
+bun            ok (optional)
+node           ok (optional)
+make           ok (optional)
+docker         ok (optional)
+ssh            ok (optional)
+bunker         ok (optional)
+
+declared substitutes in scripts/battery/bin/: yq (PyYAML shim), loadgen (curl load loop)
+note: hey and ab are ABSENT by design — T9 uses loadgen instead of an undeclared tool.
+
+require_tools: ok — every required tool resolves.
+require_tools_rc=0
+
+--- dryrun_manifest ---
+== dry-run: variable resolution for 284 manifest commands ==
+manifest: /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json
+vars referenced: 27
+
+VARIABLE         CLASS
+$A               declared (run-env.sh)
+$ADMIN_KEY       declared (run-env.sh)
+$AG              declared (run-env.sh)
+$B               declared (run-env.sh)
+$BASE            declared (run-env.sh)
+$code            command-local (set in its own loop)
+$CRIER_BASE      declared (run-env.sh)
+$CRIER_TOKEN     declared (run-env.sh)
+$EV              declared (run-env.sh)
+$HOME            declared (run-env.sh)
+$K               declared (run-env.sh)
+$KEY             declared (run-env.sh)
+$LIVE            declared (run-env.sh)
+$LOAD1           declared (run-env.sh)
+$p               command-local (set in its own loop)
+$P               declared (run-env.sh)
+$PATH            declared (run-env.sh)
+$PWD             declared (run-env.sh)
+$RUN             declared (run-env.sh)
+$RUN_ID          declared (run-env.sh)
+$RUN_ROOT        declared (run-env.sh)
+$S1              declared (run-env.sh)
+$S2              declared (run-env.sh)
+$S3              declared (run-env.sh)
+$S4              declared (run-env.sh)
+$SRV             declared (run-env.sh)
+$TARGET_SHA      declared (run-env.sh)
+
+declared set: RUN_ID RUN TARGET_SHA RUN_ROOT EV RUN_STATE_FILE BASE SRV DB P KEY ADMIN_KEY A K LIVE CRIER_BASE CRIER_TOKEN LOAD1 B S1 S2 S3 S4 AG HOME PATH PWD
+
+dryrun: ok — all 27 referenced variables resolve. No command is silently skippable.
+dryrun_rc=0
+
+--- the historical baseline this replaces ---
+before SG-2: 27 distinct variables referenced by 284 commands; assignments found in plan+manifest = 0
+after  SG-2: see the table above (every variable classified; 0 undefined)

@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""yq shim — SG-2. The plan calls yq once (C-067: `yq -r '.paths|keys[]' <spec>.yaml`)
+and yq is ABSENT from the run host. Rather than leave a command that cannot execute
+(which is how steps become silently skippable), this provides the subset actually used,
+built on PyYAML, which IS present.
+
+Honest about what it is: not yq. Supported:
+    yq -r '<path>' <file.yaml>      where <path> is a dotted key path (a.b.c)
+    yq -r '<path>|keys[]' <file.yaml>
+    yq --shim-version
+Unsupported expressions exit 3 with a message, so a caller never mistakes a wrong
+answer for a right one.
+"""
+import sys, json
+
+def die(msg, code=3):
+    sys.stderr.write("yq-shim: %s\n" % msg)
+    sys.exit(code)
+
+def main(argv):
+    args = [a for a in argv[1:]]
+    if "--shim-version" in args:
+        print("yq-shim 0.1 (PyYAML; yq absent on the run host)")
+        return 0
+    raw = False
+    if args and args[0] in ("-r", "--raw-output"):
+        raw = True
+        args = args[1:]
+    if len(args) != 2:
+        die("usage: yq [-r] '<path>[|keys[]]' <file.yaml>", 2)
+    expr, path = args
+    try:
+        import yaml
+    except ImportError:
+        die("PyYAML is not installed; install python3-yaml", 2)
+    try:
+        with open(path) as fh:
+            doc = yaml.safe_load(fh)
+    except FileNotFoundError:
+        die("file not found: %s" % path, 2)
+    except Exception as exc:
+        die("cannot parse %s: %s" % (path, exc), 2)
+
+    keys_mode = False
+    if "|" in expr:
+        head, _, tail = expr.partition("|")
+        expr = head.strip() or ". "
+        tail = tail.strip()
+        if tail == "keys[]":
+            keys_mode = True
+        else:
+            die("unsupported pipe: '|%s' (only '|keys[]' is implemented)" % tail)
+    else:
+        expr = expr.strip()
+
+    cur = doc
+    if expr not in (".", ""):
+        for part in expr.lstrip(".").split("."):
+            if part == "":
+                continue
+            if isinstance(cur, dict) and part in cur:
+                cur = cur[part]
+            else:
+                die("path '%s' not found in %s" % (expr, path), 3)
+
+    if keys_mode:
+        if not isinstance(cur, dict):
+            die("keys[] applied to a non-mapping at '%s'" % expr, 3)
+        for k in cur:
+            print(k)
+        return 0
+
+    if isinstance(cur, (dict, list)):
+        print(json.dumps(cur))
+    elif cur is None:
+        print("null")
+    else:
+        print(cur if raw else json.dumps(cur))
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
