@@ -344,8 +344,8 @@ func runServer() {
 	apiMux.Handle("/mcp", mcpSrv.Handler())
 
 	// Webhook ingestion endpoint (SPEC-013 §4)
-	// Mount at /webhooks/ — no API key required (HMAC signature verification instead).
-	apiMux.Handle("/webhooks/", whStore)
+	// Mount the source-bearing subtree — no API key required (HMAC signature verification instead).
+	apiMux.Handle("/webhooks/*", whStore)
 
 	// Web Admin UI (SPEC-016 §12) — dark-themed dashboard for sessions, memory, health.
 	// Served at /ui/ — the UI proxies API calls through its own /api/ path.

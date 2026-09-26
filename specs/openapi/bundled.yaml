@@ -963,7 +963,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /webhooks/{source}:
-    x-not-implemented: true
     post:
       tags:
         - Webhooks
@@ -981,11 +980,6 @@ paths:
         A missing or invalid signature does not reject the request: the event is
         stored with `signature_valid=false` and `status=quarantined`, and a new
         event still receives `202 Accepted`.
-
-        Runtime note: this operation is the handler contract, but the current server
-        mounts only the exact `/webhooks/` route. That mount does not match a
-        source-bearing path, so `/webhooks/{source}` returns 404 until the Go router
-        mount is changed to a wildcard route.
       security: []
       parameters:
         - name: source

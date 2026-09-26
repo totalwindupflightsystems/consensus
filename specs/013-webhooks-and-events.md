@@ -158,11 +158,10 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**Current implementation deviation:** `cmd/consensus/main.go:346-348` mounts the
-handler at the exact chi route `/webhooks/`, not `/webhooks/*`. Consequently a
-source-bearing path such as `/webhooks/github` returns `404`, while the exact
-mount reaches the handler with an empty source and returns `400`. The wildcard
-mount must be fixed in Go before this endpoint is live-reachable.
+The production server mounts the handler at the source-bearing chi route
+`/webhooks/*`. A path such as `/webhooks/github` reaches the handler with
+`github` as its source. The bare `/webhooks/` path still reaches the handler
+with an empty source and returns `400`.
 
 ---
 

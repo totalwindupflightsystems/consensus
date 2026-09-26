@@ -344,14 +344,6 @@ This route does **not** use an API key. The handler authenticates the exact
 request body with the secret stored in a webhook registration
 (`internal/webhook/webhook.go:282-294`).
 
-> **Current reachability blocker:** the server mounts the handler at the exact
-> chi route `/webhooks/` (`cmd/consensus/main.go:346-348`), which does not match
-> `/webhooks/{source}`. A server built from this revision returns `404` for
-> `/webhooks/docs-demo`; the exact `/webhooks/` route reaches the handler but
-> returns `400` because its source is empty. The registration/signing contract
-> below is therefore not live-reachable until the mount changes to a wildcard
-> source route. This docs/spec task does not change Go code.
-
 #### 1. Register the source
 
 There is currently no HTTP API or CLI command for webhook registration. Create
