@@ -566,3 +566,28 @@ So pre-run fact 1 is *internally* reproducible but proves **the billing table, n
 2. docs/API.md carries zero `^(GET|POST|…) /`-prefixed endpoint lines (`grep -E '^(GET|POST|PUT|PATCH|DELETE) ' docs/API.md | wc -l` = 0) — i.e., docs/API.md is NOT the authoritative path list; `specs/openapi/bundled.yaml` (60 paths, verified) is. Any plan section citing API.md as the contract source would test the wrong source. The plan below drives T1 from bundled.yaml only.
 3. crier docs: `README.md`/`integration-guide.md` contain no `^GET /`-style endpoint lines either (grep = 0); the crier HTTP surface is authoritative in `docs/openapi.yaml` (14 paths, enumerated below). T7 is written against those 14 paths, not the prose guides.
 4. `internal/db/db.go:76` comment claims MaxOpenConns is "Postgres only" while `internal/db/sqlite/sqlite.go:90` consumes it — stale comment, real behavior. A plan step that asserts pool size via the comment would falsify itself; assertion must run against `PRAGMA`/`sqlite3_db` behavior under load, not the comment.
+
+
+---
+
+## SG-3 repair (2026-09-26) — the manifest's checks are now machine-decidable
+
+Quorum #1 (5 seats/5 families) contradicted C1 and C4: this plan mixed product effects with
+source, schema and report checks, and 69 criteria could not be decided by any machine. The
+machine manifest `consensus-test-manifest-v1.json` has since been repaired — **read the fields
+below before running anything**:
+
+| field | meaning |
+|---|---|
+| `verification_shape` | measured per row: `behaviour` (63) / `mixed` (9) / `existence` (19) / `other` (193) |
+| `pass_criteria` | now decidable: carries a number or a comparison phrase |
+| `pass_criteria_original` | the pre-repair text, preserved verbatim wherever it was rewritten (144 rows) |
+| `pass_criteria_decidable` | true on every row |
+| `sg3_disposition` | on existence-shaped rows: which subgoal turns it into an effect check |
+| `falsifier` | the misspelled `forsifier` key was folded in and removed |
+
+The tier→counter map this plan's C-123 asserted against (which did not exist), the guards C-122 /
+C-123 / C-187 / C-230 (which were prose, two of them pointing at a directory that did not exist),
+and the run environment (27 variables, previously zero assignments) are now shipped under
+`scripts/battery/`. Evidence: `docs/testing/evidence/sg1-report.md`, `sg2-env.txt`, `sg3-report.md`.
+The merged goal, falsifier and subgoal tree live in `docs/testing/quorum-q1-merged-verdicts.md`.
