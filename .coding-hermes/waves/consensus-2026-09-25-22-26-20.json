@@ -33,6 +33,27 @@
   ],
   "independence_note": "No depends_on edges between rows; disjoint bands (harness planning vs api billing/auth); DF-2/DF-3 (stale premises, probed this tick) and same-band DF-27/29 siblings excluded; QA/TEST/MUSTER P1s are infra/outside-repo scope, not wave-eligible.",
   "dispatched_at": "2026-09-25 17:39:19",
-  "finished_at": null,
-  "merge": []
+  "finished_at": "2026-09-25 19:48:31",
+  "merge": [
+    {
+      "task": "DF-CONSENSUS-27",
+      "merge_commit": "90a57b5",
+      "worker_commit": "0d6799a",
+      "merged_by_tick": "consensus-2026-09-26-00-13-38",
+      "tier1": "PASS 46abf958",
+      "tier2": "PASS COMPLETE c3d10649",
+      "gates": "build/vet/gofmt clean; full short suite 34 ok / 0 FAIL rc=0 on merged tree"
+    },
+    {
+      "task": "DF-CONSENSUS-29",
+      "merge_commit": "ecb0026",
+      "worker_commit": "10731c7",
+      "merged_by_tick": "consensus-2026-09-26-00-13-38",
+      "tier1": "PASS f4f4fd74",
+      "tier2": "PASS COMPLETE 8a8c725b",
+      "premise": "FALSE-POSITIVE at HEAD (mint returns the raw secret; foreman live probe 200/403); contract pinned by regression tests",
+      "gates": "same merged-tree gate run as DF-CONSENSUS-27"
+    }
+  ],
+  "close_note": "Wave recovered by tick consensus-2026-09-26-00-13-38: both workers had committed and exited; branches re-gated at tips, merged serially with gates re-run on the merged tree; worktrees removed; wt/DF-CONSENSUS-27/29 branches retained as evidence (branch delete approval-gated on api_server)."
 }

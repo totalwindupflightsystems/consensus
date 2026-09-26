@@ -1,0 +1,27 @@
+{
+  "tick_id": "consensus-2026-09-26-00-13-38",
+  "project": "consensus",
+  "mode": "recovery-then-serial",
+  "recovered_from": "consensus-2026-09-25-22-26-20",
+  "recovery_note": "Wave of 2 (DF-CONSENSUS-27/29) recovered: both workers had committed and exited. Branches re-gated on their tips, then merged serially into master (90a57b5, ecb0026); gates re-run on the merged tree (build/vet/gofmt clean, full short suite 34 ok / 0 FAIL rc=0). Tier1 flips PASS (--force --skip-tier2), tier2 async judges from the main tree: df-consensus-27 PASS COMPLETE (verdict .gitreins/history/2026-09-26/c3d10649), df-consensus-29 PASS COMPLETE (8a8c725b). DF-29 premise adjudicated FALSE-POSITIVE: the redacted-placeholder repro does not reproduce at HEAD (billing.go writes the raw secret); foreman live probe on the merged tree minted a full 70-char secret, used it as Bearer on its own session (200), foreign session 403; the worker pinned the working contract with regression tests instead of changing code. Worktrees removed; wt/DF-CONSENSUS-27 and wt/DF-CONSENSUS-29 branch deletes blocked by api_server approval gate and retained as evidence.",
+  "base_sha": "280577e",
+  "workers": [
+    {
+      "task": "DF-CONSENSUS-30",
+      "worktree": "~/worktrees/consensus-DF-CONSENSUS-30",
+      "branch": "wt/DF-CONSENSUS-30",
+      "base": "master",
+      "base_sha": "ecb0026",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "brief": "/tmp/df-consensus-30-brief.md",
+      "band": "internal/api server.go/events.go SSE auth + api integration tests + specs/docs wording",
+      "depends_on": [],
+      "note": "serial post-recovery worker per WAVE_BUDGET=1; premise re-verified at source this tick (route outside authed group confirmed)"
+    }
+  ],
+  "independence_note": "Serial tick: single worker, no parallelism. DF-30 premise live-confirmed at source level this tick.",
+  "dispatched_at": "2026-09-25 19:39:12",
+  "finished_at": null,
+  "merge": []
+}
