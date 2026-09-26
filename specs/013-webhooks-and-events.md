@@ -125,7 +125,14 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
     }
 
     body, _ := io.ReadAll(r.Body)
-    signatureValid := verifyHMAC(body, r.Header.Get("X-Signature-256"), registration.Secret)
+    signature := r.Header.Get("X-Hub-Signature-256")
+    if signature == "" {
+        signature = r.Header.Get("X-Signature-256")
+    }
+    if signature == "" {
+        signature = r.Header.Get("X-Signature")
+    }
+    signatureValid := verifyHMAC(body, signature, registration.Secret)
 
     eventType := extractEventType(source, body, r.Header)
     payload, _ := json.Marshal(parsePayload(body))
@@ -150,6 +157,12 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 }
 ```
+
+**Current implementation deviation:** `cmd/consensus/main.go:346-348` mounts the
+handler at the exact chi route `/webhooks/`, not `/webhooks/*`. Consequently a
+source-bearing path such as `/webhooks/github` returns `404`, while the exact
+mount reaches the handler with an empty source and returns `400`. The wildcard
+mount must be fixed in Go before this endpoint is live-reachable.
 
 ---
 
@@ -296,15 +309,28 @@ VALUES ('daily_report', 'cron', 'daily_report', 'report-agent-session-uuid');
 
 ### 8.1 HMAC Verification
 
-All webhook endpoints verify signatures using HMAC-SHA256:
+All webhook endpoints verify signatures using HMAC-SHA256 over the exact raw
+request-body bytes. The handler accepts these header names in precedence order:
+`X-Hub-Signature-256`, `X-Signature-256`, then `X-Signature`. The header value
+is the lowercase hex digest; an optional `sha256=` prefix is stripped before a
+constant-time comparison (`internal/webhook/webhook.go:282-294,626-634`).
 
-```typescript
-function verifyHMAC(body: string, signature: string | null, secret: string): boolean {
-    if (!signature) return false;
-    const expected = crypto.subtle.sign('HMAC',secret, new TextEncoder().encode(body));
-    return timingSafeEqual(signature, `sha256=${expected}`);
+```go
+func verifyHMAC(body []byte, signature, secret string) bool {
+    if signature == "" || secret == "" {
+        return false
+    }
+    signature = strings.TrimPrefix(signature, "sha256=")
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write(body)
+    expected := hex.EncodeToString(mac.Sum(nil))
+    return subtle.ConstantTimeCompare([]byte(signature), []byte(expected)) == 1
 }
 ```
+
+A missing or mismatched signature is stored as a quarantined event and still
+receives `202 Accepted`; see `docs/API.md#webhooks` for the registration and
+delivery procedure.
 
 ### 8.2 Rate Limiting
 
