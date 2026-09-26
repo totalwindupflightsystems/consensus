@@ -20,7 +20,7 @@ category: software-development
 Consensus is a database-native agent runtime ("the database IS the agent"):
 agent context is a live SQL view, memory is a ledger in SQLite/Postgres,
 committed session state survives `kill -9`, and everything is manageable over
-REST + CLI + MCP. Module: `github.com/wojons/consensus` (branch `master`, Go
+REST + CLI + MCP. Module: `github.com/totalwindupflightsystems/consensus` (branch `master`, Go
 1.26).
 
 > **2026-09-09 status:** the goal-driven pattern is verified working ONLY
@@ -94,8 +94,8 @@ Default expiry 90 days; `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` overrides
 ## Go client integration (the "aha" path)
 
 ```go
-// go.mod:  require github.com/wojons/consensus v0.0.0
-//          replace github.com/wojons/consensus => /path/to/consensus
+// go.mod:  require github.com/totalwindupflightsystems/consensus v0.0.0
+//          replace github.com/totalwindupflightsystems/consensus => /path/to/consensus
 c := client.NewClient("http://127.0.0.1:18123", os.Getenv("CS_API_KEY"))
 s, _ := c.CreateSession(client.CreateSessionRequest{AgentName: "x", Goal: "y"})
 mem, _ := c.ListMemory(s.ID)
