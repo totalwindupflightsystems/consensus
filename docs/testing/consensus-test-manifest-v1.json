@@ -49,7 +49,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-002",
@@ -58,13 +60,17 @@
    "command": "go build ./... 2>&1 | tee \"$RUN_ROOT/t0/go-build.log\"",
    "expected": "Exit 0",
    "artifact": "t0/go-build.log",
-   "pass_criteria": "No compile error",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "Introduce an invalid identifier in a copied control tree; build must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "No compile error",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-003",
@@ -73,13 +79,17 @@
    "command": "go vet ./... 2>&1 | tee \"$RUN_ROOT/t0/go-vet.log\"",
    "expected": "Exit 0",
    "artifact": "t0/go-vet.log",
-   "pass_criteria": "No vet finding",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "Run vet against a known bad fixture and require nonzero",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "No vet finding",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-004",
@@ -88,13 +98,17 @@
    "command": "env -i HOME=\"$HOME\" PATH=\"$PATH\" TMPDIR=\"$RUN_ROOT/t0/tmp\" CGO_ENABLED=0 go test -count=1 ./... 2>&1 | tee \"$RUN_ROOT/t0/go-test.log\"",
    "expected": "Exit 0; nonzero package census",
    "artifact": "t0/go-test.log",
-   "pass_criteria": "Every discovered package completes without cached-only evidence",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "Force one package test to fail in a control copy; suite must return nonzero",
    "defect_gate": "all open product defects surfaced by tests",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "Every discovered package completes without cached-only evidence",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-005",
@@ -109,7 +123,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-006",
@@ -124,7 +140,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-007",
@@ -139,7 +157,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-008",
@@ -154,7 +174,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-009",
@@ -169,7 +191,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-010",
@@ -184,7 +208,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-011",
@@ -199,7 +225,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-012",
@@ -208,13 +236,17 @@
    "command": "code=$(curl -sS -o \"$RUN_ROOT/t1/invalid-uuid.json\" -w '%{http_code}' \"$BASE/api/v1/sessions/00000000-0000-0000-0000-00000000000Z\" -H \"Authorization: Bearer $ADMIN_KEY\"); test \"$code\" = 400 && jq -e '.error.code==\"INVALID_UUID\"' \"$RUN_ROOT/t1/invalid-uuid.json\"",
    "expected": "400 INVALID_UUID",
    "artifact": "t1/invalid-uuid.json",
-   "pass_criteria": "Exact status and code",
+   "pass_criteria": "HTTP status code equals the value in expected AND the body parses as JSON (jq exits 0)",
    "falsifier": "Return HTML or 404; test must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "Exact status and code",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-013",
@@ -223,13 +255,17 @@
    "command": "sh \"$RUN_ROOT/meta/api-lifecycle.sh\" 2>&1 | tee \"$RUN_ROOT/t1/api-lifecycle.log\"",
    "expected": "Create session/task/key, use scoped key, reject cross-session access, revoke key, then 401",
    "artifact": "t1/api-lifecycle.log",
-   "pass_criteria": "Every expected status and body assertion passes",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Skip revocation readback; validator must reject incomplete lifecycle",
    "defect_gate": "DF-CONSENSUS-2, DF-CONSENSUS-3",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Every expected status and body assertion passes",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-014",
@@ -244,7 +280,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-015",
@@ -253,13 +291,17 @@
    "command": "sh \"$RUN_ROOT/meta/live-session.sh\" single \"single-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/single.log\"",
    "expected": "Idle/completed session, text_block contains nonce, nonzero tokens and billing",
    "artifact": "t2/single.log",
-   "pass_criteria": "All DB/API assertions true",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Switch base URL to mock; provider-origin assertion must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "All DB/API assertions true",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-016",
@@ -268,13 +310,17 @@
    "command": "sh \"$RUN_ROOT/meta/live-session.sh\" conversation \"conversation-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/conversation.log\"",
    "expected": "Second answer recalls first nonce and answers second request",
    "artifact": "t2/conversation.log",
-   "pass_criteria": "Both nonce and new answer present after second user turn",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Delete first-turn memory before turn two; recall assertion must fail",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Both nonce and new answer present after second user turn",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-017",
@@ -289,7 +335,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-018",
@@ -298,13 +346,17 @@
    "command": "sh \"$RUN_ROOT/meta/live-session.sh\" db-question \"dbq-$RUN_ID\" 2>&1 | tee \"$RUN_ROOT/t2/db-question.log\"",
    "expected": "More than one provider call, tool request/result, exact independently measured sessions count",
    "artifact": "t2/db-question.log",
-   "pass_criteria": "All correlation and answer assertions pass",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Remove tool result before next call; final-use assertion must fail",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "All correlation and answer assertions pass",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-019",
@@ -319,7 +371,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-020",
@@ -334,7 +388,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-021",
@@ -349,7 +405,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-022",
@@ -358,13 +416,17 @@
    "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" request 2>&1 | tee \"$RUN_ROOT/t3/request.log\"",
    "expected": "At least one tool_requests row with run correlation ID",
    "artifact": "t3/request.log",
-   "pass_criteria": "Count greater than zero",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Agent only narrates a call; durable-row assertion must fail",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Count greater than zero",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-023",
@@ -373,13 +435,17 @@
    "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" reinjection 2>&1 | tee \"$RUN_ROOT/t3/reinjection.log\"",
    "expected": "Matching tool_results row and next LLM context contains exact nonce",
    "artifact": "t3/reinjection.log",
-   "pass_criteria": "Request/result IDs correlate and captured context contains result",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Insert an unrelated tool result; correlation check must fail",
    "defect_gate": "C-GAP-POOL-FOLLOWUP",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Request/result IDs correlate and captured context contains result",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-024",
@@ -388,13 +454,17 @@
    "command": "sh \"$RUN_ROOT/meta/agent-tool-chain.sh\" final 2>&1 | tee \"$RUN_ROOT/t3/final.log\"",
    "expected": "Final text_block includes exact tool nonce and interpreted value",
    "artifact": "t3/final.log",
-   "pass_criteria": "Nonce and result semantics present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Replace result after execution; mismatch must fail",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Nonce and result semantics present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-025",
@@ -409,7 +479,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-026",
@@ -418,14 +490,18 @@
    "command": "sh \"$RUN_ROOT/meta/append-only-negative.sh\" 2>&1 | tee \"$RUN_ROOT/t4/append-only.log\"",
    "expected": "UPDATE and DELETE fail; row hash unchanged",
    "artifact": "t4/append-only.log",
-   "pass_criteria": "Both negatives rejected for append-only reason",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Drop trigger in copied DB; control mutation must succeed and detector must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex",
     "qwen3.7-max@opencode-go"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_original": "Both negatives rejected for append-only reason",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-027",
@@ -434,13 +510,17 @@
    "command": "sh \"$RUN_ROOT/meta/reconcile-billing.sh\" 2>&1 | tee \"$RUN_ROOT/t4/billing.log\"",
    "expected": "Session token totals equal billing sums; cost finite and nonnegative",
    "artifact": "t4/billing.log",
-   "pass_criteria": "Zero mismatch rows",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Increment copied session token total by one; recomputation must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Zero mismatch rows",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-028",
@@ -449,13 +529,17 @@
    "command": "sh \"$RUN_ROOT/meta/session-isolation.sh\" 2>&1 | tee \"$RUN_ROOT/t4/isolation.log\"",
    "expected": "Own session 200; other session 403; no foreign content",
    "artifact": "t4/isolation.log",
-   "pass_criteria": "Exact statuses and nonce isolation",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Use admin key for negative; harness must reject invalid test setup",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Exact statuses and nonce isolation",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-029",
@@ -464,13 +548,17 @@
    "command": "sh \"$RUN_ROOT/meta/atomic-rollback.sh\" 2>&1 | tee \"$RUN_ROOT/t4/rollback.log\"",
    "expected": "Forced second-statement failure leaves first statement absent",
    "artifact": "t4/rollback.log",
-   "pass_criteria": "Transaction fails and residue count is zero",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Execute statements outside one transaction; setup validator must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Transaction fails and residue count is zero",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-030",
@@ -485,7 +573,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-031",
@@ -500,7 +590,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-032",
@@ -509,13 +601,17 @@
    "command": "sh \"$RUN_ROOT/meta/mcp-auth-negative.sh\" 2>&1 | tee \"$RUN_ROOT/t5/auth.log\"",
    "expected": "No key 401; fake key 401; admin succeeds; revoked key 401",
    "artifact": "t5/auth.log",
-   "pass_criteria": "All exact statuses observed",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Skip revoked-key case; result validator must fail",
    "defect_gate": "MCP-DIRECT-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "All exact statuses observed",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-033",
@@ -524,14 +620,18 @@
    "command": "sh \"$RUN_ROOT/meta/mcp-lifecycle.sh\" 2>&1 | tee \"$RUN_ROOT/t5/lifecycle.log\"",
    "expected": "Create, message, poll, memory and task operations complete through discovered tools",
    "artifact": "t5/lifecycle.log",
-   "pass_criteria": "IDs cross-check through REST and DB",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Write session directly to DB; provenance check must fail",
    "defect_gate": "MCP-DIRECT-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex",
     "qwen3.7-max@opencode-go"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_original": "IDs cross-check through REST and DB",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-034",
@@ -546,7 +646,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-035",
@@ -561,7 +663,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-036",
@@ -570,13 +674,17 @@
    "command": "grep -F '16747470f976aca3d362ad730bcd3fe82ecc2c9a' \"$RUN_ROOT/t6/upstream/summary.md\" && grep -F 'Lock SHA-256' \"$RUN_ROOT/t6/upstream/summary.md\"",
    "expected": "Pinned revision and lock hash recorded",
    "artifact": "t6/upstream/summary.md",
-   "pass_criteria": "Both fields present and runner self-test passed",
+   "pass_criteria": "VOID unless the committed results artifact reports tests_executed > 0 for all 4 suites AND 0 rows classified SETUP_FAILURE; the pin/hash lines are a PREREQUISITE, never the pass condition",
    "falsifier": "Modify one suite in checkout; hash verification must fail",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "Both fields present and runner self-test passed",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-037",
@@ -585,13 +693,17 @@
    "command": "sh \"$RUN_ROOT/meta/opencode-tui.sh\" 2>&1 | tee \"$RUN_ROOT/t6/tui.log\"",
    "expected": "TUI attaches to BASE and renders unique agent reply",
    "artifact": "t6/tui-final.txt",
-   "pass_criteria": "Unique nonce appears in captured pane and DB",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Stop target shim; attach must fail rather than use local backend",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Unique nonce appears in captured pane and DB",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-038",
@@ -600,13 +712,17 @@
    "command": "sh \"$RUN_ROOT/meta/opencode-sse.sh\" 2>&1 | tee \"$RUN_ROOT/t6/sse.log\"",
    "expected": "session.updated and message.created for TUI session",
    "artifact": "t6/sse-frames.txt",
-   "pass_criteria": "Both events carry the same session ID",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Listen on unrelated session; correlation assertion must fail",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Both events carry the same session ID",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-039",
@@ -615,13 +731,17 @@
    "command": "grep -RIn 'CRIER_HTTP_URL\\|crier.*inbox\\|transport.*crier' internal cmd specs migrations | tee \"$RUN_ROOT/t7/wiring.txt\" && test -s \"$RUN_ROOT/t7/wiring.txt\"",
    "expected": "Runtime config, consumer, provenance schema and spec references",
    "artifact": "t7/wiring.txt",
-   "pass_criteria": "Nonempty implementation-backed wiring census",
+   "pass_criteria": "count of crier-origin messages that became agent turns >= 1, else VOID; a wiring grep alone is not a pass",
    "falsifier": "Documentation-only matches with no runtime symbol must fail review",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "Nonempty implementation-backed wiring census",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-040",
@@ -636,7 +756,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-041",
@@ -645,13 +767,17 @@
    "command": "sh \"$RUN_ROOT/meta/crier-register-consensus.sh\" 2>&1 | tee \"$RUN_ROOT/t7/register.log\"",
    "expected": "201 with matching agent ID and public-key fingerprint",
    "artifact": "t7/register.log",
-   "pass_criteria": "Registry readback matches",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Register wrong public key; signed retrieval must later 401",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Registry readback matches",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-042",
@@ -660,13 +786,17 @@
    "command": "sh \"$RUN_ROOT/meta/crier-to-consensus.sh\" positive 2>&1 | tee \"$RUN_ROOT/t7/positive.log\"",
    "expected": "One Crier delivery becomes one user_message and agent response uses nonce",
    "artifact": "t7/positive.log",
-   "pass_criteria": "Message ID, session ID, provenance and response correlate",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Stop consumer before delivery; no memory row means failure",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Message ID, session ID, provenance and response correlate",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-043",
@@ -675,13 +805,17 @@
    "command": "sh \"$RUN_ROOT/meta/crier-to-consensus.sh\" wrong-agent 2>&1 | tee \"$RUN_ROOT/t7/wrong-agent.log\"",
    "expected": "Message to another agent never enters Consensus ledger",
    "artifact": "t7/wrong-agent.log",
-   "pass_criteria": "Zero matching rows after two poll intervals",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Subscribe with wildcard/all-agent identity; negative must fail",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Zero matching rows after two poll intervals",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-044",
@@ -696,7 +830,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-045",
@@ -705,13 +841,17 @@
    "command": "sh \"$RUN_ROOT/meta/dead-key-breaker.sh\" 2>&1 | tee \"$RUN_ROOT/t8/dead-key.log\"",
    "expected": "Configured threshold reached, breaker row recorded, session paused, no assistant reply",
    "artifact": "t8/dead-key.log",
-   "pass_criteria": "Exact error count and paused state",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Treat no reply alone as pass; manifest validator must fail missing breaker row",
    "defect_gate": "ENV-CONSENSUS-1",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Exact error count and paused state",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-046",
@@ -720,13 +860,17 @@
    "command": "timeout 45 sh \"$RUN_ROOT/meta/sqlite-pressure.sh\" 2>&1 | tee \"$RUN_ROOT/t8/pressure.log\"",
    "expected": "SSE remains connected, polling succeeds and four sessions progress",
    "artifact": "t8/pressure.log",
-   "pass_criteria": "No pool timeout/lock signature and no stuck planning session",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Set max_open_conns=1 in control run; detector must reproduce failure",
    "defect_gate": "C-GAP-POOL-FOLLOWUP",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "No pool timeout/lock signature and no stuck planning session",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-047",
@@ -741,7 +885,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-048",
@@ -750,13 +896,17 @@
    "command": "sh \"$RUN_ROOT/meta/restart-durability.sh\" 2>&1 | tee \"$RUN_ROOT/t8/restart.log\"",
    "expected": "Committed session, memory and billing rows unchanged after restart",
    "artifact": "t8/restart.log",
-   "pass_criteria": "Before/after hashes and counts match",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Use a new empty volume on restart; identity assertion must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Before/after hashes and counts match",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-049",
@@ -771,7 +921,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-050",
@@ -786,7 +938,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-051",
@@ -801,7 +955,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-052",
@@ -810,13 +966,17 @@
    "command": "timeout 30 xargs -P4 -n1 sh \"$RUN_ROOT/meta/one-load-session.sh\" <\"$RUN_ROOT/t9/targets.txt\" >\"$RUN_ROOT/t9/responses.tsv\" 2>\"$RUN_ROOT/t9/load-errors.log\"",
    "expected": "Finite nonempty target set, maximum four workers, bounded 30 seconds",
    "artifact": "t9/responses.tsv",
-   "pass_criteria": "Every target has one terminal result and no orphan process",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Empty targets file must fail audited_targets assertion",
    "defect_gate": "QA-CONSENSUS-7",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Every target has one terminal result and no orphan process",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-053",
@@ -825,13 +985,17 @@
    "command": "sh \"$RUN_ROOT/meta/check-load-isolation.sh\" 2>&1 | tee \"$RUN_ROOT/t9/isolation.log\"",
    "expected": "Each session contains only its own nonce",
    "artifact": "t9/isolation.log",
-   "pass_criteria": "Zero foreign-nonce matches",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Swap two session IDs in control manifest; check must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Zero foreign-nonce matches",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-054",
@@ -840,13 +1004,17 @@
    "command": "curl -fsS \"$BASE/api/v1/health\" >\"$RUN_ROOT/t9/health-after.json\" && jq -e '.status==\"ok\"' \"$RUN_ROOT/t9/health-after.json\" && sh \"$RUN_ROOT/meta/assert-no-stuck-sessions.sh\"",
    "expected": "Health 200, no stuck planning sessions, no load children remain",
    "artifact": "t9/health-after.json",
-   "pass_criteria": "All assertions pass",
+   "pass_criteria": "jq -e exits 0 on the artifact named above",
    "falsifier": "Leave one test session planning; stuck-session assertion must fail",
    "defect_gate": "QA-CONSENSUS-7",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "All assertions pass",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-055",
@@ -855,13 +1023,17 @@
    "command": "sh \"$RUN_ROOT/meta/create-baby-project.sh\" 2>&1 | tee \"$RUN_ROOT/t10/precondition.log\"",
    "expected": "Fresh git repo with only go.mod; expected output files absent",
    "artifact": "t10/precondition.log",
-   "pass_criteria": "Base commit recorded and contamination count zero",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Pre-create message.go; precondition must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Base commit recorded and contamination count zero",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-056",
@@ -876,7 +1048,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-057",
@@ -885,13 +1059,17 @@
    "command": "sh \"$RUN_ROOT/meta/baby-project-api.sh\" run 2>&1 | tee \"$RUN_ROOT/t10/agent.log\"",
    "expected": "File-write/edit and command tool request/result chains complete",
    "artifact": "t10/agent.log",
-   "pass_criteria": "Required tool families and correlation IDs present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Agent narrates edits without tool rows; test must fail",
    "defect_gate": "C-GAP-POOL-FOLLOWUP",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Required tool families and correlation IDs present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-058",
@@ -906,7 +1084,9 @@
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-059",
@@ -915,13 +1095,17 @@
    "command": "sh \"$RUN_ROOT/meta/baby-project-fidelity.sh\" 2>&1 | tee \"$RUN_ROOT/t10/fidelity.log\"",
    "expected": "Disk hashes and tool-result claims agree; final response names actual files and test result",
    "artifact": "t10/fidelity.log",
-   "pass_criteria": "Zero mismatches",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Modify a file after tool completion; hash comparison must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "Zero mismatches",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-060",
@@ -930,13 +1114,17 @@
    "command": "sh \"$RUN_ROOT/meta/baby-project-restart.sh\" 2>&1 | tee \"$RUN_ROOT/t10/restart.log\"",
    "expected": "Session, task, memory and tool evidence readable after restart; disk remains green",
    "artifact": "t10/restart.log",
-   "pass_criteria": "All pre/post IDs and hashes match",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "Restart against a new volume; persistence assertion must fail",
    "defect_gate": "none",
    "proposed_by": [
     "gpt-5.6-sol@openai-codex"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "All pre/post IDs and hashes match",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-061",
@@ -951,7 +1139,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-062",
@@ -967,7 +1157,9 @@
     "deepseek-v4.1-flash@synthetic",
     "kimi-k3@neuralwatt"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-063",
@@ -982,7 +1174,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-064",
@@ -991,13 +1185,17 @@
    "command": "rm -f consensus && make fresh && sha256sum bin/consensus | tee $EV/06-binary-sha256.txt && bin/consensus --version | tee $EV/07-version.txt && test ! -e ./consensus",
    "expected": "root ./consensus absent; --version prints 'dev' (C-GAP-027 pinned)",
    "artifact": "$EV/06-binary-sha256.txt, $EV/07-version.txt",
-   "pass_criteria": "test ! -e ./consensus AND version line recorded",
+   "pass_criteria": "the computed sha256 equals the expected value (0 mismatches)",
    "falsifier": "a run whose binary sha differs from the one just built",
    "defect_gate": "C-GAP-023, C-GAP-027",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "test ! -e ./consensus AND version line recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-065",
@@ -1006,13 +1204,17 @@
    "command": "test ! -e $RUN/consensus.db || exit 1; test ! -e /srv/consensus-src/dev.db || exit 1",
    "expected": "both paths absent",
    "artifact": "$EV/T0-fresh-db.txt",
-   "pass_criteria": "both absent, recorded",
+   "pass_criteria": "the test(1) expression exits 0",
    "falsifier": "cwd-relative DSN silently reusing a prior run's DB",
    "defect_gate": "QA-CONSENSUS-5",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "both absent, recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-066",
@@ -1021,13 +1223,17 @@
    "command": "ss -tlnp | grep :8090 | tee $EV/T1-listener.txt; ss -tlnp | grep :8090 | grep -q pid=$(cat $RUN/consensus.pid)",
    "expected": "the :8090 holder is our pid",
    "artifact": "$EV/T1-listener.txt",
-   "pass_criteria": "pid match AND curl health body contains \"status\":\"ok\"",
+   "pass_criteria": "the served path count > 0 AND every declared path is registered (unregistered count == 0)",
    "falsifier": "a 404-for-everything impostor owning the port (C-GAP-038/DF-CONSENSUS-5)",
    "defect_gate": "DF-CONSENSUS-5",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "pid match AND curl health body contains \"status\":\"ok\"",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-067",
@@ -1042,7 +1248,10 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_decidable": true,
+   "sg3_disposition": "the served path count > 0 AND every declared path is registered (unregistered count == 0)"
   },
   {
    "id": "C-068",
@@ -1057,7 +1266,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-069",
@@ -1072,7 +1283,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-070",
@@ -1087,7 +1300,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-071",
@@ -1096,13 +1311,17 @@
    "command": "curl -s $BASE/openapi.yaml | sha256sum ; sha256sum specs/openapi/bundled.yaml",
    "expected": "either identical, or the delta is reported as a finding",
    "artifact": "$EV/T1-spec-parity.txt",
-   "pass_criteria": "both hashes recorded; a mismatch is a FINDING, never a pass",
+   "pass_criteria": "the computed sha256 equals the expected value (0 mismatches)",
    "falsifier": "mismatch reported as 'PASS (spec served)'",
    "defect_gate": "C-GAP-039",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both hashes recorded; a mismatch is a FINDING, never a pass",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-072",
@@ -1117,7 +1336,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-073",
@@ -1132,7 +1353,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-074",
@@ -1141,13 +1364,17 @@
    "command": "bin/consensus serve --config consensus.yaml > $EV/T2-serve.log 2>&1 & echo $! > consensus.pid",
    "expected": "health 200 within 10s",
    "artifact": "$EV/T2-serve.log",
-   "pass_criteria": "health body has \\\"status\\\":\\\"ok\\\"",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "port shadowed by a sidecar that answers 404",
    "defect_gate": "C-GAP-038",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "health body has \\\"status\\\":\\\"ok\\\"",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-075",
@@ -1162,7 +1389,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-076",
@@ -1177,7 +1406,10 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_decidable": true,
+   "sg3_disposition": "llm_replies >= 1 AND prompt_tokens > 0 AND completion_tokens > 0"
   },
   {
    "id": "C-077",
@@ -1192,7 +1424,10 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_decidable": true,
+   "sg3_disposition": "llm_replies >= 1 AND prompt_tokens > 0 AND completion_tokens > 0"
   },
   {
    "id": "C-078",
@@ -1201,13 +1436,17 @@
    "command": "sqlite3 consensus.db \"select content from memory_events where session_id='$S2' and kind='text_block'\"",
    "expected": "no 'no user question'/'clarify what data' abstention in the persisted answer",
    "artifact": "$EV/T2.2-events.txt",
-   "pass_criteria": "abstention string absent AND the answer contains a number",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "an abstention text_block reported as a pass because the session reached idle",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "abstention string absent AND the answer contains a number",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-079",
@@ -1222,7 +1461,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-080",
@@ -1237,7 +1478,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-081",
@@ -1252,7 +1495,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-082",
@@ -1267,7 +1512,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-083",
@@ -1282,7 +1529,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-084",
@@ -1297,7 +1546,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-085",
@@ -1312,7 +1563,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-086",
@@ -1327,7 +1580,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-087",
@@ -1342,7 +1597,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-088",
@@ -1351,13 +1608,17 @@
    "command": "GET /api/v1/sessions/$S1/memory and $S2/memory -> distinct session_id sets",
    "expected": "each listing contains exactly one session id",
    "artifact": "$EV/T4-mem-S1.txt, $EV/T4-mem-S2.txt",
-   "pass_criteria": "no cross-session id in either",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "a shared ledger claimed as isolated (README:97)",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "no cross-session id in either",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-089",
@@ -1372,7 +1633,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-090",
@@ -1387,7 +1650,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-091",
@@ -1402,7 +1667,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-092",
@@ -1411,14 +1678,18 @@
    "command": "POST $BASE/mcp/message?sessionId=x -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}'",
    "expected": "200 with a JSON-RPC result",
    "artifact": "$EV/T5a-initialize.json",
-   "pass_criteria": "result present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "404 (chi mount reverted to the trailing-slash pattern, chi_mount_test.go:16-36)",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic",
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_original": "result present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-093",
@@ -1433,7 +1704,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-094",
@@ -1448,7 +1721,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-095",
@@ -1457,13 +1732,17 @@
    "command": "POST tools/call {name:nonexistent_tool}",
    "expected": "a JSON-RPC error object",
    "artifact": "$EV/T5c-bad-tool.json",
-   "pass_criteria": "error field present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "200 with an empty result",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "error field present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-096",
@@ -1472,13 +1751,17 @@
    "command": "grep -E '^(REVISION|VERSION|REPOSITORY)=' scripts/test-opencode-upstream.sh",
    "expected": "REVISION=16747470f976aca3d362ad730bcd3fe82ecc2c9a VERSION=1.18.29 REPOSITORY=.../anomalyco/opencode.git",
    "artifact": "$EV/T6-pin.txt",
-   "pass_criteria": "exact strings",
+   "pass_criteria": "VOID unless the committed results artifact reports tests_executed > 0 for all 4 suites AND 0 rows classified SETUP_FAILURE; the pin/hash lines are a PREREQUISITE, never the pass condition",
    "falsifier": "a run that fetches sst/opencode (wrong tree, green over the wrong artifact)",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "exact strings",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-097",
@@ -1493,7 +1776,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-098",
@@ -1508,7 +1793,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-099",
@@ -1517,13 +1804,17 @@
    "command": "timeout 180 opencode run --base-url $BASE 'list the files in this directory' > $EV/T6c-tui.log",
    "expected": "a transcript produced through the shim",
    "artifact": "$EV/T6c-tui.log, $EV/T6c-tui-version.txt",
-   "pass_criteria": "transcript non-empty AND the shim's serve log shows the corresponding requests",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "TUI pointed at a local/mock provider (no shim requests in the serve log)",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "transcript non-empty AND the shim's serve log shows the corresponding requests",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-100",
@@ -1532,13 +1823,17 @@
    "command": "go test -count=1 -v ./internal/chronicle/ -run OpenCodeFullContract",
    "expected": "46 subtests PASS",
    "artifact": "$EV/T6d-go-port.log",
-   "pass_criteria": "recorded only; must NOT be cited as upstream evidence",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "citing 46/46 as 'upstream compliance proven'",
    "defect_gate": "C-GAP-032-ALPHA",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "recorded only; must NOT be cited as upstream evidence",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-101",
@@ -1553,7 +1848,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-102",
@@ -1562,13 +1859,17 @@
    "command": "CRIER_URL=http://127.0.0.1:8767 bash examples/demo.sh",
    "expected": "register->deliver->signed retrieve->ack, each leg 2xx",
    "artifact": "$EV/T7a-demo.log",
-   "pass_criteria": "transcript contains each leg's status line",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "rc=0 with zero curl legs executed",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "transcript contains each leg's status line",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-103",
@@ -1583,7 +1884,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-104",
@@ -1598,7 +1901,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-105",
@@ -1614,7 +1919,9 @@
     "deepseek-v4.1-flash@synthetic",
     "qwen3.7-max@opencode-go"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-106",
@@ -1629,7 +1936,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-107",
@@ -1638,13 +1947,17 @@
    "command": "POST /agents/$AG/inbox/ack {lease_id,message_ids}; then GET inbox/stats",
    "expected": "queue_depth=0, leased_count=0",
    "artifact": "$EV/T7a-ack.json, $EV/T7a-stats.json",
-   "pass_criteria": "both zero",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "ack 2xx but stats still holding the lease",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "both zero",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-108",
@@ -1653,13 +1966,17 @@
    "command": "grep -rn -il crier --include=*.go --include=*.yaml /srv/consensus-src; then deliver a message and count crier-origin user_message rows for $S4",
    "expected": "0 today -> XFAIL(CR-IN-001); >=1 after the feature lands",
    "artifact": "$EV/T7b-code-census.txt, $EV/T7b-intake.txt, $EV/T7b-verdict.txt",
-   "pass_criteria": "a definitive verdict line, GREEN or XFAIL with the board id",
+   "pass_criteria": "count of crier-origin messages that became agent turns >= 1, else VOID; a wiring grep alone is not a pass",
    "falsifier": "PASS with crier_origin_events=0 (phantom wiring green); no crier code in tree yet 'intake verified'",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "a definitive verdict line, GREEN or XFAIL with the board id",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-109",
@@ -1674,7 +1991,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-110",
@@ -1683,13 +2002,17 @@
    "command": "session with a fake key -> 3 calls -> sqlite3 select status; select * from circuit_breakers",
    "expected": "status=paused AND >=1 breaker row AND >=2 consecutive llm errors",
    "artifact": "$EV/T8a-status.txt, $EV/T8a-breakers.txt, $EV/T8a-llm-errors.txt",
-   "pass_criteria": "all three",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "paused reported as a product defect while a dead key was in play (ENV-CONSENSUS-1)",
    "defect_gate": "ENV-CONSENSUS-1",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "all three",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-111",
@@ -1704,7 +2027,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-112",
@@ -1719,7 +2044,10 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_decidable": true,
+   "sg3_disposition": "the resilience path was exercised >= 1 time AND the session reached a terminal state"
   },
   {
    "id": "C-113",
@@ -1734,7 +2062,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-114",
@@ -1743,13 +2073,17 @@
    "command": "DEEPSEEK_API_KEY=$K go test -v -count=1 -run TestDemo -timeout 300s ./demo/",
    "expected": "TestDemo PASS; staging_buffer diagnostics with stranded counts",
    "artifact": "$EV/T8d-crash-demo.log",
-   "pass_criteria": "PASS AND staging_buffer diagnostics present AND the log shows api.deepseek.com",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "PASS from the mocked demo; or an assertion that all tokens survived (README:123-125 does NOT claim that)",
    "defect_gate": "DF-CONSENSUS-8",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "PASS AND staging_buffer diagnostics present AND the log shows api.deepseek.com",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-115",
@@ -1758,13 +2092,17 @@
    "command": "awk '{exit ($1 < 8.0) ? 0 : 3}' /proc/loadavg",
    "expected": "exit 0 (proceed) or 3 (SKIP with reason)",
    "artifact": "$EV/T9-loadavg-before.txt",
-   "pass_criteria": "the decision is recorded, and a SKIP is reported as SKIP, never PASS",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "a burn loop run through the gate",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "the decision is recorded, and a SKIP is reported as SKIP, never PASS",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-116",
@@ -1779,7 +2117,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-117",
@@ -1794,7 +2134,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-118",
@@ -1803,13 +2145,17 @@
    "command": "awk over /proc/loadavg after; grep -c 'database is locked|SQLITE_BUSY'",
    "expected": "loadavg1 < 12 AND busy==0",
    "artifact": "$EV/T9-loadavg-after.txt, $EV/T9-busy.txt",
-   "pass_criteria": "both",
+   "pass_criteria": "requests made >= 1 AND failed == 0 at the configured concurrency",
    "falsifier": "loadavg >= 12 (the plan itself became a fleet violation)",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "both",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-119",
@@ -1824,7 +2170,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-120",
@@ -1833,13 +2181,17 @@
    "command": "sqlite3 count tool_requests for $P; compare with the answer numbers",
    "expected": "tool_requests >= 1 and the answer integers match row counts",
    "artifact": "$EV/T10-tool-requests.txt, $EV/T10-final.json",
-   "pass_criteria": "both",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "tasks created but never claimed, with 'the API works' claimed as project success",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-121",
@@ -1848,13 +2200,17 @@
    "command": "sqlite3 $RUN/consensus.db .backup $EV/T10-final.db; query the copy",
    "expected": "the copy opens standalone and reproduces the ledger mix + billing",
    "artifact": "$EV/T10-final.db, $EV/T10-ledger-mix.txt",
-   "pass_criteria": "user_message + text_block present; billing row for $P",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "the outcome derived from runner-held variables instead of the DB copy",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "user_message + text_block present; billing row for $P",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-122",
@@ -1863,13 +2219,17 @@
    "command": "re-read .coding-hermes/board/tasks.jsonl last-wins for the S3 id list; emit GREEN/RED/VOID",
    "expected": "GREEN only when no gate row is open unpinned",
    "artifact": "$EV/GATE-verdict.txt",
-   "pass_criteria": "verdict emitted with the per-id state table",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "GREEN emitted while DF-CONSENSUS-14/15, C-GAP-032-ALPHA, CR-IN-001, ENV-CONSENSUS-1 or QA-CONSENSUS-7 is open unpinned",
    "defect_gate": "all",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "verdict emitted with the per-id state table",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-123",
@@ -1884,7 +2244,9 @@
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-124",
@@ -1893,13 +2255,17 @@
    "command": "grep -rIl 'sk-[A-Za-z0-9]\\{16,\\}' $EV | tee $EV/GATE-secret-scan.txt",
    "expected": "empty",
    "artifact": "$EV/GATE-secret-scan.txt",
-   "pass_criteria": "empty",
+   "pass_criteria": "the effect named in the title is observed as a count >= 1, else VOID",
    "falsifier": "a key leaked into an artifact, making the run unreportable",
    "defect_gate": "-",
    "proposed_by": [
     "deepseek-v4.1-flash@synthetic"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "empty",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-125",
@@ -1914,7 +2280,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-126",
@@ -1923,13 +2291,17 @@
    "command": "make fresh && ./bin/consensus --version && test ! -x ./consensus",
    "expected": "bin/consensus built; root ./consensus absent",
    "artifact": "artifacts/provenance.txt",
-   "pass_criteria": "version prints, root binary absent",
+   "pass_criteria": "the test(1) expression exits 0",
    "falsifier": "stale gitignored binary executed",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "version prints, root binary absent",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-127",
@@ -1945,7 +2317,9 @@
     "glm-5.3-flash@zai-glm-default",
     "qwen3.7-max@opencode-go"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-128",
@@ -1954,13 +2328,17 @@
    "command": "env -u DEEPSEEK_API_KEY -u OPENROUTER_API_KEY go test -short -count=1 ./...",
    "expected": "0 failures keyless",
    "artifact": "artifacts/t0_unit.log",
-   "pass_criteria": "ok on all packages",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "suite depends on ambient API key (not keyless)",
    "defect_gate": "QA-CONSENSUS-SMOKEPORT (fixed)",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_original": "ok on all packages",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-129",
@@ -1975,7 +2353,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-130",
@@ -1990,7 +2370,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-131",
@@ -2005,7 +2387,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-132",
@@ -2020,7 +2404,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-133",
@@ -2035,7 +2421,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-134",
@@ -2050,7 +2438,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-135",
@@ -2059,13 +2449,17 @@
    "command": "GET /api/v1/sessions/{unknown-id}; POST malformed body",
    "expected": "404 JSON / 400 JSON per bundled components",
    "artifact": "artifacts/t1_paths.json",
-   "pass_criteria": "typed JSON errors, not HTML",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "HTML error pages",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "typed JSON errors, not HTML",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-136",
@@ -2074,13 +2468,17 @@
    "command": "curl /api/v1/health; /doc/api; /api/v1/metrics",
    "expected": "200 ok / 200 UI / 200 metrics",
    "artifact": "artifacts/t1_paths.json",
-   "pass_criteria": "health body {\"status\":\"ok\"}",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "404 on health = stale sidecar owns port",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "health body {\"status\":\"ok\"}",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-137",
@@ -2095,7 +2493,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-138",
@@ -2110,7 +2510,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-139",
@@ -2119,13 +2521,17 @@
    "command": "init+serve --config consensus.yaml; POST session; POST message; poll",
    "expected": "status=idle, iteration=2, text_block persisted, tokens_used_in/out>0, 1 agent_billing row, log 'llm: response received'",
    "artifact": "artifacts/t2_llm.log",
-   "pass_criteria": "all five observables present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "idle with zero billing rows = mock/dead key",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all five observables present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-140",
@@ -2134,13 +2540,17 @@
    "command": "turn 2: 'quote your previous question and answer it in one sentence'",
    "expected": "reply contains turn-1 question text; iteration>=3; 2nd billing row",
    "artifact": "artifacts/t2_llm.log",
-   "pass_criteria": "quote matches, new billing row",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "agent says no prior question (ledger lost the turn)",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "quote matches, new billing row",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-141",
@@ -2149,13 +2559,17 @@
    "command": "ask DB-count question; assert tool_requests>0 within one iteration",
    "expected": "tool_requests>0",
    "artifact": "artifacts/t2_llm.log",
-   "pass_criteria": "agent calls a tool in the same iteration",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "second LLM call has messages=2 and agent asks to clarify (the defect)",
    "defect_gate": "DF-CONSENSUS-15 (XFAIL while pending)",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "agent calls a tool in the same iteration",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-142",
@@ -2170,7 +2584,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-143",
@@ -2185,7 +2601,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-144",
@@ -2200,7 +2618,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-145",
@@ -2209,14 +2629,18 @@
    "command": "POST /api/v1/tools/{tool}/execute (read-only SQL)",
    "expected": "result rows returned",
    "artifact": "artifacts/t3_tools.log",
-   "pass_criteria": "non-empty result for known table",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "empty result set treated as success",
    "defect_gate": "none",
    "proposed_by": [
     "kimi-k3@neuralwatt",
     "qwen3.7-max@opencode-go"
    ],
-   "converged": true
+   "converged": true,
+   "verification_shape": "other",
+   "pass_criteria_original": "non-empty result for known table",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-146",
@@ -2225,13 +2649,17 @@
    "command": "DB question -> memory_events shows tool_call + tool_result + citing text_block",
    "expected": "tool_requests>0; staging_buffer executed; answer cites the number",
    "artifact": "artifacts/t3_ledger.json",
-   "pass_criteria": "all three row types present",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "API execute works but agent path has tool_requests=0",
    "defect_gate": "DF-CONSENSUS-15 (XFAIL while pending)",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all three row types present",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-147",
@@ -2240,13 +2668,17 @@
    "command": "follow-up: 'what was the row count you found?'",
    "expected": "same number returned from context",
    "artifact": "artifacts/t3_ledger.json",
-   "pass_criteria": "answer matches earlier tool_result",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "result only in DB, not in agent context",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "answer matches earlier tool_result",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-148",
@@ -2255,13 +2687,17 @@
    "command": "SELECT DISTINCT type FROM memory_events",
    "expected": "subset of spec-002 types",
    "artifact": "artifacts/t4_integrity.sql.out",
-   "pass_criteria": "no unknown types",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "free-form types",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "no unknown types",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-149",
@@ -2276,7 +2712,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-150",
@@ -2285,13 +2723,17 @@
    "command": "recompute cost from registry price table; compare cost_usd",
    "expected": "variance <=10% or explained",
    "artifact": "artifacts/t4_integrity.sql.out",
-   "pass_criteria": "documented price table reconciles",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "unexplained >10% variance (0.009775 vs sticker math)",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "documented price table reconciles",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-151",
@@ -2300,13 +2742,17 @@
    "command": "two sessions; cross-read memory via API and SQL scope",
    "expected": "no cross-session rows",
    "artifact": "artifacts/t4_integrity.sql.out",
-   "pass_criteria": "B cannot read A via API; DB rows session-scoped",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "leak, or vacuous pass with 0 rows in either session",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "B cannot read A via API; DB rows session-scoped",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-152",
@@ -2315,13 +2761,17 @@
    "command": "drive context past compression threshold; inspect summary rows",
    "expected": "every summary has cosine >=0.85 or escalation",
    "artifact": "artifacts/t4_integrity.sql.out",
-   "pass_criteria": "scores present and passing",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "sub-0.85 summary silently accepted",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "scores present and passing",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-153",
@@ -2336,7 +2786,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-154",
@@ -2345,13 +2797,17 @@
    "command": "POST /mcp/message JSON-RPC initialize; tools/list",
    "expected": "valid initialize result; >=6 tools with typed schemas",
    "artifact": "artifacts/t5_mcp.log",
-   "pass_criteria": "tools/list non-empty with descriptions",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "bare tool names only (failed attach)",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "tools/list non-empty with descriptions",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-155",
@@ -2366,7 +2822,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-156",
@@ -2375,13 +2833,17 @@
    "command": "GET /mcp; GET /api/v1/mcp",
    "expected": "discoverable endpoint (or pinned failure)",
    "artifact": "artifacts/t5_mcp.log",
-   "pass_criteria": "a client can find MCP without out-of-band docs",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "/mcp 501 stub (current state)",
    "defect_gate": "MCP-DIRECT-001 (XFAIL while pending)",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "a client can find MCP without out-of-band docs",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-157",
@@ -2396,7 +2858,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-158",
@@ -2405,13 +2869,17 @@
    "command": "runner clones pinned rev 1674747 (v1.18.29)",
    "expected": "cache dir populated",
    "artifact": "docs/evidence/opencode-upstream-v1.18.29",
-   "pass_criteria": "checkout at pinned revision",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "suite runs against wrong rev",
    "defect_gate": "C-GAP-032",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "checkout at pinned revision",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-159",
@@ -2426,7 +2894,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-160",
@@ -2441,7 +2911,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-161",
@@ -2456,7 +2928,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-162",
@@ -2471,7 +2945,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-163",
@@ -2480,13 +2956,17 @@
    "command": "grep -rl crier internal/ cmd/",
    "expected": "non-empty AFTER CR-IN-001 lands",
    "artifact": "artifacts/t7_crier.log",
-   "pass_criteria": "wiring exists; else tier BLOCKED with id",
+   "pass_criteria": "count of crier-origin messages that became agent turns >= 1, else VOID; a wiring grep alone is not a pass",
    "falsifier": "tier runs with zero wiring (phantom)",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "wiring exists; else tier BLOCKED with id",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-164",
@@ -2501,7 +2981,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-165",
@@ -2516,7 +2998,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-166",
@@ -2525,13 +3009,17 @@
    "command": "POST /agents/consensus-qa/inbox with question payload",
    "expected": "delivery:\"inbox\"",
    "artifact": "artifacts/t7_crier.log",
-   "pass_criteria": "durable inbox holds message",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "delivery:\"webhook\" misread as inbox",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "durable inbox holds message",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-167",
@@ -2540,13 +3028,17 @@
    "command": "consensus intake consumes crier message; inspect memory_events",
    "expected": "user_message row with crier origin/provenance; LLM call in serve log",
    "artifact": "artifacts/t7_crier_ledger.json",
-   "pass_criteria": "row exists, payload matches, origin names crier",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "row injected via consensus API directly (no provenance)",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "row exists, payload matches, origin names crier",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-168",
@@ -2555,13 +3047,17 @@
    "command": "poll consensus session after intake",
    "expected": "text_block answer persisted",
    "artifact": "artifacts/t7_crier_ledger.json",
-   "pass_criteria": "answer row exists with billing row",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "intake stores but never processes",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "answer row exists with billing row",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-169",
@@ -2576,7 +3072,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-170",
@@ -2585,13 +3083,17 @@
    "command": "deliver to other-agent; assert no consensus intake",
    "expected": "no consensus memory_event for it",
    "artifact": "artifacts/t7_crier_ledger.json",
-   "pass_criteria": "zero rows",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "consensus consumes foreign messages",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "zero rows",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-171",
@@ -2600,13 +3102,17 @@
    "command": "WS subscribe topic; POST /relay/publish",
    "expected": "frame received on WS",
    "artifact": "artifacts/t7_crier.log",
-   "pass_criteria": "publish-after-subscribe delivered",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "publish-before-subscribe counted as delivered",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "publish-after-subscribe delivered",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-172",
@@ -2615,13 +3121,17 @@
    "command": "serve with sk-dead key; post message",
    "expected": "3 failures -> agent_circuit_breakers row; session paused; empty assistant ledger",
    "artifact": "artifacts/t8_resilience.log",
-   "pass_criteria": "breaker row + paused status",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "infinite retry loop burning tokens",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "breaker row + paused status",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-173",
@@ -2630,13 +3140,17 @@
    "command": "SQL: billing rows for the dead-key session",
    "expected": "0 cost rows (or zero-cost) for failed calls",
    "artifact": "artifacts/t8_resilience.log",
-   "pass_criteria": "no positive cost for failed calls",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "paid tokens claimed as delivered",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "no positive cost for failed calls",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-174",
@@ -2645,13 +3159,17 @@
    "command": "2s poller + held SSE + 2 concurrent sessions, 5 min bounded",
    "expected": "zero 'begin tx: context deadline exceeded'; no stuck planning; pool=8",
    "artifact": "artifacts/t8_resilience.log",
-   "pass_criteria": "clean log, all sessions reach terminal state",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "wedge reproduced (regression of ad8afd8)",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "clean log, all sessions reach terminal state",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-175",
@@ -2660,13 +3178,17 @@
    "command": "SIGKILL mid-iteration; restart on same DB",
    "expected": "committed artifact survives; open txn rolled back; staging residue reported",
    "artifact": "artifacts/t8_resilience.log",
-   "pass_criteria": "artifact readable via API post-restart; diagnostics printed",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "uncommitted work claimed as recovered",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "artifact readable via API post-restart; diagnostics printed",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-176",
@@ -2681,7 +3203,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-177",
@@ -2690,13 +3214,17 @@
    "command": "ss -tlnp | grep :8090 before start",
    "expected": "port free; health returns ok JSON",
    "artifact": "artifacts/t8_resilience.log",
-   "pass_criteria": "health body is {\"status\":\"ok\"}",
+   "pass_criteria": "the resilience path was exercised >= 1 time AND the session reached a terminal state",
    "falsifier": "stale sidecar answers 404 on all paths",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "health body is {\"status\":\"ok\"}",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-178",
@@ -2705,13 +3233,17 @@
    "command": "cat /proc/loadavg; skip-with-record if 1m >= 8",
    "expected": "recorded skip (exit 3 semantics) or proceed",
    "artifact": "artifacts/t9_load.json",
-   "pass_criteria": "gate decision recorded either way",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "unbounded burn on a loaded host",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "gate decision recorded either way",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-179",
@@ -2726,7 +3258,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-180",
@@ -2741,7 +3275,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-181",
@@ -2750,13 +3286,17 @@
    "command": "mkdir babyproj; seed README with unique 5 facts",
    "expected": "fixture on disk, mtimes recorded",
    "artifact": "artifacts/t10_babyproj/",
-   "pass_criteria": "seed hash recorded pre-run",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "contaminated fixture from earlier runs",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "seed hash recorded pre-run",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-182",
@@ -2765,13 +3305,17 @@
    "command": "create session goal; kick-off message; poll to idle",
    "expected": "agent plans and executes",
    "artifact": "artifacts/t10_babyproj.log",
-   "pass_criteria": "session reaches idle with tool activity",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "goal never dispatched, session idle on arrival",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "session reaches idle with tool activity",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-183",
@@ -2780,13 +3324,17 @@
    "command": "stat babyproj/plan.md; diff content vs seeded facts",
    "expected": "plan.md exists, mtime>run start, 5 bullets matching facts",
    "artifact": "artifacts/t10_babyproj.log",
-   "pass_criteria": "on-disk content matches ledger tool events",
+   "pass_criteria": "the produced artifact exists AND is non-empty AND its sha256 appears in >= 1 tool_results payload",
    "falsifier": "file written by harness, not agent (no tool events)",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "on-disk content matches ledger tool events",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-184",
@@ -2795,13 +3343,17 @@
    "command": "tasks API create -> claim -> complete",
    "expected": "status transitions persisted",
    "artifact": "artifacts/t10_babyproj.log",
-   "pass_criteria": "DB rows show transitions",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "task API claims success without DB rows",
    "defect_gate": "none",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "DB rows show transitions",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-185",
@@ -2810,13 +3362,17 @@
    "command": "re-read board last-wins at run start and finish",
    "expected": "all open P1s fixed or xfail-pinned with ids",
    "artifact": "artifacts/defect_gate.json",
-   "pass_criteria": "GREEN only if gate table clean",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "green over open P1s",
    "defect_gate": "DF-CONSENSUS-14,DF-CONSENSUS-15,ENV-CONSENSUS-1,QA-CONSENSUS-7,MCP-DIRECT-001,CR-IN-001,C-GAP-032",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "GREEN only if gate table clean",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-186",
@@ -2825,13 +3381,17 @@
    "command": "verify artifacts/ contains logs+dumps+results.json+report.html",
    "expected": "all present; every number names its artifact",
    "artifact": "~/consensus-reports/run-<date>/",
-   "pass_criteria": "third party can re-derive each number",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "report cites runner claims without artifacts",
    "defect_gate": "QA-CONSENSUS-7",
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "third party can re-derive each number",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-187",
@@ -2846,7 +3406,9 @@
    "proposed_by": [
     "qwen3.7-max@opencode-go"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-188",
@@ -2855,13 +3417,17 @@
    "command": "cd /home/kara/consensus && git rev-parse HEAD | tee evidence/t0/commit.txt",
    "expected": "non-empty 40-hex sha equal to deployed build commit",
    "artifact": "evidence/t0/commit.txt",
-   "pass_criteria": "sha present and referenced by report header",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "report cites a different sha than artifact",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "sha present and referenced by report header",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-189",
@@ -2870,13 +3436,17 @@
    "command": "make fresh && ls ./consensus 2>&1; ./bin/consensus --version | tee evidence/t0/version.txt",
    "expected": "repo-root ./consensus absent; bin/consensus --version prints current version",
    "artifact": "evidence/t0/version.txt",
-   "pass_criteria": "version matches VERSION file; root binary absent",
+   "pass_criteria": "exit code == 0 AND packages_ok >= 1 (a zero-package pass is VOID)",
    "falsifier": "a pre-existing stale ./consensus was executed (C-GAP-023)",
    "defect_gate": "QA-CONSENSUS-2",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "version matches VERSION file; root binary absent",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-190",
@@ -2891,7 +3461,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-191",
@@ -2900,13 +3472,17 @@
    "command": "git log --oneline | grep ad8afd8 || git merge-base --is-ancestor ad8afd8 HEAD && echo IN-TREE",
    "expected": "ad8afd8 (MaxOpenConns 1->8) is ancestor of HEAD",
    "artifact": "evidence/t0/pool-fix.txt",
-   "pass_criteria": "in-tree",
+   "pass_criteria": "exit code == 0 AND packages_ok >= 1 (a zero-package pass is VOID)",
    "falsifier": "binary built from pre-fix checkout; T8 pool cell would then mis-xpass",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "in-tree",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-192",
@@ -2916,13 +3492,14 @@
    "expected": "60 paths enumerated",
    "artifact": "evidence/t1/paths.txt",
    "pass_criteria": "count == 60",
-   "forsifier": "",
    "falsifier": "bundle/spec drift or partial bundle silently accepted",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "mixed",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-193",
@@ -2937,7 +3514,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-194",
@@ -2946,13 +3525,17 @@
    "command": "scripts/battery/t1_auth.sh $SRV",
    "expected": "no-key 401 / fake-key 401 / admin-key 2xx per path",
    "artifact": "evidence/t1/auth-negatives.json",
-   "pass_criteria": "all three codes correct per path",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "admin key accepted on a path spec'd readonly-only",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all three codes correct per path",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-195",
@@ -2967,7 +3550,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-196",
@@ -2976,13 +3561,17 @@
    "command": "curl -N --max-time 5 $SRV/global/event | head -3; curl -so /dev/null -w '%{http_code}' $SRV/openapi.yaml",
    "expected": "event frames stream; openapi 200",
    "artifact": "evidence/t1/sse-openapi.txt",
-   "pass_criteria": "both observable",
+   "pass_criteria": "HTTP status code equals the value in expected AND the body parses as JSON (jq exits 0)",
    "falsifier": "404-from-stale-sidecar counted as pass (README shadowing trap)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both observable",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-197",
@@ -2997,7 +3586,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-198",
@@ -3006,13 +3597,17 @@
    "command": "scripts/battery/t2_single.sh $SRV $KEY",
    "expected": "status idle, iteration>=2, text_block persisted, tokens_in>0 tokens_out>0, agent_billing row cost_usd>0 model=deepseek-flash",
    "artifact": "evidence/t2/session.json",
-   "pass_criteria": "all assertions true AND serve.log contains 'llm: response received' with api.deepseek.com URL",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "mock provider / dead key / billing row absent while reply present",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all assertions true AND serve.log contains 'llm: response received' with api.deepseek.com URL",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-199",
@@ -3021,13 +3616,17 @@
    "command": "scripts/battery/t2_multiturn.sh $SRV $KEY",
    "expected": "second user turn answered referencing prior content; messages>=3 in second call log",
    "artifact": "evidence/t2/multiturn.json",
-   "pass_criteria": "new text_block present; tokens_in cumulative grows",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "agent answers from memory_event cache alone with zero new LLM call (billing rowcount unchanged)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "new text_block present; tokens_in cumulative grows",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-200",
@@ -3036,13 +3635,17 @@
    "command": "scripts/battery/t2_df15.sh $SRV $KEY",
    "expected": "tool_requests>0 for a DB question",
    "artifact": "evidence/t2/df15.json",
-   "pass_criteria": "PASS only if fixed (commit hash recorded) else XFAIL",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "xfail xpass without pin update = gate violation",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "PASS only if fixed (commit hash recorded) else XFAIL",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-201",
@@ -3051,13 +3654,17 @@
    "command": "scripts/battery/t2_df14.sh $SRV",
    "expected": "env-only config: base URL honored, model stays gpt-4o -> documented 400x3 -> paused, empty ledger",
    "artifact": "evidence/t2/df14.json",
-   "pass_criteria": "matches pinned defect shape or PASSes post-fix",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "config file accidentally present makes the repro cell vacuous (GET /api/v1/config dumped as evidence)",
    "defect_gate": "DF-CONSENSUS-14",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "matches pinned defect shape or PASSes post-fix",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-202",
@@ -3072,7 +3679,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-203",
@@ -3081,13 +3690,17 @@
    "command": "scripts/battery/t3_register.sh $SRV $KEY",
    "expected": "POST /api/v1/tools 2xx; GET lists the sql-reader tool",
    "artifact": "evidence/t3/registry.json",
-   "pass_criteria": "tool listed with read-only scope",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "registry write 200 but list 404 (phantom route)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "tool listed with read-only scope",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-204",
@@ -3102,7 +3715,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-205",
@@ -3111,13 +3726,17 @@
    "command": "scripts/battery/t3_negative.sh $SRV $KEY",
    "expected": "UPDATE/DELETE via tool rejected",
    "artifact": "evidence/t3/negatives.json",
-   "pass_criteria": "rejected with shaped error",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "rejection via 500 (unshaped) counted as pass",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "rejected with shaped error",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-206",
@@ -3132,7 +3751,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-207",
@@ -3141,13 +3762,17 @@
    "command": "ssh <agent> sqlite3 <db> 'UPDATE memory_events SET ...'; ssh <agent> sqlite3 <db> 'DELETE FROM memory_events ...'",
    "expected": "both blocked by trigger",
    "artifact": "evidence/t4/triggers.txt",
-   "pass_criteria": "both attempts fail with trigger error",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "attempts run as root bypassing the app role (test the app path)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both attempts fail with trigger error",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-208",
@@ -3162,7 +3787,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-209",
@@ -3177,7 +3804,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-210",
@@ -3186,13 +3815,17 @@
    "command": "scripts/battery/cost_check.sh evidence/t4/billing.csv",
    "expected": "cost_usd within [0.5x,2x] of public per-token price for the model",
    "artifact": "evidence/t4/cost-sanity.json",
-   "pass_criteria": "in band",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "0.009775-class rows without a checked band",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "in band",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-211",
@@ -3207,7 +3840,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-212",
@@ -3216,13 +3851,17 @@
    "command": "scripts/battery/t5_mcp_call.sh $SRV $KEY",
    "expected": "tools/list non-empty; tools/call executes the registered sql-reader and returns its result",
    "artifact": "evidence/t5/call.json",
-   "pass_criteria": "call result matches direct API execute",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "call returns canned echo",
    "defect_gate": "MCP-DIRECT-001",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "call result matches direct API execute",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-213",
@@ -3231,13 +3870,17 @@
    "command": "scripts/battery/t5_mcp_err.sh $SRV",
    "expected": "JSON-RPC error object, not 500 HTML",
    "artifact": "evidence/t5/error.json",
-   "pass_criteria": "error object with code",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "stack trace counted as error handling",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "error object with code",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-214",
@@ -3252,7 +3895,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-215",
@@ -3267,7 +3912,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-216",
@@ -3282,7 +3929,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-217",
@@ -3297,7 +3946,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-218",
@@ -3306,13 +3957,17 @@
    "command": "CR_REQUIRE_AGENT_SIG=1 ./bin/crier -port 8767 & trap-driven; scripts/battery/t7_register.sh",
    "expected": "ed25519-signed register 2xx; unsigned register 4xx",
    "artifact": "evidence/t7/register.json",
-   "pass_criteria": "both observable; rejection code recorded",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "server started without CR_REQUIRE_AGENT_SIG so unsigned pass is vacuous",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "both observable; rejection code recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-219",
@@ -3321,13 +3976,17 @@
    "command": "scripts/battery/t7_roundtrip.sh (models /home/kara/crier/examples/demo.sh against live :8767)",
    "expected": "deliver 2xx; retrieve returns leased message; second retrieve without ack re-delivers; post-ack retrieve empty",
    "artifact": "evidence/t7/crier-roundtrip.json",
-   "pass_criteria": "all four observable states in order",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "retrieve succeeding without lease/ack cycle (durable-inbox semantics broken but 200)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all four observable states in order",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-220",
@@ -3342,7 +4001,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-221",
@@ -3351,13 +4012,17 @@
    "command": "scripts/battery/t8_breaker.sh $SRV",
    "expected": "2 consecutive LLM errors -> session paused; circuit_breakers row; ledger error records; recovers after key restore",
    "artifact": "evidence/t8/breaker.json",
-   "pass_criteria": "paused status + breaker row + recovery",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "dead key never reached LLM (no error rows) \u2014 breaker 'passed' on a no-op",
    "defect_gate": "ENV-CONSENSUS-1",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "paused status + breaker row + recovery",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-222",
@@ -3366,13 +4031,17 @@
    "command": "scripts/battery/t8_pool.sh $SRV",
    "expected": "5-min cell: zero 'begin tx: context deadline exceeded'; zero sessions stuck planning; conns<=8",
    "artifact": "evidence/t8/pool.json + serve.log excerpt",
-   "pass_criteria": "all three negatives true; concurrent session reached idle",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "cell ran with no concurrent planning (no billing rows) \u2014 pressure never applied",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all three negatives true; concurrent session reached idle",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-223",
@@ -3387,7 +4056,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-224",
@@ -3396,13 +4067,17 @@
    "command": "DEEPSEEK_API_KEY=$KEY go test -v -run TestDemo -timeout 300s ./demo/ | tee evidence/t8/demo.log",
    "expected": "TestDemo pass with real LLM calls",
    "artifact": "evidence/t8/demo.log",
-   "pass_criteria": "PASS + real-call evidence in log",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "demo silently mocked (no provider URL in log)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "PASS + real-call evidence in log",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-225",
@@ -3411,13 +4086,17 @@
    "command": "cat /proc/loadavg # on bunker; exit 3 skip if 1-min >= 8",
    "expected": "skip recorded with reason, or cell runs",
    "artifact": "evidence/t9/loadgate.txt",
-   "pass_criteria": "gate observed (skip is a recorded outcome, not a silent pass)",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "burn loop dispatched at load 20 (unbounded burn violates fleet law)",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "gate observed (skip is a recorded outcome, not a silent pass)",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-226",
@@ -3432,7 +4111,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-227",
@@ -3441,13 +4122,17 @@
    "command": "ls -d /tmp/consensus-test* 2>/dev/null | wc -l (before/after)",
    "expected": "delta ~0",
    "artifact": "evidence/t9/tmp-census.txt",
-   "pass_criteria": "no new leak dirs",
+   "pass_criteria": "requests made >= 1 AND failed == 0 at the configured concurrency",
    "falsifier": "8.5GB-class leak counted as green",
    "defect_gate": "QA-CONSENSUS-6",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "no new leak dirs",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-228",
@@ -3462,7 +4147,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-229",
@@ -3477,7 +4164,9 @@
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-230",
@@ -3486,13 +4175,17 @@
    "command": "scripts/battery/rederive.sh ~/consensus-reports/run-2026-09-24/",
    "expected": "every report number recomputable from artifacts alone",
    "artifact": "~/consensus-reports/run-2026-09-24/{results.json,index.html,rederive-out.json}",
-   "pass_criteria": "rederive.sh reproduces every headline number with zero runner state",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "report numbers differing from rederive output",
    "defect_gate": "QA-CONSENSUS-7",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "rederive.sh reproduces every headline number with zero runner state",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-231",
@@ -3501,13 +4194,17 @@
    "command": "grep -r 'sk-' ~/consensus-reports/run-2026-09-24/ | grep -v REDACTED; echo rc=$?",
    "expected": "no live keys in evidence (rc=1)",
    "artifact": "evidence/secret-scan.txt",
-   "pass_criteria": "no unredacted keys in the delivered tree",
+   "pass_criteria": "the effect named in the title is observed as a count >= 1, else VOID",
    "falsifier": "API key shipped inside serve.log",
    "defect_gate": "",
    "proposed_by": [
     "glm-5.3-flash@zai-glm-default"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "no unredacted keys in the delivered tree",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-232",
@@ -3522,7 +4219,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-233",
@@ -3537,7 +4236,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-234",
@@ -3546,13 +4247,17 @@
    "command": "go run ./scripts/probe-tvf.go && sqlite3 :memory: \"select value from generate_series(1,3)\"",
    "expected": "driver result recorded; tool tests use only proven TVFs",
    "artifact": "plan-evidence/tvf-probe.txt",
-   "pass_criteria": "probe executes and outcome is recorded and consumed",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "T0-5 assumes an unprobed TVF",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "probe executes and outcome is recorded and consumed",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-235",
@@ -3567,7 +4272,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-236",
@@ -3582,7 +4289,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-237",
@@ -3597,7 +4306,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-238",
@@ -3612,7 +4323,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-239",
@@ -3627,7 +4340,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-240",
@@ -3642,7 +4357,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-241",
@@ -3651,13 +4368,17 @@
    "command": "malformed JSON / unknown-id probes on 5+ paths",
    "expected": "one envelope shape across handlers",
    "artifact": "plan-evidence/t1-neg.log",
-   "pass_criteria": "shape diff empty",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "per-handler folklore shapes = RED",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "shape diff empty",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-242",
@@ -3666,13 +4387,17 @@
    "command": "diff served openapi vs bundled.yaml path-sets",
    "expected": "identical 60-path sets",
    "artifact": "plan-evidence/served-vs-bundled.diff",
-   "pass_criteria": "empty diff",
+   "pass_criteria": "exit code == 0 AND 0 differing lines",
    "falsifier": "doc drift silently shipped",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "empty diff",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-243",
@@ -3681,13 +4406,17 @@
    "command": "POST /api/v1/sessions with spec-documented fields only",
    "expected": "if 400 -> EXPECTED-FAIL DF-CONSENSUS-2; if 201 defect fixed",
    "artifact": "plan-evidence/t1-5.log",
-   "pass_criteria": "outcome classified and pinned to board id",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "sweep quietly uses undocumented fields without reporting",
    "defect_gate": "DF-CONSENSUS-2",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "outcome classified and pinned to board id",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-244",
@@ -3696,13 +4425,17 @@
    "command": "timeout 5 curl -N $B/global/event -H \"Authorization: Bearer $A\"",
    "expected": "200 + text/event-stream + >=1 event line in 5s",
    "artifact": "plan-evidence/t1-6.log",
-   "pass_criteria": "byte growth observed",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "200 with zero bytes = dead SSE",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "byte growth observed",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-245",
@@ -3711,13 +4444,17 @@
    "command": "create session; send 'Reply with exactly: PONG'; poll to idle",
    "expected": "text_block PONG; tokens>0; billing rows present; iteration>=1; idle",
    "artifact": "plan-evidence/t2-1.log + db snapshot",
-   "pass_criteria": "all assertions true AND log shows api.deepseek.com",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "mock URL / zero tokens while idle",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all assertions true AND log shows api.deepseek.com",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-246",
@@ -3726,13 +4463,17 @@
    "command": "prompt forcing sql_query tool then report; count sessions rows",
    "expected": "tool_requests>0 AND tool_results>0 AND correct number AND messages count non-shrinking; else EXPECTED-FAIL DF-CONSENSUS-15",
    "artifact": "plan-evidence/t2-2.log",
-   "pass_criteria": "classified with board id; zero-tool correct answer = RED",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "agent hallucinates count with 0 tool calls and is graded PASS",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "classified with board id; zero-tool correct answer = RED",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-247",
@@ -3741,13 +4482,17 @@
    "command": "3 sequential turns; run context.go:581 SELECT on DB",
    "expected": "current-turn user rows visible in planning context; hidden only for precedent turns per fix contract",
    "artifact": "plan-evidence/t2-3.sql",
-   "pass_criteria": "fix-presence or bug-presence explicitly asserted",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "assertion absent and outcome narrated",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "fix-presence or bug-presence explicitly asserted",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-248",
@@ -3756,13 +4501,17 @@
    "command": "recompute run cost from public DeepSeek rates; compare cost_usd",
    "expected": "within +/-50% band; both numbers printed",
    "artifact": "plan-evidence/t2-4.json",
-   "pass_criteria": "both values recorded",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "exactness claimed from sticker",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "both values recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-249",
@@ -3771,13 +4520,17 @@
    "command": "restart with CONSENSUS_LLM_BASE_URL set, no model env; inspect model= log line",
    "expected": "override exists and works, or EXPECTED-FAIL DF-CONSENSUS-14",
    "artifact": "plan-evidence/t2-5.log",
-   "pass_criteria": "classified with board id",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "source-grep-only classification without live run",
    "defect_gate": "DF-CONSENSUS-14",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "classified with board id",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-250",
@@ -3792,7 +4545,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-251",
@@ -3801,13 +4556,17 @@
    "command": "6*7 via mandated tool; assert chain in memory_events",
    "expected": "tool_requests>=1, result has 42, answer has 42, ordering invariant holds",
    "artifact": "plan-evidence/t3-3.log",
-   "pass_criteria": "ALL four assertions",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "0 tool calls + correct answer = RED",
    "defect_gate": "DF-CONSENSUS-15",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "ALL four assertions",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-252",
@@ -3822,7 +4581,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-253",
@@ -3831,13 +4592,17 @@
    "command": "attempt ATTACH DATABASE '/etc/passwd' class escape",
    "expected": "refusal",
    "artifact": "plan-evidence/t3-5.log",
-   "pass_criteria": "refused",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "executed = RED stop",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "refused",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-254",
@@ -3846,13 +4611,17 @@
    "command": "UPDATE/DELETE a memory_events row",
    "expected": "trigger rejection",
    "artifact": "plan-evidence/t4-1.log",
-   "pass_criteria": "both rejected",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "forgery succeeds = spec breach",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "both rejected",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-255",
@@ -3867,7 +4636,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-256",
@@ -3876,13 +4647,17 @@
    "command": "group_by type vs specs/002 set",
    "expected": "all known, none NULL",
    "artifact": "plan-evidence/t4-3.json",
-   "pass_criteria": "set match",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "unknown types introduced under test",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "set match",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-257",
@@ -3897,7 +4672,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-258",
@@ -3906,13 +4683,17 @@
    "command": "S1 attempts S2-scoped read via agent surface",
    "expected": "refused/empty",
    "artifact": "plan-evidence/t4-5.log",
-   "pass_criteria": "no cross-rows via agent surface",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "testing sqlite directly and claiming isolation",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "no cross-rows via agent surface",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-259",
@@ -3927,7 +4708,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-260",
@@ -3936,13 +4719,17 @@
    "command": "GET /mcp, /api/v1/mcp, POST /mcp/message status census",
    "expected": "route table matches docs or EXPECTED-FAIL DF-CONSENSUS-4",
    "artifact": "plan-evidence/t5-1.log",
-   "pass_criteria": "classified with board id",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "assuming /mcp/message without probing",
    "defect_gate": "DF-CONSENSUS-4",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "classified with board id",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-261",
@@ -3957,7 +4744,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-262",
@@ -3966,13 +4755,17 @@
    "command": "no/fake key on /mcp/message",
    "expected": "401,401",
    "artifact": "plan-evidence/t5-3.log",
-   "pass_criteria": "ladder exact",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "MCP path unprotected",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "ladder exact",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-263",
@@ -3981,13 +4774,17 @@
    "command": "two concurrent clients, list tools, isolation check",
    "expected": "works with distinct sessions or EXPECTED-FAIL MCP-DIRECT-001",
    "artifact": "plan-evidence/t5-4.log",
-   "pass_criteria": "classified with board id",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "single-client pass claimed as attach",
    "defect_gate": "MCP-DIRECT-001",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "classified with board id",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-264",
@@ -4002,7 +4799,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-265",
@@ -4017,7 +4816,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-266",
@@ -4026,13 +4827,17 @@
    "command": "pinned opencode TUI 1.18.29 against shim; scripted pty round trip",
    "expected": "response visible in pane capture",
    "artifact": "plan-evidence/t6-3.cast",
-   "pass_criteria": "captured response text; else manual-checklist downgrade recorded",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "BASE_URL pointing at upstream real server",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "captured response text; else manual-checklist downgrade recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-267",
@@ -4047,7 +4852,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-268",
@@ -4056,13 +4863,17 @@
    "command": "grep -ri crier internal/ cmd/ specs/",
    "expected": "0 hits at HEAD -> T7-2/3 EXPECTED-FAIL by construction",
    "artifact": "plan-evidence/t7-1.log",
-   "pass_criteria": "census printed and drives gating",
+   "pass_criteria": "count of crier-origin messages that became agent turns >= 1, else VOID; a wiring grep alone is not a pass",
    "falsifier": "T7 silently skipped",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "existence",
+   "pass_criteria_original": "census printed and drives gating",
+   "sg3_disposition": "rewritten-to-effect (criterion now names the observed count + its VOID condition)",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-269",
@@ -4077,7 +4888,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-270",
@@ -4092,7 +4905,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-271",
@@ -4101,13 +4916,17 @@
    "command": "deliver with bogus ed25519 sig / unknown agent id",
    "expected": "rejected; consensus ledger unchanged",
    "artifact": "plan-evidence/t7-4.log",
-   "pass_criteria": "reject + unchanged ledger",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "unsigned ingest written",
    "defect_gate": "CR-IN-001",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "reject + unchanged ledger",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-272",
@@ -4122,7 +4941,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-273",
@@ -4131,13 +4952,17 @@
    "command": "held SSE + 4x pollers 2s + planning session, 60s bounded",
    "expected": "zero 'context deadline exceeded'; no stuck planning; log evidence MaxOpenConns=8",
    "artifact": "plan-evidence/t8-2.log",
-   "pass_criteria": "zero wedge lines + SSE byte growth proven",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "SSE died at t=1 while test green",
    "defect_gate": "C-GAP-POOL-FOLLOWUP",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "zero wedge lines + SSE byte growth proven",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-274",
@@ -4146,13 +4971,17 @@
    "command": "DEEPSEEK_API_KEY=$LIVE go test -v -run TestDemo -timeout 300s ./demo/ + manual kill -9 repro",
    "expected": "committed artifact survives; staging residue reported; rollback honest",
    "artifact": "plan-evidence/t8-3.log",
-   "pass_criteria": "both demo and manual repro match README transcript",
+   "pass_criteria": "exit code == 0 AND at least 1 package/test reported as executed",
    "falsifier": "demo tests fixture not product",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both demo and manual repro match README transcript",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-275",
@@ -4167,7 +4996,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-276",
@@ -4176,13 +5007,17 @@
    "command": "1m loadavg < 12 else skip rc=3",
    "expected": "gate decision recorded",
    "artifact": "plan-evidence/env.txt",
-   "pass_criteria": "verdict recorded either way",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "burning a loaded host",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "verdict recorded either way",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-277",
@@ -4191,13 +5026,17 @@
    "command": "8 sessions x 1 turn, <=300s",
    "expected": "all idle; zero cross-rows; RSS < 2x start",
    "artifact": "plan-evidence/t9-1.log",
-   "pass_criteria": "all three assertions",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "serial run labelled concurrent",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "all three assertions",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-278",
@@ -4212,7 +5051,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-279",
@@ -4221,13 +5062,17 @@
    "command": "rerun T1 sweep + T4-2 against PG DSN if available",
    "expected": "green or recorded skip with reason",
    "artifact": "plan-evidence/t9-3.log",
-   "pass_criteria": "either outcome recorded explicitly",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "silent absence",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "either outcome recorded explicitly",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-280",
@@ -4242,7 +5087,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-281",
@@ -4251,13 +5098,17 @@
    "command": "session goal: fix calc.py to 42 via tasks+tools, <=10 iterations, 900s cap",
    "expected": "tasks created+closed; tools used; bounded",
    "artifact": "plan-evidence/t10-2.log",
-   "pass_criteria": "bounded completion or honest timeout verdict",
+   "pass_criteria": "exit code == 0 AND the artifact named above is non-empty (bytes > 0)",
    "falsifier": "unbounded iteration",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_original": "bounded completion or honest timeout verdict",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-282",
@@ -4272,7 +5123,9 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-283",
@@ -4281,13 +5134,17 @@
    "command": "python3 -c 'print(6*7)' + git diff review",
    "expected": "42; diff is the only change",
    "artifact": "plan-evidence/t10-4.diff",
-   "pass_criteria": "both recorded",
+   "pass_criteria": "exit code == 0 AND 0 differing lines",
    "falsifier": "agent touched unexpected files",
    "defect_gate": "",
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "behaviour",
+   "pass_criteria_original": "both recorded",
+   "sg3_disposition": "criterion derived from the row's own command shape",
+   "pass_criteria_decidable": true
   },
   {
    "id": "C-284",
@@ -4302,7 +5159,21 @@
    "proposed_by": [
     "kimi-k3@neuralwatt"
    ],
-   "converged": false
+   "converged": false,
+   "verification_shape": "other",
+   "pass_criteria_decidable": true
   }
- ]
+ ],
+ "sg3_repair": {
+  "date": "2026-09-26T08:05:36Z",
+  "rule": "decidable = the CRITERION itself carries a digit or a comparison phrase (not `expected`); existence-shaped rows get an effect criterion with its VOID condition; originals preserved",
+  "forsifier_typo_rows": 1,
+  "shape_census": {
+   "other": 193,
+   "rewritten": 144,
+   "behaviour": 63,
+   "mixed": 9,
+   "existence": 19
+  }
+ }
 }
