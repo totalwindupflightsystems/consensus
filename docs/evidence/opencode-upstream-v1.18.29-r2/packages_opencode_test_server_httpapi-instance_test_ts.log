@@ -1,0 +1,262 @@
+bun test v1.3.14 (0d9b296a)
+
+test/server/httpapi-instance.test.ts:
+[13:09:21.007] ERROR (#2): 74 |   it.live("serves the OpenAPI document", () =>
+75 |     Effect.gen(function* () {
+76 |       const response = yield* externalClient("/doc")
+77 | 
+78 |       expect(response.status).toBe(200)
+79 |       expect(response.headers["content-type"]).toContain("application/json")
+     ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "application/json"
+Received: "text/html; charset=utf-8"
+
+      at toContain (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:79:48
+
+74 |   it.live("serves the OpenAPI document", () =>
+75 |     Effect.gen(function* () {
+76 |       const response = yield* externalClient("/doc")
+77 | 
+78 |       expect(response.status).toBe(200)
+79 |       expect(response.headers["content-type"]).toContain("application/json")
+     ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "application/json"
+Received: "text/html; charset=utf-8"
+
+      at toContain (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:79:48
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (unknown:7:39)
+(fail) instance HttpApi > serves the OpenAPI document [1296.29ms]
+[13:09:21.495] ERROR (#33389): 103 |         method: "POST",
+104 |         headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+105 |         body: JSON.stringify({ title: "fenced" }),
+106 |       })
+107 | 
+108 |       expect(response.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:108:31
+
+103 |         method: "POST",
+104 |         headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+105 |         body: JSON.stringify({ title: "fenced" }),
+106 |       })
+107 | 
+108 |       expect(response.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:108:31
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (native:7:39)
+(fail) instance HttpApi > emits a sync fence header for fixed-workspace mutations [487.29ms]
+[13:09:22.026] ERROR (#58561): 128 |         method: "POST",
+129 |         headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+130 |         body: JSON.stringify({ service: "fence-test", level: "info", message: "noop" }),
+131 |       })
+132 | 
+133 |       expect(read.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 404
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:133:27
+
+128 |         method: "POST",
+129 |         headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+130 |         body: JSON.stringify({ service: "fence-test", level: "info", message: "noop" }),
+131 |       })
+132 | 
+133 |       expect(read.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 404
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:133:27
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (unknown:7:39)
+(fail) instance HttpApi > does not emit sync fence headers for fixed-workspace reads or no-op mutations [531.16ms]
+[13:09:22.551] ERROR (#83733): 160 |           request("/question/invalid-question-id/reject", { method: "POST" }),
+161 |         ],
+162 |         { concurrency: "unbounded" },
+163 |       )
+164 | 
+165 |       expect(permission.status).toBe(400)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 400
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:165:33
+
+160 |           request("/question/invalid-question-id/reject", { method: "POST" }),
+161 |         ],
+162 |         { concurrency: "unbounded" },
+163 |       )
+164 | 
+165 |       expect(permission.status).toBe(400)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 400
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:165:33
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:2356:7
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:397:14)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (native:7:39)
+(fail) instance HttpApi > rejects malformed permission and question request ids [525.03ms]
+[13:09:23.079] ERROR (#108908): 194 |           request(`/question/${questionRejectID}/reject`, { method: "POST" }),
+195 |         ],
+196 |         { concurrency: "unbounded" },
+197 |       )
+198 | 
+199 |       expect(permission.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:199:33
+
+194 |           request(`/question/${questionRejectID}/reject`, { method: "POST" }),
+195 |         ],
+196 |         { concurrency: "unbounded" },
+197 |       )
+198 | 
+199 |       expect(permission.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 401
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:199:33
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:2356:7
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:397:14)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (unknown:7:39)
+(fail) instance HttpApi > returns typed not found bodies for missing permission and question requests [527.78ms]
+[13:09:23.586] ERROR (#134083): 227 |           headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+228 |           body: JSON.stringify({ name: "Missing" }),
+229 |         }),
+230 |       )
+231 | 
+232 |       expect(response.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 501
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:232:31
+
+227 |           headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+228 |           body: JSON.stringify({ name: "Missing" }),
+229 |         }),
+230 |       )
+231 | 
+232 |       expect(response.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 501
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:232:31
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (unknown:7:39)
+(fail) instance HttpApi > returns typed not found bodies for missing projects [507.50ms]
+[13:09:24.243] ERROR (#159255): 252 |           externalClient(`${InstancePaths.vcsDiff}?mode=git`, { headers: { "x-opencode-directory": dir } }),
+253 |         ],
+254 |         { concurrency: "unbounded" },
+255 |       )
+256 | 
+257 |       expect(paths.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 404
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:257:28
+
+252 |           externalClient(`${InstancePaths.vcsDiff}?mode=git`, { headers: { "x-opencode-directory": dir } }),
+253 |         ],
+254 |         { concurrency: "unbounded" },
+255 |       )
+256 | 
+257 |       expect(paths.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 404
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:257:28
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:2356:7
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:397:14)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (unknown:7:39)
+(fail) instance HttpApi > serves path and VCS read endpoints [657.01ms]
+
+ 0 pass
+ 7 fail
+ 8 expect() calls
+Ran 7 tests across 1 file. [7.61s]

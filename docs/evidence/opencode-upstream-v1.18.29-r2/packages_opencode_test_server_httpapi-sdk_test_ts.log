@@ -1,0 +1,52 @@
+bun test v1.3.14 (0d9b296a)
+
+test/server/httpapi-sdk.test.ts:
+(pass) HttpApi SDK > uses the generated SDK for global and control routes [1010.00ms]
+(pass) HttpApi SDK > uses the generated SDK for safe instance routes [3135.77ms]
+(pass) HttpApi SDK > routes configured SDK directory and workspace for v2 location GETs [696.82ms]
+(pass) HttpApi SDK > matches generated SDK global and control behavior [435.70ms]
+(pass) HttpApi SDK > matches generated SDK global event stream [648.39ms]
+(pass) HttpApi SDK > matches generated SDK instance event stream [591.85ms]
+(pass) HttpApi SDK > matches generated SDK missing session errors [478.86ms]
+(pass) HttpApi SDK > formats missing session validation errors for -s [939.46ms]
+(pass) HttpApi SDK > uses generated SDK basic auth behavior [2231.21ms]
+(pass) HttpApi SDK > matches generated SDK instance read routes [2763.32ms]
+(pass) HttpApi SDK > matches generated SDK session lifecycle routes [808.25ms]
+(pass) HttpApi SDK > matches generated SDK session message and part routes [842.28ms]
+(pass) HttpApi SDK > streams sync-backed part updates to /event subscribers [726.32ms]
+(pass) HttpApi SDK > matches generated SDK prompt no-reply routes [1162.87ms]
+(pass) HttpApi SDK > matches generated SDK prompt streaming through fake LLM [1774.20ms]
+[13:09:49.220] ERROR (#393488): 827 |         )
+828 |         const inputs = yield* llm.inputs
+829 | 
+830 |         expect(session.status).toBe(200)
+831 |         expect(prompt.status).toBe(200)
+832 |         expect(JSON.stringify(inputs[0])).toContain("project-rest-skill")
+      ^
+error: Received value must be an array type, or both received and expected values must be strings.
+      at toContain (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-sdk.test.ts:832:43
+
+827 |         )
+828 |         const inputs = yield* llm.inputs
+829 | 
+830 |         expect(session.status).toBe(200)
+831 |         expect(prompt.status).toBe(200)
+832 |         expect(JSON.stringify(inputs[0])).toContain("project-rest-skill")
+      ^
+error: Received value must be an array type, or both received and expected values must be strings.
+      at toContain (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-sdk.test.ts:832:43
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (native:7:39)
+(fail) HttpApi SDK > includes project skills in REST API prompt context [2471.33ms]
+(pass) HttpApi SDK > matches generated SDK TUI validation and command routes [1639.62ms]
+(pass) HttpApi SDK > matches generated SDK project git initialization [818.52ms]
+
+ 17 pass
+ 1 fail
+ 34 expect() calls
+Ran 18 tests across 1 file. [27.17s]

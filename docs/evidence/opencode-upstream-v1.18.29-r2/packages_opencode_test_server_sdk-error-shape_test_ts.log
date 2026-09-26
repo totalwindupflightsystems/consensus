@@ -1,0 +1,36 @@
+bun test v1.3.14 (0d9b296a)
+
+test/server/sdk-error-shape.test.ts:
+39 |     }
+40 | 
+41 |     expect(caught).toBeInstanceOf(Error)
+42 |     const err = caught as Error
+43 |     const cause = err.cause as { body?: any; status?: number }
+44 |     expect(err.message).toContain("Session not found")
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Session not found"
+Received: "GET http://test/session/ses_no_such?directory=%2Ftmp%2Fopencode-test-99rlzjfl97i → 401 Unauthorized"
+
+      at <anonymous> (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/sdk-error-shape.test.ts:44:25)
+(fail) v2 SDK error shape > 404 with NamedError body throws a real Error carrying the server message [282.39ms]
+66 |     }
+67 | 
+68 |     expect(caught).toBeInstanceOf(Error)
+69 |     const err = caught as Error
+70 |     const cause = err.cause as { body?: any; status?: number }
+71 |     expect(cause.status).toBe(400)
+                              ^
+error: expect(received).toBe(expected)
+
+Expected: 400
+Received: 404
+
+      at <anonymous> (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/sdk-error-shape.test.ts:71:26)
+(fail) v2 SDK error shape > 400 schema rejection: SDK extracts the field-level reason from the NamedError body [11.33ms]
+
+ 0 pass
+ 2 fail
+ 4 expect() calls
+Ran 2 tests across 1 file. [2.84s]

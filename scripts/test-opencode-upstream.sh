@@ -224,22 +224,30 @@ suite_relative_path() {
 classify_suite_result() {
   result_rc=$1
   result_log=$2
-  result_tests=$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' "$result_log" | awk 'END {print}')
-  result_pass=$(sed -nE 's/^([0-9]+) pass.*/\1/p' "$result_log" | awk 'END {print}')
-  result_fail=$(sed -nE 's/^([0-9]+) fail.*/\1/p' "$result_log" | awk 'END {print}')
+  # bun prints its tail block with LEADING WHITESPACE (" 7 pass"). An anchored
+  # ^([0-9]+) never matches, which made every suite report pass=0 fail=0 and
+  # mislabel a real divergence as SETUP_FAILURE (SG-4).
+  result_tests=$(sed -nE 's/^[[:space:]]*Ran ([0-9]+) tests?.*/\1/p' "$result_log" | awk 'END {print}')
+  result_pass=$(sed -nE 's/^[[:space:]]*([0-9]+) pass.*/\1/p' "$result_log" | awk 'END {print}')
+  result_fail=$(sed -nE 's/^[[:space:]]*([0-9]+) fail.*/\1/p' "$result_log" | awk 'END {print}')
   if [ -z "$result_tests" ] || [ "$result_tests" -eq 0 ]; then
     echo "SETUP_FAILURE"
     return 0
   fi
-  if [ "$result_rc" -eq 0 ] && [ "${result_fail:-0}" -eq 0 ]; then
-    echo "PASS"
+  # tests ran: distinguish a real divergence from a crash that reported no results
+  if [ "${result_pass:-0}" -eq 0 ] && [ "${result_fail:-0}" -eq 0 ]; then
+    echo "RUN_ERROR"
     return 0
   fi
   if [ "${result_fail:-0}" -gt 0 ]; then
     echo "DIVERGENCE"
     return 0
   fi
-  echo "SETUP_FAILURE"
+  if [ "$result_rc" -eq 0 ]; then
+    echo "PASS"
+    return 0
+  fi
+  echo "RUN_ERROR"
 }
 
 while IFS= read -r suite; do
@@ -258,9 +266,9 @@ while IFS= read -r suite; do
   rc=$?
   set -e
   sanitize <"$raw_log" >"$log"
-  tests=$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' "$raw_log" | awk 'END {print}')
-  passed=$(sed -nE 's/^([0-9]+) pass.*/\1/p' "$raw_log" | awk 'END {print}')
-  failed=$(sed -nE 's/^([0-9]+) fail.*/\1/p' "$raw_log" | awk 'END {print}')
+  tests=$(sed -nE 's/^[[:space:]]*Ran ([0-9]+) tests?.*/\1/p' "$raw_log" | awk 'END {print}')
+  passed=$(sed -nE 's/^[[:space:]]*([0-9]+) pass.*/\1/p' "$raw_log" | awk 'END {print}')
+  failed=$(sed -nE 's/^[[:space:]]*([0-9]+) fail.*/\1/p' "$raw_log" | awk 'END {print}')
   result=$(classify_suite_result "$rc" "$raw_log")
   [ -n "$tests" ] || tests=0
   [ -n "$passed" ] || passed=0
@@ -324,5 +332,10 @@ preload_hash=$(sha256sum "$PRELOAD" | cut -d ' ' -f 1)
 
 } >"$SUMMARY"
 
-rm -f "$RESULTS"
+# SG-4: the per-suite results file is KEPT, not deleted. The runner used to remove it
+# here, which is why no committed counts ever existed to back a closure (C-GAP-032-ALPHA
+# was closed on a summary whose suite rows read tests=0/pass=0/fail=0).
+if [ ! -s "$RESULTS" ]; then
+  echo "WARNING: $RESULTS is empty — this run produced no per-suite rows" >&2
+fi
 exit "$status"

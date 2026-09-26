@@ -1,0 +1,4 @@
+1	packages/opencode/test/server/httpapi-instance.test.ts	1	7	0	7	DIVERGENCE
+2	packages/opencode/test/server/httpapi-sdk.test.ts	1	18	17	1	DIVERGENCE
+3	packages/opencode/test/server/sdk-error-shape.test.ts	1	2	0	2	DIVERGENCE
+4	packages/client/test/promise.test.ts	0	7	7	0	PASS
