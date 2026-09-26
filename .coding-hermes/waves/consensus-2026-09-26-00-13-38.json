@@ -22,6 +22,16 @@
   ],
   "independence_note": "Serial tick: single worker, no parallelism. DF-30 premise live-confirmed at source level this tick.",
   "dispatched_at": "2026-09-25 19:39:12",
-  "finished_at": null,
-  "merge": []
+  "finished_at": "2026-09-25 20:30:24",
+  "merge": [
+    {
+      "task": "DF-CONSENSUS-30",
+      "merge_commit": "7c7122d",
+      "worker_commit": "b0634d9",
+      "tier1": "PASS 039c9773",
+      "tier2": "PASS COMPLETE e63a1594",
+      "gates": "build/vet/gofmt clean; full short suite 34 ok / 0 FAIL rc=0 on merged master",
+      "note": "worker process died mid-task after writing spec/docs/tests; foreman salvaged foreman-direct (code + RED/GREEN proof + live probe) and committed on the worker's branch"
+    }
+  ]
 }
