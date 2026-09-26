@@ -17,7 +17,8 @@ info:
 
     ## Authentication
 
-    All endpoints except `/api/v1/health` require a Bearer API key:
+    Native API endpoints except `/api/v1/health` require a Bearer API key.
+    `/webhooks/{source}` uses a per-registration HMAC-SHA256 signature instead:
     - `cs_ak_*` : admin — full CRUD
     - `cs_sk_*` : session — scoped to one session
     - `cs_rk_*` : readonly — SELECT only
@@ -55,6 +56,8 @@ tags:
     description: System metrics, billing, and configuration
   - name: Auth
     description: API key management
+  - name: Webhooks
+    description: HMAC-authenticated external event ingestion
   - name: MCP
     description: |
       Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the streamable-HTTP transport at /mcp (POST JSON-RPC + GET SSE stream), plus the legacy /mcp/sse and /mcp/message endpoints.
@@ -959,6 +962,132 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /webhooks/{source}:
+    post:
+      tags:
+        - Webhooks
+      summary: Ingest a signed webhook payload
+      operationId: ingestWebhook
+      description: |
+        Ingests the raw request body as an external event. The `{source}` value must
+        match the name, source, or URL path of an enabled row in
+        `webhook_registrations`. No Bearer API key is required; the server verifies
+        an HMAC-SHA256 hex digest of the exact raw request body using the
+        registration secret.
+
+        Supply the digest in `X-Hub-Signature-256`, `X-Signature-256`, or
+        `X-Signature` (checked in that order). A leading `sha256=` is optional.
+        A missing or invalid signature does not reject the request: the event is
+        stored with `signature_valid=false` and `status=quarantined`, and a new
+        event still receives `202 Accepted`.
+
+        Runtime note: this operation is the handler contract, but the current server
+        mounts only the exact `/webhooks/` route. That mount does not match a
+        source-bearing path, so `/webhooks/{source}` returns 404 until the Go router
+        mount is changed to a wildcard route.
+      security: []
+      parameters:
+        - name: source
+          in: path
+          required: true
+          description: Registered webhook source, name, or URL-path lookup value.
+          schema:
+            type: string
+          example: docs-demo
+        - name: X-Hub-Signature-256
+          in: header
+          required: false
+          description: Preferred HMAC-SHA256 hex signature; optional `sha256=` prefix.
+          schema:
+            type: string
+          example: sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        - name: X-Signature-256
+          in: header
+          required: false
+          description: Fallback HMAC-SHA256 hex signature; optional `sha256=` prefix.
+          schema:
+            type: string
+        - name: X-Signature
+          in: header
+          required: false
+          description: Final fallback HMAC-SHA256 hex signature; optional `sha256=` prefix.
+          schema:
+            type: string
+        - name: X-Event-Type
+          in: header
+          required: false
+          description: Event type. Falls back to `X-GitHub-Event`, then `unknown`.
+          schema:
+            type: string
+          example: ping
+        - name: X-Delivery-ID
+          in: header
+          required: false
+          description: External delivery identifier used for idempotent ingestion.
+          schema:
+            type: string
+          example: delivery-001
+      requestBody:
+        required: true
+        description: Raw payload bytes. Sign exactly the bytes sent on the wire.
+        content:
+          application/json:
+            schema: {}
+            example:
+              event: ping
+              message: hello
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Delivery ID was already ingested; returns the existing event ID when available.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - event_id
+                  - message
+                properties:
+                  status:
+                    type: string
+                    const: duplicate
+                  event_id:
+                    type: integer
+                    format: int64
+                  message:
+                    type: string
+              example:
+                status: duplicate
+                event_id: 42
+                message: event already ingested
+        '202':
+          description: New event accepted, including a new event with an invalid signature.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    const: accepted
+              example:
+                status: accepted
+        '403':
+          description: The matching webhook registration is disabled.
+        '404':
+          description: No webhook registration matches the source.
+        '413':
+          description: The request body exceeds the 1 MB limit.
+        '429':
+          description: The source exceeded the webhook token-bucket rate limit.
+        '500':
+          description: The request body could not be read or the event could not be stored.
   /global/health:
     get:
       tags:
@@ -1296,8 +1425,10 @@ paths:
       summary: opencode shim OpenAPI document
       operationId: shimDoc
       description: |
-        Serves the opencode shim's Swagger UI (HTML). No authentication
-        required. The native REST API explorer lives at /doc/api instead.
+        Serves the machine-readable OpenAPI document for the opencode-compatible
+        surface. JSON is returned by default; Accept: application/yaml returns
+        YAML. No authentication is required. The native REST API explorer lives
+        at /doc/api instead.
       security: []
       responses:
         '200':

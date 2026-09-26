@@ -17,7 +17,8 @@ info:
 
     ## Authentication
 
-    All endpoints except `/api/v1/health` require a Bearer API key:
+    Native API endpoints except `/api/v1/health` require a Bearer API key.
+    `/webhooks/{source}` uses a per-registration HMAC-SHA256 signature instead:
     - `cs_ak_*` : admin — full CRUD
     - `cs_sk_*` : session — scoped to one session
     - `cs_rk_*` : readonly — SELECT only
@@ -58,6 +59,8 @@ tags:
     description: System metrics, billing, and configuration
   - name: Auth
     description: API key management
+  - name: Webhooks
+    description: HMAC-authenticated external event ingestion
   - name: MCP
     description: >
       Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the
@@ -133,6 +136,10 @@ paths:
     $ref: "./paths/auth.yaml#/authKeys"
   /api/v1/auth/keys/{keyId}:
     $ref: "./paths/auth.yaml#/authKeyItem"
+
+  # ── Webhook Event Ingestion (SPEC-013 §4) ──
+  /webhooks/{source}:
+    $ref: "./paths/webhooks.yaml"
 
   # ── Opencode Protocol Shim (SPEC-017) ──
   /global/health:

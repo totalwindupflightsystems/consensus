@@ -7,7 +7,7 @@ examples. The canonical machine-readable contract is the bundled OpenAPI spec �
 see [OpenAPI](#openapi-specification) below.
 
 - Base URL: `http://<host>:8090` (default port, configurable via `CONSENSUS_PORT` / config `server.port`; default bind `127.0.0.1` via config `server.hostname` — the opencode shim surface, including the auth-free public `/instance/*` endpoints, must stay on a loopback bind, see SPEC-017 §3.10)
-- Auth: set the `Authorization` header to `Bearer $CONSENSUS_API_KEY` (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management))
+- Auth: set the `Authorization` header to `Bearer $CONSENSUS_API_KEY` (keys are `cs_ak_...` secrets; the first one — the bootstrap admin key — is printed once at server startup, see [API Key Management](#api-key-management)). The webhook endpoint is the exception: it uses a per-registration HMAC signature and no Bearer key.
 - Errors: JSON envelope `{"error":{"code":"...","message":"...","details":"..."}}` with the appropriate HTTP status
 - Auth failures return `401` with code `UNAUTHORIZED`; missing/invalid UUID path params return `400` with code `INVALID_UUID`
 
@@ -106,12 +106,12 @@ the process working directory when it exists, so re-running
 curl http://localhost:8090/openapi.json | jq '.paths | keys'
 ```
 
-**Authoritative path count: 60** (36 opencode shim + 24 native `/api/v1`),
-including the four `/instance` routes (`/instance`, `/instance/path`,
-`/instance/vcs`, `/instance/vcs/diff`) from SPEC-017 §3.10. The embedded
-`specs/openapi/bundled.yaml` (served at `/openapi.json`) is the source of
-truth — when routes are added or removed, update this count in the same
-change.
+**Authoritative path count: 61** (36 opencode shim + 24 native `/api/v1` +
+1 HMAC-authenticated webhook path), including the four `/instance` routes
+(`/instance`, `/instance/path`, `/instance/vcs`, `/instance/vcs/diff`) from
+SPEC-017 §3.10. The embedded `specs/openapi/bundled.yaml` (served at
+`/openapi.json`) is the source of truth — when routes are added or removed,
+update this count in the same change.
 
 ---
 
@@ -336,12 +336,139 @@ curl http://localhost:8090/api/v1/metrics \
 
 ---
 
+## Webhooks
+
+### `POST /webhooks/{source}` — ingest an external event
+
+This route does **not** use an API key. The handler authenticates the exact
+request body with the secret stored in a webhook registration
+(`internal/webhook/webhook.go:282-294`).
+
+> **Current reachability blocker:** the server mounts the handler at the exact
+> chi route `/webhooks/` (`cmd/consensus/main.go:346-348`), which does not match
+> `/webhooks/{source}`. A server built from this revision returns `404` for
+> `/webhooks/docs-demo`; the exact `/webhooks/` route reaches the handler but
+> returns `400` because its source is empty. The registration/signing contract
+> below is therefore not live-reachable until the mount changes to a wildcard
+> source route. This docs/spec task does not change Go code.
+
+#### 1. Register the source
+
+There is currently no HTTP API or CLI command for webhook registration. Create
+the row directly in the configured database. The production schema requires
+`id`, `name`, `source`, `url_path`, `secret`, `event_types`, optional session and
+workflow targets, `enabled`, and `created_at`
+(`migrations/007_webhook_tables.sql:10-22`). For the default SQLite database:
+
+```bash
+DB_PATH="$HOME/.consensus/consensus.db"
+WEBHOOK_SECRET='replace-with-your-webhook-secret'
+
+sqlite3 "$DB_PATH" <<SQL
+INSERT INTO webhook_registrations (
+  id, name, source, url_path, secret, event_types,
+  target_session_id, target_workflow_id, enabled, created_at
+) VALUES (
+  'wh_docs_demo', 'docs_demo', 'docs-demo', '/webhooks/docs-demo',
+  '$WEBHOOK_SECRET', '{"ping"}',
+  NULL, NULL, 1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+);
+SQL
+```
+
+Use the database selected by `database.url` / `CONSENSUS_DB_URL` if it differs
+from the default. For Postgres, execute the same column list with your SQL client
+and use an RFC 3339 timestamp for `created_at`. Keep the secret out of shell
+history and source control in production.
+
+The URL segment is looked up against the registration's `name`, `url_path`, or
+`source`; the example deliberately sets `source` to the URL segment
+`docs-demo` (`internal/webhook/webhook.go:139-149,586-606`).
+
+#### 2. Sign and deliver the exact bytes
+
+The handler checks `X-Hub-Signature-256`, then `X-Signature-256`, then
+`X-Signature`; the first non-empty value wins. The value is the lowercase hex
+HMAC-SHA256 of the **raw body bytes**, keyed by the registration secret. A
+`sha256=` prefix is accepted but optional
+(`internal/webhook/webhook.go:282-294,626-634`). This runnable example signs the
+same shell variable that `curl --data-binary` sends:
+
+```bash
+BODY='{"event":"ping","message":"hello"}'
+SIGNATURE=$(printf '%s' "$BODY" \
+  | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -hex \
+  | cut -d ' ' -f 2)
+
+curl -i -X POST http://localhost:8090/webhooks/docs-demo \
+  -H 'Content-Type: application/json' \
+  -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+  -H 'X-Event-Type: ping' \
+  -H 'X-Delivery-ID: docs-demo-001' \
+  --data-binary "$BODY"
+```
+
+Once the wildcard mount is corrected, a new delivery returns:
+
+```http
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{"status":"accepted"}
+```
+
+`X-Event-Type` falls back to `X-GitHub-Event`, then `unknown`.
+`X-Delivery-ID` falls back to `X-GitHub-Delivery`; a repeated non-empty delivery
+ID returns `200` with `status: "duplicate"`
+(`internal/webhook/webhook.go:636-647,701-713`).
+
+#### 3. Understand validation and routing
+
+A missing or mismatched signature is **not rejected at the HTTP boundary**. The
+handler still stores the delivery, marks `signature_valid=false`, gives the
+event `quarantined` status, and returns the same `202 {"status":"accepted"}` as
+a new valid delivery. In the normal server wiring it also submits the body to
+the Cognitive Firewall quarantine inserter. This behavior follows
+`internal/webhook/webhook.go:634,649-697,712-713,739-744`.
+
+Registration fields currently behave as follows:
+
+| Registration field | Current runtime behavior |
+|---|---|
+| `event_types` | Stored as text, but not loaded by `rowToRegistration` or consulted by the HTTP handler. It does **not** filter deliveries today; the request headers determine `event_type` (`internal/webhook/webhook.go:773-799,636-643`). |
+| `target_session_id` | Copied onto the new `external_events.session_id` row (`internal/webhook/webhook.go:649-662`). It does not by itself wake the session. |
+| `target_workflow_id` | Copied onto `external_events.workflow_id` (`internal/webhook/webhook.go:649-662`). No workflow executor is invoked by this handler. |
+| `enabled` | `0` rejects the delivery with `403`; `1` permits ingestion (`internal/webhook/webhook.go:609-611`). |
+
+After valid ingestion the event starts as `pending`. Every five seconds the
+routing loop reads pending events and tests enabled `routing_rules` in ascending
+priority. A rule can match substrings of `source`, `event_type`, and payload; a
+match rewrites the event's session/workflow targets and marks it `routed`. A
+matched session target is changed from `waiting_sub` or `paused` to `idle`; a
+workflow target is recorded on the event, but this loop does not start a
+workflow (`cmd/consensus/main.go:237-239`,
+`internal/webhook/webhook.go:417-475,485-529`). Webhook events use the stored
+source value `webhook`, so routing rules should match `source_pattern='webhook'`
+and the delivered event type rather than the registration's source name.
+
+To verify the example delivery in SQLite:
+
+```bash
+sqlite3 "$DB_PATH" \
+  "SELECT source_id, event_type, signature_valid, status, session_id, workflow_id FROM external_events WHERE source_id = 'docs-demo-001';"
+```
+
+With the valid signature and no matching routing rule, the expected fields are
+`docs-demo-001|ping|1|pending||`.
+
+---
+
 ## Auxiliary Surfaces
 
 | Route | Auth | Description |
 |---|---|---|
 | `/mcp/*` | — | MCP server (SSE + message endpoints) |
-| `/webhooks/` | HMAC signature | Webhook ingestion (SPEC-013) |
+| `/webhooks/{source}` | HMAC-SHA256 signature | Webhook ingestion (SPEC-013); see [Webhooks](#webhooks) |
 | `/ui/` | — | Web admin console (proxies API via its own `/api/` path) |
 | `/chronicle/` | — | Chronicle investigation workbench |
 | `/instance`, `/instance/path`, `/instance/vcs`, `/instance/vcs/diff` | — (public) | opencode protocol shim (SPEC-017 §3.10) — singleton instance list, workspace `PathInfo`, live git branch info, and per-file diff stats; other upstream `/instance/*` sub-paths return 501, unknown sub-paths 404 |
