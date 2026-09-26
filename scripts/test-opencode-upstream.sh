@@ -202,16 +202,58 @@ sanitize() {
 suite_index=0
 SUITE_LIST="$BACKUP_DIR/suites.txt"
 node -e 'for (const s of require(process.argv[1]).suites) console.log(s.path)' "$MANIFEST" >"$SUITE_LIST"
+
+suite_package_dir() {
+  case "$1" in
+    packages/opencode/*) printf '%s' packages/opencode ;;
+    packages/client/*) printf '%s' packages/client ;;
+    *) echo "ERROR: suite has no package mapping: $1" >&2; return 2 ;;
+  esac
+}
+
+suite_relative_path() {
+  case "$1" in
+    packages/opencode/*) printf '%s' "${1#packages/opencode/}" ;;
+    packages/client/*) printf '%s' "${1#packages/client/}" ;;
+    *) echo "ERROR: suite has no package-relative path: $1" >&2; return 2 ;;
+  esac
+}
+
+# Classify only after verifying Bun actually collected tests. A launcher/config
+# failure is a setup error and must never be presented as an upstream mismatch.
+classify_suite_result() {
+  result_rc=$1
+  result_log=$2
+  result_tests=$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' "$result_log" | awk 'END {print}')
+  result_pass=$(sed -nE 's/^([0-9]+) pass.*/\1/p' "$result_log" | awk 'END {print}')
+  result_fail=$(sed -nE 's/^([0-9]+) fail.*/\1/p' "$result_log" | awk 'END {print}')
+  if [ -z "$result_tests" ] || [ "$result_tests" -eq 0 ]; then
+    echo "SETUP_FAILURE"
+    return 0
+  fi
+  if [ "$result_rc" -eq 0 ] && [ "${result_fail:-0}" -eq 0 ]; then
+    echo "PASS"
+    return 0
+  fi
+  if [ "${result_fail:-0}" -gt 0 ]; then
+    echo "DIVERGENCE"
+    return 0
+  fi
+  echo "SETUP_FAILURE"
+}
+
 while IFS= read -r suite; do
   suite_index=$((suite_index + 1))
   slug=$(printf '%s' "$suite" | tr '/.' '__')
   raw_log="$BACKUP_DIR/$slug.raw.log"
   log="$EVIDENCE_DIR/$slug.log"
+  package_dir=$(suite_package_dir "$suite")
+  relative_suite=$(suite_relative_path "$suite")
   set +e
   (
-    cd "$CHECKOUT"
+    cd "$CHECKOUT/$package_dir"
     CONSENSUS_OPENCODE_BASE_URL="$BASE_URL" \
-      timeout 180 bun test --timeout 15000 --preload "$PRELOAD" "$suite"
+      timeout 180 bun test --timeout 15000 --preload "$PRELOAD" "$relative_suite"
   ) >"$raw_log" 2>&1
   rc=$?
   set -e
@@ -219,10 +261,11 @@ while IFS= read -r suite; do
   tests=$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' "$raw_log" | awk 'END {print}')
   passed=$(sed -nE 's/^([0-9]+) pass.*/\1/p' "$raw_log" | awk 'END {print}')
   failed=$(sed -nE 's/^([0-9]+) fail.*/\1/p' "$raw_log" | awk 'END {print}')
-  [ -n "$tests" ] || tests=unknown
+  result=$(classify_suite_result "$rc" "$raw_log")
+  [ -n "$tests" ] || tests=0
   [ -n "$passed" ] || passed=0
   [ -n "$failed" ] || failed=0
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$suite_index" "$suite" "$rc" "$tests" "$passed" "$failed" >>"$RESULTS"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$suite_index" "$suite" "$rc" "$tests" "$passed" "$failed" "$result" >>"$RESULTS"
 done <"$SUITE_LIST"
 
 adapter_hash=$(sha256sum "$PATCH" | cut -d ' ' -f 1)
@@ -244,20 +287,20 @@ preload_hash=$(sha256sum "$PRELOAD" | cut -d ' ' -f 1)
   echo
   echo "## Suite results"
   echo
-  echo "| # | Actual upstream suite | Exit | Tests | Pass | Fail | Full log |"
-  echo "|---:|---|---:|---:|---:|---:|---|"
-  while IFS="	" read -r index suite rc tests passed failed; do
+  echo "| # | Actual upstream suite | Exit | Tests | Pass | Fail | Classification | Full log |"
+  echo "|---:|---|---:|---:|---:|---:|---|---|"
+  while IFS="$(printf '\t')" read -r index suite rc tests passed failed result; do
     slug=$(printf '%s' "$suite" | tr '/.' '__')
-    echo "| $index | \`$suite\` | $rc | $tests | $passed | $failed | [$slug.log]($slug.log) |"
+    echo "| $index | \`$suite\` | $rc | $tests | $passed | $failed | $result | [$slug.log]($slug.log) |"
   done <"$RESULTS"
   echo
   echo "## Explicit divergences"
   echo
-  if awk -F '\t' '$3 != 0 { found=1 } END { exit !found }' "$RESULTS"; then
-    echo "The following upstream-owned assertions failed. They are compatibility gaps, not skips:"
+  if awk -F '\t' '$7 == "DIVERGENCE" { found=1 } END { exit !found }' "$RESULTS"; then
+    echo "The following upstream-owned assertions executed and failed. These are compatibility gaps, not skips:"
     echo
-    while IFS="	" read -r index suite rc tests passed failed; do
-      [ "$rc" -ne 0 ] || continue
+    while IFS="$(printf '\t')" read -r index suite rc tests passed failed result; do
+      [ "$result" = "DIVERGENCE" ] || continue
       slug=$(printf '%s' "$suite" | tr '/.' '__')
       echo "### \`$suite\`"
       echo
@@ -268,14 +311,18 @@ preload_hash=$(sha256sum "$PRELOAD" | cut -d ' ' -f 1)
       echo '```'
       echo
     done <"$RESULTS"
+  elif awk -F '\t' '$7 == "SETUP_FAILURE" { found=1 } END { exit !found }' "$RESULTS"; then
+    echo "At least one suite was NOT RUN because setup/collection failed; it is not an upstream divergence. See the suite result and log above."
   else
     echo "None. All named upstream suites passed against the shim."
   fi
+
+  status=0
+  if awk -F '\t' '$7 != "PASS" { found=1 } END { exit(found ? 0 : 1) }' "$RESULTS"; then
+    status=1
+  fi
+
 } >"$SUMMARY"
 
-status=0
-if awk -F '\t' '$3 != 0 { found=1 } END { exit(found ? 0 : 1) }' "$RESULTS"; then
-  status=1
-fi
 rm -f "$RESULTS"
 exit "$status"
