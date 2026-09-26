@@ -162,11 +162,11 @@ open http://localhost:8090/chronicle/    # macOS
 ```
 
 The config-file path is recommended because its database pool is explicit and
-reviewable, but a config file is no longer required for DeepSeek. With
-`DEEPSEEK_API_KEY` and `CONSENSUS_LLM_BASE_URL=https://api.deepseek.com/v1`,
-Consensus selects the DeepSeek-compatible `deepseek-v4-flash` model instead of
-the OpenAI default. Set `CONSENSUS_LLM_MODEL` to override that model and
-`CONSENSUS_LLM_PROVIDER` to override the provider. When no
+reviewable, but a config file is no longer required for DeepSeek. With only
+`DEEPSEEK_API_KEY` set, Consensus selects `https://api.deepseek.com/v1` and the
+DeepSeek-compatible `deepseek-v4-flash` model instead of the OpenAI defaults.
+Set `CONSENSUS_LLM_BASE_URL`, `CONSENSUS_LLM_MODEL`, or
+`CONSENSUS_LLM_PROVIDER` to override those choices. When no
 `database.max_open_conns` is supplied, Consensus uses the fixed default pool of
 8 connections. The `database.max_open_conns` override applies to both backends:
 SQLite passes it to the driver as the connection cap (falling back to 4
