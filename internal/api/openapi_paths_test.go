@@ -38,6 +38,7 @@ import (
 	"github.com/wojons/consensus/internal/db"
 	"github.com/wojons/consensus/internal/mcp"
 	"github.com/wojons/consensus/internal/shim/opencode"
+	"github.com/wojons/consensus/internal/webhook"
 )
 
 // emptyDB answers every query with no rows: enough for auth middleware to
@@ -65,6 +66,9 @@ func (emptyDB) Close() error        { return nil }
 func newFullDeployServer() http.Handler {
 	apiSrv := api.NewServer(api.ServerConfig{DB: emptyDB{}, Addr: ":0"})
 	mux := apiSrv.Handler().(chi.Router)
+
+	webhookStore := webhook.New(emptyDB{})
+	mux.Handle("/webhooks/*", webhookStore)
 
 	mux.Handle("/mcp/*", mcp.NewServer(emptyDB{}).Handler())
 	// The bare mount mirrors production wiring: chi's "/mcp/*" wildcard does
