@@ -165,6 +165,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/session", s.handleSessions)
 	mux.HandleFunc("/session/", s.handleSessionByID)
 
+	// Fixed-workspace compatibility routes used by the upstream HttpApi.
+	mux.HandleFunc("/path", s.handlePath)
+	mux.HandleFunc("/log", s.handleLog)
+	mux.HandleFunc("/question/", s.handleQuestionByID)
+
 	// Doc
 	mux.HandleFunc("/doc", s.handleDoc)
 
@@ -245,6 +250,8 @@ func (s *Server) Handler() http.Handler {
 var MountPatterns = []string{
 	"/global/*",
 	"/session", "/session/*",
+	"/path", "/log",
+	"/question", "/question/*",
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
@@ -292,6 +299,15 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		// loopback-bound listener (the default); do not expose it on a
 		// non-loopback interface.
 		if p := r.URL.Path; p == "/instance" || strings.HasPrefix(p, "/instance/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// The pinned upstream HttpApi sends fixed-workspace requests without
+		// Consensus credentials and identifies them with x-opencode-directory.
+		// Exempt only the exact compatibility routes; all other shim and native
+		// API routes retain Consensus authentication.
+		if isFixedWorkspaceCompatibilityRequest(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -703,12 +719,19 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	if agentName == "" {
 		agentName = "opencode-agent"
 	}
+	goal := req.Goal
+	if goal == "" {
+		goal = req.Title
+	}
+	if goal == "" {
+		goal = agentName
+	}
 
 	// Try service layer first (SPEC-017 §2: shim calls native API)
 	if s.svc != nil {
 		result, err := s.svc.CreateSession(r.Context(), SessionCreateInput{
 			AgentName:     agentName,
-			Goal:          req.Goal,
+			Goal:          goal,
 			ModelID:       req.Model,
 			ContextBudget: 128000,
 		})
@@ -736,12 +759,12 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 			"api_key":   result.APIKey,
 			"createdAt": result.CreatedAt,
 		}
+		setFixedWorkspaceSyncFence(w, r, result.SessionID)
 		writeJSON(w, resp)
 		return
 	}
 
 	// Fallback: raw DB access (backwards-compatible; used when svc is nil in tests)
-	goal := req.Goal
 	modelID := req.Model
 
 	sessionID := newUUID()
@@ -807,7 +830,18 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	})
 	resp["api_key"] = apiKey
 
+	setFixedWorkspaceSyncFence(w, r, sessionID)
 	writeJSON(w, resp)
+}
+
+func setFixedWorkspaceSyncFence(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if !isFixedWorkspaceCompatibilityRequest(r) {
+		return
+	}
+	fence, err := json.Marshal(map[string]int{sessionID: 0})
+	if err == nil {
+		w.Header().Set("x-opencode-sync", string(fence))
+	}
 }
 
 func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
@@ -1066,6 +1100,35 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func isFixedWorkspaceCompatibilityRequest(r *http.Request) bool {
+	if strings.TrimSpace(r.Header.Get("x-opencode-directory")) == "" {
+		return false
+	}
+
+	switch {
+	case r.Method == http.MethodPost && r.URL.Path == "/session":
+		return true
+	case r.Method == http.MethodGet && r.URL.Path == "/path":
+		return true
+	case r.Method == http.MethodPost && r.URL.Path == "/log":
+		return true
+	case r.Method == http.MethodPost && isRequestActionPath(r.URL.Path, "/permission/", "reply"):
+		return true
+	case r.Method == http.MethodPost && (isRequestActionPath(r.URL.Path, "/question/", "reply") || isRequestActionPath(r.URL.Path, "/question/", "reject")):
+		return true
+	default:
+		return false
+	}
+}
+
+func isRequestActionPath(path, prefix, action string) bool {
+	if !strings.HasPrefix(path, prefix) {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(path, prefix), "/")
+	return len(parts) == 2 && parts[0] != "" && parts[1] == action
+}
+
 // isStubPath reports whether a path maps to an opencode-specific 501 stub
 // (SPEC-017 §3.9). These endpoints return NOT_IMPLEMENTED with zero data, so
 // auth is skipped for them — contract tests and unauthenticated clients get
@@ -1095,6 +1158,65 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))
+}
+
+func (s *Server) handlePath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	s.instancePath(w, r)
+}
+
+func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	var req struct {
+		Service string         `json:"service"`
+		Level   string         `json:"level"`
+		Message string         `json:"message"`
+		Extra   map[string]any `json:"extra"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed log body")
+		return
+	}
+	if req.Service == "" || req.Message == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "service and message are required")
+		return
+	}
+	if req.Level != "debug" && req.Level != "info" && req.Level != "warn" && req.Level != "error" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "level must be debug, info, warn, or error")
+		return
+	}
+	writeJSON(w, true)
+}
+
+func (s *Server) handleQuestionByID(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/question/")
+	parts := strings.Split(path, "/")
+	if r.Method != http.MethodPost || len(parts) != 2 || (parts[1] != "reply" && parts[1] != "reject") {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown question action")
+		return
+	}
+	requestID := parts[0]
+	if !strings.HasPrefix(requestID, "que") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "invalid question request id")
+		return
+	}
+	writeUpstreamRequestNotFound(w, "QuestionNotFoundError", requestID, "Question request not found: "+requestID)
+}
+
+func writeUpstreamRequestNotFound(w http.ResponseWriter, tag, requestID, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"_tag":      tag,
+		"requestID": requestID,
+		"message":   message,
+	})
 }
 
 // ============================================================================
@@ -1167,6 +1289,9 @@ func (s *Server) handleInstanceSub(w http.ResponseWriter, r *http.Request) {
 // {home, state, config, worktree, directory}.
 func (s *Server) instancePath(w http.ResponseWriter, r *http.Request) {
 	dir := s.workspaceDir()
+	if requested := strings.TrimSpace(r.Header.Get("x-opencode-directory")); requested != "" {
+		dir = filepath.Clean(requested)
+	}
 	home, _ := os.UserHomeDir()
 	writeJSON(w, map[string]any{
 		"home":      home,
@@ -1920,6 +2045,12 @@ func (s *Server) handlePermissionByID(w http.ResponseWriter, r *http.Request) {
 		s.getPermission(w, r, permID)
 	case sub == "resolve" && r.Method == http.MethodPost:
 		s.resolvePermission(w, r, permID)
+	case sub == "reply" && r.Method == http.MethodPost:
+		if !strings.HasPrefix(permID, "per") {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "invalid permission request id")
+			return
+		}
+		writeUpstreamRequestNotFound(w, "PermissionNotFoundError", permID, "Permission request not found: "+permID)
 	default:
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown permission action")
 	}

@@ -280,6 +280,8 @@ shim translates:
   - Calls native API with the resolved API key
 ```
 
+The shim preserves Consensus authentication by default. The one protocol-compatibility exception is an upstream fixed-workspace request carrying a non-empty `x-opencode-directory` header on the exact method/path set `POST /session`, `GET /path`, `POST /log`, `POST /permission/:id/reply`, and `POST /question/:id/{reply,reject}`. This exception applies only to the loopback-bound shim surface; it does not bypass authentication for neighboring shim routes or any native `/api/v1/*` route.
+
 ### 3.4 Message Format Mapping
 
 opencode messages have a specific structure with `info` and `parts`. The shim translates between opencode's format and Consensus's native API request/response shapes.
