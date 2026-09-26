@@ -11,7 +11,7 @@ description: >-
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open.
-version: 2.7.0
+version: 2.8.0
 category: software-development
 ---
 
@@ -162,6 +162,37 @@ Compiles first try; verified against a live server both runs.
 - **Everything else about MCP works**: 8 tools live, auth via
   `_meta.authorization`, tool latency ~10ms, list_tasks/claim_task functional.
   MCP tool round trip (send → poll reply) 1058ms warm with deepseek-chat.
+
+## Verified fixed 2026-09-26 @ 87340a0 (real-use re-verification of the 09-25 P1s)
+
+- **DF-CONSENSUS-29 (key mint) FIXED:** `POST /auth/keys` with
+  `{"scope":"session","session_id":"<sid>"}` returns a REAL 70-char
+  `cs_sk_…` secret. Request field is `scope` SINGULAR (spec: `scopes` → 400
+  `INVALID_REQUEST scope must be one of…`). The minted key works for
+  session create/message end-to-end.
+- **DF-CONSENSUS-27 (billing) FIXED:** after one conversational turn,
+  `agent_billing` has per-iteration rows (~$0.012/row deepseek-flash),
+  `GET /sessions/{id}/billing` returns entries+totals, session
+  `tokens_used_in/out` populated (17.9k/3.2k on a 2-iteration turn).
+  `consensus session cost <sid>` renders the same table.
+- **DF-CONSENSUS-28 (DELETE) FIXED as a SOFT delete:** DELETE → 200
+  (idempotent; re-DELETE also 200), then GET → 404, list omits it,
+  message → 410 GONE, PATCH → 404. The sessions ROW SURVIVES in the DB with
+  `deleted_at` set — that is the pinned spec (specs/015-api-and-mcp.md),
+  NOT a bug. Verify deletes through the API, never by grepping the table.
+
+## CLI surface (verified 2026-09-26)
+
+- Working: `status`, `session list/show/logs/cost/create`,
+  `memory list <sid>` (session id is POSITIONAL, not --session),
+  `tool list`, `models`. `--server` flag required unless :8090
+  (the probe against a non-consensus :8090 prints a clear hint).
+- **DF-CONSENSUS-33 (open):** `CONSENSUS_API_KEY` env documented in flag help
+  but NOT read — pass `--api-key` explicitly. Auth failures exit 0 (scripts:
+  check output, not rc).
+- **DF-CONSENSUS-34 (open):** no `session message` subcommand. A CLI
+  `session create --goal …` session NEVER starts (goal ≠ wake); you must POST
+  a user_instruction via REST to start it. CLI is inspection-only today.
 
 ## Historical landmines (2026-08/09-03 era — see "Verified working" above)
 

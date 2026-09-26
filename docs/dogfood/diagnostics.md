@@ -227,3 +227,38 @@ busy. Fix direction for the foreman: per-session dispatch (not one shared
 tick), a fire-on-message wake path instead of poll-only, and/or pprof
 (net/http/pprof) wired into serve so the parked goroutine stack can be dumped
 next time (goroutine?debug=2 would name the holder immediately).
+
+## 2026-09-26 addendum — fix-verification + CLI run (3rd angle)
+
+**What this run taught about the system's shape:**
+
+- The two write paths that drifted on 09-25 (REST `MessageService.SendMessage`
+  vs the MCP tool's hand-rolled INSERT, DF-CONSENSUS-24) are the same lesson
+  the key-mint fix (DF-CONSENSUS-29) repeats at the contract layer: when a
+  response schema is pinned only by a unit test, the handler and the schema
+  spec drift independently. The regression tests merged for DF-29 pin the
+  `api_key` response field against the served OpenAPI schema — that is the
+  right pattern; the `scope` (singular) request field is likewise a
+  spec-vs-intuition trap that now has test cover.
+- Soft-delete tombstones (DF-CONSENSUS-28) are invisible to a naive
+  verification pass: `SELECT * FROM sessions` still shows the row, which looks
+  like "delete broken" unless you know `deleted_at` is the tombstone and the
+  spec pins idempotent-200/404/410 semantics. Verification must go through
+  the API surface, not the raw table — the same trap as billing, where the
+  serve log showed tokens while the ledger didn't (pre-DF-27).
+- The CLI is a thin Cobra client over the same REST API, so every REST fix
+  automatically benefits it — but its auth plumbing is separate (Cobra flag
+  binding vs handler middleware), which is how the documented
+  CONSENSUS_API_KEY env var can be dead while the flag works (DF-CONSENSUS-33).
+  Lesson: a help string is an API contract; if the env binding isn't wired in
+  Cobra, the help lies.
+- The harness wake model remains the core architectural fact a new user must
+  learn: session creation is passive (status=booting); ONLY a
+  user_instruction message wakes planning. A `goal` alone never starts work —
+  via REST or CLI. Every "session stuck in booting" report (now including the
+  CLI-only path, DF-CONSENSUS-34) traces to this, not to a dispatch bug.
+- Install-from-zero is now proven on two distinct hosts (Debian bunker
+  09-25, Ubuntu 24.04 bunker-mvp 09-26). The go.mod `toolchain go1.26.5`
+  directive silently auto-downloads the right toolchain on hosts with an old
+  Go — a genuinely good fresh-user experience that the README's "install Go
+  1.26" note undersells (any go ≥1.21-ish works; the build fetches the rest).
