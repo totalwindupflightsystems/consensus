@@ -18,7 +18,7 @@
       "status": "merged",
       "gitreins_task": "df-consensus-33",
       "sha": "0e385c2",
-      "judge": "tier2 pending (wave-recovery tick; tier1-class gates green: build/vet/gofmt, full short suite, RED-proof, live probe ladder)",
+      "judge": "tier2 pending (job-ef250c52ebfa49c3b4686927bc97528e); tier1-class gates green",
       "merge": "merged 1cd6866"
     }
   ],
@@ -29,9 +29,10 @@
       "task": "DF-CONSENSUS-33",
       "merge_commit": "1cd6866",
       "worker_commit": "0e385c2",
-      "tier1": "foreman gates PASS (build/vet/gofmt, full short suite rc=0, RED-proof, live probe ladder :8096)",
+      "tier1": "foreman gates PASS (build/vet/gofmt, full short suite rc=0, RED-proof, live probe ladder)",
       "tier2": "pending"
     }
   ],
-  "recovered_by": "consensus-2026-09-24-08-33-20-nudge1 (second attempt; first recovery session merged 1cd6866 then died before board/push)"
+  "recovered_by": "consensus-2026-09-24-08-33-20-nudge1",
+  "status": "recovered"
 }

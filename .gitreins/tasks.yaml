@@ -603,3 +603,127 @@ tasks:
   status: complete
   created_at: '2026-09-25T17:22:40.500160+00:00'
   completed_at: '2026-09-25T17:53:21.732773+00:00'
+- id: qa-consensus-7
+  title: QA battery fail-closed hardening
+  criteria:
+  - 'The QA/dogfood battery wrapper fails closed: a run whose target agent/server
+    is unreachable exits nonzero and names the host; the post-collect summary counts
+    audited targets and refuses rc=0 when zero targets were audited; the pass line
+    prints the audited-target count'
+  - Summary phase treats 0 audited targets as a failure, not success
+  status: complete
+  created_at: '2026-09-25T18:37:05.301904+00:00'
+  completed_at: '2026-09-25T18:58:54.165347+00:00'
+- id: df-consensus-4
+  title: MCP surface discoverable from README
+  criteria:
+  - README's integration section surfaces /mcp/sse, /mcp/message?sessionId= and the
+    mcp-stdio subcommand (or links docs/INTEGRATION.md) so route guessing is unnecessary
+  - MCP routes are discoverable without reading INTEGRATION.md
+  status: complete
+  created_at: '2026-09-25T18:37:13.984955+00:00'
+  completed_at: '2026-09-25T18:58:13.651558+00:00'
+- id: df-consensus-17
+  title: Fix db.go MaxOpenConns doc-comment drift
+  criteria:
+  - internal/db/db.go MaxOpenConns comment no longer claims '(Postgres only)'; it
+    states accurately that both backends apply it (Postgres pool sizing; SQLite SetMaxOpenConns
+    with <=0 falling back to 4, per sqlite.go:90-94)
+  - MaxIdleConns comment stays Postgres-only but now states that the SQLite backend
+    does not consume this value yet, and grep confirms no '(Postgres only)' claim
+    remains on the MaxOpenConns comment; the new comments must match sqlite.go behavior
+  status: complete
+  created_at: '2026-09-25T18:37:14.104563+00:00'
+  completed_at: '2026-09-25T18:58:36.962670+00:00'
+- id: qa-consensus-4
+  title: Drop dead bunker-las-03 from bunker-ci.sh SERVERS
+  criteria:
+  - bunker-ci.sh's SERVERS list no longer includes the removed host bunker-las-03;
+    spawn loop never attempts it
+  - grep SERVERS shows only live hosts
+  status: complete
+  created_at: '2026-09-25T18:37:14.222363+00:00'
+  completed_at: '2026-09-25T18:59:10.855906+00:00'
+- id: DF-CONSENSUS-28
+  title: DELETE /api/v1/sessions/{id} soft-deletes for real
+  criteria:
+  - After DELETE /api/v1/sessions/{id} returns 200, the session is absent from GET
+    /api/v1/sessions, GET by id returns 404-style not-found, and POST message returns
+    4xx with no new ledger rows; the row still exists in the DB in a deleted state;
+    deleting twice does not 500
+  - New tests in internal/api cover delete, re-delete, list exclusion, get-not-found,
+    and message rejection; go build ./... and go vet ./... pass
+  status: complete
+  created_at: '2026-09-25T20:14:19.759979+00:00'
+  completed_at: '2026-09-25T20:53:59.558611+00:00'
+- id: df-consensus-27
+  title: Billing ledger dead on conversational path
+  criteria:
+  - A POST /api/v1/sessions/{id}/message turn that reaches the LLM records exactly
+    one agent_billing row whose prompt_tokens and completion_tokens match the LLM
+    usage for that call, and sessions.tokens_used_in/tokens_used_out include those
+    tokens - proven by a regression test driving a real or mocked LLM turn through
+    the REST message path on a fresh DB and asserting the row plus the session token
+    totals
+  - GET /api/v1/sessions/{id}/billing returns non-zero totals and one entry for that
+    turn; go build ./... and go vet ./... pass; go test -short -count=1 ./... green
+  status: complete
+  created_at: '2026-09-25T22:36:32.893402+00:00'
+  completed_at: '2026-09-26T00:25:03.045014+00:00'
+- id: df-consensus-29
+  title: Minted API key secret is redacted in the mint response
+  criteria:
+  - POST /api/v1/auth/keys with an admin key returns the full usable secret in the
+    api_key field with no literal '...' placeholder, and the returned value differs
+    from key_prefix and authenticates a subsequent API call - proven by a test asserting
+    the minted api_key contains no '...' and works on a later request
+  - docs/API.md Key management endpoints text matches the implemented show-once response,
+    existing prefix-only listing redaction unchanged, go build and go vet pass, new
+    and existing tests green
+  status: complete
+  created_at: '2026-09-25T22:36:33.037593+00:00'
+  completed_at: '2026-09-26T00:26:00.196343+00:00'
+- id: df-consensus-30
+  title: Require auth on SSE /api/v1/events with session scoping
+  criteria:
+  - GET /api/v1/events?session_id=X with no or invalid key returns 401 with the standard
+    error envelope
+  - A valid admin key connects and streams as before (first 'connected' frame arrives)
+  - A session-scoped key bound to a different session is rejected 403 before any event-stream
+    headers are sent
+  - docs/API.md and any specs text no longer describe the route as unauthenticated;
+    go build, go vet and go test -short -count=1 ./... all pass
+  status: complete
+  created_at: '2026-09-26T00:41:21.485129+00:00'
+  completed_at: '2026-09-26T01:25:08.142856+00:00'
+- id: df-consensus-33
+  title: 'DF-CONSENSUS-33: CLI must read CONSENSUS_API_KEY env var (flag > env > config
+    precedence)'
+  criteria:
+  - 'An exported valid CONSENSUS_API_KEY authenticates CLI API calls exactly like
+    --api-key: with the env var set and no --api-key flag, the Authorization header
+    carries the env key (regression tests internal/cli/root_test.go TestExecute_APIKeyFromEnv_ReachesWire
+    and TestExecute_Entry_APIKeyFromEnv)'
+  - 'Precedence holds at runtime: --api-key beats CONSENSUS_API_KEY, env beats the
+    consensus.yaml config file (resolveDefaults unit matrix plus the wire tests in
+    root_test.go)'
+  - "Auth failures exit non-zero per SPEC-016: no key prints 'UNAUTHENTICATED: missing\
+    \ API key' and exits 4; a bogus key (flag or env) exits 4 \u2014 exitCode() UNAUTHENTICATED\
+    \ mapping"
+  status: complete
+  created_at: '2026-09-26T04:21:57.975394+00:00'
+  completed_at: '2026-09-26T04:22:34.458221+00:00'
+- id: df-consensus-34
+  title: CLI can drive an agent conversation (session message subcommand)
+  criteria:
+  - consensus session message <session-id> <text> sends POST /api/v1/sessions/{id}/message
+    with {content, type:user_instruction} and prints the response
+  - 'CLI-only flow reaches a reply without curl: session create --goal followed by
+    session message results in the session running (iteration >= 1)'
+  - session create output prints the wake instruction that a user_instruction message
+    is required to start the agent
+  - regression tests in internal/cli cover the new subcommand wiring and pass in the
+    full short suite
+  status: complete
+  created_at: '2026-09-26T04:26:45.769822+00:00'
+  completed_at: '2026-09-26T05:17:49.346519+00:00'
