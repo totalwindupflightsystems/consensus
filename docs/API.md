@@ -54,15 +54,27 @@ curl http://localhost:8090/api/v1/health
 
 ---
 
-## Event Stream (no auth)
+## Event Stream
 
 ### `GET /api/v1/events`
 
-Server-Sent Events (SSE) stream. No authentication — session isolation is
-enforced via the `session_id` query parameter.
+Server-Sent Events (SSE) stream. Requires a valid API key (DF-CONSENSUS-30):
+
+| Client | Result |
+|---|---|
+| No / invalid / expired key | `401 UNAUTHENTICATED` |
+| `admin` or `readonly` key | `200` — any `session_id`, or the global stream without one |
+| `session` key bound to session X, `session_id=X` | `200` — the stream for X |
+| `session` key bound to X, foreign/absent `session_id` | `403 FORBIDDEN` |
+
+401/403 are the standard JSON error envelope, written before any
+`text/event-stream` header. Browsers' `EventSource` cannot send
+authorization headers — the Chronicle dashboard falls back to memory
+polling automatically.
 
 ```bash
-curl -N "http://localhost:8090/api/v1/events?session_id=<session-uuid>"
+curl -N -H "Authorization: Bearer <key>" \
+  "http://localhost:8090/api/v1/events?session_id=<session-uuid>"
 ```
 
 Emits `event:` frames as sessions progress (message created, tool executed,

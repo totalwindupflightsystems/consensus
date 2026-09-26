@@ -131,12 +131,15 @@ func NewServer(cfg ServerConfig) *Server {
 	// Health (no auth)
 	r.Get("/api/v1/health", s.handleHealth)
 
-	// SSE event stream (no auth — session isolation via query param)
-	r.Get("/api/v1/events", s.HandleSSE)
-
 	// Authenticated API routes
 	r.Group(func(r chi.Router) {
 		r.Use(s.authMiddleware)
+
+		// SSE event stream (DF-CONSENSUS-30): requires a valid key. A
+		// session-scoped key may only stream its own session — the
+		// per-session scope check lives in HandleSSE, before any
+		// text/event-stream header is written.
+		r.Get("/api/v1/events", s.HandleSSE)
 
 		// Sessions
 		r.Post("/api/v1/sessions", s.handleCreateSession)

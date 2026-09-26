@@ -308,10 +308,29 @@ Supabase Realtime provides WebSocket subscriptions for frontend dashboards.
 
 ### 4.2 Server-Sent Events
 
-The Go binary serves SSE for all real-time updates, regardless of database backend:
+`GET /api/v1/events` streams all real-time updates regardless of database
+backend. The endpoint sits behind the same API-key wall as every other
+`/api/v1` route (§2) — a session UUID alone grants nothing (DF-CONSENSUS-30):
+
+| Client | Result |
+|---|---|
+| No / invalid / expired key | `401 UNAUTHENTICATED` (JSON error envelope, §6) |
+| `admin` or `readonly` key | `200` — any `?session_id=X`, or the global stream when the parameter is absent |
+| `session` key bound to session X, `?session_id=X` | `200` — the stream for X |
+| `session` key bound to X, `?session_id=Y` (Y ≠ X) or no `session_id` | `403 FORBIDDEN` |
+
+The auth and scope checks run BEFORE any `text/event-stream` header is
+written, so rejected clients always receive a plain JSON error response —
+once streaming headers go out, an error status can no longer be sent.
 
 ```go
 func HandleSSE(w http.ResponseWriter, r *http.Request) {
+    // Auth is enforced by route middleware (§2); the session-scope check
+    // must run before any text/event-stream header is set so 401/403
+    // remain ordinary JSON error envelopes.
+    if !checkSessionAccess(w, r, r.URL.Query().Get("session_id")) {
+        return
+    }
     flusher, ok := w.(http.Flusher)
     if !ok {
         http.Error(w, "streaming not supported", http.StatusInternalServerError)
@@ -337,6 +356,11 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
     }
 }
 ```
+
+Clients that cannot send an `Authorization` header (browsers'
+`EventSource`) cannot open this stream directly; they must proxy through
+something that can, or fall back to polling (the Chronicle dashboard falls
+back to memory polling automatically).
 
 On Postgres, the event bus is powered by LISTEN/NOTIFY. On SQLite, it uses Go channels populated by database change hooks.
 

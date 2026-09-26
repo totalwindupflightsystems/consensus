@@ -142,7 +142,26 @@ func (eb *EventBus) PublishQuarantineEvent(sessionID, eventType string, eventDat
 // HandleSSE serves a Server-Sent Events stream for real-time updates.
 // Clients connect with ?session_id=<id> to subscribe to a specific session,
 // or without for global events.
+//
+// Authentication + scoping (DF-CONSENSUS-30): the route sits inside the
+// authenticated group, so a valid key is guaranteed here. A session-scoped
+// key may only stream its own session — the global stream (no session_id)
+// and foreign sessions are rejected 403 BEFORE any text/event-stream header
+// is written, mirroring the REST layer's scoped-key wall.
 func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+
+	// Scoped-key wall: 401/403 must be written before any event-stream
+	// header, so the scope check runs before the streaming setup below.
+	scope := GetAuthScope(r)
+	if scope == "session" {
+		bound := GetAuthSessionID(r)
+		if sessionID == "" || sessionID != bound {
+			writeError(w, r, http.StatusForbidden, "FORBIDDEN", "session key can only stream its own session")
+			return
+		}
+	}
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
@@ -154,7 +173,6 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no") // disable nginx buffering
 
-	sessionID := r.URL.Query().Get("session_id")
 	id, ch := s.events.Subscribe(sessionID)
 	defer s.events.Unsubscribe(sessionID, id)
 
