@@ -79,12 +79,17 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 	}, nil
 }
 
-// close cleans up the test harness.
+// close cleans up the test harness. In WAL mode SQLite keeps
+// <tmpPath>-wal and <tmpPath>-shm sidecar files beside the main database
+// file, so all three must be removed (missing sidecars are not an error —
+// SQLite deletes them itself on a clean last-connection close).
 func (th *testHarness) close() {
 	th.cancel()
 	th.conn.Close()
 	if th.tmpPath != "" {
 		os.Remove(th.tmpPath)
+		os.Remove(th.tmpPath + "-wal")
+		os.Remove(th.tmpPath + "-shm")
 	}
 }
 
