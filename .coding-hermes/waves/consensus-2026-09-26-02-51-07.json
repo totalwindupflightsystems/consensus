@@ -1,0 +1,37 @@
+{
+  "tick_id": "consensus-2026-09-26-02-51-07",
+  "created_at": "2026-09-25T21:00:00-05:00",
+  "wave_budget": 1,
+  "mode": "serial-wave-of-1",
+  "workers": [
+    {
+      "task_id": "DF-CONSENSUS-33",
+      "title": "CLI must read CONSENSUS_API_KEY env var (flag > env > config precedence)",
+      "worktree": "/home/kara/worktrees/consensus-DF-CONSENSUS-33",
+      "branch": "wt/DF-CONSENSUS-33",
+      "base": "origin/master",
+      "base_sha": "29ae3fb",
+      "model": "glm-5.3-flash",
+      "provider": "xkiro",
+      "brief_file": "/tmp/consensus-DF-CONSENSUS-33-brief.md",
+      "dispatch_script": "/tmp/consensus-tick-025107-dispatch.sh",
+      "status": "merged",
+      "gitreins_task": "df-consensus-33",
+      "sha": "0e385c2",
+      "judge": "tier2 pending (wave-recovery tick; tier1-class gates green: build/vet/gofmt, full short suite, RED-proof, live probe ladder)",
+      "merge": "merged 1cd6866"
+    }
+  ],
+  "merge_plan": "serial merge of wt/DF-CONSENSUS-33 to master after foreman verification (build+vet+focused tests+live probe ladder), gate each merge",
+  "finished_at": "2026-09-26 04:18:00",
+  "merge_result": [
+    {
+      "task": "DF-CONSENSUS-33",
+      "merge_commit": "1cd6866",
+      "worker_commit": "0e385c2",
+      "tier1": "foreman gates PASS (build/vet/gofmt, full short suite rc=0, RED-proof, live probe ladder :8096)",
+      "tier2": "pending"
+    }
+  ],
+  "recovered_by": "consensus-2026-09-24-08-33-20-nudge1 (second attempt; first recovery session merged 1cd6866 then died before board/push)"
+}
