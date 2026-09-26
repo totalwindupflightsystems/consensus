@@ -341,8 +341,10 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	// These explicit overrides make the documented env-only deployment path
 	// take precedence over llm.provider/default_model from a config file.
+	providerFromEnv := false
 	if v := os.Getenv("CONSENSUS_LLM_PROVIDER"); v != "" {
 		cfg.LLM.Provider = v
+		providerFromEnv = true
 	}
 	if v := os.Getenv("CONSENSUS_LLM_MODEL"); v != "" {
 		cfg.LLM.DefaultModel = v
@@ -376,6 +378,13 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
 		cfg.LLM.APIKey = v
+		// DEEPSEEK_API_KEY is a provider signal only when no endpoint or
+		// provider override was configured. Preserve explicit environment and
+		// config-file choices; otherwise make the README's env-only contract
+		// real instead of sending the DeepSeek key to OpenAI.
+		if cfg.LLM.BaseURL == "" && !providerFromEnv && cfg.LLM.Provider == "openai" {
+			cfg.LLM.BaseURL = "https://api.deepseek.com/v1"
+		}
 		baseURL, err := url.Parse(cfg.LLM.BaseURL)
 		usesDeepSeek := err == nil && strings.EqualFold(baseURL.Hostname(), "api.deepseek.com")
 		if usesDeepSeek && cfg.LLM.DefaultModel == "" {
