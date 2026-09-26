@@ -71,7 +71,7 @@ Run migrations independently before starting the server:
 ./bin/consensus migrate up --db-url postgres://user:pass@host:5432/consensus
 
 # Rollback last migration (emergency only)
-./bin/consensus migrate down --db-url postgres://user:pass@host:5432/consensus
+./bin/consensus migrate rollback --db-url postgres://user:pass@host:5432/consensus
 ```
 
 ### Migration Safety
@@ -142,7 +142,7 @@ kill <PID>  # or systemctl stop consensus
 cp bin/consensus.prev bin/consensus  # if you kept a backup
 
 # 3. Rollback database (if schema changed)
-./bin/consensus migrate down --db-url postgres://user:pass@host:5432/consensus
+./bin/consensus migrate rollback --db-url postgres://user:pass@host:5432/consensus
 
 # 4. Restart
 ./bin/consensus serve --db-url postgres://user:pass@host:5432/consensus
