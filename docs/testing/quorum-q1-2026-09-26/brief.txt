@@ -1,0 +1,143 @@
+QUORUM #1 — REVIEW BRIEF (claim checklist, not vibes)
+Round: quorum-consensus-test-plan-STRESS-v2
+Date: 2026-09-26
+Seat role: INDEPENDENT JUDGE. Work the ENTIRE checklist below. You are not assigned a sub-area.
+
+== 0. STAKES ================================================================
+What breaks if this review is wrong: the fleet has already closed a testing task on
+ZERO executed tests, and the same 284-step plan is about to be converted into
+subgoals and run as the project's proof of working software. If your review passes a
+step whose check can go green while the PRODUCT does nothing, the next "green run" is
+worthless and a whole bunker run is burned.
+
+Prior failure classes, by name (these are the sins this round exists to catch):
+  (a) built read as done — the field/runner/row was added, so it was marked working
+  (b) existence-as-proof — a grep/test -f shows the symbol exists, not that it acts
+  (c) success-marker string checks — parsing a log line for "OK" instead of an effect
+  (d) silent-skip paths — a step that reports PASS when it audited nothing
+  (e) green-but-did-nothing — exit 0 on a command that never exercised the claim
+  (f) lowering the bar to fit a lane — reshaping a requirement so a weak check passes
+
+LIVE INCIDENT THIS ROUND MUST EXPLAIN (measured, today):
+  Row C-GAP-032-ALPHA was closed `complete` with commit 20aedff. That commit only edits
+  scripts/test-opencode-upstream.sh. The ONLY committed run evidence (44ba641) records
+  all four upstream suites exiting 1 with tests=0/pass=0/fail=0; the four committed
+  "logs" in docs/evidence/opencode-upstream-v1.18.29/ are 189 bytes each of:
+  `bun test v1.3.14 ... Failed to scan non-existent root directory for tests:
+   ".../do-not-run-tests-from-root"`. Zero upstream assertions ever executed. The
+  closing report quoted pass/fail numbers that appear in NO committed artifact.
+
+== 1. FILES — READ THESE, DO NOT REVIEW FROM MEMORY ========================
+All paths absolute. Read the actual files.
+  PLAN (markdown, 568 lines):   /home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md
+  PLAN (machine manifest, 284): /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json
+  BOARD (JSONL, last-wins):     /home/kara/consensus/.coding-hermes/board/tasks.jsonl
+  TIER-SWEEP ARTIFACT (17 rows):/home/kara/consensus/docs/testing/evidence/tier-sweep-2026-09-24/tier-sweep-v2.json
+  FAILED UPSTREAM EVIDENCE:     /home/kara/consensus/docs/evidence/opencode-upstream-v1.18.29/summary.md
+  DOGFOOD RECORDS:              /home/kara/consensus/docs/dogfood/2026-09-25-integration.md
+                                /home/kara/consensus/docs/dogfood/2026-09-26-fix-verification-cli.md
+
+Manifest record shape (per test): id, tier, title, command, expected, artifact,
+pass_criteria, falsifier, defect_gate, proposed_by, converged.
+
+== 2. PRE-RUN FACTS — trust these; they were executed by the coordinator =====
+Evidence class: MEASURED. Do not re-run these; spend your budget on the checklist.
+ P1. Manifest: canonical=284, converged=7, defect_gate set on 224 of 284.
+     Tier counts: T0 25, T1 34, T2 30, T3 22, T4 28, T5 17, T6 23, T7 29, T8 25,
+     T9 18, T10 19, GATE 3, S3 1, S4 4, S5 1, T7a 2, T7b 1, S1 2.
+ P2. Verification-shape census over the 284 `command` fields (coordinator script):
+     existence-only 19, mixed(existence+behaviour) 9, behaviour 63, unclassified-other
+     193. The 19 existence-only examples include T6 C-036 (grep for a commit hash in
+     summary.md), T7 C-039 (grep for CRIER_HTTP_URL / crier.*inbox), T1 C-066
+     (ss -tlnp | grep :8090), T1 C-067 (yq .paths|keys + wc -l).
+ P3. Tier sweep ACTUALLY RUN on bunker-las-01 (2026-09-24, 17 recorded rows):
+     T0 PASS (build 53s, binary 25,868,179 B, version 0.1.0) · T1 FAIL (60 declared
+     paths vs 59 registered; /mcp 404; /api/v1/tasks/{taskId} 405; 5x 501 stubs;
+     auth 51/58 -> 401) · T2 PASS (live answer 391, 1676 in/95 out, billing row
+     0.009805) · T3 PASS (tool execute 200 row_count=39; tool_requests audit rows 0)
+     · T4 covered only by the T2 smoke (the sweep driver never drove a conversation
+     so its own T4 assertions failed vacuously — runner gap, disclosed) · T5 FAIL
+     (/mcp 404; POST /mcp/message 400 "missing sessionId" even when sessionId sent)
+     · T8a PASS (breaker -> paused in 14s) · T8b PASS (restart, sessions 1->1) ·
+     T10 PARTIAL (tasks list 200, create 400 unmarshal error).
+ P4. NEVER RUN: T6 (pinned upstream TS suite — and see the C-GAP-032-ALPHA incident),
+     T7 (crier intake — the feature is a board row, not code), T9 (bounded load).
+ P5. Measured suites elsewhere: Go `-short` suite 31/31 packages ok (2026-09-24);
+     OpenCode contract port 46 subtests PASS; GitHub CI success on the last 8 runs.
+ P6. Board now: 137 rows, 116 complete, 21 pending. Open and relevant:
+     TEST-CONSENSUS-001 (P1 — this plan's execution; FAILED TWICE: one tick produced no
+     diff after an 11-minute init stall), C-GAP-032-ALPHA (P1 — reopened today),
+     MUSTER-INT-001 (P1), CR-IN-001 (P2), DF-CONSENSUS-32/35 (install leg; bunker-las-03
+     unreachable for three consecutive dogfood runs), QA-CONSENSUS-1/2/7 (battery).
+ P7. The plan is NOT hypothetical: it was built by a 5-seat quorum on 2026-09-24
+     (gpt-5.6-sol@openai-codex, deepseek-v4.1-flash@synthetic, glm-5.3-flash@zai-glm,
+     kimi-k3@neuralwatt, qwen3.7-max@opencode-go) and 7 tests converged across
+     independent families.
+
+== 3. THE CLAIM CHECKLIST — verdict every claim =============================
+Format each verdict: CLAIM n | ACCEPTED | CONTRADICTED | UNRESOLVED | evidence =
+path:line or command output | why.
+
+ C1. EFFECT-NOT-EXISTENCE. For each tier, state whether its checks grade an OBSERVABLE
+     EFFECT (a row appears, a reply arrives, a counter moves) or the ARTIFACT'S
+     EXISTENCE. Name every test you judge existence-only and rewrite its done-when as
+     an outcome. Expected: the 19 existence-only + 9 mixed from P2 are the minimum set
+     you must rule on — and say if the 193 "unclassified" hide more.
+
+ C2. FALSE-GREEN EXPOSURE. Which tests can pass while the product does nothing? The
+     plan's own guards are C-122 (defect gate), C-123 (VOID: tier with zero observables),
+     C-124 (secret scan), C-187 (battery exits 2 when audited_targets==0), C-230
+     (re-derivation), C-284 (HTML + recompute commands). Adversarially: does ANY of them
+     actually block a false green, or are they declarations? Cite the command text.
+
+ C3. EXECUTABILITY AS WRITTEN. Pick 12 tests across >=5 tiers and check each `command`
+     literally: are $RUN_ROOT/$EV/$BASE/$TARGET_SHA defined anywhere in the plan, do the
+     referenced paths exist, are tools assumed (yq, ss, jq, sqlite3, bun, ab/hey)
+     present on a bare bunker? A command that cannot run as written is a step that will
+     be silently skipped. Expected output: the list of undefined variables/tools.
+
+ C4. DECIDABILITY OF pass_criteria. Flag every pass_criteria that is not decidable by a
+     machine or by a stated number ("works", "valid response", "exists"). Name the
+     replacement criterion.
+
+ C5. SURFACE COVERAGE against the owner's actual ask. The owner asked for proof of:
+     real LLM answers, real agent loops, real session tracking, real tool calls, fake
+     "baby" projects, MCP access for an arbitrary agent, and messages via crier. Map each
+     to tiers and say what is UNDER-covered or missing entirely. Note that T9 (bounded
+     load) and T7 (crier) are unrun and T6's evidence is void.
+
+ C6. SUBGOAL CONVERTIBILITY. This is the deliverable the owner asked for. For the THREE
+     tiers you judge most likely to fail or to false-green, produce a subgoal sketch in
+     THIS exact shape (one per subgoal):
+       SG-n <imperative title>
+         done-when:  <checkable condition + the command that checks it>
+         evidence:   <artifact path the proof will live at>
+         depends-on: <SG-x | none>
+         falsifier:  <what would show this subgoal is unnecessary or wrong>
+     Smallest decisive step first. Prefer the subgoal that could kill the plan early.
+
+ C7. REPEAT-OFFENSE SECTION (mandatory). What in THIS artifact causes the SAME failure
+     classes (a)-(f) above to recur? Look specifically for: credential paths, success-
+     marker string checks, state ladders, silent-skip paths, requirements weakened to fit
+     a lane, and green-but-did-nothing steps.
+
+ C8. THE INCIDENT. Given the C-GAP-032-ALPHA false closure: name the mechanism in the
+     PLAN that allowed a "0 tests executed" run to be reported as a completed testing
+     task, and the single change to the plan that would have made that impossible.
+
+== 4. OUTPUT FORMAT — MANDATORY, IN THIS ORDER ==============================
+ 1. VERDICTS: C1..C8, each with disposition + evidence + one-line why.
+ 2. CORRECTIONS RANKED: the fixes to the plan, highest value first, each citing the
+    test id(s) it changes.
+ 3. NEW VERIFIED FACTS you established that were not in the pre-run list.
+ 4. TOP FIXES: your top 5, ranked, with the failure class each one closes (a)-(f).
+ 5. IF YOU CANNOT FINISH: say exactly which claim you did not reach. An unfinished
+    review is a failed review; do not pad with restatement.
+ 6. FINAL LINE, exactly: PANEL REVIEW COMPLETE
+
+BUDGET: verdict sections are mandatory and come FIRST. Cap verification experiments at
+3 commands. Prefer reading the files over re-running the system. You have no network
+access assumptions beyond the local files listed in section 1.
+You are a READ-ONLY judge: do not start servers, do not spawn background processes, do
+not run docker, ssh, or any bunker command, and do not modify any file. Cite what you
+read. A verdict without file/line evidence is a vibe.

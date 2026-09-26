@@ -1,0 +1,100 @@
+All reads done. Verdicts below are grounded in the files; every census was re-derived from the manifest, not taken from the brief.
+
+---
+
+1. VERDICTS
+
+C1 | EFFECT-NOT-EXISTENCE | CONTRADICTED (partially) — the plan is mostly effect-graded, but 19 of its 284 rows grade existence or log-strings, and two of them are exactly where the incident happened.
+Evidence: my census over the 284 `command` fields (grep/test/wc-shaped, no side-effect verb): 22 rows; overlapping the brief's 19. Named existence-only/marker rows: C-036, C-039, C-066 (cmd), C-067, C-076, C-096, C-163, C-191, C-192, C-231, C-236, C-268, plus census/hygiene rows C-180/C-227 (acceptable). The 193 "unclassified" do NOT hide a second population of greps — I sampled ~30 and they are real curl/sqlite3/bun/make behaviour commands — but the false-green risk migrates from command to pass_criteria there ("result present" C-092, "error field present" C-095, "all three" C-110). Rewrites: C-036 → "committed results.tsv has ≥4 suite rows, Classification≠SETUP_FAILURE, Σ tests>0" (today C-036's two greps both PASS against the void run's committed summary.md:5-6 — measured); C-039/C-163/C-268 → "count of crier-origin user_message rows with provenance > 0 in DB after a delivered message" (and C-163/C-268 are duplicate greps of the same thing — convergence amplified an existence check); C-076 → assert assistant message rows + billing rows in DB, not log strings; C-191 → assert pool behavior (max_open_conns=5 in effect), not a commit hash in history.
+Why: the two T6 provenance greps and the three crier greps grade artifacts the runner or a future commit writes — the exact (a)/(b) shape that closed C-GAP-032-ALPHA.
+
+C2 | FALSE-GREEN EXPOSURE | CONTRADICTED — of the six named guards, exactly one is executable as written, and it cannot fail correctly.
+Evidence (command texts, manifest): C-122 "re-read board… emit GREEN/RED/VOID" — prose, no executable body. C-123 "for each tier: assert its primary counter > 0" — prose, and no field declares any tier's "primary counter". C-284 "build single-file HTML" — prose. C-187 and C-230 call `scripts/battery/…` — that directory does not exist (measured `ls scripts/battery/` → No such file; same for rederive.sh, t7_roundtrip.sh, t9_load.sh, t3_agent_chain.sh referenced by C-206/C-219/C-226). C-124 runs but its rc semantics are inverted (grep exits 1 on a CLEAN bundle, 0 on a leak) and its pattern `sk-[A-Za-z0-9]{16,}` misses consensus's own `cs_ak_`/`cs_sk_` keys, which the runner's own sanitizer (test-opencode-upstream.sh sanitize()) does redact. C-231 ends `; echo rc=$?` → always exits 0; it cannot fail. The incident is proof-by-demonstration: a closed testing task with 0 executed tests passed all six guards.
+Why: guards that are declarations block nothing; a guard whose exit code lies is worse than none.
+
+C3 | EXECUTABILITY AS WRITTEN | CONTRADICTED — 200+ command slots reference variables the plan never defines; the guard scripts don't exist.
+Measured: `$RUN_ROOT` ×117, `$SRV` ×24, `$EV` ×22, `$BASE` ×17, `$KEY` ×14, `$RUN_ID` ×6, `$ADMIN_KEY` ×6, `$RUN` ×3, `$S1–$S4` ×9, `$TARGET_SHA` (self-referential only), `$B` ×1 — zero assignments anywhere in plan or manifest (grep `RUN_ROOT=` = 0; plan mentions of RUN_ROOT/TARGET_SHA/$EV/$BASE = 0). Only `$LOAD1` (C-051) is defined inline. Tools: yq MISSING on the control host (C-067); C-238 installs `golang-go nodejs npm` on the bunker but T6 needs `bun` (not installed) and egress; `sqlite3` used 19× but absent on a bare bunker; C-099 assumes an `opencode` CLI on PATH. Paths: `scripts/prove-opencode-cli.sh` exists ✓; `scripts/battery/*.sh` (4 refs) ✗ none exist. Contradiction: C-238 pins the bunker checkout at 77b990b while C-001 requires HEAD == `$TARGET_SHA` — two different pinned SHAs in one plan.
+Why: a step that cannot run as written is a step a runner will silently skip — class (d) is baked into the environment block.
+
+C4 | DECIDABILITY | CONTRADICTED — 189/284 pass_criteria carry neither a digit nor an operator word by my regex (strict subset genuinely undecidable, worst named below).
+Undecidable as written, with replacements: C-015 "All DB/API assertions true" → enumerate the assertion ids; C-024 "Nonce and result semantics present" → `result.rows_affected==39 and nonce in result JSON`; C-033 "IDs cross-check through REST and DB" → `id set from GET == id set from sqlite query, count>0`; C-039 → see C1; C-065 "both absent, recorded" → `test ! -e <path> for each of the 2 named paths`; C-092 "result present" → `jq '.result != null'`; C-095 "error field present" → `jq '.error.code == <expected>'`; C-096 "exact strings" → `diff <(grep -E ...) <(printf ...)`; C-100 "recorded only; must NOT be cited" → that is an instruction to a report writer, not a check — convert to a report-lint; C-110 "all three" → name the three.
+Why: "present" without a locator is a vibe with a checkbox.
+
+C5 | SURFACE COVERAGE | ACCEPTED with named gaps.
+Mapping: real LLM answers → T2 (30, verified live: sweep row "live answer 391, billing 0.009805"); real agent loops → T2 multi-turn + T3 (strong: C-206/C-251 hard `tool_requests>0`); real session tracking → T4 (28 rows on paper, but the sweep's T4 was covered only by the T2 smoke and its own rows are alarming: ledger-types FAIL types={}, billing-rows FAIL 0 rows, and "session-tokens" marked PASS with observed `('failed', 0, 0)` — the runner already false-greens, tier-sweep-v2.json:124-128); tool calls → T3 covered, but sweep shows audit path rows=0 (tool_results audit gap); baby projects → T10 covered and best-shaped (disk + nonce), currently failing on a real 400; MCP for an arbitrary agent → T5 cannot pass today (measured /mcp 404, POST /mcp/message 400 even with sessionId) and MCP-DIRECT-001 was closed by README docs — documentation is not discoverability; crier messages → T7 is phantom by construction (zero code; CR-IN-001 pending, P2) and its 32 rows cannot discharge the owner's ask until it lands. UNDER-COVERED overall: T4 (never really run), T5 (arbitrary-agent attach has zero measured PASS), T7 (absent), T6 (void evidence), T9 (unrun). The owner's ask is currently provable only for: LLM answers, multi-turn, tool execute, install.
+Why: 284 rows overstate coverage; the ask is discharged by ~4 tiers today.
+
+C6 | SUBGOAL CONVERTIBILITY | ACCEPTED — sketches for the three most false-green-prone tiers (T6, T4, T7), smallest decisive first:
+
+SG-1 Prove the upstream runner executes tests, not setups
+  done-when: `sh scripts/test-opencode-upstream.sh --base-url http://127.0.0.1:<shim-port>` exits 0 AND the committed results.tsv has ≥4 suite rows with Classification != SETUP_FAILURE AND sum(tests column) > 0 — checked by `awk -F'\t' 'END{exit !(NR>=4 && s>0 && f==0)} {s+=$4; if($7=="SETUP_FAILURE")f++}' results.tsv`
+  evidence: docs/evidence/opencode-upstream-v1.18.29/<run-date>/results.tsv + summary.md (committed in the same commit as the closure)
+  depends-on: none
+  falsifier: all four suites classify SETUP_FAILURE (bun/checkout/transport missing on the bunker) → C-GAP-032-ALPHA stays open, T6 reported PARTIAL, "upstream-verified" claim dies — this subgoal can kill the plan early, which is why it is first.
+
+SG-2 One live turn produces ledger + billing rows with exact counts
+  done-when: after 1 real round trip, `sqlite3 $DB "select count(*) from memory_events where session_id='<sid>'"` ≥ 3 AND `select count(*) from agent_billing where session_id='<sid>'` ≥ 1 with cost_usd > 0 AND billing model == served model, all asserted in one command chain that exits nonzero on any count==0
+  evidence: $EV/t4/ledger-billing.json + the sqlite dump
+  depends-on: none (independent of SG-1; needs the S1 key preflight)
+  falsifier: LLM call count != billing row count (the 1:1 check C-259) or cost re-derivation off the registry by >10% → the billing-table-vs-bill confusion (31.9x class) is live and T4 is not green.
+
+SG-3 One crier-delivered message becomes an agent-visible user turn
+  done-when: deliver via crier against live consensus → `sqlite3 $DB "select count(*) from memory_events where session_id='<sid>' and type='user_message' and provenance like 'crier:%'"` == 1 AND ack drains inbox (`queue_depth == 0` in GET stats)
+  evidence: $EV/t7/intake-proof.json (delivery receipt + DB row dump)
+  depends-on: CR-IN-001 implementation (this subgoal IS its acceptance test)
+  falsifier: delivery+ack round trip succeeds while crier-origin rows == 0 → intake not landed; T7 stays BLOCKED with the board id, never silently skipped.
+
+C7 | REPEAT-OFFENSE | CONTRADICTED — the artifact re-arms every named failure class:
+(a)/(b) built/existence read as done: C-036, C-039, C-163, C-268, C-192, C-191.
+(c) success-marker string checks: C-036 (greps a runner-written summary), C-076 (greps "llm: response received"), C-191.
+(d) silent-skip: the undefined `$RUN_ROOT` family (C3) makes ~200 steps unrunnable-as-written; C-163's "else tier BLOCKED" has no machine rule propagating BLOCKED into the gate.
+(e) green-but-did-nothing: C-231 always exits 0; C-124's rc is inverted for the clean case; C-187/C-230 would exit 127 (command-not-found) on the missing scripts — an rc a naive runner can misread.
+(f) bar-lowering: defect_gate uses "-" placeholders (31 rows) that the brief's own census counted as "set" (see Corrections #6); C-263's escape hatch "or EXPECTED-FAIL MCP-DIRECT-001" now points at a CLOSED row (board: complete, df33c39) so any T5 failure files against a closed id. Credential paths: `$KEY`/`$ADMIN_KEY` used 20× with no provisioning story, and the plan's secret scan does not know consensus's own key shapes (cs_ak_/cs_sk_) — the evidence bundle could leak a bootstrap key invisibly.
+
+C8 | THE INCIDENT | ACCEPTED (mechanism named; single change identified).
+Mechanism: the plan binds no executor to the manifest and no closure check to artifacts. Closure authority lived in the tick's narration — board event 396 claims "sdk-error-shape 2/2 PASS, client promise 7/7 PASS, instance 3/7 PASS, SDK 16/18 PASS", and I measured `git grep '16/18' HEAD` → those numbers exist ONLY in board files, in no evidence artifact; the committed summary.md says tests=unknown, pass=0, fail=0 with 189-byte setup-failure logs. Meanwhile the plan's own T6 existence check C-036 greps that same summary for the revision string and "Lock SHA-256" — both present (summary.md:5-6) — so the plan's T6 provenance test PASSES on the void run. Nothing in the manifest parses results.tsv (which didn't exist yet) or asserts executed>0 at closure time; §6's re-derivation rule applies at report time, which never came.
+The single change: make C-123 (VOID detection) executable against committed artifacts and run it as a precondition of board closure — i.e., a committed checker re-derives each tier's counter from $EV (for T6: Σ tests > 0 and 0 SETUP_FAILURE rows in results.tsv) and refuses the close. That converts §6's report-time rule into a closure-time gate and makes the C-GAP-032-ALPHA closure mechanically impossible.
+
+---
+
+2. CORRECTIONS RANKED
+
+1. Implement the GATE: write the checker that C-122/C-123/C-187 only describe; require its output embedded in every board-closure event. Changes: C-122, C-123, C-187, all 284 (as closure precondition). (Closes d, e; kills the incident class.)
+2. Executed-volume assertion on T6 evidence: replace C-036's two greps with results.tsv Σ-tests>0 / SETUP_FAILURE==0; bind C-159/C-216/C-265 to the same artifact. (Closes a, b, c.)
+3. Add an S0 environment block: define $RUN_ROOT, $EV, $BASE, $SRV, $KEY, $RUN_ID, $ADMIN_KEY, $TARGET_SHA once, assert it in a dedicated test, and reconcile C-238's 77b990b pin with C-001's $TARGET_SHA. Changes: C-001, C-238, ~200 downstream commands. (Closes d, e.)
+4. Rewrite the ~12 existence-only rows to outcomes (C1 list); merge C-163/C-268; demote C-067/C-192 to preflights now that C-240 does the twice-derived census. (Closes a, b.)
+5. Fix secret hygiene: C-124 pattern → `(cs_ak|cs_sk|sk)-?_[A-Za-z0-9]{16,}` matching the runner's own sanitizer; strip C-231's `echo rc=$?`; define rc semantics for both. Changes: C-124, C-231, C-237. (Closes e; removes an unreportable-run risk.)
+6. Fix the defect_gate census: 193 rows carry a real gate, 60 are empty and 31 are "-" placeholders — the brief's "set on 224" counts dashes as gates. Replace every "-" with a real id or explicit "none". (Closes f.)
+7. Decidability pass on the worst pass_criteria (C4 list). (Closes f, d.)
+8. Re-point C-263's expected-fail: MCP-DIRECT-001 is closed; a live escape hatch needs an open row id or none. (Closes f.)
+9. Add bun + sqlite3 + egress probe to C-238's bunker package list and pre-test T6 feasibility in S1 (the qwen seat's risk #3 is still open). Changes: C-238, C-035, C-265.
+10. Runner hygiene: tier-sweep "session-tokens PASS on ('failed',0,0)" shows the runner grades outcome-blind; require status check before token/billing assertions. Changes: T4 rows, C-187 scope.
+
+3. NEW VERIFIED FACTS (not in the pre-run list)
+
+1. Brief P1's "defect_gate set on 224 of 284" is wrong: 193 set / 91 unset (60 empty + 31 "-"); 224 is the unset-side count if dashes are generously included.
+2. C-036 as written PASSES against the void incident's committed evidence (revision + "Lock SHA-256" both in summary.md:5-6) — the plan's own T6 check cannot detect a 0-test run.
+3. scripts/battery/ does not exist; C-187, C-206, C-219, C-226, C-230 reference four scripts that are unwritten.
+4. The board event narrating the closure (event 396, "16/18" etc.) carries suite numbers that appear in no committed artifact (git grep '16/18' HEAD → board files only).
+5. The tier-sweep runner itself false-greened once: tier-sweep-v2.json marks "session-tokens" PASS with observed ('failed', 0, 0).
+6. C-163 and C-268 are the same grep twice — one of the 7 "converged" tests is duplicate existence, not independent strength.
+7. C-238 and C-001 pin contradictory SHAs (77b990b vs $TARGET_SHA).
+8. C-124's scan pattern misses cs_ak_/cs_sk_ keys (its own runner's sanitizer knows both shapes).
+9. Board census drift: 137 distinct ids, 115 complete / 22 pending (brief said 116/21).
+10. MCP-DIRECT-001 and ENV-CONSENSUS-1 are now CLOSED on the board — two of the plan's expected-fail anchors (C-263; ENV-CONSENSUS-1 in the S3 table) point at closed rows.
+
+4. TOP FIXES (ranked, with the failure class each closes)
+
+1. Executable GATE + closure-time artifact re-derivation (C-122/C-123/C-187) — closes (d) silent-skip and (e) green-but-did-nothing; makes the C-GAP-032-ALPHA closure impossible.
+2. Executed-test-count assertions on T6 evidence (C-036 → results.tsv; C-159/C-216/C-265 bound to it) — closes (a), (b), (c); directly the incident.
+3. One defined environment block + provenance reconciliation (C-001/C-238 SHA conflict; $RUN_ROOT family) — closes (e) can't-run-as-written → skip.
+4. Outcome rewrites of the 12 existence-only rows + dedupe of the crier greps — closes (a), (b).
+5. Secret-scan pattern and rc repair (C-124/C-231) — closes (e) and the unreportable-run leak path; also (f), since the hole is a bar lower than the project's own sanitizer.
+
+5. UNREACHED CLAIMS
+
+None — C1..C8 all worked; 3 verification commands used (git reads, jq censuses, ls/grep); no servers, no bunker, no writes.
+
+PANEL REVIEW COMPLETE
+
+session_id: 20260926_073007_a9d5ab

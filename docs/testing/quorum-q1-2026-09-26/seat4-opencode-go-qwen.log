@@ -1,0 +1,82 @@
+All evidence is in hand. Judge verdict follows.
+
+=============================================================
+QUORUM #1 — INDEPENDENT JUDGE VERDICT
+Round: quorum-consensus-test-plan-STRESS-v2 · 2026-09-26
+Read: plan.md (568L), manifest (284), board (last-wins), tier-sweep-v2.json (17), upstream summary.md + 4 logs, both dogfood reports, Makefile, scripts/ tree. Zero system commands re-run; read-only.
+=============================================================
+
+1. VERDICTS
+
+C1 | CONTRADICTED (in the part that matters) | evidence = my census over the manifest `command` fields (regex: existence=`grep|test -[fsdex]|wc -l|ls|find|test -s`; behaviour=`curl|sqlite3|go (test|build)|bun|kill|timeout|ab|hey|ssh|bunker`): existence-only 21, mixed 5, behaviour 96, other 162 — per-tier existence-only includes T1:4 (C-007/C-066/C-067/C-192), T2:2 (C-076/C-077), T6:2 (C-036/C-096), T7:4 (C-039/C-108/C-163/C-268), T8:2, T9:2, GATE:1 (C-124) | why = the coordinator's 19 is the floor, not the ceiling, and the 193 "unclassified" hide the worst class: ~50 commands are `sh "$RUN_ROOT/meta/<name>.sh"` delegations (C-013…C-023, C-042, C-080…) whose effect-quality is UNVERIFIABLE because none of the 28 referenced meta scripts exist (measured: `find scripts docs/testing -name '*.sh'` → only prove-opencode-cli.sh, test-opencode-upstream.sh). Existence-only done-when rewrites, minimum set:
+- C-036: grade the suite table's executed counts, not strings — pass = every one of the 4 suite rows shows tests>0 parsed from bun output by script, plus pin+hash. As written it passes on today's summary.md (pin+hash present, tests=unknown/pass=0).
+- C-039: demote to precheck; done-when = outcome: `sqlite3 $DB "SELECT count(*) FROM memory_events WHERE origin='crier'"` ≥1 after a relay publish (that is C-042's body; C-039/C-163/C-268 are three greps of the same absence triple-counted).
+- C-066: keep pid match, add effect: `curl -s :8090/api/v1/health` body contains the build's version string, not merely "status":"ok".
+- C-067: census==60 is a precheck; done-when = C-008/C-193 sweep returns ≥60 executed per-path results.
+- C-076/C-077: replace serve-log marker greps with DB row counts (memory_events text_block rows, per-call `messages=N` still fine as corroboration).
+
+C2 | CONTRADICTED | evidence = manifest records C-122 ("re-read … last-wins …; emit GREEN/RED/VOID" — prose, no exit contract), C-123 ("for each tier: assert its primary counter > 0" — no counter field exists in any of the 284 records), C-187 ("every battery step exits 2 when audited_targets==0" — `scripts/battery/` absent, measured ls), C-230 (`scripts/battery/rederive.sh ~/consensus-reports/run-2026-09-24/` — absent), C-284 ("build single-file HTML…" — prose). Only C-124 is a real executable command (`grep -rIl 'sk-[A-Za-z0-9]{16,}' $EV`) and nothing consumes its output. Additional built-in green path: 64/284 commands pipe through `| tee` — in default bash `$?` is tee's rc, so the tested command's failure never propagates; only 16/64 mention rc/exit in pass_criteria | why = four of five guards are declarations and the fifth is ungated; the incident ran through exactly this gap.
+
+C3 | CONTRADICTED as written | evidence = grep for `RUN_ROOT=|TARGET_SHA=|EV=|BASE=|export ` returns ZERO hits in plan.md and manifest, while commands use $RUN_ROOT×117, $SRV×24, $EV×22, $BASE×17, $KEY×14, $ADMIN_KEY×6, $RUN_ID×6, $TARGET_SHA, $CRIER_TOKEN/BASE (counted via jq+grep over `.tests[].command`); scripts/battery/ and all 28 `$RUN_ROOT/meta/*.sh` absent (measured); tool census on control host: yq ABSENT (C-067), hey/ab ABSENT (unused — good), ss/sqlite3/curl/jq present, bun present only via vite-plus; plan §3 line 81 states fresh bunker agents have NO toolchain and dogfood 09-25 §4 shows go had to be installed by hand | why = 70+ steps cannot run as written, and the plan defines no BLOCKED/SKIP verdict, so unrunnable = silently skipped (failure class d).
+
+C4 | CONTRADICTED (89/284) | evidence = 89 records have zero digit in expected+pass_criteria (jq+regex count; list headed by C-015/C-016/C-018/C-022/C-023/C-024/C-026/C-037/C-045/C-046/C-053/C-089/C-122/C-124) | why = "All DB/API assertions true", "counts equal", "empty" are not machine-decidable as phrased. Named replacements: C-015 → `SELECT count(*) FROM memory_events WHERE session_id=$sid AND type='text_block' AND content LIKE '%<nonce>%'` ≥1 AND tokens_used_in>0; C-045 → breaker state column = 'paused' AND error_count == configured threshold (exact int); C-053 → cross-session nonce join returns 0 rows; C-089 → tokens_used_in == sum(prompt_tokens) ± evidenced cache delta ≤1%; C-124 → pass = grep exits 1 (zero files). The rest (195) carry numbers and are decidable.
+
+C5 | CONTRADICTED (under-coverage sits on the owner's named asks) | evidence = tier-sweep-v2.json rows: MCP `mcp-tools-list` FAIL (400 tools=0), `mcp-discovery` FAIL (404) → "MCP access for an arbitrary agent" unproven; T7 never run and wiring absent (C-039 class; board CR-IN-001 pending) → "messages via crier" unproven; T10 `task-create` FAIL (400 unmarshal error) → "fake baby projects" blocked at the first POST; T3 `tool-audit-rows` WARN tool_requests=0 → agent-initiated tool use unproven (only direct API execute proven, row_count=39) | why = LLM answers/agent loops/session tracking are genuinely strong (T2 sweep PASS 391-token live answer + billing row; dogfood 09-25 §1-2 live-verified multi-turn; DF-15/20/21 fixed) — the gaps are precisely crier, MCP, baby-project, and agent-initiated tools, i.e. 4 of the 7 owner asks have zero positive evidence, and T6's only evidence is void (section C8).
+
+C6 | ACCEPTED (deliverable produced below) | evidence = the three SG sketches | why = smallest decisive step first; SG-1 is the kill-early subgoal.
+
+SG-1 T7 crier go/no-go — decide before any battery spend
+  done-when: `grep -RIn 'crier' internal/ cmd/ migrations/ | wc -l` returns 0 AND board CR-IN-001 pending ⇒ T7 rows are marked EXPECTED-FAIL/pinned and excluded from the GREEN gate in writing; otherwise a message published to the crier relay for the consensus agent id appears as `sqlite3 $DB "SELECT count(*) FROM memory_events WHERE origin='crier'"` ≥1 within 2 poll intervals
+  evidence: docs/testing/evidence/<run>/t7-wiring-census.txt + t7-intake.json
+  depends-on: none
+  falsifier: if the census is 0 and CR-IN-001 is still pending, the plan's crier claim is void and running T7 tests would be phantom wiring — delete T7 from the GREEN gate rather than execute it
+
+SG-2 T10 smallest baby project end to end (owner's headline)
+  done-when: POST /api/v1/tasks with a schema-correct body (the sweep's string-vs-object 400 must be resolved first — the plan must print the exact request body) returns 201 with id; then one goal session produces a file whose sha256 appears in a tool_results payload (`sqlite3 $DB "SELECT count(*) FROM tool_results WHERE payload LIKE '%<sha>%'"` == 1) AND `test -s <artifact path>`
+  evidence: docs/testing/evidence/<run>/t10-baby/<file> + t10-ledger.json
+  depends-on: none
+  falsifier: if task-create still 400s after the payload fix (curl transcript filed as a DF row), T10's API leg is dead on this build — xfail-pin with the board id; never green the tier
+
+SG-3 T6 one upstream suite with real assertions (the incident tier)
+  done-when: `CONSENSUS_OPENCODE_BASE_URL=http://127.0.0.1:<shim> make test-opencode-upstream` exits 0 AND the regenerated summary.md's suite table shows tests>0 for at least suite 1, with counts parsed from bun output by the runner, never hand-typed
+  evidence: docs/evidence/opencode-upstream-v1.18.29/<suite>.log containing bun's "N pass / M fail" lines
+  depends-on: S1 (bunker agent with node/bun provisioned — today's logs prove bun ran on the CONTROL host against a nonexistent scan root)
+  falsifier: a summary.md whose suite rows read tests=unknown/pass=0/fail=0 (today's shape, summary.md:19-22) means zero assertions executed ⇒ C-036 fails, tier is RED, and C-GAP-032-ALPHA stays open
+
+C7 | ACCEPTED (recurrences found in the artifact) | evidence = per class: (a) C-036's pass ("Both fields present and runner self-test passed") plus C-215's adapter self-test — 20aedff is literally "built read as done"; (b) C-039/C-163/C-268 triple-count the same grep; (c) C-076/C-077 grep serve-log markers ('llm: response received', 'messages=') instead of persisting rows, and 64 `| tee` pipes make the log the evidence while swallowing rc; (d) undefined $RUN_ROOT/$EV/$BASE/$TARGET_SHA + 28 missing meta scripts + no BLOCKED verdict; (e) prose gates C-122/C-123/C-187 with no exit contract; (f) bar divergence inside T6/T1: C-036 ("fields present") vs C-159 ("all suites pass with test counts>0"), and C-192 (`test -ge 60`) vs C-067 (`== 60`) — a one-line weakening of the same assertion | why = every historic class has a live seed in this manifest.
+
+C8 | ACCEPTED (mechanism named) | evidence = chain: summary.md:19-22 (all four suites Exit 1, tests=unknown, pass=0) + logs 189 B each whose sole content is `bun test v1.3.14 … Failed to scan non-existent root directory … do-not-run-tests-from-root` (measured cat) + C-036 pass_criteria ("Both fields present…") which that summary satisfies (pin at summary.md:5, "Lock SHA-256" at :6) + C-122/C-123 prose gates + C-187's enforcement target (scripts/battery) nonexistent + git: 20aedff edits ONLY scripts/test-opencode-upstream.sh (63+/16-), 44ba641 committed the 189-B logs | why = the plan grades T6 closure on artifact existence, its gate is prose with no exit-code contract, and nothing distinguishes "audited nothing" from "passed", so a 0-assertion run produced a valid-looking summary and a closed P1. Single change that makes it impossible: replace C-122's prose with one committed executable gate that (1) parses every suite's bun summary and exits 1 unless executed>0 per declared suite, (2) exits 1 if any S3 id is pending-unpinned — and require that gate's exit 0 as the pre-commit condition for closing any TEST-*/C-GAP-* board row. (Equivalently: change C-036's pass_criteria from "fields present" to "executed assertions > 0 in every suite table, parsed by script".)
+
+2. CORRECTIONS RANKED
+1. Executable gate: turn C-122/C-123/C-187 into committed scripts with exit codes (gate.sh parses suite counts + S3 board state; exits 1 closed); wire as closing precondition for TEST-*/C-GAP-* rows. [closes e, and the incident]
+2. Runner contract section: define RUN_ROOT/EV/BASE/TARGET_SHA/SRV/KEY/ADMIN_KEY/RUN_ID once, require `set -euo pipefail`, and rewrite the 64 `| tee` commands as `cmd >log 2>&1; rc=$?` with rc in the artifact. [closes d, e]
+3. Ship-or-block: the 28 `$RUN_ROOT/meta/*.sh` and `scripts/battery/` must exist in-tree before the run; any test whose script/binary is absent renders BLOCKED, a new verdict in the S4 enum — never PASS. [closes d]
+4. Outcome-rewrite of the 21 existence-only tests per C1 (C-036 counts, C-039→C-042 merge, C-067→sweep, C-076/077→DB rows). [closes b, c]
+5. Give all 89 digit-less pass_criteria a number (C4 list). [closes a]
+6. Fix the payload/schema drift the sweep exposed: T10 task-create body (sweep row task-create), MCP sessionId contract (mcp-tools-list), T4 exact-cost-vs-registry-price assertion (C-210/C-248; deepseek appendix C-2 shows cost_usd>0 is a 31.9x lie). [closes a, f]
+7. Reconcile internal bars: C-192 ≥60 vs C-067 ==60; C-036 vs C-159. [closes f]
+
+3. NEW VERIFIED FACTS (not in pre-run P1-P7)
+N1. $RUN_ROOT/$EV/$BASE/$TARGET_SHA/$SRV/$KEY have zero definitions anywhere in plan.md or the manifest (117/22/17/1/24/14 uses respectively; grep count 0).
+N2. scripts/battery/ does not exist; 28 distinct `$RUN_ROOT/meta/*.sh` are referenced (list captured: agent-tool-chain.sh ×3, live-session.sh ×3, crier-to-consensus.sh ×3, …) and none exist; scripts/ contains exactly opencode-upstream/, prove-opencode-cli.sh, test-opencode-upstream.sh.
+N3. 64/284 commands pipe through `| tee`; only 16 of those state rc/exit in pass_criteria — a systemic exit-swallowing runner shape (bash default: `$?` = tee's).
+N4. Each committed upstream log is exactly 189 bytes; bun never reached test discovery — it was invoked with the nonexistent scan root `<cache>/opencode-<rev>/do-not-run-tests-from-root`, i.e. a CWD/argument bug, not a compatibility gap; the "Explicit divergences" section of summary.md contains four EMPTY code fences (lines 32-33, 39-40, 44-45, 50-51).
+N5. yq and hey/ab are absent on the control host (C-067 unrunnable as written); no T9 test uses ab/hey (good).
+N6. The plan's md tier table (line 31) lists 14 tiers; the manifest has 18 (T7a/T7b/S3/S5 omitted from the md) — md and manifest disagree on taxonomy.
+N7. The tier sweep contains its own false green: T4 row `session-tokens` PASSed with observed `('failed', 0, 0)` — a dead session satisfied a "token accounting present" shape check.
+N8. Board last-wins as of now: C-GAP-032-ALPHA, TEST-CONSENSUS-001, CR-IN-001, MUSTER-INT-001, QA-CONSENSUS-1/2/7, DF-CONSENSUS-32/35 all pending (jq group_by last record) — consistent with the brief's P6.
+N9. Dogfood 09-26 adds DF-CONSENSUS-34: the CLI cannot complete a conversation (no `session message` subcommand; goal alone never wakes the harness) — relevant to any T10 leg that assumes CLI drivability.
+
+4. TOP FIXES
+1. Executable, count-based closing gate wired to board status flips (C-122/C-123/C-187 + C-036 rewrite) — closes (e) green-but-did-nothing and the incident mechanism itself.
+2. Runner contract: bind all free variables, `set -euo pipefail`, rc-recording replacing `| tee` (64 tests) — closes (d) silent-skip and (e).
+3. Ship-or-block rule for missing scripts (28 meta scripts + scripts/battery) with a BLOCKED verdict — closes (d) and (f) (no more grading around absent machinery).
+4. Outcome-rewrite of existence-only tests (C-036/C-039/C-067/C-076/C-077 + full C1 list) — closes (b) existence-as-proof and (c) success-marker checks.
+5. Payload/schema truth for the sweep-exposed reds (T10 task-create, MCP sessionId, T4 exact cost vs registry price) and numbers in all 89 digit-less criteria — closes (a) built-read-as-done and (f) bar-lowering.
+
+5. COVERAGE STATEMENT
+All of C1-C8 reached; no claim skipped. Declared limits: executability was judged against the CONTROL host only (bunker tool census not re-run — read-only/budget constraint; plan §3 and dogfood evidence establish the fresh-agent toolchain absence). My shape census (21/5/96/162) uses the regexes stated in C1; the coordinator's 19/9/193 used a different regex — both agree on direction and on the named examples. Classifier script for reproduction is at /tmp/quorum_judge_census.py (ephemeral; regexes restated inline above).
+
+PANEL REVIEW COMPLETE
+
+session_id: 20260926_073056_55f1cb

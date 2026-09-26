@@ -1,0 +1,120 @@
+1. VERDICTS
+
+C1 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:570,615,1036,1335,1472,1905,2823,4293 | why: the manifest mixes product effects with source, schema, file, and report checks. Those checks can be useful prerequisites, but they cannot discharge the product claim.
+
+Tier-by-tier ruling: T0 primarily establishes build and provenance, not agent behavior; T1 mixes spec inventories with HTTP effects; T2 contains real-answer intentions but also log-string and unimplemented-command checks; T3’s direct tool execution is not agent tool use; T4 mixes ledger effects with trigger/constant inspection; T5 has protocol-response checks but not consistently an independent client lifecycle; T6 mixes Go-port, pin, and runner checks with the required upstream execution; T7 mixes standalone crier operation and source greps with Consensus intake; T8 mixes recovery effects with absence-of-error checks that need positive workload counts; T9 has load preflights and proposed cells, not an executed load proof; T10 has promising disk checks but does not consistently prove that the agent, rather than the harness, made the change. GATE/S1/S3/S4/S5 are controls and reporting, not substitutes for tier effects. See the tier contract at /home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:91-324.
+
+I rule the following IDs existence/identity/metadata-only as written, including checks beyond the coordinator’s minimum 19: C-001, C-006, C-007, C-036, C-039, C-064, C-065, C-066, C-067, C-071, C-087, C-096, C-097, C-125, C-131, C-148, C-157, C-158, C-163, C-177, C-181, C-186, C-188, C-189, C-191, C-192, C-215, C-227, C-234, C-236, C-238, C-268, C-283, C-284. Some are legitimate setup gates; none alone proves the corresponding product effect. Their replacement done-when is, respectively: bind source/binary identity to a correlated live run (provenance IDs); execute every inventoried operation and reconcile attempted versus declared IDs (C-006/007/067/131/192); observe an agent’s crier-origin reply (C-039/163/268); reject real ledger mutations and preserve the row (C-087); execute four upstream suites with nonzero assertions against the identified shim (C-036/096/097/157/158/215); create and use a fresh session under the verified listener (C-066/177); and independently recompute run-correlated results from raw artifacts, rejecting missing inputs (C-186/284). A source grep, version, fixture hash, or clean-format check remains a prerequisite rather than being promoted to that outcome.
+
+Mixed existence-plus-behavior checks requiring the same separation include C-011, C-020, C-025, C-030, C-031, C-046, C-052, C-058, C-068, C-076, C-077, C-091, C-098, C-102, C-108, C-121, C-132, C-139, C-152, C-164, C-183, C-193, C-216, C-230, C-240, C-266, C-273. Replace their done-when with a positive, run-correlated count and an independent readback of the claimed effect—not merely a nonempty array, a string in a log, an empty error set, or a summary’s assertion. The 193 “unclassified” are not safe by default: C-122’s command is prose, C-187’s is a policy sentence, C-193 names an absent script, and C-282 includes `adbms` after a prose “runner runs” instruction (/home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:1860-1883,2928-2935,4263-4270).
+
+C2 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:1860-1900,2836-2845,3483-3505,4293-4301 | why: none of the six named guards is presently an executable, enforced global false-green gate in the manifest.
+
+C-122 says “re-read …; emit GREEN/RED/VOID”; its pass criterion is merely “verdict emitted,” even if the emitted verdict is RED. C-123 says “for each tier: assert,” without a runner, inventory, or counter source. C-187 says “every battery step exits 2,” but executes no check; its criterion requires a count to be printed, not independently counted. C-230 references an absent `scripts/battery/rederive.sh` on a hardcoded old run directory. C-284 says “build single-file HTML,” not a command, and its pass criterion checks disposition-table completeness rather than recomputing numbers. C-124’s `grep … | tee` returns the status of `tee` by default: a match can still yield exit 0; its stated “empty” criterion is not an executable assertion. Likewise C-231 ends in `echo rc=$?`, masking the scan’s exit status (/home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:3498-3505). Concrete false-greens outside the guards: C-052 runs `xargs` on a possibly empty target file; C-071 prints two hashes without comparing them; C-216 requires exit codes in a summary but not one executed test; C-265 accepts a nonzero count and an “honest rate” short of compatibility (/home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:807-816,1093-1100,3273-3280,4008-4015).
+
+C3 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:345-350 and /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:39-48 | why: the plan specifies an evidence directory contract but defines no shell environment or construction of its referenced helper scripts. A read-only search of the plan found no definition of RUN_ROOT, EV, BASE, or TARGET_SHA.
+
+Literal sample of 12 commands across ten tiers:
+- C-001 (T0): `$TARGET_SHA` and `$RUN_ROOT` are undefined; it pipes version output to `tee` without proving binary-to-SHA identity (manifest:39-48).
+- C-008 (T1): `Authorization: Bearer ***` is a redacted placeholder, not a credential; its result cannot authenticate the sweep as written (manifest:145-153).
+- C-067 (T1): `$EV` is undefined; `yq` is assumed, and the command prints a count without asserting 60 (manifest:1033-1040).
+- C-077 (T2): `$EV` is undefined; extracting every `messages=N` line does not associate calls with one session and iteration or check monotonicity (manifest:1183-1190).
+- C-084 (T3): `sqlite3 select …; grep it in the serve log` is not a literal SQL invocation or a defined grep target (manifest:1288-1295).
+- C-091 (T4): grepping a constant plus an unspecified `sqlite3 select` cannot establish completed compression; NOT EXERCISED is explicitly allowed (manifest:1393-1400).
+- C-098 (T6): `$BASE` and `$EV` are undefined, and `make`/its runner output is not parsed for the assertion count (manifest:1499-1507).
+- C-108 (T7): “then deliver a message and count” is prose, not shell; `$S4` is undefined (manifest:1650-1657).
+- C-122 (GATE): “re-read …; emit” is prose with no executable command (manifest:1860-1867).
+- C-193 (T1): `scripts/battery/t1_contract.sh` does not exist in the inspected local tree; `$SRV` is undefined in the plan (manifest:2928-2935).
+- C-226 (T9): `scripts/battery/t9_load.sh` likewise is absent locally; `$SRV` and `$KEY` have no plan definitions (manifest:3423-3430).
+- C-282 (T10): “runner runs python3 calc.py; adbms” contains prose and an unexplained `adbms` token, not a runnable verification (manifest:4263-4270).
+
+Additional undefined plan inputs include `$RUN`, `$B`, `$K`, `$LIVE`, `$S1`–`$S4`, `$P`, `$AG`, `$RUN_ID`, `$CRIER_BASE`, `$CRIER_TOKEN`, and `$KEY`; per-run `meta/*.sh` generation is not specified. Local read-only discovery found no `scripts/battery/`, `scripts/probe-tvf.go`, or root `t1-contract.sh`. On this control host `yq`, `ab`, and `hey` were absent; `ss`, `jq`, `sqlite3`, `bun`, `uvx`, `go`, and `opencode` were present. That is not a claim about a bare bunker: its tool inventory remains UNRESOLVED without a provisioning check. The plan itself says a fresh agent lacks Go (/home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:79-85).
+
+C4 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:1859-1883,2807-2845,4293-4301 | why: many criteria are classifications or prose whose inputs, denominator, threshold, or allowed result are unspecified. Even a machine-decidable `exit 0` is insufficient when its command is only a wrapper or a filtered suite.
+
+Required replacements, grouped by the ambiguity they share:
+- Unspecified “all/every/assertions/works”: C-004, C-013, C-015, C-018, C-024, C-041, C-054, C-139, C-182, C-218, C-251, C-277. Name the fixture IDs and expected fields/statuses, require attempted count equals fixture count, and require each assertion’s raw observed value.
+- “Recorded/classified/verdict/explicit/honest” rather than success: C-049, C-071, C-080, C-100, C-108, C-115, C-118, C-120, C-122, C-178, C-185, C-200, C-201, C-206, C-220, C-223, C-225, C-234, C-238, C-243, C-246, C-247, C-248, C-249, C-260, C-263, C-266, C-275, C-276, C-279, C-281, C-283. Give PASS, FAIL, VOID, XFAIL, and SKIP distinct machine values; only PASS with the named effect and nonzero execution count can close a product claim. In particular, “both values recorded” (C-248) must become a specified variance bound, not merely two printed numbers.
+- Undefined set, shape, or comparison authority: C-087 (“another layer”), C-137 (“retrieval-ish paths”), C-143 (“same as T2-01”), C-150 (“documented price table reconciles”), C-152 (“passing”), C-156 (“a client can find”), C-184 (“transitions”), C-193 (“unexplained”), C-210 (“in band”), C-230 (“every headline number”), C-241 (“shape diff empty”), C-250/C-261 (“sets equal”), C-270 (“exactly-once or at-least-once”). Pin the source set/schema/price version and exact tolerance or delivery contract, then compare identified records. C-270 cannot defer the choice of delivery semantics until grading.
+- Zero-denominator and marker risks despite apparently numeric criteria: C-052, C-068, C-076, C-077, C-090, C-091, C-102, C-112, C-148, C-187, C-193, C-216, C-255, C-259, C-278, C-284. Require a nonzero, run-correlated input count before evaluating absence, equality, status lines, or report completeness. C-068 explicitly permits 404s provided someone files a board ID; that is an honest defect record, not a passing API contract (manifest:1048-1055).
+
+C5 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:59-71,328-350; /home/kara/consensus/docs/testing/evidence/tier-sweep-2026-09-24/tier-sweep-v2.json:43-56,91-135 | why: the intended surfaces are mapped, but the available run evidence does not prove the owner’s complete ask.
+
+Real LLM answers map to T2, with later conversational evidence in /home/kara/consensus/docs/dogfood/2026-09-25-integration.md:34-47. Agent loops and agent-initiated tool calls map to T2/T3, but the sweep’s direct tool execute passed while `tool_requests=0 tool_results=0` (sweep:75-96): direct execution is not that claim. Session tracking/billing map to T4; the sweep even labeled a failed session with 0/0 tokens PASS while ledger types and billing rows failed (sweep:115-135). Later dogfood reports live billing rows on a different HEAD, not execution of this whole plan (/home/kara/consensus/docs/dogfood/2026-09-26-fix-verification-cli.md:32-37). Fake baby projects map to T10; the sweep’s create failed 400 and its successful list returned `[]` (sweep:99-112). Arbitrary-agent MCP maps to T5; the sweep’s tools/list and discovery both failed, although the last-wins board now says MCP-DIRECT-001 complete—this plan still needs its own independent-client/DB-correlated run (sweep:43-56; board:110). Crier messages map to T7; CR-IN-001 is pending and standalone crier demo coverage is not Consensus intake (board:107; manifest:627-669). T9 has no recorded run, and T6’s committed upstream evidence has no executed assertions. Those are uncovered claims, not permissible green exclusions.
+
+C6 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:553-559,1650-1665,869-903,2928-2935 | why: converting the existing command strings directly would turn prose, missing scripts, and permissive XFAILs into subgoals. The three riskiest tiers are T6 (actual false closure), T7 (unbuilt intake), and T10 (user-facing project proof). Proposed subgoals below specify new proof artifacts; they are not claims that those artifacts exist now.
+
+SG-1 Reject an upstream suite that collected zero tests
+  done-when: All four named raw suite logs contain a parsed `Ran N tests` with N>0, and a separately generated results file names the pinned revision and four suite paths; `jq -e '.revision=="16747470f976aca3d362ad730bcd3fe82ecc2c9a" and (.suites|length)==4 and all(.suites[]; .tests_executed>0)' "$E/t6/upstream/results.json"` must succeed, with each count rechecked against its raw log. Missing/unknown count is VOID and blocks closure.
+  evidence: $E/t6/upstream/results.json and $E/t6/upstream/*.log
+  depends-on: none
+  falsifier: A raw log lacks collected tests while this check succeeds, or the checked revision differs.
+
+SG-2 Prove upstream compatibility against the live shim
+  done-when: After SG-1, all four suites have exit_code=0 and failures=0, and their captured requests identify the deployed shim; `jq -e 'all(.suites[]; .tests_executed>0 and .exit_code==0 and .failures==0)' "$E/t6/upstream/results.json"` succeeds.
+  evidence: $E/t6/upstream/results.json and the correlated shim request transcript
+  depends-on: SG-1
+  falsifier: A suite ran against an upstream/local server or a nonzero exit is labeled compatibility PASS.
+
+SG-3 Establish a real crier delivery before grading intake
+  done-when: Send a unique nonce to the registered Consensus agent, lease it, and read back the same message ID and bytes from crier; `jq -e --arg n "$NONCE" '.delivered.id==.leased.id and .leased.payload==$n and .leased.lease_id!=""' "$E/t7/delivery.json"` succeeds.
+  evidence: $E/t7/delivery.json
+  depends-on: none
+  falsifier: Delivery cannot be read back, or a test-side injection—not crier—created the message.
+
+SG-4 Prove Consensus consumed only its crier message
+  done-when: Match SG-3’s message ID and nonce to one crier-origin `user_message`, a later agent-visible context/reply, and an ack; also deliver a second nonce to another agent and prove zero Consensus rows for it. Check the cross-store IDs/counts from `$E/t7/intake.json` with `jq -e '.positive.ledger_count==1 and .positive.reply_count>=1 and .positive.acked==true and .negative.ledger_count==0' "$E/t7/intake.json"`; verify the JSON values against the DB and crier readbacks.
+  evidence: $E/t7/intake.json, DB query output, and crier retrieval/ack transcript
+  depends-on: SG-3
+  falsifier: Direct REST/DB insertion can satisfy the test, or the foreign-agent message enters the ledger.
+
+SG-5 Make the baby-project task through the public API
+  done-when: Against a fresh fixture, an authenticated create returns 201 with a new ID and GET by that ID returns the task bound to this workspace; check recorded HTTP statuses and IDs in `$E/t10/create.json` using `jq -e '.create_status==201 and .read_status==200 and .created_id==.read_id and .created_id!=""' "$E/t10/create.json"`.
+  evidence: $E/t10/create.json and raw request/response transcript
+  depends-on: none
+  falsifier: The task only appears following a direct DB insert, or create still returns the measured 400.
+
+SG-6 Make the agent repair and test the fixture
+  done-when: Establish the fixture’s failing pre-run test, then correlate the SG-5 task to agent tool request/result IDs, the changed file hash, a passing fresh `go test -count=1 ./...` or equivalent fixture test, and the final reply; assert those joins from `$E/t10/ledger.json` and rerun the fixture test on disk. An idle session or a runner-written file is not PASS.
+  evidence: $E/t10/ledger.json, before/after file hashes, test log, and disk diff
+  depends-on: SG-5
+  falsifier: Removing the agent’s write/tool event still leaves this subgoal green, or the on-disk test remains red.
+
+C7 | CONTRADICTED | evidence = /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:147-153,1860-1900,2417-2425,3273-3280,3333-3340 | why: this artifact retains all six repeat-offense mechanisms. Credential-bearing HTTP commands literally contain `Bearer ***` (C-008 and others), and C-197’s curl only prints an HTTP code without asserting it. C-076/C-198 use provider success-marker log strings rather than independently proving the provider-to-session result. C-091 accepts NOT EXERCISED, while C-122 accepts a verdict being emitted and C-187 merely declares a zero-target rule. C-098/C-216 weaken actual four-suite green into a summary/assertion or recorded exit codes; C-108/C-220 allow XFAIL classification to stand where intake is the owner’s requirement. C-052 and the 0/0 billing PASS observed in the sweep show green-but-did-nothing and vacuous equality risks. The plan’s “GREEN when closed or explicitly xfail-pinned” ladder (/home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:328-340) permits a green headline while T7, T6, or another required surface remains unproved. A tracked defect/XFAIL is honest reporting, not fulfillment of that surface.
+
+C8 | ACCEPTED | evidence = /home/kara/consensus/docs/evidence/opencode-upstream-v1.18.29/summary.md:17-22,26-54; /home/kara/consensus/docs/evidence/opencode-upstream-v1.18.29/packages_opencode_test_server_httpapi-instance_test_ts.log:1-2; /home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:1499-1507,3273-3280 | why: the committed “divergences” are suite-launch/collection failures, not failed upstream assertions. The old summary says exit 1, tests unknown, pass 0, fail 0; its quoted assertion blocks are empty. The raw log says Bun failed to scan `do-not-run-tests-from-root`. The plan had no executable completion gate tying C-GAP-032-ALPHA closure to raw per-suite executed counts: C-216 accepts recorded exit codes, C-098 trusts what a summary asserts, and C-122 is prose. The single decisive plan change is a mandatory, machine-enforced task-closure gate that independently parses all four raw suite logs and refuses completion unless each has tests_executed>0, exit=0, failures=0, correct pin, and live-shim identity; missing/zero counts become VOID regardless of runner commit, summary prose, board status, or XFAIL. The current runner source now classifies zero collection as SETUP_FAILURE (/home/kara/consensus/scripts/test-opencode-upstream.sh:222-269), but its later claimed run is not present in the specified committed summary. The board’s last-wins C-GAP-032-ALPHA is pending; its worker summary asserts later live counts without replacing that committed zero-test evidence (/home/kara/consensus/.coding-hermes/board/tasks.jsonl:101).
+
+2. CORRECTIONS RANKED
+
+1. Make SG-1’s raw-log execution/closure gate mandatory for C-035, C-098, C-159, C-216, C-265 and C-122. Zero or unknown executed assertions must be VOID and non-closable; no summary, Go port, or runner edit can substitute.
+2. Implement one executable run orchestrator and result schema before converting C-123, C-187, C-230, C-284 or the tier commands to subgoals. Define inputs, fixture generation, per-step attempted/executed counts, statuses, artifacts, and exit-code propagation; require a negative zero-target control.
+3. Replace T7’s wiring greps and standalone demo as acceptance evidence (C-039, C-040, C-108, C-163, C-268) with SG-3/4’s crier-ID → Consensus ledger → agent reply → ack join and foreign-agent negative. CR-IN-001 remains a required failure until that effect is proven.
+4. Start T10 with the measured failing create path (C-056, C-119, C-182, C-228, C-240’s dependency context); then require task/tool/disk/test lineage. Do not accept the sweep’s 200 `[]` task list as a baby project.
+5. Replace credential placeholders and missing helpers, and pin environment/prerequisites for C-001, C-008, C-067, C-084, C-193, C-204, C-226, C-282. An unavailable tool or undefined variable is SETUP_FAILURE, never SKIP-as-PASS.
+6. Make C-124/C-231 scans fail on a match or scan error, and make C-052/C-068/C-091/C-193 reject zero denominators. Preserve scan/tool exit status instead of accepting `tee` or `echo` status.
+7. Separate product acceptance from defect bookkeeping in C-068, C-108, C-122, C-185, C-200/C-201/C-206/C-220 and C-275. Filing a board ID, observing an expected failure, or recording a disposition does not satisfy the original requirement.
+
+3. NEW VERIFIED FACTS
+
+- The plan contains no RUN_ROOT, EV, BASE, or TARGET_SHA definition and no generator for the referenced `$RUN_ROOT/meta/*.sh`; its S4 section defines only what a run directory should contain (/home/kara/consensus/docs/testing/consensus-full-test-plan-v1.md:345-350).
+- The inspected tree has no `scripts/battery/`, `scripts/probe-tvf.go`, or root `t1-contract.sh`. This is a local-tree finding, not a bunker inventory. The control host lacks `yq`, `ab`, and `hey`; bunker availability is unknown.
+- C-219 expects a second pre-ack retrieve to re-deliver the message, while C-106 expects an empty message array with leased_count>0. The plan gives contradictory lease semantics for the same phase (/home/kara/consensus/docs/testing/consensus-test-manifest-v1.json:1620-1627,3317-3325).
+- The committed upstream summary calls four collection failures “upstream-owned assertions failed,” but contains zero quoted assertions; the inspected raw log identifies a nonexistent Bun test root (/home/kara/consensus/docs/evidence/opencode-upstream-v1.18.29/summary.md:24-54; /home/kara/consensus/docs/evidence/opencode-upstream-v1.18.29/packages_opencode_test_server_httpapi-instance_test_ts.log:1-2).
+- The newer runner source has an explicit zero-test SETUP_FAILURE classification, but its output is not the specified committed evidence; that source change cannot retroactively turn the old run into a test run (/home/kara/consensus/scripts/test-opencode-upstream.sh:222-269).
+- The recorded sweep’s T4 `session-tokens` PASS on status `failed`, tokens `0,0` is an actual instance of a positive label over no billable effect, alongside T4 ledger and billing FAILs (/home/kara/consensus/docs/testing/evidence/tier-sweep-2026-09-24/tier-sweep-v2.json:115-135).
+
+4. TOP FIXES
+
+1. Raw per-suite nonzero-assertion task-closure gate for T6 — closes (a), (c), (e).
+2. Executable orchestrator with positive denominators, hard exit propagation, and negative zero-target control — closes (d), (e).
+3. Crier-to-Consensus cross-store provenance and reply test, not wiring grep or crier-only demo — closes (a), (b), (f).
+4. Public-API baby-project creation followed by agent tool-to-disk-to-test lineage — closes (a), (e).
+5. Replace permissive XFAIL/board-ID-as-PASS grading with explicit unmet-requirement status; fix credentials and undefined commands before scheduling — closes (d), (f).
+
+5. IF YOU CANNOT FINISH
+
+All C1–C8 claims were reached. No product or bunker test was executed in this read-only review. The exact membership of the coordinator’s 19/9 heuristic buckets cannot be recovered from the supplied census alone; the independent, ID-named rulings above cover those risks and additional unclassified commands rather than claiming to reproduce an unavailable classifier.
+
+PANEL REVIEW COMPLETE
+
+session_id: 20260926_072941_555884

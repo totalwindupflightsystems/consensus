@@ -1,0 +1,185 @@
+# QUORUM #1 — INDEPENDENT JUDGE REVIEW
+Round: quorum-consensus-test-plan-STRESS-v2 · 2026-09-26 · read-only, zero system re-runs, no files written.
+
+---
+
+## 1. VERDICTS
+
+**C1. EFFECT-NOT-EXISTENCE — CONTRADICTED (the plan does not meet its own standard).**
+
+Evidence, per tier, from the manifest at `/home/kara/consensus/docs/testing/consensus-test-manifest-v1.json`:
+
+- T0 (25) — effect: compilation/exit codes are observable (`C-002 go build`, `C-004` env-clean suite, `C-190`). Acceptable, though several rows are rc-only.
+- T1 (34) — mixed. `C-066` grades a LISTENER'S EXISTENCE (`ss -tlnp | grep :8090`) and its criterion adds an assertion the command never runs: C-066 CRIT = "pid match AND curl health body contains \"status\":\"ok\"" vs CMD = two `ss` pipelines. Criterion ⊃ command. `C-007`/`C-096` are list-derivations (inventory, not verdict).
+- T2 (30) — success-marker string checks on the product's own log (class c): `C-076 grep -c 'llm: response received'`; `C-077 grep -oE 'messages=[0-9]+' | tee` (prints shapes, asserts nothing by itself).
+- T3 (22) — `C-020` registry non-empty = existence; the effect tests (`C-024`, `C-206`) are the right shape.
+- T4 (28) — `C-091 grep -rn '0\.85\|cosine' internal/compression/*.go` is pure existence over source text.
+- T6 (23) — `C-036` (the operative gate) is existence + worse; `C-096` "exact strings"; `C-158` checkout state.
+- T7 (29) — `C-039` searches `internal cmd specs migrations` for the strings `CRIER_HTTP_URL|crier.*inbox|transport.*crier`, and its criterion calls a non-empty file an "implementation-**backed** wiring census" — a sentence in `specs/` satisfies it. `C-163 grep -rl crier internal/ cmd/`, `C-268 grep -ri crier internal/ cmd/ specs/`: pure existence.
+- T8/T9/T10 — mostly effect (`C-049`/`C-176` crash demo, `C-058` artifact-on-disk, `C-183`), with prose rows (`C-180`, `C-227`) that never execute as written.
+
+Tests I rule **existence-only** (read directly): C-036, C-039, C-065, C-066, C-091, C-096, C-106, C-118, C-158, C-163, C-180, C-186, C-227, C-268, plus declaration rows C-122/C-123/C-187/C-284/C-230.
+Rewrites (worst four):
+- C-036 → done-when: the runner's result file lists 4 suites, each `tests>0` and `classification ∈ {PASS,DIVERGENCE}`.
+- C-039 → done-when: a published crier message becomes a `user_message` memory_events row with recorded origin (that is C-042/C-269, correctly written); the grep drops to inventory, never a verdict.
+- C-066 → command must contain the curl it claims.
+- C-091 → fix the `sqlite3` invocation and delete the "report NOT EXERCISED" escape.
+
+**Do the 193 "unclassified" hide more? Yes — materially.** My own census: 150 of 284 commands do not begin with an executable token (`POST`/`GET`/`deliver`/`create`/`runner`/`recompute`/`re-read`/… as first token); 35 commands invoke `$RUN_ROOT/meta/*.sh` (28 distinct scripts) and 25 invoke `scripts/battery/*.sh` (15 distinct) — neither directory exists in the repo (`ls scripts/battery` → No such file or directory). A text classifier that spot-checks shell prefixes scores those as "behaviour" when they are unrunnable references to scripts nobody has written. The coordinator's 19/9/63/193 split undercounts the problem.
+
+**C2. FALSE-GREEN EXPOSURE — CONTRADICTED. The named guards are declarations, not blockers.**
+
+Command text, cited:
+- `C-122` CMD = `re-read .coding-hermes/board/tasks.jsonl last-wins for the S3 id list; emit GREEN/RED/VOID` — prose. No command, no exit code. Blocks nothing.
+- `C-123` CMD = `for each tier: assert its primary counter > 0, else VOID` — prose, and no tier→counter mapping exists anywhere in plan or manifest, so it is unimplementable even by hand.
+- `C-187` CMD = `every battery step exits 2 when audited_targets==0` — an assertion about future behavior of scripts that do not exist; no check, no command.
+- `C-230` CMD = `scripts/battery/rederive.sh ~/consensus-reports/run-2026-09-24/` — file absent; directory absent. Cannot run.
+- `C-284` CMD = `build single-file HTML w/ TOC + per-claim recompute commands` — prose.
+- `C-124` is a real grep but covers only `$EV`, with a regex (`sk-[A-Za-z0-9]\{16,\}`) that does not match consensus's own key format (`cs_ak_…`/`cs_sk_…`, per `docs/dogfood/2026-09-26-fix-verification-cli.md:20,27`; the runner's own sanitizer knows these prefixes — `scripts/test-opencode-upstream.sh:196-200`). `C-231` inherits the same blind spot, hardcodes `run-2026-09-24`, and **passes on a missing directory** (`grep -r 'sk-' DIR | grep -v REDACTED; echo rc=$?` → rc=1).
+
+Also: `C-106` CRIT = "leased_count>0 with an empty array" is self-contradictory — it cannot be satisfied, so it can only be waived. Nothing in the plan blocks a false green.
+
+**C3. EXECUTABILITY AS WRITTEN — CONTRADICTED, hard.**
+
+Undefined variables: the plan markdown contains **zero** assignments (`grep -cE '^[A-Z_]+=' = 0`) and never mentions `$RUN_ROOT`/`$EV`/`$BASE`. The manifest uses `$RUN_ROOT` 117×, `$SRV` 24×, `$EV` 22×, `$BASE` 17×, `$KEY` 14× (Bearer uses `$ADMIN_KEY` 6×, `$KEY` 1×, `$A` 1×), `$RUN_ID` 6×, `$RUN` 3×, `$TARGET_SHA` 1×, plus `$LOAD/$LIVE/$CRIER_BASE/$CRIER_TOKEN`. No row creates the run root, and 103 rows declare artifacts outside it (`artifacts/…`, `evidence/…`, `~/consensus-reports/run-2026-09-24/…`), contradicting §6's "one directory per run".
+
+12 tests across 6 tiers, checked literally:
+
+| id | tier | break |
+|---|---|---|
+| C-001 | T0 | `$TARGET_SHA` undefined; `./bin/consensus` produced by no listed step |
+| C-004 | T0 | `TMPDIR="$RUN_ROOT/t0/tmp"` under `env -i` must pre-exist |
+| C-006 | T1 | `$BASE` undefined |
+| C-066 | T1 | `$RUN` undefined (`$RUN/consensus.pid`); criterion needs curl, command has none |
+| C-008 | T1 | `uvx` + network + `--header "Authorization: Bearer $KEY"`; `$KEY` unset |
+| C-013 | T2 | `sh "$RUN_ROOT/meta/api-lifecycle.sh"` — script does not exist |
+| C-014 | T2 | `sh "$RUN_ROOT/meta/deepseek-key-preflight.sh"` — does not exist |
+| C-020 | T3 | `$BASE` + Bearer var unset |
+| C-091 | T4 | `sqlite3 select count(*) from compression_queue` — sqlite3 takes "select" as the DB FILENAME (no `-cmd`, no quoting, no DSN): error or stray file, never a count |
+| C-036 | T6 | `$RUN_ROOT/t6/upstream/summary.md` written by no step in the plan |
+| C-039 | T7 | greps a tree with zero crier wiring; `specs/` in scope makes it self-satisfying |
+| C-227 | T9 | command text contains literal English `(before/after)` |
+
+Tools assumed, never provisioned: `sqlite3` (20 cmds), `jq` (18), `ss` (3), `yq` (1), `uvx`+schemathesis (1), `pgrep`, `openssl`, `apt`, `psql`/Postgres shape (only `C-279`, optional). Plus `bun`/`node`/`sha256sum`/`timeout` inside the upstream runner.
+
+**C4. DECIDABILITY — CONTRADICTED for a named subset.**
+Non-decidable criteria and replacements: `C-096` "exact strings" → assert the exact revision/version/repository triples; `C-097`/`C-157`/`C-161`/`C-215`/`C-217` "exit 0" → "exit 0 AND audited_targets > 0 AND count printed"; `C-215` "exit 0 — recorded as GATE, never as evidence" → policy note, not a criterion; `C-100` "recorded only; must NOT be cited as upstream evidence" → prohibition, unenforceable; `C-162` "200" → 200 plus a body assertion; `C-039` above; `C-266` "captured response text; else manual-checklist downgrade recorded" → a self-downgrade path (class f/d); `C-091` escape hatch; `C-122/C-123/C-186/C-284` prose. Only 2 of 284 criteria use soft words ("works/valid/correct") — the undecidability here is structural (prose commands, rc-only, escape clauses), not vocabulary.
+
+**C5. SURFACE COVERAGE — PARTIALLY ACCEPTED (the owner's asks are mapped but the load-bearing ones have no passable test).**
+- real LLM answers → T2; the only live proof (answer "391", tokens 1676/95, billing 0.009805) exists **only in board row TEST-CONSENSUS-001** (verified: `tier-sweep-v2.json` contains zero T2 rows).
+- real agent loops → T2 multi-turn (`C-077`) / T4; the DF-15 fix is claimed live in `docs/dogfood/2026-09-25-integration.md:34-47` but the plan's own detector is a serve-log string parse.
+- session tracking → T4; the one committed artifact shows `ledger-types` FAIL, `session-tokens` PASS on `('failed', 0, 0)`, `billing-rows` 0 rows FAIL, and P3 concedes T4 was covered only by a vacuous smoke. Effective T4 coverage today: 0.
+- real tool calls → T3; committed sweep's `tool-audit-rows` = `tool_requests=0 tool_results=0` (WARN at `tier-sweep-v2.json:92-97`).
+- fake "baby" projects → T10 (19 tests), never run; `task-create` 400 FAIL in the sweep.
+- MCP for an arbitrary agent → T5: measured `/mcp` 404, `/api/v1/mcp` 404, `POST /mcp/message` 400. Discoverability is XFAIL **by construction**, so the owner's ask has no passable test.
+- messages via crier → T7 (29 tests) against zero code (CR-IN-001 pending; c798b66 confirms).
+
+Under-covered/missing entirely: (i) nothing separates a real model reply from a mocked/echoed one except `C-076`'s log strings — and T0's `make smoke` is explicitly "real server + **mocked LLM**" per §1/App-A; (ii) no latency budget for the headline promise despite the measured 94–108s heartbeat stalls (PERF-CONSENSUS-11); (iii) Postgres is one optional row while §3 says "run BOTH shapes"; (iv) billing tests (`C-150`/`C-210`) can pass on the wrong price table — the `unknown` fallback (`internal/harness/harness.go:281-291`) overstates flash by 31.9× (App-A C-2), so "recompute vs registry" with an empty `model_registry` is a green over the table, not the bill.
+
+**C6. SUBGOAL CONVERTIBILITY — three sketches, most-kill-first.**
+
+```
+SG-1  Make the pinned upstream suite report executed counts, or kill the tier
+  done-when:  committed results file lists 4 suites, each tests>0 and classification in
+              {PASS,DIVERGENCE}; check: awk -F"\t" 'NF==7 && $4+0==0{bad=1} END{exit bad}'
+              results.tsv  AND  ! grep -q SETUP_FAILURE summary.md  AND  4 rows total.
+  evidence:   docs/evidence/opencode-upstream-v1.18.29/{summary.md,results.tsv,4 logs}
+              (runner must stop `rm -f "$RESULTS"` — scripts/test-opencode-upstream.sh:327)
+  depends-on: none
+  falsifier:  if all four suites still collect 0 tests from the package root, the adapter
+              approach is wrong; re-scope C-GAP-032-ALPHA to "shim cannot host upstream
+              suites" instead of leaving the row cycling open/closed forever.
+
+SG-2  Prove crier intake end to end, or mark T7 out of scope
+  done-when:  a message published to crier is consumed by a consensus session and appears
+              as a memory_events user_message with recorded origin, AND a second message
+              addressed to another agent is provably NOT consumed; check: the two intake
+              commands + sqlite3 row reads (not a grep).
+  evidence:   docs/evidence/crier-intake-v1/{publish.json,intake.json,db-rows.tsv,
+              redelivery-after-restart.txt}
+  depends-on: CR-IN-001 (consensus side), CR-CONSENSUS-1 (crier side)
+  falsifier:  if crier's relay only materializes a topic after a subscriber connects, the
+              push assumption is wrong and intake must go through the durable inbox/lease
+              API instead — which changes the tier's shape, not just its status.
+
+SG-3  Make T4 ledger + billing real or declare it unprovable
+  done-when:  after ONE real turn: >=1 typed memory_events row for the session;
+              sessions.tokens_used_in/out > 0; agent_billing row count == LLM-call count
+              parsed from serve.log; cost_usd == registry-price recompute within 1%;
+              check: three sqlite3 queries + GET /api/v1/sessions/{id}/billing.
+  evidence:   docs/evidence/t4-ledger-<sha>/{rows.tsv,billing.json,serve.log,prices.json}
+  depends-on: none
+  falsifier:  if model_registry stays empty for deepseek-flash, the honest verdict is
+              "billing is not reconcilable to a price source" and the cost rows must be
+              XFAIL-pinned with the 31.9x number — never loosened to cost_usd > 0.
+```
+
+**C7. REPEAT-OFFENSE SECTION — what in THIS artifact reproduces (a)-(f).**
+
+- (a) built-as-done. §4 of the plan is a title index ("… *N more in the manifest*") and the plan never carries commands; board row TEST-CONSENSUS-001 already presents the plan's existence plus a bunker stand-up as the project's evidence of working software.
+- (b) existence-as-proof. C-036, C-039, C-066, C-091, C-096, C-118, C-158, C-163, C-268, and the 60 rows invoking unwritten helper scripts. C-039's search set includes `specs/`, so prose counts as wiring.
+- (c) success-marker strings. `C-076`/`C-077` (serve.log greps) are the DF-15 detector; a mock or an echo satisfies C-076's "both counts >= 1".
+- (d) silent-skip paths. `C-091` ("OR the compression cell is reported as NOT EXERCISED"), `C-266` ("else manual-checklist downgrade recorded"), `C-163` ("wiring exists; else tier BLOCKED"), `C-108` ("a definitive verdict line, GREEN or XFAIL"), plus C-122/C-123/C-186/C-230/C-284 prose rows that never run and 103 rows whose artifacts land outside the run root the §6 completeness check audits.
+- (e) green-but-did-nothing. Every "exit 0" criterion (C-097, C-157, C-161, C-215, C-217) with no target count; `C-066` without its curl; `C-162` "200"; and the live demonstration inside the committed sweep: `session-tokens` PASS on `('failed', 0, 0)` and `task-list` PASS on `[]`.
+- (f) lowering the bar to fit a lane. `C-123`'s VOID guard rendered unimplementable; T6's operative gate reduced to a two-string grep (C-036) while the strict criteria (C-098/C-159/C-216) sit on a `summary.json` the runner never writes; T7 pinned as EXPECTED-FAIL so a whole 29-test tier can never be red; `C-106` impossible-because-contradictory.
+
+Credential paths, specifically: the manifest's Bearer values are shell variables (my read shows `$ADMIN_KEY`/`$KEY`; one literal `cs_ak_...fake`), so the manifest itself is not leaking — but the plan's leak detectors (C-124, C-231) do not match `cs_ak_`/`cs_sk_`, the actual minted formats, and C-231's PASS is reachable on a nonexistent directory.
+
+**C8. THE INCIDENT — mechanism, and the single change.**
+Mechanism in the plan:
+1. T6's only runnable gate is `C-036`: it greps `summary.md` for the revision string and `Lock SHA-256`. The runner emits both **unconditionally, before executing any suite** (`scripts/test-opencode-upstream.sh:278-279`), in the same block that writes the summary. The committed artifact proves it: `docs/evidence/opencode-upstream-v1.18.29/summary.md:5-6` carries both, with all four suites at `tests=unknown, pass=0, fail=0` and four 189-byte logs reading `Failed to scan non-existent root directory for tests: ".../do-not-run-tests-from-root"`. C-036 = PASS on a run with zero assertions executed.
+2. The tests that DO demand executed counts are bound to an artifact the runner does not write: `C-098` ("asserts assertion_count>0") and `C-216` ("summary.json has per-suite exit codes") — the runner writes `summary.md` and deletes its own results file (`:327 rm -f "$RESULTS"`). Unrunnable criteria, silently skipped; no rule says "required artifact absent ⇒ FAIL".
+3. §6 mandates `{command, artifact_path}` per tier row, but the only committed tier artifact (`tier-sweep-v2.json`) has neither field, and no test audits any artifact against §6. The reporting contract was unenforced exactly where it was exercised.
+4. Nothing ties a row's `complete` status to a committed artifact. The closure lived in board event id 396 (commit 880c290), quoting "sdk-error-shape 2/2 PASS, client promise 7/7 PASS, instance 3/7 PASS, SDK 16/18 PASS", and its own note routes the evidence away from the repo: "explicitly recorded in **/tmp** runner output". Verified: no commit after 20aedff touched `docs/evidence/`, so the claimed 28/34 exists in no committed artifact.
+
+Single change that would have made it impossible: **make the T6 verdict a function of an executed-test count persisted from the runner's machine-readable results** — stop deleting `results.tsv`, commit it, and define the rule "executed == 0 for any suite ⇒ VOID, and a tier with a VOID suite cannot be reported". Concretely, C-036's command becomes: `awk -F"\t" 'NF==7 && $4+0==0{bad=1} END{exit bad}' results.tsv && ! grep -q SETUP_FAILURE summary.md`, i.e. bind C-036 to C-098's criterion, on the artifact the runner actually emits.
+
+---
+
+## 2. CORRECTIONS RANKED (highest value first)
+
+1. **Bind T6 to executed counts** — replace C-036's grep with the results-derived assertion; stop `rm`-ing the runner's results file and commit it; C-098/C-159/C-216 must name the real artifact. *(closes the incident mechanism)* — C-036, C-098, C-159, C-216, C-265
+2. **Define and create the run root.** Add a prelude step that sets `$RUN_ROOT/$EV/$BASE/$SRV/$KEY/$TARGET_SHA/$RUN_ID` and mkdir's the tree, plus one self-test that FAILS if any referenced path is absent. — all 117 `$RUN_ROOT` rows, C-001, C-004, C-006, C-008, C-013, C-014, C-020, C-036, C-066, C-091
+3. **Author or strike the helper scripts.** 35 rows call 28 `meta/*.sh` and 25 call 15 `scripts/battery/*.sh`; neither exists. A row calling a nonexistent script is VOID, not PASS; add "script exists, exits non-zero on empty input". — C-013, C-014, C-132, C-187, C-193…C-230, C-223, C-230
+4. **Convert the declaration guards into commands with exit codes:** C-122 → parse the board and exit non-zero when any S3 id is open/unpinned; C-123 → a per-tier counter table; C-187 → feed the battery `audited_targets=0` and assert exit 2; C-186/C-284 → audit artifacts against §6 and exit 1 on a missing field.
+5. **Fix the per-command bugs:** C-091 (`sqlite3` invocation wrong *and* contains the "NOT EXERCISED" escape — both must go), C-066 (add the curl its criterion requires), C-076 (add the 127.0.0.1/mock exclusion the criterion demands), C-231 (hardcoded run dir; passes on a missing tree), C-227 (literal "(before/after)" in a command), C-180 (prose tail).
+6. **Extend secret detection to the product's own formats:** `cs_ak_`, `cs_sk_`, `Bearer \S+` — C-124, C-231 (the runner's sanitize already knows these prefixes).
+7. **Decide T7 honestly:** land CR-IN-001 before the run, or mark the 29 T7 tests OUT-OF-SCOPE for this run — an XFAIL tier can never be red, so it proves nothing. — C-039, C-042, C-163, C-268
+8. **Add cross-row preconditions** (there is no `depends_on` field): the baby-project rows assume a fixture no listed step creates. — C-055, C-058, C-060, C-181, C-280
+9. **Fill §7 (S5 false-green analysis) and §8 (S6 unknowns)** — both are empty headers whose text says "the failure classes below".
+10. **Reconcile tier bookkeeping:** counts include S3 1, S5 1, T7a 2, T7b 1 which §4/§5 never define; the plan's own tier table (line 31) omits S1/T7a/T7b/S3/S5.
+
+---
+
+## 3. NEW VERIFIED FACTS (not in the pre-run list)
+
+- N1. The committed sweep is already false-green: `tier-sweep-v2.json:122-129` records `session-tokens` observed `('failed', 0, 0)` → verdict **PASS**; `:106-113` records `task-list` observed `200`, note `[]` → **PASS**.
+- N2. `tier-sweep-v2.json` has **zero T2 rows** and no `command`/`artifact_path` fields — so P3's "T2 PASS (391, 1676/95, 0.009805)" exists only in board row TEST-CONSENSUS-001, i.e. narrative, not artifact.
+- N3. `docs/evidence/opencode-upstream-v1.18.29/` at HEAD is byte-identical to the 0-test commit 44ba641; no later commit touched it; the 28/34 counts live in board event 396 (880c290), which itself points to `/tmp`.
+- N4. C-098 and C-216 reference `summary.json`; the runner writes `summary.md` and deletes `results.tsv` (`:327`). The strict criteria are unrunnable; the weak one runs.
+- N5. 35 commands invoke `$RUN_ROOT/meta/*.sh`, 25 invoke `scripts/battery/*.sh` — 60 rows (21%) execute files that exist nowhere; 103 rows declare artifacts outside the run root.
+- N6. The plan markdown defines no shell variables at all and never names `$RUN_ROOT`/`$EV`/`$BASE`.
+- N7. `summary.md`'s "Tests" column literally reads `unknown` while Pass/Fail read 0/0 — the artifact had a slot for the count and filled it with a non-number; that is exactly why a string-presence check passed.
+- N8. The per-suite "Explicit divergences" sections in `summary.md` (lines 32-33, 39-40, 46-47, 52-53) are **empty fenced blocks** — the report asserts compatibility gaps with no captured output.
+- N9. The runner at HEAD is genuinely fixed (7th `Classification` column, exits 1 unless every suite is PASS — `:224-243`, `:320-323`); its output was simply never committed, so the repo still evidences the void run.
+- N10. C-106's criterion ("leased_count>0 with an empty array") is self-contradictory — satisfiable only by waiver.
+
+---
+
+## 4. TOP FIXES (top 5, ranked, with failure class closed)
+
+1. **T6 verdict = parsed executed count from a committed machine-readable results file** (stop `rm` at `:327`; gate on `tests>0` per suite). — class (e) green-but-did-nothing + (c) success-marker strings.
+2. **Run-root contract + a path-existence self-test** so no row can silently no-op on an undefined variable. — class (d) silent-skip.
+3. **Delete-or-author the 43 helper scripts; nonexistent script ⇒ VOID, never PASS.** — classes (a) and (d).
+4. **Turn C-122/C-123/C-186/C-187/C-284 into commands with exit codes** (board parser, per-tier counter table, battery-fed-zero-targets check, §6 artifact audit). — classes (b) existence-as-proof and (f) bar-lowered.
+5. **Extend secret detection to `cs_ak_`/`cs_sk_`/`Bearer` and remove every self-voiding escape** (C-091 "NOT EXERCISED", C-266 "manual downgrade", C-163 "else BLOCKED", T7's blanket EXPECTED-FAIL). — class (f) lowering the bar.
+
+---
+
+## 5. IF YOU CANNOT FINISH
+
+Everything above was reached. One limit stated honestly: I did not enumerate all 19 existence-only and 9 mixed ids from the coordinator's P2 list — no id list was supplied — so I ruled on 14 by direct reading plus my own census (which finds a larger, not smaller, problem: ~150 non-executable commands, 60 calling nonexistent scripts). Verification experiments run: 0 system re-runs (reads only); no server started, no bunker command, no file modified.
+
+PANEL REVIEW COMPLETE
+
+session_id: 20260926_073121_9ffa16
