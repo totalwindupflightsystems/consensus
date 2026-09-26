@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 
 	"github.com/wojons/consensus"
@@ -23,6 +24,11 @@ var (
 	optQuiet  bool
 	optConfig string
 )
+
+// defaultServerURL is the built-in default --server value (SPEC-016 §4).
+// It lives in one place so the flag help, the fallback resolution and the
+// PersistentPreRunE identity check cannot drift apart.
+const defaultServerURL = "http://localhost:8090"
 
 // version is the build version reported by `consensus --version`. It
 // defaults to the repo-root VERSION file content (embedded at build time
@@ -58,6 +64,15 @@ approvals, running migrations, and inspecting system state.`,
 		// are skipped, and users who explicitly point --server at a custom URL
 		// (or set CONSENSUS_SERVER) are trusted to know what they're doing.
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// DF-CONSENSUS-33: resolve the flag > env > config-file fallback
+			// chain HERE, after flag parsing — pflag's bind calls reset the
+			// opt vars to their defaults at construction time, so any value
+			// pre-written before NewRootCommand() was silently dropped (an
+			// exported CONSENSUS_API_KEY never reached the wire).
+			if err := applyResolvedDefaults(cmd); err != nil {
+				return err
+			}
+
 			// Skip for subcommands that don't need a running server: serve IS
 			// the server, init is first-time setup, version is offline metadata.
 			name := cmd.Name()
@@ -68,7 +83,7 @@ approvals, running migrations, and inspecting system state.`,
 			// Skip when the user explicitly pointed at a non-default server.
 			// Default URL + no env override = "user is using the implicit
 			// localhost:8090", which is exactly the case we want to verify.
-			if optServer != "http://localhost:8090" || os.Getenv("CONSENSUS_SERVER") != "" {
+			if optServer != defaultServerURL || os.Getenv("CONSENSUS_SERVER") != "" {
 				return nil
 			}
 			client := newClient()
@@ -76,9 +91,13 @@ approvals, running migrations, and inspecting system state.`,
 		},
 	}
 
-	// Global flags (SPEC-016 §4)
-	root.PersistentFlags().StringVar(&optServer, "server", "http://localhost:8090",
-		"Consensus server base URL (env: CONSENSUS_SERVER)")
+	// Global flags (SPEC-016 §4). Defaults are neutral here: the effective
+	// values come from resolveDefaults() in PersistentPreRunE AFTER parsing
+	// (flag > env > config file) — binding a pre-resolved default into these
+	// vars is what dropped the CONSENSUS_* env values before (DF-CONSENSUS-33).
+	// The --server help still documents its default below.
+	root.PersistentFlags().StringVar(&optServer, "server", "",
+		"Consensus server base URL (env: CONSENSUS_SERVER, default: "+defaultServerURL+")")
 	root.PersistentFlags().StringVar(&optAPIKey, "api-key", "",
 		"API key for authentication (env: CONSENSUS_API_KEY)")
 	root.PersistentFlags().StringVar(&optFormat, "format", "table",
@@ -167,15 +186,81 @@ func resolveConfigPath(homeDir string) string {
 	return ""
 }
 
-// applyConfigOverrides applies CLI config values if flags/env haven't set them.
+// newFlagSetForResolution builds an empty pflag.FlagSet carrying the same
+// string flags whose fallbacks we resolve (--server, --api-key), so
+// resolveDefaults can read pflag's Changed() bookkeeping without a live
+// command. Only Changed() matters here — defaults are neutral and unused.
+func newFlagSetForResolution() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("resolution", pflag.ContinueOnError)
+	fs.String("server", "", "")
+	fs.String("api-key", "", "")
+	return fs
+}
+
+// resolveDefaults applies the flag > env > config-file fallback chain for
+// the --server and --api-key options and returns the effective values
+// (DF-CONSENSUS-33).
+//
+// fs must be the root command's flag set AFTER parsing; a flag the user
+// actually passed wins outright (Changed() is true). Anything the user left
+// unset falls back to the CONSENSUS_* environment variable, then to the
+// config file (cfg may be nil). The returned URL defaults to
+// defaultServerURL when every source is empty.
+func resolveDefaults(fs *pflag.FlagSet, cfg *cliConfig) (server, apiKey string) {
+	serverFlag, _ := fs.GetString("server")
+	apiKeyFlag, _ := fs.GetString("api-key")
+
+	// Server: flag > env > config file > default.
+	if fs.Changed("server") {
+		server = serverFlag
+	} else if v := os.Getenv("CONSENSUS_SERVER"); v != "" {
+		server = v
+	} else if cfg != nil && cfg.Server.URL != "" {
+		server = cfg.Server.URL
+	} else {
+		server = defaultServerURL
+	}
+
+	// API key: flag > env > config file > empty.
+	if fs.Changed("api-key") {
+		apiKey = apiKeyFlag
+	} else if v := os.Getenv("CONSENSUS_API_KEY"); v != "" {
+		apiKey = v
+	} else if cfg != nil && cfg.Server.APIKey != "" {
+		apiKey = cfg.Server.APIKey
+	}
+
+	return server, apiKey
+}
+
+// applyResolvedDefaults resolves the post-parse fallback chain for the
+// --server and --api-key globals into the opt vars (DF-CONSENSUS-33).
+// Runs first in the root PersistentPreRunE so every subcommand — including
+// the server-skipping ones — sees fully resolved values; the config file is
+// read exactly once per execution.
+func applyResolvedDefaults(cmd *cobra.Command) error {
+	if cmd == nil || cmd.Root() == nil {
+		return nil
+	}
+	// The root's flag set is the authoritative home of the persistent
+	// --server/--api-key flags; their Changed() bits reflect the parse.
+	optServer, optAPIKey = resolveDefaults(cmd.Root().Flags(), loadCLIConfig())
+	return nil
+}
+
+// applyConfigOverrides resolves the config-file fallback for the --server and
+// --api-key globals against the opt vars (kept under its historical name —
+// unit tests call it directly; the Execute path uses applyResolvedDefaults
+// instead, which performs the same adoption after flag parsing): a
+// consensus.yaml value is adopted only where neither the flag nor the env
+// var provided one.
 func applyConfigOverrides() {
 	cfg := loadCLIConfig()
 	if cfg == nil {
 		return
 	}
 
-	// Only override if the default or env didn't set these already
-	if optServer == "http://localhost:8090" && os.Getenv("CONSENSUS_SERVER") == "" && cfg.Server.URL != "" {
+	if optServer == "" && os.Getenv("CONSENSUS_SERVER") == "" && cfg.Server.URL != "" {
 		optServer = cfg.Server.URL
 	}
 	if optAPIKey == "" && os.Getenv("CONSENSUS_API_KEY") == "" && cfg.Server.APIKey != "" {
@@ -185,17 +270,6 @@ func applyConfigOverrides() {
 
 // Execute runs the root command and returns an exit code.
 func Execute() int {
-	// Priority: --config flag > ./consensus.yaml > ~/.consensus/config.yaml > /etc/consensus/config.yaml
-	applyConfigOverrides()
-
-	// Apply environment variable overrides (higher priority than config file, lower than -- flags)
-	if optServer == "http://localhost:8090" && os.Getenv("CONSENSUS_SERVER") != "" {
-		optServer = os.Getenv("CONSENSUS_SERVER")
-	}
-	if optAPIKey == "" && os.Getenv("CONSENSUS_API_KEY") != "" {
-		optAPIKey = os.Getenv("CONSENSUS_API_KEY")
-	}
-
 	cmd := NewRootCommand()
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "consensus: %v\n", err)

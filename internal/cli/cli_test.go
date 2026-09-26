@@ -2056,16 +2056,31 @@ func TestApplyConfigOverrides_NoConfig(t *testing.T) {
 	prevConfig := optConfig
 	optConfig = "/nonexistent/path/config.yaml"
 	prevServer := optServer
-	optServer = "http://localhost:8090"
+	optServer = ""
+	prevSrvEnv := os.Getenv("CONSENSUS_SERVER")
+	os.Unsetenv("CONSENSUS_SERVER")
+	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
+	os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
+		if prevSrvEnv == "" {
+			os.Unsetenv("CONSENSUS_SERVER")
+		} else {
+			os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
+		}
+		if prevKeyEnv == "" {
+			os.Unsetenv("CONSENSUS_API_KEY")
+		} else {
+			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+		}
 	}()
 
-	// Should not panic
+	// Should not panic; post-parse contract: opt vars start neutral
+	// (empty) and stay empty when nothing is found.
 	applyConfigOverrides()
-	if optServer != "http://localhost:8090" {
-		t.Error("server should remain default")
+	if optServer != "" {
+		t.Errorf("server should remain empty with no config, got %q", optServer)
 	}
 }
 
@@ -2085,13 +2100,27 @@ server:
 	prevConfig := optConfig
 	optConfig = configPath
 	prevServer := optServer
-	optServer = "http://localhost:8090"
+	optServer = ""
 	prevKey := optAPIKey
 	optAPIKey = ""
+	prevSrvEnv := os.Getenv("CONSENSUS_SERVER")
+	os.Unsetenv("CONSENSUS_SERVER")
+	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
+	os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
 		optAPIKey = prevKey
+		if prevSrvEnv == "" {
+			os.Unsetenv("CONSENSUS_SERVER")
+		} else {
+			os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
+		}
+		if prevKeyEnv == "" {
+			os.Unsetenv("CONSENSUS_API_KEY")
+		} else {
+			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+		}
 	}()
 
 	applyConfigOverrides()
@@ -2120,11 +2149,13 @@ server:
 	prevConfig := optConfig
 	optConfig = configPath
 	prevServer := optServer
-	optServer = "http://localhost:8090"
+	optServer = ""
 	prevKey := optAPIKey
 	optAPIKey = ""
 	prevEnv := os.Getenv("CONSENSUS_SERVER")
 	os.Setenv("CONSENSUS_SERVER", "http://env-server:8888")
+	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
+	os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
@@ -2134,14 +2165,25 @@ server:
 		} else {
 			os.Setenv("CONSENSUS_SERVER", prevEnv)
 		}
+		if prevKeyEnv == "" {
+			os.Unsetenv("CONSENSUS_API_KEY")
+		} else {
+			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+		}
 	}()
 
 	applyConfigOverrides()
 
 	// applyConfigOverrides checks env vars — if CONSENSUS_SERVER is set,
-	// the config file value should NOT override the default
-	if optServer != "http://localhost:8090" {
-		t.Errorf("server should remain default when env is set, got %q", optServer)
+	// the config file value must NOT override. Post-parse the opt vars are
+	// neutral (empty), so they stay empty; env beats config. The api-key
+	// resolution is independent: CONSENSUS_API_KEY is unset here, so the
+	// config key IS adopted.
+	if optServer != "" {
+		t.Errorf("server should remain empty when env is set, got %q", optServer)
+	}
+	if optAPIKey != "config-key" {
+		t.Errorf("api-key should adopt config value when key env is unset, got %q", optAPIKey)
 	}
 }
 
