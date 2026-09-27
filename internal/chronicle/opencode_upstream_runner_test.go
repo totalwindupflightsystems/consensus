@@ -195,6 +195,10 @@ func TestOpenCodeUpstreamRunnerWiring(t *testing.T) {
 }
 
 func TestOpenCodeUpstreamRunnerSelfTest(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skipf("node not found; skipping optional OpenCode upstream runner self-test: %v", err)
+	}
+
 	root := repositoryRoot(t)
 	runner := filepath.Join(root, "scripts", "test-opencode-upstream.sh")
 	cmd := exec.Command("sh", runner, "--self-test")
