@@ -11,10 +11,12 @@ package opencode
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wojons/consensus/internal/api"
 )
@@ -77,12 +79,70 @@ func (a *ServiceAdapter) DeleteSession(ctx context.Context, id string) error {
 	return a.svc.Sessions.DeleteSession(ctx, id)
 }
 
-func (a *ServiceAdapter) SendMessage(ctx context.Context, input MessageSendInput) error {
-	return a.svc.Messages.SendMessage(ctx, api.SendMessageInput{
+const messageResponsePollInterval = 100 * time.Millisecond
+
+func (a *ServiceAdapter) SendMessage(ctx context.Context, input MessageSendInput) (*MessageSendResult, error) {
+	_, iteration, err := a.svc.Sessions.GetSessionStatus(ctx, input.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	targetIteration := iteration + 1
+
+	if err := a.svc.Messages.SendMessage(ctx, api.SendMessageInput{
 		SessionID: input.SessionID,
 		Content:   input.Content,
 		MsgType:   input.MsgType,
-	})
+	}); err != nil {
+		return nil, err
+	}
+
+	return a.waitForMessageResponse(ctx, input.SessionID, targetIteration)
+}
+
+// waitForMessageResponse returns only output from the iteration assigned to
+// the submitted message. This prevents a late response from an earlier turn
+// from satisfying a newer synchronous request.
+func (a *ServiceAdapter) waitForMessageResponse(ctx context.Context, sessionID string, targetIteration int64) (*MessageSendResult, error) {
+	ticker := time.NewTicker(messageResponsePollInterval)
+	defer ticker.Stop()
+
+	for {
+		events, err := a.svc.Messages.ListMessages(ctx, sessionID, 50)
+		if err != nil {
+			return nil, fmt.Errorf("list responses for session %s: %w", sessionID, err)
+		}
+		status, _, err := a.svc.Sessions.GetSessionStatus(ctx, sessionID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, event := range events {
+			if event.IterationCreated != targetIteration || strings.TrimSpace(event.Content) == "" {
+				continue
+			}
+			switch event.Type {
+			case "agent_response":
+				return &MessageSendResult{Content: event.Content}, nil
+			case "text_block":
+				// The harness persists message_to_user as text_block in the same
+				// transaction that settles the session to idle. Waiting for idle
+				// avoids returning an intermediate text block from the turn.
+				if status == "idle" {
+					return &MessageSendResult{Content: event.Content}, nil
+				}
+			}
+		}
+
+		if status == "failed" {
+			return nil, fmt.Errorf("session %s failed before producing an agent response for iteration %d", sessionID, targetIteration)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("waiting for agent response for session %s iteration %d: %w", sessionID, targetIteration, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 func (a *ServiceAdapter) GetConfig(ctx context.Context) (map[string]string, error) {

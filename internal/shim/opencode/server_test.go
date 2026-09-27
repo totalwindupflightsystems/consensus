@@ -6,6 +6,7 @@ package opencode
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -18,7 +19,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/wojons/consensus/internal/api"
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/db/driver"
 	"gopkg.in/yaml.v3"
 )
 
@@ -68,6 +71,67 @@ func newTestServer(mdb *mockDB) (*Server, *httptest.Server) {
 	s.skipAuth = true
 	srv := httptest.NewServer(s.Handler())
 	return s, srv
+}
+
+func newMessageResponseTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
+	t.Helper()
+
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "messages.db")
+	conn, err := driver.Open(ctx, db.Config{
+		URL:          "sqlite://" + path,
+		MaxOpenConns: 4,
+	})
+	if err != nil {
+		t.Fatalf("open response test database: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	for _, stmt := range []string{
+		`CREATE TABLE sessions (
+			id TEXT PRIMARY KEY,
+			status TEXT NOT NULL,
+			iteration INTEGER NOT NULL DEFAULT 0,
+			heartbeat_at TEXT,
+			deleted_at TEXT
+		)`,
+		`CREATE TABLE memory_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			type TEXT NOT NULL,
+			content TEXT NOT NULL,
+			session_id TEXT NOT NULL,
+			iteration_created INTEGER NOT NULL,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE api_keys (
+			id TEXT PRIMARY KEY,
+			key_hash TEXT NOT NULL,
+			key_prefix TEXT,
+			scope TEXT NOT NULL,
+			session_id TEXT,
+			expires_at TEXT
+		)`,
+		`INSERT INTO sessions (id, status, iteration) VALUES ('s1', 'idle', 0)`,
+		`INSERT INTO memory_events (type, content, session_id, iteration_created)
+		 VALUES ('text_block', 'stale answer', 's1', 0)`,
+	} {
+		if err := conn.Exec(ctx, stmt); err != nil {
+			t.Fatalf("prepare response test database: %v", err)
+		}
+	}
+
+	if err := conn.Exec(ctx,
+		`INSERT INTO api_keys (id, key_hash, key_prefix, scope)
+		 VALUES ('test-admin', $1, 'test-key', 'admin')`,
+		hex.EncodeToString(sha256Hash([]byte("test-key")))); err != nil {
+		t.Fatalf("seed response test API key: %v", err)
+	}
+
+	service := NewServiceAdapter(api.NewService(conn, nil))
+	s := NewServer(conn, "test-key", nil, service)
+	srv := httptest.NewServer(s.Handler())
+	t.Cleanup(srv.Close)
+	return s, srv, conn
 }
 
 // ============================================================================
@@ -271,7 +335,7 @@ func TestAbortSession(t *testing.T) {
 // Message Endpoint Tests
 // ============================================================================
 
-func TestSendMessage(t *testing.T) {
+func TestSendMessageRequiresResponseService(t *testing.T) {
 	mdb := &mockDB{
 		queryRow: rowOf(map[string]any{
 			"status": "idle", "iteration": int64(0),
@@ -291,18 +355,118 @@ func TestSendMessage(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		t.Errorf("expected 200, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 without response service, got %d", resp.StatusCode)
 	}
 
-	var msg map[string]any
-	json.NewDecoder(resp.Body).Decode(&msg)
-
-	if msg["info"] == nil {
-		t.Error("expected info in response")
+	var bodyResponse map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&bodyResponse); err != nil {
+		t.Fatalf("decode error response: %v", err)
 	}
-	if msg["parts"] == nil {
-		t.Error("expected parts in response")
+	errorBody, ok := bodyResponse["error"].(map[string]any)
+	if !ok || errorBody["code"] != "SERVICE_UNAVAILABLE" {
+		t.Errorf("error = %v, want SERVICE_UNAVAILABLE", bodyResponse["error"])
+	}
+}
+
+func TestSendMessageReturnsResponseForSubmittedTurn(t *testing.T) {
+	_, srv, conn := newMessageResponseTestServer(t)
+
+	writeResult := make(chan error, 1)
+	go func() {
+		deadline := time.NewTimer(time.Second)
+		defer deadline.Stop()
+		ticker := time.NewTicker(5 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			rows, err := conn.Query(context.Background(),
+				`SELECT id FROM memory_events WHERE session_id = $1 AND type = 'user_message'`, "s1")
+			if err != nil {
+				writeResult <- err
+				return
+			}
+			if len(rows) > 0 {
+				if err := conn.Exec(context.Background(),
+					`INSERT INTO memory_events (type, content, session_id, iteration_created)
+					 VALUES ('text_block', 'actual agent answer', 's1', 1)`); err != nil {
+					writeResult <- err
+					return
+				}
+				writeResult <- conn.Exec(context.Background(),
+					`UPDATE sessions SET status = 'idle', iteration = 2 WHERE id = 's1'`)
+				return
+			}
+			select {
+			case <-deadline.C:
+				writeResult <- context.DeadlineExceeded
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+
+	body := jsonBody(t, map[string]any{
+		"parts": []map[string]any{{"type": "text", "text": "answer this turn"}},
+	})
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/session/s1/message", body)
+	if err != nil {
+		t.Fatalf("build POST /session/s1/message: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("opencode", "test-key")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST /session/s1/message failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if err := <-writeResult; err != nil {
+		t.Fatalf("publish agent response: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, responseBody)
+	}
+
+	var msg struct {
+		Info  map[string]any `json:"info"`
+		Parts []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"parts"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&msg); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if msg.Info["role"] != "assistant" {
+		t.Fatalf("response role = %v, want assistant", msg.Info["role"])
+	}
+	if len(msg.Parts) != 1 || msg.Parts[0].Type != "text" || msg.Parts[0].Text != "actual agent answer" {
+		t.Fatalf("response parts = %#v, want actual agent answer", msg.Parts)
+	}
+}
+
+func TestSendMessageNoResponseReturnsConcreteError(t *testing.T) {
+	s, _, _ := newMessageResponseTestServer(t)
+	s.messageResponseTimeout = 40 * time.Millisecond
+	body := jsonBody(t, map[string]any{
+		"parts": []map[string]any{{"type": "text", "text": "no answer will arrive"}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/session/s1/message", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("opencode", "test-key")
+	recorder := httptest.NewRecorder()
+
+	started := time.Now()
+	s.Handler().ServeHTTP(recorder, req)
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("no-response path took %s, want bounded cancellation", elapsed)
+	}
+	if recorder.Code != http.StatusGatewayTimeout {
+		t.Fatalf("status = %d, want 504: %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "agent response") ||
+		!strings.Contains(recorder.Body.String(), "not produced") {
+		t.Fatalf("timeout error is not concrete: %s", recorder.Body.String())
 	}
 }
 
@@ -328,7 +492,8 @@ func TestMountPatternsChi(t *testing.T) {
 	srv := httptest.NewServer(r)
 	defer srv.Close()
 
-	// Sub-path route: must reach the shim (200), not chi's 404.
+	// Sub-path route: must reach the shim's service-unavailable response,
+	// not chi's 404. This server intentionally has no native response service.
 	body := jsonBody(t, map[string]any{
 		"parts": []map[string]any{
 			{"type": "text", "text": "Hello, agent!"},
@@ -339,8 +504,8 @@ func TestMountPatternsChi(t *testing.T) {
 		t.Fatalf("POST /session/s1/message via chi mount failed: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		t.Errorf("expected 200 via chi MountPatterns mount, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 via chi MountPatterns mount, got %d", resp.StatusCode)
 	}
 
 	// Bare endpoint: exact pattern must still work.

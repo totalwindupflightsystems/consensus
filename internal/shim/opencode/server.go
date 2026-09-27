@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -54,6 +55,10 @@ type Server struct {
 	// Event bus for real-time SSE streaming
 	events EventBus
 
+	// Maximum time a synchronous message POST waits for the corresponding
+	// agent response. Request cancellation can shorten this bound.
+	messageResponseTimeout time.Duration
+
 	// Admin API key for auth translation (Basic Auth password → admin key)
 	adminKey string
 
@@ -86,7 +91,7 @@ type Service interface {
 	GetSession(ctx context.Context, id string) (*SessionResult, error)
 	UpdateSession(ctx context.Context, id string, action string) error
 	DeleteSession(ctx context.Context, id string) error
-	SendMessage(ctx context.Context, input MessageSendInput) error
+	SendMessage(ctx context.Context, input MessageSendInput) (*MessageSendResult, error)
 	GetConfig(ctx context.Context) (map[string]string, error)
 	UpdateConfig(ctx context.Context, settings map[string]string) error
 
@@ -137,6 +142,13 @@ type MessageSendInput struct {
 	MsgType   string
 }
 
+// MessageSendResult is the assistant response produced for a submitted turn.
+type MessageSendResult struct {
+	Content string
+}
+
+const defaultMessageResponseTimeout = 90 * time.Second
+
 // NewServer creates the opencode shim with all routes registered.
 // svc is the API service layer — the shim calls this instead of raw DB.
 // If eventBus is nil, the shim falls back to polling-based event streaming.
@@ -146,12 +158,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 		wd = "."
 	}
 	s := &Server{
-		db:        dbase,
-		svc:       svc,
-		events:    eventBus,
-		adminKey:  adminKey,
-		workdir:   wd,
-		startedAt: time.Now().UTC(),
+		db:                     dbase,
+		svc:                    svc,
+		events:                 eventBus,
+		messageResponseTimeout: defaultMessageResponseTimeout,
+		adminKey:               adminKey,
+		workdir:                wd,
+		startedAt:              time.Now().UTC(),
 	}
 	mux := http.NewServeMux()
 	s.mux = mux
@@ -1615,56 +1628,43 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, sessionID s
 		return
 	}
 
-	// Try the API service layer first (SPEC-017 §2: shim calls native API)
-	if s.svc != nil {
-		err := s.svc.SendMessage(r.Context(), MessageSendInput{
-			SessionID: sessionID,
-			Content:   content,
-			MsgType:   "user_instruction",
-		})
-		if err != nil {
-			writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to send message: "+err.Error())
-			return
-		}
-		resp := s.buildAssistantMessage("Message received. The agent will process your request and respond in the next iteration.")
-		writeJSON(w, resp)
+	// SPEC-017 §3.2 requires this synchronous endpoint to return the response
+	// produced for this turn. A shim without the native service cannot satisfy
+	// that contract; fail loudly instead of returning a fabricated acknowledgement.
+	if s.svc == nil {
+		writeOpencodeError(w, r, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "agent response service is unavailable")
 		return
 	}
 
-	// Fallback: raw DB access (used when svc is nil, e.g., in unit tests)
-	ctx := r.Context()
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	row, err := s.db.QueryRow(ctx, `SELECT status, iteration FROM sessions WHERE id = $1`, sessionID)
-	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
-		return
+	timeout := s.messageResponseTimeout
+	if timeout <= 0 {
+		timeout = defaultMessageResponseTimeout
 	}
-	currentIteration := toInt64(row["iteration"])
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
 
-	err = s.db.Exec(ctx,
-		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
-		 VALUES ('user_message', $1, $2, $3, $4)`,
-		content, sessionID, currentIteration+1, now)
+	result, err := s.svc.SendMessage(ctx, MessageSendInput{
+		SessionID: sessionID,
+		Content:   content,
+		MsgType:   "user_instruction",
+	})
 	if err != nil {
-		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			writeOpencodeError(w, r, http.StatusGatewayTimeout, "RESPONSE_TIMEOUT", "agent response was not produced before the request timeout")
+		case errors.Is(err, context.Canceled):
+			writeOpencodeError(w, r, http.StatusRequestTimeout, "REQUEST_CANCELLED", "request was cancelled before an agent response was produced")
+		default:
+			writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to send message: "+err.Error())
+		}
+		return
+	}
+	if result == nil || strings.TrimSpace(result.Content) == "" {
+		writeOpencodeError(w, r, http.StatusBadGateway, "EMPTY_RESPONSE", "agent turn completed but no response was produced")
 		return
 	}
 
-	currentStatus := toString(row["status"])
-	// Wake the session for harness pickup. Sessions are born 'booting'
-	// (see createSession); a message must transition them to 'thinking'
-	// so the heartbeat loop claims them. Matches native API behavior
-	// (api/sessions.go: idle || booting → thinking).
-	if currentStatus == "idle" || currentStatus == "booting" {
-		s.db.Exec(ctx,
-			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1 WHERE id = $2`,
-			now, sessionID,
-		)
-	}
-
-	resp := s.buildAssistantMessage("Message received. The agent will process your request and respond in the next iteration.")
-	writeJSON(w, resp)
+	writeJSON(w, s.buildAssistantMessage(result.Content))
 }
 
 func (s *Server) listMessages(w http.ResponseWriter, r *http.Request, sessionID string) {
