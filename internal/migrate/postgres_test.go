@@ -12,6 +12,7 @@ package migrate
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -109,6 +110,169 @@ func TestPostgresBootstrap(t *testing.T) {
 		} else {
 			t.Logf("  ✓ agent_circuit_breakers.%s present", want)
 		}
+	}
+}
+
+// TestPostgresBudgetLimitMigrationAndRepair proves both Postgres paths for
+// migration 022: a pending migration executes only its Up section, and an
+// already-recorded migration with a missing column is repaired on startup.
+// Gated by CONSENSUS_TEST_POSTGRES_URL.
+func TestPostgresBudgetLimitMigrationAndRepair(t *testing.T) {
+	pgURL := os.Getenv("CONSENSUS_TEST_POSTGRES_URL")
+	if pgURL == "" {
+		t.Skip("CONSENSUS_TEST_POSTGRES_URL not set; skipping Postgres budget-column regression test")
+	}
+
+	ctx := context.Background()
+	database, err := driver.Open(ctx, db.Config{URL: pgURL})
+	if err != nil {
+		t.Fatalf("failed to connect to Postgres: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Logf("close Postgres: %v", err)
+		}
+	})
+
+	adminDB := database
+	if pgdb, ok := database.(*pgpostgres.DB); ok {
+		adminDB = pgdb.AdminDB()
+	}
+	if err := grantAgentRoleSchemaPrivs(ctx, pgURL); err != nil {
+		t.Logf("skip agent_role schema grant (%v) — assuming fresh DB", err)
+	}
+
+	runner := New(adminDB)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("baseline AutoMigrate failed: %v", err)
+	}
+	var migration022 Migration
+	for _, migration := range runner.migrations {
+		if migration.Version == 22 {
+			migration022 = migration
+			break
+		}
+	}
+	if migration022.SQL == "" {
+		t.Fatal("migration 022 is not loaded for Postgres")
+	}
+
+	// Keep the shared integration database usable even if an assertion fails
+	// after the deliberate drift below.
+	t.Cleanup(func() {
+		cleanupCtx := context.Background()
+		if err := adminDB.Exec(cleanupCtx,
+			`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS budget_limit_cents INTEGER NOT NULL DEFAULT 0`); err != nil {
+			t.Logf("restore budget_limit_cents after test: %v", err)
+		}
+		if err := adminDB.Exec(cleanupCtx,
+			`INSERT INTO schema_versions (version, name, applied_at, checksum)
+			 VALUES ($1, $2, $3, $4) ON CONFLICT (version) DO NOTHING`,
+			migration022.Version, migration022.Name, "2026-09-27T00:00:00Z", migrationChecksum(migration022.SQL)); err != nil {
+			t.Logf("restore migration 022 record after test: %v", err)
+		}
+	})
+
+	// Fresh/pending path: remove the column and its version record, then Up()
+	// must execute the ADD but not the goose Down rollback in the same file.
+	if err := adminDB.Exec(ctx, `ALTER TABLE sessions DROP COLUMN IF EXISTS budget_limit_cents`); err != nil {
+		t.Fatalf("drop budget_limit_cents before pending-path test: %v", err)
+	}
+	if err := adminDB.Exec(ctx, `DELETE FROM schema_versions WHERE version = 22`); err != nil {
+		t.Fatalf("delete migration 022 record: %v", err)
+	}
+	applied, err := runner.Up(ctx)
+	if err != nil {
+		t.Fatalf("apply pending migration 022: %v", err)
+	}
+	if !containsMigration(applied, migration022.Filename) {
+		t.Fatalf("pending migration 022 was not reported as applied: %v", applied)
+	}
+	assertPostgresBudgetColumnShape(t, adminDB)
+
+	if err := adminDB.Exec(ctx,
+		`INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out, enabled)
+		 VALUES ('budget-repair-model', 1, 8192, 1.0, 2.0, true)
+		 ON CONFLICT (model_id) DO NOTHING`); err != nil {
+		t.Fatalf("seed model_registry: %v", err)
+	}
+	const sessionID = "00000000-0000-0000-0000-0000000000b8"
+	if err := adminDB.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status, tenant_id)
+		 VALUES ($1, 'budget-agent', 'budget-repair-model', 'idle', '00000000-0000-0000-0000-000000000000')
+		 ON CONFLICT (id) DO UPDATE SET agent_name = EXCLUDED.agent_name, model_id = EXCLUDED.model_id`,
+		sessionID); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	assertHarnessSessionBudget(t, adminDB, sessionID, 0)
+
+	versionRows, err := adminDB.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 22`)
+	if err != nil || len(versionRows) != 1 {
+		t.Fatalf("migration 022 record missing after pending apply: %v (rows=%d)", err, len(versionRows))
+	}
+	checksumBefore, _ := versionRows[0]["checksum"].(string)
+
+	// Recorded-but-missing path: preserve schema_versions, remove the column,
+	// prove the harness query fails with that shape, then run startup repair.
+	if err := adminDB.Exec(ctx, `ALTER TABLE sessions DROP COLUMN budget_limit_cents`); err != nil {
+		t.Fatalf("drop budget_limit_cents before repair-path test: %v", err)
+	}
+	if _, err := adminDB.Query(ctx, harnessSessionReadQuery, sessionID); err == nil {
+		t.Fatal("test premise: harness session-read query should fail while budget_limit_cents is missing")
+	}
+	if migrated, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate repair failed: %v", err)
+	} else if migrated {
+		t.Fatal("repair should not report a new migration when version 022 is already recorded")
+	}
+	assertPostgresBudgetColumnShape(t, adminDB)
+	assertHarnessSessionBudget(t, adminDB, sessionID, 0)
+
+	versionRows, err = adminDB.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 22`)
+	if err != nil || len(versionRows) != 1 {
+		t.Fatalf("migration 022 record missing after repair: %v (rows=%d)", err, len(versionRows))
+	}
+	checksumAfter, _ := versionRows[0]["checksum"].(string)
+	if checksumAfter != checksumBefore {
+		t.Fatalf("repair changed migration 022 checksum: before=%q after=%q", checksumBefore, checksumAfter)
+	}
+
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("idempotent AutoMigrate repair failed: %v", err)
+	}
+	assertHarnessSessionBudget(t, adminDB, sessionID, 0)
+}
+
+func containsMigration(applied []string, filename string) bool {
+	for _, migration := range applied {
+		if migration == filename {
+			return true
+		}
+	}
+	return false
+}
+
+func assertPostgresBudgetColumnShape(t *testing.T, database db.DB) {
+	t.Helper()
+	rows, err := database.Query(context.Background(),
+		`SELECT data_type, is_nullable, column_default
+		 FROM information_schema.columns
+		 WHERE table_schema = 'public' AND table_name = 'sessions' AND column_name = 'budget_limit_cents'`)
+	if err != nil {
+		t.Fatalf("query budget_limit_cents metadata: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("sessions.budget_limit_cents metadata rows=%d, want 1", len(rows))
+	}
+	row := rows[0]
+	if got, _ := row["data_type"].(string); got != "integer" {
+		t.Errorf("budget_limit_cents data_type=%q, want integer", got)
+	}
+	if got, _ := row["is_nullable"].(string); got != "NO" {
+		t.Errorf("budget_limit_cents is_nullable=%q, want NO", got)
+	}
+	if got := strings.TrimSpace(fmt.Sprint(row["column_default"])); got != "0" {
+		t.Errorf("budget_limit_cents column_default=%q, want 0", got)
 	}
 }
 

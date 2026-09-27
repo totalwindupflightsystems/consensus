@@ -148,6 +148,30 @@ func (r *Runner) LoadMigrations() error {
 	return nil
 }
 
+// migrationUpSQL returns only the forward section of a goose-formatted
+// migration. The custom runner tracks and rolls migrations back itself; sending
+// a file's Down section to Postgres executes the rollback immediately after the
+// Up statements while still recording the version as applied.
+func migrationUpSQL(rawSQL string) string {
+	lines := strings.Split(rawSQL, "\n")
+	up := make([]string, 0, len(lines))
+	inDown := false
+	for _, line := range lines {
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "-- +goose down":
+			inDown = true
+			continue
+		case "-- +goose up":
+			inDown = false
+			continue
+		}
+		if !inDown {
+			up = append(up, line)
+		}
+	}
+	return strings.TrimSpace(strings.Join(up, "\n"))
+}
+
 // ============================================================================
 // Status
 // ============================================================================
@@ -287,7 +311,7 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 			continue
 		}
 
-		sql := m.SQL
+		sql := migrationUpSQL(m.SQL)
 		if db.DetectBackendFromDB(r.database) == db.BackendSQLite {
 			// SQLite-native migrations (filename contains "_sqlite_") are written
 			// for SQLite by construction — the same convention LoadMigrations uses
@@ -404,6 +428,15 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
+	// Repair: migration 022 was goose-formatted, but the custom Postgres
+	// runner previously executed both its Up and Down sections in one call.
+	// Affected databases therefore record v22 while lacking the column read by
+	// every harness session query. This repair is required, not best-effort:
+	// startup must not continue against that incompatible schema.
+	if err := r.repairBudgetLimitCents(ctx); err != nil {
+		return len(applied) > 0, fmt.Errorf("migrate: repair sessions.budget_limit_cents: %w", err)
+	}
+
 	// Repair: migration 013 had a bug (filterForSQLite stripped valid SQLite
 	// ALTER TABLE ADD COLUMN). DBs initialized before the fix have migration 013
 	// recorded but trust_level missing. Detect and repair silently.
@@ -507,6 +540,46 @@ func (r *Runner) normalizeLegacyChecksums(ctx context.Context) error {
 		}
 		slog.Info("migrate: normalized legacy length-based checksum to content hash",
 			"version", version, "checksum", contentHash)
+	}
+	return nil
+}
+
+// repairBudgetLimitCents restores the required sessions column when migration
+// 022 is recorded but its goose Down section was executed by the old Postgres
+// runner. It is additive, preserves the schema_versions row/checksum, and is
+// safe to call repeatedly on both supported backends.
+func (r *Runner) repairBudgetLimitCents(ctx context.Context) error {
+	if !r.tableExists(ctx, "sessions") {
+		return nil
+	}
+
+	cols, err := r.columnNames(ctx, "sessions")
+	if err != nil {
+		return fmt.Errorf("inspect sessions columns: %w", err)
+	}
+	for _, col := range cols {
+		if strings.EqualFold(col, "budget_limit_cents") {
+			return nil
+		}
+	}
+
+	stmt := `ALTER TABLE sessions ADD COLUMN budget_limit_cents INTEGER NOT NULL DEFAULT 0`
+	if db.DetectBackendFromDB(r.database) == db.BackendPostgres {
+		stmt = `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS budget_limit_cents INTEGER NOT NULL DEFAULT 0`
+	}
+	if err := r.database.Exec(ctx, stmt); err != nil {
+		// A concurrent startup may have added the column after our metadata
+		// read. Re-inspect before failing so the repair remains idempotent even
+		// across racing processes (Postgres IF NOT EXISTS already covers this;
+		// the check is primarily for SQLite).
+		if current, inspectErr := r.columnNames(ctx, "sessions"); inspectErr == nil {
+			for _, col := range current {
+				if strings.EqualFold(col, "budget_limit_cents") {
+					return nil
+				}
+			}
+		}
+		return fmt.Errorf("add budget_limit_cents: %w", err)
 	}
 	return nil
 }
@@ -1121,6 +1194,7 @@ func hasBeginKeyword(upper string) bool {
 //  2. Translate: rewrite types (UUID→TEXT, TIMESTAMPTZ→TEXT, JSONB→TEXT, etc.),
 //     functions (gen_random_uuid(), now()), and remove type casts.
 func filterForSQLite(rawSQL string) string {
+	rawSQL = migrationUpSQL(rawSQL)
 	lines := strings.Split(rawSQL, "\n")
 	out := make([]string, 0, len(lines))
 
@@ -1502,17 +1576,6 @@ func filterForSQLite(rawSQL string) string {
 	}
 
 	result := strings.Join(out, "\n")
-
-	// Strip goose-format Down migration sections.
-	// The custom runner doesn't use goose — it executes all SQL in the file.
-	// Goose's -- +goose Down marks the rollback section, which contains
-	// Postgres-specific syntax (DROP COLUMN IF EXISTS, etc.) that SQLite rejects.
-	// Strip everything from "-- +goose Down" to end of file (or "-- +goose Up" restart).
-	if idx := strings.Index(result, "\n-- +goose Down"); idx >= 0 {
-		result = result[:idx]
-	} else if idx := strings.Index(result, "-- +goose Down"); idx >= 0 {
-		result = result[:idx]
-	}
 
 	// ===================================================================
 	// Phase 2: Translate PG types/functions to SQLite equivalents

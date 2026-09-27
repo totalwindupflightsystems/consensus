@@ -80,6 +80,61 @@ func TestLoadMigrations(t *testing.T) {
 	}
 }
 
+func TestMigrationUpSQLExcludesGooseDown(t *testing.T) {
+	runner := &Runner{}
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations failed: %v", err)
+	}
+
+	var migration022 Migration
+	for _, migration := range runner.migrations {
+		if migration.Version == 22 {
+			migration022 = migration
+			break
+		}
+	}
+	if migration022.SQL == "" {
+		t.Fatal("migration 022 is not embedded")
+	}
+	if !strings.Contains(migration022.SQL, "-- +goose Down") ||
+		!strings.Contains(migration022.SQL, "DROP COLUMN IF EXISTS budget_limit_cents") {
+		t.Fatal("test premise: migration 022 must carry the rollback that used to execute on Postgres")
+	}
+
+	upSQL := migrationUpSQL(migration022.SQL)
+	if !strings.Contains(upSQL, "ADD COLUMN budget_limit_cents INTEGER NOT NULL DEFAULT 0") {
+		t.Fatalf("migration 022 Up SQL lost the budget column addition:\n%s", upSQL)
+	}
+	if strings.Contains(upSQL, "+goose Down") || strings.Contains(upSQL, "DROP COLUMN") {
+		t.Fatalf("migration 022 Up SQL still contains its rollback section:\n%s", upSQL)
+	}
+}
+
+const harnessSessionReadQuery = `
+	SELECT agent_name, model_id, status,
+	       COALESCE(trust_level, 'high') AS trust_level,
+	       COALESCE(goal, '') AS goal,
+	       context_budget, tokens_used_in, tokens_used_out,
+	       iteration, planning_max_turns, 3,
+	       COALESCE(budget_limit_cents, 0) AS budget_limit_cents,
+	       COALESCE(parent_id, '') AS parent_id
+	FROM sessions WHERE id = $1
+`
+
+func assertHarnessSessionBudget(t *testing.T, database db.DB, sessionID string, want int64) {
+	t.Helper()
+	rows, err := database.Query(context.Background(), harnessSessionReadQuery, sessionID)
+	if err != nil {
+		t.Fatalf("harness session-read query failed: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("harness session-read query returned %d rows, want 1", len(rows))
+	}
+	if got := int64(toInt(rows[0]["budget_limit_cents"])); got != want {
+		t.Fatalf("harness session-read budget_limit_cents=%d, want %d", got, want)
+	}
+}
+
 // ============================================================================
 // AC-DEP-02: Auto-migrate on startup; drift pauses agents
 // ============================================================================
@@ -758,6 +813,62 @@ func TestMigrationUnderLoad(t *testing.T) {
 	if err := database.Exec(ctx, `ALTER TABLE _sessions_renamed RENAME TO sessions`); err != nil {
 		t.Fatalf("restore sessions table: %v", err)
 	}
+}
+
+func TestRepairBudgetLimitCentsRecordedMissing(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("first AutoMigrate failed: %v", err)
+	}
+	if err := database.Exec(ctx,
+		`INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out, enabled)
+		 VALUES ('budget-repair-model', 1, 8192, 1.0, 2.0, 1)`); err != nil {
+		t.Fatalf("seed model_registry: %v", err)
+	}
+	if err := database.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status)
+		 VALUES ('budget-repair-session', 'budget-agent', 'budget-repair-model', 'idle')`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	assertHarnessSessionBudget(t, database, "budget-repair-session", 0)
+
+	versionRows, err := database.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 22`)
+	if err != nil || len(versionRows) != 1 {
+		t.Fatalf("migration 022 must be recorded before drift simulation: %v (rows=%d)", err, len(versionRows))
+	}
+	checksumBefore, _ := versionRows[0]["checksum"].(string)
+
+	if err := database.Exec(ctx, `ALTER TABLE sessions DROP COLUMN budget_limit_cents`); err != nil {
+		t.Fatalf("drop budget_limit_cents: %v", err)
+	}
+	if _, err := database.Query(ctx, harnessSessionReadQuery, "budget-repair-session"); err == nil {
+		t.Fatal("test premise: harness session-read query should fail while budget_limit_cents is missing")
+	}
+
+	if migrated, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate repair failed: %v", err)
+	} else if migrated {
+		t.Fatal("repair should not report a new migration when version 022 is already recorded")
+	}
+	assertHarnessSessionBudget(t, database, "budget-repair-session", 0)
+
+	versionRows, err = database.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 22`)
+	if err != nil || len(versionRows) != 1 {
+		t.Fatalf("migration 022 record missing after repair: %v (rows=%d)", err, len(versionRows))
+	}
+	checksumAfter, _ := versionRows[0]["checksum"].(string)
+	if checksumAfter != checksumBefore {
+		t.Fatalf("repair changed migration 022 checksum: before=%q after=%q", checksumBefore, checksumAfter)
+	}
+
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("idempotent AutoMigrate repair failed: %v", err)
+	}
+	assertHarnessSessionBudget(t, database, "budget-repair-session", 0)
 }
 
 // ============================================================================
