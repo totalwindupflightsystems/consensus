@@ -985,6 +985,9 @@ event:
 # requests reach the stub (returning 501, not 401) where the opencode
 # contract expects it: /project and /vcs require auth on GET (401
 # unauthenticated) while non-GET methods reach the stub.
+# DF-CONSENSUS-38: bare GET /vcs and GET /vcs/diff are no longer stubs —
+# they are fixed-workspace compatibility routes (see vcs/vcsDiff below);
+# only the remaining /vcs/* sub-paths keep the 501 stub contract.
 project:
   # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9) — opencode-specific,
   # not implemented by the Consensus shim.
@@ -1026,23 +1029,68 @@ projectItem:
         $ref: "../components/responses.yaml#/NotImplemented"
 
 vcs:
-  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9) — opencode-specific,
-  # not implemented by the Consensus shim.
-  x-not-implemented: true
+  # DF-CONSENSUS-38: real fixed-workspace compatibility route (upstream
+  # httpapi-instance.test.ts "serves path and VCS read endpoints"). A request
+  # carrying a non-empty x-opencode-directory header is exempted from auth
+  # and translated exactly like /instance/vcs; headerless GET still requires
+  # auth. Non-GET methods and /vcs/* sub-paths keep the 501 stub contract
+  # (SPEC-017 §3.9).
   get:
     tags: [Opencode Shim]
-    summary: VCS info (stub)
-    operationId: shimVCSStub
+    summary: Get VCS info (fixed-workspace compatibility)
+    operationId: shimVCS
     description: |
-      Registered stub surface: VCS operations are opencode-specific and not
-      supported by the Consensus shim. GET requires auth (401
-      unauthenticated) and otherwise returns 501 NOT_IMPLEMENTED; use the
-      native tool API instead.
+      opencode Vcs.Info translation for the workspace identified by the
+      x-opencode-directory header: current branch and default branch, read
+      live. Non-git workspaces return {} — never an error. Requests without
+      the header require Consensus authentication (401).
     responses:
+      "200":
+        description: VCS info (both fields optional; {} for non-git workspaces).
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/VcsInfo"
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
-      "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+
+vcsDiff:
+  # DF-CONSENSUS-38: real fixed-workspace compatibility route (upstream
+  # httpapi-instance.test.ts "serves path and VCS read endpoints"). A request
+  # carrying a non-empty x-opencode-directory header is exempted from auth
+  # and translated exactly like /instance/vcs/diff; headerless GET still
+  # requires auth. Other /vcs/* sub-paths keep the 501 stub contract.
+  get:
+    tags: [Opencode Shim]
+    summary: Get VCS diff (fixed-workspace compatibility)
+    operationId: shimVCSDiff
+    description: |
+      opencode Vcs.FileDiff translation for the workspace identified by the
+      x-opencode-directory header: per-file additions, deletions and status
+      for the working tree. Untracked files are counted the upstream way
+      (git diff --no-index --numstat — whole lines, including a final line
+      without a trailing newline; binary files count 0). Clean or non-git
+      workspaces return []. Requests without the header require Consensus
+      authentication (401).
+    parameters:
+      - name: mode
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [git, branch]
+        description: Diff mode; accepted for upstream compatibility.
+    responses:
+      "200":
+        description: Per-file diff stats (possibly empty array).
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/VcsFileDiff"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
 
 vcsItem:
   # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9).

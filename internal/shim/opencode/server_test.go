@@ -1198,18 +1198,138 @@ func TestProjectEndpointReturns501(t *testing.T) {
 	}
 }
 
-func TestVCSEndpointReturns501(t *testing.T) {
+func TestVCSStubEndpointsReturn501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/vcs")
-	if err != nil {
-		t.Fatalf("GET /vcs: %v", err)
+	// Bare GET /vcs and GET /vcs/diff are real fixed-workspace compatibility
+	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); the
+	// remaining /vcs/* sub-paths stay 501 stubs (SPEC-017 §3.9). The test
+	// server skips auth, so the stub — not 401 — answers.
+	for _, path := range []string{"/vcs/status", "/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != 501 {
+			t.Errorf("GET %s: expected 501 stub, got %d: %s", path, resp.StatusCode, body)
+		}
 	}
-	defer resp.Body.Close()
+}
 
-	if resp.StatusCode != 501 {
-		t.Errorf("expected 501 for /vcs, got %d", resp.StatusCode)
+// TestVCSReadCompatibilityEndpoints drives the pinned upstream
+// httpapi-instance.test.ts "serves path and VCS read endpoints" assertions
+// (DF-CONSENSUS-38) through a parent chi router mounted with MountPatterns —
+// the same shape the real server uses in cmd/consensus/main.go — so a missing
+// or misregistered pattern 404s exactly as it would in production.
+func TestVCSReadCompatibilityEndpoints(t *testing.T) {
+	repo := makeGitRepo(t)
+	// No trailing newline: upstream counts untracked additions with
+	// `git diff --no-index --numstat` (whole lines), so "hello" is 1 addition.
+	if err := os.WriteFile(filepath.Join(repo, "changed.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	shim := NewServer(&mockDB{}, "test-key", nil, nil)
+	shim.workdir = repo
+	router := chi.NewRouter()
+	for _, pattern := range MountPatterns {
+		router.Handle(pattern, shim.Handler())
+	}
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	get := func(headerDir, path string) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+		if err != nil {
+			t.Fatalf("build GET %s: %v", path, err)
+		}
+		req.Header.Set("x-opencode-directory", headerDir)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		return resp
+	}
+
+	// GET /path → 200 {directory, worktree} (upstream PathInfo).
+	paths := get(repo, "/path")
+	defer paths.Body.Close()
+	if paths.StatusCode != 200 {
+		t.Fatalf("GET /path: got %d, want 200", paths.StatusCode)
+	}
+	var pathInfo map[string]any
+	if err := json.NewDecoder(paths.Body).Decode(&pathInfo); err != nil {
+		t.Fatalf("GET /path not JSON: %v", err)
+	}
+	if got := pathInfo["directory"]; got != repo {
+		t.Errorf("directory = %v, want %q", got, repo)
+	}
+	if got := pathInfo["worktree"]; got != repo {
+		t.Errorf("worktree = %v, want %q", got, repo)
+	}
+
+	// GET /vcs → 200 {branch} (upstream Vcs.Info).
+	vcs := get(repo, "/vcs")
+	defer vcs.Body.Close()
+	if vcs.StatusCode != 200 {
+		t.Fatalf("GET /vcs: got %d, want 200", vcs.StatusCode)
+	}
+	var info map[string]any
+	if err := json.NewDecoder(vcs.Body).Decode(&info); err != nil {
+		t.Fatalf("GET /vcs not JSON: %v", err)
+	}
+	if b, _ := info["branch"].(string); b != "main" {
+		t.Errorf("branch = %v, want \"main\"", info["branch"])
+	}
+
+	// GET /vcs/diff?mode=git → 200 [{file, additions, status}] including the
+	// untracked file counted the upstream way.
+	diff := get(repo, "/vcs/diff?mode=git")
+	defer diff.Body.Close()
+	if diff.StatusCode != 200 {
+		t.Fatalf("GET /vcs/diff: got %d, want 200", diff.StatusCode)
+	}
+	var diffs []map[string]any
+	if err := json.NewDecoder(diff.Body).Decode(&diffs); err != nil {
+		t.Fatalf("GET /vcs/diff not JSON array: %v", err)
+	}
+	var changed *map[string]any
+	for i := range diffs {
+		if diffs[i]["file"] == "changed.txt" {
+			changed = &diffs[i]
+		}
+	}
+	if changed == nil {
+		t.Fatalf("changed.txt missing from diff list: %v", diffs)
+	}
+	if (*changed)["status"] != "added" {
+		t.Errorf("changed.txt status = %v, want \"added\"", (*changed)["status"])
+	}
+	if a, _ := (*changed)["additions"].(float64); a != 1 {
+		t.Errorf("changed.txt additions = %v, want 1 (file has no trailing newline)", (*changed)["additions"])
+	}
+
+	// The server's own workspace is NOT the git repo the fixture addresses by
+	// header: /vcs and /vcs/diff must resolve the header directory like /path
+	// does (the pinned upstream suite creates the git repo in a temp dir and
+	// never points the server workdir at it). A header pointing at a non-git
+	// directory yields the neutral shapes.
+	shim.workdir = t.TempDir()
+	nonGit := get(t.TempDir(), "/vcs")
+	defer nonGit.Body.Close()
+	if nonGit.StatusCode != 200 {
+		t.Fatalf("GET /vcs (non-git header dir): got %d, want 200", nonGit.StatusCode)
+	}
+	var nonGitInfo map[string]any
+	if err := json.NewDecoder(nonGit.Body).Decode(&nonGitInfo); err != nil {
+		t.Fatalf("GET /vcs (non-git) not JSON: %v", err)
+	}
+	if len(nonGitInfo) != 0 {
+		t.Errorf("GET /vcs (non-git header dir) = %v, want {}", nonGitInfo)
 	}
 }
 

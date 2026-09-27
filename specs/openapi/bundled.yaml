@@ -2053,22 +2053,60 @@ paths:
         '501':
           $ref: '#/components/responses/NotImplemented'
   /vcs:
-    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
-      summary: VCS info (stub)
-      operationId: shimVCSStub
+      summary: Get VCS info (fixed-workspace compatibility)
+      operationId: shimVCS
       description: |
-        Registered stub surface: VCS operations are opencode-specific and not
-        supported by the Consensus shim. GET requires auth (401
-        unauthenticated) and otherwise returns 501 NOT_IMPLEMENTED; use the
-        native tool API instead.
+        opencode Vcs.Info translation for the workspace identified by the
+        x-opencode-directory header: current branch and default branch, read
+        live. Non-git workspaces return {} — never an error. Requests without
+        the header require Consensus authentication (401).
       responses:
+        '200':
+          description: VCS info (both fields optional; {} for non-git workspaces).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VcsInfo'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+  /vcs/diff:
+    get:
+      tags:
+        - Opencode Shim
+      summary: Get VCS diff (fixed-workspace compatibility)
+      operationId: shimVCSDiff
+      description: |
+        opencode Vcs.FileDiff translation for the workspace identified by the
+        x-opencode-directory header: per-file additions, deletions and status
+        for the working tree. Untracked files are counted the upstream way
+        (git diff --no-index --numstat — whole lines, including a final line
+        without a trailing newline; binary files count 0). Clean or non-git
+        workspaces return []. Requests without the header require Consensus
+        authentication (401).
+      parameters:
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - git
+              - branch
+          description: Diff mode; accepted for upstream compatibility.
+      responses:
+        '200':
+          description: Per-file diff stats (possibly empty array).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VcsFileDiff'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /vcs/{vcsId}:
     x-not-implemented: true
     get:
@@ -3036,6 +3074,40 @@ components:
               type: string
             data:
               description: Optional error detail.
+    VcsInfo:
+      type: object
+      properties:
+        branch:
+          type: string
+          description: Current git branch (absent for non-git or detached workspaces).
+        default_branch:
+          type: string
+          description: Default branch from origin HEAD or init.defaultBranch.
+      description: opencode Vcs.Info translation — both fields optional.
+    VcsFileDiff:
+      type: object
+      required:
+        - file
+        - additions
+        - deletions
+      properties:
+        file:
+          type: string
+          description: Changed file path relative to the workspace.
+        additions:
+          type: integer
+          description: Added line count.
+        deletions:
+          type: integer
+          description: Deleted line count.
+        status:
+          type: string
+          enum:
+            - added
+            - deleted
+            - modified
+          description: Change classification.
+      description: opencode Vcs.FileDiff translation — patch omitted (optional upstream).
     InstanceInfo:
       type: object
       required:
@@ -3084,40 +3156,6 @@ components:
           type: string
           description: Workspace directory.
       description: opencode PathInfo translation (SPEC-017 §3.10).
-    VcsInfo:
-      type: object
-      properties:
-        branch:
-          type: string
-          description: Current git branch (absent for non-git or detached workspaces).
-        default_branch:
-          type: string
-          description: Default branch from origin HEAD or init.defaultBranch.
-      description: opencode Vcs.Info translation — both fields optional.
-    VcsFileDiff:
-      type: object
-      required:
-        - file
-        - additions
-        - deletions
-      properties:
-        file:
-          type: string
-          description: Changed file path relative to the workspace.
-        additions:
-          type: integer
-          description: Added line count.
-        deletions:
-          type: integer
-          description: Deleted line count.
-        status:
-          type: string
-          enum:
-            - added
-            - deleted
-            - modified
-          description: Change classification.
-      description: opencode Vcs.FileDiff translation — patch omitted (optional upstream).
   parameters:
     StatusFilter:
       name: status

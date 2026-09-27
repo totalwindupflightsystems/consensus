@@ -204,6 +204,8 @@ paths:
     $ref: "./paths/shim.yaml#/projectItem"
   /vcs:
     $ref: "./paths/shim.yaml#/vcs"
+  /vcs/diff:
+    $ref: "./paths/shim.yaml#/vcsDiff"
   /vcs/{vcsId}:
     $ref: "./paths/shim.yaml#/vcsItem"
   /instance:

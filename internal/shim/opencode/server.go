@@ -7,7 +7,6 @@
 package opencode
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -210,9 +209,16 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 
 	// Project/VCS as 501 stubs (SPEC-017 §3.9); /instance is a real
 	// opencode-protocol translation surface (SPEC-017 §3.10).
+	// DF-CONSENSUS-38: bare GET /vcs and GET /vcs/diff are real
+	// fixed-workspace compatibility routes (upstream
+	// httpapi-instance.test.ts "serves path and VCS read endpoints" probes
+	// them with x-opencode-directory and expects 200); the remaining /vcs/*
+	// sub-paths keep the 501 stub. ServeMux resolves the longer pattern, so
+	// the exact /vcs/diff registration wins over the /vcs/ subtree stub.
 	mux.HandleFunc("/project", s.handleProjectVCSSStub)
 	mux.HandleFunc("/project/", s.handleProjectVCSSStub)
-	mux.HandleFunc("/vcs", s.handleProjectVCSSStub)
+	mux.HandleFunc("/vcs", s.handleVCS)
+	mux.HandleFunc("/vcs/diff", s.handleVCS)
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
 	mux.HandleFunc("/instance", s.handleInstance)
 	mux.HandleFunc("/instance/", s.handleInstanceSub)
@@ -1110,6 +1116,12 @@ func isFixedWorkspaceCompatibilityRequest(r *http.Request) bool {
 		return true
 	case r.Method == http.MethodGet && r.URL.Path == "/path":
 		return true
+	case r.Method == http.MethodGet && (r.URL.Path == "/vcs" || r.URL.Path == "/vcs/diff"):
+		// DF-CONSENSUS-38: upstream "serves path and VCS read endpoints"
+		// probes top-level GET /vcs and /vcs/diff with x-opencode-directory
+		// and no credentials. Headerless requests still 401 (the endpoint
+		// smoke contract keeps its auth row for GET /vcs).
+		return true
 	case r.Method == http.MethodPost && r.URL.Path == "/log":
 		return true
 	case r.Method == http.MethodPost && isRequestActionPath(r.URL.Path, "/permission/", "reply"):
@@ -1166,6 +1178,25 @@ func (s *Server) handlePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.instancePath(w, r)
+}
+
+// handleVCS serves the fixed-workspace VCS read compatibility routes
+// (DF-CONSENSUS-38, upstream httpapi-instance.test.ts "serves path and VCS
+// read endpoints"): bare GET /vcs → opencode Vcs.Info and GET /vcs/diff →
+// opencode Vcs.FileDiff[] — the same translation as /instance/vcs and
+// /instance/vcs/diff (SPEC-017 §3.10). The upstream pinned suite probes these
+// as top-level paths with x-opencode-directory and expects 200. Non-GET
+// methods and /vcs/* sub-paths stay on the 501 stub (SPEC-017 §3.9).
+func (s *Server) handleVCS(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	if r.URL.Path == "/vcs/diff" {
+		s.instanceVCSDiff(w, r)
+		return
+	}
+	s.instanceVCS(w, r)
 }
 
 func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
@@ -1285,13 +1316,11 @@ func (s *Server) handleInstanceSub(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// instancePath serves GET /instance/path → opencode PathInfo:
+// instancePath serves GET /instance/path and the fixed-workspace
+// compatibility route GET /path → opencode PathInfo:
 // {home, state, config, worktree, directory}.
 func (s *Server) instancePath(w http.ResponseWriter, r *http.Request) {
-	dir := s.workspaceDir()
-	if requested := strings.TrimSpace(r.Header.Get("x-opencode-directory")); requested != "" {
-		dir = filepath.Clean(requested)
-	}
+	dir := s.requestWorkspaceDir(r)
 	home, _ := os.UserHomeDir()
 	writeJSON(w, map[string]any{
 		"home":      home,
@@ -1302,10 +1331,14 @@ func (s *Server) instancePath(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// instanceVCS serves GET /instance/vcs → opencode Vcs.Info:
-// {branch?, default_branch?}. Never errors — a non-git workspace returns {}.
+// instanceVCS serves GET /instance/vcs and the fixed-workspace compatibility
+// route GET /vcs (DF-CONSENSUS-38) → opencode Vcs.Info:
+// {branch?, default_branch?}. The workspace is the x-opencode-directory
+// header when present (upstream fixed-workspace semantics, same as
+// instancePath), else the server workspace. Never errors — a non-git
+// workspace returns {}.
 func (s *Server) instanceVCS(w http.ResponseWriter, r *http.Request) {
-	dir := s.workspaceDir()
+	dir := s.requestWorkspaceDir(r)
 	ctx := r.Context()
 	info := map[string]any{}
 	if branch := gitBranch(ctx, dir); branch != "" {
@@ -1317,11 +1350,29 @@ func (s *Server) instanceVCS(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, info)
 }
 
-// instanceVCSDiff serves GET /instance/vcs/diff → opencode Array(Vcs.FileDiff):
-// [{file, additions, deletions, status?}]. patch is omitted (optional in the
-// upstream schema). Never errors — a clean or non-git workspace returns [].
+// instanceVCSDiff serves GET /instance/vcs/diff and the fixed-workspace
+// compatibility route GET /vcs/diff (DF-CONSENSUS-38) → opencode
+// Array(Vcs.FileDiff): [{file, additions, deletions, status?}]. The workspace
+// resolution follows instanceVCS (x-opencode-directory header first). patch is
+// omitted (optional in the upstream schema). Never errors — a clean or
+// non-git workspace returns [].
 func (s *Server) instanceVCSDiff(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, gitFileDiffs(r.Context(), s.workspaceDir()))
+	writeJSON(w, gitFileDiffs(r.Context(), s.requestWorkspaceDir(r)))
+}
+
+// requestWorkspaceDir returns the workspace directory a request operates on:
+// an explicitly configured workdir or the process CWD, overridden by the
+// upstream fixed-workspace selector header x-opencode-directory when the
+// request carries one (DF-CONSENSUS-38: the pinned upstream suite creates a
+// git workspace in a temp dir and addresses it by header, so VCS reads must
+// resolve it like /path does).
+func (s *Server) requestWorkspaceDir(r *http.Request) string {
+	if r != nil {
+		if requested := strings.TrimSpace(r.Header.Get("x-opencode-directory")); requested != "" {
+			return filepath.Clean(requested)
+		}
+	}
+	return s.workspaceDir()
 }
 
 // workspaceDir returns the workspace directory used by /instance/* endpoints:
@@ -1474,7 +1525,10 @@ func gitFileDiffs(ctx context.Context, dir string) []map[string]any {
 		case strings.HasPrefix(code, "??"):
 			entry["status"] = "added"
 			if _, ok := stats[path]; !ok {
-				entry["additions"] = lineCount(filepath.Join(dir, path))
+				if adds, dels, ok := gitUntrackedStat(ctx, dir, path); ok {
+					entry["additions"] = adds
+					entry["deletions"] = dels
+				}
 			}
 		case strings.Contains(code, "D"):
 			entry["status"] = "deleted"
@@ -1499,27 +1553,31 @@ func unquoteGitPath(p string) string {
 	return p
 }
 
-// lineCount counts newlines in a text file for untracked-file diff stats;
-// unreadable or oversized (>= 1 MiB) files count as 0.
-func lineCount(path string) int {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0
+// gitUntrackedStat counts an untracked file's additions/deletions the same
+// way the pinned upstream opencode server does (DF-CONSENSUS-38):
+// `git diff --no-index --numstat -- /dev/null <file>` — whole lines, so a
+// file without a trailing newline still counts its final line. ok is false
+// when git fails or the file is binary ("-" columns); the caller keeps 0s.
+func gitUntrackedStat(ctx context.Context, dir, file string) (adds, dels int, ok bool) {
+	out, _ := runGit(ctx, dir, "diff", "--no-index", "--numstat", "--", "/dev/null", file)
+	// --no-index exits 1 when the compared entries differ; the output is
+	// still valid, so only empty output means no stat.
+	if out == "" {
+		return 0, 0, false
 	}
-	defer f.Close()
-	buf := make([]byte, 32*1024)
-	n, total := 0, 0
-	for {
-		m, rerr := f.Read(buf)
-		total += m
-		if m > 0 {
-			n += bytes.Count(buf[:m], []byte{'\n'})
-		}
-		if rerr != nil || total >= 1<<20 {
-			break
-		}
+	parts := strings.SplitN(out, "	", 3)
+	if len(parts) < 2 {
+		return 0, 0, false
 	}
-	return n
+	if parts[0] == "-" || parts[1] == "-" {
+		return 0, 0, false
+	}
+	adds, errA := strconv.Atoi(parts[0])
+	dels, errD := strconv.Atoi(parts[1])
+	if errA != nil || errD != nil {
+		return 0, 0, false
+	}
+	return adds, dels, true
 }
 
 // ============================================================================

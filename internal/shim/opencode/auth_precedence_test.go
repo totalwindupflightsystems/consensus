@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -112,6 +113,50 @@ func TestFixedWorkspaceReadAuthPrecedence(t *testing.T) {
 	}
 	if got := paths["directory"]; got != fixedWorkspaceDirectory {
 		t.Fatalf("GET /path directory = %v, want %q", got, fixedWorkspaceDirectory)
+	}
+}
+
+// TestFixedWorkspaceVCSReadAuthPrecedence pins the DF-CONSENSUS-38 addition
+// to the compatibility surface: header-carrying GET /vcs and GET /vcs/diff
+// without Consensus credentials must pass the auth middleware (the upstream
+// pinned suite sends neither bearer tokens nor x-opencode-directory-free
+// requests), while the same paths WITHOUT the header still 401 — the
+// pre-existing unauthenticated-GET contract from the endpoint smoke suite.
+func TestFixedWorkspaceVCSReadAuthPrecedence(t *testing.T) {
+	srv := newAuthPrecedenceServer(t)
+
+	for _, path := range []string{"/vcs", "/vcs/diff?mode=git"} {
+		req := fixedWorkspaceRequest(t, http.MethodGet, srv.URL+path, "")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		// The auth-precedence server has no workdir fixture; a non-git
+		// workspace returns 200 with the neutral shapes ({} and []).
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("GET %s: got %d, want 200: %s", path, resp.StatusCode, body)
+		}
+		if fence := resp.Header.Get("x-opencode-sync"); fence != "" {
+			t.Fatalf("GET %s: read emitted x-opencode-sync %q", path, fence)
+		}
+	}
+
+	// Without the compatibility header the routes keep Consensus auth.
+	for _, path := range []string{"/vcs", "/vcs/diff"} {
+		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+		if err != nil {
+			t.Fatalf("build GET %s: %v", path, err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("headerless GET %s: got %d, want 401", path, resp.StatusCode)
+		}
 	}
 }
 

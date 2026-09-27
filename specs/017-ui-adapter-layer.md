@@ -280,7 +280,7 @@ shim translates:
   - Calls native API with the resolved API key
 ```
 
-The shim preserves Consensus authentication by default. The one protocol-compatibility exception is an upstream fixed-workspace request carrying a non-empty `x-opencode-directory` header on the exact method/path set `POST /session`, `GET /path`, `POST /log`, `POST /permission/:id/reply`, and `POST /question/:id/{reply,reject}`. This exception applies only to the loopback-bound shim surface; it does not bypass authentication for neighboring shim routes or any native `/api/v1/*` route.
+The shim preserves Consensus authentication by default. The one protocol-compatibility exception is an upstream fixed-workspace request carrying a non-empty `x-opencode-directory` header on the exact method/path set `POST /session`, `GET /path`, `GET /vcs`, `GET /vcs/diff`, `POST /log`, `POST /permission/:id/reply`, and `POST /question/:id/{reply,reject}`. This exception applies only to the loopback-bound shim surface; it does not bypass authentication for neighboring shim routes or any native `/api/v1/*` route.
 
 ### 3.4 Message Format Mapping
 
@@ -441,9 +441,11 @@ These opencode endpoints relate to opencode's own internal LLM calling and aren'
 | `POST /session/:id/fork` | Consensus has iteration rollback via iteration_commits |
 | `POST /session/:id/revert` | Consensus has its own undo via transaction rollback |
 | `GET /project` | Project concept is opencode-specific |
-| `GET /vcs` | VCS access through Consensus tools, not direct |
+| `GET /vcs/status`, `GET /vcs/diff/raw`, `POST /vcs/apply` | Remaining VCS sub-operations are opencode-specific; only the read routes below are translated |
 
 These return `501 Not Implemented` or are mapped to Consensus equivalents where sensible.
+
+**Fixed-workspace VCS read compatibility (DF-CONSENSUS-38):** the pinned upstream suite (`httpapi-instance.test.ts` "serves path and VCS read endpoints") probes bare `GET /vcs` and `GET /vcs/diff?mode=git` with `x-opencode-directory` and expects 200 — they are no longer 501 stubs. They serve the same translation as `/instance/vcs` and `/instance/vcs/diff` (§3.10): `Vcs.Info` `{branch?, default_branch?}` and `Vcs.FileDiff[]`. Untracked-file additions are counted the upstream way (`git diff --no-index --numstat -- /dev/null <file>` — whole lines, including a final line without a trailing newline; binary files count 0). Headerless `GET /vcs` still requires auth (401), and non-GET methods / remaining `/vcs/*` sub-paths keep the 501 stub contract above.
 
 The `/instance/*` surface is NOT part of this exclusion list — it is implemented as real opencode-protocol translation endpoints, see §3.10.
 
