@@ -198,8 +198,8 @@ func TestPostgresBudgetLimitMigrationAndRepair(t *testing.T) {
 	}
 	const sessionID = "00000000-0000-0000-0000-0000000000b8"
 	if err := adminDB.Exec(ctx,
-		`INSERT INTO sessions (id, agent_name, model_id, status, tenant_id)
-		 VALUES ($1, 'budget-agent', 'budget-repair-model', 'idle', '00000000-0000-0000-0000-000000000000')
+		`INSERT INTO sessions (id, agent_name, model_id, status)
+		 VALUES ($1, 'budget-agent', 'budget-repair-model', 'idle')
 		 ON CONFLICT (id) DO UPDATE SET agent_name = EXCLUDED.agent_name, model_id = EXCLUDED.model_id`,
 		sessionID); err != nil {
 		t.Fatalf("seed session: %v", err)
