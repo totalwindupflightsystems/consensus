@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Hands-On Review</title>
+<style>
+:root{
+  --bg:#0e1116; --bg2:#131924; --surf:#161d29; --surf2:#1b2431; --line:#263041;
+  --txt:#e8eef6; --mut:#a7b4c6; --line-soft:#1e2836;
+  --ok:#4ac26b; --warn:#e0a03a; --bad:#ff6b6b; --acc:#7cb0ff; --acc-dim:#4a6d9e;
+  --measure:70ch; --r:14px;
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#f7f8fb;--bg2:#eef1f7;--surf:#fff;--surf2:#f3f5f9;--line:#dbe1ea;--txt:#131a24;--mut:#4d5b70;--line-soft:#e6eaf1;--acc:#1f5fbf;--ok:#1d7a3d;--warn:#8a5a00;--bad:#b3261e}
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+::selection{background:var(--acc);color:#fff}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+body{
+  margin:0;background:var(--bg);color:var(--txt);
+  font:16px/1.65 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.scroll-prog{position:fixed;top:0;left:0;height:2px;width:0;background:var(--acc);z-index:9;transition:width .1s linear}
+.wrap{max-width:min(1040px,100% - 40px);margin:0 auto;padding:40px 0 96px}
+a{color:var(--acc);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{color:var(--txt)}
+p,li{max-width:var(--measure)}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.018em;margin:0}
+h1{font-size:clamp(28px,4vw,42px);line-height:1.12}
+h2{font-size:clamp(20px,2.4vw,26px);margin:56px 0 4px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+h3{font-size:17px;margin:26px 0 6px;color:var(--txt)}
+.lede{color:var(--mut);font-size:17.5px}
+.cover{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;margin-bottom:26px}
+.cover dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0;font-size:14.5px}
+.cover dt{color:var(--mut);text-transform:uppercase;letter-spacing:.08em;font-size:11.5px;padding-top:3px}
+.cover dd{margin:0}
+.cover .call{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:15px}
+.hero{background:
+   radial-gradient(120% 140% at 12% 0%,color-mix(in oklab,var(--acc) 16%,transparent),transparent 60%),
+   var(--bg2);
+  border:1px solid var(--line);border-radius:var(--r);padding:30px 28px;margin-bottom:10px}
+.hero .lede{margin:10px 0 18px}
+.badges{display:flex;flex-wrap:wrap;gap:8px;font-size:13px}
+.badge{border:1px solid var(--line);background:var(--surf);border-radius:999px;padding:4px 12px;color:var(--mut)}
+.badge.ok{color:var(--ok);border-color:color-mix(in oklab,var(--ok) 40%,var(--line))}
+.badge.no{color:var(--bad);border-color:color-mix(in oklab,var(--bad) 40%,var(--line))}
+.badge.wa{color:var(--warn);border-color:color-mix(in oklab,var(--warn) 40%,var(--line))}
+.toc{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;margin:26px 0 8px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:36px;font-size:14.5px}
+.toc li{margin:5px 0;break-inside:avoid}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin:14px 0;overflow-x:auto}
+.card.tinted-ok{background:color-mix(in oklab,var(--ok) 7%,var(--surf))}
+.card.tinted-bad{background:color-mix(in oklab,var(--bad) 7%,var(--surf))}
+.card.tinted-idea{background:color-mix(in oklab,var(--acc) 8%,var(--surf))}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt);margin-bottom:8px;opacity:.85}
+pre{background:#0a0d12;color:#dfe7f1;border:1px solid var(--line);border-radius:10px;padding:15px 16px;margin:12px 0;
+  overflow-x:auto;font:13.5px/1.62 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+@media (prefers-color-scheme: light){pre{background:#0e131b;color:#e6edf6}}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;
+  background:var(--surf2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px}
+pre code{background:none;border:0;padding:0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;font-variant-numeric:tabular-nums}
+caption{caption-side:top;text-align:left;color:var(--mut);font-size:13px;padding-bottom:8px}
+th,td{border-bottom:1px solid var(--line-soft);padding:9px 10px;text-align:left;vertical-align:top}
+thead th{border-bottom:1px solid var(--line);color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+tbody tr:hover{background:var(--surf2)}
+td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+@media (max-width:720px){table{font-size:13px}th,td{padding:7px 8px}}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}.warnc{color:var(--warn);font-weight:600}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:16px 0}
+.fact{background:var(--surf2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px}
+.fact b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;display:block}
+.fact span{color:var(--mut);font-size:12.5px}
+ul.tight li{margin:6px 0}
+.foot{color:var(--mut);font-size:13px;margin-top:56px;border-top:1px solid var(--line);padding-top:18px}
+.stack{display:flex;flex-direction:column;gap:2px}
+.kv{display:grid;grid-template-columns:13ch 1fr;gap:2px 14px;font-size:14.5px}
+.kv dt{color:var(--mut)}
+@media (prefers-reduced-motion:no-preference){
+  .hero{animation:rise .5s cubic-bezier(.16,1,.3,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+@media (max-width:680px){.toc ol{columns:1}.kv{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="scroll-prog" id="sp"></div>
+<div class="wrap">
+
+<div class="cover">
+  <dl>
+    <dt>To</dt><dd>Bane — operator of the fleet this project is built inside</dd>
+    <dt>From</dt><dd>Hermes, in the <em>consensus</em> thread, as an outside reviewer of its own project</dd>
+    <dt>Re</dt><dd>Hands-on review of <strong>Consensus</strong> at commit <code>ee44cbc</code>, clone → build → run → exercised live on a scratch port</dd>
+  </dl>
+  <div class="call">
+    <strong>One-line verdict:</strong> the core claim is <strong>real and I watched it work</strong> — a message reached a real model, the answer and its cost came back out of the database after a restart — but the edges a stranger hits first (an MCP client that authenticates on <code>initialize</code> and then gets 401 on <code>tools/list</code>) are still sharp, and the honest maturity label is <em>alpha with a strong spine</em>, not production.
+  </div>
+</div>
+
+<div class="hero">
+  <h1>Consensus — the database <em>is</em> the agent runtime</h1>
+  <p class="lede">I cloned it fresh, built it with its own Makefile, ran it on a scratch port, drove a real model through it, killed the process and restarted it — and everything worth asserting here is a transcript, not a quote from its docs.</p>
+  <div class="badges">
+    <span class="badge">Go 1.26.5 · 88.5k LOC · 265 files (145 test)</span>
+    <span class="badge ok">built &amp; exercised live 2026-09-27</span>
+    <span class="badge">SQLite + Postgres · REST + MCP + opencode shim</span>
+    <span class="badge wa">alpha — 28 open board rows, 10 upstream-compat failures measured</span>
+  </div>
+</div>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#what">What it is</a></li>
+    <li><a href="#ran">What I actually ran</a></li>
+    <li><a href="#compare">How it compares</a></li>
+    <li><a href="#doors">How agents hook in</a></li>
+    <li><a href="#push">Push vs poll</a></li>
+    <li><a href="#scale">From one agent to a thousand</a></li>
+    <li><a href="#incident">Incident observability</a></li>
+    <li><a href="#add">What I'd add or change</a></li>
+    <li><a href="#good">Good things</a></li>
+    <li><a href="#bad">Bad things / rough edges</a></li>
+    <li><a href="#use">Where it could actually be used</a></li>
+    <li><a href="#verdict">Verdict</a></li>
+  </ol>
+</nav>
+
+<h2 id="what">What it is</h2>
+<div class="card">
+  <p>An agent harness where the <strong>database is the runtime</strong>: sessions, the message ledger, tool calls, approvals, iteration state and per-call cost are rows, not process memory. The pitch is aimed at the failure mode where an agent framework holds state in a <code>dict</code>, the process dies, and the work is gone.</p>
+  <div class="facts">
+    <div class="fact"><b>37</b><span>tables after migration</span></div>
+    <div class="fact"><b>25</b><span>migration files</span></div>
+    <div class="fact"><b>62 / 62</b><span>declared vs served API paths</span></div>
+    <div class="fact"><b>1,323 ms</b><span>real provider call, measured</span></div>
+  </div>
+  <div class="kv">
+    <dt>Shape</dt><dd>one Go binary (<code>consensus serve</code>) + CLI; SQLite for dev, Postgres for prod</dd>
+    <dt>Surfaces</dt><dd>REST <code>/api/v1/*</code> (62 paths), MCP over streamable HTTP at <code>/mcp</code>, an <strong>opencode-protocol shim</strong> (so an existing opencode client can point at it), a web dashboard, and a command-line admin</dd>
+    <dt>Model of work</dt><dd>a session gets a goal, a heartbeat loop drives planning iterations, the agent calls tools, everything it learns is appended to <code>memory_events</code></dd>
+    <dt>Money</dt><dd>a billing row per model call with prompt/completion tokens and <code>cost_usd</code></dd>
+  </div>
+  <p style="margin-bottom:0"><strong>Docs vs code:</strong> the README opens with <em>“Stop building agents on sand. Your database is the runtime.”</em> and a section titled <em>“Your Agent Framework Is Lying To You”</em> — an unusually aggressive claim. It survives contact with the code: the ledger, the cost rows and the restart behaviour are what it says they are. Where docs and code disagree I say so below, and it happened once, in the shim.</p>
+</div>
+
+<h2 id="ran">What I actually ran</h2>
+<p class="lede">Fresh clone → its own Makefile → scratch port 18300 → real provider → process killed → restarted. Transcripts are verbatim. One caveat up front: my first harness hung because I curled <code>GET /mcp</code> with no timeout — that endpoint holds the connection open per the MCP streamable-HTTP spec, so that was my client's bug, not the server's, and it is why every later call is capped.</p>
+
+<div class="card">
+  <h3>Build — the project's front door, no Docker</h3>
+<pre>$ git clone /home/kara/consensus /tmp/consensus-review   # commit ee44cbc
+$ make build
+CGO_ENABLED=0 go build -o bin/consensus ./cmd/consensus
+make build rc=0   elapsed 7,829 ms
+bin/consensus   26,718,475 bytes
+$ ./bin/consensus version
+consensus version 0.1.0
+$ go vet ./...
+(no output — clean)</pre>
+
+  <h3>Boot + the auth ladder</h3>
+<pre>$ ./bin/consensus init --config .review/consensus.yaml --db-url sqlite://…/consensus.db
+Migrations:    applied
+consensus: first_admin_key created=true key_prefix=cs_ak_5c expires_at=2026-12-25T13:07:29Z
+
+$ ./bin/consensus serve --config .review/consensus.yaml --port 18300
+consensus: starting  addr=127.0.0.1:18300 backend=sqlite
+consensus: opencode shim enabled
+health after 1s: 200   → {"status":"ok","version":"0.1.0",…}
+
+POST /api/v1/sessions   (no key)    -> 401  {"error":{"code":"UNAUTHENTICATED","message":"missing API key"}}
+POST /api/v1/sessions   (fake key)  -> 401  {"error":{"code":"UNAUTHENTICATED","message":"invalid or expired API key"}}
+POST /api/v1/sessions   (admin key) -> 201</pre>
+  <p style="margin:0">Three different messages for three different conditions — a validator that tells a client <em>which</em> thing it got wrong, not just no.</p>
+
+  <h3>The core loop, with a real model on the other end</h3>
+<pre>POST /api/v1/sessions/carter-review/message
+{"content":"What is 17 multiplied by 23? Reply with just the number."}
+
+$ grep 'llm:' .review/serve.log
+llm: calling provider  url=https://api.deepseek.com/v1/chat/completions \
+                       model=deepseek-v4-flash messages=3
+llm: response received model=deepseek-flash elapsed_ms=1323 \
+                       prompt_tokens=1680 completion_tokens=88
+
+$ GET /api/v1/sessions/{id}
+{"status":"idle","iteration":2,"tokens_used_in":1680,"tokens_used_out":88,"last_error":null}
+
+$ GET /api/v1/sessions/{id}/context
+[{"type":"text_block","rendered_text":"Simple arithmetic: 17 × 23 = 391. No database work needed…"},
+ {"type":"text_block","rendered_text":"391"}]
+
+$ GET /api/v1/sessions/{id}/billing
+{"entries":[{"model_id":"deepseek-flash","category":"cognition","prompt_tokens":1680,
+ "completion_tokens":88,"cost_usd":0.00972,"recorded_at":"2026-09-27 15:26:53"}],
+ "total_cost_usd":0.00972}
+
+$ GET /api/v1/metrics
+{"active_sessions":1,"pending_tasks":0,"pending_approvals":0,"total_sessions":1,"total_cost_usd":0.00972}</pre>
+  <p style="margin:0">The right answer, from a real provider, with its price attached, in the database. This is the claim the README makes, and it holds.</p>
+
+  <h3>Kill it and restart — the state claim put to the test</h3>
+<pre>$ kill $(cat .review/serve.pid)   # process gone
+$ ./bin/consensus serve --config .review/consensus.yaml --port 18300
+health after 1s: 200
+GET /api/v1/sessions/{id}  ->  {"status":"idle","iteration":2,
+                                "tokens_used_in":1680,"tokens_used_out":88}
+GET /api/v1/sessions/{id}/memory -> [text_block] "391"
+                                   [user_message] "What is 17 multiplied by 23?…"</pre>
+  <p style="margin:0"><span class="pass">Held.</span> Same session id, same tokens, the turn's reasoning and its answer, after a full process restart — with no recovery code involved.</p>
+
+  <h3>Read surface a client actually fetches</h3>
+  <table>
+    <caption>Every call capped at 5 s. Contents-Type is what the server sent, not what the docs promise.</caption>
+    <thead><tr><th>Endpoint</th><th>Code</th><th>Bytes</th><th>Content-Type</th></tr></thead>
+    <tbody>
+      <tr><td><code>/api/v1/sessions/{id}</code></td><td class="pass">200</td><td class="num">426</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/sessions/{id}/context</code></td><td class="pass">200</td><td class="num">276</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/sessions/{id}/memory</code></td><td class="pass">200</td><td class="num">672</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/sessions/{id}/billing</code></td><td class="pass">200</td><td class="num">416</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/metrics</code></td><td class="pass">200</td><td class="num">105</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/sessions/{id}/iterations</code></td><td class="pass">200</td><td class="num">3</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/sessions/{id}/tasks</code></td><td class="pass">200</td><td class="num">3</td><td><code>application/json</code></td></tr>
+      <tr><td><code>/api/v1/tools</code> · <code>/skills</code> · <code>/config</code></td><td class="pass">200</td><td class="num">3–64</td><td><code>application/json</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>MCP — the door an outside agent knocks on</h3>
+<pre>GET  /mcp                        -> 200   (mounts; holds the stream open by design)
+POST /mcp  initialize            -> 200
+  {"result":{"protocolVersion":"2024-11-05",
+             "capabilities":{"tools":{},"resources":{},"prompts":{}},
+             "serverInfo":{"name":"consensus","version":"0.1.0"}}}
+POST /mcp  tools/list            -> 401
+  {"error":{"code":-32000,"message":"Authentication required",
+            "data":"API key missing from the MCP initialize request…"}}</pre>
+  <p style="margin:0"><span class="fail">Split behaviour.</span> The key I passed in <code>params._meta.authorization</code> is honoured for <code>initialize</code> and <span class="fail">rejected for <code>tools/list</code></span> in the same session. An MCP client that authenticates once at handshake — which is the normal pattern — gets a working server that refuses to list its tools. Filed as a finding; this is the sharpest edge in the review.</p>
+
+  <h3>Contract fidelity: declared vs served</h3>
+<pre>declared paths   (specs/openapi/bundled.yaml)   -> 62
+served paths     (GET /openapi.json)            -> 62
+route literals   (internal/api/*.go)            -> 46 + shim mounts</pre>
+  <p style="margin:0">The advertised contract and the running binary agree, path for path. <strong>Ten days ago they did not</strong> — 60 declared, 59 served, with <code>/mcp</code> 404ing and five paths answering 501. That this now reads 62/62 is the single most reassuring number in the review, because it was fixed in response to exactly this kind of audit.</p>
+
+  <h3>Not exercised (by name)</h3>
+  <ul class="tight">
+    <li>Postgres backend — everything here is SQLite on one host.</li>
+    <li>The opencode shim <em>as a client</em>: I confirmed it is mounted and that the upstream suite runs against it, but the four pinned upstream suites currently fail 10 assertions (measured by the fleet, not re-run by me), so "opencode-compatible" is not yet true.</li>
+    <li>Concurrency beyond one session — no load probe was run, so every scaling statement below is labelled as a projection.</li>
+    <li>Approvals / human-in-the-loop flow, quarantine, the web dashboard, CLI verbs beyond <code>version</code>/<code>init</code>/<code>serve</code>.</li>
+    <li>Tool execution: I read the code path and saw the ledger rows in the fleet's evidence, but I did not make the agent call a tool myself in this run.</li>
+  </ul>
+</div>
+
+<h2 id="compare">How it compares</h2>
+<div class="card" style="overflow-x:auto">
+  <table>
+    <caption>Consensus is not competing with agent <em>frameworks</em> so much as with <em>durable runtimes</em> — the layer that keeps state when the process dies.</caption>
+    <thead><tr><th>Option</th><th>Where state lives</th><th>Crash story</th><th>Ops weight</th><th>Reach for it when</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Consensus</strong> <span class="badge">this review</span></td>
+        <td>Your database — sessions, ledger, cost, approvals as rows</td>
+        <td>Restart and query; no replay engine (verified live)</td>
+        <td>One Go binary + a DB</td>
+        <td>You already trust a DB and want the agent's reasoning, tools and cost queryable in SQL next to your product data</td>
+      </tr>
+      <tr>
+        <td>Temporal</td>
+        <td>Event-sourced workflow history in its own cluster</td>
+        <td>Replays the event log to reconstruct state</td>
+        <td>Heavy: cluster + workers + a programming model to learn</td>
+        <td>Long-lived, multi-step business workflows where replay semantics are the point</td>
+      </tr>
+      <tr>
+        <td>DBOS / Restate / Inngest</td>
+        <td>Durable execution as a library over your DB</td>
+        <td>Checkpoint-and-resume inside your own process</td>
+        <td>Moderate: a library + conventions</td>
+        <td>You want durable execution without adopting a new cluster</td>
+      </tr>
+      <tr>
+        <td>LangGraph (+ checkpointers)</td>
+        <td>Checkpoints in a store you pick</td>
+        <td>Resume from the last checkpoint</td>
+        <td>Low to start, grows with the graph</td>
+        <td>You are designing an agent as an explicit graph and want Python-native tooling</td>
+      </tr>
+      <tr>
+        <td>opencode / Claude Code / Cursor</td>
+        <td>The session on that machine, usually in memory or a local file</td>
+        <td>Session lost; start over</td>
+        <td>None</td>
+        <td>You want a coding agent in a terminal today</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="margin:0"><strong>Take:</strong> pick Consensus when you want the agent's <em>record</em> to be a first-class, queryable part of your system — cost per turn, what it knew at iteration 3, which tool it called — and you are willing to run a database for it. Pick Temporal when the workflow itself is the product, LangGraph when the graph is the product, and opencode/Claude Code when a single interactive session is. The interesting composition, given the shipped shim: consensus as the durable backend <em>under</em> a coding-agent client, which is exactly the seam that is currently 10 assertions short of working.</p>
+</div>
+
+<h2 id="doors">How agents hook in</h2>
+<div class="card">
+  <ul class="tight">
+    <li><strong>REST</strong> — 62 served paths, three distinct auth failures, JSON everywhere (verified).</li>
+    <li><strong>MCP</strong> — streamable HTTP at <code>/mcp</code>; <code>initialize</code> works and advertises <code>tools</code>/<code>resources</code>/<code>prompts</code>; <code>tools/list</code> currently 401s with the same credential (verified).</li>
+    <li><strong>opencode protocol shim</strong> — mounts the opencode server protocol so an existing coding-agent client can point at consensus (mounted and enabled; compatibility currently failing upstream suites).</li>
+    <li><strong>CLI</strong> — <code>init</code>, <code>serve</code>, <code>session</code>, <code>memory</code>, <code>approve</code>/<code>reject</code>, <code>mcp-stdio</code>, <code>migrate</code>, <code>models</code>, <code>skill</code>, <code>tool</code>, <code>status</code>.</li>
+    <li><strong>Webhooks in</strong> — <code>/webhooks/{source}</code> with signed delivery (added the day before this review; the route was a 404 until then).</li>
+  </ul>
+  <p style="margin:14px 0 0"><strong>Absence, verified by grep:</strong> no A2A, no AgentCard, no ACP server implementation. <code>grep -ri 'a2a|agentcard'</code> across <code>internal/</code>, <code>cmd/</code>, <code>specs/</code> returns CSS badge classes and nothing else. Consensus speaks <em>its own</em> REST plus MCP plus one vendor's protocol; it does not yet speak the cross-vendor agent-to-agent protocol. That is a deliberate-looking omission, not a broken feature, but it is the gap that decides whether a heterogeneous fleet of <em>agents from different vendors</em> can use it as a bus.</p>
+</div>
+
+<h2 id="push">Push vs poll</h2>
+<div class="card">
+  <table>
+    <caption>What wakes a sleeping consumer, verified from code and one live stall I watched get fixed.</caption>
+    <thead><tr><th>Lane</th><th>Push</th><th>Poll</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Native agent dispatch</td><td class="pass">Yes — message-triggered wake</td><td>5 s heartbeat safety net</td><td>The wake was <em>added</em> after a measured stall of 94–108 s between POST and pickup; measured dispatch is now immediate (this run: <code>found active session</code> on the first beat)</td></tr>
+      <tr><td>Session events</td><td class="pass">SSE at <code>/api/v1/events</code></td><td>—</td><td>Was unauthenticated and streamed another tenant's session until it was fixed with a scoping wall; now requires auth</td></tr>
+      <tr><td>MCP clients</td><td>Server-initiated messages on the open stream</td><td>Client polls <code>tools/list</code> etc.</td><td>A client cannot currently complete the polling half (401)</td></tr>
+      <tr><td>Webhooks (inbound)</td><td class="pass">POST + signature headers</td><td>—</td><td>Retry/backoff policy not verified in this pass</td></tr>
+    </tbody>
+  </table>
+  <p style="margin:0">The pattern to notice: the project's own dogfood and QA lanes found the sleeper-wakeup gap and the missing auth, and both are closed. What remains is the MCP half of the same story.</p>
+</div>
+
+<h2 id="scale">From one agent to a thousand</h2>
+<div class="card">
+  <p><span class="warnc">Projection, not measurement.</span> I ran exactly one session. Everything in this section is read from defaults and code, and is labelled as such.</p>
+  <div class="facts">
+    <div class="fact"><b>8</b><span>SQLite max open conns (shipped default was 1 — that single connection wedged the loop under load; fixed)</span></div>
+    <div class="fact"><b>5 s</b><span>heartbeat interval</span></div>
+    <div class="fact"><b>100</b><span>harness max iterations per session</span></div>
+    <div class="fact"><b>0</b><span>lease / visibility-timeout mechanisms found by grep</span></div>
+  </div>
+  <ul class="tight">
+    <li><strong>Where it breaks:</strong> the pool, not the model. The single-connection default was the P0 that made everything look broken; the failure mode of this class of bug is a loop that waits forever on a transaction. Postgres for real concurrency, and a load probe, are both untested by me.</li>
+    <li><strong>Idempotency is thin:</strong> <code>grep -ri idempoten internal/ --include='*.go'</code> excluding tests returns <strong>3</strong> references. Retrying a <code>POST /message</code> after a timeout is not obviously safe, and that is a real gap for a system whose whole promise is "the database remembers".</li>
+    <li><strong>No leases:</strong> the <code>lease</code> hits in the tree are semaphores and SAVEPOINTs. There is no visibility-timeout family (claim → lease → ack → redeliver) for tasks, so a worker that dies holding a claim is a manual-cleanup problem, not an automatic one.</li>
+    <li><strong>Cost guard:</strong> <code>budget_limit_cents</code> exists as a knob (1000 in the shipped config) and metrics expose <code>total_cost_usd</code> — the metering exists; the enforcement path under load is unverified.</li>
+  </ul>
+</div>
+
+<h2 id="incident">Incident observability</h2>
+<div class="card">
+  <p>What an operator can see when a turn goes wrong: <code>memory_events</code> (append-only, trigger-enforced for SQLite <em>and</em> Postgres), <code>audit_logs</code> (21 write sites), per-call <code>agent_billing</code> rows, <code>/api/v1/metrics</code>, session <code>last_error</code>, quarantine endpoints, and a per-iteration view.</p>
+  <p>That is a genuine strength: the two hardest questions in agent operations — <em>what did it know at iteration N</em> and <em>what did that cost</em> — are both SQL queries here, not log archaeology.</p>
+  <p style="margin-bottom:0">The weakness is the same as the strength's blind spot: <strong>the observability was the last thing to become true of the process itself.</strong> In the last ten days this project has shipped, by its own board: a billing ledger that wrote <em>nothing</em> while real tokens were spent; a <code>DELETE /sessions/{id}</code> that returned 200 and deleted nothing; an unauthenticated SSE stream that leaked another session's contents; and a run of a compatibility suite closed as complete with <strong>zero tests executed</strong>. All four are fixed or reopened, and each was found by dogfooding rather than by monitoring — which is the honest status: <em>detected afterward, by an adversarial reviewer, not during, by instrumentation.</em></p>
+</div>
+
+<h2 id="add">What I'd add or change</h2>
+<div class="card tinted-idea">
+  <ol class="tight">
+    <li><strong>Fix MCP auth precedence first.</strong> One credential, one behaviour: if the handshake authenticates the session, <code>tools/list</code> must inherit it. Precedent: MCP streamable-HTTP expects session-scoped auth established at <code>initialize</code>. <em>Cheapest fix with the largest effect on whether an outside agent can use this at all.</em></li>
+    <li><strong>Claim leases for tasks and tool calls.</strong> Steal Celery's visibility-timeout / Temporal's activity-heartbeat shape: a claim carries an expiry, an unacked claim is redelivered, and a dead worker stops blocking a queue. Precedent: Celery, SQS, Temporal.</li>
+    <li><strong>Idempotency keys on the mutating surface.</strong> <code>POST /sessions</code> and <code>POST /message</code> should accept a client key and be replay-safe; 3 hits of idempotency code is not a policy. Precedent: Stripe-style keys, MCP task ids.</li>
+    <li><strong>Finish the opencode seam.</strong> The shim is the highest-leverage idea in the repo (be the durable backend under clients people already use) and it is 10 upstream assertions away from being a claim you can make.</li>
+    <li><strong>Publish the grader, not just the grade.</strong> This project's most credible artifact right now is its own defect ledger with measured numbers. Shipping the compatibility suite's pass/fail table as a badge a reader can re-run is worth more than any README paragraph.</li>
+    <li><strong>Consider A2A.</strong> If the fleet's agents are going to be heterogeneous, the cross-vendor protocol is a door worth having — after the MCP door closes properly.</li>
+  </ol>
+</div>
+
+<h2 id="good">Good things</h2>
+<div class="card tinted-ok">
+  <div class="chip">verified live, this session</div>
+  <ul class="tight">
+    <li><strong>The headline claim is true and I watched it:</strong> real provider round-trip (1,323 ms, 1,680/88 tokens), the answer persisted, the cost recorded as <code>0.00972 USD</code>, and both still readable after killing and restarting the process.</li>
+    <li><strong>Contract honesty:</strong> 62 declared paths, 62 served, JSON everywhere, three distinct auth errors that name the actual problem.</li>
+    <li><strong>Build discipline that shows:</strong> a 7.8 s build from a cold clone, a single 26.7 MB static binary, <code>go vet</code> clean, 145 test files against 265, 25 migrations, append-only triggers enforced in <em>both</em> database engines.</li>
+    <li><strong>Cost is first-class:</strong> a billing row per model call with token classes and a session total, exposed through both the session and system endpoints — most agent runtimes cannot answer "what did that turn cost" without a spreadsheet.</li>
+    <li><strong>The project audits itself:</strong> the fixes above did not come from me. They came from its own dogfood, QA, PM and review lanes filing measured defects, and the spec/runtime drift and MCP mount in this report were found by exactly that machinery. A codebase that files <em>this</em> many honest rows about itself is a different animal from one that claims to be finished.</li>
+  </ul>
+</div>
+
+<h2 id="bad">Bad things / rough edges</h2>
+<div class="card tinted-bad">
+  <div class="chip">actually hit, or measured by the project's own instrumentation</div>
+  <ul class="tight">
+    <li><strong>MCP: authenticated handshake, 401 on <code>tools/list</code></strong> — hit by me, in the first five minutes, following the documented path. An external agent cannot currently use the tool surface.</li>
+    <li><strong>opencode compatibility is measured at 10 failed upstream assertions</strong> (34 ran, 24 passed) — and until the day before this review the runner was <em>deleting its own results</em> and mislabelling real divergences as "setup failure", so the number did not exist to be argued with.</li>
+    <li><strong>Alpha edges with teeth, all recent:</strong> a dead billing ledger while tokens burned; a <code>DELETE</code> that returned success and deleted nothing; an unauthenticated SSE stream; a shim surface that answered 200 with no key and disclosed host paths; a compatibility task closed on zero executed tests.</li>
+    <li><strong>Advertised-but-absent durability primitives:</strong> no leases, no visibility timeouts, ~3 idempotency references. For a project whose thesis is "the state is the product", these are the primitives a serious user will ask for next.</li>
+    <li><strong>Shipped-config traps I hit myself:</strong> the runner needs an env var the Makefile makes mandatory; the shipped SQLite pool default was 1 (now 8); the shipped <code>consensus.yaml</code> could not override the model from the environment until recently. Configuration is where this project's paper cuts concentrate.</li>
+    <li><strong>Absence of A2A</strong> (grepped, not assumed) — a deliberate-looking but consequential gap.</li>
+    <li><strong>Docs drift happens here too:</strong> the review caught a route documented as reading a listener while the code registered something else, and a toolchain requirement the README did not name. Small, but this project earns trust through its exits, not its prose.</li>
+  </ul>
+</div>
+
+<h2 id="use">Where it could actually be used</h2>
+<div class="card">
+  <ol class="tight">
+    <li><strong>Fleet-internal agent backend (now).</strong> Its current, real user is the fleet that built it: agents whose sessions, costs and defects are queryable in SQL. That is already working — 40 ticks in 48 h against this board.</li>
+    <li><strong>As the durable substrate under a coding agent (weeks).</strong> Point an opencode-protocol client at it and the client gains a database. Blocked only by the compatibility gap above; the shim already exists.</li>
+    <li><strong>Agent runs you must be able to explain (months).</strong> Regulated or audited settings where "why did it do that, and what did it cost" must be answerable from a record rather than from a transcript someone saved. The append-only ledger is the right shape for this; budgets and approval gates already exist.</li>
+    <li><strong>Not yet:</strong> multi-tenant production without a load probe, and nothing requiring cross-vendor agent interoperability.</li>
+  </ol>
+  <p style="margin:0"><strong>Before trusting it:</strong> run it on Postgres under concurrent sessions, confirm the MCP surface end-to-end with a real client, and decide the idempotency policy for message delivery.</p>
+</div>
+
+<h2 id="verdict">Verdict</h2>
+<div class="card">
+  <p><strong>Try it now if</strong> the problem you have is "my agent's state and cost live in a process that dies". That problem is solved here, and I verified the solution by killing the process.</p>
+  <p><strong>Wait if</strong> you need to hand it to an external agent today (MCP is split), or to claim a coding-agent compatibility story (10 failed assertions), or to run many concurrent sessions (unmeasured, and the last pool default was catastrophic).</p>
+  <p><strong>The bar to bet on it:</strong> MCP auth consistent across methods; leases plus idempotency keys on the mutating surface; the upstream compatibility suite green or its failures pinned by name; and one published load probe on Postgres. Each is a small, well-scoped change — and the project's own defect ledger says it already knows about all four.</p>
+  <p style="margin-bottom:0"><strong>The thing that separates this from the README it criticises:</strong> when I found the MCP inconsistency, the fix belonged to a project that had <em>already filed</em> the surrounding class, measured the compatibility gap with real numbers, and reopened a row it had wrongly closed. That is a working quality system, and it is the reason the verdict is "alpha with a strong spine" rather than "another agent framework".</p>
+</div>
+
+<div class="foot">
+  Tested 2026-09-27 · commit <code>ee44cbccd2cb0460a2d20f29a9c16ea1f54f84b0</code> · <code>go1.26.5 linux/amd64</code> · SQLite · scratch port 18300 · clone <code>/tmp/consensus-review</code> (left in place for a re-run) · every transcript above is verbatim output from that clone.
+  <br>Review method: <code>carterlasalle-project-review</code>. Design: code-led per <code>impeccable</code> (loaded; craft-floor applied — no section numbering, no left-stripe callouts, no hero-metric scaffold); no image generation in this harness, so the visual world is type, colour and spacing only.
+  <br>Disclosure: I am the agent working in this project's thread. The defects cited as "measured" include my own findings and the fleet's, and this review's run was independent of both — fresh clone, own port, own provider call.
+</div>
+
+</div>
+<script>
+(function(){
+  var sp=document.getElementById('sp');
+  function up(){var h=document.documentElement;
+    var max=(h.scrollHeight-h.clientHeight)||1;
+    sp.style.width=Math.min(100,(h.scrollTop/max)*100)+'%';}
+  document.addEventListener('scroll',up,{passive:true});up();
+})();
+</script>
+</body>
+</html>
