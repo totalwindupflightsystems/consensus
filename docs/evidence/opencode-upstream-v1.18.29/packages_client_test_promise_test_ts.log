@@ -1,2 +1,15 @@
 bun test v1.3.14 (0d9b296a)
-Failed to scan non-existent root directory for tests: "/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/do-not-run-tests-from-root"
+
+test/promise.test.ts:
+(pass) exposes every standard HTTP API group [0.30ms]
+(pass) sessions.get returns the wire projection [0.88ms]
+(pass) events.subscribe exposes the Promise event stream wire projection [3.24ms]
+(pass) events.subscribe terminates on malformed Promise SSE data [0.70ms]
+(pass) session methods use the public HTTP contract [2.10ms]
+(pass) middleware errors remain declared client errors [0.35ms]
+(pass) sessions.history decodes SessionNotFoundError [0.20ms]
+
+ 7 pass
+ 0 fail
+ 23 expect() calls
+Ran 7 tests across 1 file. [28.00ms]

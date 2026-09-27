@@ -1,2 +1,49 @@
 bun test v1.3.14 (0d9b296a)
-Failed to scan non-existent root directory for tests: "/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/do-not-run-tests-from-root"
+
+test/server/httpapi-instance.test.ts:
+(pass) instance HttpApi > serves the OpenAPI document [1165.31ms]
+(pass) instance HttpApi > emits a sync fence header for fixed-workspace mutations [305.75ms]
+(pass) instance HttpApi > does not emit sync fence headers for fixed-workspace reads or no-op mutations [311.87ms]
+(pass) instance HttpApi > rejects malformed permission and question request ids [353.00ms]
+(pass) instance HttpApi > returns typed not found bodies for missing permission and question requests [269.45ms]
+[01:05:08.004] ERROR (#134083): 227 |           headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+228 |           body: JSON.stringify({ name: "Missing" }),
+229 |         }),
+230 |       )
+231 | 
+232 |       expect(response.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 501
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:232:31
+
+227 |           headers: { "x-opencode-directory": dir, "content-type": "application/json" },
+228 |           body: JSON.stringify({ name: "Missing" }),
+229 |         }),
+230 |       )
+231 | 
+232 |       expect(response.status).toBe(404)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 404
+Received: 501
+
+      at toBe (unknown:1:1)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/packages/opencode/test/server/httpapi-instance.test.ts:232:31
+      at ~effect/Effect/successCont (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:910:23)
+      at runLoop (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:420:66)
+      at evaluate (/home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:380:20)
+      at /home/kara/.cache/consensus/opencode-16747470f976aca3d362ad730bcd3fe82ecc2c9a/node_modules/.bun/effect@4.0.0-beta.83/node_modules/effect/dist/internal/effect.js:734:14
+      at processTicksAndRejections (native:7:39)
+(fail) instance HttpApi > returns typed not found bodies for missing projects [270.16ms]
+(pass) instance HttpApi > serves path and VCS read endpoints [306.18ms]
+
+ 6 pass
+ 1 fail
+ 25 expect() calls
+Ran 7 tests across 1 file. [6.02s]
