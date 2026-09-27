@@ -364,7 +364,11 @@ config:
     summary: Read shim configuration
     operationId: shimGetConfig
     description: |
-      Returns all system_settings as {"settings": {...}}.
+      Returns all system_settings under `settings` and an upstream-compatible
+      `provider_default` map from provider IDs to their configured default
+      model. The Consensus provider entry is derived from
+      `settings["llm.default_model"]` when configured; otherwise the map is
+      empty.
     responses:
       "200":
         description: Configuration map.
@@ -372,11 +376,19 @@ config:
           application/json:
             schema:
               type: object
+              required: [settings, provider_default]
               properties:
                 settings:
                   type: object
                   additionalProperties:
                     type: string
+                provider_default:
+                  type: object
+                  description: Default model ID keyed by provider ID.
+                  additionalProperties:
+                    type: string
+                  example:
+                    consensus: gpt-4o
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "500":

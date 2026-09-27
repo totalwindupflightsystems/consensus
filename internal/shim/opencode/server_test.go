@@ -407,9 +407,50 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	var cfg map[string]any
-	json.NewDecoder(resp.Body).Decode(&cfg)
-	if cfg["settings"] == nil {
-		t.Error("expected settings in config")
+	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
+		t.Fatalf("decode config response: %v", err)
+	}
+	settings, ok := cfg["settings"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected settings object in config, got %T", cfg["settings"])
+	}
+	if got := settings["harness.heartbeat_seconds"]; got != "5" {
+		t.Errorf("settings were not preserved: harness.heartbeat_seconds = %v, want 5", got)
+	}
+	providerDefaults, ok := cfg["provider_default"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected provider_default object in config, got %T", cfg["provider_default"])
+	}
+	if got := providerDefaults["consensus"]; got != "gpt-4o" {
+		t.Errorf("provider_default[consensus] = %v, want gpt-4o", got)
+	}
+}
+
+func TestGetConfigWithoutDefaultModel(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/config")
+	if err != nil {
+		t.Fatalf("GET /config failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var cfg struct {
+		Settings        map[string]any    `json:"settings"`
+		ProviderDefault map[string]string `json:"provider_default"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
+		t.Fatalf("decode config response: %v", err)
+	}
+	if cfg.Settings == nil {
+		t.Fatal("expected settings object in config")
+	}
+	if cfg.ProviderDefault == nil {
+		t.Fatal("expected provider_default to be an object, not null or missing")
+	}
+	if len(cfg.ProviderDefault) != 0 {
+		t.Errorf("provider_default = %v, want empty map without llm.default_model", cfg.ProviderDefault)
 	}
 }
 

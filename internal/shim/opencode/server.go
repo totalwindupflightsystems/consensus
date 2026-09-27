@@ -1727,7 +1727,18 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		for _, row := range rows {
 			settings[toString(row["key"])] = toString(row["value"])
 		}
-		writeJSON(w, map[string]any{"settings": settings})
+
+		// OpenCode v1.18.29 attach reads provider_default before rendering the
+		// TUI. Keep the mapping present even when no default is configured, and
+		// derive Consensus's entry from the same setting returned above.
+		providerDefaults := make(map[string]string)
+		if defaultModel := toString(settings["llm.default_model"]); defaultModel != "" {
+			providerDefaults["consensus"] = defaultModel
+		}
+		writeJSON(w, map[string]any{
+			"settings":         settings,
+			"provider_default": providerDefaults,
+		})
 		return
 	case http.MethodPatch:
 		// HARDEN-SHIM-09: PATCH /config support
