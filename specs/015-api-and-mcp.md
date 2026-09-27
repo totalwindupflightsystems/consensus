@@ -514,6 +514,8 @@ MCP clients authenticate using the same API key mechanism as the REST API (§2).
 
 The MCP server validates the key against `api_keys` table (§2.2) and enforces the same scope restrictions. A `session`-scoped key restricts MCP operations to that session. An `admin`-scoped key allows full access.
 
+The credential is presented **only at initialize**: once validated it is bound to the MCP session, and every subsequent request on that session is authorised by the session reference alone — the `Mcp-Session-Id` header on the streamable-HTTP transport (the server echoes it on every initialize response) or the `sessionId` on SSE. Clients must not re-send `_meta.authorization` on follow-up methods, and requests carrying only the session reference succeed (DF-CONSENSUS-48). A failed initialize leaves no usable session behind: its bootstrapped session is discarded, and the server does not echo a `Mcp-Session-Id` for it.
+
 Authentication is required for **both** transports (SSE and stdio): the client must pass its key in the initialize handshake `_meta.authorization` before any other method may execute. The server rejects every method except `initialize` (and the no-op `ping` / `notifications/initialized`) with `Forbidden` until the session has authenticated (DOGFOOD-101).
 
 ### 5.4 MCP Transport
@@ -522,6 +524,7 @@ Authentication is required for **both** transports (SSE and stdio): the client m
 |---|---|
 | SSE (Server-Sent Events) | Go HTTP handler at `/mcp/sse` |
 | stdio | Go MCP server, for local CLI integration |
+| streamable-HTTP | Go handler mounted at `/mcp` (POST JSON-RPC; GET serves the SSE stream; sessions addressed by the `Mcp-Session-Id` response header — MCP-DIRECT-001) |
 
 ### 5.4 MCP Resource Templates
 

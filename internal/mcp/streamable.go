@@ -58,6 +58,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sess *mcpSession
+	bootstrapped := false // set when this request created the session record
 	if sessionID != "" {
 		s.mu.RLock()
 		sess = s.sessions[sessionID]
@@ -84,6 +85,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		s.sessions[sessionID] = sess
 		s.mu.Unlock()
+		bootstrapped = true
 		defer func() {
 			// If the handshake did not authenticate this session, do not
 			// leave the record behind (it holds no auth and cannot be
@@ -131,8 +133,17 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(streamableSessionHeader, sessionID)
 	w.Header().Set("Content-Type", "application/json")
+	if !(rpcErr != nil && bootstrapped && !sess.authenticated) {
+		// Echo the session id back so the client can address follow-ups —
+		// but only while the session remains addressable. A failed
+		// handshake on a bootstrapped session tears that session down on
+		// return (deferred cleanup above): echoing its id here advertised
+		// a session that was already gone, and the client's very next
+		// call died with an unexplained 401 "unknown session" instead of
+		// the handshake failure it just received (DF-CONSENSUS-48).
+		w.Header().Set(streamableSessionHeader, sessionID)
+	}
 
 	if rpcErr != nil {
 		w.WriteHeader(http.StatusUnauthorized)
