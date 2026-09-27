@@ -209,11 +209,17 @@ func Load() (Config, error) {
 	return LoadWithPath(configPathOverride)
 }
 
-// SetConfigPath sets an explicit config path override for Load().
-// When set, this path takes highest priority above all chain entries.
-// Call before Load() to apply a --config flag value.
-func SetConfigPath(p string) {
+// SetConfigPath sets an explicit config path override for Load() and returns a
+// function that restores the previous override. When set, this path takes
+// highest priority above all chain entries. Call before Load() to apply a
+// --config flag value and defer the returned restore function so repeated CLI
+// executions do not inherit stale process-global state.
+func SetConfigPath(p string) func() {
+	previous := configPathOverride
 	configPathOverride = p
+	return func() {
+		configPathOverride = previous
+	}
 }
 
 // configPathOverride is set via SetConfigPath for CLI --config flag support.

@@ -43,10 +43,16 @@ database configuration.`,
 			if autoSync, _ := cmd.Flags().GetString("auto-sync"); autoSync != "" {
 				os.Setenv("CONSENSUS_AUTO_SYNC", autoSync)
 			}
-			// Wire the --config flag to config.Load() via SetConfigPath.
-			if optConfig != "" {
-				config.SetConfigPath(optConfig)
-			}
+			// Scope the --config override to ServerFunc. The production callback
+			// calls config.Load(), and restoring the prior path prevents command
+			// reuse (including tests and embedders) from inheriting this run.
+			restoreConfigPath := config.SetConfigPath(optConfig)
+			defer func() {
+				restoreConfigPath()
+				// pflag binds directly to optConfig. Reset it as well so a
+				// reused cobra command without --config follows env/cwd again.
+				optConfig = ""
+			}()
 
 			if ServerFunc != nil {
 				ServerFunc()

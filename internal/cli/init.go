@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/wojons/consensus/internal/config"
 )
 
 // InitFunc is set by the main package to enable the init command.
@@ -21,6 +23,11 @@ configuration, and an admin API key.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if InitFunc != nil {
 				dbURL, _ := cmd.Flags().GetString("db-url")
+				restoreConfigPath := config.SetConfigPath(optConfig)
+				defer func() {
+					restoreConfigPath()
+					optConfig = ""
+				}()
 				return InitFunc(dbURL)
 			}
 			return fmt.Errorf("init not wired in this build; run the bare binary to auto-initialize")
