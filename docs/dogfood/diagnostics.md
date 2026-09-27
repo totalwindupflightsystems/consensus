@@ -262,3 +262,17 @@ next time (goroutine?debug=2 would name the holder immediately).
   directive silently auto-downloads the right toolchain on hosts with an old
   Go — a genuinely good fresh-user experience that the README's "install Go
   1.26" note undersells (any go ≥1.21-ish works; the build fetches the rest).
+- Shims and contracts (2026-09-26 evening run, @ fa24a3e): the opencode shim
+  is a translation layer whose risk is CONTRACT DRIFT against the pinned
+  upstream client — the server-side HTTP pieces were all green while the
+  real TUI still crashed on boot (DF-CONSENSUS-43): the unit tests assert
+  the shim's own routes, the crash lived in a payload key the client reads
+  off `GET /config`. Lesson: for any shim, the acceptance test must drive
+  (or fixture-pin against) the REAL client, not the shim's own handler
+  tests. Same run produced the `--config` flag finding (DF-CONSENSUS-42): a
+  Cobra flag that is declared but never consulted fails SILENTLY — rc=0
+  with defaults loaded; the flag's help text is a contract too. And the
+  webhook wake (DF-CONSENSUS-46) showed a logging trap in reverse: the log
+  line "woke session via event routing" is literally true (status flip)
+  while the user-meaning of "wake" (an agent iteration) did not happen —
+  name log lines after the OBSERVABLE effect, not the intent.

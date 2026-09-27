@@ -10,8 +10,10 @@ description: >-
   ports), the Aug-15 landmines DOGFOOD-101/102/103 (MCP auth, MCP
   session IDs, OpenAPI from repo root), DOGFOOD-106 (stdio --api-key
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
-  treat them as open.
-version: 2.8.0
+  treat them as open. v2.9 adds the 2026-09-26 evening run: opencode-shim
+  attach status (TUI crash, run-mode invisibility), webhook ingestion recipe,
+  and the --config flag landmine.
+version: 2.9.0
 category: software-development
 ---
 
@@ -180,6 +182,42 @@ Compiles first try; verified against a live server both runs.
   message → 410 GONE, PATCH → 404. The sessions ROW SURVIVES in the DB with
   `deleted_at` set — that is the pinned spec (specs/015-api-and-mcp.md),
   NOT a bug. Verify deletes through the API, never by grepping the table.
+
+## opencode-shim attach + webhooks 2026-09-26 (evening, @ fa24a3e)
+
+Real client `opencode 1.18.29` against the shim. Status:
+
+- **TUI attach is BROKEN (DF-CONSENSUS-43, P1):** `opencode attach
+  http://<host>:<port> -p <adminkey>` crashes the client on boot —
+  `TypeError: undefined is not an object (evaluating
+  'U.data.provider_default[I.id]')`. The shim's `GET /config` returns only
+  `{"settings":...}`; the pinned upstream client reads `provider_default`
+  from it. With a TTY the crash renders as a black screen that echoes typed
+  text and sends NOTHING to the server (4-min watch: zero requests).
+  Use REST or MCP for real work until this lands.
+- **`opencode run --attach` is fire-and-forget (DF-CONSENSUS-44, P1):** the
+  client POSTs your message, prints nothing, exits 0 in ~1s; the agent's
+  reply lands in the ledger seconds later but no human sees it.
+- **Shim protocol pieces that DO work (verified live):** basic-auth with the
+  admin key; keyless `/global/health` + `/instance`; the DF-CONSENSUS-37
+  fixed-workspace path (anonymous `GET /path` with `x-opencode-directory`
+  echoes `worktree`); `POST /session/:id/message` → canned ack, harness
+  turn completes, `agent_response` in ledger 3s later.
+- **Webhook ingestion works exactly as docs/API.md says** (register by
+  direct SQL — no registration API): valid → `202`; bad signature → `202`
+  + `quarantined` (`signature_valid=0`); duplicate delivery id → `200
+  duplicate`; routing rule match flips the event `pending→routed` within a
+  5s tick and flips a PAUSED session to idle. Caveat (DF-CONSENSUS-46): the
+  wake is a status flip only — no iteration runs, stranded messages stay
+  stranded, the payload never reaches the agent.
+- **Circuit breaker verified live by accident:** 3 consecutive LLM 401s →
+  `agent_circuit_breakers` rows persisted, session paused. Resume via
+  native `PATCH /api/v1/sessions/:id {"status":"resume"}` (verbs are
+  pause/resume/cancel; `idle` is a state, not an action).
+- **CONFIG LANDMINE (DF-CONSENSUS-42, P1):** `consensus init --config <path>`
+  SILENTLY IGNORES the flag (rc=0, defaults loaded: port 8090, dev.db in
+  CWD — proven by a port-decoy A/B). `CONSENSUS_CONFIG=<path>` env var is
+  the reliable form. Use it for init AND serve until fixed.
 
 ## CLI surface (verified 2026-09-26)
 
