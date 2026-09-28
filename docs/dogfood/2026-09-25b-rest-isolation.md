@@ -69,9 +69,9 @@ and session lifecycle.
 - Fix direction: require a valid key (admin or scoped to that session) on /api/v1/events, or
   issue short-lived stream tokens. Update the doc to stop calling it "isolation".
 
-### FINDING E — P2: skill artifact drifted to the dead repo path (wojons/consensus)
-- `skills/consensus-usage/SKILL.md` still says module `github.com/wojons/consensus` (lines
-  ~23, 97-98) while the real origin is `totalwindupflightsystems/consensus` (wojons/consensus
+### FINDING E — P2: skill artifact drifted to the dead repo path (totalwindupflightsystems/consensus)
+- `skills/consensus-usage/SKILL.md` still says module `github.com/totalwindupflightsystems/consensus` (lines
+  ~23, 97-98) while the real origin is `totalwindupflightsystems/consensus` (totalwindupflightsystems/consensus
   is 404 anonymous — exactly the stale-URL class DF-CONSENSUS-25/DF-CONSENSUS-7 already
   fixed elsewhere). The usage skill is the artifact agents load FIRST; it must not carry the
   dead path.

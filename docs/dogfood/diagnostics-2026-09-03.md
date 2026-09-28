@@ -52,11 +52,11 @@ goal-driven path.
 
 ## Why the quickstart fails a fresh user (DF-CONSENSUS-7)
 
-- `ghcr.io/v2/wojons/consensus/manifests/latest` returns 401 to anonymous
+- `ghcr.io/v2/totalwindupflightsystems/consensus/manifests/latest` returns 401 to anonymous
   token requests; an authenticated-less `docker pull` gets `denied` while
   `alpine:latest` pulls fine from the same agent — the image exists but is
   private (or the package was never published).
-- `git clone https://github.com/wojons/consensus` prompts for credentials
+- `git clone https://github.com/totalwindupflightsystems/consensus` prompts for credentials
   from a clean agent — the repo is private. The goreleaser config exists
   (`.goreleaser.yaml`) but nothing public ships from it today.
 - Honest fixes, in order of preference: publish the image from CI on tag;

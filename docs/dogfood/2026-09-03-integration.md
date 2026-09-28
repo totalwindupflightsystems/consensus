@@ -18,7 +18,7 @@
 | Append-only memory ledger, ACID | ✅ goal-driven staged SQL INSERT landed as `thinking` event; ledger enforced |
 | "Survives kill -9" | ✅ storage layer (session + messages intact, heartbeat auto-resume) / ⚠️ nothing *useful* to recover because in-flight runs emit zero durable output (DF-CONSENSUS-8) |
 | Circuit breakers, billing, audit | ❌ empty tables after ~30 real LLM calls on the interactive path (part of DF-CONSENSUS-6) |
-| Docker quickstart `docker pull ghcr.io/wojons/consensus:latest` | ❌ denied — image not anonymously pullable; repo also not anonymously cloneable (DF-CONSENSUS-7) |
+| Docker quickstart `docker pull ghcr.io/totalwindupflightsystems/consensus:latest` | ❌ denied — image not anonymously pullable; repo also not anonymously cloneable (DF-CONSENSUS-7) |
 | README demo (real LLM calls, memory events, crash recovery) | ✅ the demo's own code path works — because it uses `goal` + `{"type":"user_instruction"}`, not the documented message contract |
 
 ## The one pattern that works (use this until DF-CONSENSUS-6 is fixed)
@@ -72,7 +72,7 @@ metadata — `staging_buffer` stranded 74 staged commands across runs while
   `qa-foreman-ops/references/spawn-pool-exhaustion-2026-09-03.md`; fix =
   bunkerd restart, skipped — needs interactive approval). Ran on
   **bunker-las-01** instead.
-- Documented Docker path: `docker pull ghcr.io/wojons/consensus:latest` →
+- Documented Docker path: `docker pull ghcr.io/totalwindupflightsystems/consensus:latest` →
   `denied`. Same agent pulls `alpine:latest` fine (network/daemon OK).
   Registry manifest endpoint: 401 for anonymous. `git clone` of the GitHub
   repo also requires auth. **Neither documented install path works for a

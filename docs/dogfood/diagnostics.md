@@ -7,7 +7,7 @@ internals a future agent will touch when fixing the DOGFOOD-* tasks.
 
 ## 1. How the system is built
 
-**Stack:** Go 1.26 (module `github.com/wojons/consensus`), chi router,
+**Stack:** Go 1.26 (module `github.com/totalwindupflightsystems/consensus`), chi router,
 Cobra CLI, `modernc.org/sqlite` (pure-Go, CGO-free) or pgx/Postgres,
 DuckDB-backed foreman board under `.coding-hermes/board/`.
 

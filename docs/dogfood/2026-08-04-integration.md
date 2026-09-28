@@ -53,7 +53,7 @@ they add a key):
    intact**. The core "data survives kill -9" claim is TRUE. ✅
 5. Library integration: wrote a real external Go consumer
    (`/tmp/dogfood-consensus/consumer`) importing
-   `github.com/wojons/consensus/pkg/client` via a `replace` directive —
+   `github.com/totalwindupflightsystems/consensus/pkg/client` via a `replace` directive —
    **compiled and ran first try**, 16/16 client call groups executed against
    the live server. ✅ (Details below.)
 6. CLI sweep: status, session show/list/cancel/cost, memory list, approve
@@ -86,18 +86,18 @@ harness:
   budget_limit_cents: 100
 database: { url: "sqlite:///tmp/cs-demo/scratch.db", max_open_conns: 4 }
 EOF
-go run github.com/wojons/consensus/cmd/consensus init \
+go run github.com/totalwindupflightsystems/consensus/cmd/consensus init \
   --config consensus.yaml --db-url "sqlite:///tmp/cs-demo/scratch.db"
 # → prints admin key cs_ak_...  (SAVE IT — printed once, stored hashed)
-go run github.com/wojons/consensus/cmd/consensus serve --config consensus.yaml
+go run github.com/totalwindupflightsystems/consensus/cmd/consensus serve --config consensus.yaml
 curl http://127.0.0.1:18123/api/v1/health
 ```
 
 ### B. Drive it from a Go consumer (library pattern)
 
 ```go
-// go.mod: require github.com/wojons/consensus v0.0.0
-//         replace github.com/wojons/consensus => /path/to/consensus
+// go.mod: require github.com/totalwindupflightsystems/consensus v0.0.0
+//         replace github.com/totalwindupflightsystems/consensus => /path/to/consensus
 c := client.NewClient("http://127.0.0.1:18123", os.Getenv("CS_API_KEY"))
 h, _ := c.Health()
 s, _ := c.CreateSession(client.CreateSessionRequest{

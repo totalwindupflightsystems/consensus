@@ -404,7 +404,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/wojons/consensus/internal/shim/h3"
+	"github.com/totalwindupflightsystems/consensus/internal/shim/h3"
 )
 
 // stub implements h3.SessionService with a canned two-step conversation:
