@@ -247,7 +247,7 @@ Real client `opencode 1.18.29` against the shim. Status:
    using `{"role":...}` as broken.
 1. **Historical Docker quickstart failure** (DF-CONSENSUS-7, verified on an
    ephemeral bunker agent 2026-09-03): the old documented path,
-   `ghcr.io/wojons/consensus:latest`, returned `denied` while the same agent
+   the old-org ghcr image path (repo now lives under `totalwindupflightsystems`), returned `denied` while the same agent
    pulled Alpine successfully. CI now publishes the current repository path,
    `ghcr.io/totalwindupflightsystems/consensus:latest`, but anonymous pulls
    still return HTTP 401. Use the source-build quickstart for a zero-auth

@@ -28,7 +28,7 @@ info:
   version: "0.1.0"
   contact:
     name: Consensus
-    url: https://github.com/wojons/consensus
+    url: https://github.com/totalwindupflightsystems/consensus
 
 servers:
   - url: http://localhost:8090

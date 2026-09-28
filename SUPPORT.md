@@ -1,6 +1,6 @@
 # Support
 
-For questions, bug reports, or feature requests, please open an issue on GitHub: https://github.com/wojons/consensus/issues
+For questions, bug reports, or feature requests, please open an issue on GitHub: https://github.com/totalwindupflightsystems/consensus/issues
 
 ## Supported Versions
 

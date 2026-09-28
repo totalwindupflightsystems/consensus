@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/wojons/consensus.git
+git clone https://github.com/totalwindupflightsystems/consensus.git
 cd consensus
 go mod download
 CGO_ENABLED=0 go build ./cmd/consensus
