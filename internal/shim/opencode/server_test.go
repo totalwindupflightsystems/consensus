@@ -1973,6 +1973,90 @@ func TestBuildEmptyAssistantMessage(t *testing.T) {
 	}
 }
 
+// TestSendMessageStoresRawUserText is the DF-CONSENSUS-45 regression: a
+// parts-shaped shim message must land in memory_events exactly once as raw
+// user_message content, byte-for-byte — never JSON-quoted, never re-encoded,
+// even when the text is itself valid JSON. The assertion reads the inserted
+// row through the same db.DB the shim wrote through, not just the HTTP
+// response. The probe string is valid JSON on purpose: it used to survive
+// the write and get re-encoded on the read path into "\"Reply with...\"".
+func TestSendMessageStoresRawUserText(t *testing.T) {
+	_, srv, conn := newMessageResponseTestServer(t)
+
+	// Poll-published agent answer, same shape as
+	// TestSendMessageReturnsResponseForSubmittedTurn, so the synchronous
+	// shim contract is exercised unchanged.
+	writeResult := make(chan error, 1)
+	go func() {
+		deadline := time.NewTimer(time.Second)
+		defer deadline.Stop()
+		ticker := time.NewTicker(5 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			rows, err := conn.Query(context.Background(),
+				`SELECT id FROM memory_events WHERE session_id = $1 AND type = 'user_message'`, "s1")
+			if err != nil {
+				writeResult <- err
+				return
+			}
+			if len(rows) > 0 {
+				if err := conn.Exec(context.Background(),
+					`INSERT INTO memory_events (type, content, session_id, iteration_created)
+					 VALUES ('text_block', 'ack', 's1', 1)`); err != nil {
+					writeResult <- err
+					return
+				}
+				writeResult <- conn.Exec(context.Background(),
+					`UPDATE sessions SET status = 'idle', iteration = 2 WHERE id = 's1'`)
+				return
+			}
+			select {
+			case <-deadline.C:
+				writeResult <- context.DeadlineExceeded
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+
+	submitted := `Reply with "quoted" text, please`
+	body := jsonBody(t, map[string]any{
+		"parts": []map[string]any{{"type": "text", "text": submitted}},
+	})
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/session/s1/message", body)
+	if err != nil {
+		t.Fatalf("build POST /session/s1/message: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("opencode", "test-key")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST /session/s1/message failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if err := <-writeResult; err != nil {
+		t.Fatalf("publish agent response: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, responseBody)
+	}
+	io.Copy(io.Discard, resp.Body)
+
+	// Read the durable row — not the HTTP response — for the exact content.
+	rows, err := conn.Query(context.Background(),
+		`SELECT content FROM memory_events WHERE session_id = $1 AND type = 'user_message'`, "s1")
+	if err != nil {
+		t.Fatalf("read user_message row: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected exactly 1 user_message row, got %d", len(rows))
+	}
+	if got := rows[0]["content"]; got != submitted {
+		t.Fatalf("user_message content = %#v, want raw %#v (JSON-quoted or re-encoded)", got, submitted)
+	}
+}
+
 // ============================================================================
 // Auth Middleware Test (with auth disabled + test auth header)
 // ============================================================================

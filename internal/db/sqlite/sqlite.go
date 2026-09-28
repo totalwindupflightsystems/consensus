@@ -284,6 +284,10 @@ func scanRow(rows *sql.Rows, columns []string) (db.Row, error) {
 }
 
 // normalizeValue converts driver-specific types to standard Go types.
+// TEXT must pass through byte-for-byte: content columns are raw user text,
+// never parsed or re-encoded (DF-CONSENSUS-45 — a JSON-decode pass here made
+// a shim message like "Reply with \"quoted\" text" land in memory_events as a
+// JSON-quoted string, so the read side re-encoded what the write side stored).
 func normalizeValue(v any) any {
 	switch val := v.(type) {
 	case []byte:
