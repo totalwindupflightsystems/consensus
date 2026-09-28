@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Shim Support Surfaces: opencode protocol & DeepSeek harness API</title>
+<style>
+:root{
+  --bg:#0e1116; --surf:#161d29; --surf2:#1b2431; --line:#26303f; --line-soft:#212a37;
+  --txt:#e8eef6; --mut:#a7b4c6; --acc:#7cb0ff; --ok:#4ac26b; --bad:#ff6b6b; --warn:#e0a03a;
+  --r:14px; --maxw:1080px;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f7f8fb; --surf:#ffffff; --surf2:#f1f4f9; --line:#dde3ec; --line-soft:#e7ecf3;
+         --txt:#131a24; --mut:#4d5b70; --acc:#1f5fd0; --ok:#1d7f43; --bad:#c02b2b; --warn:#8a5a00; }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:16px/1.66 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+::selection{background:var(--acc);color:#fff}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:34px 22px 80px}
+header.hero{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:8px;
+  animation:rise .5s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){header.hero{animation:none}}
+h1{font-size:31px;line-height:1.2;margin:10px 0 12px;letter-spacing:-.02em}
+h2{font-size:21px;margin:38px 0 10px;letter-spacing:-.01em;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16.5px;margin:22px 0 6px}
+p,li{max-width:74ch}
+.lede{font-size:17.5px;color:var(--mut);max-width:74ch;margin:0 0 14px}
+.cover{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;margin:18px 0 6px}
+.cover dl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;font-size:14.5px}
+.cover dt{color:var(--mut);text-transform:uppercase;letter-spacing:.07em;font-size:12px;padding-top:3px}
+.cover dd{margin:0}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 2px}
+.badge{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--mut)}
+.badge.ok{color:var(--ok);border-color:color-mix(in oklab,var(--ok) 45%,var(--line))}
+.badge.no{color:var(--bad);border-color:color-mix(in oklab,var(--bad) 45%,var(--line))}
+.badge.wa{color:var(--warn);border-color:color-mix(in oklab,var(--warn) 45%,var(--line))}
+.toc{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;margin:26px 0 8px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:36px;font-size:14.5px}
+.toc li{margin:5px 0;break-inside:avoid}
+.toc a{color:var(--acc);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin:14px 0;overflow-x:auto}
+.card.tinted-ok{background:color-mix(in oklab,var(--ok) 7%,var(--surf))}
+.card.tinted-bad{background:color-mix(in oklab,var(--bad) 7%,var(--surf))}
+.card.tinted-idea{background:color-mix(in oklab,var(--acc) 8%,var(--surf))}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt);margin-bottom:8px;opacity:.85}
+pre{background:#0a0d12;color:#dfe7f1;border:1px solid var(--line);border-radius:10px;padding:15px 16px;margin:12px 0;
+  overflow-x:auto;font:13.5px/1.62 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+@media (prefers-color-scheme: light){pre{background:#0e131b;color:#e6edf6}}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;
+  background:var(--surf2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px}
+pre code{background:none;border:0;padding:0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;font-variant-numeric:tabular-nums}
+caption{caption-side:top;text-align:left;color:var(--mut);font-size:13px;padding-bottom:7px}
+th,td{border-bottom:1px solid var(--line-soft);padding:9px 10px;text-align:left;vertical-align:top}
+thead th{border-bottom:1px solid var(--line);color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+tbody tr:hover{background:var(--surf2)}
+td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+@media (max-width:720px){table{font-size:13px}th,td{padding:7px 8px}}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}.warnc{color:var(--warn);font-weight:600}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:16px 0}
+.fact{background:var(--surf2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px}
+.fact span{display:block;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.fact b{font-size:16px;font-weight:650}
+ul.tight li{margin:6px 0}
+.foot{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--mut);font-size:13.5px;max-width:80ch}
+.foot code{font-size:12.5px}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="chip">Support contract · 2026-09-28</div>
+  <h1>What the shim must always support</h1>
+  <p class="lede">Two external surfaces decide whether Consensus can honour its promise of being a drop-in
+  backend — the <b>opencode protocol</b> on the client side and the <b>DeepSeek harness API</b> on the provider
+  side. Both drift upstream, neither stays correct by accident, and today we speak a subset of both. This is
+  what they actually are, measured against what the code does.</p>
+  <div class="badges">
+    <span class="badge">Consensus</span>
+    <span class="badge">commit 6931780 · 2026-09-28</span>
+    <span class="badge ok">contract written</span>
+    <span class="badge wa">3 rows filed</span>
+    <span class="badge no">provider-native tools: not on the wire</span>
+  </div>
+</header>
+
+<div class="cover">
+  <dl>
+    <dt>To</dt><dd>Bane</dd>
+    <dt>From</dt><dd>Hermes — the consensus thread</dd>
+    <dt>Re</dt><dd>Shim support surfaces: the opencode protocol source of truth, and the DeepSeek harness API structure</dd>
+    <dt>Ask</dt><dd>“make sure you updated the source of opencode protocol” · “go online find the DeepSeek harness API structure and add it to what we need to always support for shim”</dd>
+    <dt>Deliverables</dt><dd><code>specs/024-shim-support-matrix.md</code> (the contract) + rows SHIM-SOURCE-001, SHIM-SUPPORT-001, SHIM-SUPPORT-002</dd>
+    <dt>Method</dt><dd>Upstream docs and provider docs read live 2026-09-28; current state measured by grep and by reading the serialized request structs in non-test code</dd>
+  </dl>
+</div>
+
+<nav class="toc">
+  <ol>
+    <li><a href="#why">Why two surfaces, and why a contract</a></li>
+    <li><a href="#opencode">Client side: the opencode protocol source</a></li>
+    <li><a href="#acp">The near-miss: ACP is a different protocol</a></li>
+    <li><a href="#deepseek">Provider side: the DeepSeek harness API</a></li>
+    <li><a href="#thinking">Thinking mode: the rules a harness gets wrong quietly</a></li>
+    <li><a href="#tools">Tool calls, and where mid-conversation insertion differs</a></li>
+    <li><a href="#measured">Measured: what we send today</a></li>
+    <li><a href="#traps">The two traps this report exists to prevent</a></li>
+    <li><a href="#filed">What I filed</a></li>
+    <li><a href="#next">Where this sits, and the next concrete step</a></li>
+  </ol>
+</nav>
+
+<h2 id="why">Why two surfaces, and why a contract</h2>
+<p>The shim exists so an existing coding-agent client can point at Consensus and get a real backend — the durable
+substrate the review called “the highest-leverage idea in the repo”. That promise is worth exactly the fidelity
+of the two arms it stands between: it must <b>speak the client’s protocol</b> faithfully enough that the client
+cannot tell, and it must <b>drive the provider’s API</b> richly enough to be useful.</p>
+<p>Neither surface is ours. Both are published, versioned, and changed by other people. A drift in either one
+turns “opencode-compatible” from a claim into a hope — which is why the fix is not a paragraph of intent but a
+<b>machine-checkable contract plus a refresh procedure</b>: <code>specs/024-shim-support-matrix.md</code>.</p>
+
+<h2 id="opencode">Client side: the opencode protocol source</h2>
+<p>The protocol is not prose. Upstream publishes it as a machine-readable document, and says so plainly.</p>
+<table>
+  <caption>Source of truth for the client-facing protocol (read 2026-09-28)</caption>
+  <thead><tr><th>Item</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Upstream project</td><td><code>sst/opencode</code> — for us, the mirror <code>anomalyco/opencode</code></td></tr>
+    <tr><td>The contract itself</td><td><code>packages/sdk/openapi.json</code> — OpenAPI <b>3.1.1</b>. Upstream describes it as the single source of truth for both the server implementation and SDK generation</td></tr>
+    <tr><td>Served spec</td><td>the server exposes the same OpenAPI document (our <code>/doc</code> must serve the <i>document</i>, not a Swagger UI page)</td></tr>
+    <tr><td>Generated SDK</td><td><code>@opencode-ai/sdk</code>, generated from that same document</td></tr>
+    <tr><td>Our pin today</td><td><code>16747470f976aca3d362ad730bcd3fe82ecc2c9a</code> (v1.18.29), recorded in <code>docs/evidence/opencode-upstream-v1.18.29-r2/</code></td></tr>
+    <tr><td>Our measured fidelity</td><td><b>34 assertions ran, 24 pass / 10 fail</b> (reading of 2026-09-26)</td></tr>
+  </tbody>
+</table>
+<p>The refresh obligation has four parts, and the fourth is the one people skip: pin and <b>record</b> the upstream
+commit in-repo; make refresh a <b>procedure</b> that derives the surface from the published document and emits a
+<b>diff report</b> of what changed since our pin; compare <b>declared vs served</b> per path after every refresh;
+and re-run the upstream suite <b>with its pin attached</b>, because a pass/fail number without a pin is not a
+measurement.</p>
+
+<h2 id="acp">The near-miss: ACP is a different protocol</h2>
+<p>The research surfaced a second protocol that shares vocabulary and would be easy to conflate:
+<b>ACP</b>, the Agent Client Protocol (<code>agentclientprotocol/agent-client-protocol</code>), standardises
+editor&harr;agent communication as <b>JSON-RPC 2.0 over stdio</b>, with a curated registry of implementing agents.
+It is not the opencode server protocol and Consensus does not implement it.</p>
+<p>I kept it explicitly <b>out of scope</b> in the contract rather than quietly folding it in — a decision row
+(<code>REVIEW-CONSENSUS-9</code>) already covers whether to open that door. Naming the boundary is the point:
+“we speak MCP” and “we speak opencode” must not drift into an accidental claim about cross-vendor interop
+we never made.</p>
+
+<h2 id="deepseek">Provider side: the DeepSeek harness API</h2>
+<p>DeepSeek publishes three request formats plus a beta surface. All four are part of the structure the harness
+must support, because the cheapest lane in the fleet is the one most likely to be load-bearing.</p>
+<table>
+  <caption>Request formats (provider docs, read 2026-09-28)</caption>
+  <thead><tr><th>Format</th><th>Base URL</th><th>Endpoint</th></tr></thead>
+  <tbody>
+    <tr><td>OpenAI Chat Completions</td><td class="num">https://api.deepseek.com</td><td class="num">POST /chat/completions</td></tr>
+    <tr><td>Anthropic Messages</td><td class="num">https://api.deepseek.com/anthropic</td><td class="num">POST /anthropic/v1/messages</td></tr>
+    <tr><td>Responses format</td><td class="num">https://api.deepseek.com</td><td>Responses-style request/response</td></tr>
+    <tr><td>Beta features</td><td class="num">https://api.deepseek.com/beta</td><td>prefix completion, FIM</td></tr>
+  </tbody>
+</table>
+<p>On the Anthropic surface, model names are mapped rather than rejected — worth knowing before diagnosing a
+“wrong model” cost surprise: <code>claude-opus*</code> &rarr; <code>deepseek-v4-pro</code> (billed at Pro price),
+<code>claude-haiku*</code> and <code>claude-sonnet*</code> &rarr; <code>deepseek-flash</code>, and any
+unsupported name &rarr; <code>deepseek-flash</code>. The published compatibility matrix is explicit about what is
+supported, what is <i>ignored</i>, and what maps elsewhere:</p>
+<table>
+  <caption>Anthropic-surface fields (as published; selected rows)</caption>
+  <thead><tr><th>Field</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="num">x-api-key</td><td class="pass">Fully supported</td></tr>
+    <tr><td class="num">anthropic-version</td><td class="warnc">Ignored</td></tr>
+    <tr><td class="num">anthropic-beta</td><td class="warnc">Ignored for /messages (required for Files API)</td></tr>
+    <tr><td class="num">max_tokens · stop_sequences · stream · system</td><td class="pass">Fully supported</td></tr>
+    <tr><td class="num">temperature</td><td class="pass">Supported, range 0.0–2.0</td></tr>
+    <tr><td class="num">thinking</td><td class="pass">Supported — but <code>budget_tokens</code> is ignored</td></tr>
+    <tr><td class="num">output_config</td><td>Only <code>effort</code></td></tr>
+    <tr><td class="num">top_k</td><td class="warnc">Ignored</td></tr>
+    <tr><td class="num">top_p</td><td>Thinking mode only, floored at 0.95; otherwise fixed at 1.0</td></tr>
+    <tr><td class="num">container · mcp_servers · service_tier</td><td class="warnc">Ignored</td></tr>
+    <tr><td class="num">metadata</td><td>Only <code>user_id</code></td></tr>
+    <tr><td class="num">tools[].name · input_schema · description</td><td class="pass">Fully supported</td></tr>
+  </tbody>
+</table>
+
+<h2 id="thinking">Thinking mode: the rules a harness gets wrong quietly</h2>
+<div class="card tinted-idea">
+  <span class="chip">The rule that matters most</span>
+  <p style="margin-top:0">Thinking mode returns its chain of thought as <code>reasoning_content</code>, at the
+  same level as <code>content</code>. Whether that CoT must be handed back on the next request depends on one
+  thing — whether the request carries <code>tools</code>:</p>
+  <ul class="tight">
+    <li><b>With <code>tools</code>:</b> the previous turns’ <code>reasoning_content</code> <b>must</b> be passed back,
+    and is concatenated into the context.</li>
+    <li><b>Without <code>tools</code>:</b> it must <b>not</b> be passed back — and if it is, the provider ignores it.</li>
+  </ul>
+</div>
+<p>Control is spelled three different ways depending on the format, and the effort vocabulary maps down onto fewer
+real levels (minimal and low both land on low; medium, high and xhigh all land on high; max and ultra land on max).
+Thinking is <b>enabled by default at effort high</b> — so a harness that says nothing is not “off”, it is “high”.</p>
+<table>
+  <caption>Thinking-mode control, per format (provider docs)</caption>
+  <thead><tr><th>Format</th><th>Toggle</th><th>Effort</th></tr></thead>
+  <tbody>
+    <tr><td>OpenAI</td><td class="num">{"thinking":{"type":"enabled|disabled"}} (in extra_body)</td><td class="num">reasoning_effort</td></tr>
+    <tr><td>Anthropic</td><td class="num">{"reasoning":{"effort":"none|low|high|max"}} — none disables</td><td class="num">output_config.effort</td></tr>
+    <tr><td>Responses</td><td class="num">—</td><td class="num">output_config.effort</td></tr>
+  </tbody>
+</table>
+<p>And three parameters are accepted with <b>no error and no effect</b> in thinking mode: <code>temperature</code>,
+<code>presence_penalty</code>, <code>frequency_penalty</code>. That is the kind of silence a harness cannot debug
+from behaviour — it only surfaces when someone reads the matrix.</p>
+
+<h2 id="tools">Tool calls, and where mid-conversation insertion differs</h2>
+<p>The tool contract itself is conventional: <code>tools[].function.{name,description,parameters}</code>; the
+assistant turn returns <code>tool_calls</code>; results return as role <code>tool</code> with a
+<code>tool_call_id</code>. Tool use in thinking mode is supported from V3.2 onwards.</p>
+<p>The non-obvious part is <b>inserting</b> a tool call mid-conversation — which an agent loop does whenever it
+injects a result the model did not ask for. Support differs by surface:</p>
+<table>
+  <caption>Mid-conversation insertion</caption>
+  <thead><tr><th>Message type</th><th>Chat Completions</th><th>Anthropic / Responses</th></tr></thead>
+  <tbody>
+    <tr><td>system message</td><td class="pass">supported</td><td class="pass">supported</td></tr>
+    <tr><td>tool-call message + result</td><td class="fail">not supported</td><td class="pass">supported</td></tr>
+  </tbody>
+</table>
+<p>A harness that only speaks Chat Completions therefore cannot express a whole class of agent behaviour — it has
+to reach for the Anthropic or Responses surface to do it. And the beta surface (<code>/beta</code>) adds prefix
+completion, which requires the last message to be role <code>assistant</code> with <code>prefix: true</code>, plus
+FIM completion (4K max).</p>
+
+<h2 id="measured">Measured: what we send today</h2>
+<p>Read from the serialized request structs and a grep over non-test code at <code>6931780</code>. This is the part
+that turns a contract into a to-do list.</p>
+<table>
+  <caption>Contract &sect;B vs current state — measured 2026-09-28</caption>
+  <thead><tr><th>Requirement</th><th>Today</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>OpenAI format</td><td class="warnc">present, minimal</td>
+      <td><code>openai_client.go</code> — <code>openaiChatRequest</code> carries only <code>model, messages, max_tokens, temperature, response_format, stream</code></td></tr>
+    <tr>
+      <td>Anthropic format</td><td class="warnc">present, minimal</td>
+      <td><code>anthropic_client.go</code> — <code>anthropicMessageRequest</code> carries only <code>model, max_tokens, temperature, system, messages</code></td></tr>
+    <tr>
+      <td>Provider-native <code>tools</code> / <code>tool_choice</code></td><td class="fail">not sent</td>
+      <td>no such fields on either request struct; tool requests are the harness’s own planning JSON (<code>internal/harness/planning.go:392</code> logs <code>plan.ToolRequests</code>)</td></tr>
+    <tr>
+      <td>Thinking toggle / effort</td><td class="fail">absent</td>
+      <td><code>reasoning_effort</code> 0 non-test hits; <code>output_config</code> 0 hits</td></tr>
+    <tr>
+      <td><code>reasoning_content</code> read</td><td class="warnc">present, conflated</td>
+      <td><code>openai_client.go:278</code> uses it only as a fallback when <code>content == ""</code>, logged as “using reasoning_content as primary output”</td></tr>
+    <tr>
+      <td><code>reasoning_content</code> round-trip with tools</td><td class="fail">absent</td>
+      <td>nothing stores a turn’s CoT; nothing re-sends it</td></tr>
+    <tr>
+      <td>Cache-token accounting</td><td class="fail">absent</td>
+      <td><code>prompt_cache</code> 0 hits; <code>cache_hit_tokens</code> 0 hits</td></tr>
+    <tr>
+      <td>Beta surface (prefix completion, FIM)</td><td class="fail">absent</td>
+      <td><code>/beta</code> base unused; FIM 0 hits</td></tr>
+  </tbody>
+</table>
+<div class="facts">
+  <div class="fact"><span>provider-native tools</span><b>0 fields on the wire</b></div>
+  <div class="fact"><span>thinking control</span><b>0 hits</b></div>
+  <div class="fact"><span>cache accounting</span><b>0 hits</b></div>
+  <div class="fact"><span>beta surface</span><b>unused</b></div>
+</div>
+
+<h2 id="traps">The two traps this report exists to prevent</h2>
+<div class="card tinted-bad">
+  <span class="chip">Trap one — failure that looks like success</span>
+  <p style="margin-top:0">Today the harness never sends <code>tools</code>, so none of the CoT round-trip rules
+  apply and nothing looks broken. The day provider-native tools go on the wire, a naive implementation loses the
+  model’s earlier reasoning <b>silently</b> — no error, no 4xx, just a dumber agent whose transcripts still look
+  plausible. This is the same shape as the defects that have cost this project most: the billing ledger that wrote
+  nothing while tokens burned, the <code>DELETE</code> that returned 200 and deleted nothing.</p>
+</div>
+<div class="card tinted-bad">
+  <span class="chip">Trap two — knobs that do nothing</span>
+  <p style="margin-top:0">In thinking mode, <code>temperature</code>, <code>presence_penalty</code> and
+  <code>frequency_penalty</code> are accepted and ignored without an error, and <code>top_p</code> is floored at
+  0.95 (or fixed at 1.0 outside thinking mode). Any harness that believes it is tuning those knobs against
+  DeepSeek is wrong and has no signal telling it so. Silence is the failure mode.</p>
+</div>
+
+<h2 id="filed">What I filed</h2>
+<p>All three are <code>pending</code> on the Consensus board, each with pass criteria rather than a description,
+against the contract <code>specs/024-shim-support-matrix.md</code>.</p>
+<table>
+  <caption>Board rows filed 2026-09-28 (commit 6931780)</caption>
+  <thead><tr><th>Row</th><th>Pri</th><th>What it obliges</th></tr></thead>
+  <tbody>
+    <tr><td class="num">SHIM-SOURCE-001</td><td>P2</td><td>Pin the upstream commit + version in-repo; make refresh a procedure that emits a <b>diff report</b> of changed paths/schemas; compare declared vs served per path; re-run the upstream suite and re-measure <b>with the pin attached</b>.</td></tr>
+    <tr><td class="num">SHIM-SUPPORT-001</td><td>P2</td><td>Turn “always support the DeepSeek surface” into a <b>conformance matrix</b>: every item of &sect;B exercised (or fixture-recorded), each cell explicitly supported / not-supported-with-a-row / not-applicable, re-run when the provider docs change and the doc date recorded.</td></tr>
+    <tr><td class="num">SHIM-SUPPORT-002</td><td>P2</td><td>Persist per-turn <code>reasoning_content</code> and re-send it when <code>tools</code> is present (omit when not); make thinking toggle + effort explicit rather than inherited; and re-examine the empty-content fallback — CoT is evidence of thinking, not the answer.</td></tr>
+  </tbody>
+</table>
+<p>Two deliberate choices in those rows. First, a matrix cell must carry a <b>reason</b> when it is not supported,
+so an absent capability is a decision rather than a hole. Second, the pin is part of the measurement: a
+compatibility number quoted without the commit it was measured at is not evidence, it is folklore.</p>
+
+<h2 id="next">Where this sits, and the next concrete step</h2>
+<p>Board at the time of writing: <b>190 rows, 144 complete, 46 pending</b> (6 P1 / 22 P2 / 18 P3). The fleet has
+landed 26 commits since the review, including the MCP auth fix that came out of it (<code>be28a9e</code>: one
+credential now survives the handshake into <code>tools/list</code>) and a Postgres repair for a schema drift that
+had been failing planning ~75k times a day.</p>
+<p>Two caveats worth carrying, both measured: the deployed <code>dexdat-consensus</code> image is dated
+<b>2026-09-24</b> — four days behind master — even though the database underneath is healthy now (the column
+exists, 226 sessions total, 48 in the last 24 h, zero occurrences of the error in the current log window). And the
+live stack shows <code>api_requests_last_min: 0</code> with an idle pool, so “no errors” there is quiet, not proof.</p>
+<div class="card tinted-idea">
+  <span class="chip">Next step I can take now</span>
+  <p style="margin-top:0">Pin the current upstream commit and generate the <b>protocol surface diff</b> against
+  our recorded pin, so <code>SHIM-SOURCE-001</code> starts from a real baseline instead of an empty one — and so
+  the compatibility number we quote has its pin attached from the first day.</p>
+</div>
+
+<div class="foot">
+  <p><b>Sources (read live 2026-09-28).</b> opencode protocol: <code>sst/opencode</code> OpenAPI specification
+  (<code>packages/sdk/openapi.json</code>, OpenAPI 3.1.1) and the server docs at
+  <code>opencode.ai/docs/server/</code>. ACP: <code>github.com/agentclientprotocol/agent-client-protocol</code>
+  and its registry. DeepSeek harness API: <code>api-docs.deepseek.com</code> —
+  <code>guides/anthropic_api</code>, <code>guides/thinking_mode</code>, <code>guides/tool_calls</code>,
+  <code>guides/chat_prefix_completion</code>.</p>
+  <p><b>Current-state evidence.</b> <code>internal/llm/openai_client.go</code> (<code>openaiChatRequest</code>,
+  <code>openaiChatMessage</code>, <code>buildResponse:278</code>), <code>internal/llm/anthropic_client.go</code>
+  (<code>anthropicMessageRequest</code>), <code>internal/harness/planning.go:392</code>; grep census over
+  non-test code in <code>internal/</code> and <code>cmd/</code>.</p>
+  <p><b>Artefacts.</b> Contract <code>specs/024-shim-support-matrix.md</code> · rows
+  <code>SHIM-SOURCE-001</code>, <code>SHIM-SUPPORT-001</code>, <code>SHIM-SUPPORT-002</code> · repo
+  <code>github.com/totalwindupflightsystems/consensus</code> at <code>6931780</code> · report generated
+  2026-09-28 · every number above is either quoted from the named provider/upstream document or measured on this
+  checkout, and the two are labelled differently on purpose.</p>
+</div>
+
+</div>
+</body>
+</html>
