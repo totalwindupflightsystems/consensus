@@ -744,3 +744,21 @@ tasks:
   status: complete
   created_at: '2026-09-28T02:31:06.554686+00:00'
   completed_at: '2026-09-28T03:51:52.056102+00:00'
+- id: df-consensus-46
+  title: Fix webhook routed session wake dispatch
+  criteria:
+  - A matched webhook wake dispatches a harness iteration for the target session and
+    preserves webhook provenance in the agent-visible ledger
+  - Regression tests prove the current base fails and the implementation passes without
+    affecting unrelated targets
+  status: complete
+  created_at: '2026-09-28T18:12:59.168083+00:00'
+  completed_at: '2026-09-28T18:15:46.646530+00:00'
+- id: DOC-5
+  title: Fix PRD.md dead GitHub link (wojons -> totalwindupflightsystems)
+  criteria:
+  - docs/PRD.md contains no reference to github.com/wojons/consensus and links https://github.com/totalwindupflightsystems/consensus
+    which returns HTTP 200
+  status: complete
+  created_at: '2026-09-28T20:50:21.717349+00:00'
+  completed_at: '2026-09-28T20:52:17.075476+00:00'
