@@ -301,11 +301,24 @@ no expiry).
 |---------|---------|-------------|
 | `DEEPSEEK_API_KEY` | (required) | DeepSeek API key for LLM calls |
 | `OPENROUTER_API_KEY` | — | Alternative: use OpenRouter instead of DeepSeek direct |
+| `OPENAI_API_KEY` | — | OpenAI API key when the `openai` provider is selected |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key when the `anthropic` provider is selected |
 | `CONSENSUS_LLM_BASE_URL` | `https://api.deepseek.com/v1` | Override LLM API endpoint |
+| `OPENROUTER_BASE_URL` | — | Fallback LLM API endpoint override for OpenRouter |
+| `CONSENSUS_LLM_PROVIDER` | `openai` | Override the LLM provider |
+| `CONSENSUS_LLM_MODEL` | provider-specific | Override the default LLM model |
 | `CONSENSUS_API_KEY` | — | Protect the API with an auth key |
 | `CONSENSUS_DB_URL` | `sqlite://$HOME/.consensus/consensus.db` | PostgreSQL or SQLite DSN |
+| `CONSENSUS_CONFIG` | auto-discovered | Explicit configuration file path |
+| `CONSENSUS_HOSTNAME` | `127.0.0.1` | Server bind address |
 | `CONSENSUS_PORT` | `8090` | Server listen port (if occupied by a stale sidecar, see [Port 8090 already in use?](#port-8090-already-in-use-stale-sidecar-shadowing)) |
-| `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`)
+| `CONSENSUS_SERVER` | `http://localhost:8090` | Server base URL used by CLI client commands |
+| `CONSENSUS_LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, or `error`) |
+| `CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS` | `90d` | Bootstrap admin-key lifetime in hours (`0` disables expiry) |
+| `CONSENSUS_CRIER_URL` | `http://localhost:8767` | Crier relay base URL |
+| `CONSENSUS_CRIER_AGENT` | — | Crier agent identity and inbox |
+| `CONSENSUS_AUTO_SYNC` | — | Auto-refresh model registry interval (e.g. `24h`) |
+| `CONSENSUS_MOCK_LLM` | disabled | Enable the mock LLM provider when set to `1` |
 
 **Docker Compose** (`docker-compose.prod.yml` — full stack, Consensus +
 PostgreSQL) also requires authenticated access to the currently private GHCR
