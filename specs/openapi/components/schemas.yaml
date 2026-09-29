@@ -779,3 +779,101 @@ MCPJSONRPCResponse:
           type: string
         data:
           description: Optional error detail.
+
+# ─── SSE Events (DF-CONSENSUS-30) ───
+
+SSEEvent:
+  type: object
+  required: [type]
+  properties:
+    type:
+      type: string
+      description: |
+        Event name carried in the SSE "event:" field. Known values include
+        connected, session_update, task_update, approval_update, and
+        quarantine_* event types published by the Cognitive Firewall.
+      example: session_update
+    session_id:
+      type: string
+      format: uuid
+      description: Session the event belongs to (empty on the global stream's own control events).
+    data:
+      description: JSON payload for the event; shape varies by event type.
+      additionalProperties: true
+
+# ─── Quarantine / Cognitive Firewall (SPEC-005) ───
+
+QuarantineItem:
+  type: object
+  required: [id, session_id, source_type, raw_content, content_hash, validation_status, expires_at, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    session_id:
+      type: string
+      format: uuid
+    source_type:
+      type: string
+      example: webhook
+    source_url:
+      type: string
+    raw_content:
+      type: string
+      description: Raw external content held in quarantine.
+    content_hash:
+      type: string
+    validation_status:
+      type: string
+      description: Quarantine status of the item (e.g. pending, approved, rejected).
+    validation_notes:
+      type: string
+    promoted_memory_id:
+      type: integer
+      format: int64
+      description: Memory event the content was promoted to on approval, when set.
+    expires_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+
+QuarantineListResponse:
+  type: object
+  required: [items, count]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/QuarantineItem"
+    count:
+      type: integer
+      description: Number of items returned.
+
+QuarantineApproveRequest:
+  type: object
+  properties:
+    session_id:
+      type: string
+      format: uuid
+      description: Target session; omitted means the session recorded on the quarantine item.
+
+QuarantineRejectRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason:
+      type: string
+      description: Why the content was rejected. Defaults to "Rejected by operator" server-side when empty.
+
+QuarantineDecisionResponse:
+  type: object
+  required: [status, item]
+  properties:
+    status:
+      type: string
+      enum: [approved, rejected]
+      example: approved
+    item:
+      $ref: "#/QuarantineItem"

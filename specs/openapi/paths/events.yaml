@@ -1,0 +1,46 @@
+# SSE event stream endpoint path (SPEC-015, DF-CONSENSUS-30).
+# axiom:trace work_item=WI-004 spec=specs/005-security.md,specs/015-api-and-mcp.md
+
+# GET /api/v1/events
+events:
+  get:
+    tags: [Events]
+    summary: Stream real-time events (Server-Sent Events)
+    operationId: streamEvents
+    description: |
+      Opens a Server-Sent Events (text/event-stream) connection that delivers
+      real-time session, task, and quarantine events. Clients may pass
+      ?session_id to subscribe to a single session, or omit it to receive
+      the global stream. Requires a valid Bearer API key: a session-scoped
+      key (cs_sk_*) may only stream its own session — requests for the
+      global stream or a foreign session are rejected 403 before any
+      event-stream header is written.
+
+      The global (no session_id) stream is bounded (~5 minutes): it ends
+      cleanly with a terminal "stream_timeout" event so EventSource
+      auto-reconnects. Per-session streams are not bounded.
+
+      Event payloads vary by type; see the SSEEvent schema for the common
+      envelope. The first event delivered is always a "connected" event.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: session_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Subscribe to events for a single session. Omit for the global stream.
+    responses:
+      "200":
+        description: |
+          A live Server-Sent Events stream. Content-Type is text/event-stream;
+          each event carries an event name and a JSON data payload.
+        content:
+          text/event-stream:
+            schema:
+              $ref: "../components/schemas.yaml#/SSEEvent"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"

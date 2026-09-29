@@ -1,0 +1,124 @@
+# Quarantine (Cognitive Firewall) endpoint paths (SPEC-005 §Cognitive Firewall, SPEC-015).
+# axiom:trace work_item=WI-004 spec=specs/005-security.md,specs/015-api-and-mcp.md
+
+# GET /api/v1/quarantine
+quarantine:
+  get:
+    tags: [Quarantine]
+    summary: List quarantined content
+    operationId: listQuarantine
+    description: |
+      Lists content held by the Cognitive Firewall quarantine, optionally
+      filtered by status (e.g. pending). Admin scope. Returns the items with
+      their count; a 503 is returned when the quarantine service is not
+      configured on this server instance.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+        description: Filter quarantined items by status (e.g. pending).
+    responses:
+      "200":
+        description: List of quarantined items.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/QuarantineListResponse"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+      "503":
+        description: Quarantine service not configured on this instance.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/responses.yaml#/ErrorResponse/content/application~1json/schema"
+
+# POST /api/v1/quarantine/{qID}/approve
+quarantineApprove:
+  post:
+    tags: [Quarantine]
+    summary: Approve quarantined content
+    operationId: approveQuarantine
+    description: |
+      Approves a quarantined item, promoting it into agent memory.
+      The optional body may carry a session_id; when omitted, the session
+      recorded on the quarantine item is used. Admin scope.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/QuarantineId"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/QuarantineApproveRequest"
+    responses:
+      "200":
+        description: Item approved and promoted.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/QuarantineDecisionResponse"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+      "503":
+        description: Quarantine service not configured on this instance.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/responses.yaml#/ErrorResponse/content/application~1json/schema"
+
+# POST /api/v1/quarantine/{qID}/reject
+quarantineReject:
+  post:
+    tags: [Quarantine]
+    summary: Reject quarantined content
+    operationId: rejectQuarantine
+    description: |
+      Rejects a quarantined item with a reason. When the body omits reason,
+      the server applies the default "Rejected by operator". Admin scope.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/QuarantineId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/QuarantineRejectRequest"
+    responses:
+      "200":
+        description: Item rejected.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/QuarantineDecisionResponse"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+      "503":
+        description: Quarantine service not configured on this instance.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/responses.yaml#/ErrorResponse/content/application~1json/schema"

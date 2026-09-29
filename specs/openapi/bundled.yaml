@@ -58,6 +58,10 @@ tags:
     description: API key management
   - name: Webhooks
     description: HMAC-authenticated external event ingestion
+  - name: Events
+    description: Real-time Server-Sent Events stream (DF-CONSENSUS-30)
+  - name: Quarantine
+    description: Cognitive Firewall quarantine management (SPEC-005)
   - name: MCP
     description: |
       Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the streamable-HTTP transport at /mcp (POST JSON-RPC + GET SSE stream), plus the legacy /mcp/sse and /mcp/message endpoints.
@@ -1083,6 +1087,168 @@ paths:
           description: The source exceeded the webhook token-bucket rate limit.
         '500':
           description: The request body could not be read or the event could not be stored.
+  /api/v1/events:
+    get:
+      tags:
+        - Events
+      summary: Stream real-time events (Server-Sent Events)
+      operationId: streamEvents
+      description: |
+        Opens a Server-Sent Events (text/event-stream) connection that delivers
+        real-time session, task, and quarantine events. Clients may pass
+        ?session_id to subscribe to a single session, or omit it to receive
+        the global stream. Requires a valid Bearer API key: a session-scoped
+        key (cs_sk_*) may only stream its own session — requests for the
+        global stream or a foreign session are rejected 403 before any
+        event-stream header is written.
+
+        The global (no session_id) stream is bounded (~5 minutes): it ends
+        cleanly with a terminal "stream_timeout" event so EventSource
+        auto-reconnects. Per-session streams are not bounded.
+
+        Event payloads vary by type; see the SSEEvent schema for the common
+        envelope. The first event delivered is always a "connected" event.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Subscribe to events for a single session. Omit for the global stream.
+      responses:
+        '200':
+          description: |
+            A live Server-Sent Events stream. Content-Type is text/event-stream;
+            each event carries an event name and a JSON data payload.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/SSEEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/quarantine:
+    get:
+      tags:
+        - Quarantine
+      summary: List quarantined content
+      operationId: listQuarantine
+      description: |
+        Lists content held by the Cognitive Firewall quarantine, optionally
+        filtered by status (e.g. pending). Admin scope. Returns the items with
+        their count; a 503 is returned when the quarantine service is not
+        configured on this server instance.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter quarantined items by status (e.g. pending).
+      responses:
+        '200':
+          description: List of quarantined items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantineListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Quarantine service not configured on this instance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
+  /api/v1/quarantine/{qID}/approve:
+    post:
+      tags:
+        - Quarantine
+      summary: Approve quarantined content
+      operationId: approveQuarantine
+      description: |
+        Approves a quarantined item, promoting it into agent memory.
+        The optional body may carry a session_id; when omitted, the session
+        recorded on the quarantine item is used. Admin scope.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QuarantineId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuarantineApproveRequest'
+      responses:
+        '200':
+          description: Item approved and promoted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantineDecisionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Quarantine service not configured on this instance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
+  /api/v1/quarantine/{qID}/reject:
+    post:
+      tags:
+        - Quarantine
+      summary: Reject quarantined content
+      operationId: rejectQuarantine
+      description: |
+        Rejects a quarantined item with a reason. When the body omits reason,
+        the server applies the default "Rejected by operator". Admin scope.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QuarantineId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuarantineRejectRequest'
+      responses:
+        '200':
+          description: Item rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantineDecisionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Quarantine service not configured on this instance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
   /global/health:
     get:
       tags:
@@ -3064,6 +3230,110 @@ components:
         revoked_at:
           type: string
           format: date-time
+    SSEEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: |
+            Event name carried in the SSE "event:" field. Known values include
+            connected, session_update, task_update, approval_update, and
+            quarantine_* event types published by the Cognitive Firewall.
+          example: session_update
+        session_id:
+          type: string
+          format: uuid
+          description: Session the event belongs to (empty on the global stream's own control events).
+        data:
+          description: JSON payload for the event; shape varies by event type.
+          additionalProperties: true
+    QuarantineItem:
+      type: object
+      required:
+        - id
+        - session_id
+        - source_type
+        - raw_content
+        - content_hash
+        - validation_status
+        - expires_at
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+          example: webhook
+        source_url:
+          type: string
+        raw_content:
+          type: string
+          description: Raw external content held in quarantine.
+        content_hash:
+          type: string
+        validation_status:
+          type: string
+          description: Quarantine status of the item (e.g. pending, approved, rejected).
+        validation_notes:
+          type: string
+        promoted_memory_id:
+          type: integer
+          format: int64
+          description: Memory event the content was promoted to on approval, when set.
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    QuarantineListResponse:
+      type: object
+      required:
+        - items
+        - count
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuarantineItem'
+        count:
+          type: integer
+          description: Number of items returned.
+    QuarantineApproveRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Target session; omitted means the session recorded on the quarantine item.
+    QuarantineDecisionResponse:
+      type: object
+      required:
+        - status
+        - item
+      properties:
+        status:
+          type: string
+          enum:
+            - approved
+            - rejected
+          example: approved
+        item:
+          $ref: '#/components/schemas/QuarantineItem'
+    QuarantineRejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Why the content was rejected. Defaults to "Rejected by operator" server-side when empty.
     MCPJSONRPCResponse:
       type: object
       description: |
@@ -3262,6 +3532,14 @@ components:
         type: string
         format: uuid
       description: UUID of the API key.
+    QuarantineId:
+      name: qID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: ID of the quarantined item.
     ShimSessionId:
       name: sessionId
       in: path

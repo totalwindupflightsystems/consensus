@@ -61,6 +61,10 @@ tags:
     description: API key management
   - name: Webhooks
     description: HMAC-authenticated external event ingestion
+  - name: Events
+    description: Real-time Server-Sent Events stream (DF-CONSENSUS-30)
+  - name: Quarantine
+    description: Cognitive Firewall quarantine management (SPEC-005)
   - name: MCP
     description: >
       Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the
@@ -140,6 +144,18 @@ paths:
   # ── Webhook Event Ingestion (SPEC-013 §4) ──
   /webhooks/{source}:
     $ref: "./paths/webhooks.yaml"
+
+  # ── Events (SSE, DF-CONSENSUS-30) ──
+  /api/v1/events:
+    $ref: "./paths/events.yaml#/events"
+
+  # ── Quarantine (Cognitive Firewall, SPEC-005) ──
+  /api/v1/quarantine:
+    $ref: "./paths/quarantine.yaml#/quarantine"
+  /api/v1/quarantine/{qID}/approve:
+    $ref: "./paths/quarantine.yaml#/quarantineApprove"
+  /api/v1/quarantine/{qID}/reject:
+    $ref: "./paths/quarantine.yaml#/quarantineReject"
 
   # ── Opencode Protocol Shim (SPEC-017) ──
   /global/health:

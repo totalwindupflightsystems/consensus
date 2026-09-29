@@ -62,6 +62,15 @@ ApiKeyId:
     format: uuid
   description: UUID of the API key.
 
+QuarantineId:
+  name: qID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: ID of the quarantined item.
+
 StatusFilter:
   name: status
   in: query
