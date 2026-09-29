@@ -235,6 +235,73 @@ func TestCreateSession_MissingRequiredFields(t *testing.T) {
 	}
 }
 
+// DF-CONSENSUS-50: when no LLM API key is configured, session creation must
+// fail fast with an actionable 400 instead of returning 201 and letting the
+// session die opaquely at its first LLM dispatch. With the gate unset (nil,
+// the pre-existing wiring), creation keeps succeeding — the legacy behavior
+// existing tests and shims rely on.
+func TestCreateSession_MissingLLMKey(t *testing.T) {
+	body := `{"agent_name":"probe-agent","goal":"DF-CONSENSUS-50"}`
+
+	t.Run("gate_on_returns_400_with_guidance", func(t *testing.T) {
+		srv := newIntegrationServer(t)
+		defer srv.close()
+		srv.requireLLMKey = func() bool { return false } // no LLM API key configured
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+		w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Errorf("expected application/json Content-Type, got %q", ct)
+		}
+		if w.Body.Len() == 0 {
+			t.Fatal("expected non-empty JSON error body")
+		}
+
+		var resp ErrorResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode error body %q: %v", w.Body.String(), err)
+		}
+		if resp.Error.Code != "MISSING_LLM_CONFIG" {
+			t.Errorf("expected code MISSING_LLM_CONFIG, got %q", resp.Error.Code)
+		}
+		for _, want := range []string{"DEEPSEEK_API_KEY", "CONSENSUS_API_KEY", "llm.api_key"} {
+			if !strings.Contains(resp.Error.Message, want) {
+				t.Errorf("message %q does not name %q", resp.Error.Message, want)
+			}
+		}
+
+		// Fail fast: nothing must have been persisted.
+		ctx := context.Background()
+		rows, _ := srv.conn.Query(ctx, `SELECT id FROM sessions WHERE agent_name = 'probe-agent'`)
+		if len(rows) != 0 {
+			t.Errorf("expected no session row, found %d", len(rows))
+		}
+	})
+
+	t.Run("gate_off_keeps_legacy_201", func(t *testing.T) {
+		srv := newIntegrationServer(t)
+		defer srv.close()
+		// requireLLMKey left nil — the pre-existing wiring.
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+		w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected legacy 201 with gate unset, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 func TestCreateSession_NonAdminKey(t *testing.T) {
 	srv := newIntegrationServer(t)
 	defer srv.close()

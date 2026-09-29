@@ -58,6 +58,10 @@ type Server struct {
 	// ServerConfig.Wake). Nil = tick-only dispatch (pre-existing behavior).
 	wake func(sessionID string)
 
+	// requireLLMKey mirrors ServerConfig.RequireLLMKey (DF-CONSENSUS-50).
+	// Nil = feature off (legacy behavior).
+	requireLLMKey func() bool
+
 	mu sync.RWMutex
 
 	// apiRates maps scope name to requests-per-minute limit.
@@ -94,6 +98,13 @@ type ServerConfig struct {
 	// Injected as a function rather than a *harness.Harness because harness
 	// tests import this package (an api → harness import would cycle).
 	Wake func(sessionID string)
+
+	// RequireLLMKey, when non-nil, reports whether an LLM API key is
+	// configured. Wired from the resolved runtime config in cmd/consensus
+	// (DF-CONSENSUS-50); nil (tests, shims, direct service users) keeps the
+	// legacy behavior where session creation succeeds and the misconfiguration
+	// surfaces only as an opaque auth failure at first LLM dispatch.
+	RequireLLMKey func() bool
 }
 
 // NewServer creates a new API server with all middleware and routes.
@@ -116,6 +127,7 @@ func NewServer(cfg ServerConfig) *Server {
 		quarantineSvc: cfg.QuarantineService,
 		apiRates:      resolveRates(cfg),
 		wake:          cfg.Wake,
+		requireLLMKey: cfg.RequireLLMKey,
 	}
 	s.svc.Sessions.events = s.events
 	s.svc.Messages.events = s.events

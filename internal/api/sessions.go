@@ -32,6 +32,18 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// DF-CONSENSUS-50: fail fast when no LLM API key is configured. The
+	// misconfiguration is already detected at startup (C-GAP-003 warning);
+	// rejecting session creation here turns it into an actionable API error
+	// instead of an opaque auth failure at the session's first LLM dispatch.
+	// requireLLMKey is nil when unset (tests, shims) — feature off.
+	if s.requireLLMKey != nil && !s.requireLLMKey() {
+		writeError(w, r, http.StatusBadRequest, "MISSING_LLM_CONFIG",
+			"no LLM API key configured: set the DEEPSEEK_API_KEY (or CONSENSUS_API_KEY) "+
+				"environment variable, or llm.api_key in consensus.yaml, then retry")
+		return
+	}
+
 	result, err := s.svc.Sessions.CreateSession(r.Context(), CreateSessionInput{
 		AgentName:     req.AgentName,
 		Goal:          req.Goal,
