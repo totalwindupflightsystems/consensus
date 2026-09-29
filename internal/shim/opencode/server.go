@@ -229,7 +229,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// sub-paths keep the 501 stub. ServeMux resolves the longer pattern, so
 	// the exact /vcs/diff registration wins over the /vcs/ subtree stub.
 	mux.HandleFunc("/project", s.handleProjectVCSSStub)
-	mux.HandleFunc("/project/", s.handleProjectVCSSStub)
+	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
+	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
+	mux.HandleFunc("/project/", s.handleProjectByID)
 	mux.HandleFunc("/vcs", s.handleVCS)
 	mux.HandleFunc("/vcs/diff", s.handleVCS)
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
@@ -1183,6 +1185,39 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))
+}
+
+// handleProjectByID serves /project/{projectID} sub-paths. Consensus has no
+// project registry, so every project id is unknown and the upstream opencode
+// contract (httpapi-instance.test.ts "returns typed not found bodies for
+// missing projects", DF-CONSENSUS-47) expects HTTP 404 with the typed
+// ProjectNotFoundError NamedError body — exactly
+// {_tag, projectID, message}, no extra fields. Bare GET /project keeps the
+// 501 stub (handleProjectVCSSStub).
+func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
+	projectID := strings.TrimPrefix(r.URL.Path, "/project/")
+	if projectID == "" {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
+		return
+	}
+	writeOpencodeNotFoundError(w, "ProjectNotFoundError", "projectID", projectID,
+		"Project not found: "+projectID)
+}
+
+// writeOpencodeNotFoundError emits an upstream-shaped typed not-found body:
+// {_tag: <tag>, <idField>: <id>, message: <message>} with a trailing newline
+// (json.Encoder), mirroring writeUpstreamRequestNotFound.
+func writeOpencodeNotFoundError(w http.ResponseWriter, tag, idField, id, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	body := map[string]any{
+		"_tag":    tag,
+		idField:   id,
+		"message": message,
+	}
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		slog.Warn("opencode-shim: failed to encode typed not-found body", "tag", tag)
+	}
 }
 
 func (s *Server) handlePath(w http.ResponseWriter, r *http.Request) {
