@@ -205,10 +205,8 @@ func TestE2E_TransactionAtomicity_PartialStateNotCommitted(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "txn-test.db")
 
+	skipWithoutRealLLMKey(t)
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		apiKey = "test-fake-key-not-a-real-secret"
-	}
 
 	configYAML := fmt.Sprintf(`server:
   hostname: 127.0.0.1
@@ -347,10 +345,8 @@ func TestE2E_CrashRecovery_ServerRestartResumesCleanly(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "crash-test.db")
 
+	skipWithoutRealLLMKey(t)
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		apiKey = "test-fake-key-not-a-real-secret"
-	}
 
 	configYAML := fmt.Sprintf(`server:
   hostname: 127.0.0.1

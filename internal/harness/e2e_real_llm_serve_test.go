@@ -39,11 +39,8 @@ func TestE2ERealLLMServe(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "e2e-test.db")
 
-	// Write config
+	skipWithoutRealLLMKey(t)
 	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		apiKey = "test-fake-key-not-a-real-secret"
-	}
 	configYAML := fmt.Sprintf(`server:
   hostname: 127.0.0.1
   port: %d
