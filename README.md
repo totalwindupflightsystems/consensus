@@ -136,7 +136,10 @@ fresh-user path:
 
 **Requirements:** building requires the Go toolchain — go.mod targets
 `go 1.26.0` (toolchain `go1.26.5`); install Go from https://go.dev/dl/ if
-`go version` fails.
+`go version` fails. Node.js and Bun are not required to build or run Consensus;
+both are required only for the optional `make test-opencode-upstream` suite. Its
+runner does not enforce minimum versions (last verified with Node 22 and Bun
+1.4.2).
 
 ```bash
 git clone https://github.com/totalwindupflightsystems/consensus.git
@@ -442,7 +445,7 @@ networks:
   ```
 
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
-- **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract served at `/doc`, `/openapi.json`, and `/openapi.yaml` (embedded in the binary — available from any working directory and in the Docker image), with the REST API Swagger UI at `/doc/api` on a running server
+- **[OpenAPI spec](specs/018-openapi-contract.md)** — the REST contract is served at `/openapi.json` and `/openapi.yaml`, with its Swagger UI at `/doc/api`; the opencode-compatible shim contract is served separately at `/doc` (all are embedded in the binary and available from any working directory and in the Docker image)
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
 - **[Debugging guide](docs/DEBUGGING.md)** — the pprof debug listener: capturing goroutine/heap/CPU profiles from a running server, plus a wedge playbook
 

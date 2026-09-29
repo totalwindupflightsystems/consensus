@@ -94,9 +94,8 @@ too:
 | `GET /openapi.yaml` | Bundled OpenAPI spec as YAML |
 | `GET /doc/api` | Swagger UI explorer for the REST API (servers URL derived from the request Host) |
 
-In development the server prefers `specs/openapi/bundled.yaml` relative to
-the process working directory when it exists, so re-running
-`make bundle-spec` picks up live edits without a rebuild.
+The served contract is always the copy embedded in the binary. After running
+`make bundle-spec`, rebuild Consensus to publish the updated contract.
 
 > `GET /doc` serves the machine-readable OpenAPI document (JSON by default;
 > `Accept: application/yaml` returns YAML) for the opencode-compatible surface.
@@ -400,7 +399,7 @@ curl -i -X POST http://localhost:8090/webhooks/docs-demo \
   --data-binary "$BODY"
 ```
 
-Once the wildcard mount is corrected, a new delivery returns:
+A new delivery returns:
 
 ```http
 HTTP/1.1 202 Accepted
