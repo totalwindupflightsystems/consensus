@@ -59,9 +59,11 @@ var (
 func Version() string { return version }
 
 // SetBuildInfo adopts release-build stamps into the shared version surface
-// (RELEASE-CONSENSUS-1): `consensus --version`, `consensus version`, and —
-// via the same var — /api/v1/health all report the stamped release version
-// instead of the embedded VERSION-file default. The binary's main package
+// (RELEASE-CONSENSUS-1): `consensus --version` and `consensus version`
+// report the stamped release string instead of the embedded VERSION-file
+// default. (/api/v1/health reads the module-root consensus.Version and is
+// intentionally untouched; for a release tag the two strings coincide.)
+// The binary's main package
 // calls it before command dispatch when the goreleaser ldflags landed.
 // Each stamp is adopted only when non-default, so a partial stamp (or a
 // stray call) never blanks an existing value.

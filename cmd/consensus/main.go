@@ -62,8 +62,8 @@ var (
 func main() {
 	// RELEASE-CONSENSUS-1: adopt the goreleaser build stamps into the CLI's
 	// shared version var BEFORE any command runs (cobra serves --version from
-	// the same var). On a release build every existing version surface reports
-	// the stamped string; on a plain `go build` these defaults are inert and
+	// the same var). On a release build the CLI version surfaces report the
+	// stamped string; on a plain `go build` these defaults are inert and
 	// the VERSION-file default stays authoritative.
 	if version != "dev" {
 		cli.SetBuildInfo(version, commit, date)

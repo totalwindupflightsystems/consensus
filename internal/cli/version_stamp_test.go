@@ -2,7 +2,7 @@
 //
 // The stamp path is: goreleaser ldflags → main.version/commit/date
 // (cmd/consensus) → SetBuildInfo → the shared version var in root.go that
-// --version, `consensus version`, and /api/v1/health all read. These tests
+// --version and `consensus version` read. These tests
 // pin the adoption contract: stamped values land, inert defaults do not
 // clobber existing values, and the version subcommand surfaces commit/date
 // once stamped.

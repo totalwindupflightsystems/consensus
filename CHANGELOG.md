@@ -43,8 +43,9 @@ either SQLite or PostgreSQL.
   with an expiry cron for stale pending approvals.
 - **Dashboards** — web admin UI at `/ui/` and the Chronicle investigation
   workbench at `/chronicle/`, both served by the same binary.
-- **Release plumbing** — goreleaser build stamps (version/commit/date)
-  observable via `consensus --version`, `consensus version`, and
-  `/api/v1/health`; tag-triggered GitHub Actions release workflow.
+- **Release plumbing** — tag-triggered GitHub Actions release workflow
+  (GoReleaser on v* tags: build matrix, archives, checksums, release
+  assets); goreleaser build stamps (version/commit/date) observable via
+  `consensus --version` and `consensus version`.
 
 ---
