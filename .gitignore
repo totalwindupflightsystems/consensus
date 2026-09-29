@@ -66,3 +66,5 @@ service-account*.json
 
 # gitreins judge token telemetry (local-only)
 .gitreins/usage.jsonl
+dagger.db
+EOF
