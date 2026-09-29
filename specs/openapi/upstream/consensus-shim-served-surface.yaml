@@ -1,0 +1,463 @@
+# Consensus opencode shim — SERVED surface (derived, not declared).
+#
+# This file is the "served" side of the declared-vs-served comparison required
+# by specs/024-shim-support-matrix.md §A.3. It is a DATA file: it records what
+# the shim's router actually answers, derived statically from the route table
+# and sub-path switches in internal/shim/opencode/server.go.
+#
+# Declared side: specs/openapi/upstream/openapi-<version>.surface.json (the
+# upstream published document). Comparison procedure and result:
+# docs/reports/shim-source-002-baseline-diff-2026-09-29.md.
+#
+# Scope honesty: this is a STATIC derivation from the route table + handler
+# switches + auth middleware. It is not a live probe of a running instance;
+# the live, mechanical parity check is SHIM-SOURCE-003.
+#
+# outcome vocabulary:
+#   200 / 201         handled and answered
+#   200-sse           handled, text/event-stream
+#   200-mcp-delegate  delegated to the real MCP handler when the request looks
+#                     like an MCP client (POST + JSON content-type, or
+#                     GET + Accept: text/event-stream); otherwise 501
+#   307-redirect      net/http ServeMux subtree-root redirect (no trailing slash)
+#   401               requires Consensus auth (Bearer/Basic) and none was valid
+#   404               NOT_FOUND (shim's own error body, or net/http default for
+#                     an unregistered path)
+#   404-typed         upstream-shaped typed NamedError body (e.g. ProjectNotFoundError)
+#   405               METHOD_NOT_ALLOWED
+#   501               NOT_IMPLEMENTED (declared opencode-specific stub)
+#
+# auth policy vocabulary: public | api-key | fixed-workspace-exempt (auth is
+# skipped only for the exact upstream compatibility route when the request
+# carries x-opencode-directory) | stub-skip-non-GET
+
+meta:
+  derived_from: internal/shim/opencode/server.go
+  derived_at_commit: f012e36684f27b22ee432efc9fbd75abb1bd0945
+  derived_on: "2026-09-29"
+  upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
+  comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
+
+routes:
+  # ── Global ──
+  - path: /global/health
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:173; authMiddleware server.go:355"
+  - path: /global/event
+    method: GET
+    outcome: 200-sse
+    auth: api-key
+    evidence: "server.go:174 handleGlobalEvent"
+  - path: /event
+    method: GET
+    outcome: 200-sse
+    auth: api-key
+    evidence: "server.go:221 (alias of /global/event)"
+
+  # ── Sessions ──
+  - path: /session
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:177 handleSessions → listSessions"
+  - path: /session
+    method: POST
+    outcome: 200
+    auth: fixed-workspace-exempt
+    evidence: "server.go:177 handleSessions → createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
+  - path: /session/{id}
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:178, 879"
+  - path: /session/{id}
+    method: PATCH
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:178, 881"
+  - path: /session/{id}
+    method: DELETE
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:178, 883"
+  - path: /session/{id}/abort
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:885"
+  - path: /session/{id}/message
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:887 sendMessage"
+  - path: /session/{id}/message
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:889 listMessages"
+  - path: /session/{id}/message/{messageID}
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:891 getMessageByID"
+  - path: /session/{id}/message/{messageID}
+    method: DELETE
+    outcome: 404
+    auth: api-key
+    evidence: "server.go:891 restricts to GET; DELETE falls to server.go:912 default → 404"
+  - path: /session/{id}/children
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:895 listChildren"
+  - path: /session/{id}/prompt_async
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/shell
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/command
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/share
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/summarize
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/init
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/fork
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+  - path: /session/{id}/revert
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:900 stub list"
+
+  # ── Fixed-workspace compatibility + misc ──
+  - path: /path
+    method: GET
+    outcome: 200
+    auth: fixed-workspace-exempt
+    evidence: "server.go:181 handlePath → instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
+  - path: /log
+    method: POST
+    outcome: 200
+    auth: fixed-workspace-exempt
+    evidence: "server.go:182 handleLog; isFixedWorkspaceCompatibilityRequest server.go:1138"
+  - path: /question/{requestID}/reply
+    method: POST
+    outcome: 404-typed
+    auth: fixed-workspace-exempt
+    evidence: "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286"
+  - path: /question/{requestID}/reject
+    method: POST
+    outcome: 404-typed
+    auth: fixed-workspace-exempt
+    evidence: "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286"
+
+  # ── Doc (shim-only; not in the upstream document) ──
+  - path: /doc
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:186 handleDoc; serves the CONSENSUS bundle (specs/openapi/bundled.yaml), not the upstream document"
+
+  # ── Config / provider / agent ──
+  - path: /config
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:189 handleConfig"
+  - path: /config
+    method: PATCH
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:189 handleConfig"
+  - path: /config/providers
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:190 handleConfigProviders"
+  - path: /provider
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:191 handleProvider"
+  - path: /agent
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:192 handleAgent"
+
+  # ── Tools ──
+  - path: /experimental/tool
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:195 handleTools"
+  - path: /experimental/tool/ids
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:196 handleToolIDs"
+
+  # ── File / find ──
+  - path: /find
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:199 handleFind"
+  - path: /find/file
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:200 handleFindSub (server.go:1994)"
+  - path: /find/symbol
+    method: GET
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:2017 (symbol search requires LSP)"
+  - path: /file/content
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:201 handleFileContent"
+  - path: /file/status
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:202 handleFileStatus"
+
+  # ── Permissions (HITL) ──
+  - path: /permission
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:205 handlePermissions"
+  - path: /permission/{id}
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:206, 2148"
+  - path: /permission/{id}/resolve
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:2150 resolvePermission (shim-only verb; upstream document declares reply)"
+  - path: /permission/{id}/reply
+    method: POST
+    outcome: 404-typed
+    auth: fixed-workspace-exempt
+    evidence: "server.go:2152; typed PermissionNotFoundError"
+
+  # ── TUI (shim-only passthrough stubs) ──
+  - path: /tui/append-prompt
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:209 handleTUI (server.go:2242)"
+  - path: /tui/submit-prompt
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:209 handleTUI"
+  - path: /tui/execute-command
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:209 handleTUI"
+  - path: /tui/show-toast
+    method: POST
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:209 handleTUI"
+
+  # ── LSP / MCP ──
+  - path: /lsp
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:212 handleLSP (status: unavailable)"
+  - path: /mcp
+    method: GET
+    outcome: 200-mcp-delegate
+    auth: api-key
+    evidence: "server.go:215 handleMCPEndpoint (server.go:1930)"
+  - path: /mcp
+    method: POST
+    outcome: 200-mcp-delegate
+    auth: api-key
+    evidence: "server.go:215 handleMCPEndpoint"
+
+  # ── Auth management ──
+  - path: /auth/{authId}
+    method: PUT
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:218 handleAuth (server.go:1092)"
+  - path: /auth/{authId}
+    method: DELETE
+    outcome: 405
+    auth: api-key
+    evidence: "server.go:1094 (only PUT is supported)"
+
+  # ── Project / VCS ──
+  - path: /project
+    method: GET
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:231 handleProjectVCSSStub; GET keeps auth (isStubPath server.go:1159)"
+  - path: /project/{projectID}
+    method: PATCH
+    outcome: 404-typed
+    auth: stub-skip-non-GET
+    evidence: "server.go:234 handleProjectByID (server.go:1197); typed ProjectNotFoundError"
+  - path: /project/{projectID}
+    method: GET
+    outcome: 404-typed
+    auth: stub-skip-non-GET
+    evidence: "server.go:234 handleProjectByID"
+  - path: /vcs
+    method: GET
+    outcome: 200
+    auth: fixed-workspace-exempt
+    evidence: "server.go:235 handleVCS (server.go:1238)"
+  - path: /vcs/diff
+    method: GET
+    outcome: 200
+    auth: fixed-workspace-exempt
+    evidence: "server.go:236 handleVCS"
+  - path: /vcs/{id}
+    method: GET
+    outcome: 501
+    auth: api-key
+    evidence: "server.go:237 handleProjectVCSSStub; GET keeps auth so unauthenticated is 401 (isStubPath server.go:1159)"
+
+  # ── Instance (real translation surface, public) ──
+  - path: /instance
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:238 handleInstance; authMiddleware server.go:381"
+  - path: /instance/path
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:239 handleInstanceSub (server.go:1351)"
+  - path: /instance/vcs
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:1353"
+  - path: /instance/vcs/diff
+    method: GET
+    outcome: 200
+    auth: public
+    evidence: "server.go:1355"
+  - path: /instance/dispose
+    method: POST
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1332"
+  - path: /instance/vcs/status
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1333"
+  - path: /instance/vcs/diff/raw
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1334"
+  - path: /instance/vcs/apply
+    method: POST
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1335"
+  - path: /instance/command
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1336"
+  - path: /instance/agent
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1337"
+  - path: /instance/skill
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1338"
+  - path: /instance/lsp
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1339"
+  - path: /instance/formatter
+    method: GET
+    outcome: 501
+    auth: public
+    evidence: "instanceKnownSubpaths server.go:1340"
+
+# ── Router catch-all semantics ──
+# A declared path that matches no explicit route above still reaches a handler
+# whenever its prefix is registered (server.go:173-239). These rules encode the
+# dispatch that follows: longest prefix wins, `second_segment` is the path
+# segment after the prefix. Used by the declared-vs-served comparison so an
+# unlisted declared path is classified from the router's real behaviour rather
+# than assumed.
+prefix_rules:
+  - prefix: /session/
+    outcome: 404
+    stub_second_segments: [prompt_async, shell, command, share, summarize, init, fork, revert]
+    stub_outcome: 501
+    evidence: "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)"
+  - prefix: /question/
+    outcome: 404
+    evidence: "server.go:1276-1288"
+  - prefix: /find/
+    outcome: 404
+    stub_second_segments: [symbol]
+    stub_outcome: 501
+    evidence: "server.go:1989-2024 (handleFindSub: file → 200, symbol → 501, else 404)"
+  - prefix: /tui/
+    outcome: 404
+    stub_second_segments: [append-prompt, submit-prompt, execute-command, show-toast]
+    stub_outcome: 501
+    evidence: "server.go:2242-2256"
+  - prefix: /permission/
+    outcome: 404
+    evidence: "server.go:2137-2162 (sub-path switch: GET {id}, POST {id}/resolve, POST {id}/reply)"
+  - prefix: /project/
+    outcome: 404-typed
+    evidence: "server.go:1197 handleProjectByID (typed ProjectNotFoundError for every sub-path)"
+  - prefix: /vcs/
+    outcome: 501
+    evidence: "server.go:1159 isStubPath (non-GET skips auth → 501) + server.go:237; GET keeps auth so unauthenticated is 401"
+  - prefix: /instance/
+    outcome: 404
+    evidence: "server.go:1348-1360 handleInstanceSub (implemented sub-paths, known stubs, else 404)"
+  - prefix: /auth/
+    outcome: 405
+    evidence: "server.go:1092-1097 (only PUT is supported)"

@@ -1,0 +1,661 @@
+get	/agent	app.agents
+get	/api/agent	v2.agent.list
+get	/api/command	v2.command.list
+delete	/api/credential/{credentialID}	v2.credential.remove
+patch	/api/credential/{credentialID}	v2.credential.update
+get	/api/event	v2.event.subscribe
+get	/api/fs/find	v2.fs.find
+get	/api/fs/list	v2.fs.list
+get	/api/fs/read/*	v2.fs.read
+get	/api/health	v2.health.get
+get	/api/integration	v2.integration.list
+delete	/api/integration/attempt/{attemptID}	v2.integration.attempt.cancel
+get	/api/integration/attempt/{attemptID}	v2.integration.attempt.status
+post	/api/integration/attempt/{attemptID}/complete	v2.integration.attempt.complete
+get	/api/integration/{integrationID}	v2.integration.get
+post	/api/integration/{integrationID}/connect/key	v2.integration.connect.key
+post	/api/integration/{integrationID}/connect/oauth	v2.integration.connect.oauth
+get	/api/location	v2.location.get
+get	/api/model	v2.model.list
+get	/api/permission/request	v2.permission.request.list
+get	/api/permission/saved	v2.permission.saved.list
+delete	/api/permission/saved/{id}	v2.permission.saved.remove
+get	/api/provider	v2.provider.list
+get	/api/provider/{providerID}	v2.provider.get
+get	/api/pty	v2.pty.list
+post	/api/pty	v2.pty.create
+delete	/api/pty/{ptyID}	v2.pty.remove
+get	/api/pty/{ptyID}	v2.pty.get
+put	/api/pty/{ptyID}	v2.pty.update
+get	/api/pty/{ptyID}/connect	v2.pty.connect
+post	/api/pty/{ptyID}/connect-token	v2.pty.connectToken
+get	/api/question/request	v2.question.request.list
+get	/api/reference	v2.reference.list
+get	/api/session	v2.session.list
+post	/api/session	v2.session.create
+get	/api/session/active	v2.session.active
+get	/api/session/{sessionID}	v2.session.get
+post	/api/session/{sessionID}/agent	v2.session.switchAgent
+post	/api/session/{sessionID}/compact	v2.session.compact
+get	/api/session/{sessionID}/context	v2.session.context
+get	/api/session/{sessionID}/event	v2.session.events
+get	/api/session/{sessionID}/history	v2.session.history
+post	/api/session/{sessionID}/interrupt	v2.session.interrupt
+get	/api/session/{sessionID}/message	v2.session.messages
+get	/api/session/{sessionID}/message/{messageID}	v2.session.message
+post	/api/session/{sessionID}/model	v2.session.switchModel
+get	/api/session/{sessionID}/permission	v2.session.permission.list
+post	/api/session/{sessionID}/permission	v2.session.permission.create
+get	/api/session/{sessionID}/permission/{requestID}	v2.session.permission.get
+post	/api/session/{sessionID}/permission/{requestID}/reply	v2.session.permission.reply
+post	/api/session/{sessionID}/prompt	v2.session.prompt
+get	/api/session/{sessionID}/question	v2.session.question.list
+post	/api/session/{sessionID}/question/{requestID}/reject	v2.session.question.reject
+post	/api/session/{sessionID}/question/{requestID}/reply	v2.session.question.reply
+post	/api/session/{sessionID}/revert/clear	v2.session.revert.clear
+post	/api/session/{sessionID}/revert/commit	v2.session.revert.commit
+post	/api/session/{sessionID}/revert/stage	v2.session.revert.stage
+post	/api/session/{sessionID}/wait	v2.session.wait
+get	/api/skill	v2.skill.list
+delete	/auth/{providerID}	auth.remove
+put	/auth/{providerID}	auth.set
+get	/command	command.list
+get	/config	config.get
+patch	/config	config.update
+get	/config/providers	config.providers
+get	/event	event.subscribe
+get	/experimental/capabilities	experimental.capabilities.get
+get	/experimental/console	experimental.console.get
+get	/experimental/console/orgs	experimental.console.listOrgs
+post	/experimental/console/switch	experimental.console.switchOrg
+post	/experimental/control-plane/move-session	experimental.controlPlane.moveSession
+delete	/experimental/project/{projectID}/copy	v2.projectCopy.remove
+post	/experimental/project/{projectID}/copy	v2.projectCopy.create
+post	/experimental/project/{projectID}/copy/generate-name	experimental.projectCopy.generateName
+post	/experimental/project/{projectID}/copy/refresh	v2.projectCopy.refresh
+get	/experimental/resource	experimental.resource.list
+get	/experimental/session	experimental.session.list
+post	/experimental/session/{sessionID}/background	experimental.session.background
+get	/experimental/tool	tool.list
+get	/experimental/tool/ids	tool.ids
+get	/experimental/workspace	experimental.workspace.list
+post	/experimental/workspace	experimental.workspace.create
+get	/experimental/workspace/adapter	experimental.workspace.adapter.list
+get	/experimental/workspace/status	experimental.workspace.status
+post	/experimental/workspace/sync-list	experimental.workspace.syncList
+post	/experimental/workspace/warp	experimental.workspace.warp
+delete	/experimental/workspace/{id}	experimental.workspace.remove
+delete	/experimental/worktree	worktree.remove
+get	/experimental/worktree	worktree.list
+post	/experimental/worktree	worktree.create
+post	/experimental/worktree/reset	worktree.reset
+get	/file	file.list
+get	/file/content	file.read
+get	/file/status	file.status
+get	/find	find.text
+get	/find/file	find.files
+get	/find/symbol	find.symbols
+get	/formatter	formatter.status
+get	/global/config	global.config.get
+patch	/global/config	global.config.update
+post	/global/dispose	global.dispose
+get	/global/event	global.event
+get	/global/health	global.health
+post	/global/upgrade	global.upgrade
+post	/instance/dispose	instance.dispose
+post	/log	app.log
+get	/lsp	lsp.status
+get	/mcp	mcp.status
+post	/mcp	mcp.add
+delete	/mcp/{name}/auth	mcp.auth.remove
+post	/mcp/{name}/auth	mcp.auth.start
+post	/mcp/{name}/auth/authenticate	mcp.auth.authenticate
+post	/mcp/{name}/auth/callback	mcp.auth.callback
+post	/mcp/{name}/connect	mcp.connect
+post	/mcp/{name}/disconnect	mcp.disconnect
+get	/path	path.get
+get	/permission	permission.list
+post	/permission/{requestID}/reply	permission.reply
+get	/project	project.list
+get	/project/current	project.current
+post	/project/git/init	project.initGit
+patch	/project/{projectID}	project.update
+get	/project/{projectID}/directories	project.directories
+get	/provider	provider.list
+get	/provider/auth	provider.auth
+post	/provider/{providerID}/oauth/authorize	provider.oauth.authorize
+post	/provider/{providerID}/oauth/callback	provider.oauth.callback
+get	/pty	pty.list
+post	/pty	pty.create
+get	/pty/shells	pty.shells
+delete	/pty/{ptyID}	pty.remove
+get	/pty/{ptyID}	pty.get
+put	/pty/{ptyID}	pty.update
+get	/pty/{ptyID}/connect	pty.connect
+post	/pty/{ptyID}/connect-token	pty.connectToken
+get	/question	question.list
+post	/question/{requestID}/reject	question.reject
+post	/question/{requestID}/reply	question.reply
+get	/session	session.list
+post	/session	session.create
+get	/session/status	session.status
+delete	/session/{sessionID}	session.delete
+get	/session/{sessionID}	session.get
+patch	/session/{sessionID}	session.update
+post	/session/{sessionID}/abort	session.abort
+get	/session/{sessionID}/children	session.children
+post	/session/{sessionID}/command	session.command
+get	/session/{sessionID}/diff	session.diff
+post	/session/{sessionID}/fork	session.fork
+post	/session/{sessionID}/init	session.init
+get	/session/{sessionID}/message	session.messages
+post	/session/{sessionID}/message	session.prompt
+delete	/session/{sessionID}/message/{messageID}	session.deleteMessage
+get	/session/{sessionID}/message/{messageID}	session.message
+delete	/session/{sessionID}/message/{messageID}/part/{partID}	part.delete
+patch	/session/{sessionID}/message/{messageID}/part/{partID}	part.update
+post	/session/{sessionID}/permissions/{permissionID}	permission.respond
+post	/session/{sessionID}/prompt_async	session.prompt_async
+post	/session/{sessionID}/revert	session.revert
+delete	/session/{sessionID}/share	session.unshare
+post	/session/{sessionID}/share	session.share
+post	/session/{sessionID}/shell	session.shell
+post	/session/{sessionID}/summarize	session.summarize
+get	/session/{sessionID}/todo	session.todo
+post	/session/{sessionID}/unrevert	session.unrevert
+get	/skill	app.skills
+post	/sync/history	sync.history.list
+post	/sync/replay	sync.replay
+post	/sync/start	sync.start
+post	/sync/steal	sync.steal
+post	/tui/append-prompt	tui.appendPrompt
+post	/tui/clear-prompt	tui.clearPrompt
+get	/tui/control/next	tui.control.next
+post	/tui/control/response	tui.control.response
+post	/tui/execute-command	tui.executeCommand
+post	/tui/open-help	tui.openHelp
+post	/tui/open-models	tui.openModels
+post	/tui/open-sessions	tui.openSessions
+post	/tui/open-themes	tui.openThemes
+post	/tui/publish	tui.publish
+post	/tui/select-session	tui.selectSession
+post	/tui/show-toast	tui.showToast
+post	/tui/submit-prompt	tui.submitPrompt
+get	/vcs	vcs.get
+post	/vcs/apply	vcs.apply
+get	/vcs/diff	vcs.diff
+get	/vcs/diff/raw	vcs.diff.raw
+get	/vcs/status	vcs.status
+# schemas (\(jq -r '.components.schemas | length' specs/openapi/upstream/openapi-1.18.33.json))
+APIError
+Agent
+AgentColor
+AgentConfig
+AgentPart
+AgentPartInput
+AgentV2Info
+ApiAuth
+AssistantMessage
+AttachmentConfig
+Auth
+BadRequestError
+CatalogUpdated
+Command
+CommandExecuted
+CommandV2Info
+CompactionPart
+Config
+ConfigV2ExperimentalPolicy
+ConfigV2ReferenceGit
+ConfigV2ReferenceLocal
+ConflictError
+ConnectionCredentialInfo
+ConnectionEnvInfo
+ConnectionInfo
+ConsoleState
+ContentFilterError
+ContextOverflowError
+CredentialKey
+CredentialOAuth
+CredentialValue
+Event
+Event.tui.command.execute
+Event.tui.prompt.append
+Event.tui.session.select
+Event.tui.toast.show
+EventCatalogUpdated
+EventCommandExecuted
+EventFileEdited
+EventFileWatcherUpdated
+EventGlobalDisposed
+EventInstallationUpdate-available
+EventInstallationUpdated
+EventIntegrationConnectionUpdated
+EventIntegrationUpdated
+EventLspUpdated
+EventMcpBrowserOpenFailed
+EventMcpToolsChanged
+EventMessagePartDelta
+EventMessagePartRemoved
+EventMessagePartUpdated
+EventMessageRemoved
+EventMessageUpdated
+EventModels-devRefreshed
+EventPermissionAsked
+EventPermissionReplied
+EventPermissionV2Asked
+EventPermissionV2Replied
+EventPluginAdded
+EventProjectDirectoriesUpdated
+EventProjectUpdated
+EventPtyCreated
+EventPtyDeleted
+EventPtyExited
+EventPtyUpdated
+EventQuestionAsked
+EventQuestionRejected
+EventQuestionReplied
+EventQuestionV2Asked
+EventQuestionV2Rejected
+EventQuestionV2Replied
+EventReferenceUpdated
+EventServerConnected
+EventServerInstanceDisposed
+EventSessionCompacted
+EventSessionCreated
+EventSessionDeleted
+EventSessionDiff
+EventSessionError
+EventSessionIdle
+EventSessionNextAgentSwitched
+EventSessionNextCompactionDelta
+EventSessionNextCompactionEnded
+EventSessionNextCompactionStarted
+EventSessionNextContextUpdated
+EventSessionNextModelSwitched
+EventSessionNextMoved
+EventSessionNextPromptAdmitted
+EventSessionNextPrompted
+EventSessionNextReasoningDelta
+EventSessionNextReasoningEnded
+EventSessionNextReasoningStarted
+EventSessionNextRetried
+EventSessionNextRevertCleared
+EventSessionNextRevertCommitted
+EventSessionNextRevertStaged
+EventSessionNextShellEnded
+EventSessionNextShellStarted
+EventSessionNextStepEnded
+EventSessionNextStepFailed
+EventSessionNextStepStarted
+EventSessionNextSynthetic
+EventSessionNextTextDelta
+EventSessionNextTextEnded
+EventSessionNextTextStarted
+EventSessionNextToolCalled
+EventSessionNextToolFailed
+EventSessionNextToolInputDelta
+EventSessionNextToolInputEnded
+EventSessionNextToolInputStarted
+EventSessionNextToolProgress
+EventSessionNextToolSuccess
+EventSessionStatus
+EventSessionUpdated
+EventTodoUpdated
+EventTuiCommandExecute
+EventTuiPromptAppend
+EventTuiSessionSelect
+EventTuiToastShow
+EventVcsBranchUpdated
+EventWorkspaceFailed
+EventWorkspaceReady
+EventWorkspaceStatus
+EventWorktreeFailed
+EventWorktreeReady
+ExperimentalCapabilities
+File
+FileContent
+FileDiff
+FileEdited
+FileNode
+FilePart
+FilePartInput
+FilePartSource
+FilePartSourceText
+FileSource
+FileSystemEntry
+FileWatcherUpdated
+ForbiddenError
+FormatterStatus
+GlobalDisposed
+GlobalEvent
+GlobalSession
+ImageAttachmentConfig
+InstallationUpdate-available
+InstallationUpdated
+IntegrationAttempt
+IntegrationAttemptStatus
+IntegrationConnectionUpdated
+IntegrationEnvMethod
+IntegrationInfo
+IntegrationInputs
+IntegrationKeyMethod
+IntegrationMethod
+IntegrationOAuthMethod
+IntegrationRef
+IntegrationSelectPrompt
+IntegrationTextPrompt
+IntegrationUpdated
+IntegrationWhen
+InvalidCursorError
+InvalidRequestError
+JSONSchema
+LLMProviderMetadata
+LLMToolContent
+LSPStatus
+LayoutConfig
+LocationInfo
+LocationRef
+LogLevel
+LspUpdated
+MCPStatus
+MCPStatusConnected
+MCPStatusDisabled
+MCPStatusFailed
+MCPStatusNeedsAuth
+MCPStatusNeedsClientRegistration
+McpBrowserOpenFailed
+McpLocalConfig
+McpOAuthConfig
+McpRemoteConfig
+McpResource
+McpServerNotFoundError
+McpToolsChanged
+McpUnsupportedOAuthError
+Message
+MessageAbortedError
+MessageNotFoundError
+MessageOutputLengthError
+MessagePartDelta
+MessagePartRemoved
+MessagePartUpdated
+MessageRemoved
+MessageUpdated
+Model
+ModelApi
+ModelCapabilities
+ModelCost
+ModelRef
+ModelV2Info
+Models-devRefreshed
+MoveSessionDestination
+MoveSessionError
+NotFoundError
+OAuth
+OutputFormat
+OutputFormat1
+OutputFormatJsonSchema
+OutputFormatText
+Part
+PatchPart
+Path
+PermissionAction
+PermissionActionConfig
+PermissionAsked
+PermissionConfig
+PermissionNotFoundError
+PermissionObjectConfig
+PermissionReplied
+PermissionRequest
+PermissionRule
+PermissionRuleConfig
+PermissionRuleset
+PermissionSavedInfo
+PermissionV2Asked
+PermissionV2Effect
+PermissionV2Replied
+PermissionV2Reply
+PermissionV2Request
+PermissionV2Rule
+PermissionV2Ruleset
+PermissionV2Source
+PluginAdded
+PolicyEffect
+Project
+ProjectCommands
+ProjectCopyCopy
+ProjectCopyError
+ProjectDirectories
+ProjectDirectoriesUpdated
+ProjectIcon
+ProjectNotFoundError
+ProjectSummary
+ProjectTime
+ProjectUpdated
+ProjectVcs
+Prompt
+PromptAgentAttachment
+PromptFileAttachment
+PromptInput
+PromptInputFileAttachment
+PromptSource
+Provider
+ProviderAISDK
+ProviderApi
+ProviderAuthAuthorization
+ProviderAuthError
+ProviderAuthError1
+ProviderAuthMethod
+ProviderConfig
+ProviderNative
+ProviderNotFoundError
+ProviderRequest
+ProviderV2Info
+Pty
+PtyCreated
+PtyDeleted
+PtyExited
+PtyForbiddenError
+PtyNotFoundError
+PtyTicketConnectToken
+PtyUpdated
+QuestionAnswer
+QuestionAsked
+QuestionInfo
+QuestionNotFoundError
+QuestionOption
+QuestionRejected
+QuestionReplied
+QuestionRequest
+QuestionTool
+QuestionV2Answer
+QuestionV2Asked
+QuestionV2Info
+QuestionV2Option
+QuestionV2Rejected
+QuestionV2Replied
+QuestionV2Reply
+QuestionV2Request
+QuestionV2Tool
+Range
+ReasoningPart
+ReferenceGitSource
+ReferenceInfo
+ReferenceLocalSource
+ReferenceSource
+ReferenceUpdated
+ResourceSource
+RetryPart
+RevertState
+ServerConfig
+ServerConnected
+ServiceUnavailableError
+Session
+SessionActive
+SessionBusyError
+SessionCompacted
+SessionCreated
+SessionDeleted
+SessionDiff
+SessionDurableEvent
+SessionDurableEventStream
+SessionError
+SessionErrorUnknown
+SessionHistory
+SessionIdle
+SessionInputAdmitted
+SessionMessage
+SessionMessageAgentSwitched
+SessionMessageAssistant
+SessionMessageAssistantReasoning
+SessionMessageAssistantText
+SessionMessageAssistantTool
+SessionMessageCompaction
+SessionMessageModelSwitched
+SessionMessageShell
+SessionMessageSynthetic
+SessionMessageSystem
+SessionMessageToolStateCompleted
+SessionMessageToolStateError
+SessionMessageToolStatePending
+SessionMessageToolStateRunning
+SessionMessageUser
+SessionMessagesResponse
+SessionNextAgentSwitched
+SessionNextCompactionDelta
+SessionNextCompactionEnded
+SessionNextCompactionStarted
+SessionNextContextUpdated
+SessionNextModelSwitched
+SessionNextMoved
+SessionNextPromptAdmitted
+SessionNextPrompted
+SessionNextReasoningDelta
+SessionNextReasoningEnded
+SessionNextReasoningStarted
+SessionNextRetried
+SessionNextRetry_error
+SessionNextRevertCleared
+SessionNextRevertCommitted
+SessionNextRevertStaged
+SessionNextShellEnded
+SessionNextShellStarted
+SessionNextStepEnded
+SessionNextStepFailed
+SessionNextStepStarted
+SessionNextSynthetic
+SessionNextTextDelta
+SessionNextTextEnded
+SessionNextTextStarted
+SessionNextToolCalled
+SessionNextToolFailed
+SessionNextToolInputDelta
+SessionNextToolInputEnded
+SessionNextToolInputStarted
+SessionNextToolProgress
+SessionNextToolSuccess
+SessionNotFoundError
+SessionStatus
+SessionUpdated
+SessionV2Info
+SessionsResponse
+SkillV2DirectorySource
+SkillV2EmbeddedSource
+SkillV2Info
+SkillV2Source
+SkillV2UrlSource
+SnapshotFileDiff
+SnapshotPart
+StepFinishPart
+StepStartPart
+StructuredOutputError
+SubtaskPart
+SubtaskPartInput
+Symbol
+SymbolSource
+SyncEventMessagePartRemoved
+SyncEventMessagePartUpdated
+SyncEventMessageRemoved
+SyncEventMessageUpdated
+SyncEventSessionCreated
+SyncEventSessionDeleted
+SyncEventSessionNextAgentSwitched
+SyncEventSessionNextCompactionEnded
+SyncEventSessionNextCompactionStarted
+SyncEventSessionNextContextUpdated
+SyncEventSessionNextModelSwitched
+SyncEventSessionNextMoved
+SyncEventSessionNextPromptAdmitted
+SyncEventSessionNextPrompted
+SyncEventSessionNextReasoningEnded
+SyncEventSessionNextReasoningStarted
+SyncEventSessionNextRetried
+SyncEventSessionNextRevertCleared
+SyncEventSessionNextRevertCommitted
+SyncEventSessionNextRevertStaged
+SyncEventSessionNextShellEnded
+SyncEventSessionNextShellStarted
+SyncEventSessionNextStepEnded
+SyncEventSessionNextStepFailed
+SyncEventSessionNextStepStarted
+SyncEventSessionNextSynthetic
+SyncEventSessionNextTextEnded
+SyncEventSessionNextTextStarted
+SyncEventSessionNextToolCalled
+SyncEventSessionNextToolFailed
+SyncEventSessionNextToolInputEnded
+SyncEventSessionNextToolInputStarted
+SyncEventSessionNextToolProgress
+SyncEventSessionNextToolSuccess
+SyncEventSessionUpdated
+TextPart
+TextPartInput
+Todo
+TodoUpdated
+ToolFileContent
+ToolIDs
+ToolList
+ToolListItem
+ToolPart
+ToolState
+ToolStateCompleted
+ToolStateError
+ToolStatePending
+ToolStateRunning
+ToolTextContent
+TuiCommandExecute
+TuiPromptAppend
+TuiSessionSelect
+TuiToastShow
+UnauthorizedError
+UnknownError
+UnknownError1
+UserMessage
+V2Event
+V2EventStream
+VcsApplyError
+VcsBranchUpdated
+VcsFileDiff
+VcsFileStatus
+VcsInfo
+WellKnownAuth
+Workspace
+WorkspaceCreateError
+WorkspaceEventConnectionStatus
+WorkspaceFailed
+WorkspaceReady
+WorkspaceStatus
+WorkspaceWarpError
+Worktree
+WorktreeCreateInput
+WorktreeError
+WorktreeFailed
+WorktreeReady
+WorktreeRemoveInput
+WorktreeResetInput
+effect_HttpApiError_BadRequest
+effect_HttpApiError_Forbidden
+effect_HttpApiError_InternalServerError
+question.rejected
+question.replied
+session.status

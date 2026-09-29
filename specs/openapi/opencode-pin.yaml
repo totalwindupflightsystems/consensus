@@ -1,0 +1,92 @@
+# opencode protocol pin — the upstream commit + version the Consensus shim is
+# built against.
+#
+# Greppable answer to "which opencode are we compatible with?" (specs/024 §A.1,
+# standing obligation SHIM-SOURCE-001). Update this file on every refresh; the
+# refresh procedure and its evidence live in
+# docs/reports/shim-source-002-baseline-diff-2026-09-29.md.
+#
+# Resolution method (2026-09-29): git ls-remote against the upstream repo to
+# resolve the default-branch tip and the tag list, then raw.githubusercontent.com
+# to fetch the protocol document at that exact commit. No value here is
+# remembered or implied.
+
+pin:
+  # `sst/opencode` is the name used upstream in our specs; the host redirects it
+  # to `anomalyco/opencode` (the mirror named in specs/024 §A).
+  upstream_repo: sst/opencode
+  canonical_repo: anomalyco/opencode
+  default_branch: dev
+
+  commit: "7945de208964a49300d7f770d1a71d078db9a4c4"
+  branch: dev
+  version: "1.18.33"
+  version_source: "packages/opencode/package.json at that commit"
+  latest_tag_on_branch: "v1.18.33"
+  latest_tag_commit: "51ef4be1d3c122f18fefb510dca8d778571f4f18"
+  resolved_at: "2026-09-29T13:14:13Z"
+  resolved_by: "SHIM-SOURCE-002 (worker tick)"
+
+previous_pin:
+  commit: "16747470f976aca3d362ad730bcd3fe82ecc2c9a"
+  tag: "v1.18.29"
+  version: "1.18.29"
+  evidence_dir: docs/evidence/opencode-upstream-v1.18.29-r2/
+  note: "recorded implicitly in an evidence directory until this file existed"
+
+document:
+  path: packages/sdk/openapi.json
+  fetched_at_commit: "7945de208964a49300d7f770d1a71d078db9a4c4"
+  url: https://raw.githubusercontent.com/sst/opencode/7945de208964a49300d7f770d1a71d078db9a4c4/packages/sdk/openapi.json
+  in_repo_copy: specs/openapi/upstream/openapi-1.18.33.json
+  git_blob_sha1: "e66d140505585ab0bab62640360eb08f249f35c0"
+  sha256: "00502bd13e9c86f3ca9e765e99a57e06fa9f434ca16f2a714766d1444f8d37f3"
+  size_bytes: 1061286
+  # What the document itself declares (specs/024 §A says "OpenAPI 3.1.1" — the
+  # published document says 3.1.0; recorded, not reconciled).
+  declares_openapi: "3.1.0"
+  info_title: opencode
+  info_version: "1.0.0"
+  path_count: 162
+  operation_count: 188
+  schema_count: 472
+  surface_listing:
+    - specs/openapi/upstream/openapi-1.18.33.surface.json
+    - specs/openapi/upstream/openapi-1.18.33.surface.txt
+
+# Byte-identity is the reason the SHIM-SOURCE-002 diff is empty: the published
+# document did not move between our old pin and the current tip.
+document_history_check:
+  method: "GitHub contents API blob sha for packages/sdk/openapi.json at each ref"
+  blob_sha1: "e66d140505585ab0bab62640360eb08f249f35c0"
+  identical_at:
+    - "16747470f976aca3d362ad730bcd3fe82ecc2c9a  (v1.18.29 — previous pin)"
+    - "3104c1428ec91f809e5ab86631300de41eb6952e  (v1.18.30)"
+    - "014614d35b397775e5d397a490fc72368c894ec2  (v1.18.31)"
+    - "545f51d26cc39a907d2867492d498d9607ea5fa4  (v1.18.32)"
+    - "51ef4be1d3c122f18fefb510dca8d778571f4f18  (v1.18.33)"
+    - "7945de208964a49300d7f770d1a71d078db9a4c4  (dev tip — current pin)"
+
+# The upstream project also publishes a 2.x line on its own branch. It does NOT
+# carry the protocol document at the pinned path (packages/sdk/ holds an
+# effect-based src/ tree instead), so it cannot be pinned the same way. Recorded
+# so the next refresh does not rediscover it as a surprise.
+other_lineages:
+  - branch: "2.0"
+    latest_tag: "v2.0.19"
+    tag_commit: "1fd016ef32286de9489b7b24f1029f52c49a27b3"
+    document_at_pinned_path: absent
+    evidence: >-
+      raw.githubusercontent.com/sst/opencode/1fd016ef.../packages/sdk/openapi.json
+      returned HTTP 404; the GitHub contents API for packages/sdk at that commit
+      lists README.md, package.json, script, src, sst-env.d.ts, test, tsconfig
+      files — no openapi.json.
+
+comparison:
+  served_surface: specs/openapi/upstream/consensus-shim-served-surface.yaml
+  report: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
+  machine_readable_result: specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json
+  refresh_note: >-
+    Regenerate the surface with scripts/extract-opencode-surface.sh, then re-run
+    the comparison (rule table for the served side lives in the served-surface
+    file); the report's method section carries the exact steps.

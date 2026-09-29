@@ -1,0 +1,3029 @@
+{
+  "source": {
+    "upstream_repo": "sst/opencode (redirects to anomalyco/opencode)",
+    "document_path": "packages/sdk/openapi.json",
+    "extracted_by": "scripts/extract-opencode-surface.sh"
+  },
+  "document": {
+    "openapi": "3.1.0",
+    "info_title": "opencode",
+    "info_version": "1.0.0",
+    "security": [],
+    "tag_count": 38,
+    "path_count": 162,
+    "operation_count": 188,
+    "schema_count": 472
+  },
+  "paths": {
+    "/auth/{providerID}": {
+      "PUT": {
+        "operationId": "auth.set",
+        "tags": [
+          "control"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "auth.remove",
+        "tags": [
+          "control"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/log": {
+      "POST": {
+        "operationId": "app.log",
+        "tags": [
+          "control"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/control-plane/move-session": {
+      "POST": {
+        "operationId": "experimental.controlPlane.moveSession",
+        "tags": [
+          "controlPlane"
+        ],
+        "responses": [
+          "204",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/global/health": {
+      "GET": {
+        "operationId": "global.health",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/global/event": {
+      "GET": {
+        "operationId": "global.event",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/global/config": {
+      "GET": {
+        "operationId": "global.config.get",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "PATCH": {
+        "operationId": "global.config.update",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/global/dispose": {
+      "POST": {
+        "operationId": "global.dispose",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/global/upgrade": {
+      "POST": {
+        "operationId": "global.upgrade",
+        "tags": [
+          "global"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/event": {
+      "GET": {
+        "operationId": "event.subscribe",
+        "tags": [
+          "event"
+        ],
+        "responses": [
+          "200"
+        ],
+        "security": null
+      }
+    },
+    "/config": {
+      "GET": {
+        "operationId": "config.get",
+        "tags": [
+          "config"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "PATCH": {
+        "operationId": "config.update",
+        "tags": [
+          "config"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/config/providers": {
+      "GET": {
+        "operationId": "config.providers",
+        "tags": [
+          "config"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/capabilities": {
+      "GET": {
+        "operationId": "experimental.capabilities.get",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/console": {
+      "GET": {
+        "operationId": "experimental.console.get",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "500"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/console/orgs": {
+      "GET": {
+        "operationId": "experimental.console.listOrgs",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "500"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/console/switch": {
+      "POST": {
+        "operationId": "experimental.console.switchOrg",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/tool": {
+      "GET": {
+        "operationId": "tool.list",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/tool/ids": {
+      "GET": {
+        "operationId": "tool.ids",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/worktree": {
+      "GET": {
+        "operationId": "worktree.list",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "worktree.create",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "worktree.remove",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/worktree/reset": {
+      "POST": {
+        "operationId": "worktree.reset",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/session": {
+      "GET": {
+        "operationId": "experimental.session.list",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/session/{sessionID}/background": {
+      "POST": {
+        "operationId": "experimental.session.background",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/resource": {
+      "GET": {
+        "operationId": "experimental.resource.list",
+        "tags": [
+          "experimental"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/find": {
+      "GET": {
+        "operationId": "find.text",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/find/file": {
+      "GET": {
+        "operationId": "find.files",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/find/symbol": {
+      "GET": {
+        "operationId": "find.symbols",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/file": {
+      "GET": {
+        "operationId": "file.list",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/file/content": {
+      "GET": {
+        "operationId": "file.read",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/file/status": {
+      "GET": {
+        "operationId": "file.status",
+        "tags": [
+          "file"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/instance/dispose": {
+      "POST": {
+        "operationId": "instance.dispose",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/path": {
+      "GET": {
+        "operationId": "path.get",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/vcs": {
+      "GET": {
+        "operationId": "vcs.get",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/vcs/status": {
+      "GET": {
+        "operationId": "vcs.status",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/vcs/diff": {
+      "GET": {
+        "operationId": "vcs.diff",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/vcs/diff/raw": {
+      "GET": {
+        "operationId": "vcs.diff.raw",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/vcs/apply": {
+      "POST": {
+        "operationId": "vcs.apply",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/command": {
+      "GET": {
+        "operationId": "command.list",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/agent": {
+      "GET": {
+        "operationId": "app.agents",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/skill": {
+      "GET": {
+        "operationId": "app.skills",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/lsp": {
+      "GET": {
+        "operationId": "lsp.status",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/formatter": {
+      "GET": {
+        "operationId": "formatter.status",
+        "tags": [
+          "instance"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/mcp": {
+      "GET": {
+        "operationId": "mcp.status",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "mcp.add",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/mcp/{name}/auth": {
+      "POST": {
+        "operationId": "mcp.auth.start",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "mcp.auth.remove",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/mcp/{name}/auth/callback": {
+      "POST": {
+        "operationId": "mcp.auth.callback",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/mcp/{name}/auth/authenticate": {
+      "POST": {
+        "operationId": "mcp.auth.authenticate",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/mcp/{name}/connect": {
+      "POST": {
+        "operationId": "mcp.connect",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/mcp/{name}/disconnect": {
+      "POST": {
+        "operationId": "mcp.disconnect",
+        "tags": [
+          "mcp"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/project": {
+      "GET": {
+        "operationId": "project.list",
+        "tags": [
+          "project"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/project/current": {
+      "GET": {
+        "operationId": "project.current",
+        "tags": [
+          "project"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/project/git/init": {
+      "POST": {
+        "operationId": "project.initGit",
+        "tags": [
+          "project"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/project/{projectID}": {
+      "PATCH": {
+        "operationId": "project.update",
+        "tags": [
+          "project"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/project/{projectID}/directories": {
+      "GET": {
+        "operationId": "project.directories",
+        "tags": [
+          "project"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/project/{projectID}/copy/generate-name": {
+      "POST": {
+        "operationId": "experimental.projectCopy.generateName",
+        "tags": [
+          "projectCopy"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/pty/shells": {
+      "GET": {
+        "operationId": "pty.shells",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/pty": {
+      "GET": {
+        "operationId": "pty.list",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "pty.create",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/pty/{ptyID}": {
+      "GET": {
+        "operationId": "pty.get",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "PUT": {
+        "operationId": "pty.update",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "pty.remove",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/pty/{ptyID}/connect-token": {
+      "POST": {
+        "operationId": "pty.connectToken",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "403",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/question": {
+      "GET": {
+        "operationId": "question.list",
+        "tags": [
+          "question"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/question/{requestID}/reply": {
+      "POST": {
+        "operationId": "question.reply",
+        "tags": [
+          "question"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/question/{requestID}/reject": {
+      "POST": {
+        "operationId": "question.reject",
+        "tags": [
+          "question"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/permission": {
+      "GET": {
+        "operationId": "permission.list",
+        "tags": [
+          "permission"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/permission/{requestID}/reply": {
+      "POST": {
+        "operationId": "permission.reply",
+        "tags": [
+          "permission"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/provider": {
+      "GET": {
+        "operationId": "provider.list",
+        "tags": [
+          "provider"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/provider/auth": {
+      "GET": {
+        "operationId": "provider.auth",
+        "tags": [
+          "provider"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/provider/{providerID}/oauth/authorize": {
+      "POST": {
+        "operationId": "provider.oauth.authorize",
+        "tags": [
+          "provider"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/provider/{providerID}/oauth/callback": {
+      "POST": {
+        "operationId": "provider.oauth.callback",
+        "tags": [
+          "provider"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/session": {
+      "GET": {
+        "operationId": "session.list",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "session.create",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/session/status": {
+      "GET": {
+        "operationId": "session.status",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}": {
+      "GET": {
+        "operationId": "session.get",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "session.delete",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "PATCH": {
+        "operationId": "session.update",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/children": {
+      "GET": {
+        "operationId": "session.children",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/todo": {
+      "GET": {
+        "operationId": "session.todo",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/diff": {
+      "GET": {
+        "operationId": "session.diff",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/message": {
+      "GET": {
+        "operationId": "session.messages",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "session.prompt",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/message/{messageID}": {
+      "GET": {
+        "operationId": "session.message",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "session.deleteMessage",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "409"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/fork": {
+      "POST": {
+        "operationId": "session.fork",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/abort": {
+      "POST": {
+        "operationId": "session.abort",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/init": {
+      "POST": {
+        "operationId": "session.init",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/share": {
+      "POST": {
+        "operationId": "session.share",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "500"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "session.unshare",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "500"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/summarize": {
+      "POST": {
+        "operationId": "session.summarize",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/prompt_async": {
+      "POST": {
+        "operationId": "session.prompt_async",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/command": {
+      "POST": {
+        "operationId": "session.command",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/shell": {
+      "POST": {
+        "operationId": "session.shell",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "409"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/revert": {
+      "POST": {
+        "operationId": "session.revert",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "409"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/unrevert": {
+      "POST": {
+        "operationId": "session.unrevert",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404",
+          "409"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/permissions/{permissionID}": {
+      "POST": {
+        "operationId": "permission.respond",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/session/{sessionID}/message/{messageID}/part/{partID}": {
+      "DELETE": {
+        "operationId": "part.delete",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      },
+      "PATCH": {
+        "operationId": "part.update",
+        "tags": [
+          "session"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/sync/start": {
+      "POST": {
+        "operationId": "sync.start",
+        "tags": [
+          "sync"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/sync/replay": {
+      "POST": {
+        "operationId": "sync.replay",
+        "tags": [
+          "sync"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/sync/steal": {
+      "POST": {
+        "operationId": "sync.steal",
+        "tags": [
+          "sync"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/sync/history": {
+      "POST": {
+        "operationId": "sync.history.list",
+        "tags": [
+          "sync"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/append-prompt": {
+      "POST": {
+        "operationId": "tui.appendPrompt",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/open-help": {
+      "POST": {
+        "operationId": "tui.openHelp",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/open-sessions": {
+      "POST": {
+        "operationId": "tui.openSessions",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/open-themes": {
+      "POST": {
+        "operationId": "tui.openThemes",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/open-models": {
+      "POST": {
+        "operationId": "tui.openModels",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/submit-prompt": {
+      "POST": {
+        "operationId": "tui.submitPrompt",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/clear-prompt": {
+      "POST": {
+        "operationId": "tui.clearPrompt",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/execute-command": {
+      "POST": {
+        "operationId": "tui.executeCommand",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/show-toast": {
+      "POST": {
+        "operationId": "tui.showToast",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/publish": {
+      "POST": {
+        "operationId": "tui.publish",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/select-session": {
+      "POST": {
+        "operationId": "tui.selectSession",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/tui/control/next": {
+      "GET": {
+        "operationId": "tui.control.next",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/tui/control/response": {
+      "POST": {
+        "operationId": "tui.control.response",
+        "tags": [
+          "tui"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace/adapter": {
+      "GET": {
+        "operationId": "experimental.workspace.adapter.list",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace": {
+      "GET": {
+        "operationId": "experimental.workspace.list",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "POST": {
+        "operationId": "experimental.workspace.create",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace/sync-list": {
+      "POST": {
+        "operationId": "experimental.workspace.syncList",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "204",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace/status": {
+      "GET": {
+        "operationId": "experimental.workspace.status",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace/{id}": {
+      "DELETE": {
+        "operationId": "experimental.workspace.remove",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/workspace/warp": {
+      "POST": {
+        "operationId": "experimental.workspace.warp",
+        "tags": [
+          "workspace"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "404"
+        ],
+        "security": null
+      }
+    },
+    "/api/health": {
+      "GET": {
+        "operationId": "v2.health.get",
+        "tags": [
+          "opencode HttpApi"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/location": {
+      "GET": {
+        "operationId": "v2.location.get",
+        "tags": [
+          "opencode HttpApi"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/agent": {
+      "GET": {
+        "operationId": "v2.agent.list",
+        "tags": [
+          "opencode HttpApi"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/session": {
+      "GET": {
+        "operationId": "v2.session.list",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      },
+      "POST": {
+        "operationId": "v2.session.create",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/active": {
+      "GET": {
+        "operationId": "v2.session.active",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}": {
+      "GET": {
+        "operationId": "v2.session.get",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/agent": {
+      "POST": {
+        "operationId": "v2.session.switchAgent",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/model": {
+      "POST": {
+        "operationId": "v2.session.switchModel",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/prompt": {
+      "POST": {
+        "operationId": "v2.session.prompt",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404",
+          "409"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/compact": {
+      "POST": {
+        "operationId": "v2.session.compact",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404",
+          "503"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/wait": {
+      "POST": {
+        "operationId": "v2.session.wait",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404",
+          "503"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/revert/stage": {
+      "POST": {
+        "operationId": "v2.session.revert.stage",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404",
+          "500"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/revert/clear": {
+      "POST": {
+        "operationId": "v2.session.revert.clear",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404",
+          "500"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/revert/commit": {
+      "POST": {
+        "operationId": "v2.session.revert.commit",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/context": {
+      "GET": {
+        "operationId": "v2.session.context",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404",
+          "500"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/history": {
+      "GET": {
+        "operationId": "v2.session.history",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/event": {
+      "GET": {
+        "operationId": "v2.session.events",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/interrupt": {
+      "POST": {
+        "operationId": "v2.session.interrupt",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/message/{messageID}": {
+      "GET": {
+        "operationId": "v2.session.message",
+        "tags": [
+          "sessions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/message": {
+      "GET": {
+        "operationId": "v2.session.messages",
+        "tags": [
+          "messages"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404",
+          "500"
+        ],
+        "security": []
+      }
+    },
+    "/api/model": {
+      "GET": {
+        "operationId": "v2.model.list",
+        "tags": [
+          "models"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "503"
+        ],
+        "security": []
+      }
+    },
+    "/api/provider": {
+      "GET": {
+        "operationId": "v2.provider.list",
+        "tags": [
+          "providers"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "503"
+        ],
+        "security": []
+      }
+    },
+    "/api/provider/{providerID}": {
+      "GET": {
+        "operationId": "v2.provider.get",
+        "tags": [
+          "providers"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404",
+          "503"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration": {
+      "GET": {
+        "operationId": "v2.integration.list",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration/{integrationID}": {
+      "GET": {
+        "operationId": "v2.integration.get",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration/{integrationID}/connect/key": {
+      "POST": {
+        "operationId": "v2.integration.connect.key",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration/{integrationID}/connect/oauth": {
+      "POST": {
+        "operationId": "v2.integration.connect.oauth",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration/attempt/{attemptID}": {
+      "GET": {
+        "operationId": "v2.integration.attempt.status",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      },
+      "DELETE": {
+        "operationId": "v2.integration.attempt.cancel",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/integration/attempt/{attemptID}/complete": {
+      "POST": {
+        "operationId": "v2.integration.attempt.complete",
+        "tags": [
+          "integrations"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/credential/{credentialID}": {
+      "PATCH": {
+        "operationId": "v2.credential.update",
+        "tags": [
+          "opencode HttpApi"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      },
+      "DELETE": {
+        "operationId": "v2.credential.remove",
+        "tags": [
+          "opencode HttpApi"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/permission/request": {
+      "GET": {
+        "operationId": "v2.permission.request.list",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/permission/saved": {
+      "GET": {
+        "operationId": "v2.permission.saved.list",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/permission/saved/{id}": {
+      "DELETE": {
+        "operationId": "v2.permission.saved.remove",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/permission": {
+      "POST": {
+        "operationId": "v2.session.permission.create",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      },
+      "GET": {
+        "operationId": "v2.session.permission.list",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/permission/{requestID}": {
+      "GET": {
+        "operationId": "v2.session.permission.get",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/permission/{requestID}/reply": {
+      "POST": {
+        "operationId": "v2.session.permission.reply",
+        "tags": [
+          "permissions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/fs/read/*": {
+      "GET": {
+        "operationId": "v2.fs.read",
+        "tags": [
+          "filesystem"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/fs/list": {
+      "GET": {
+        "operationId": "v2.fs.list",
+        "tags": [
+          "filesystem"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/fs/find": {
+      "GET": {
+        "operationId": "v2.fs.find",
+        "tags": [
+          "filesystem"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/command": {
+      "GET": {
+        "operationId": "v2.command.list",
+        "tags": [
+          "commands"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/skill": {
+      "GET": {
+        "operationId": "v2.skill.list",
+        "tags": [
+          "skills"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/event": {
+      "GET": {
+        "operationId": "v2.event.subscribe",
+        "tags": [
+          "events"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/pty": {
+      "GET": {
+        "operationId": "v2.pty.list",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      },
+      "POST": {
+        "operationId": "v2.pty.create",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/pty/{ptyID}": {
+      "GET": {
+        "operationId": "v2.pty.get",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      },
+      "PUT": {
+        "operationId": "v2.pty.update",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      },
+      "DELETE": {
+        "operationId": "v2.pty.remove",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/pty/{ptyID}/connect-token": {
+      "POST": {
+        "operationId": "v2.pty.connectToken",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "403",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/pty/{ptyID}/connect": {
+      "GET": {
+        "operationId": "v2.pty.connect",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "403",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/question/request": {
+      "GET": {
+        "operationId": "v2.question.request.list",
+        "tags": [
+          "session questions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/question": {
+      "GET": {
+        "operationId": "v2.session.question.list",
+        "tags": [
+          "session questions"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/question/{requestID}/reply": {
+      "POST": {
+        "operationId": "v2.session.question.reply",
+        "tags": [
+          "session questions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/session/{sessionID}/question/{requestID}/reject": {
+      "POST": {
+        "operationId": "v2.session.question.reject",
+        "tags": [
+          "session questions"
+        ],
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "404"
+        ],
+        "security": []
+      }
+    },
+    "/api/reference": {
+      "GET": {
+        "operationId": "v2.reference.list",
+        "tags": [
+          "reference"
+        ],
+        "responses": [
+          "200",
+          "400",
+          "401"
+        ],
+        "security": []
+      }
+    },
+    "/experimental/project/{projectID}/copy": {
+      "POST": {
+        "operationId": "v2.projectCopy.create",
+        "tags": [
+          "projectCopy"
+        ],
+        "responses": [
+          "200",
+          "400"
+        ],
+        "security": null
+      },
+      "DELETE": {
+        "operationId": "v2.projectCopy.remove",
+        "tags": [
+          "projectCopy"
+        ],
+        "responses": [
+          "204",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/experimental/project/{projectID}/copy/refresh": {
+      "POST": {
+        "operationId": "v2.projectCopy.refresh",
+        "tags": [
+          "projectCopy"
+        ],
+        "responses": [
+          "204",
+          "400"
+        ],
+        "security": null
+      }
+    },
+    "/pty/{ptyID}/connect": {
+      "GET": {
+        "operationId": "pty.connect",
+        "tags": [
+          "pty"
+        ],
+        "responses": [
+          "200",
+          "403",
+          "404"
+        ],
+        "security": null
+      }
+    }
+  },
+  "schemas": [
+    "APIError",
+    "Agent",
+    "AgentColor",
+    "AgentConfig",
+    "AgentPart",
+    "AgentPartInput",
+    "AgentV2Info",
+    "ApiAuth",
+    "AssistantMessage",
+    "AttachmentConfig",
+    "Auth",
+    "BadRequestError",
+    "CatalogUpdated",
+    "Command",
+    "CommandExecuted",
+    "CommandV2Info",
+    "CompactionPart",
+    "Config",
+    "ConfigV2ExperimentalPolicy",
+    "ConfigV2ReferenceGit",
+    "ConfigV2ReferenceLocal",
+    "ConflictError",
+    "ConnectionCredentialInfo",
+    "ConnectionEnvInfo",
+    "ConnectionInfo",
+    "ConsoleState",
+    "ContentFilterError",
+    "ContextOverflowError",
+    "CredentialKey",
+    "CredentialOAuth",
+    "CredentialValue",
+    "Event",
+    "Event.tui.command.execute",
+    "Event.tui.prompt.append",
+    "Event.tui.session.select",
+    "Event.tui.toast.show",
+    "EventCatalogUpdated",
+    "EventCommandExecuted",
+    "EventFileEdited",
+    "EventFileWatcherUpdated",
+    "EventGlobalDisposed",
+    "EventInstallationUpdate-available",
+    "EventInstallationUpdated",
+    "EventIntegrationConnectionUpdated",
+    "EventIntegrationUpdated",
+    "EventLspUpdated",
+    "EventMcpBrowserOpenFailed",
+    "EventMcpToolsChanged",
+    "EventMessagePartDelta",
+    "EventMessagePartRemoved",
+    "EventMessagePartUpdated",
+    "EventMessageRemoved",
+    "EventMessageUpdated",
+    "EventModels-devRefreshed",
+    "EventPermissionAsked",
+    "EventPermissionReplied",
+    "EventPermissionV2Asked",
+    "EventPermissionV2Replied",
+    "EventPluginAdded",
+    "EventProjectDirectoriesUpdated",
+    "EventProjectUpdated",
+    "EventPtyCreated",
+    "EventPtyDeleted",
+    "EventPtyExited",
+    "EventPtyUpdated",
+    "EventQuestionAsked",
+    "EventQuestionRejected",
+    "EventQuestionReplied",
+    "EventQuestionV2Asked",
+    "EventQuestionV2Rejected",
+    "EventQuestionV2Replied",
+    "EventReferenceUpdated",
+    "EventServerConnected",
+    "EventServerInstanceDisposed",
+    "EventSessionCompacted",
+    "EventSessionCreated",
+    "EventSessionDeleted",
+    "EventSessionDiff",
+    "EventSessionError",
+    "EventSessionIdle",
+    "EventSessionNextAgentSwitched",
+    "EventSessionNextCompactionDelta",
+    "EventSessionNextCompactionEnded",
+    "EventSessionNextCompactionStarted",
+    "EventSessionNextContextUpdated",
+    "EventSessionNextModelSwitched",
+    "EventSessionNextMoved",
+    "EventSessionNextPromptAdmitted",
+    "EventSessionNextPrompted",
+    "EventSessionNextReasoningDelta",
+    "EventSessionNextReasoningEnded",
+    "EventSessionNextReasoningStarted",
+    "EventSessionNextRetried",
+    "EventSessionNextRevertCleared",
+    "EventSessionNextRevertCommitted",
+    "EventSessionNextRevertStaged",
+    "EventSessionNextShellEnded",
+    "EventSessionNextShellStarted",
+    "EventSessionNextStepEnded",
+    "EventSessionNextStepFailed",
+    "EventSessionNextStepStarted",
+    "EventSessionNextSynthetic",
+    "EventSessionNextTextDelta",
+    "EventSessionNextTextEnded",
+    "EventSessionNextTextStarted",
+    "EventSessionNextToolCalled",
+    "EventSessionNextToolFailed",
+    "EventSessionNextToolInputDelta",
+    "EventSessionNextToolInputEnded",
+    "EventSessionNextToolInputStarted",
+    "EventSessionNextToolProgress",
+    "EventSessionNextToolSuccess",
+    "EventSessionStatus",
+    "EventSessionUpdated",
+    "EventTodoUpdated",
+    "EventTuiCommandExecute",
+    "EventTuiPromptAppend",
+    "EventTuiSessionSelect",
+    "EventTuiToastShow",
+    "EventVcsBranchUpdated",
+    "EventWorkspaceFailed",
+    "EventWorkspaceReady",
+    "EventWorkspaceStatus",
+    "EventWorktreeFailed",
+    "EventWorktreeReady",
+    "ExperimentalCapabilities",
+    "File",
+    "FileContent",
+    "FileDiff",
+    "FileEdited",
+    "FileNode",
+    "FilePart",
+    "FilePartInput",
+    "FilePartSource",
+    "FilePartSourceText",
+    "FileSource",
+    "FileSystemEntry",
+    "FileWatcherUpdated",
+    "ForbiddenError",
+    "FormatterStatus",
+    "GlobalDisposed",
+    "GlobalEvent",
+    "GlobalSession",
+    "ImageAttachmentConfig",
+    "InstallationUpdate-available",
+    "InstallationUpdated",
+    "IntegrationAttempt",
+    "IntegrationAttemptStatus",
+    "IntegrationConnectionUpdated",
+    "IntegrationEnvMethod",
+    "IntegrationInfo",
+    "IntegrationInputs",
+    "IntegrationKeyMethod",
+    "IntegrationMethod",
+    "IntegrationOAuthMethod",
+    "IntegrationRef",
+    "IntegrationSelectPrompt",
+    "IntegrationTextPrompt",
+    "IntegrationUpdated",
+    "IntegrationWhen",
+    "InvalidCursorError",
+    "InvalidRequestError",
+    "JSONSchema",
+    "LLMProviderMetadata",
+    "LLMToolContent",
+    "LSPStatus",
+    "LayoutConfig",
+    "LocationInfo",
+    "LocationRef",
+    "LogLevel",
+    "LspUpdated",
+    "MCPStatus",
+    "MCPStatusConnected",
+    "MCPStatusDisabled",
+    "MCPStatusFailed",
+    "MCPStatusNeedsAuth",
+    "MCPStatusNeedsClientRegistration",
+    "McpBrowserOpenFailed",
+    "McpLocalConfig",
+    "McpOAuthConfig",
+    "McpRemoteConfig",
+    "McpResource",
+    "McpServerNotFoundError",
+    "McpToolsChanged",
+    "McpUnsupportedOAuthError",
+    "Message",
+    "MessageAbortedError",
+    "MessageNotFoundError",
+    "MessageOutputLengthError",
+    "MessagePartDelta",
+    "MessagePartRemoved",
+    "MessagePartUpdated",
+    "MessageRemoved",
+    "MessageUpdated",
+    "Model",
+    "ModelApi",
+    "ModelCapabilities",
+    "ModelCost",
+    "ModelRef",
+    "ModelV2Info",
+    "Models-devRefreshed",
+    "MoveSessionDestination",
+    "MoveSessionError",
+    "NotFoundError",
+    "OAuth",
+    "OutputFormat",
+    "OutputFormat1",
+    "OutputFormatJsonSchema",
+    "OutputFormatText",
+    "Part",
+    "PatchPart",
+    "Path",
+    "PermissionAction",
+    "PermissionActionConfig",
+    "PermissionAsked",
+    "PermissionConfig",
+    "PermissionNotFoundError",
+    "PermissionObjectConfig",
+    "PermissionReplied",
+    "PermissionRequest",
+    "PermissionRule",
+    "PermissionRuleConfig",
+    "PermissionRuleset",
+    "PermissionSavedInfo",
+    "PermissionV2Asked",
+    "PermissionV2Effect",
+    "PermissionV2Replied",
+    "PermissionV2Reply",
+    "PermissionV2Request",
+    "PermissionV2Rule",
+    "PermissionV2Ruleset",
+    "PermissionV2Source",
+    "PluginAdded",
+    "PolicyEffect",
+    "Project",
+    "ProjectCommands",
+    "ProjectCopyCopy",
+    "ProjectCopyError",
+    "ProjectDirectories",
+    "ProjectDirectoriesUpdated",
+    "ProjectIcon",
+    "ProjectNotFoundError",
+    "ProjectSummary",
+    "ProjectTime",
+    "ProjectUpdated",
+    "ProjectVcs",
+    "Prompt",
+    "PromptAgentAttachment",
+    "PromptFileAttachment",
+    "PromptInput",
+    "PromptInputFileAttachment",
+    "PromptSource",
+    "Provider",
+    "ProviderAISDK",
+    "ProviderApi",
+    "ProviderAuthAuthorization",
+    "ProviderAuthError",
+    "ProviderAuthError1",
+    "ProviderAuthMethod",
+    "ProviderConfig",
+    "ProviderNative",
+    "ProviderNotFoundError",
+    "ProviderRequest",
+    "ProviderV2Info",
+    "Pty",
+    "PtyCreated",
+    "PtyDeleted",
+    "PtyExited",
+    "PtyForbiddenError",
+    "PtyNotFoundError",
+    "PtyTicketConnectToken",
+    "PtyUpdated",
+    "QuestionAnswer",
+    "QuestionAsked",
+    "QuestionInfo",
+    "QuestionNotFoundError",
+    "QuestionOption",
+    "QuestionRejected",
+    "QuestionReplied",
+    "QuestionRequest",
+    "QuestionTool",
+    "QuestionV2Answer",
+    "QuestionV2Asked",
+    "QuestionV2Info",
+    "QuestionV2Option",
+    "QuestionV2Rejected",
+    "QuestionV2Replied",
+    "QuestionV2Reply",
+    "QuestionV2Request",
+    "QuestionV2Tool",
+    "Range",
+    "ReasoningPart",
+    "ReferenceGitSource",
+    "ReferenceInfo",
+    "ReferenceLocalSource",
+    "ReferenceSource",
+    "ReferenceUpdated",
+    "ResourceSource",
+    "RetryPart",
+    "RevertState",
+    "ServerConfig",
+    "ServerConnected",
+    "ServiceUnavailableError",
+    "Session",
+    "SessionActive",
+    "SessionBusyError",
+    "SessionCompacted",
+    "SessionCreated",
+    "SessionDeleted",
+    "SessionDiff",
+    "SessionDurableEvent",
+    "SessionDurableEventStream",
+    "SessionError",
+    "SessionErrorUnknown",
+    "SessionHistory",
+    "SessionIdle",
+    "SessionInputAdmitted",
+    "SessionMessage",
+    "SessionMessageAgentSwitched",
+    "SessionMessageAssistant",
+    "SessionMessageAssistantReasoning",
+    "SessionMessageAssistantText",
+    "SessionMessageAssistantTool",
+    "SessionMessageCompaction",
+    "SessionMessageModelSwitched",
+    "SessionMessageShell",
+    "SessionMessageSynthetic",
+    "SessionMessageSystem",
+    "SessionMessageToolStateCompleted",
+    "SessionMessageToolStateError",
+    "SessionMessageToolStatePending",
+    "SessionMessageToolStateRunning",
+    "SessionMessageUser",
+    "SessionMessagesResponse",
+    "SessionNextAgentSwitched",
+    "SessionNextCompactionDelta",
+    "SessionNextCompactionEnded",
+    "SessionNextCompactionStarted",
+    "SessionNextContextUpdated",
+    "SessionNextModelSwitched",
+    "SessionNextMoved",
+    "SessionNextPromptAdmitted",
+    "SessionNextPrompted",
+    "SessionNextReasoningDelta",
+    "SessionNextReasoningEnded",
+    "SessionNextReasoningStarted",
+    "SessionNextRetried",
+    "SessionNextRetry_error",
+    "SessionNextRevertCleared",
+    "SessionNextRevertCommitted",
+    "SessionNextRevertStaged",
+    "SessionNextShellEnded",
+    "SessionNextShellStarted",
+    "SessionNextStepEnded",
+    "SessionNextStepFailed",
+    "SessionNextStepStarted",
+    "SessionNextSynthetic",
+    "SessionNextTextDelta",
+    "SessionNextTextEnded",
+    "SessionNextTextStarted",
+    "SessionNextToolCalled",
+    "SessionNextToolFailed",
+    "SessionNextToolInputDelta",
+    "SessionNextToolInputEnded",
+    "SessionNextToolInputStarted",
+    "SessionNextToolProgress",
+    "SessionNextToolSuccess",
+    "SessionNotFoundError",
+    "SessionStatus",
+    "SessionUpdated",
+    "SessionV2Info",
+    "SessionsResponse",
+    "SkillV2DirectorySource",
+    "SkillV2EmbeddedSource",
+    "SkillV2Info",
+    "SkillV2Source",
+    "SkillV2UrlSource",
+    "SnapshotFileDiff",
+    "SnapshotPart",
+    "StepFinishPart",
+    "StepStartPart",
+    "StructuredOutputError",
+    "SubtaskPart",
+    "SubtaskPartInput",
+    "Symbol",
+    "SymbolSource",
+    "SyncEventMessagePartRemoved",
+    "SyncEventMessagePartUpdated",
+    "SyncEventMessageRemoved",
+    "SyncEventMessageUpdated",
+    "SyncEventSessionCreated",
+    "SyncEventSessionDeleted",
+    "SyncEventSessionNextAgentSwitched",
+    "SyncEventSessionNextCompactionEnded",
+    "SyncEventSessionNextCompactionStarted",
+    "SyncEventSessionNextContextUpdated",
+    "SyncEventSessionNextModelSwitched",
+    "SyncEventSessionNextMoved",
+    "SyncEventSessionNextPromptAdmitted",
+    "SyncEventSessionNextPrompted",
+    "SyncEventSessionNextReasoningEnded",
+    "SyncEventSessionNextReasoningStarted",
+    "SyncEventSessionNextRetried",
+    "SyncEventSessionNextRevertCleared",
+    "SyncEventSessionNextRevertCommitted",
+    "SyncEventSessionNextRevertStaged",
+    "SyncEventSessionNextShellEnded",
+    "SyncEventSessionNextShellStarted",
+    "SyncEventSessionNextStepEnded",
+    "SyncEventSessionNextStepFailed",
+    "SyncEventSessionNextStepStarted",
+    "SyncEventSessionNextSynthetic",
+    "SyncEventSessionNextTextEnded",
+    "SyncEventSessionNextTextStarted",
+    "SyncEventSessionNextToolCalled",
+    "SyncEventSessionNextToolFailed",
+    "SyncEventSessionNextToolInputEnded",
+    "SyncEventSessionNextToolInputStarted",
+    "SyncEventSessionNextToolProgress",
+    "SyncEventSessionNextToolSuccess",
+    "SyncEventSessionUpdated",
+    "TextPart",
+    "TextPartInput",
+    "Todo",
+    "TodoUpdated",
+    "ToolFileContent",
+    "ToolIDs",
+    "ToolList",
+    "ToolListItem",
+    "ToolPart",
+    "ToolState",
+    "ToolStateCompleted",
+    "ToolStateError",
+    "ToolStatePending",
+    "ToolStateRunning",
+    "ToolTextContent",
+    "TuiCommandExecute",
+    "TuiPromptAppend",
+    "TuiSessionSelect",
+    "TuiToastShow",
+    "UnauthorizedError",
+    "UnknownError",
+    "UnknownError1",
+    "UserMessage",
+    "V2Event",
+    "V2EventStream",
+    "VcsApplyError",
+    "VcsBranchUpdated",
+    "VcsFileDiff",
+    "VcsFileStatus",
+    "VcsInfo",
+    "WellKnownAuth",
+    "Workspace",
+    "WorkspaceCreateError",
+    "WorkspaceEventConnectionStatus",
+    "WorkspaceFailed",
+    "WorkspaceReady",
+    "WorkspaceStatus",
+    "WorkspaceWarpError",
+    "Worktree",
+    "WorktreeCreateInput",
+    "WorktreeError",
+    "WorktreeFailed",
+    "WorktreeReady",
+    "WorktreeRemoveInput",
+    "WorktreeResetInput",
+    "effect_HttpApiError_BadRequest",
+    "effect_HttpApiError_Forbidden",
+    "effect_HttpApiError_InternalServerError",
+    "question.rejected",
+    "question.replied",
+    "session.status"
+  ]
+}
