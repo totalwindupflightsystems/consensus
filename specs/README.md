@@ -44,6 +44,7 @@ then `specs/00-PRD.md` (product requirements) and `specs/001-architecture.md`
 ## Supporting Files
 
 - `specs/README.md` — This file (spec inventory)
+- `specs/AGENTS.md` — Agent rules for the specs directory (contracts are normative; spec-first changes)
 - `specs/_index.md` — Spec inventory index
 - `specs/_prompt.md` — Rules for writing/updating specs
 
