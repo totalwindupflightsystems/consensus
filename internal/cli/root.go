@@ -41,7 +41,41 @@ const defaultServerURL = "http://localhost:8090"
 // (C-GAP-023: the version flag lets users confirm they are not running a
 // stale binary. C-GAP-027: the default tracks the VERSION file, so the
 // README stale-binary check works on a plain `go build`.)
+//
+// Release builds take the second path: cmd/consensus declares the goreleaser
+// ldflags targets (main.version/commit/date) and adopts them here via
+// SetBuildInfo before dispatch (RELEASE-CONSENSUS-1).
 var version = consensus.Version
+
+// buildCommit / buildDate hold the goreleaser stamps after SetBuildInfo
+// adoption; empty until then, so unstamped builds print only the version.
+var (
+	buildCommit string
+	buildDate   string
+)
+
+// Version returns the shared build version the version surfaces report
+// (tests and the main-package adoption path read it; RELEASE-CONSENSUS-1).
+func Version() string { return version }
+
+// SetBuildInfo adopts release-build stamps into the shared version surface
+// (RELEASE-CONSENSUS-1): `consensus --version`, `consensus version`, and —
+// via the same var — /api/v1/health all report the stamped release version
+// instead of the embedded VERSION-file default. The binary's main package
+// calls it before command dispatch when the goreleaser ldflags landed.
+// Each stamp is adopted only when non-default, so a partial stamp (or a
+// stray call) never blanks an existing value.
+func SetBuildInfo(ver, commit, date string) {
+	if ver != "" && ver != "dev" {
+		version = ver
+	}
+	if commit != "" && commit != "none" {
+		buildCommit = commit
+	}
+	if date != "" && date != "unknown" {
+		buildDate = date
+	}
+}
 
 // NewRootCommand creates the root `consensus` command with all subcommands.
 func NewRootCommand() *cobra.Command {

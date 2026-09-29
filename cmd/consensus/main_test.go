@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/wojons/consensus/internal/cli"
 	"github.com/wojons/consensus/internal/config"
 	"github.com/wojons/consensus/internal/llm"
 )
@@ -194,5 +195,35 @@ func TestShippedConfigWithoutOverridesKeepsDeepSeek(t *testing.T) {
 	}
 	if got := llmCfg.BaseURL; got != "https://api.deepseek.com/v1" {
 		t.Errorf("LLM base URL = %q, want the config-file value preserved", got)
+	}
+}
+
+// RELEASE-CONSENSUS-1: the goreleaser ldflags stamp main.version/commit/date.
+// The vars must exist with inert defaults so the -X flags land; main() adopts
+// them into the CLI's shared version surface via cli.SetBuildInfo only when
+// a real stamp is present (release build), leaving plain `go build` output
+// on the embedded VERSION file default (C-GAP-027).
+func TestBuildStampDefaults(t *testing.T) {
+	if version != "dev" {
+		t.Errorf("version = %q, want inert default \"dev\" (ldflags target)", version)
+	}
+	if commit != "none" {
+		t.Errorf("commit = %q, want inert default \"none\" (ldflags target)", commit)
+	}
+	if date != "unknown" {
+		t.Errorf("date = %q, want inert default \"unknown\" (ldflags target)", date)
+	}
+}
+
+// TestBuildStampAdoptionWiredToCLI proves main()'s adoption call is what
+// bridges the stamps to the CLI surface: with stamped values present,
+// SetBuildInfo must have moved the version into the cli package's surface.
+// (main() itself is not invoked here — the wiring contract is the same
+// SetBuildInfo call main performs, asserted through the cli seam.)
+func TestBuildStampAdoptionWiredToCLI(t *testing.T) {
+	cli.SetBuildInfo("v0.1.0-adoption-test", "feedc0de", "2026-09-29T12:00:00Z")
+
+	if cli.Version() != "v0.1.0-adoption-test" {
+		t.Errorf("cli surface = %q, want adopted stamp v0.1.0-adoption-test", cli.Version())
 	}
 }

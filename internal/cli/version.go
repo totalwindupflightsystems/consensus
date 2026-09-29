@@ -13,6 +13,10 @@ import (
 // it works offline: the PersistentPreRunE identity check skips it (root.go),
 // so it runs with no server reachable. Structured output follows the
 // formatter convention so --format json|yaml work like sibling commands.
+//
+// On a release build (RELEASE-CONSENSUS-1) the goreleaser stamps adopted via
+// SetBuildInfo are included: the table/JSON/YAML payload gains non-empty
+// commit and date fields alongside the version.
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
@@ -21,7 +25,14 @@ func newVersionCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := newFormatter()
 			fm.Println("consensus version", version)
-			return fm.Print(map[string]any{"version": version})
+			info := map[string]any{"version": version}
+			if buildCommit != "" {
+				info["commit"] = buildCommit
+			}
+			if buildDate != "" {
+				info["date"] = buildDate
+			}
+			return fm.Print(info)
 		},
 	}
 }

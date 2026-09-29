@@ -48,7 +48,27 @@ import (
 	"github.com/wojons/consensus/internal/webhook"
 )
 
+// Build stamps set at release time by .goreleaser.yaml ldflags
+// (-X main.version={{ .Version }} -X main.commit={{ .Commit }} -X main.date={{ .Date }}).
+// Defaults cover plain `go build` output: the version surfaces keep reporting
+// the embedded VERSION file content (C-GAP-027) until a stamped build adopts
+// these values via cli.SetBuildInfo (RELEASE-CONSENSUS-1).
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
+	// RELEASE-CONSENSUS-1: adopt the goreleaser build stamps into the CLI's
+	// shared version var BEFORE any command runs (cobra serves --version from
+	// the same var). On a release build every existing version surface reports
+	// the stamped string; on a plain `go build` these defaults are inert and
+	// the VERSION-file default stays authoritative.
+	if version != "dev" {
+		cli.SetBuildInfo(version, commit, date)
+	}
+
 	// Wire CLI stubs to actual server functions (SPEC-016 §5.1, §5.2).
 	cli.InitFunc = runInit // alias for server startup (also runs auto-migrate)
 	cli.ServerFunc = runServer
