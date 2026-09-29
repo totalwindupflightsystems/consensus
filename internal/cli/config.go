@@ -69,8 +69,10 @@ using dot notation (e.g., 'llm.default_model', 'hitl.require_approval_for_destru
 				return fm.Print(val)
 			}
 
-			fm.Println("Key not found:", args[0])
-			return nil
+			// A missing key is a failure, not an empty result: the verb's
+			// output contract is data, and scripts must be able to tell a
+			// wrong key from a null value (SPEC-016 §8 → exit 5, DOC-10).
+			return fmt.Errorf("NOT_FOUND: config key %q not found", args[0])
 		},
 	}
 }

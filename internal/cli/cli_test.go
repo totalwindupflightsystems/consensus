@@ -1426,10 +1426,14 @@ func TestToolShow_NotFound(t *testing.T) {
 
 	cmd := newToolShowCmd()
 	cmd.SetArgs([]string{"nonexistent"})
-	// Should not error — prints "Tool not found" and returns nil
+	// DOC-10: a missing tool is a real failure — the verb's output contract
+	// is data, so it must return an error (exit 5 via exitCode), not exit 0.
 	err := cmd.Execute()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("expected error for missing tool, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected not-found error, got: %q", err.Error())
 	}
 }
 
@@ -1587,10 +1591,15 @@ func TestConfigGet_NotFound(t *testing.T) {
 
 	cmd := newConfigGetCmd()
 	cmd.SetArgs([]string{"nonexistent.key"})
-	// Should not error — prints "Key not found"
+	// DOC-10: a missing key is a real failure — scripts must be able to
+	// distinguish a wrong key from a null value, so it returns an error
+	// (exit 5 via exitCode), not exit 0.
 	err := cmd.Execute()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("expected error for missing key, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected not-found error, got: %q", err.Error())
 	}
 }
 
