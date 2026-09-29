@@ -517,6 +517,53 @@ func TestAutoMigrate_CreatesTrustLevelColumn(t *testing.T) {
 	}
 }
 
+func TestAutoMigrate_CreatesIdempotencyKeysTable(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	columns, err := database.Query(ctx, `PRAGMA table_info('idempotency_keys')`)
+	if err != nil {
+		t.Fatalf("inspect idempotency_keys: %v", err)
+	}
+	gotColumns := make(map[string]bool, len(columns))
+	for _, row := range columns {
+		gotColumns[toString(row["name"])] = true
+	}
+	for _, want := range []string{"key", "session_id", "response_message_id", "created_at"} {
+		if !gotColumns[want] {
+			t.Errorf("idempotency_keys missing column %q; got %v", want, gotColumns)
+		}
+	}
+
+	indexes, err := database.Query(ctx, `PRAGMA index_list('idempotency_keys')`)
+	if err != nil {
+		t.Fatalf("inspect idempotency indexes: %v", err)
+	}
+	uniqueName := ""
+	for _, row := range indexes {
+		if toInt(row["unique"]) == 1 {
+			uniqueName = toString(row["name"])
+			break
+		}
+	}
+	if uniqueName == "" {
+		t.Fatal("idempotency_keys has no unique index")
+	}
+	indexColumns, err := database.Query(ctx, `PRAGMA index_info(`+uniqueName+`)`)
+	if err != nil {
+		t.Fatalf("inspect unique index %s: %v", uniqueName, err)
+	}
+	if len(indexColumns) != 2 || toString(indexColumns[0]["name"]) != "session_id" || toString(indexColumns[1]["name"]) != "key" {
+		t.Fatalf("unique index columns=%v, want [session_id key]", indexColumns)
+	}
+}
+
 // ============================================================================
 // Regression: AutoMigrate MUST install the append-only triggers (DOGFOOD-001)
 // ============================================================================
@@ -722,8 +769,8 @@ func TestMigrationUnderLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Version after AutoMigrate failed: %v", err)
 	}
-	if lastApplied != 24 {
-		t.Fatalf("expected 24 migrations applied, got version %d", lastApplied)
+	if lastApplied != 25 {
+		t.Fatalf("expected migrations through version 25, got version %d", lastApplied)
 	}
 	t.Logf("AutoMigrate applied migrations up to version %d", lastApplied)
 
