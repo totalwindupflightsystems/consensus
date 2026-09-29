@@ -1,0 +1,12 @@
+{
+  "tick": "consensus-2026-09-29-15-26-40",
+  "budget": 5,
+  "workers": [
+    {"task": "REVIEW-CONSENSUS-2", "worktree": "/home/kara/worktrees/consensus-RC-2", "branch": "wt/RC-2", "base": "origin/master", "base_sha": "f904e3c", "model": "gpt-5.6-sol", "provider": "openai-codex", "cluster": "internal/api (sessions POST idempotency)", "commit": "4a5a277", "merge": "6119509", "result": "merged"},
+    {"task": "REVIEW-CONSENSUS-7", "worktree": "/home/kara/worktrees/consensus-RC-7", "branch": "wt/RC-7", "base": "origin/master", "base_sha": "f904e3c", "model": "gpt-5.6-sol", "provider": "openai-codex", "cluster": "README.md + docs (install prereqs)", "commit": "c0f4d93", "merge": "f98b5e9", "result": "merged"},
+    {"task": "REVIEW-CONSENSUS-4", "worktree": "/home/kara/worktrees/consensus-RC-4", "branch": "wt/RC-4", "base": "origin/master", "base_sha": "f904e3c", "model": "gpt-5.6-sol", "provider": "openai-codex", "cluster": "grader publishing (opencode compat suite)", "commit": "560e00b", "merge": "dd84f7f", "result": "merged"}
+  ],
+  "status": "closed",
+  "gates": "build+vet PASS, full short suite 0 FAIL, guard PASS x2, pushed dd84f7f, parity 0",
+  "judges": "tier1 --force --skip-tier2 PASS x3; tier2 async jobs dispatched (job-3dadaf6a/0e5ac5f7/8e4c629d)"
+}
