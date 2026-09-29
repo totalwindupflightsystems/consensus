@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Sit-Rep Update, 2026-09-29</title>
+<style>
+:root{
+  --bg:#0e1116; --surf:#161d29; --surf2:#1b2431; --line:#26303f; --line-soft:#212a37;
+  --txt:#e8eef6; --mut:#a7b4c6; --acc:#7cb0ff; --ok:#4ac26b; --bad:#ff6b6b; --warn:#e0a03a;
+  --r:14px; --maxw:1080px;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f7f8fb; --surf:#ffffff; --surf2:#f1f4f9; --line:#dde3ec; --line-soft:#e7ecf3;
+         --txt:#131a24; --mut:#4d5b70; --acc:#1f5fd0; --ok:#1d7f43; --bad:#c02b2b; --warn:#8a5a00; }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:16px/1.66 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+::selection{background:var(--acc);color:#fff}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:34px 22px 80px}
+header.hero{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:8px;
+  animation:rise .5s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){header.hero{animation:none}}
+h1{font-size:31px;line-height:1.2;margin:10px 0 12px;letter-spacing:-.02em}
+h2{font-size:21px;margin:38px 0 10px;letter-spacing:-.01em;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16.5px;margin:22px 0 6px}
+p,li{max-width:74ch}
+.lede{font-size:17.5px;color:var(--mut);max-width:74ch;margin:0 0 14px}
+.cover{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;margin:18px 0 6px}
+.cover dl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;font-size:14.5px}
+.cover dt{color:var(--mut);text-transform:uppercase;letter-spacing:.07em;font-size:12px;padding-top:3px}
+.cover dd{margin:0}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 2px}
+.badge{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surf2);color:var(--mut)}
+.badge.ok{color:var(--ok);border-color:color-mix(in oklab,var(--ok) 45%,var(--line))}
+.badge.no{color:var(--bad);border-color:color-mix(in oklab,var(--bad) 45%,var(--line))}
+.badge.wa{color:var(--warn);border-color:color-mix(in oklab,var(--warn) 45%,var(--line))}
+.toc{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;margin:26px 0 8px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:36px;font-size:14.5px}
+.toc li{margin:5px 0;break-inside:avoid}
+.toc a{color:var(--acc);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin:14px 0;overflow-x:auto}
+.card.tinted-ok{background:color-mix(in oklab,var(--ok) 7%,var(--surf))}
+.card.tinted-bad{background:color-mix(in oklab,var(--bad) 7%,var(--surf))}
+.card.tinted-idea{background:color-mix(in oklab,var(--acc) 8%,var(--surf))}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt);margin-bottom:8px;opacity:.85}
+pre{background:#0a0d12;color:#dfe7f1;border:1px solid var(--line);border-radius:10px;padding:15px 16px;margin:12px 0;
+  overflow-x:auto;font:13.5px/1.62 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+@media (prefers-color-scheme: light){pre{background:#0e131b;color:#e6edf6}}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;overflow-wrap:anywhere;
+  background:var(--surf2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px}
+pre code{background:none;border:0;padding:0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;font-variant-numeric:tabular-nums}
+caption{caption-side:top;text-align:left;color:var(--mut);font-size:13px;padding-bottom:7px}
+th,td{border-bottom:1px solid var(--line-soft);padding:9px 10px;text-align:left;vertical-align:top}
+thead th{border-bottom:1px solid var(--line);color:var(--mut);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+tbody tr:hover{background:var(--surf2)}
+td.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+@media (max-width:720px){table{font-size:13px}th,td{padding:7px 8px}}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}.warnc{color:var(--warn);font-weight:600}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0}
+.fact{background:var(--surf2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px}
+.fact span{display:block;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.fact b{font-size:16px;font-weight:650}
+.bar{display:flex;height:26px;border-radius:7px;overflow:hidden;border:1px solid var(--line);margin:12px 0 6px;font-size:11.5px}
+.bar div{display:flex;align-items:center;justify-content:center;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar .c-covered{background:#2f7d4f}
+.bar .c-narrow{background:#6f7f3a}
+.bar .c-semantic{background:#8a6a2a}
+.bar .c-declared{background:#8c3b3b}
+.bar .c-served{background:#3b5a8c}
+.keys{display:flex;flex-wrap:wrap;gap:12px;color:var(--mut);font-size:12.5px;margin:2px 0 4px}
+.keys i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.foot{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--mut);font-size:13.5px;max-width:80ch}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="chip">Sit-rep update · 2026-09-29</div>
+  <h1>Consensus: the review's findings are being executed, and the shim gap is now a number</h1>
+  <p class="lede">Five of the nineteen rows filed off the back of the review are done, the opencode
+  protocol is pinned in-repo with a real baseline, and the compatibility story changed shape: the
+  upstream document did not move at all between our two pins, so the gap is <b>ours and static</b> —
+  and it is 31 operations out of 188. Meanwhile the live deployment is still running a five-day-old
+  binary while doing 90 sessions a day.</p>
+  <div class="badges">
+    <span class="badge ok">78 commits · 50 implementation</span>
+    <span class="badge ok">CI 5/5 green</span>
+    <span class="badge ok">5 of 19 filed rows done</span>
+    <span class="badge wa">shim covers 31/188 ops</span>
+    <span class="badge no">live artifact 5 days behind master</span>
+  </div>
+</header>
+
+<div class="cover">
+  <dl>
+    <dt>To</dt><dd>Bane</dd>
+    <dt>From</dt><dd>Hermes — the consensus thread</dd>
+    <dt>Re</dt><dd>Sit-rep update: what landed since the last report, what it proves, what's still open</dd>
+    <dt>Window</dt><dd>2026-09-28 18:00 → 2026-09-29 23:05Z · <code>02e7bfe</code> · master parity 0</dd>
+    <dt>Method</dt><dd>Git log, board census, CI runs, committed baseline artefacts, the live database and container — every number below comes from a command run in-session, and claimed vs measured is labelled</dd>
+  </dl>
+</div>
+
+<nav class="toc">
+  <ol>
+    <li><a href="#numbers">The 24 hours in numbers</a></li>
+    <li><a href="#filed">Filed work: what got executed</a></li>
+    <li><a href="#baseline">The number that matters: the shim baseline</a></li>
+    <li><a href="#static">Why the gap is ours, not upstream's</a></li>
+    <li><a href="#live">The live system: real traffic on a stale artefact</a></li>
+    <li><a href="#process">Process health, and the recurring blemishes</a></li>
+    <li><a href="#open">What's still open</a></li>
+    <li><a href="#read">My read, and the next single action</a></li>
+  </ol>
+</nav>
+
+<h2 id="numbers">The 24 hours in numbers</h2>
+<div class="facts">
+  <div class="fact"><span>commits</span><b>78</b> (50 implementation)</div>
+  <div class="fact"><span>board</span><b>211 rows</b></div>
+  <div class="fact"><span>complete / pending</span><b>169 / 36</b></div>
+  <div class="fact"><span>CI</span><b>5/5 green</b></div>
+  <div class="fact"><span>my filed rows</span><b>5 done / 14 open</b></div>
+  <div class="fact"><span>live sessions</span><b>316</b> (90 in 24h)</div>
+</div>
+<p>Half the commits are implementation rather than board bookkeeping, which is the ratio you want.
+The board's pending queue is down to <b>36</b> rows from 51 yesterday, and the pending mix has moved
+down the priority ladder: <b>3 P1, 15 P2, 18 P3</b>. CI is green on the last five runs including
+every commit this window. Master and origin are level.</p>
+
+<h2 id="filed">Filed work: what got executed</h2>
+<p>Yesterday I filed 19 rows (11 from the carter review, 6 for the shim surfaces, plus cache-cost and
+deploy). <b>Five are done</b> — and the ones chosen show the queue is being worked by value, not by
+filing order:</p>
+<table>
+  <caption>Rows filed → landed, with the artefact I verified on disk</caption>
+  <thead><tr><th>Row</th><th>Status</th><th>Evidence I checked myself</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">REVIEW-CONSENSUS-2</td><td class="pass">done</td>
+      <td>Idempotency keys on the mutating surface: <code>Idempotency-Key</code> handling in <code>internal/api/sessions.go</code> plus migration <code>025_idempotency_keys.sql</code> (UNIQUE per session+key); replay returns the original response</td></tr>
+    <tr>
+      <td class="num">REVIEW-CONSENSUS-4</td><td class="pass">done</td>
+      <td>The grader is now re-runnable: <code>scripts/opencode-compat.sh</code> (5,115 bytes, executable) — measured 39 pass / 0 fail / 5 named exclusions</td></tr>
+    <tr>
+      <td class="num">REVIEW-CONSENSUS-7</td><td class="pass">done</td>
+      <td>README now names the toolchain: Go as the build requirement, node/bun as required only for the upstream suite</td></tr>
+    <tr>
+      <td class="num">SHIM-SOURCE-002</td><td class="pass">done</td>
+      <td>The protocol baseline exists in-repo: <code>specs/openapi/opencode-pin.yaml</code>, the extracted surface, and a 73 KB machine-readable comparison — see the next section</td></tr>
+    <tr>
+      <td class="num">SHIM-SUPPORT-002</td><td class="pass">done</td>
+      <td>Per-turn <code>reasoning_content</code> persistence and re-send on tool-bearing requests (<code>openai_client.go</code>, 8 references) with new tests; honest residual: no production caller sends native tools yet</td></tr>
+  </tbody>
+</table>
+<p>Also landed from the wider queue and spot-checked: the webhook wake now <b>dispatches an iteration</b>
+(<code>internal/webhook/routing_wake_test.go</code>), the global SSE stream no longer hangs forever
+(<code>globalStreamMaxDuration</code> = 5 min at <code>internal/api/events.go:156</code>), the served
+OpenAPI gained the 4 missing mounted routes, a release workflow exists with real version stamping, and
+the task-plan suite no longer goes red for want of an API key.</p>
+<p>One signal worth noticing: the fleet <b>extended my row family</b> rather than working around it —
+<code>REVIEW-CONSENSUS-10</code> (lint debt: 118 issues) and <code>REVIEW-CONSENSUS-11</code> (MCP SSE
+transport loses sessions on stream drop) were filed by the lanes themselves. A filing convention that
+gets adopted is doing its job.</p>
+
+<h2 id="baseline">The number that matters: the shim baseline</h2>
+<p>The baseline task was supposed to be bookkeeping. It produced the first honest measure of what
+"opencode-compatible" currently means.</p>
+<table>
+  <caption>Declared (upstream) vs served (our shim), from the committed comparison artefact</caption>
+  <thead><tr><th>Measure</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Upstream declared</td><td><b>162 paths · 188 operations · 472 schemas</b> (38 tags)</td></tr>
+    <tr><td>Our served route entries</td><td>71</td></tr>
+    <tr><td class="pass">Operations fully covered</td><td><b>31 of 188 — 16.5%</b></td></tr>
+    <tr><td class="warnc">Narrowed, error-contract only</td><td>11</td></tr>
+    <tr><td class="warnc">Semantically different</td><td>2</td></tr>
+    <tr><td class="fail">Declared but not served</td><td><b>144</b></td></tr>
+    <tr><td class="warnc">Served but not declared</td><td>17</td></tr>
+  </tbody>
+</table>
+<div class="bar" role="img" aria-label="Operation coverage: 31 covered, 11 error-contract-only, 2 semantically different, 144 declared-not-served; 17 served-not-declared shown separately">
+  <div class="c-covered" style="width:16.5%">31</div>
+  <div class="c-narrow" style="width:5.9%"></div>
+  <div class="c-semantic" style="width:1.1%"></div>
+  <div class="c-declared" style="width:76.6%">144 declared, not served</div>
+</div>
+<div class="keys">
+  <span><i class="c-covered" style="background:#2f7d4f"></i>covered (31)</span>
+  <span><i style="background:#6f7f3a"></i>error-contract only (11)</span>
+  <span><i style="background:#8a6a2a"></i>semantically different (2)</span>
+  <span><i style="background:#8c3b3b"></i>declared not served (144)</span>
+  <span><i style="background:#3b5a8c"></i>served not declared (17, not in this bar)</span>
+</div>
+<p>The artefact is reproducible from the repo: the surface is derived from
+<code>internal/shim/opencode/server.go</code> at <code>f012e36</code>, the upstream side is pinned at
+<code>7945de20</code> (v1.18.33), and both the extraction script and the comparison JSON are committed.
+It also produced the first <code>SHIM-DRIFT</code> rows, so 144 unserved operations are now bounded work
+items instead of an atmosphere.</p>
+
+<h2 id="static">Why the gap is ours, not upstream's</h2>
+<div class="card tinted-idea">
+  <span class="chip">The reframing</span>
+  <p style="margin-top:0">The baseline compared our previous suite pin (v1.18.29) against the newer
+  upstream (v1.18.33) and the current dev tip. The document is <b>byte-identical</b> across all of them:</p>
+  <pre><code>$ sha256sum openapi-1.18.29.json openapi-HEAD.json
+00502bd13e9c86f3ca9e765e99a57e06fa9f434ca16f2a714766d1444f8d37f3  openapi-1.18.29.json
+00502bd13e9c86f3ca9e765e99a57e06fa9f434ca16f2a714766d1444f8d37f3  openapi-HEAD.json
+$ cmp openapi-1.18.29.json openapi-HEAD.json &amp;&amp; echo IDENTICAL
+IDENTICAL</code></pre>
+  <p style="margin-bottom:0">Zero paths added, zero removed, zero changed. So the ten failing upstream
+  assertions are <b>not</b> protocol drift we are chasing — they are our own implementation gap, sitting
+  still, with a fixed target. That is the best possible version of this news: a moving spec would have
+  made the gap harder to close every week.</p>
+</div>
+
+<h2 id="live">The live system: real traffic on a stale artefact</h2>
+<table>
+  <caption>dexdat-consensus, measured directly</caption>
+  <thead><tr><th>Measure</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Container created / uptime</td><td>2026-09-28 15:14 · ~32 h</td></tr>
+    <tr><td class="fail">Image built</td><td><b>2026-09-24 10:56</b> — five days behind master</td></tr>
+    <tr><td>Health</td><td class="num">200 · postgres backend · 77 tables · 20 migrations · error_rate 0%</td></tr>
+    <tr><td>Sessions</td><td><b>316 total · 90 in the last 24 h</b></td></tr>
+    <tr><td>Drift column</td><td class="pass">present (<code>sessions.budget_limit_cents</code>) — the DB side is repaired</td></tr>
+  </tbody>
+</table>
+<p>This is the sharpest operational risk in the report, and it is not about the database. The binary
+serving 90 real sessions a day predates <b>every fix of the last five days</b>: the MCP session-auth
+repair, the Postgres drift repair, the shim attach fix, the SSE timeout, idempotency keys, and the CoT
+work. The database underneath was patched, the process talking to it was not. <code>DEPLOY-CONSENSUS-1</code>
+stays open and I'd put it at the front of the advice below.</p>
+
+<h2 id="process">Process health, and the recurring blemishes</h2>
+<div class="card tinted-ok">
+  <span class="chip">Working</span>
+  <p style="margin-top:0">CI green 5/5 across the window; every board close verified with a real command;
+  the tier-2 judge caught two genuine defects the implementation had missed (the same CDN-defect class on
+  two more scripts, and a pre-existing spec-inventory off-by-one). The false-green class that
+  <code>QA-CONSENSUS-7</code> complained about is closed at HEAD — the guard suite red-proves 11/11, and
+  a "0 audited, 4 passed" run can no longer print a green line.</p>
+</div>
+<div class="card tinted-bad">
+  <span class="chip">Recurring, and worth naming</span>
+  <ul class="tight" style="margin-top:0">
+    <li><b>The 30-minute judge cap starved two verdicts</b> — a full-suite tier-2 run hit the cap and
+    reported FAILED-INCOMPLETE, which reads like a code failure and is not. Raised 30m → 45m
+    (<code>d408bcb</code>); the failure mode was a passing verdict mislabelled as a failure.</li>
+    <li><b>The <code>.gitreins</code> sweep hazard keeps re-appearing</b> — guard-log deletions and
+    <code>tasks.yaml</code> churn sit dirty in the worktree and get swept into unrelated commits
+    (<code>C-GAP-045</code>); it has been re-committed as residue several times this week.</li>
+    <li><b>The bunker fleet is the least reliable part of the pipeline</b> — this window produced a spawn
+    that vanished before any cell ran, two consecutive destroy-verify leaks (<code>deadline_exceeded</code>),
+    and a host that had to be swapped mid-battery. The product's own QA keeps being blocked on its
+    environment rather than on the product.</li>
+    <li><b>Cosmetic but persistent:</b> the board header reports <code>cooldown_s 900</code> while the
+    scheduler pin is 21600 — a display drift that keeps getting re-noted rather than fixed.</li>
+  </ul>
+</div>
+
+<h2 id="open">What's still open</h2>
+<p>36 pending rows: <b>3 P1</b>, 15 P2, 18 P3. The three P1s are all long or gated rather than blocked on
+engineering:</p>
+<ul class="tight">
+  <li><b>TEST-CONSENSUS-001</b> — the full test plan on a bunker (your 09-24 directive). Multi-day, and
+  the last attempt died with a worker that produced no diff.</li>
+  <li><b>MUSTER-INT-001</b> — point muster at the consensus OpenAPI (your 09-24 directive). Stalled twice
+  on context compaction; cross-repo.</li>
+  <li><b>RELEASE-CONSENSUS-3</b> — the v0.1.0 cut is prepared and CI-green, and the lane is correctly
+  refusing to self-authorize. <b>It is waiting on your explicit go.</b></li>
+</ul>
+<p>Of the 14 open rows I filed, the notable ones are the three that represent <i>unbuilt capability</i>
+rather than defects: claim leases (<code>REVIEW-1</code>), a Postgres load probe (<code>REVIEW-3</code>),
+and the A2A decision (<code>REVIEW-9</code>). Everything else opened since has been small, bounded work.</p>
+
+<h2 id="read">My read, and the next single action</h2>
+<p><b>The project is behaving like a system with a working quality loop.</b> The evidence is not the
+commit count — it is that a review's findings became bounded rows, the rows got executed in priority
+order, one of them (the baseline) produced a number nobody had, and the number was published even though
+16.5% is an unflattering figure. Yesterday's verdict was "alpha with a strong spine"; nothing since
+changes that, and the ceiling is now measurable instead of arguable.</p>
+<div class="card tinted-idea">
+  <span class="chip">If you do one thing</span>
+  <p style="margin-top:0"><b>Rebuild and redeploy the live stack, then prove it with a real session.</b>
+  Five days of fixes — MCP auth, Postgres drift, shim attach, SSE timeout, idempotency — are sitting in
+  master while 90 sessions a day run through a binary that has none of them. It is the highest-value,
+  lowest-risk action available, and the row already exists with the acceptance criteria written.</p>
+</div>
+<p>Second, on the shim: the 144 unserved operations need a triage decision before anyone treats them as a
+backlog. Some are obviously out of scope for a harness backend; some are the difference between "drop-in"
+and "mostly-like". A 30-minute pass that labels each as <i>must serve / will never serve / decide later</i>
+would convert 144 unknowns into a plan — and it is exactly what <code>SHIM-SUPPORT-001</code>'s
+"every cell carries a reason" rule was written to force.</p>
+
+<div class="foot">
+  <p><b>Verified at</b> <code>02e7bfe</code> (2026-09-29 18:04 local / 23:04Z), master parity 0. Measured
+  in-session: git log and census, board JSONL, <code>gh run list</code>, the committed comparison artefact
+  <code>specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json</code>, the baseline diff report,
+  <code>docker inspect</code> on the live container and image, and a direct query against
+  <code>dexdat-postgres</code>. Forward-looking statements (the effect of a redeploy, the value of the
+  triage pass) are labelled as advice, not measurement.</p>
+  <p><b>Artefacts.</b> <code>specs/openapi/opencode-pin.yaml</code> ·
+  <code>specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json</code> ·
+  <code>docs/reports/shim-source-002-baseline-diff-2026-09-29.md</code> ·
+  <code>scripts/opencode-compat.sh</code> · board <code>.coding-hermes/board/tasks.jsonl</code> (211 rows).</p>
+</div>
+
+</div>
+</body>
+</html>
