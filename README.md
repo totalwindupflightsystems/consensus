@@ -367,6 +367,7 @@ volumes:
 
 - **[HTTP API Reference](docs/API.md)** — every REST endpoint with request/response examples, auth requirements, and error codes
 - **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
+- **[CLI Exit Codes](docs/CLI-EXIT-CODES.md)** — per-verb exit-code table (0/1/2 + 3–7), the scriptable-CLI rationale, and `set -e`-safe usage examples
 
   MCP clients attach to a running `consensus serve` on three surfaces, all JSON-RPC 2.0 (the server listens on `127.0.0.1:8090` by default; worked examples in the guide's §1):
 

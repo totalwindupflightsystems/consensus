@@ -26,7 +26,11 @@ func newStatusCmd() *cobra.Command {
 
 			metrics, err := client.GetMetrics()
 			if err != nil {
-				metrics = nil
+				// Health succeeded, so the server is reachable — a metrics
+				// failure here is a real failure (auth rejected, rate
+				// limited, 5xx) and must not masquerade as "no metrics"
+				// behind exit 0 (DOC-10, SPEC-016 §8).
+				return err
 			}
 
 			// Build structured result so --format json/yaml works

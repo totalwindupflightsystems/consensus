@@ -4,6 +4,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +50,7 @@ func newToolShowCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()
-			fmt := newFormatter()
+			fm := newFormatter()
 
 			// List all tools and find the matching one
 			results, err := client.ListTools()
@@ -58,12 +60,14 @@ func newToolShowCmd() *cobra.Command {
 
 			for _, tool := range results {
 				if tool["name"] == args[0] {
-					return fmt.Print(tool)
+					return fm.Print(tool)
 				}
 			}
 
-			fmt.Println("Tool not found:", args[0])
-			return nil
+			// A missing tool is a failure, not an empty result: the verb's
+			// output contract is data (contrast `tool list`, which exits 0 on
+			// an empty registry) (SPEC-016 §8 → exit 5, DOC-10).
+			return fmt.Errorf("NOT_FOUND: tool %q not found", args[0])
 		},
 	}
 }
