@@ -1,0 +1,9 @@
+{
+  "tick": "consensus-2026-09-29-08-57-37",
+  "wave_budget": 3,
+  "workers": [
+    {"task": "CR-IN-001", "kind": "worktree-worker", "branch": "wt/cr-in-001", "model": "deepseek-v4-flash", "provider": "deepseek"},
+    {"task": "QA-CONSENSUS-11", "kind": "foreman-direct", "note": "host script ~/.hermes/scripts/bunker-ci.sh, not repo work"},
+    {"task": "RELEASE-CONSENSUS-2", "kind": "verify-then-close", "note": "release.yml tag-trigger exists; verify close"}
+  ]
+}
