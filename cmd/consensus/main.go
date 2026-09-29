@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -268,6 +269,14 @@ func runServer() {
 		// instead of waiting up to one full tick. Non-blocking on the
 		// harness side; duplicates are prevented by the inFlight guard.
 		Wake: h.RequestWake,
+		// DF-CONSENSUS-50: reject session creation with an actionable 400
+		// when no LLM API key is configured, instead of letting the session
+		// boot and fail opaquely at its first LLM dispatch. Same predicate
+		// as ApplyStartupValidations' C-GAP-003 warning: empty or unexpanded
+		// ${...} template means no key. Reports CONFIGURED (true = allow).
+		RequireLLMKey: func() bool {
+			return cfg.LLM.APIKey != "" && !strings.HasPrefix(cfg.LLM.APIKey, "${")
+		},
 	})
 
 	// models.dev auto-sync (--auto-sync flag)
