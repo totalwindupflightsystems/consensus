@@ -117,6 +117,9 @@ consensus session show <session-id>
 # Tail session events (live stream)
 consensus session logs <session-id> [--follow] [--iterations 10]
 
+# Send a message to the session's agent — this is what starts a "booting" session
+consensus session message <session-id> <text...>
+
 # Pause a running session
 consensus session pause <session-id>
 
@@ -129,6 +132,10 @@ consensus session cancel <session-id>
 # Get session cost breakdown
 consensus session cost <session-id>
 ```
+
+**Starting a session:** A freshly created session stays in 'booting' until it receives its first user_instruction message — sending one is what starts the agent on its goal. `session message` takes the session id plus at least one word of text; the remaining arguments are joined with spaces, so the text does not need quoting.
+
+**REST mapping:** `POST /api/v1/sessions/{id}/message` — send a message to the session's agent (SPEC-015 §3.1; canonical OpenAPI template `POST /api/v1/sessions/{sessionId}/message` in SPEC-018).
 
 **Output formats:**
 
