@@ -265,6 +265,53 @@ func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
 	}
 }
 
+// --- Crier inbound message bus (CR-IN-001) ---
+
+// TestLoad_CrierBlock pins the resolution the intake depends on: `crier` is a
+// real config key, and CONSENSUS_CRIER_URL beats it. That variable is the same
+// one crier.NewClient falls back to, so a config key that is left empty and an
+// env-only deployment resolve to the same endpoint.
+func TestLoad_CrierBlock(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CRIER_URL", "")
+	t.Setenv("CONSENSUS_CRIER_AGENT", "")
+
+	// No compiled-in default: the fallback to http://localhost:8767 belongs to
+	// internal/crier, so an unset key stays visibly unset here.
+	if got := Defaults().Crier; got != (CrierConfig{}) {
+		t.Errorf("Defaults() crier block = %+v, want empty (the base-URL default lives in internal/crier)", got)
+	}
+
+	const block = `crier:
+  url: http://config-crier:8767
+  agent_id: consensus-config
+`
+	cfg, err := LoadWithPath(writeConfig(t, block))
+	if err != nil {
+		t.Fatalf("LoadWithPath: %v", err)
+	}
+	if cfg.Crier.URL != "http://config-crier:8767" {
+		t.Errorf("crier.url = %q, want the value from the config file", cfg.Crier.URL)
+	}
+	if cfg.Crier.AgentID != "consensus-config" {
+		t.Errorf("crier.agent_id = %q, want the value from the config file", cfg.Crier.AgentID)
+	}
+
+	t.Setenv("CONSENSUS_CRIER_URL", "http://env-crier:9999")
+	t.Setenv("CONSENSUS_CRIER_AGENT", "consensus-env")
+
+	cfg, err = LoadWithPath(writeConfig(t, block))
+	if err != nil {
+		t.Fatalf("LoadWithPath: %v", err)
+	}
+	if cfg.Crier.URL != "http://env-crier:9999" {
+		t.Errorf("crier.url = %q, want CONSENSUS_CRIER_URL to win over the file", cfg.Crier.URL)
+	}
+	if cfg.Crier.AgentID != "consensus-env" {
+		t.Errorf("crier.agent_id = %q, want CONSENSUS_CRIER_AGENT to win over the file", cfg.Crier.AgentID)
+	}
+}
+
 func TestEnvOverride_LLMModelOverridesConfig(t *testing.T) {
 	hermeticEnv(t)
 	t.Setenv("CONSENSUS_CONFIG", writeConfig(t, `llm:

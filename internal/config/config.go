@@ -31,6 +31,7 @@ type Config struct {
 	Logging     LoggingConfig     `yaml:"logging"`
 	APIRate     APIRateConfig     `yaml:"api_rate"`
 	Compression CompressionConfig `yaml:"compression"`
+	Crier       CrierConfig       `yaml:"crier"`
 	// configPath tracks the file that was loaded (for informational use).
 	configPath string
 }
@@ -117,6 +118,23 @@ type CompressionConfig struct {
 	// EmbeddingModel overrides the default embedding model.
 	// Default: "text-embedding-3-small"
 	EmbeddingModel string `yaml:"embedding_model"`
+}
+
+// CrierConfig holds the inbound crier message-bus settings (CR-IN-001).
+//
+// The base URL resolves in one ladder — crier.url, then CONSENSUS_CRIER_URL,
+// then crier.DefaultBaseURL (http://localhost:8767). The client does the same
+// resolution for an empty value, so a config file that omits the section and
+// an env-only deployment both end up at the same endpoint.
+type CrierConfig struct {
+	// URL is the crier relay base URL. Empty falls back to
+	// CONSENSUS_CRIER_URL and then http://localhost:8767.
+	URL string `yaml:"url"`
+
+	// AgentID is the crier agent identity this Consensus instance consumes as
+	// — the id it registers, and the inbox it retrieves from. Empty leaves
+	// the identity to the caller (the intake takes it per run).
+	AgentID string `yaml:"agent_id"`
 }
 
 // AdaptersConfig holds protocol adapter settings (SPEC-017).
@@ -344,6 +362,17 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("CONSENSUS_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
+	}
+	// Crier inbound message bus (CR-IN-001). CONSENSUS_CRIER_URL is the same
+	// variable crier.NewClient falls back to, so a resolver that reads the
+	// config key and one that reads only the environment agree on the
+	// endpoint. The literals are duplicated, not imported: internal/config
+	// deliberately depends on no feature package.
+	if v := os.Getenv("CONSENSUS_CRIER_URL"); v != "" {
+		cfg.Crier.URL = v
+	}
+	if v := os.Getenv("CONSENSUS_CRIER_AGENT"); v != "" {
+		cfg.Crier.AgentID = v
 	}
 	// These explicit overrides make the documented env-only deployment path
 	// take precedence over llm.provider/default_model from a config file.
