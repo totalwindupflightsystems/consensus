@@ -14,6 +14,16 @@ post:
     - BearerAuth: []
   parameters:
     - $ref: "../components/parameters.yaml#/SessionId"
+    - name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: |
+        Optional retry key scoped to this session. Reusing a key after a
+        successful request returns the original response without inserting a
+        second memory event.
   requestBody:
     required: true
     content:

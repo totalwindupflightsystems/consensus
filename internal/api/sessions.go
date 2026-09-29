@@ -320,6 +320,11 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 		msgType = "user_instruction"
 	}
 
+	if r.Header.Get("Idempotency-Key") != "" {
+		s.handleIdempotentSessionMessage(w, r, id, req)
+		return
+	}
+
 	ctx := r.Context()
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -384,6 +389,148 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 	writeJSON(w, map[string]any{
 		"status":  "message_received",
 		"session": id,
+	})
+}
+
+func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.Request, id string, req SendMessageRequest) {
+	ctx := r.Context()
+	key := r.Header.Get("Idempotency-Key")
+
+	// Fast replay path. The durable row is the source of truth, so this also
+	// serves retries after a process restart without touching the message ledger.
+	if row, err := s.db.QueryRow(ctx,
+		`SELECT response_message_id FROM idempotency_keys WHERE session_id = $1 AND key = $2`, id, key); err == nil {
+		messageID := toInt64(row["response_message_id"])
+		if messageID <= 0 {
+			slog.Error("api: invalid idempotency mapping", "session_id", id)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to replay message")
+			return
+		}
+		writeJSON(w, map[string]any{
+			"status":     "message_received",
+			"session":    id,
+			"message_id": messageID,
+		})
+		return
+	}
+
+	// Preserve the route's existing missing/deleted-session errors before
+	// reserving the key. The session is rechecked inside the transaction below.
+	existsRow, err := s.db.QueryRow(ctx, `SELECT deleted_at FROM sessions WHERE id = $1`, id)
+	if err != nil {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	if existsRow["deleted_at"] != nil {
+		writeError(w, r, http.StatusGone, "GONE", "session has been deleted")
+		return
+	}
+
+	tx, err := s.db.BeginTx(ctx)
+	if err != nil {
+		slog.Error("api: failed to begin idempotent message transaction", "session_id", id, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		return
+	}
+	defer func() {
+		if tx.IsActive() {
+			_ = tx.Rollback()
+		}
+	}()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := tx.QueryRow(ctx,
+		`INSERT INTO idempotency_keys (key, session_id, created_at)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (session_id, key) DO NOTHING
+		 RETURNING key`, key, id, now); err != nil {
+		// Another request may have committed this key while this request was
+		// waiting on the unique index. Return that committed response.
+		row, replayErr := tx.QueryRow(ctx,
+			`SELECT response_message_id FROM idempotency_keys WHERE session_id = $1 AND key = $2`, id, key)
+		if replayErr != nil {
+			slog.Error("api: failed to reserve idempotency key", "session_id", id, "error", err)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+			return
+		}
+		messageID := toInt64(row["response_message_id"])
+		if messageID <= 0 {
+			slog.Error("api: invalid concurrent idempotency mapping", "session_id", id)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to replay message")
+			return
+		}
+		_ = tx.Rollback()
+		writeJSON(w, map[string]any{
+			"status":     "message_received",
+			"session":    id,
+			"message_id": messageID,
+		})
+		return
+	}
+
+	row, err := tx.QueryRow(ctx,
+		`SELECT status, iteration, deleted_at FROM sessions WHERE id = $1`, id)
+	if err != nil {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	if row["deleted_at"] != nil {
+		writeError(w, r, http.StatusGone, "GONE", "session has been deleted")
+		return
+	}
+	currentStatus := toString(row["status"])
+	currentIteration := toInt64(row["iteration"])
+
+	messageRow, err := tx.QueryRow(ctx,
+		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		 VALUES ('user_message', $1, $2, $3, $4)
+		 RETURNING id`, req.Content, id, currentIteration+1, now)
+	if err != nil {
+		slog.Error("api: failed to insert idempotent memory event", "session_id", id, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		return
+	}
+	messageID := toInt64(messageRow["id"])
+	if messageID <= 0 {
+		slog.Error("api: message insert returned invalid id", "session_id", id)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		return
+	}
+
+	wakeSession := currentStatus == "idle" || currentStatus == "booting" || currentStatus == "failed"
+	if wakeSession {
+		if err := tx.Exec(ctx,
+			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1, completed_at = NULL WHERE id = $2`,
+			now, id); err != nil {
+			slog.Error("api: failed to wake session for idempotent message", "session_id", id, "error", err)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to resume session")
+			return
+		}
+	}
+
+	if err := tx.Exec(ctx,
+		`UPDATE idempotency_keys SET response_message_id = $1 WHERE session_id = $2 AND key = $3`,
+		messageID, id, key); err != nil {
+		slog.Error("api: failed to complete idempotency mapping", "session_id", id, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		slog.Error("api: failed to commit idempotent message", "session_id", id, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store message")
+		return
+	}
+
+	if wakeSession {
+		s.events.PublishSessionUpdate(id, "thinking", currentIteration+1)
+		if s.wake != nil {
+			s.wake(id)
+		}
+	}
+	writeJSON(w, map[string]any{
+		"status":     "message_received",
+		"session":    id,
+		"message_id": messageID,
 	})
 }
 

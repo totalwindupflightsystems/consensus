@@ -133,6 +133,12 @@ MessageReceivedResponse:
     session:
       type: string
       format: uuid
+    message_id:
+      type: integer
+      format: int64
+      description: |
+        ID of the created memory event. Present when Idempotency-Key was
+        supplied; retries return the original value.
 
 # ─── Memory Event Schemas (SPEC-015 §3.2) ───
 

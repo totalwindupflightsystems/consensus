@@ -183,6 +183,15 @@ for a deleted session.
 // If 'paused', it queues for the next iteration
 ```
 
+`POST /api/v1/sessions/:id/message` accepts an optional `Idempotency-Key`
+header. When present, the first successful request stores the key with the
+created `memory_events.id` and includes that id as `message_id` in the `200`
+response. A retry with the same `(session_id, key)` returns the original
+response without inserting another memory event or advancing the session.
+Keys are scoped to one session and survive server restarts. Requests without
+the header retain the legacy behavior and response body (no deduplication and
+no `message_id` field).
+
 A `PATCH /api/v1/sessions/:id` request with `{"status":"resume"}` accepts
 both `paused` and `failed` sessions. It returns either state to `idle` and clears
 `completed_at`; a subsequent message wakes the normal planning loop. Sending a

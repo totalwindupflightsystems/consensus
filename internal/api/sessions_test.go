@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/wojons/consensus/internal/db"
@@ -32,7 +33,8 @@ func newIntegrationServer(t *testing.T) *integrationServer {
 	t.Helper()
 
 	ctx := context.Background()
-	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://:memory:"})
+	dbName := strings.NewReplacer("/", "-", " ", "-").Replace(t.Name())
+	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://file:api-" + dbName + "?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -86,7 +88,18 @@ func runIntegrationMigration(ctx context.Context, conn db.DB) error {
 			return err
 		}
 	}
-	return nil
+	// Keep the API integration fixture aligned with migration 025 without
+	// coupling every handler test to the full production migration ladder.
+	if err := conn.Exec(ctx, `CREATE TABLE idempotency_keys (
+		key TEXT NOT NULL,
+		session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+		response_message_id INTEGER REFERENCES memory_events(id),
+		created_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`); err != nil {
+		return err
+	}
+	return conn.Exec(ctx, `CREATE UNIQUE INDEX uq_idempotency_keys_session_key
+		ON idempotency_keys(session_id, key)`)
 }
 
 func splitMigrationSQL(sqlText string) []string {
@@ -819,6 +832,216 @@ func TestSendMessage_Success(t *testing.T) {
 	sessRows, _ := srv.conn.Query(ctx, `SELECT status, iteration FROM sessions WHERE id = 'sess-msg'`)
 	if toString(sessRows[0]["status"]) != "thinking" {
 		t.Errorf("expected status 'thinking', got %q", toString(sessRows[0]["status"]))
+	}
+}
+
+func postSessionMessage(t *testing.T, handler http.Handler, adminKey, sessionID, key, content string) *httptest.ResponseRecorder {
+	t.Helper()
+	body, err := json.Marshal(SendMessageRequest{Content: content})
+	if err != nil {
+		t.Fatalf("marshal message request: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sessionID+"/message", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+adminKey)
+	if key != "" {
+		req.Header.Set("Idempotency-Key", key)
+	}
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	return w
+}
+
+func responseMessageID(t *testing.T, w *httptest.ResponseRecorder) int64 {
+	t.Helper()
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode message response %q: %v", w.Body.String(), err)
+	}
+	id, ok := resp["message_id"].(float64)
+	if !ok || id <= 0 {
+		t.Fatalf("response missing positive message_id: %s", w.Body.String())
+	}
+	return int64(id)
+}
+
+func TestSendMessage_IdempotencyReplaySurvivesServerRestart(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+		VALUES ('sess-idem', 'test', 'gpt-4o', 'idle', 'Goal', 0, datetime('now'), datetime('now'))`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	first := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem", "retry-key", "apply once")
+	if first.Code != http.StatusOK {
+		t.Fatalf("first request: expected 200, got %d: %s", first.Code, first.Body.String())
+	}
+	firstID := responseMessageID(t, first)
+
+	// Recreate the HTTP server over the same durable database. The replay must
+	// come from SQLite, not process-local state.
+	restarted := NewServer(ServerConfig{Addr: ":0", DB: srv.conn, HITL: hitl.New(srv.conn)})
+	replay := postSessionMessage(t, restarted.router, srv.adminKey, "sess-idem", "retry-key", "must not apply")
+	if replay.Code != http.StatusOK {
+		t.Fatalf("replay: expected 200, got %d: %s", replay.Code, replay.Body.String())
+	}
+	if replayID := responseMessageID(t, replay); replayID != firstID {
+		t.Fatalf("replay message_id=%d, want original %d", replayID, firstID)
+	}
+	if replay.Body.String() != first.Body.String() {
+		t.Fatalf("replay body differs from original:\nfirst:  %s\nreplay: %s", first.Body.String(), replay.Body.String())
+	}
+
+	ledger, err := srv.conn.Query(ctx,
+		`SELECT id, content FROM memory_events WHERE session_id = 'sess-idem' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("query memory ledger: %v", err)
+	}
+	if len(ledger) != 1 {
+		t.Fatalf("idempotent retry wrote %d memory ledger rows, want 1", len(ledger))
+	}
+	if got := toString(ledger[0]["content"]); got != "apply once" {
+		t.Fatalf("stored content=%q, want original request", got)
+	}
+	keys, err := srv.conn.Query(ctx,
+		`SELECT response_message_id FROM idempotency_keys WHERE session_id = 'sess-idem' AND key = 'retry-key'`)
+	if err != nil || len(keys) != 1 {
+		t.Fatalf("durable idempotency mapping rows=%d err=%v, want 1", len(keys), err)
+	}
+	if got := toInt64(keys[0]["response_message_id"]); got != firstID {
+		t.Fatalf("stored response_message_id=%d, want %d", got, firstID)
+	}
+}
+
+func TestSendMessage_ConcurrentIdempotencyRetryAppliesOnce(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+		VALUES ('sess-idem-race', 'test', 'gpt-4o', 'paused', 'Goal', 0, datetime('now'), datetime('now'))`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	const retries = 4
+	start := make(chan struct{})
+	responses := make([]*httptest.ResponseRecorder, retries)
+	var wg sync.WaitGroup
+	wg.Add(retries)
+	for i := 0; i < retries; i++ {
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			responses[i] = postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-race", "concurrent-key", "apply once")
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var originalID int64
+	for i, response := range responses {
+		if response.Code != http.StatusOK {
+			t.Fatalf("retry %d: expected 200, got %d: %s", i, response.Code, response.Body.String())
+		}
+		messageID := responseMessageID(t, response)
+		if i == 0 {
+			originalID = messageID
+		} else if messageID != originalID {
+			t.Fatalf("retry %d message_id=%d, want original %d", i, messageID, originalID)
+		}
+	}
+
+	row, err := srv.conn.QueryRow(ctx,
+		`SELECT COUNT(*) AS count FROM memory_events WHERE session_id = 'sess-idem-race' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("count memory ledger: %v", err)
+	}
+	if got := toInt64(row["count"]); got != 1 {
+		t.Fatalf("concurrent retries wrote %d memory ledger rows, want 1", got)
+	}
+}
+
+func TestSendMessage_DifferentOrAbsentIdempotencyKeyAppliesAgain(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+		VALUES ('sess-idem-distinct', 'test', 'gpt-4o', 'paused', 'Goal', 0, datetime('now'), datetime('now'))`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	first := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-distinct", "key-a", "first")
+	second := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-distinct", "key-b", "second")
+	withoutKey := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-distinct", "", "third")
+	for name, w := range map[string]*httptest.ResponseRecorder{"first": first, "second": second, "without key": withoutKey} {
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s request: expected 200, got %d: %s", name, w.Code, w.Body.String())
+		}
+	}
+	if firstID, secondID := responseMessageID(t, first), responseMessageID(t, second); firstID == secondID {
+		t.Fatalf("different keys returned the same message_id %d", firstID)
+	}
+
+	var noKeyBody map[string]any
+	if err := json.Unmarshal(withoutKey.Body.Bytes(), &noKeyBody); err != nil {
+		t.Fatalf("decode no-key response: %v", err)
+	}
+	if _, present := noKeyBody["message_id"]; present {
+		t.Fatalf("request without Idempotency-Key changed legacy response body: %s", withoutKey.Body.String())
+	}
+	if noKeyBody["status"] != "message_received" || noKeyBody["session"] != "sess-idem-distinct" {
+		t.Fatalf("request without key returned unexpected legacy body: %s", withoutKey.Body.String())
+	}
+
+	ledger, err := srv.conn.Query(ctx,
+		`SELECT id FROM memory_events WHERE session_id = 'sess-idem-distinct' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("query memory ledger: %v", err)
+	}
+	if len(ledger) != 3 {
+		t.Fatalf("different/no keys wrote %d memory ledger rows, want 3", len(ledger))
+	}
+}
+
+func TestSendMessage_IdempotencyKeyIsScopedPerSession(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	for _, sessionID := range []string{"sess-idem-a", "sess-idem-b"} {
+		if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+			VALUES ($1, 'test', 'gpt-4o', 'paused', 'Goal', 0, datetime('now'), datetime('now'))`, sessionID); err != nil {
+			t.Fatalf("seed session %s: %v", sessionID, err)
+		}
+	}
+
+	first := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-a", "shared-key", "for a")
+	second := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-b", "shared-key", "for b")
+	if first.Code != http.StatusOK || second.Code != http.StatusOK {
+		t.Fatalf("same key across sessions failed: a=%d %s b=%d %s",
+			first.Code, first.Body.String(), second.Code, second.Body.String())
+	}
+	if firstID, secondID := responseMessageID(t, first), responseMessageID(t, second); firstID == secondID {
+		t.Fatalf("same key across sessions returned the same message_id %d", firstID)
+	}
+
+	for _, sessionID := range []string{"sess-idem-a", "sess-idem-b"} {
+		row, err := srv.conn.QueryRow(ctx,
+			`SELECT COUNT(*) AS count FROM memory_events WHERE session_id = $1 AND type = 'user_message'`, sessionID)
+		if err != nil {
+			t.Fatalf("count messages for %s: %v", sessionID, err)
+		}
+		if got := toInt64(row["count"]); got != 1 {
+			t.Fatalf("session %s has %d messages, want 1", sessionID, got)
+		}
+	}
+	rows, err := srv.conn.Query(ctx, `SELECT session_id FROM idempotency_keys WHERE key = 'shared-key'`)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("same key should persist once per session: rows=%d err=%v", len(rows), err)
 	}
 }
 

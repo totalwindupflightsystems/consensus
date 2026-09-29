@@ -254,6 +254,16 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/SessionId'
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            minLength: 1
+          description: |
+            Optional retry key scoped to this session. Reusing a key after a
+            successful request returns the original response without inserting a
+            second memory event.
       requestBody:
         required: true
         content:
@@ -2585,6 +2595,12 @@ components:
         session:
           type: string
           format: uuid
+        message_id:
+          type: integer
+          format: int64
+          description: |
+            ID of the created memory event. Present when Idempotency-Key was
+            supplied; retries return the original value.
     MemoryEvent:
       type: object
       required:
