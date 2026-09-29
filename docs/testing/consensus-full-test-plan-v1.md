@@ -226,6 +226,34 @@ DB choice: run BOTH shapes at least once — the shipped `sqlite://` config (poo
 
 T6 upstream authority (reconciled 2026-09-25): `anomalyco/opencode` (project formerly at sst/opencode), pinned by `scripts/test-opencode-upstream.sh` at `REVISION=16747470f976aca3d362ad730bcd3fe82ecc2c9a`, `VERSION=1.18.29`.
 
+#### Reproduce the 46-check Go-port number
+
+From a fresh clone with Go installed, run:
+
+```bash
+scripts/opencode-compat.sh
+```
+
+This is the single grader for the secondary Go-port number cited by T6. It
+accounts for all 46 checks rather than treating a skipped parent test as a
+pass. The default run is keyless: it points the test services at an offline
+loopback endpoint, grades 39 checks, keeps the five known pre-existing C19/C20
+checks as named exclusions (four C19 instance/VCS checks and one C20 project
+check), and reports the two live-key checks as not run. C09 (message-to-agent
+response) and `TestShimRealLLMSessionLifecycle` genuinely invoke the LLM path;
+run `scripts/opencode-compat.sh --with-live-llm` with `DEEPSEEK_API_KEY` set to
+include them. That live mode spends API credits. The Go-port grade is a
+secondary signal and does not replace the pinned upstream TypeScript runner.
+
+Expected runtime is about one minute keyless. Actual output recorded from this
+worktree on 2026-09-29 (56.07 seconds):
+
+```text
+KNOWN EXCLUSIONS C19/C20: 5 (pass=5 fail=0 skip=0)
+SUMMARY pass=39 fail=0 skip=0 excluded=5 live_key_not_run=2 inventory=46
+GRADE 39/39 graded checks passed
+```
+
 ### T7 — CRIER message transport — consensus RECEIVES a message through crier and it becomes an agent-visible turn.  (29 tests)
 | id | title | proposed by |
 |---|---|---|
@@ -379,8 +407,8 @@ The seats independently produced the failure classes below; the merge keeps them
 4. SQLite pool documentation and code have regressed from 8 to 4.
    Countermeasure: explicit primary pool of 8, separate default-value regression test and README/code parity gate.
 
-5. Literal upstream OpenCode tests may fail despite the 46-test Go port passing.
-   Countermeasure: run the pinned upstream suites and a real TUI; no substitution.
+5. Literal upstream OpenCode tests may fail despite the 46-check Go-port inventory reporting a 39/39 keyless grade (5 C19/C20 exclusions; 2 live-key checks not run).
+   Countermeasure: reproduce it with `scripts/opencode-compat.sh`, then run the pinned upstream suites and a real TUI; no substitution.
 
 6. A dead key can mimic a product failure.
    Countermeasure: preflight the exact key, fail immediately on 401, and never log the secret.
