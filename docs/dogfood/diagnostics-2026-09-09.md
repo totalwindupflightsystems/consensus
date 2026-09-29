@@ -45,6 +45,8 @@ or clear them, and bisect anything new.
    behavior during wedge: valid-key GET → 401, no-auth health → timeout.
    `/debug/pprof/goroutine` → 404 (no pprof mounted) — worth adding in the
    product; it would have made this diagnosis 10× faster.
+   **Added since:** the pprof debug listener now ships (PERF-CONSENSUS-11) —
+   capture recipes in [docs/DEBUGGING.md](../DEBUGGING.md).
 5. **Crash-recovery A/B**: kill -9 during wedge → `PRAGMA integrity_check`
    ok → restart → heartbeat resumed the session and **re-wedged**. This
    kills the "restart clears it" recovery story: the poison-pill session

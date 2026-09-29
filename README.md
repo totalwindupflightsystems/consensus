@@ -385,6 +385,7 @@ volumes:
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
 - **[OpenAPI spec](specs/018-openapi-contract.md)** — machine-readable contract served at `/doc`, `/openapi.json`, and `/openapi.yaml` (embedded in the binary — available from any working directory and in the Docker image), with the REST API Swagger UI at `/doc/api` on a running server
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
+- **[Debugging guide](docs/DEBUGGING.md)** — the pprof debug listener: capturing goroutine/heap/CPU profiles from a running server, plus a wedge playbook
 
 ---
 
