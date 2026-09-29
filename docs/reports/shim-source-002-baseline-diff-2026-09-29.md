@@ -298,6 +298,34 @@ the comparison half of it.
 
 ## 8. Reproduce
 
+### 8.1 Re-run the 46-check Go-port grade
+
+The compatibility number is now backed by one fresh-clone entry point:
+
+```bash
+scripts/opencode-compat.sh
+```
+
+The keyless run takes about one minute (56.07 seconds in this worktree). It
+runs 44 checks without a live credential: 39 graded checks plus five named
+C19/C20 exclusions. It does not pretend that the two LLM-path checks ran.
+C09 and `TestShimRealLLMSessionLifecycle` require `DEEPSEEK_API_KEY` and can be
+included, at API cost, with `scripts/opencode-compat.sh --with-live-llm`.
+C19/C20 remain excluded because they are pre-existing tracked compatibility
+work; this report does not close or fix them. This is the secondary Go-port
+score, not a substitute for `scripts/test-opencode-upstream.sh` and its literal
+upstream TypeScript suites.
+
+Actual keyless output recorded on 2026-09-29:
+
+```text
+KNOWN EXCLUSIONS C19/C20: 5 (pass=5 fail=0 skip=0)
+SUMMARY pass=39 fail=0 skip=0 excluded=5 live_key_not_run=2 inventory=46
+GRADE 39/39 graded checks passed
+```
+
+### 8.2 Re-run the source/surface comparison
+
 ```bash
 # 1. resolve the pin
 git ls-remote https://github.com/sst/opencode HEAD
