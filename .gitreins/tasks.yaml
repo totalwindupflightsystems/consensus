@@ -762,3 +762,93 @@ tasks:
   status: complete
   created_at: '2026-09-28T20:50:21.717349+00:00'
   completed_at: '2026-09-28T20:52:17.075476+00:00'
+- id: DOC-11
+  title: Fix 6 remaining stale wojons/consensus links in docs
+  criteria:
+  - grep -rn wojons/consensus docs/ returns 0 matches
+  status: complete
+  created_at: '2026-09-28T22:50:30.922220+00:00'
+  completed_at: '2026-09-28T22:53:12.320820+00:00'
+- id: DOC-6
+  title: "docs: add session message to SPEC-016 \xA75.3"
+  criteria:
+  - "specs/016-cli-interface.md \xA75.3 contains session message plus the booting-wake\
+    \ sentence"
+  - "subcommand list in \xA75.3 matches consensus session --help exactly"
+  status: complete
+  created_at: '2026-09-29T00:53:19.458220+00:00'
+  completed_at: '2026-09-29T00:58:39.757740+00:00'
+- id: DF-CONSENSUS-46
+  title: Webhook routed wake must dispatch iteration
+  criteria:
+  - Webhook wake on a session with pending user_instruction enqueues a harness iteration
+    and the payload reaches the agent; regression test added
+  status: complete
+  created_at: '2026-09-29T03:31:27.973522+00:00'
+  completed_at: '2026-09-29T03:32:22.400417+00:00'
+- id: DF-CONSENSUS-47
+  title: Missing-project returns typed 404 not 501
+  criteria:
+  - Opencode shim returns HTTP 404 with typed not-found body for missing projects;
+    upstream test passes
+  status: complete
+  created_at: '2026-09-29T03:31:28.239287+00:00'
+  completed_at: '2026-09-29T03:32:53.103402+00:00'
+- id: DF-CONSENSUS-49
+  title: SSE /api/v1/events hang with no session_id
+  criteria:
+  - "GET /api/v1/events without session_id no longer hangs indefinitely \u2014 server-side\
+    \ timeout/keepalive present"
+  - POST /api/v1/sessions plus a stream consumer on /api/v1/events without session_id
+    terminates on its own within a bounded window
+  status: complete
+  created_at: '2026-09-29T06:03:28.979030+00:00'
+  completed_at: '2026-09-29T06:16:26.955967+00:00'
+- id: C-GAP-041
+  title: Declare /api/v1/events + quarantine routes in OpenAPI contract
+  criteria:
+  - python3 yaml load of specs/openapi/bundled.yaml contains /api/v1/events and all
+    3 quarantine paths as path keys
+  - spec sources updated, not hand-bundle-only; go build+test green
+  status: complete
+  created_at: '2026-09-29T06:37:35.377738+00:00'
+  completed_at: '2026-09-29T07:48:13.236994+00:00'
+- id: C-GAP-044
+  title: Untrack runtime artifacts dagger.db and stray EOF
+  criteria:
+  - git ls-files no longer lists dagger.db or EOF; .gitignore covers dagger.db; repo
+    builds and guards pass
+  status: complete
+  created_at: '2026-09-29T07:57:06.416716+00:00'
+  completed_at: '2026-09-29T07:57:32.934852+00:00'
+- id: RELEASE-CONSENSUS-1
+  title: 'Create the release surface: version var, tag-triggered release workflow,
+    honest changelog'
+  criteria:
+  - cmd/consensus main package declares a version/commit/date var so the goreleaser
+    ldflags stamp lands (goreleaser check passes and a test asserts the vars exist)
+  - .github/workflows has a release workflow triggered on push tags v* that builds
+    and attaches assets via goreleaser, passing actionlint
+  - CHANGELOG.md 0.1.0 entry names a real date and summarizes changes since initial
+    release (no {{INSTALL_DATE}} placeholder)
+  - A build of cmd/consensus stamps a non-dev version via ldflags and reports it (health
+    endpoint version field or version output)
+  status: complete
+  created_at: '2026-09-29T08:25:55.158929+00:00'
+  completed_at: '2026-09-29T08:50:36.323773+00:00'
+- id: CR-IN-001
+  title: crier inbound message intake
+  criteria:
+  - internal/crier client + intake appends crier inbox messages as user_message memory_events
+    with provenance; cross-agent message is not consumed; build/vet/tests green
+  status: complete
+  created_at: '2026-09-29T09:09:13.866831+00:00'
+  completed_at: '2026-09-29T09:09:14.226277+00:00'
+- id: C-GAP-040
+  title: Add specs/024 to specs/README.md inventory
+  criteria:
+  - grep '024-shim-support-matrix' specs/README.md >= 1
+  - inventory count matches ls specs/*.md
+  status: complete
+  created_at: '2026-09-29T09:59:28.543143+00:00'
+  completed_at: '2026-09-29T10:01:50.076166+00:00'
