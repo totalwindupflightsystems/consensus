@@ -852,3 +852,83 @@ tasks:
   status: complete
   created_at: '2026-09-29T09:59:28.543143+00:00'
   completed_at: '2026-09-29T10:01:50.076166+00:00'
+- id: shim-source-002
+  title: 'Establish opencode protocol baseline: pin upstream commit and emit surface
+    diff'
+  criteria:
+  - Current upstream commit+version resolved and recorded in-repo (specs/openapi/opencode-pin.yaml)
+  - Surface derived from packages/sdk/openapi.json with diff report vs pin 16747470f976aca3d362ad730bcd3fe82ecc2c9a
+    listing added/removed/changed paths and schemas, plus declared-vs-served drift
+    rows
+  status: complete
+  created_at: '2026-09-29T13:25:56.638880+00:00'
+  completed_at: '2026-09-29T13:25:57.330935+00:00'
+- id: doc-7
+  title: Document pprof debug listener runbook
+  criteria:
+  - docs/DEBUGGING.md documents server.pprof_addr (default 127.0.0.1:8095, empty=disabled)
+    with live-verified curl recipes for goroutine/heap/CPU/block/mutex profiles
+  - Wedge playbook + unauthenticated/loopback security warning included; endpoints
+    verified live against a running consensus server
+  status: complete
+  created_at: '2026-09-29T13:36:45.212009+00:00'
+  completed_at: '2026-09-29T14:09:02.475119+00:00'
+- id: doc-10
+  title: Document and fix CLI exit-code contract
+  criteria:
+  - docs/CLI-EXIT-CODES.md carries a per-verb exit-code table measured on the fixed
+    tree with spec citation
+  - Any verb exiting 0 on connection failure or real error is fixed and regression-tested;
+    go test -short ./internal/cli/... green
+  status: complete
+  created_at: '2026-09-29T13:36:45.374035+00:00'
+  completed_at: '2026-09-29T14:16:09.677054+00:00'
+- id: doc-8
+  title: DOC-8 docs/testing index + env-var table + compose snippet sync
+  criteria:
+  - acceptance criteria per board row DOC-8
+  status: complete
+  created_at: '2026-09-29T14:43:33.351376+00:00'
+  completed_at: '2026-09-29T14:59:15.952773+00:00'
+- id: doc-9
+  title: DOC-9 docs/testing index + env-var table + compose snippet sync
+  criteria:
+  - acceptance criteria per board row DOC-9
+  status: complete
+  created_at: '2026-09-29T14:43:33.509428+00:00'
+  completed_at: '2026-09-29T14:59:40.883109+00:00'
+- id: readme-2
+  title: README-2 docs/testing index + env-var table + compose snippet sync
+  criteria:
+  - acceptance criteria per board row README-2
+  status: complete
+  created_at: '2026-09-29T14:43:33.662705+00:00'
+  completed_at: '2026-09-29T14:59:55.448971+00:00'
+- id: rc-consensus-2
+  title: Idempotency keys on POST /message
+  criteria:
+  - POST /message with Idempotency-Key K applies once; retry returns original without
+    duplication
+  - No-header requests unchanged
+  - Keys session-scoped and persisted across restart
+  status: complete
+  created_at: '2026-09-29T15:29:27.601480+00:00'
+  completed_at: '2026-09-29T15:47:44.833511+00:00'
+- id: rc-consensus-7
+  title: 'Docs drift: node/bun prereq + route descriptions'
+  criteria:
+  - README names verified node/bun prerequisite
+  - No route description contradicts registration in server.go
+  - Zero .go files changed
+  status: complete
+  created_at: '2026-09-29T15:29:27.856712+00:00'
+  completed_at: '2026-09-29T15:47:59.695063+00:00'
+- id: rc-consensus-4
+  title: Publish the opencode compat grader
+  criteria:
+  - Documented runnable command regenerates compat numbers
+  - Reproduce section with command + known failures
+  - Command executed with real output recorded
+  status: complete
+  created_at: '2026-09-29T15:29:28.133254+00:00'
+  completed_at: '2026-09-29T15:48:15.305478+00:00'

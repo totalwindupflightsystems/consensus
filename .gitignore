@@ -68,3 +68,4 @@ service-account*.json
 .gitreins/usage.jsonl
 dagger.db
 EOF
+.gitreins/logs/
