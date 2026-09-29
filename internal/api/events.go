@@ -148,6 +148,13 @@ func (eb *EventBus) PublishQuarantineEvent(sessionID, eventType string, eventDat
 // key may only stream its own session — the global stream (no session_id)
 // and foreign sessions are rejected 403 BEFORE any text/event-stream header
 // is written, mirroring the REST layer's scoped-key wall.
+// globalStreamMaxDuration bounds the lifetime of the global (no session_id)
+// SSE stream (DF-CONSENSUS-49): clients that open /api/v1/events without a
+// session and never disconnect would otherwise hold the connection open
+// forever. The stream ends cleanly with a terminal "stream_timeout" event so
+// EventSource auto-reconnects. Per-session streams are NOT bounded.
+var globalStreamMaxDuration = 5 * time.Minute
+
 func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 
@@ -185,9 +192,23 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	// Watch context cancellation for client disconnect
 	ctx := r.Context()
 
+	// Bounded lifetime for the global stream (DF-CONSENSUS-49): without a
+	// session_id the stream would otherwise run forever. End it cleanly with
+	// a terminal event so EventSource auto-reconnects. Per-session streams
+	// are not bounded.
+	var timeoutCh <-chan time.Time
+	if sessionID == "" {
+		timer := time.NewTimer(globalStreamMaxDuration)
+		defer timer.Stop()
+		timeoutCh = timer.C
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-timeoutCh:
+			sseWrite(w, flusher, "stream_timeout", []byte(`{"status":"timeout"}`))
 			return
 		case event := <-ch:
 			data, err := json.Marshal(event)
