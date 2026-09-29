@@ -78,6 +78,13 @@ type Store struct {
 
 	// quarantineInserter is called to insert an item into quarantine (optional).
 	quarantineInserter func(ctx context.Context, sessionID, sourceType, rawContent, sourceURL string) error
+
+	// wake is called when event routing flips a paused/waiting session to
+	// 'thinking' (DF-CONSENSUS-46). main.go wires this to
+	// Harness.RequestWake so the heartbeat loop dispatches the session
+	// immediately instead of at the next tick. Optional — nil keeps the
+	// pre-existing tick-only behavior.
+	wake func(sessionID string)
 }
 
 // New creates a new webhook store backed by the given database.
@@ -102,6 +109,17 @@ func (s *Store) SetQuarantineInserter(inserter func(ctx context.Context, session
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.quarantineInserter = inserter
+}
+
+// SetWake sets the function called when event routing flips a paused or
+// waiting session to 'thinking' (DF-CONSENSUS-46). Production wiring passes
+// Harness.RequestWake so the heartbeat loop dispatches the woken session
+// immediately instead of waiting for the next tick. Optional — nil keeps
+// tick-only dispatch.
+func (s *Store) SetWake(wake func(sessionID string)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.wake = wake
 }
 
 // ============================================================================
@@ -459,16 +477,65 @@ func (s *Store) routePendingEvents(ctx context.Context) error {
 				continue
 			}
 
-			// Wake the target session if it exists and is waiting (SPEC-013 §5.1)
+			// Wake the target session and hand it the payload (SPEC-013 §5.1,
+			// DF-CONSENSUS-46). The old bare paused→'idle' flip stranded the
+			// session: the harness heartbeat loop dispatches only sessions in
+			// 'thinking'/'planning'/'tool_exec' (harness.findActiveSessions),
+			// so no iteration ran and the payload never reached an agent.
+			//
+			// Deliver like the message API does (api.MessageService.SendMessage):
+			// insert the payload as a 'user_message' memory event stamped for the
+			// upcoming iteration (harness context projects user_message rows as
+			// LLM user turns), then flip non-active sessions to 'thinking' with
+			// an iteration bump. A session already mid-iteration keeps the event
+			// for its next iteration — no double dispatch, no iteration churn.
+			// 'failed'/'completed' sessions get the payload recorded but are not
+			// autonomously resurrected by an external trigger.
 			if match.TargetSessionID != "" {
-				if err := s.database.Exec(ctx, `
-					UPDATE sessions
-					SET status = 'idle', heartbeat_at = $1
-					WHERE id = $2 AND status IN ('waiting_sub', 'paused')
-				`, time.Now(), match.TargetSessionID); err != nil {
-					slog.Warn("webhook: failed to wake session", "session_id", match.TargetSessionID, "error", err)
-				} else {
-					slog.Info("webhook: woke session via event routing", "session_id", match.TargetSessionID, "event_id", eventID)
+				statusRows, err := s.database.Query(ctx,
+					`SELECT status, iteration FROM sessions WHERE id = $1`, match.TargetSessionID)
+				switch {
+				case err != nil:
+					slog.Warn("webhook: failed to read routed target session", "session_id", match.TargetSessionID, "event_id", eventID, "error", err)
+				case len(statusRows) == 0:
+					slog.Warn("webhook: routed target session not found, skipping wake", "session_id", match.TargetSessionID, "event_id", eventID)
+				default:
+					prevStatus := toString(statusRows[0]["status"])
+					nextIteration := toInt64(statusRows[0]["iteration"]) + 1
+					content := fmt.Sprintf("[webhook %s] %s", eventType, payloadStr)
+
+					// 1. Deliver the payload — always, for every live target.
+					// session_id is FK'd to sessions; the existence check above
+					// keeps the insert from ever violating it.
+					if err := s.database.Exec(ctx, `
+						INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+						VALUES ('user_message', $1, $2, $3, $4)
+					`, content, match.TargetSessionID, nextIteration, time.Now().UTC().Format(time.RFC3339)); err != nil {
+						slog.Warn("webhook: failed to deliver routed payload to session", "session_id", match.TargetSessionID, "event_id", eventID, "error", err)
+					}
+
+					// 2. Wake non-active sessions to 'thinking' so the heartbeat
+					// loop claims them (only 'thinking'/'planning'/'tool_exec'
+					// sessions are dispatched).
+					if prevStatus == "idle" || prevStatus == "booting" || prevStatus == "waiting_sub" || prevStatus == "paused" {
+						if err := s.database.Exec(ctx, `
+							UPDATE sessions
+							SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1
+							WHERE id = $2
+						`, time.Now(), match.TargetSessionID); err != nil {
+							slog.Warn("webhook: failed to wake session", "session_id", match.TargetSessionID, "error", err)
+						} else {
+							slog.Info("webhook: woke session via event routing", "session_id", match.TargetSessionID, "event_id", eventID)
+
+							// PERF-CONSENSUS-11-style immediate dispatch: signal
+							// the harness heartbeat loop (wired to
+							// Harness.RequestWake in main.go) instead of waiting
+							// up to one full tick.
+							if s.wake != nil {
+								s.wake(match.TargetSessionID)
+							}
+						}
+					}
 				}
 			}
 			routed++
