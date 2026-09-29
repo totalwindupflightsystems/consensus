@@ -1404,6 +1404,54 @@ func TestProjectEndpointReturns501(t *testing.T) {
 	}
 }
 
+// TestProjectPatchMissingReturnsTypedNotFound pins the upstream opencode
+// contract for missing projects (httpapi-instance.test.ts "returns typed not
+// found bodies for missing projects", DF-CONSENSUS-47): PATCH
+// /project/:projectID on an unknown project must return HTTP 404 with the
+// exact upstream ProjectNotFoundError NamedError body — no 501 stub, no extra
+// fields (the upstream assertion is a strict toEqual).
+func TestProjectPatchMissingReturnsTypedNotFound(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	const projectID = "project_missing"
+	req, err := http.NewRequest(http.MethodPatch, srv.URL+"/project/"+projectID, strings.NewReader(`{"name":"Missing"}`))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-opencode-directory", t.TempDir())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PATCH /project/%s: %v", projectID, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 404 for missing project, got %d. Body: %s", resp.StatusCode, body)
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("404 body not JSON: %v", err)
+	}
+	want := map[string]any{
+		"_tag":      "ProjectNotFoundError",
+		"projectID": projectID,
+		"message":   "Project not found: " + projectID,
+	}
+	if len(body) != len(want) {
+		t.Errorf("404 body must have exactly %d fields (upstream toEqual), got %d: %v", len(want), len(body), body)
+	}
+	for k, v := range want {
+		if body[k] != v {
+			t.Errorf("404 body field %q = %v, want %v", k, body[k], v)
+		}
+	}
+}
+
 func TestVCSStubEndpointsReturn501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()

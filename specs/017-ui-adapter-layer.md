@@ -445,6 +445,8 @@ These opencode endpoints relate to opencode's own internal LLM calling and aren'
 
 These return `501 Not Implemented` or are mapped to Consensus equivalents where sensible.
 
+**Missing-project typed not-found (DF-CONSENSUS-47):** the pinned upstream suite (`httpapi-instance.test.ts` "returns typed not found bodies for missing projects") probes `PATCH /project/:projectID` on an unknown project and expects HTTP 404 with the upstream typed `ProjectNotFoundError` body — exactly `{_tag: "ProjectNotFoundError", projectID, message: "Project not found: <id>"}` (strict `toEqual`, no extra fields). Consensus has no project registry, so every `/project/{id}` sub-path is unknown and returns that typed 404 for all methods. The bare `/project` mount keeps the `501 Not Implemented` stub above.
+
 **Fixed-workspace VCS read compatibility (DF-CONSENSUS-38):** the pinned upstream suite (`httpapi-instance.test.ts` "serves path and VCS read endpoints") probes bare `GET /vcs` and `GET /vcs/diff?mode=git` with `x-opencode-directory` and expects 200 — they are no longer 501 stubs. They serve the same translation as `/instance/vcs` and `/instance/vcs/diff` (§3.10): `Vcs.Info` `{branch?, default_branch?}` and `Vcs.FileDiff[]`. Untracked-file additions are counted the upstream way (`git diff --no-index --numstat -- /dev/null <file>` — whole lines, including a final line without a trailing newline; binary files count 0). Headerless `GET /vcs` still requires auth (401), and non-GET methods / remaining `/vcs/*` sub-paths keep the 501 stub contract above.
 
 The `/instance/*` surface is NOT part of this exclusion list — it is implemented as real opencode-protocol translation endpoints, see §3.10.
