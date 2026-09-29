@@ -1,5 +1,5 @@
 GitReins guard run log — full output (the console summary is bounded)
-run_utc: 2026-09-22T23:29:31Z
+run_utc: 2026-09-28T20:50:35Z
 workdir: /home/kara/consensus
 test_mode: diff
 test_targets: full suite (safety trigger)

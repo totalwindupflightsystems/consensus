@@ -1,0 +1,25 @@
+{
+  "tick_id": "consensus-2026-09-29-02-47-35",
+  "tasks": [
+    {
+      "id": "DF-CONSENSUS-46",
+      "title": "Webhook routing wake doesn't dispatch iteration",
+      "worktree": "/home/kara/worktrees/consensus-DF-CONSENSUS-46",
+      "branch": "wt/DF-CONSENSUS-46",
+      "worker_model": "glm-5.3-flash",
+      "worker_provider": "zai-glm"
+    },
+    {
+      "id": "DF-CONSENSUS-47",
+      "title": "Missing-project responses return 501 instead of 404",
+      "worktree": "/home/kara/worktrees/consensus-DF-CONSENSUS-47",
+      "branch": "wt/DF-CONSENSUS-47",
+      "worker_model": "glm-5.3-flash",
+      "worker_provider": "zai-glm"
+    }
+  ],
+  "created_at": "2026-09-29T02:47:35-05:00",
+  "finished_at": "2026-09-29T05:40:00-05:00",
+  "recovered_by": "consensus-2026-09-29-05-30-09",
+  "outcome": "both tasks merged+closed pre-recovery (b4b11cf, e677e0; board c560b92)"
+}
