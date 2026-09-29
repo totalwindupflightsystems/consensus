@@ -13,7 +13,9 @@ import (
 
 // TestOpenAIClient_ReasoningContentFallback verifies that when a thinking/reasoning
 // model (Qwen, DeepSeek-R1 style) returns an empty "content" field with output in
-// "reasoning_content", the client extracts from reasoning_content as a fallback.
+// "reasoning_content", the client promotes the chain-of-thought as a DELIBERATE
+// LAST RESORT: the substitution is reported on the response and the turn's own
+// reasoning_content is handed back with it (spec 024 §B2).
 func TestOpenAIClient_ReasoningContentFallback(t *testing.T) {
 	// Fake server that returns a thinking-model response: content="" but reasoning_content has the JSON
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +63,17 @@ func TestOpenAIClient_ReasoningContentFallback(t *testing.T) {
 	}
 	if resp.Output.InternalMonologue != "I am thinking through this step by step" {
 		t.Errorf("monologue = %q, want %q", resp.Output.InternalMonologue, "I am thinking through this step by step")
+	}
+	// The substitution must be reported, not silent: the raw content was empty,
+	// the CoT was promoted, and the CoT itself is still on the turn.
+	if !resp.ReasoningPromotedToOutput {
+		t.Error("ReasoningPromotedToOutput = false: the CoT-as-answer substitution went unreported")
+	}
+	if resp.Content != "" {
+		t.Errorf("Content = %q, want the raw empty content (the promotion is reported separately)", resp.Content)
+	}
+	if resp.ReasoningContent == "" {
+		t.Error("ReasoningContent was dropped instead of being returned with the turn")
 	}
 }
 

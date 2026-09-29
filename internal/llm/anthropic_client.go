@@ -270,6 +270,7 @@ func (c *anthropicClient) buildAnthropicResponse(msgResp *anthropicMessageRespon
 	}
 
 	contentText = strings.TrimSpace(contentText)
+	rawContent := contentText
 	contentText = stripMarkdownCodeBlock(contentText)
 
 	var output harness.AgentOutput
@@ -298,6 +299,7 @@ func (c *anthropicClient) buildAnthropicResponse(msgResp *anthropicMessageRespon
 
 	return &harness.LLMResponse{
 		Output:     &output,
+		Content:    rawContent,
 		ModelID:    msgResp.Model,
 		Usage:      usage,
 		DurationMs: elapsed,
@@ -307,7 +309,7 @@ func (c *anthropicClient) buildAnthropicResponse(msgResp *anthropicMessageRespon
 // anthropicFallbackToOpenAI converts Anthropic messages to OpenAI format and
 // calls LM Studio as a fallback. LM Studio speaks OpenAI-compatible API.
 func (c *anthropicClient) anthropicFallbackToOpenAI(ctx context.Context, messages []harness.Message, startTime time.Time) (*harness.LLMResponse, error) {
-	openaiMsgs := toOpenAIMessages(messages)
+	openaiMsgs := toOpenAIMessages(messages, false)
 	reqBody := openaiChatRequest{
 		Model:     c.model,
 		Messages:  openaiMsgs,

@@ -85,6 +85,35 @@ type Config struct {
 	// Default: "json_object". Set to "json_schema" for strict schema enforcement.
 	// Only applies to OpenAI/OpenRouter providers.
 	ResponseFormat ResponseFormat `json:"response_format" yaml:"response_format"`
+
+	// Thinking is the thinking-mode toggle (spec 024 §B2). nil means "not
+	// configured": nothing is sent and the provider default (enabled) applies.
+	// Set it explicitly to disable thinking ({"thinking":{"type":"disabled"}})
+	// or to make the enabled state explicit on the wire. A per-request
+	// RequestOptions value overrides this.
+	Thinking *bool `json:"thinking,omitempty" yaml:"thinking,omitempty"`
+
+	// ReasoningEffort is the thinking-effort name (minimal|low|medium|high|
+	// xhigh|max|ultra), mapped onto the provider dial per spec 024 §B2. Empty
+	// means "not configured" (provider default). An unrecognised name is
+	// refused by Call, never silently dropped.
+	ReasoningEffort string `json:"reasoning_effort,omitempty" yaml:"reasoning_effort,omitempty"`
+
+	// Tools declares provider-native tools for every request (spec 024 §B3).
+	// A non-empty list turns the CoT round-trip ON: every prior turn's
+	// reasoning_content is re-sent. Normally set per request via
+	// RequestOptions; this field is the client-wide default.
+	Tools []ToolDefinition `json:"tools,omitempty" yaml:"tools,omitempty"`
+
+	// ToolChoice is the provider's tool_choice value
+	// (none|auto|required|<function-name>). Empty leaves it unset.
+	ToolChoice string `json:"tool_choice,omitempty" yaml:"tool_choice,omitempty"`
+
+	// AllowReasoningFallback controls the last-resort promotion of a turn's
+	// reasoning_content into its content when content is empty (spec 024 §B2).
+	// nil = allowed (documented default: thinking models routinely leave
+	// content empty); false = refuse it and fail loudly instead.
+	AllowReasoningFallback *bool `json:"allow_reasoning_fallback,omitempty" yaml:"allow_reasoning_fallback,omitempty"`
 }
 
 // DefaultConfig returns a sensible default configuration.

@@ -73,6 +73,10 @@ Model-name mapping on the Anthropic surface (upstream behaviour we inherit):
 | Default | thinking **enabled**, effort **high** |
 | CoT transport | returned as `reasoning_content`, at the same level as `content` |
 | **CoT round-trip** | with `tools` present: **all previous turns' `reasoning_content` MUST be sent back** and is concatenated into context. Without `tools`: it must NOT be sent (ignored if sent) |
+| CoT persistence | `reasoning_content` is **persisted with the turn** (turn snapshot `iteration_commits.llm_response`, key `reasoning_content`) and handed back on the turn object — never dropped after being read |
+| Thinking control | the toggle and the effort are resolved **explicitly** (per-request options, then client config); a value outside the effort mapping is **refused**, never silently dropped |
+| Effort with thinking off | explicit `disabled` thinking ⇒ `reasoning_effort` is not sent (the dial is meaningless when thinking is off) |
+| CoT as the answer | promoting `reasoning_content` into `content` is a **last-resort** substitution: only when `content` is empty, always logged at WARN, always flagged on the response (`reasoning_promoted_to_output`), and disableable — never a silent swap |
 | Silently ignored | `temperature`, `presence_penalty`, `frequency_penalty` — accepted, no error, no effect |
 | `top_p` | thinking mode only, clamped to ≥0.95 (below is treated as 0.95); non-thinking mode fixed at 1.0 and the value is ignored |
 
@@ -97,18 +101,21 @@ ignoring it mis-states spend in both directions.
 
 ---
 
-## C. Current state vs this contract (measured 2026-09-28, commit 84bf6a3)
+## C. Current state vs this contract (baseline measured 2026-09-28, commit 84bf6a3)
 
-Evidence: request structs as serialized on the wire, non-test code.
+Evidence: request structs as serialized on the wire, non-test code. Rows marked
+**(SHIM-SUPPORT-002)** were re-measured 2026-09-29 against live provider exchanges recorded
+verbatim in `internal/llm/testdata/thinking-cot-turns.json` (every request body in that file
+was POSTed to `api.deepseek.com/chat/completions` and answered HTTP 200).
 
 | Requirement | Current state | Evidence |
 |---|---|---|
-| OpenAI format | present, **minimal** | `internal/llm/openai_client.go` — `openaiChatRequest` carries only `model, messages, max_tokens, temperature, response_format, stream` |
+| OpenAI format | present (SHIM-SUPPORT-002 adds tools/tool_choice/thinking/reasoning_effort) | `internal/llm/openai_client.go` — `openaiChatRequest` carries `model, messages, max_tokens, temperature, response_format, stream` plus `tools, tool_choice, thinking, reasoning_effort` |
 | Anthropic format | present, **minimal** | `internal/llm/anthropic_client.go` — `anthropicMessageRequest` carries only `model, max_tokens, temperature, system, messages` |
-| Provider-native `tools` / `tool_choice` | **not sent** | no `tools`/`tool_choice` field on either request struct; tool requests are the harness's own planning JSON (`internal/harness/planning.go:392` logs `plan.ToolRequests`) |
-| Thinking toggle / effort (`thinking`, `reasoning_effort`, `output_config`) | **absent** | `reasoning_effort` 0 hits, `output_config` 0 hits in non-test `internal/` |
-| `reasoning_content` read | **present but conflated** | `openai_client.go:278` uses it only as a fallback when `content == ""`, logged as "using reasoning_content as primary output" |
-| `reasoning_content` round-trip with tools | **absent** | nothing stores per-turn CoT; nothing re-sends it |
+| Provider-native `tools` / `tool_choice` | **client-capable, wire-present** (SHIM-SUPPORT-002) | `openaiChatRequest` now carries `tools`/`tool_choice`, settable per request (`RequestOptions`) or per client (`Config`); the *harness* still plans with its own JSON (`internal/harness/planning.go:392` logs `plan.ToolRequests`), so no native tool loop exists yet |
+| Thinking toggle / effort (`thinking`, `reasoning_effort`, `output_config`) | **present, OpenAI surface** (SHIM-SUPPORT-002) | `openai_client.go` `RequestOptions` + `Config.Thinking/ReasoningEffort`; `thinking`/`reasoning_effort` sent on the wire; `output_config` (Responses format) still absent |
+| `reasoning_content` read | **present and separated** (SHIM-SUPPORT-002) | `openai_client.go` returns the whole turn (`Content`, `ReasoningContent`, `ToolCalls`) and flags a last-resort CoT promotion instead of silently substituting it |
+| `reasoning_content` round-trip with tools | **present** (SHIM-SUPPORT-002) | re-sent per prior turn when the request carries `tools`, omitted entirely when it does not; RED/Green both arms pinned in `internal/llm/thinking_cot_test.go` against recorded exchanges |
 | Cache token accounting | **absent** | `prompt_cache` 0 hits, `cache_hit_tokens` 0 hits |
 | Beta surface (prefix completion, FIM) | **absent** | `/beta` base not used; FIM 0 hits |
 | `top_p` / penalty semantics in thinking mode | unsupported (not sent) — currently harmless, becomes a correctness issue the moment they are sent | provider docs, §B2 |

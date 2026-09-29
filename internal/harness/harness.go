@@ -84,6 +84,35 @@ type IterationResult struct {
 type Message struct {
 	Role    string `json:"role"`    // "system" | "user" | "assistant" | "tool"
 	Content string `json:"content"` // message body
+
+	// ReasoningContent is the model's chain-of-thought for THIS turn (thinking
+	// mode). It is persisted with the turn and re-sent by the provider client
+	// only when the outgoing request carries tools — spec 024 §B2: with tools
+	// present every previous turn's reasoning_content MUST go back on the wire,
+	// and without tools it must not be sent at all.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+
+	// ToolCalls are the provider-native tool invocations this assistant turn
+	// requested (spec 024 §B3). They must be echoed back together with the
+	// matching role:"tool" results for the provider to accept a tool-bearing
+	// continuation.
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+
+	// ToolCallID links a role:"tool" result message to the ToolCall it answers.
+	ToolCallID string `json:"tool_call_id,omitempty"`
+}
+
+// ToolCall is one provider-native tool invocation carried on an assistant turn.
+type ToolCall struct {
+	ID       string           `json:"id"`
+	Type     string           `json:"type,omitempty"` // "function"
+	Function ToolCallFunction `json:"function"`
+}
+
+// ToolCallFunction names the invoked tool and carries its JSON-encoded arguments.
+type ToolCallFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 // PendingUserMessage ties an LLM user turn to its durable memory_events row.
@@ -267,6 +296,26 @@ type LLMResponse struct {
 	ModelID    string       `json:"model_id"`
 	Usage      LLMUsage     `json:"usage"`
 	DurationMs int64        `json:"duration_ms"`
+
+	// Content is the assistant turn's raw text exactly as the provider returned
+	// it, before any AgentOutput parsing. A tool-bearing continuation must echo
+	// it back verbatim (spec 024 §B2) — for a pure tool-calling turn it is the
+	// empty string while ToolCalls carries the request.
+	Content string `json:"content,omitempty"`
+
+	// ReasoningContent is the turn's chain-of-thought. It is persisted with the
+	// turn (see iteration_commits.llm_response) and re-sent when the request
+	// carries tools. Empty when the provider ran without thinking mode.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+
+	// ToolCalls are the provider-native tool invocations this turn requested.
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+
+	// ReasoningPromotedToOutput records that the turn's content was empty and
+	// the chain-of-thought was promoted to the answer. That substitution is a
+	// deliberate, logged last resort (spec 024 §B2) — callers that must not
+	// accept CoT as an answer can check this flag (or disable it at the client).
+	ReasoningPromotedToOutput bool `json:"reasoning_promoted_to_output,omitempty"`
 }
 
 // LLMUsage holds token usage statistics from an LLM provider response.

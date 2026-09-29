@@ -1,0 +1,368 @@
+{
+  "recorded": {
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "recorded_at": "2026-09-29",
+    "model": "deepseek-flash",
+    "http_status": 200,
+    "note": "Verbatim provider exchanges (spec 024 §B2/§B3). Each request body here was POSTed to the endpoint exactly as written and answered HTTP 200; responses are the provider bytes. tools_present.turn2 and tools_absent.turn2 are continuity requests that echo the prior turn back."
+  },
+  "tools_present": {
+    "turn1": {
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a terse agent."
+          },
+          {
+            "role": "user",
+            "content": "Read the file /tmp/cot/example.txt. Use the read_file tool."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "description": "Read a text file from disk",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "absolute path"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "high",
+        "max_tokens": 256
+      },
+      "response": {
+        "id": "dab907dd-e1d1-4f48-b0f5-79fd0bec8e09",
+        "object": "chat.completion",
+        "created": 1790684314,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "reasoning_content": "Simple request.",
+              "tool_calls": [
+                {
+                  "index": 0,
+                  "id": "call_00_owX0Rv57ngefUfz93yC27854",
+                  "type": "function",
+                  "function": {
+                    "name": "read_file",
+                    "arguments": "{\"path\": \"/tmp/cot/example.txt\"}"
+                  }
+                }
+              ]
+            },
+            "logprobs": null,
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 319,
+          "completion_tokens": 47,
+          "total_tokens": 366,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 3
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 319
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "turn2": {
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a terse agent."
+          },
+          {
+            "role": "user",
+            "content": "Read the file /tmp/cot/example.txt. Use the read_file tool."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "Simple request.",
+            "tool_calls": [
+              {
+                "id": "call_00_owX0Rv57ngefUfz93yC27854",
+                "type": "function",
+                "function": {
+                  "name": "read_file",
+                  "arguments": "{\"path\": \"/tmp/cot/example.txt\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_00_owX0Rv57ngefUfz93yC27854",
+            "content": "consensus CoT probe"
+          },
+          {
+            "role": "user",
+            "content": "Summarise the file contents in exactly three words."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "description": "Read a text file from disk",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "absolute path"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "high",
+        "max_tokens": 256
+      },
+      "response": {
+        "id": "13c8d0cf-6ae6-4c50-b5be-e273c151aff6",
+        "object": "chat.completion",
+        "created": 1790684370,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "consensus CoT probe",
+              "reasoning_content": ""
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 393,
+          "completion_tokens": 6,
+          "total_tokens": 399,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 256,
+          "prompt_cache_miss_tokens": 137
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    }
+  },
+  "tools_absent": {
+    "turn1": {
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this JSON and nothing else: {\"answer\":\"ok\"}"
+          }
+        ],
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "high",
+        "max_tokens": 128
+      },
+      "response": {
+        "id": "87e17542-a046-4794-8921-3ee54560cd3b",
+        "object": "chat.completion",
+        "created": 1790684313,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"answer\":\"ok\"}",
+              "reasoning_content": "The user wants exactly this JSON and nothing else. I should reply with just the JSON."
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 44,
+          "completion_tokens": 24,
+          "total_tokens": 68,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 18
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 44
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "turn2": {
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this JSON and nothing else: {\"answer\":\"ok\"}"
+          },
+          {
+            "role": "assistant",
+            "content": "{\"answer\":\"ok\"}",
+            "reasoning_content": "The user wants exactly this JSON and nothing else. I should reply with just the JSON."
+          },
+          {
+            "role": "user",
+            "content": "Now reply with exactly this JSON and nothing else: {\"answer\":\"ok2\"}"
+          }
+        ],
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "high",
+        "max_tokens": 128
+      },
+      "response": {
+        "id": "315ccba0-429d-4181-95dc-308a53f1d9fb",
+        "object": "chat.completion",
+        "created": 1790684371,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"answer\":\"ok2\"}",
+              "reasoning_content": "We need answer exactly JSON nothing else. User asks: \"Now reply with exactly this JSON and nothing else: {\"answer\":\"ok2\"}\". We must output that. Ensure no extra."
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 69,
+          "completion_tokens": 45,
+          "total_tokens": 114,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 38
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 69
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    }
+  },
+  "thinking_disabled": {
+    "request": {
+      "model": "deepseek-flash",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Read the file /tmp/cot/example.txt. Use the read_file tool."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "The user wants the contents of /tmp/cot/example.txt. I should call read_file with that absolute path.",
+          "tool_calls": [
+            {
+              "id": "call_probe_1",
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "arguments": "{\"path\":\"/tmp/cot/example.txt\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_probe_1",
+          "content": "consensus CoT probe"
+        },
+        {
+          "role": "user",
+          "content": "Summarise the file contents in exactly three words."
+        }
+      ],
+      "thinking": {
+        "type": "disabled"
+      },
+      "max_tokens": 128
+    },
+    "response": {
+      "id": "8efa43cf-35ed-4f4c-8df4-e62183fdb847",
+      "object": "chat.completion",
+      "created": 1790684316,
+      "model": "deepseek-flash",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "consensus CoT probe"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 91,
+        "completion_tokens": 5,
+        "total_tokens": 96,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 91
+      },
+      "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+    }
+  }
+}

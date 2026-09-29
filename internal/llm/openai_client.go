@@ -42,6 +42,13 @@ type openaiClient struct {
 	maxRetries      int           // max retry attempts on transient failures
 	retryBackoff    time.Duration // base backoff between retries
 	fallbackBaseURL string        // LM Studio fallback URL (empty = disabled)
+
+	// Thinking-mode defaults (spec 024 §B2), resolved once at construction.
+	thinking          *bool
+	reasoningEffort   string
+	tools             []ToolDefinition
+	toolChoice        string
+	allowReasoningFbk bool
 }
 
 // NewOpenAIClient creates a real OpenAI-compatible HTTP client.
@@ -58,19 +65,133 @@ func NewOpenAIClient(cfg *Config) harness.LLMClient {
 	}
 
 	return &openaiClient{
-		cfg:             cfg,
-		httpClient:      &http.Client{Timeout: 120 * time.Second},
-		baseURL:         baseURL,
-		apiKey:          cfg.APIKey,
-		model:           cfg.Model,
-		maxTokens:       cfg.MaxTokens,
-		temperature:     cfg.Temperature,
-		enableCache:     cfg.EnableCache,
-		responseFormat:  responseFormat,
-		maxRetries:      3,
-		retryBackoff:    1 * time.Second,
-		fallbackBaseURL: os.Getenv("LM_STUDIO_BASE_URL"),
+		cfg:               cfg,
+		httpClient:        &http.Client{Timeout: 120 * time.Second},
+		baseURL:           baseURL,
+		apiKey:            cfg.APIKey,
+		model:             cfg.Model,
+		maxTokens:         cfg.MaxTokens,
+		temperature:       cfg.Temperature,
+		enableCache:       cfg.EnableCache,
+		responseFormat:    responseFormat,
+		maxRetries:        3,
+		retryBackoff:      1 * time.Second,
+		fallbackBaseURL:   os.Getenv("LM_STUDIO_BASE_URL"),
+		thinking:          cfg.Thinking,
+		reasoningEffort:   cfg.ReasoningEffort,
+		tools:             cfg.Tools,
+		toolChoice:        cfg.ToolChoice,
+		allowReasoningFbk: cfg.AllowReasoningFallback == nil || *cfg.AllowReasoningFallback,
 	}
+}
+
+// ============================================================================
+// Thinking mode + provider-native tools (spec 024 §B2/§B3)
+// ============================================================================
+
+// ToolDefinition is a provider-native tool declared on a request.
+type ToolDefinition struct {
+	Type     string          `json:"type"` // "function"
+	Function ToolFunctionDef `json:"function"`
+}
+
+// ToolFunctionDef describes one callable function.
+type ToolFunctionDef struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
+}
+
+// RequestOptions carries the per-request surface that the LLMClient interface
+// does not model: provider-native tools and the thinking-mode dial
+// (spec 024 §B2). Zero values mean "use the client Config".
+type RequestOptions struct {
+	// Tools is the provider-native tool list for this request. A NON-EMPTY
+	// list is what decides the CoT round-trip: every prior turn's
+	// reasoning_content is re-sent. With no tools it is omitted entirely.
+	Tools []ToolDefinition
+
+	// ToolChoice is the provider tool_choice value
+	// (none|auto|required|<function-name>). Empty leaves it unset.
+	ToolChoice string
+
+	// Thinking is the thinking-mode toggle for this request. nil defers to the
+	// client Config (which may itself be "not configured").
+	Thinking *bool
+
+	// ReasoningEffort is the effort NAME (minimal|low|medium|high|xhigh|max|
+	// ultra); it is mapped onto the provider dial. Empty defers to the client
+	// Config.
+	ReasoningEffort string
+}
+
+// effortDial maps the documented effort vocabulary onto the dial the provider
+// accepts (spec 024 §B2 effort mapping).
+var effortDial = map[string]string{
+	"minimal": "low",
+	"low":     "low",
+	"medium":  "high",
+	"high":    "high",
+	"xhigh":   "high",
+	"max":     "max",
+	"ultra":   "max",
+}
+
+// MapReasoningEffort maps an effort name onto the provider dial.
+// An empty name means "not configured" (returns ""); an unrecognised name is an
+// error, because silently dropping the dial would hide a caller mistake
+// (spec 024 §B2).
+func MapReasoningEffort(effort string) (string, error) {
+	name := strings.ToLower(strings.TrimSpace(effort))
+	if name == "" {
+		return "", nil
+	}
+	dial, ok := effortDial[name]
+	if !ok {
+		return "", fmt.Errorf("llm: unknown reasoning effort %q (valid: minimal, low, medium, high, xhigh, max, ultra)", effort)
+	}
+	return dial, nil
+}
+
+// resolveOptions merges per-request options over the client's configured
+// defaults. Thinking mode is never inherited silently from the provider: what
+// comes back from here is exactly what goes on the wire.
+func (c *openaiClient) resolveOptions(opts RequestOptions) RequestOptions {
+	if opts.Thinking == nil {
+		opts.Thinking = c.thinking
+	}
+	if strings.TrimSpace(opts.ReasoningEffort) == "" {
+		opts.ReasoningEffort = c.reasoningEffort
+	}
+	if len(opts.Tools) == 0 {
+		opts.Tools = c.tools
+	}
+	if opts.ToolChoice == "" {
+		opts.ToolChoice = c.toolChoice
+	}
+	return opts
+}
+
+// thinkingPayload renders the thinking toggle for the wire, or nil when the
+// mode is not configured at all (provider default applies).
+func thinkingPayload(thinking *bool) *openaiThinking {
+	if thinking == nil {
+		return nil
+	}
+	if *thinking {
+		return &openaiThinking{Type: "enabled"}
+	}
+	return &openaiThinking{Type: "disabled"}
+}
+
+// effortPayload returns the effort dial to send: an explicit thinking-off
+// request carries no effort, because the dial is meaningless with thinking off
+// (spec 024 §B2).
+func effortPayload(dial string, thinking *bool) string {
+	if thinking != nil && !*thinking {
+		return ""
+	}
+	return dial
 }
 
 // ============================================================================
@@ -84,12 +205,51 @@ type openaiChatRequest struct {
 	Temperature    float64             `json:"temperature,omitempty"`
 	ResponseFormat *openaiResponseFmt  `json:"response_format,omitempty"`
 	Stream         bool                `json:"stream"`
+
+	// Provider-native tools (spec 024 §B3). Their presence on the wire is what
+	// decides the CoT round-trip (§B2): with tools, every prior turn's
+	// reasoning_content is re-sent; without them it is omitted.
+	Tools      []openaiTool `json:"tools,omitempty"`
+	ToolChoice string       `json:"tool_choice,omitempty"`
+
+	// Thinking mode (spec 024 §B2). Sent at the top level of the body (the
+	// provider's `extra_body` merges there).
+	Thinking        *openaiThinking `json:"thinking,omitempty"`
+	ReasoningEffort string          `json:"reasoning_effort,omitempty"`
+}
+
+type openaiTool struct {
+	Type     string         `json:"type"`
+	Function openaiToolFunc `json:"function"`
+}
+
+type openaiToolFunc struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
+}
+
+type openaiThinking struct {
+	Type string `json:"type"` // "enabled" | "disabled"
 }
 
 type openaiChatMessage struct {
-	Role             string `json:"role"`
-	Content          string `json:"content"`
-	ReasoningContent string `json:"reasoning_content,omitempty"`
+	Role             string           `json:"role"`
+	Content          string           `json:"content"`
+	ReasoningContent string           `json:"reasoning_content,omitempty"`
+	ToolCalls        []openaiToolCall `json:"tool_calls,omitempty"`
+	ToolCallID       string           `json:"tool_call_id,omitempty"`
+}
+
+type openaiToolCall struct {
+	ID       string                 `json:"id"`
+	Type     string                 `json:"type,omitempty"`
+	Function openaiToolCallFunction `json:"function"`
+}
+
+type openaiToolCallFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 type openaiResponseFmt struct {
@@ -135,11 +295,34 @@ type openaiError struct {
 // Call sends messages to the OpenAI-compatible API, parses the JSON response
 // into AgentOutput, and returns cost/usage metadata.
 //
+// It uses the client's configured thinking mode, tools and effort. Use
+// CallWithOptions for the per-request surface (spec 024 §B2).
+//
 // On transient failures (5xx status codes, network errors), Call retries up to
 // maxRetries times with exponential backoff. After all retries are exhausted, it
 // attempts a fallback call to LM Studio if fallbackBaseURL is configured.
 func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*harness.LLMResponse, error) {
+	return c.CallWithOptions(ctx, messages, RequestOptions{})
+}
+
+// CallWithOptions is Call with the per-request surface the harness.LLMClient
+// interface does not model: provider-native tools and the thinking-mode dial
+// (spec 024 §B2/§B3).
+//
+// CoT continuity (§B2): when the request carries tools, every prior turn's
+// reasoning_content is re-sent with its turn; when it does not, reasoning
+// content is omitted from the wire entirely.
+func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.Message, opts RequestOptions) (*harness.LLMResponse, error) {
 	startTime := time.Now()
+
+	opts = c.resolveOptions(opts)
+
+	// Thinking mode is resolved explicitly, and an unrecognised effort is
+	// refused rather than silently dropped (spec 024 §B2).
+	dial, err := MapReasoningEffort(opts.ReasoningEffort)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build request payload. Skip response_format for local providers (LM Studio,
 	// Ollama) that don't support structured output constraints on all models.
@@ -151,12 +334,16 @@ func (c *openaiClient) Call(ctx context.Context, messages []harness.Message) (*h
 		respFmt = nil
 	}
 	reqBody := openaiChatRequest{
-		Model:          c.model,
-		Messages:       toOpenAIMessages(messages),
-		MaxTokens:      c.maxTokens,
-		Temperature:    c.temperature,
-		ResponseFormat: respFmt,
-		Stream:         false,
+		Model:           c.model,
+		Messages:        toOpenAIMessages(messages, len(opts.Tools) > 0),
+		MaxTokens:       c.maxTokens,
+		Temperature:     c.temperature,
+		ResponseFormat:  respFmt,
+		Stream:          false,
+		Tools:           toOpenAITools(opts.Tools),
+		ToolChoice:      opts.ToolChoice,
+		Thinking:        thinkingPayload(opts.Thinking),
+		ReasoningEffort: effortPayload(dial, opts.Thinking),
 	}
 
 	// Send with retry + backoff
@@ -271,44 +458,72 @@ func (c *openaiClient) sendToURL(ctx context.Context, reqBody openaiChatRequest,
 	return resp, &chatResp, nil
 }
 
-// buildResponse extracts AgentOutput from a parsed chat response and builds LLMResponse.
+// buildResponse extracts the turn from a parsed chat response and builds
+// LLMResponse.
+//
+// The whole turn is handed back — raw content, chain-of-thought and tool calls —
+// so the caller can persist it and, when the conversation continues with tools,
+// re-send the chain-of-thought (spec 024 §B2). A turn whose content is empty is
+// still a real turn (a tool call), so the turn is returned together with the
+// AgentOutput parse error instead of being discarded.
 func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime time.Time) (*harness.LLMResponse, error) {
-	content := chatResp.Choices[0].Message.Content
-	if content == "" {
-		content = chatResp.Choices[0].Message.ReasoningContent
-		slog.Info("llm: using reasoning_content as primary output (thinking model)",
-			"model", chatResp.Model,
-			"reasoning_len", len(content),
-		)
-	}
-	content = strings.TrimSpace(content)
-
-	content = stripMarkdownCodeBlock(content)
-
-	var output harness.AgentOutput
-	if err := json.Unmarshal([]byte(content), &output); err != nil {
-		return nil, fmt.Errorf("llm: parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
-	}
-
+	msg := chatResp.Choices[0].Message
 	elapsed := time.Since(startTime).Milliseconds()
 
-	slog.Info("llm: response received",
-		"model", chatResp.Model,
-		"elapsed_ms", elapsed,
-		"prompt_tokens", chatResp.Usage.PromptTokens,
-		"completion_tokens", chatResp.Usage.CompletionTokens,
-	)
-
-	return &harness.LLMResponse{
-		Output:  &output,
-		ModelID: chatResp.Model,
+	resp := &harness.LLMResponse{
+		Content:          msg.Content,
+		ReasoningContent: msg.ReasoningContent,
+		ToolCalls:        toHarnessToolCalls(msg.ToolCalls),
+		ModelID:          chatResp.Model,
 		Usage: harness.LLMUsage{
 			PromptTokens:     chatResp.Usage.PromptTokens,
 			CompletionTokens: chatResp.Usage.CompletionTokens,
 			TotalTokens:      chatResp.Usage.TotalTokens,
 		},
 		DurationMs: elapsed,
-	}, nil
+	}
+
+	content := msg.Content
+	promoted := false
+	if strings.TrimSpace(content) == "" && msg.ReasoningContent != "" {
+		// CoT is evidence of thinking, not the answer (spec 024 §B2). Promoting
+		// it into the output is a deliberate, logged, last-resort substitution.
+		if !c.allowReasoningFbk {
+			slog.Warn("llm: content empty and reasoning_content present — CoT NOT promoted (reasoning fallback disabled)",
+				"model", chatResp.Model,
+				"reasoning_len", len(msg.ReasoningContent),
+			)
+		} else {
+			content = msg.ReasoningContent
+			promoted = true
+			resp.ReasoningPromotedToOutput = true
+			slog.Warn("llm: LAST-RESORT promotion of reasoning_content to primary output (content was empty)",
+				"model", chatResp.Model,
+				"reasoning_len", len(msg.ReasoningContent),
+				"tool_calls", len(msg.ToolCalls),
+			)
+		}
+	}
+	content = stripMarkdownCodeBlock(strings.TrimSpace(content))
+
+	var output harness.AgentOutput
+	if err := json.Unmarshal([]byte(content), &output); err != nil {
+		if promoted {
+			return resp, fmt.Errorf("llm: promoted reasoning_content (last-resort) did not parse as AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
+		}
+		return resp, fmt.Errorf("llm: parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
+	}
+	resp.Output = &output
+
+	slog.Info("llm: response received",
+		"model", chatResp.Model,
+		"elapsed_ms", elapsed,
+		"prompt_tokens", chatResp.Usage.PromptTokens,
+		"completion_tokens", chatResp.Usage.CompletionTokens,
+		"reasoning_promoted", promoted,
+	)
+
+	return resp, nil
 }
 
 // isRetryableLLMError returns true if the error is transient and worth retrying.
@@ -434,12 +649,90 @@ func (c *openaiClient) isLocalProvider() bool {
 		strings.Contains(c.baseURL, "host.docker.internal")
 }
 
-func toOpenAIMessages(messages []harness.Message) []openaiChatMessage {
+// toOpenAIMessages converts harness messages to the wire shape.
+//
+// includeReasoning implements the CoT continuity rule from spec 024 §B2: the
+// per-turn reasoning_content of EVERY previous turn goes back on the wire when
+// the request carries tools, and is omitted entirely when it does not (without
+// tools the provider ignores it, so sending it is pure payload bloat).
+func toOpenAIMessages(messages []harness.Message, includeReasoning bool) []openaiChatMessage {
 	out := make([]openaiChatMessage, len(messages))
 	for i, m := range messages {
-		out[i] = openaiChatMessage{
-			Role:    m.Role,
-			Content: m.Content,
+		msg := openaiChatMessage{
+			Role:       m.Role,
+			Content:    m.Content,
+			ToolCalls:  toOpenAIToolCalls(m.ToolCalls),
+			ToolCallID: m.ToolCallID,
+		}
+		if includeReasoning {
+			msg.ReasoningContent = m.ReasoningContent
+		}
+		out[i] = msg
+	}
+	return out
+}
+
+// toOpenAITools converts declared tools to the wire shape.
+func toOpenAITools(tools []ToolDefinition) []openaiTool {
+	if len(tools) == 0 {
+		return nil
+	}
+	out := make([]openaiTool, len(tools))
+	for i, t := range tools {
+		typ := t.Type
+		if typ == "" {
+			typ = "function"
+		}
+		out[i] = openaiTool{
+			Type: typ,
+			Function: openaiToolFunc{
+				Name:        t.Function.Name,
+				Description: t.Function.Description,
+				Parameters:  t.Function.Parameters,
+			},
+		}
+	}
+	return out
+}
+
+// toOpenAIToolCalls converts a turn's tool calls to the wire shape.
+func toOpenAIToolCalls(calls []harness.ToolCall) []openaiToolCall {
+	if len(calls) == 0 {
+		return nil
+	}
+	out := make([]openaiToolCall, len(calls))
+	for i, c := range calls {
+		out[i] = openaiToolCall{
+			ID:   c.ID,
+			Type: c.Type,
+			Function: openaiToolCallFunction{
+				Name:      c.Function.Name,
+				Arguments: c.Function.Arguments,
+			},
+		}
+	}
+	return out
+}
+
+// toHarnessToolCalls converts response tool calls into the turn shape the
+// caller persists and re-sends.
+func toHarnessToolCalls(calls []openaiToolCall) []harness.ToolCall {
+	if len(calls) == 0 {
+		return nil
+	}
+	out := make([]harness.ToolCall, len(calls))
+	for i, c := range calls {
+		typ := c.Type
+		if typ == "" {
+			typ = "function"
+		}
+		out[i] = harness.ToolCall{
+			ID:   c.ID,
+			Type: typ,
+			Function: harness.ToolCallFunction{
+				Name:      c.Function.Name,
+				Arguments: c.Function.Arguments,
+			},
 		}
 	}
 	return out

@@ -114,7 +114,7 @@ func (h *Harness) RunAgentIteration(ctx context.Context, sessionID string) (*Ite
 	output := llmResp.Output
 
 	// Marshal LLM response for snapshot
-	llmResponseJSON, _ := json.Marshal(output)
+	llmResponseJSON := marshalTurnSnapshot(output, llmResp)
 
 	// Step 4: Execute in transaction
 	result, err := h.executeInTransaction(ctx, sessionID, ic, output, llmResponseJSON)
@@ -380,7 +380,7 @@ func (h *Harness) handleLLMError(ctx context.Context, sessionID string, ic *Iter
 			if retryErr == nil {
 				slog.Info("harness: retry succeeded with truncated context", "session_id", sessionID)
 				output := llmResp.Output
-				llmResponseJSON, _ := json.Marshal(output)
+				llmResponseJSON := marshalTurnSnapshot(output, llmResp)
 				result, resultErr := h.executeInTransaction(ctx, sessionID, ic, output, llmResponseJSON)
 				if resultErr != nil {
 					return result, resultErr
@@ -563,6 +563,41 @@ func (h *Harness) LoadMemoryEvent(ctx context.Context, sessionID string, memoryI
 		DisplayMode:      toString(row["display_mode"]),
 		IterationCreated: toInt64(row["iteration_created"]),
 	}, nil
+}
+
+// llmTurnSnapshot is the per-turn record persisted in
+// iteration_commits.llm_response (SPEC-006, spec 024 §B2).
+//
+// AgentOutput is embedded FLAT so every existing top-level key keeps its exact
+// name and type for current readers (API surface, audit tests). The turn's
+// chain-of-thought and tool calls ride alongside it, so a thinking turn's CoT is
+// persisted WITH the turn instead of being discarded, and can be re-sent when the
+// conversation continues with tools.
+type llmTurnSnapshot struct {
+	AgentOutput
+	ReasoningContent string     `json:"reasoning_content,omitempty"`
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+}
+
+// marshalTurnSnapshot renders one turn for the iteration snapshot. A nil output
+// keeps the previous behaviour of writing the JSON literal null.
+func marshalTurnSnapshot(output *AgentOutput, resp *LLMResponse) []byte {
+	if output == nil {
+		return []byte("null")
+	}
+	snap := llmTurnSnapshot{AgentOutput: *output}
+	if resp != nil {
+		snap.ReasoningContent = resp.ReasoningContent
+		snap.ToolCalls = resp.ToolCalls
+	}
+	b, err := json.Marshal(snap)
+	if err != nil {
+		// The snapshot is best-effort: a marshal failure must not fail the
+		// iteration, and AgentOutput is a plain struct of scalars/slices.
+		slog.Warn("harness: marshal turn snapshot failed", "error", err)
+		return []byte("null")
+	}
+	return b
 }
 
 // buildRollbackResult creates an IterationResult for a rolled-back transaction.
