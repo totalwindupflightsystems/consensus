@@ -1,0 +1,10 @@
+{
+  "tick": "consensus-2026-09-29-13-32-43",
+  "wave_budget": 8,
+  "workers": [
+    {"task": "DOC-7", "kind": "worktree-worker", "branch": "wt/DOC-7", "worktree": "/home/kara/worktrees/consensus-DOC-7", "base_sha": "3242d33", "model": "glm-5.3-flash", "provider": "zai-glm-default", "brief": "/tmp/cons-doc7-brief.md"},
+    {"task": "DOC-10", "kind": "worktree-worker", "branch": "wt/DOC-10", "worktree": "/home/kara/worktrees/consensus-DOC-10", "base_sha": "3242d33", "model": "glm-5.3-flash", "provider": "zai-glm-default", "brief": "/tmp/cons-doc10-brief.md"}
+  ],
+  "independence": "DOC-7 writes docs/DEBUGGING.md; DOC-10 writes docs/CLI-EXIT-CODES.md + internal/cli fixes. File overlap: README.md one-line link each (different section lines) — merge order DOC-7 then DOC-10 with rebase-if-needed.",
+  "created_at": "2026-09-29T08:38:00-05:00"
+}
