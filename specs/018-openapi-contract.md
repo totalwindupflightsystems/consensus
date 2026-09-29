@@ -33,8 +33,7 @@ specs/
       skills.yaml             # /api/v1/skills endpoints
       approvals.yaml          # /api/v1/approvals endpoints
       metrics.yaml            # /api/v1/metrics endpoints
-      shim-openai.yaml        # /v1/chat/completions, /v1/models
-      shim-anthropic.yaml     # /v1/messages
+      shim.yaml               # Opencode protocol shim (SPEC-017)
     components/
       schemas.yaml            # Shared data models
       responses.yaml          # Shared response shapes
@@ -92,9 +91,9 @@ tags:
   - name: Metrics
     description: System metrics and billing
   - name: OpenAI Shim
-    description: OpenAI Chat Completions compatible endpoints
+    description: OpenAI Chat Completions compatible endpoints — PLANNED / NOT IMPLEMENTED (no paths file exists yet)
   - name: Anthropic Shim
-    description: Anthropic Messages API compatible endpoints
+    description: Anthropic Messages API compatible endpoints — PLANNED / NOT IMPLEMENTED (no paths file exists yet)
 
 paths:
   # Native REST API
@@ -141,17 +140,16 @@ paths:
   /api/v1/sessions/{sessionId}/iterations/{iterationId}/audit:
     $ref: "./paths/metrics.yaml#/audit"
 
-  # OpenAI Shim
-  /v1/chat/completions:
-    $ref: "./paths/shim-openai.yaml#/chatCompletions"
-  /v1/models:
-    $ref: "./paths/shim-openai.yaml#/models"
+  # ── Opencode Protocol Shim (SPEC-017) ──
+  # (root openapi.yaml references ./paths/shim.yaml for /global/*, /session/*,
+  # /config, /find, /file/*, /permission*, /tui/*, /lsp, /mcp, /event,
+  # /project*, /vcs*, /instance* — see shim.yaml for the full surface)
 
-  # Anthropic Shim
-  /v1/messages:
-    $ref: "./paths/shim-anthropic.yaml#/messages"
-  /v1/messages/count_tokens:
-    $ref: "./paths/shim-anthropic.yaml#/countTokens"
+  # OpenAI/Anthropic compat endpoints (/v1/chat/completions, /v1/models,
+  # /v1/messages, /v1/messages/count_tokens) — PLANNED / NOT IMPLEMENTED.
+  # These are NOT in the served spec and NOT registered in the shim router.
+  # When implemented, they belong in new paths files (e.g. shim-openai.yaml,
+  # shim-anthropic.yaml, which do not exist yet).
 
 components:
   $ref: "./components/schemas.yaml"
