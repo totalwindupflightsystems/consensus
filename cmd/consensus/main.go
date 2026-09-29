@@ -233,6 +233,10 @@ func runServer() {
 	scannerAdapter := quarantine.NewWebhookScannerAdapter()
 	whStore.SetQuarantineScanner(scannerAdapter)
 	whStore.SetQuarantineInserter(quarantine.NewQuarantineInserter(quarantineSvc))
+	// DF-CONSENSUS-46: a routed wake flips the target session to 'thinking';
+	// without this signal the session waits for the next heartbeat tick
+	// before any iteration is dispatched.
+	whStore.SetWake(h.RequestWake)
 
 	// Start Go-level event routing loop — polls pending events, matches rules,
 	// wakes target sessions (SPEC-013 §5).

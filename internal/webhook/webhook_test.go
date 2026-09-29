@@ -495,16 +495,30 @@ func TestEventRoutingLoop(t *testing.T) {
 
 	store := New(database)
 
-	// Create sessions table and sessions for wake test
+	// Create sessions table and sessions for wake test (production shape:
+	// iteration is bumped by the routed wake, DF-CONSENSUS-46)
 	_ = database.Exec(ctx, `CREATE TABLE IF NOT EXISTS sessions (
 		id TEXT PRIMARY KEY,
 		agent_name TEXT NOT NULL,
 		status TEXT NOT NULL DEFAULT 'idle',
+		iteration BIGINT NOT NULL DEFAULT 0,
 		project_id TEXT,
 		heartbeat_at TEXT NOT NULL DEFAULT (datetime('now'))
 	)`)
 	_ = database.Exec(ctx, `INSERT INTO sessions (id, agent_name, status) VALUES ('target-session', 'test-agent', 'waiting_sub')`)
 	_ = database.Exec(ctx, `INSERT INTO sessions (id, agent_name, status) VALUES ('idle-session', 'idle-agent', 'idle')`)
+
+	// memory_events: the routed wake delivers the payload as a user_message
+	// row (DF-CONSENSUS-46)
+	_ = database.Exec(ctx, `CREATE TABLE IF NOT EXISTS memory_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		type TEXT NOT NULL,
+		content TEXT NOT NULL,
+		summary_text TEXT,
+		session_id TEXT NOT NULL,
+		iteration_created BIGINT NOT NULL,
+		created_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`)
 
 	// Create routing rules table with a rule
 	_ = database.Exec(ctx, `CREATE TABLE IF NOT EXISTS routing_rules (
@@ -539,13 +553,34 @@ func TestEventRoutingLoop(t *testing.T) {
 		t.Errorf("expected session_id 'target-session', got %q", rows[0]["session_id"])
 	}
 
-	// Verify session wake: waiting_sub session should become idle
-	sRows, err := database.Query(ctx, `SELECT status FROM sessions WHERE id = 'target-session'`)
+	// Verify session wake: waiting_sub session flipped to 'thinking' and the
+	// payload was delivered as a user_message row (DF-CONSENSUS-46) —
+	// 'idle' would never be dispatched by the heartbeat loop.
+	sRows, err := database.Query(ctx, `SELECT status, iteration FROM sessions WHERE id = 'target-session'`)
 	if err != nil {
 		t.Fatalf("query session: %v", err)
 	}
-	if sRows[0]["status"] != "idle" {
-		t.Errorf("expected target session to be woken (status=idle), got %q", sRows[0]["status"])
+	if sRows[0]["status"] != "thinking" {
+		t.Errorf("expected target session to be dispatch-eligible (status=thinking), got %q", sRows[0]["status"])
+	}
+	if got := toInt64(sRows[0]["iteration"]); got != 1 {
+		t.Errorf("expected iteration bumped to 1 by the routed wake, got %d", got)
+	}
+	memRows, err := database.Query(ctx, `SELECT type, content, iteration_created FROM memory_events WHERE session_id = 'target-session'`)
+	if err != nil {
+		t.Fatalf("query memory_events: %v", err)
+	}
+	if len(memRows) != 1 {
+		t.Fatalf("memory_events has %d rows, want 1 (delivered webhook payload)", len(memRows))
+	}
+	if memRows[0]["type"] != "user_message" {
+		t.Errorf("delivered event type = %q, want user_message", memRows[0]["type"])
+	}
+	if got := toString(memRows[0]["content"]); !strings.Contains(got, "push") {
+		t.Errorf("delivered content %q does not carry the webhook event", got)
+	}
+	if got := toInt64(memRows[0]["iteration_created"]); got != 1 {
+		t.Errorf("delivered iteration_created = %d, want 1", got)
 	}
 
 	// Idle session should NOT be woken (only waiting_sub/paused)

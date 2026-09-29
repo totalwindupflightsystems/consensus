@@ -204,13 +204,31 @@ BEGIN
             status = 'routed'
         WHERE id = NEW.id;
 
-        -- Wake the target session if it's idle or waiting
+        -- Wake the target session and hand it the payload (DF-CONSENSUS-46:
+        -- a bare status flip left the session stranded — the harness
+        -- heartbeat loop dispatches only 'thinking'/'planning'/'tool_exec'
+        -- sessions, and the agent can only act on an event it can see).
+        -- The payload is ALWAYS recorded as a 'user_message' memory event
+        -- (same shape the message API delivers; the next iteration reads it
+        -- even if one is already in flight). Sessions that are not actively
+        -- iterating ('idle', 'booting', 'waiting_sub', 'paused') are flipped
+        -- to 'thinking' with an iteration bump so the heartbeat loop claims
+        -- them; 'failed'/'completed' sessions get the payload recorded but
+        -- are not autonomously resurrected by an external trigger.
         IF v_session_id IS NOT NULL THEN
+            INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+            VALUES ('user_message',
+                    '[webhook ' || NEW.event_type || '] ' || NEW.payload::text,
+                    v_session_id,
+                    (SELECT iteration + 1 FROM sessions WHERE id = v_session_id),
+                    now());
+
             UPDATE sessions
-            SET status = 'idle',
-                heartbeat_at = now()
+            SET status = 'thinking',
+                heartbeat_at = now(),
+                iteration = iteration + 1
             WHERE id = v_session_id
-              AND status IN ('waiting_sub', 'paused');
+              AND status IN ('idle', 'booting', 'waiting_sub', 'paused');
         END IF;
     ELSE
         -- No route found — leave as pending for manual review
