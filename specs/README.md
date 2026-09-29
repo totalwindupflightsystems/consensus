@@ -38,6 +38,7 @@ then `specs/00-PRD.md` (product requirements) and `specs/001-architecture.md`
 - `specs/021-repository-layout.md` — SPEC-021: Repository Layout & Go Project Structure
 - `specs/022-library-research.md` — SPEC-022: Library Research & Dependency Decisions
 - `specs/023-adr-bootstrap-key-expiry.md` — ADR-023: Bootstrap Admin Key Expiry — 90-Day Default TTL
+- `specs/024-shim-support-matrix.md` — SPEC-024: Shim & Provider Support Matrix — external protocol/API surfaces we commit to supporting, with the refresh procedure
 - `specs/026-dashboard-ui.md` — SPEC-026: Dashboard UI
 
 ## Supporting Files
