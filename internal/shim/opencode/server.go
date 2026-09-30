@@ -876,13 +876,16 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// "status" is a reserved opencode literal, not a session id: /session/status
-	// is the aggregate session-status operation, which the shim does not serve
-	// (SHIM-GAP-002 / SHIM-DRIFT-114). Without this branch the id parser below
-	// would look up a session literally named "status" and answer 404, telling
-	// the client the operation does not exist.
+	// is the aggregate session-status operation (ROUTE-FIX-008 /
+	// SHIM-DRIFT-114). Without this branch the id parser below would look up a
+	// session literally named "status" and answer 404, telling the client the
+	// operation does not exist.
 	if path == "status" {
-		writeNotImplemented(w, r, "session.status",
-			"the shim does not serve the aggregate session-status map; read a single session's status with GET /session/{sessionID}")
+		if r.Method == http.MethodGet {
+			s.sessionStatus(w, r)
+		} else {
+			writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
+		}
 		return
 	}
 
@@ -986,6 +989,59 @@ func (s *Server) listChildren(w http.ResponseWriter, r *http.Request, sessionID 
 		result = append(result, s.translateSessionRow(row))
 	}
 	writeJSON(w, result)
+}
+
+// sessionStatus serves GET /session/status — upstream session.status
+// (ROUTE-FIX-008, SHIM-DRIFT-114, declared responses: 200 map of sessionID to
+// SessionStatus, 400 BadRequest). The aggregate is derived from the same
+// sessions store the single-session handler reads. SessionStatus is an anyOf
+// of three objects discriminated by "type" (idle / retry / busy); the shim
+// maps the Consensus session states (SPEC-011 §1) onto them:
+//
+//	idle, planning, thinking, tool_exec, waiting_sub, paused → {"type":"idle"}
+//	booting, executing, completed                            → {"type":"busy"}
+//	failed                                                   → {"type":"retry"}
+//
+// An empty store answers {} — the contract declares an object, never null.
+func (s *Server) sessionStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rows, err := s.db.Query(ctx,
+		`SELECT id, agent_name, status, goal, iteration, tokens_used_in, tokens_used_out, created_at
+		 FROM sessions ORDER BY created_at DESC LIMIT 50`)
+	if err != nil {
+		// The document's only error response for this operation is 400
+		// BadRequest | InvalidRequestError; answer it the way sibling
+		// handlers do instead of surfacing an undeclared 500.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to read session statuses")
+		return
+	}
+
+	result := make(map[string]any, len(rows))
+	for _, row := range rows {
+		result[toString(row["id"])] = sessionStatusEntry(toString(row["status"]), toInt64(row["iteration"]))
+	}
+	writeJSON(w, result)
+}
+
+// sessionStatusEntry translates a Consensus session status into the upstream
+// SessionStatus shape: all active states report idle, in-flight and finished
+// states report busy, and a failed session reports retry with its iteration
+// count as the attempt number.
+func sessionStatusEntry(status string, iteration int64) map[string]any {
+	switch status {
+	case "failed":
+		return map[string]any{
+			"type":    "retry",
+			"attempt": iteration,
+			"message": "session failed",
+			"next":    int64(0),
+		}
+	case "booting", "executing", "completed":
+		return map[string]any{"type": "busy"}
+	default:
+		// idle, planning, thinking, tool_exec, waiting_sub, paused
+		return map[string]any{"type": "idle"}
+	}
 }
 
 // patchSession handles PATCH /session/:id — update session properties (title, status, goal).

@@ -2906,13 +2906,13 @@ type notImplementedRoute struct {
 }
 
 // notImplementedRoutes is every finding SHIM-GAP-002 fixes. The count is
-// asserted in the test so the table cannot silently shrink.
+// asserted in the test so the table cannot silently shrink. ROUTE-FIX-008
+// removed SHIM-DRIFT-114 (GET /session/status): the shim now serves it.
 var notImplementedRoutes = []notImplementedRoute{
 	// ROUTED-404 (13): route registered, handler answered 404 NOT_FOUND.
 	{"SHIM-DRIFT-099", http.MethodGet, "/project/current", "project.current"},
 	{"SHIM-DRIFT-100", http.MethodPost, "/project/git/init", "project.initGit"},
 	{"SHIM-DRIFT-101", http.MethodGet, "/project/project_missing/directories", "project.directories"},
-	{"SHIM-DRIFT-114", http.MethodGet, "/session/status", "session.status"},
 	{"SHIM-DRIFT-116", http.MethodGet, "/session/s1/diff", "session.diff"},
 	{"SHIM-DRIFT-131", http.MethodPost, "/tui/clear-prompt", "tui.clearPrompt"},
 	{"SHIM-DRIFT-132", http.MethodGet, "/tui/control/next", "tui.control.next"},
@@ -2968,8 +2968,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	if len(notImplementedRoutes) != 17 {
-		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes; table has %d",
+	if len(notImplementedRoutes) != 16 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus the SHIM-DRIFT-114 route now served by ROUTE-FIX-008 = 16; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3105,8 +3105,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 17 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 17 SHIM-GAP-002 findings", len(typed))
+	if len(typed) != 16 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 16 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 now serves the 17th, /session/status)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {

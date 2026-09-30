@@ -72,6 +72,11 @@ routes:
     outcome: 200
     auth: fixed-workspace-exempt
     evidence: "server.go:177 handleSessions → createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
+  - path: /session/status
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleSessionByID reserved literal status → sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
   - path: /session/{id}
     method: GET
     outcome: 200
@@ -429,6 +434,8 @@ routes:
   # outcome "501-typed" = HTTP 501 + {"error":"not_implemented","operation":"<op>","detail":"..."}.
   # These were ROUTED-404 (handler answered 404 from a registered route),
   # METHOD-MISSING or untyped STUB-501 before SHIM-GAP-002.
+  # ROUTE-FIX-008 moved /session/status GET (SHIM-DRIFT-114) to the served
+  # routes above; 16 entries remain.
   - path: /project/current
     method: GET
     outcome: 501-typed
@@ -444,11 +451,6 @@ routes:
     outcome: 501-typed
     auth: api-key
     evidence: "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)"
-  - path: /session/status
-    method: GET
-    outcome: 501-typed
-    auth: api-key
-    evidence: "server.go handleSessionByID reserved literal status (SHIM-DRIFT-114)"
   - path: /session/{sessionID}/diff
     method: GET
     outcome: 501-typed
