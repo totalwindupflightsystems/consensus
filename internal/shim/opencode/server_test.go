@@ -2907,7 +2907,10 @@ type notImplementedRoute struct {
 
 // notImplementedRoutes is every finding SHIM-GAP-002 fixes. The count is
 // asserted in the test so the table cannot silently shrink. ROUTE-FIX-008
-// removed SHIM-DRIFT-114 (GET /session/status): the shim now serves it.
+// served GET /session/status (SHIM-DRIFT-114), which left this table;
+// ROUTE-FIX-009 served POST /session/{id}/command (SHIM-DRIFT-115), an
+// OUTCOME-MISMATCH row of the untyped stub list that was never in this
+// table — both are covered in the declared-vs-served artifact now.
 var notImplementedRoutes = []notImplementedRoute{
 	// ROUTED-404 (13): route registered, handler answered 404 NOT_FOUND.
 	{"SHIM-DRIFT-099", http.MethodGet, "/project/current", "project.current"},

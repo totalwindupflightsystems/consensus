@@ -898,6 +898,11 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		s.deleteSession(w, r, sessionID)
 	case sub == "abort" && r.Method == http.MethodPost:
 		s.abortSession(w, r, sessionID)
+	case sub == "command" && r.Method == http.MethodPost:
+		// ROUTE-FIX-009 / SHIM-DRIFT-115: the upstream session.command
+		// operation (declared responses: 200, 400, 404) was served by the
+		// stub-list 501 below. Serve it for real.
+		s.sessionCommand(w, r, sessionID)
 	case sub == "message" && r.Method == http.MethodPost:
 		s.sendMessage(w, r, sessionID)
 	case sub == "message" && r.Method == http.MethodGet:
@@ -1042,6 +1047,89 @@ func sessionStatusEntry(status string, iteration int64) map[string]any {
 		// idle, planning, thinking, tool_exec, waiting_sub, paused
 		return map[string]any{"type": "idle"}
 	}
+}
+
+// sessionCommand serves POST /session/{id}/command — upstream session.command
+// (ROUTE-FIX-009, SHIM-DRIFT-115, declared responses: 200 {info:
+// AssistantMessage, parts: []Part}, 400 BadRequest | InvalidRequestError, 404
+// NotFoundError). Upstream executes a slash command inside the session: the
+// command text and its arguments reach the assistant as one user instruction
+// and the response is the assistant turn they produce ("Send a new command to
+// a session for execution by the AI assistant").
+//
+// The shim composes "<command> <arguments>" and sends it through the same
+// synchronous message path POST /session/{id}/message uses (SPEC-017 §3.2:
+// return the response produced for this turn), so the declared arms map as:
+//
+//	200 → the produced agent turn in the upstream {info, parts} shape
+//	400 → malformed body, missing required command/arguments (the upstream
+//	      requestBody requires both), or a turn that cannot be produced
+//	404 → unknown session
+//
+// Non-POST on the sub-path keeps the pre-existing stub-list 501.
+func (s *Server) sessionCommand(w http.ResponseWriter, r *http.Request, sessionID string) {
+	var req struct {
+		Command   string `json:"command"`
+		Arguments string `json:"arguments"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+	if strings.TrimSpace(req.Command) == "" || strings.TrimSpace(req.Arguments) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "command and arguments are required")
+		return
+	}
+
+	if s.svc == nil {
+		// The command cannot be executed without the native service layer;
+		// answer inside the declared contract instead of the stub 501.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "command execution requires the native service layer")
+		return
+	}
+
+	// Resolve the session first so an unknown id answers the declared 404
+	// (NotFoundError) before any turn is attempted.
+	row, err := s.db.QueryRow(r.Context(),
+		`SELECT id FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+
+	// Execute: the composed instruction goes through the same synchronous
+	// turn path as POST /session/{id}/message, with the same bounded
+	// response timeout (SPEC-017 §3.2).
+	timeout := s.messageResponseTimeout
+	if timeout <= 0 {
+		timeout = defaultMessageResponseTimeout
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+
+	result, err := s.svc.SendMessage(ctx, MessageSendInput{
+		SessionID: sessionID,
+		Content:   strings.TrimSpace(req.Command) + " " + strings.TrimSpace(req.Arguments),
+		MsgType:   "user_instruction",
+	})
+	if err != nil || result == nil || strings.TrimSpace(result.Content) == "" {
+		// The declared error vocabulary for this operation is 400 | 404 only;
+		// a turn that cannot be produced (timeout, failed session, empty
+		// response) answers 400 INVALID_REQUEST naming the reason.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "command could not be executed: "+errorMessage(err, result))
+		return
+	}
+
+	writeJSON(w, s.buildAssistantMessage(result.Content))
+}
+
+// errorMessage renders the failure reason for the command 400 arm from
+// whichever of the error / nil-result shapes carried it.
+func errorMessage(err error, result *MessageSendResult) string {
+	if err != nil {
+		return err.Error()
+	}
+	return "the agent produced no response"
 }
 
 // patchSession handles PATCH /session/:id — update session properties (title, status, goal).

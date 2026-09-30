@@ -41,7 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115) to covered; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -97,6 +97,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:885"
+  - path: /session/{id}/command
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleSessionByID sub command → sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
   - path: /session/{id}/message
     method: POST
     outcome: 200
@@ -128,11 +133,6 @@ routes:
     auth: api-key
     evidence: "server.go:900 stub list"
   - path: /session/{id}/shell
-    method: POST
-    outcome: 501
-    auth: api-key
-    evidence: "server.go:900 stub list"
-  - path: /session/{id}/command
     method: POST
     outcome: 501
     auth: api-key
@@ -435,7 +435,8 @@ routes:
   # These were ROUTED-404 (handler answered 404 from a registered route),
   # METHOD-MISSING or untyped STUB-501 before SHIM-GAP-002.
   # ROUTE-FIX-008 moved /session/status GET (SHIM-DRIFT-114) to the served
-  # routes above; 16 entries remain.
+  # routes above; ROUTE-FIX-009 moved /session/{id}/command POST
+  # (SHIM-DRIFT-115) likewise; 15 entries remain.
   - path: /project/current
     method: GET
     outcome: 501-typed
@@ -527,7 +528,7 @@ routes:
 prefix_rules:
   - prefix: /session/
     outcome: 404
-    stub_second_segments: [prompt_async, shell, command, share, summarize, init, fork, revert]
+    stub_second_segments: [prompt_async, shell, share, summarize, init, fork, revert]
     stub_outcome: 501
     evidence: "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)"
   - prefix: /question/
