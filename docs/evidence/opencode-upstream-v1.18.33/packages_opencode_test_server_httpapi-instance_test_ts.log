@@ -1,0 +1,15 @@
+bun test v1.3.14 (0d9b296a)
+
+test/server/httpapi-instance.test.ts:
+(pass) instance HttpApi > serves the OpenAPI document [1056.79ms]
+(pass) instance HttpApi > emits a sync fence header for fixed-workspace mutations [273.73ms]
+(pass) instance HttpApi > does not emit sync fence headers for fixed-workspace reads or no-op mutations [246.99ms]
+(pass) instance HttpApi > rejects malformed permission and question request ids [255.82ms]
+(pass) instance HttpApi > returns typed not found bodies for missing permission and question requests [209.14ms]
+(pass) instance HttpApi > returns typed not found bodies for missing projects [223.81ms]
+(pass) instance HttpApi > serves path and VCS read endpoints [270.37ms]
+
+ 7 pass
+ 0 fail
+ 26 expect() calls
+Ran 7 tests across 1 file. [4.63s]

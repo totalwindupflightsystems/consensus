@@ -45,13 +45,13 @@ func TestOpenCodeUpstreamRunnerManifestIsPinned(t *testing.T) {
 	if manifest.Repository != "https://github.com/anomalyco/opencode.git" {
 		t.Fatalf("repository = %q", manifest.Repository)
 	}
-	if manifest.Revision != "16747470f976aca3d362ad730bcd3fe82ecc2c9a" {
+	if manifest.Revision != "7945de208964a49300d7f770d1a71d078db9a4c4" {
 		t.Fatalf("revision = %q", manifest.Revision)
 	}
-	if manifest.Version != "1.18.29" {
+	if manifest.Version != "1.18.33" {
 		t.Fatalf("version = %q", manifest.Version)
 	}
-	if manifest.LockSHA256 != "e4a33f0dce76bd625ceef88b2fe44cfa75d0653a3ccba0c7066ac558896ff239" {
+	if manifest.LockSHA256 != "b68e7ece1128eb383663e55ffca4f9f08e451530cc09fc9cf84c489bf41bdc2a" {
 		t.Fatalf("lock hash = %q", manifest.LockSHA256)
 	}
 
