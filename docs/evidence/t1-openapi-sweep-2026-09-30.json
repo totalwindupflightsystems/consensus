@@ -1,0 +1,3236 @@
+{
+ "schema_version": 1,
+ "task": "TEST-CONSENSUS-001",
+ "tier": "T1",
+ "title": "Full OpenAPI sweep against a locally built consensus binary",
+ "generated_at": "2026-09-30T08:16:06.204620Z",
+ "run": {
+  "mode": "LOCAL (the bunker agent `consensus-dev` used by the previous attempt has expired)",
+  "build_command": "go build -o /tmp/consensus-test-bin ./cmd/consensus",
+  "serve_command": "/tmp/consensus-test-bin serve --port 8099 --hostname 127.0.0.1 --db-url sqlite:///tmp/t1-sweep/scratch/t1.db?_journal_mode=WAL",
+  "admin_key_origin": "consensus init --db-url sqlite:///tmp/t1-sweep/scratch/t1.db (bootstrap admin key, printed once)",
+  "llm_key": "dummy DEEPSEEK_API_KEY=t1-sweep-dummy-not-a-live-key \u2014 no live provider traffic was generated",
+  "harness_scripts": [
+   "/tmp/t1-sweep/sweep.py",
+   "/tmp/t1-sweep/probes2.py",
+   "/tmp/t1-sweep/probes3.py"
+  ]
+ },
+ "server": {
+  "binary_path": "/tmp/consensus-test-bin",
+  "binary_sha256": "7d3250f76bd5c345282c5b5ad14b97bc1ac13541f9a9cebcf46150f824c6baf5",
+  "version_string": "consensus version 0.1.0",
+  "port": 8099,
+  "listen_address": "127.0.0.1:8099",
+  "pid": 420370,
+  "started_at": "Wed Sep 30 03:11:27 2026",
+  "db_url": "sqlite:///tmp/t1-sweep/scratch/t1.db?_journal_mode=WAL",
+  "db_backend": "sqlite",
+  "head_sha": "9424db6aae714e014ccde272284370277647778a",
+  "branch": "master",
+  "openapi_json_sha256": "448367020bb439f1ac6e39f5496f952bf2ccdaf1d33363bc4b369495282d751b",
+  "openapi_yaml_sha256": "56d1f5d6a7a6b6609adb3cf403a347a470031a6b2c03dd6c798d52695e853b3d",
+  "bundled_yaml_sha256": "56d1f5d6a7a6b6609adb3cf403a347a470031a6b2c03dd6c798d52695e853b3d",
+  "yaml_byte_identical": true,
+  "go_version": "go version go1.26.5 linux/amd64"
+ },
+ "census": {
+  "plan_asserted_paths": 60,
+  "served_paths": 66,
+  "served_operations": 78,
+  "bundled_yaml_paths": 66,
+  "served_vs_bundled_path_sets_identical": true
+ },
+ "summary": {
+  "operations_declared": 78,
+  "paths_declared": 66,
+  "operations_probed": 78,
+  "paths_probed": 66,
+  "status_matches": 77,
+  "status_mismatches": 1,
+  "route_not_mounted": 0,
+  "undocumented_5xx": 0,
+  "unauthenticated_probes": 78,
+  "missing_401_declarations": 7,
+  "error_envelope_failures": 1,
+  "status_histogram": {
+   "200": 48,
+   "400": 17,
+   "404": 9,
+   "409": 1,
+   "501": 3
+  },
+  "defects": 5,
+  "wellformed_only_status_mismatch_ids": [
+   "T1-D1",
+   "T1-D2",
+   "T1-D5"
+  ],
+  "documented_status_unreachable_ids": [
+   "T1-D4"
+  ],
+  "format_findings": 3,
+  "observations": 3,
+  "plan_drift_findings": 1,
+  "documented_skips": 6
+ },
+ "paths": {
+  "/agent": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListAgents",
+     "summary": "List available agent types",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"description\":\"Default Consensus agent\",\"name\":\"default\"},{\"description\":\"Research-focused agent\",\"name\":\"researcher\"},{\"description\":\"Code-focused agent\",\"name\":\"coder\"},{\"description\":\"Data analysis agent\",\"name\":\"analyst\"}]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 1
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/approvals": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listApprovals",
+     "summary": "List pending approvals",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/approvals/{approvalId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getApproval",
+     "summary": "Get approval details",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"approval not found\",\"details\":\"approval not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/api/v1/approvals/{approvalId}/review": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "reviewApproval",
+     "summary": "Review a pending approval",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      404,
+      409,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be: approved, rejected, or modified\",\"details\":\"decision must be: approved, rejected, or modified\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/api/v1/auth/keys": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listAPIKeys",
+     "summary": "List API keys",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"id\":\"930044cb-a5d9-4c66-b1b7-21aa19841bd5\",\"key_prefix\":\"cs_sk_0f\",\"scope\":\"session\",\"session_id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"created_at\":\"2026-09-30T08:11:35Z\"},{\"id\":\"6b74dd3f-9cef-4d66-ad27-d2272760e7ff\",\"key_prefix\":\"cs_sk_a9\",\"scope\":\"readonly\",\"created_at\":\"2026-09-30T08:11:13Z\"},{\"id\":\"b4532d5e-6205-421b-9914-7a64a5469325\",\"key_prefix\":\"cs_ak_10\",\"scope\":\"admin\",\"expires_at\":",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    },
+    {
+     "method": "POST",
+     "operationId": "createAPIKey",
+     "summary": "Create a new API key",
+     "documented_statuses": [
+      201,
+      400,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"scope must be one of: admin, session, readonly, webhook\",\"details\":\"scope must be one of: admin, session, readonly, webhook\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/api/v1/auth/keys/{keyId}": {
+   "operations": [
+    {
+     "method": "DELETE",
+     "operationId": "revokeAPIKey",
+     "summary": "Revoke an API key",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"api key not found\",\"details\":\"api key not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/api/v1/config": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getConfig",
+     "summary": "System configuration",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"system_settings\":{\"embedding_model\":\"text-embedding-3-small\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/events": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "streamEvents",
+     "summary": "Stream real-time events (Server-Sent Events)",
+     "documented_statuses": [
+      200,
+      401,
+      403
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "text/event-stream",
+     "response_body": "",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 14601
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/health": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "healthCheck",
+     "summary": "Health check",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"status\":\"ok\",\"version\":\"0.1.0\",\"uptime_seconds\":44,\"api_latency_ms\":0,\"db_latency_ms\":0.07,\"llm_latency_ms\":0,\"error_rate_pct\":0,\"db_backend\":\"sqlite\",\"db_path\":\"/tmp/t1-sweep/scratch/t1.db\",\"db_size_mb\":0.46484375,\"db_tables\":38,\"db_migrations\":24,\"schema_version\":25,\"active_connections\":{\"websocket\":0,\"db_pool_active\":0,\"db_pool_max\":0,\"llm_active\":0,\"api_requests_last_min\":0},\"system_log\":[]}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/metrics": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getMetrics",
+     "summary": "System-wide metrics",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"active_sessions\":0,\"pending_tasks\":0,\"pending_approvals\":0,\"total_sessions\":1}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/quarantine": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listQuarantine",
+     "summary": "List quarantined content",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500,
+      503
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"count\":0,\"items\":[]}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/quarantine/{qID}/approve": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "approveQuarantine",
+     "summary": "Approve quarantined content",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      500,
+      503
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_ID\",\"message\":\"quarantine ID must be an integer\",\"details\":\"quarantine ID must be an integer\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_ID",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 3
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/api/v1/quarantine/{qID}/reject": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "rejectQuarantine",
+     "summary": "Reject quarantined content",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      500,
+      503
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_ID\",\"message\":\"quarantine ID must be an integer\",\"details\":\"quarantine ID must be an integer\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_ID",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/api/v1/sessions": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listSessions",
+     "summary": "List sessions",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"agent_name\":\"t1-sweep\",\"model_id\":\"default\",\"status\":\"paused\",\"goal\":\"contract sweep\",\"context_budget\":0,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":0,\"heartbeat_at\":\"2026-09-30 08:12:03\",\"created_at\":\"2026-09-30T08:11:35Z\"}]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    },
+    {
+     "method": "POST",
+     "operationId": "createSession",
+     "summary": "Create a new agent session",
+     "documented_statuses": [
+      201,
+      400,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"agent_name is required\",\"details\":\"agent_name is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 3
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/api/v1/sessions/{sessionId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getSession",
+     "summary": "Get session details",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"agent_name\":\"t1-sweep\",\"model_id\":\"default\",\"status\":\"paused\",\"goal\":\"contract sweep\",\"context_budget\":128000,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":0,\"heartbeat_at\":\"2026-09-30 08:12:03\",\"created_at\":\"2026-09-30T08:11:35Z\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    },
+    {
+     "method": "PATCH",
+     "operationId": "updateSession",
+     "summary": "Update session status",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      404,
+      409,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"status field is required\",\"details\":\"status field is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 3
+    },
+    {
+     "method": "DELETE",
+     "operationId": "deleteSession",
+     "summary": "Soft-delete a session",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"status\":\"deleted\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 7
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400,
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/approvals": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listSessionApprovals",
+     "summary": "List approvals for a session",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/billing": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getSessionBilling",
+     "summary": "Per-session cost breakdown",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"entries\":[],\"session_id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"total_completion_tokens\":0,\"total_cost_usd\":0,\"total_prompt_tokens\":0}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/context": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getActiveContext",
+     "summary": "Get active context (rendered)",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/iterations": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listIterations",
+     "summary": "List iteration commits",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 3
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/memory": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listMemory",
+     "summary": "List memory events",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/memory/{memoryId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getMemoryEvent",
+     "summary": "Get a single memory event",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"memory event not found\",\"details\":\"memory event not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/message": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "sendMessage",
+     "summary": "Send a message to an agent session",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"content is required\",\"details\":\"content is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 3
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/api/v1/sessions/{sessionId}/tasks": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listTasks",
+     "summary": "List tasks for a session",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"id\":\"09186cf0-2151-4d2f-a59a-0616ff1ad291\",\"session_id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"title\":\"t1 sweep task\",\"description\":\"contract sweep fixture\",\"status\":\"in_progress\",\"priority\":5,\"prerequisite_ids\":[],\"created_at\":\"2026-09-30T08:11:52Z\"}]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    },
+    {
+     "method": "POST",
+     "operationId": "createTask",
+     "summary": "Create a task",
+     "documented_statuses": [
+      201,
+      400,
+      401,
+      403,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"title is required\",\"details\":\"title is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/api/v1/skills": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listSkills",
+     "summary": "List skill metadata (progressive disclosure)",
+     "documented_statuses": [
+      200,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/skills/{skillName}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getSkill",
+     "summary": "Get full skill instructions",
+     "documented_statuses": [
+      200,
+      404,
+      500
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"skill \\\"nonexistent-skill\\\" not found\",\"details\":\"skill \\\"nonexistent-skill\\\" not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/api/v1/tasks/{taskId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "getTask",
+     "summary": "Get a single task",
+     "documented_statuses": [
+      200,
+      401,
+      403,
+      404,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"id\":\"09186cf0-2151-4d2f-a59a-0616ff1ad291\",\"session_id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"title\":\"t1 sweep task\",\"description\":\"contract sweep fixture\",\"status\":\"in_progress\",\"priority\":5,\"prerequisite_ids\":[],\"created_at\":\"2026-09-30T08:11:52Z\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    },
+    {
+     "method": "PATCH",
+     "operationId": "updateTask",
+     "summary": "Update task status",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      404,
+      409,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"status field is required\",\"details\":\"status field is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/api/v1/tasks/{taskId}/claim": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "claimTask",
+     "summary": "Claim a task",
+     "documented_statuses": [
+      200,
+      401,
+      404,
+      409,
+      500
+     ],
+     "observed_status": 409,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"CONFLICT\",\"message\":\"task status is \\\"in_progress\\\", cannot be claimed\",\"details\":\"task status is \\\"in_progress\\\", cannot be claimed\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=CONFLICT",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    409
+   ]
+  },
+  "/api/v1/tools": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "listTools",
+     "summary": "List available tools",
+     "documented_statuses": [
+      200,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/api/v1/tools/{toolName}/execute": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "executeTool",
+     "summary": "Execute a tool",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      403,
+      404,
+      409,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"session_id is required\",\"details\":\"session_id is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/auth/{authId}": {
+   "operations": [
+    {
+     "method": "PUT",
+     "operationId": "shimUpdateAuth",
+     "summary": "Update provider/session auth config",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      405
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"id\":\"t1-sweep-auth\",\"message\":\"auth configuration saved\",\"status\":\"updated\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/config": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGetConfig",
+     "summary": "Read shim configuration",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"provider_default\":{},\"settings\":{\"embedding_model\":\"text-embedding-3-small\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    },
+    {
+     "method": "PATCH",
+     "operationId": "shimUpdateConfig",
+     "summary": "Update shim configuration",
+     "documented_statuses": [
+      200,
+      400,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"keys\":0,\"status\":\"updated\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200,
+    200
+   ]
+  },
+  "/config/providers": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListConfigProviders",
+     "summary": "List model providers",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"providers\":[{\"id\":\"text-embedding-3-small\",\"tier\":1,\"max_context\":8191,\"cost_per_m_in\":0,\"cost_per_m_out\":0,\"enabled\":true}]}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/doc": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimDoc",
+     "summary": "opencode shim OpenAPI document",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"components\":{\"parameters\":{\"ApiKeyId\":{\"description\":\"UUID of the API key.\",\"in\":\"path\",\"name\":\"keyId\",\"required\":true,\"schema\":{\"format\":\"uuid\",\"type\":\"string\"}},\"ApprovalId\":{\"description\":\"UUID of the approval request.\",\"in\":\"path\",\"name\":\"approvalId\",\"required\":true,\"schema\":{\"format\":\"uuid\",\"type\":\"string\"}},\"HemisphereFilter\":{\"description\":\"Filter tools by hemisphere.\",\"in\":\"query\",\"name\"",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 8
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/event": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimEventStream",
+     "summary": "Standalone SSE event stream",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "text/event-stream",
+     "response_body": "",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 8008
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/experimental/tool": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListTools",
+     "summary": "List tools",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/experimental/tool/ids": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListToolIDs",
+     "summary": "List tool IDs",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/file/content": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimReadFile",
+     "summary": "Read file content",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"?path= is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/file/status": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimFileStatus",
+     "summary": "Git status",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"changes\":[],\"message\":\"exit status 128\",\"status\":\"unavailable\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 2
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/find": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimFindFiles",
+     "summary": "Find files by glob pattern",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"?pattern= is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/find/file": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimFindFilesSub",
+     "summary": "Find files by query",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      500
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"?query= is required\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/find/symbol": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimFindSymbolStub",
+     "summary": "Find symbols (stub)",
+     "documented_statuses": [
+      501
+     ],
+     "observed_status": 501,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"symbol search requires LSP integration, not yet available\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_IMPLEMENTED",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    501
+   ]
+  },
+  "/global/event": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGlobalEvent",
+     "summary": "Global SSE event stream",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "text/event-stream",
+     "response_body": "",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 8007
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/global/health": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGlobalHealth",
+     "summary": "Shim health check",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"healthy\":true,\"version\":\"consensus-0.1.0\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/instance": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimInstanceList",
+     "summary": "List instances",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"createdAt\":\"2026-09-30T08:11:28Z\",\"id\":\"consensus-294a782054da\",\"path\":\"/tmp/t1-sweep/scratch\",\"updatedAt\":\"2026-09-30T08:12:28Z\"}]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/instance/path": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimInstancePath",
+     "summary": "Get instance paths",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"config\":\"/home/kara/.config/consensus/config.json\",\"directory\":\"/tmp/t1-sweep/scratch\",\"home\":\"/home/kara\",\"state\":\"/home/kara/.local/state/consensus\",\"worktree\":\"/tmp/t1-sweep/scratch\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 1
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/instance/vcs": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimInstanceVCS",
+     "summary": "Get VCS info",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/instance/vcs/diff": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimInstanceVCSDiff",
+     "summary": "Get VCS diff",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 1
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/lsp": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimLSPStatus",
+     "summary": "LSP status",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"enabled\":false,\"message\":\"LSP integration is not yet available in Consensus shim\",\"status\":\"unavailable\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/mcp": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "mcpStreamableGet",
+     "summary": "MCP streamable-HTTP SSE stream",
+     "documented_statuses": [
+      200
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "text/event-stream",
+     "response_body": "",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 200,
+     "documents_401": false,
+     "elapsed_ms": 8008
+    },
+    {
+     "method": "POST",
+     "operationId": "mcpStreamablePost",
+     "summary": "MCP streamable-HTTP JSON-RPC endpoint",
+     "documented_statuses": [
+      200,
+      202,
+      400,
+      401,
+      405,
+      501
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"Invalid Request\",\"data\":\"jsonrpc must be 2.0\"}}\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=-32600",
+     "unauthenticated_status": 400,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/permission": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListPermissions",
+     "summary": "List pending permissions",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"permissions\":[]}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/permission/{permissionId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGetPermission",
+     "summary": "Get permission details",
+     "documented_statuses": [
+      200,
+      401,
+      404
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"permission not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/permission/{permissionId}/resolve": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "shimResolvePermission",
+     "summary": "Resolve a permission",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      404
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    400
+   ]
+  },
+  "/project": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimProjectStub",
+     "summary": "Project info (stub)",
+     "documented_statuses": [
+      401,
+      501
+     ],
+     "observed_status": 501,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"project is opencode-specific, not supported by Consensus shim; use native tool API\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_IMPLEMENTED",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    501
+   ]
+  },
+  "/project/{projectId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimProjectItemStub",
+     "summary": "Project item (stub)",
+     "documented_statuses": [
+      501
+     ],
+     "observed_status": 404,
+     "match": false,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"_tag\":\"ProjectNotFoundError\",\"message\":\"Project not found: t1-sweep-project\",\"projectID\":\"t1-sweep-project\"}\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": false,
+     "error_envelope_note": "JSON without {error:{code,message}}",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/provider": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGetProvider",
+     "summary": "Get default provider info",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"maxTokens\":8191,\"model\":\"text-embedding-3-small\",\"provider\":\"consensus\",\"version\":\"0.1.0\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/session": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListSessions",
+     "summary": "List sessions (opencode format)",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[{\"completedAt\":null,\"createdAt\":\"2026-09-30T08:11:35Z\",\"goal\":\"contract sweep\",\"id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"iteration\":0,\"model\":\"\",\"status\":\"paused\",\"title\":\"t1-sweep\",\"tokensIn\":0,\"tokensOut\":0}]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    },
+    {
+     "method": "POST",
+     "operationId": "shimCreateSession",
+     "summary": "Create a session",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"api_key\":\"cs_sk_6206cab1b40158bc9ffb41aab6f02ac4c97c291e6f90747c13e6b76e7d7e5ff5\",\"createdAt\":\"2026-09-30T08:12:44Z\",\"id\":\"85c12f7c-06c8-4e92-818d-e4527a748189\",\"status\":\"booting\",\"title\":\"opencode-agent\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 71
+    }
+   ],
+   "observed_statuses": [
+    200,
+    200
+   ]
+  },
+  "/session/{sessionId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGetSession",
+     "summary": "Get session details",
+     "documented_statuses": [
+      200,
+      401,
+      404
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"completedAt\":null,\"createdAt\":\"2026-09-30T08:11:35Z\",\"goal\":\"contract sweep\",\"id\":\"69acea17-a283-4643-8d2d-fe9e9b0aa998\",\"iteration\":0,\"model\":\"default\",\"status\":\"paused\",\"title\":\"t1-sweep\",\"tokensIn\":0,\"tokensOut\":0}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    },
+    {
+     "method": "PATCH",
+     "operationId": "shimUpdateSession",
+     "summary": "Update a session",
+     "documented_statuses": [
+      200,
+      400,
+      401
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"no fields to update\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    },
+    {
+     "method": "DELETE",
+     "operationId": "shimDeleteSession",
+     "summary": "Delete a session",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"status\":\"deleted\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400,
+    200
+   ]
+  },
+  "/session/{sessionId}/abort": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "shimAbortSession",
+     "summary": "Abort a session",
+     "documented_statuses": [
+      200,
+      401,
+      500
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"status\":\"aborted\"}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/session/{sessionId}/children": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListSessionChildren",
+     "summary": "List child sessions",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/session/{sessionId}/message": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimListMessages",
+     "summary": "List session messages",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    },
+    {
+     "method": "POST",
+     "operationId": "shimSendMessage",
+     "summary": "Send a message to a session",
+     "documented_statuses": [
+      200,
+      400,
+      401,
+      404
+     ],
+     "observed_status": 400,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"message content is empty\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=INVALID_REQUEST",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    200,
+    400
+   ]
+  },
+  "/session/{sessionId}/message/{messageId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimGetMessage",
+     "summary": "Get a single message",
+     "documented_statuses": [
+      200,
+      401,
+      404
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"message not found\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/tui/{action}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimTUIControlStub",
+     "summary": "TUI control (stub)",
+     "documented_statuses": [
+      404,
+      501
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"unknown TUI action\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  },
+  "/vcs": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimVCS",
+     "summary": "Get VCS info (fixed-workspace compatibility)",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{}",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 4
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/vcs/diff": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimVCSDiff",
+     "summary": "Get VCS diff (fixed-workspace compatibility)",
+     "documented_statuses": [
+      200,
+      401
+     ],
+     "observed_status": 200,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "[]",
+     "route_not_mounted": false,
+     "error_envelope_ok": null,
+     "error_envelope_note": "",
+     "unauthenticated_status": 401,
+     "documents_401": true,
+     "elapsed_ms": 1
+    }
+   ],
+   "observed_statuses": [
+    200
+   ]
+  },
+  "/vcs/{vcsId}": {
+   "operations": [
+    {
+     "method": "GET",
+     "operationId": "shimVCSItemStub",
+     "summary": "VCS item (stub)",
+     "documented_statuses": [
+      501
+     ],
+     "observed_status": 501,
+     "match": true,
+     "probe": "minimal request, admin bearer",
+     "response_content_type": "application/json",
+     "response_body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"VCS is opencode-specific, not supported by Consensus shim; use native tool API\"}}",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_IMPLEMENTED",
+     "unauthenticated_status": 401,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    501
+   ]
+  },
+  "/webhooks/{source}": {
+   "operations": [
+    {
+     "method": "POST",
+     "operationId": "ingestWebhook",
+     "summary": "Ingest a signed webhook payload",
+     "documented_statuses": [
+      200,
+      202,
+      403,
+      404,
+      413,
+      429,
+      500
+     ],
+     "observed_status": 404,
+     "match": true,
+     "probe": "minimal request, admin bearer body={}",
+     "response_content_type": "text/plain; charset=utf-8",
+     "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"unknown webhook source\"}}\n",
+     "route_not_mounted": false,
+     "error_envelope_ok": true,
+     "error_envelope_note": "error.code=NOT_FOUND",
+     "unauthenticated_status": 404,
+     "documents_401": false,
+     "elapsed_ms": 0
+    }
+   ],
+   "observed_statuses": [
+    404
+   ]
+  }
+ },
+ "defects": [
+  {
+   "id": "T1-D1",
+   "title": "POST /api/v1/auth/keys returns 200 where the contract declares 201",
+   "severity": "high",
+   "evidence": {
+    "request": "POST /api/v1/auth/keys",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "spec_reference": "paths./api/v1/auth/keys.post.responses.201 -> components.schemas.CreateAPIKeyResponse ('API key created.')",
+    "observed_status": 200,
+    "response_body": "{\"api_key\":\"cs_sk_3814514e959ee4715ac1e43586a86658f552dfda7420f914800736c8be781ab6\",\"created_at\":\"2026-09-30T08:14:27Z\",\"id\":\"85071824-c38b-41c4-a881-9ee47c4039e6\",\"key_prefix\":\"cs_sk_38\",\"scope\":\"readonly\"}",
+    "location_header": "(absent)",
+    "expected": "201"
+   },
+   "class_": "status-code contract violation",
+   "prior_candidate_recheck": "CONFIRMED (was listed as an unverified claim from the expired bunker run)"
+  },
+  {
+   "id": "T1-D2",
+   "title": "POST /api/v1/sessions/{sessionId}/tasks returns 200 where the contract declares 201",
+   "severity": "high",
+   "evidence": {
+    "request": "POST /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb/tasks",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "observed_status": 200,
+    "response_body": "{\"id\":\"a1fd8b68-59c6-4081-8f17-c45c134f46e2\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"title\":\"t1-d2-task\",\"description\":\"201 contract check\",\"status\":\"pending\",\"priority\":5,\"prerequisite_ids\":[],\"created_at\":\"2026-09-30T08:14:27Z\"}",
+    "expected": "201",
+    "control": {
+     "request": "POST /api/v1/sessions",
+     "observed": 201,
+     "note": "POST /api/v1/sessions DOES return the documented 201, so the handler family is inconsistent: the create-session handler sets 201, the create-task handler does not.",
+     "response_body": "{\"id\":\"73a63413-7d10-4033-9102-60be9cb6ee2d\",\"status\":\"booting\",\"api_key\":\"cs_sk_3242ed9919c3e68cf57fd8350b6eb61e9f6d6d141ba87bdd0c7485d77daa3a2c\",\"model\":\"default\",\"created_at\":\"2026-09-30T08:14:27.2"
+    }
+   },
+   "class_": "status-code contract violation",
+   "prior_candidate_recheck": "NEW (same class as T1-D1; not in the prior candidate list)"
+  },
+  {
+   "id": "T1-D3",
+   "title": "GET /project/{projectId} returns 404 where the contract declares only 501",
+   "severity": "medium",
+   "evidence": {
+    "request": "GET /project/t1-sweep-project",
+    "documented_statuses": [
+     501
+    ],
+    "observed_status": 404,
+    "response_body": "{\"_tag\":\"ProjectNotFoundError\",\"message\":\"Project not found: t1-sweep-project\",\"projectID\":\"t1-sweep-project\"}\n",
+    "control": {
+     "request": "GET /project",
+     "observed": 501,
+     "response_body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"project is opencode-specific, not supported by Consensus shim; use native tool API\"}}",
+     "note": "the sibling root path /project returns the documented 501 NOT_IMPLEMENTED envelope; the parameterised path answers a 404 with a different (opencode-shaped) error body."
+    }
+   },
+   "class_": "status-code contract violation + error-vocabulary divergence",
+   "prior_candidate_recheck": "CONFIRMED (was listed as an unverified claim from the expired bunker run)"
+  },
+  {
+   "id": "T1-D4",
+   "title": "GET /permission/{permissionId} answers 404 for an EXISTING approval row: the documented 200 is unreachable",
+   "severity": "high",
+   "evidence": {
+    "request": "GET /permission/t1-perm-0002   (approval_requests row t1-perm-0002 injected into the scratch DB, status=pending)",
+    "documented_statuses": [
+     200,
+     401,
+     404
+    ],
+    "observed_status": 404,
+    "response_body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"permission not found\"}}",
+    "expected": "200",
+    "control": {
+     "request": "GET /api/v1/approvals/t1-perm-0002",
+     "observed": 200,
+     "response_body": "{\"id\":\"t1-perm-0002\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"iteration\":2,\"request_type\":\"destructive_action\",\"description\":\"t1 sweep pending approval\",\"risk_level\":\"high\",\"status\":\"pending\",\"created_at\":\"0001-01-01T00:00:00Z\"}",
+     "note": "the same row read through the consensus route returns the documented 200, so the row is readable and the shim handler is the failing surface."
+    },
+    "root_cause": "internal/shim/opencode/server.go:2235 getPermission SELECTs ar.sql_preview, ar.decision_reason and ar.resolved_at; the shipped SQLite schema approval_requests (migrations/001_initial_schema.sql) has target_sql, review_notes and reviewed_at instead. The query error is swallowed into a 404, so a schema bug is reported as 'not found'."
+   },
+   "class_": "status-code contract violation, silently masked as not-found",
+   "prior_candidate_recheck": "NEW (derived from the same root cause as T1-D5)"
+  },
+  {
+   "id": "T1-D5",
+   "title": "POST /permission/{permissionId}/resolve returns 500 on a well-formed body",
+   "severity": "critical",
+   "evidence": {
+    "request": "POST /permission/t1-perm-0002/resolve",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "observed_status": 500,
+    "response_body": "{\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"failed to resolve permission: sqlite: exec: SQL logic error: no such column: decision_reason (1)\"}}",
+    "expected": "one of 200|400|401|404 \u2014 500 is not in the documented set",
+    "control": {
+     "request": "POST /api/v1/approvals/t1-perm-0002/review",
+     "observed": 200,
+     "note": "the consensus route POST /api/v1/approvals/{id}/review resolves the same row with the documented 200."
+    },
+    "root_cause": "internal/shim/opencode/server.go:2278 UPDATE approval_requests SET status=$1, decision_reason=$2, resolved_at=$3, resolved_by='opencode-shim' \u2014 those three columns do not exist in the shipped approval_requests schema (review_notes / reviewed_at / reviewer_id are the real columns). SQLite raises 'no such column: decision_reason', surfaced verbatim as a 500.",
+    "probe_methodology_note": "The bulk sweep's minimal `{}` body is refused by the decision vocabulary check (400) BEFORE the UPDATE runs, which masks the defect. It only reproduces with a well-formed {'decision': 'approved'|'rejected'|'modified'} body."
+   },
+   "class_": "undocumented 5xx from a schema/code drift",
+   "prior_candidate_recheck": "CONFIRMED (was listed as an unverified claim of 500 vs {200,400,401,404})"
+  }
+ ],
+ "plan_drift": [
+  {
+   "id": "T1-P1",
+   "title": "the test plan's 60-path census is stale: the served contract declares 66 paths / 78 operations",
+   "severity": "high",
+   "evidence": {
+    "plan_asserted_path_count": 60,
+    "plan_tests_affected": [
+     "C-006",
+     "C-067",
+     "C-131",
+     "C-132",
+     "C-192",
+     "C-240",
+     "C-242"
+    ],
+    "served_path_count": 66,
+    "served_operation_count": 78,
+    "bundled_yaml_path_count": 66,
+    "served_equals_bundled_path_sets": true,
+    "served_yaml_sha256": "56d1f5d6a7a6b6609adb3cf403a347a470031a6b2c03dd6c798d52695e853b3d",
+    "bundled_yaml_sha256": "56d1f5d6a7a6b6609adb3cf403a347a470031a6b2c03dd6c798d52695e853b3d",
+    "yaml_byte_identical": true,
+    "note": "GET /openapi.yaml is byte-identical to specs/openapi/bundled.yaml and the path sets are identical, so this is plan staleness, not implementation/spec drift. Run these cells with the census measured from the spec (66/78) or they fail as written."
+   },
+   "class_": "plan/manifest drift"
+  }
+ ],
+ "documentation_gaps": [
+  {
+   "operation": "GET /api/v1/skills",
+   "documented_statuses": [
+    200,
+    500
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /api/v1/skills/{skillName}",
+   "documented_statuses": [
+    200,
+    404,
+    500
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /api/v1/tools",
+   "documented_statuses": [
+    200,
+    500
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /find/symbol",
+   "documented_statuses": [
+    501
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /project/{projectId}",
+   "documented_statuses": [
+    501
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /tui/{action}",
+   "documented_statuses": [
+    404,
+    501
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  },
+  {
+   "operation": "GET /vcs/{vcsId}",
+   "documented_statuses": [
+    501
+   ],
+   "unauthenticated_status": 401,
+   "gap": "route enforces authentication but does not declare 401"
+  }
+ ],
+ "schema_format_findings": [
+  {
+   "id": "T1-F1",
+   "title": "heartbeat_at is not RFC 3339 on GET /api/v1/sessions/{sessionId}",
+   "severity": "medium",
+   "evidence": {
+    "declared": "components.schemas.Session.heartbeat_at = {type: string, format: date-time}",
+    "get_observed_value": "2026-09-30 08:14:27",
+    "get_value_is_rfc3339": false,
+    "patch_observed_value": "2026-09-30T08:14:27Z",
+    "patch_value_is_rfc3339": true,
+    "note": "the SAME field on the SAME resource is serialised two different ways depending on the handler: space-separated on GET, RFC 3339 on PATCH. `date-time` requires RFC 3339.",
+    "requests": [
+     "GET /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb",
+     "PATCH /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb"
+    ]
+   },
+   "class_": "declared-schema conformance"
+  },
+  {
+   "id": "T1-F2",
+   "title": "GET /api/v1/approvals/{approvalId} returns created_at as the zero time",
+   "severity": "medium",
+   "evidence": {
+    "declared": "components.schemas.Approval.created_at = {type: string, format: date-time}",
+    "response_body": "{\"id\":\"t1-perm-0002\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"iteration\":2,\"request_type\":\"destructive_action\",\"description\":\"t1 sweep pending approval\",\"risk_level\":\"high\",\"status\":\"pending\",\"created_at\":\"0001-01-01T00:00:00Z\"}",
+    "db_value": "2026-09-30 08:14:17  (SELECT created_at FROM approval_requests WHERE id='t1-perm-0002')",
+    "note": "the stored value is present and non-null; the read path drops it to 0001-01-01T00:00:00Z."
+   },
+   "class_": "declared-schema conformance"
+  },
+  {
+   "id": "T1-F3",
+   "title": "POST /api/v1/approvals/{approvalId}/review writes a non-parseable reviewed_at (Go time.String with the monotonic reading)",
+   "severity": "medium",
+   "evidence": {
+    "response_body": "{\"id\":\"t1-perm-0002\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"iteration\":2,\"request_type\":\"destructive_action\",\"description\":\"t1 sweep pending approval\",\"risk_level\":\"high\",\"status\":\"approved\",\"reviewer_id\":\"admin\",\"created_at\":\"0001-01-01T00:00:00Z\",\"reviewed_at\":\"0001-01-01T00:00:00Z\"}",
+    "db_value": "2026-09-30 03:14:27.257223769 -0500 -05 m=+179.071315254  (SELECT reviewed_at FROM approval_requests WHERE id='t1-perm-0002')",
+    "note": "reviewed_at is written with Go's time.Time.String(), including the 'm=+\u2026' monotonic suffix. It is not RFC 3339 and is not parseable by the declared date-time format."
+   },
+   "class_": "declared-schema conformance"
+  }
+ ],
+ "observations": [
+  {
+   "id": "T1-O1",
+   "title": "8 operations answer 2xx without any credential",
+   "operations": [
+    "GET /api/v1/health",
+    "GET /doc",
+    "GET /global/health",
+    "GET /mcp",
+    "GET /instance",
+    "GET /instance/path",
+    "GET /instance/vcs",
+    "GET /instance/vcs/diff"
+   ],
+   "note": "health/doc/global/health/mcp declare `security: []` and are intentionally public. The four /instance operations inherit the document-level BearerAuth[] requirement yet serve 2xx with no credential \u2014 a posture question for security review, not a status-code mismatch."
+  },
+  {
+   "id": "T1-O2",
+   "title": "POST /mcp rejects Bearer auth and demands an MCP-specific credential channel",
+   "evidence": {
+    "request": "POST /mcp",
+    "documented_statuses": [
+     200,
+     202,
+     400,
+     401,
+     405,
+     501
+    ],
+    "observed_status": 401,
+    "response_body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32000,\"message\":\"Authentication required\",\"data\":\"API key missing from the MCP initialize request \u2014 provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)\"}}\n"
+   },
+   "note": "the spec declares document-level `BearerAuth` (so the operation lists 401 among its documented statuses), but a Bearer header is refused: the JSON-RPC error answers -32000 'API key missing from the MCP initialize request \u2014 provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)'. A generic OpenAPI client (e.g. muster, which drives services from their own spec) cannot authenticate against /mcp using the declared scheme."
+  },
+  {
+   "id": "T1-O3",
+   "title": "POST /permission//resolve (empty path parameter) answers 307, not 4xx",
+   "evidence": {
+    "request": "POST /permission//resolve",
+    "observed_status": 307
+   },
+   "note": "chi's redirect for a trailing/empty segment. Harmless, recorded for completeness: the sweep records it as INFO because the concrete URL is not a declared operation."
+  }
+ ],
+ "skips": [
+  {
+   "operation": "GET /api/v1/skills/{skillName} (200 branch)",
+   "reason": "skills_registry is empty on a fresh instance (GET /api/v1/skills -> []) so no SkillName exists to address; only the 404 branch was exercised.",
+   "observed_status": 404
+  },
+  {
+   "operation": "POST /api/v1/tools/{toolName}/execute (200 branch)",
+   "reason": "tools_registry is empty on a fresh instance (GET /api/v1/tools -> []) so no ToolName exists to execute; only the 400 (unknown tool) branch was exercised.",
+   "observed_status": 400
+  },
+  {
+   "operation": "POST /api/v1/quarantine/{qID}/approve and /reject (200 branch)",
+   "reason": "external_quarantine has no rows on a fresh instance (GET /api/v1/quarantine -> {count: 0}); only the 400 (bad id) branch was exercised.",
+   "observed_status": 400
+  },
+  {
+   "operation": "GET /api/v1/sessions/{sessionId}/memory/{memoryId} (200 branch)",
+   "reason": "the fixture session has no memory rows; the addressed memoryId is a synthetic UUID, so only the 404 branch was exercised.",
+   "observed_status": 404
+  },
+  {
+   "operation": "POST /api/v1/sessions/{sessionId}/message (LLM round trip)",
+   "reason": "the documented 200 was reached and verified ({'session': ..., 'status': 'message_received'}). The downstream LLM CALL is out of T1 scope and was not made: the server was started with a dummy DEEPSEEK_API_KEY so session creation passes its configuration gate without any live provider traffic (T2 owns live-LLM assertions).",
+   "observed_status": 200
+  },
+  {
+   "operation": "SSE endpoints GET /api/v1/events, GET /global/event, GET /event",
+   "reason": "status and Content-Type were recorded; the body is an open stream and was deliberately not drained. Frame-level assertions belong to C-196/C-244.",
+   "observed_status": 200
+  }
+ ],
+ "confirmation_probes": {
+  "targeted_probes2": [
+   {
+    "name": "create-key-valid",
+    "request": "POST /api/v1/auth/keys",
+    "auth": "admin",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 200,
+    "body": "{\"api_key\":\"cs_sk_f33a8ec7f8a75190f891d0c1d0bd9969f1563fcedade264ec9217ccc2711cca7\",\"created_at\":\"2026-09-30T08:13:29Z\",\"id\":\"d6c345be-3fff-464c-b7e5-65c9b3517a86\",\"key_prefix\":\"cs_sk_f3\",\"scope\":\"readonly\"}",
+    "elapsed_ms": 17,
+    "verdict": "DEVIATION"
+   },
+   {
+    "name": "create-session-valid",
+    "request": "POST /api/v1/sessions",
+    "auth": "admin",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 201,
+    "body": "{\"id\":\"720f53ed-ae86-4d39-9e86-c6dbaca700b1\",\"status\":\"booting\",\"api_key\":\"cs_sk_01b419d5818cf67524d4a1c6c06836e8596201b7e599eb77e9a3202cb3d93d36\",\"model\":\"default\",\"created_at\":\"2026-09-30T08:13:29.451605166Z\"}",
+    "elapsed_ms": 18,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "create-task-valid",
+    "request": "POST /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb/tasks",
+    "auth": "admin",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 200,
+    "body": "{\"id\":\"2f6c1625-dfa9-4fde-b2ec-df7a93bdc0fe\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"title\":\"t1-confirm-task\",\"description\":\"confirm 201\",\"status\":\"pending\",\"priority\":5,\"prerequisite_ids\":[],\"created_at\":\"2026-09-30T08:13:29Z\"}",
+    "elapsed_ms": 14,
+    "verdict": "DEVIATION"
+   },
+   {
+    "name": "prior-authkey-status",
+    "request": "POST /api/v1/auth/keys",
+    "auth": "admin",
+    "documented_statuses": [
+     201
+    ],
+    "expected": "201",
+    "observed": 200,
+    "body": "{\"api_key\":\"cs_sk_9d17bafb865d5815b6d2ed5da22e2ce1ee7d1b3a9db68cb9cb907bd266fdab2b\",\"created_at\":\"2026-09-30T08:13:29Z\",\"id\":\"d1c9a208-0816-4365-9d38-8c32774f2c3d\",\"key_prefix\":\"cs_sk_9d\",\"scope\":\"admin\"}",
+    "elapsed_ms": 16,
+    "verdict": "DEVIATION"
+   },
+   {
+    "name": "prior-project-id",
+    "request": "GET /project/t1-sweep-project",
+    "auth": "admin",
+    "documented_statuses": [
+     501
+    ],
+    "expected": "501",
+    "observed": 404,
+    "body": "{\"_tag\":\"ProjectNotFoundError\",\"message\":\"Project not found: t1-sweep-project\",\"projectID\":\"t1-sweep-project\"}\n",
+    "elapsed_ms": 0,
+    "verdict": "DEVIATION"
+   },
+   {
+    "name": "prior-project-root",
+    "request": "GET /project",
+    "auth": "admin",
+    "documented_statuses": [
+     401,
+     501
+    ],
+    "expected": "501|401",
+    "observed": 501,
+    "body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"project is opencode-specific, not supported by Consensus shim; use native tool API\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-0",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-1",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-2",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-3",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-4",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-5",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-6",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-7",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-8",
+    "request": "POST /permission/t1-sweep-permission/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "perm-resolve-empty-id",
+    "request": "POST /permission//resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": null,
+    "observed": 307,
+    "body": "",
+    "elapsed_ms": 0,
+    "verdict": "INFO"
+   },
+   {
+    "name": "perm-resolve-uuid-id",
+    "request": "POST /permission/00000000-0000-0000-0000-0000000000ff/resolve",
+    "auth": "admin",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"decision must be 'approved', 'rejected', or 'modified'\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "ladder-no-key",
+    "request": "GET /api/v1/sessions",
+    "auth": "none",
+    "documented_statuses": [
+     401
+    ],
+    "expected": "401",
+    "observed": 401,
+    "body": "{\"error\":{\"code\":\"UNAUTHENTICATED\",\"message\":\"missing API key\",\"details\":\"missing API key\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "ladder-fake-key",
+    "request": "GET /api/v1/sessions",
+    "auth": "fake",
+    "documented_statuses": [
+     401
+    ],
+    "expected": "401",
+    "observed": 401,
+    "body": "{\"error\":{\"code\":\"UNAUTHENTICATED\",\"message\":\"invalid or expired API key\",\"details\":\"invalid or expired API key\"}}",
+    "elapsed_ms": 0,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "ladder-admin-key",
+    "request": "GET /api/v1/sessions",
+    "auth": "admin",
+    "documented_statuses": [
+     200
+    ],
+    "expected": "200",
+    "observed": 200,
+    "body": "[{\"id\":\"720f53ed-ae86-4d39-9e86-c6dbaca700b1\",\"agent_name\":\"t1-confirm\",\"model_id\":\"default\",\"status\":\"booting\",\"goal\":\"confirm 201\",\"context_budget\":0,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":0,\"heartbeat_at\":\"2026-09-30T08:13:29Z\",\"created_at\":\"2026-09-30T08:13:29Z\"},{\"id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"agent_name\":\"t1-confirm-sess\",\"model_id\":\"default\",\"status\":\"booting\",\"goal\":\"targeted confirmation probes\",\"context_budget\":0,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":0,\"heartbeat_at\":\"2026-09-30T08:13:21Z\",\"created_at\":\"2026-09-30T08:13:21Z\"},{\"id\":\"85c12f7c-06c8-4e92-818d-e4527a748189\",\"agent_name\":\"opencode-agent\",\"model_id\":\"default\",\"status\":\"booting\",\"goa",
+    "elapsed_ms": 4,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "invalid-uuid",
+    "request": "GET /api/v1/sessions/00000000-0000-0000-0000-00000000000Z",
+    "auth": "admin",
+    "documented_statuses": [
+     400
+    ],
+    "expected": "400",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_UUID\",\"message\":\"session ID must be a valid UUID: 00000000-0000-0000-0000-00000000000Z\",\"details\":\"session ID must be a valid UUID: 00000000-0000-0000-0000-00000000000Z\"}}",
+    "elapsed_ms": 4,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "unknown-session-id",
+    "request": "GET /api/v1/sessions/00000000-0000-0000-0000-0000000000ff",
+    "auth": "admin",
+    "documented_statuses": [
+     404
+    ],
+    "expected": "404",
+    "observed": 404,
+    "body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"session not found\",\"details\":\"session not found\"}}",
+    "elapsed_ms": 10,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "malformed-json-sessions",
+    "request": "POST /api/v1/sessions",
+    "auth": "admin",
+    "documented_statuses": [
+     400
+    ],
+    "expected": "400",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"malformed request body: invalid character 'n' looking for beginning of object key string\",\"details\":\"malformed request body: invalid character 'n' looking for beginning of object key string\"}}",
+    "elapsed_ms": 4,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "malformed-json-message",
+    "request": "POST /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb/message",
+    "auth": "admin",
+    "documented_statuses": [
+     400,
+     404
+    ],
+    "expected": "400|404",
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"malformed request body\",\"details\":\"malformed request body\"}}",
+    "elapsed_ms": 10,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "missing-content-type",
+    "request": "POST /api/v1/sessions",
+    "auth": "admin",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": null,
+    "observed": 400,
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"goal is required\",\"details\":\"goal is required\"}}",
+    "elapsed_ms": 4,
+    "verdict": "INFO"
+   },
+   {
+    "name": "doc-api",
+    "request": "GET /doc",
+    "auth": "admin",
+    "documented_statuses": [
+     200
+    ],
+    "expected": "200",
+    "observed": 200,
+    "body": "{\"components\":{\"parameters\":{\"ApiKeyId\":{\"description\":\"UUID of the API key.\",\"in\":\"path\",\"name\":\"keyId\",\"required\":true,\"schema\":{\"format\":\"uuid\",\"type\":\"string\"}},\"ApprovalId\":{\"description\":\"UUID of the approval request.\",\"in\":\"path\",\"name\":\"approvalId\",\"required\":true,\"schema\":{\"format\":\"uuid\",\"type\":\"string\"}},\"HemisphereFilter\":{\"description\":\"Filter tools by hemisphere.\",\"in\":\"query\",\"name\":\"hemisphere\",\"schema\":{\"enum\":[\"internal\",\"external\"],\"type\":\"string\"}},\"Limit\":{\"description\":\"Maximum number of results to return.\",\"in\":\"query\",\"name\":\"limit\",\"schema\":{\"default\":50,\"maximum\":1000,\"minimum\":1,\"type\":\"integer\"}},\"MemoryId\":{\"description\":\"ID of the memory event.\",\"in\":\"path\",\"nam",
+    "elapsed_ms": 1,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "metrics",
+    "request": "GET /api/v1/metrics",
+    "auth": "admin",
+    "documented_statuses": [
+     200
+    ],
+    "expected": "200",
+    "observed": 200,
+    "body": "{\"active_sessions\":3,\"pending_tasks\":1,\"pending_approvals\":0,\"total_sessions\":4}",
+    "elapsed_ms": 11,
+    "verdict": "MATCH"
+   },
+   {
+    "name": "public-unauth-tools",
+    "request": "GET /api/v1/tools",
+    "auth": "none",
+    "documented_statuses": [
+     401,
+     200
+    ],
+    "expected": null,
+    "observed": 401,
+    "body": "{\"error\":{\"code\":\"UNAUTHENTICATED\",\"message\":\"missing API key\",\"details\":\"missing API key\"}}",
+    "elapsed_ms": 0,
+    "verdict": "INFO"
+   },
+   {
+    "name": "public-unauth-skills",
+    "request": "GET /api/v1/skills",
+    "auth": "none",
+    "documented_statuses": [
+     401,
+     200
+    ],
+    "expected": null,
+    "observed": 401,
+    "body": "{\"error\":{\"code\":\"UNAUTHENTICATED\",\"message\":\"missing API key\",\"details\":\"missing API key\"}}",
+    "elapsed_ms": 0,
+    "verdict": "INFO"
+   }
+  ],
+  "discriminating_probes3": [
+   {
+    "name": "D1-post-authkeys-valid",
+    "request": "POST /api/v1/auth/keys",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 200,
+    "verdict": "DEVIATION",
+    "location_header": "",
+    "body": "{\"api_key\":\"cs_sk_3814514e959ee4715ac1e43586a86658f552dfda7420f914800736c8be781ab6\",\"created_at\":\"2026-09-30T08:14:27Z\",\"id\":\"85071824-c38b-41c4-a881-9ee47c4039e6\",\"key_prefix\":\"cs_sk_38\",\"scope\":\"readonly\"}",
+    "elapsed_ms": 25,
+    "location_header_absent": true
+   },
+   {
+    "name": "D2-post-session-tasks-valid",
+    "request": "POST /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb/tasks",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 200,
+    "verdict": "DEVIATION",
+    "location_header": "",
+    "body": "{\"id\":\"a1fd8b68-59c6-4081-8f17-c45c134f46e2\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"title\":\"t1-d2-task\",\"description\":\"201 contract check\",\"status\":\"pending\",\"priority\":5,\"prerequisite_ids\":[],\"created_at\":\"2026-09-30T08:14:27Z\"}",
+    "elapsed_ms": 18
+   },
+   {
+    "name": "control-post-sessions-valid",
+    "request": "POST /api/v1/sessions",
+    "documented_statuses": [
+     201,
+     400,
+     401,
+     403,
+     500
+    ],
+    "expected": "201",
+    "observed": 201,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"id\":\"73a63413-7d10-4033-9102-60be9cb6ee2d\",\"status\":\"booting\",\"api_key\":\"cs_sk_3242ed9919c3e68cf57fd8350b6eb61e9f6d6d141ba87bdd0c7485d77daa3a2c\",\"model\":\"default\",\"created_at\":\"2026-09-30T08:14:27.241348496Z\"}",
+    "elapsed_ms": 23
+   },
+   {
+    "name": "D3-get-project-id",
+    "request": "GET /project/t1-sweep-project",
+    "documented_statuses": [
+     501
+    ],
+    "expected": "501",
+    "observed": 404,
+    "verdict": "DEVIATION",
+    "location_header": "",
+    "body": "{\"_tag\":\"ProjectNotFoundError\",\"message\":\"Project not found: t1-sweep-project\",\"projectID\":\"t1-sweep-project\"}\n",
+    "elapsed_ms": 0
+   },
+   {
+    "name": "control-get-project-root",
+    "request": "GET /project",
+    "documented_statuses": [
+     401,
+     501
+    ],
+    "expected": "501|401",
+    "observed": 501,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"error\":{\"code\":\"NOT_IMPLEMENTED\",\"message\":\"project is opencode-specific, not supported by Consensus shim; use native tool API\"}}",
+    "elapsed_ms": 0
+   },
+   {
+    "name": "D4a-get-permission-real-row",
+    "request": "GET /permission/t1-perm-0002",
+    "documented_statuses": [
+     200,
+     401,
+     404
+    ],
+    "expected": "200",
+    "observed": 404,
+    "verdict": "DEVIATION",
+    "location_header": "",
+    "body": "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"permission not found\"}}",
+    "elapsed_ms": 0
+   },
+   {
+    "name": "D4b-control-get-approval-real-row",
+    "request": "GET /api/v1/approvals/t1-perm-0002",
+    "documented_statuses": [
+     200,
+     401,
+     403,
+     404,
+     500
+    ],
+    "expected": "200",
+    "observed": 200,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"id\":\"t1-perm-0002\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"iteration\":2,\"request_type\":\"destructive_action\",\"description\":\"t1 sweep pending approval\",\"risk_level\":\"high\",\"status\":\"pending\",\"created_at\":\"0001-01-01T00:00:00Z\"}",
+    "elapsed_ms": 9
+   },
+   {
+    "name": "D4c-resolve-permission-real-row",
+    "request": "POST /permission/t1-perm-0002/resolve",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     404
+    ],
+    "expected": "200|400|401|404",
+    "observed": 500,
+    "verdict": "DEVIATION",
+    "location_header": "",
+    "body": "{\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"failed to resolve permission: sqlite: exec: SQL logic error: no such column: decision_reason (1)\"}}",
+    "elapsed_ms": 0
+   },
+   {
+    "name": "D4d-control-review-approval-real-row",
+    "request": "POST /api/v1/approvals/t1-perm-0002/review",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     403,
+     404,
+     409,
+     500
+    ],
+    "expected": "200",
+    "observed": 200,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"id\":\"t1-perm-0002\",\"session_id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"iteration\":2,\"request_type\":\"destructive_action\",\"description\":\"t1 sweep pending approval\",\"risk_level\":\"high\",\"status\":\"approved\",\"reviewer_id\":\"admin\",\"created_at\":\"0001-01-01T00:00:00Z\",\"reviewed_at\":\"0001-01-01T00:00:00Z\"}",
+    "elapsed_ms": 21
+   },
+   {
+    "name": "hp-post-session-message",
+    "request": "POST /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb/message",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     403,
+     404,
+     500
+    ],
+    "expected": "200",
+    "observed": 200,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"session\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"status\":\"message_received\"}",
+    "elapsed_ms": 25
+   },
+   {
+    "name": "hp-get-session-format",
+    "request": "GET /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb",
+    "documented_statuses": [
+     200,
+     401,
+     403,
+     404,
+     500
+    ],
+    "expected": "200",
+    "observed": 200,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"agent_name\":\"t1-confirm-sess\",\"model_id\":\"default\",\"status\":\"planning\",\"goal\":\"targeted confirmation probes\",\"context_budget\":128000,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":2,\"heartbeat_at\":\"2026-09-30 08:14:27\",\"created_at\":\"2026-09-30T08:13:21Z\"}",
+    "elapsed_ms": 32,
+    "heartbeat_at": "2026-09-30 08:14:27",
+    "heartbeat_at_is_rfc3339": false
+   },
+   {
+    "name": "hp-patch-session-enum",
+    "request": "PATCH /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     403,
+     404,
+     409,
+     500
+    ],
+    "expected": "400",
+    "observed": 400,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"unknown status action: \\\"paused\\\" (use pause, resume, or cancel)\",\"details\":\"unknown status action: \\\"paused\\\" (use pause, resume, or cancel)\"}}",
+    "elapsed_ms": 10
+   },
+   {
+    "name": "hp-patch-session-valid-enum",
+    "request": "PATCH /api/v1/sessions/68ed0699-367d-4206-9268-25ebab753dcb",
+    "documented_statuses": [
+     200,
+     400,
+     401,
+     403,
+     404,
+     409,
+     500
+    ],
+    "expected": "200",
+    "observed": 200,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"id\":\"68ed0699-367d-4206-9268-25ebab753dcb\",\"agent_name\":\"t1-confirm-sess\",\"model_id\":\"default\",\"status\":\"paused\",\"goal\":\"targeted confirmation probes\",\"context_budget\":128000,\"tokens_used_in\":0,\"tokens_used_out\":0,\"iteration\":2,\"heartbeat_at\":\"2026-09-30T08:14:27Z\",\"created_at\":\"2026-09-30T08:13:21Z\"}",
+    "elapsed_ms": 17,
+    "heartbeat_at": "2026-09-30T08:14:27Z",
+    "heartbeat_at_is_rfc3339": true
+   },
+   {
+    "name": "hp-mcp-initialize-bearer",
+    "request": "POST /mcp",
+    "documented_statuses": [
+     200,
+     202,
+     400,
+     401,
+     405,
+     501
+    ],
+    "expected": "200|202|400|401|405|501",
+    "observed": 401,
+    "verdict": "MATCH",
+    "location_header": "",
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32000,\"message\":\"Authentication required\",\"data\":\"API key missing from the MCP initialize request \u2014 provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)\"}}\n",
+    "elapsed_ms": 0
+   }
+  ]
+ }
+}
