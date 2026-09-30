@@ -180,6 +180,7 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Fixed-workspace compatibility routes used by the upstream HttpApi.
 	mux.HandleFunc("/path", s.handlePath)
 	mux.HandleFunc("/log", s.handleLog)
+	mux.HandleFunc("/question", s.handleQuestionList)
 	mux.HandleFunc("/question/", s.handleQuestionByID)
 
 	// Doc
@@ -1515,6 +1516,45 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, true)
+}
+
+// handleQuestionList serves GET /question — upstream question.list
+// (ROUTE-ADD-110, SHIM-DRIFT-113, declared responses: 200
+// QuestionRequest[] "List of pending questions", 400 BadRequestError).
+// Previously the path had no route at all and net/http answered the default
+// 404 (the artifact's class NOT-SERVED).
+//
+// QuestionRequest requires id (pattern ^que), sessionID (pattern ^ses) and a
+// questions array of QuestionInfo (multiple-choice prompts with labeled
+// options — openapi-1.18.33.json components.schemas.QuestionRequest). The
+// shim has no producer for that shape: Consensus's human-input surface is
+// approval_requests (request_type/risk_level vocabulary, SPEC-014), an
+// approval row cannot be truthfully reshaped into a QuestionRequest (no
+// header/options, no ^que ids), and nothing in the shim or native API writes
+// question rows. The handler therefore reads the pending-approval store —
+// truthfully answering "no pending questions" with the declared empty list —
+// and never fabricates entries. The declared 400 arm is answered the way
+// sibling handlers do (writeOpencodeError INVALID_REQUEST) when the store
+// cannot be read; 405 is not part of this operation's declared set, but the
+// method guard keeps the sibling METHOD_NOT_ALLOWED envelope instead of
+// silently reading the store.
+func (s *Server) handleQuestionList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	ctx := r.Context()
+	_, err := s.db.Query(ctx,
+		`SELECT ar.id, ar.session_id, ar.request_type, ar.risk_level, ar.description, ar.status, ar.created_at
+		 FROM approval_requests ar WHERE ar.status = 'pending'`)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to list pending questions")
+		return
+	}
+	// Store read succeeded: no pending question requests exist in a form the
+	// upstream contract can carry, so the truthful answer is the empty list
+	// (QuestionRequest[] — an array, never null).
+	writeJSON(w, []any{})
 }
 
 func (s *Server) handleQuestionByID(w http.ResponseWriter, r *http.Request) {

@@ -41,7 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115) and ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113) to covered; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -174,6 +174,11 @@ routes:
     outcome: 200
     auth: fixed-workspace-exempt
     evidence: "server.go:182 handleLog; isFixedWorkspaceCompatibilityRequest server.go:1138"
+  - path: /question
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleQuestionList (ROUTE-ADD-110, formerly SHIM-DRIFT-113): pending-approval store read answers the declared QuestionRequest[] as an empty list"
   - path: /question/{requestID}/reply
     method: POST
     outcome: 404-typed
