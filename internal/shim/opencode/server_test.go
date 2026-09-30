@@ -1385,6 +1385,215 @@ func TestHandleAuth_GET(t *testing.T) {
 	}
 }
 
+// TestHandleAuthDelete answers upstream auth.remove (ROUTE-FIX-001,
+// SHIM-DRIFT-059, declared responses 200 boolean / 400): DELETE
+// /auth/{providerID} must return 200 with the upstream boolean success body,
+// and a repeated delete stays 200 (idempotent removal) instead of the
+// pre-fix 405.
+func TestHandleAuthDelete(t *testing.T) {
+	mdb := &mockDB{}
+	_, srv := newTestServer(mdb)
+	defer srv.Close()
+
+	doDelete := func() {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodDelete, srv.URL+"/auth/testprovider", nil)
+		if err != nil {
+			t.Fatalf("build request: %v", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("DELETE /auth/testprovider: %v", err)
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d. Body: %s", resp.StatusCode, body)
+		}
+		var removed bool
+		if err := json.Unmarshal(body, &removed); err != nil {
+			t.Fatalf("body must be the upstream boolean, got %q: %v", body, err)
+		}
+		if !removed {
+			t.Errorf("boolean body = false, want true")
+		}
+	}
+
+	doDelete()
+	doDelete() // second delete must still answer 200/true
+
+	var sawDelete bool
+	for _, q := range mdb.queries {
+		if strings.Contains(q, "DELETE FROM system_settings") {
+			sawDelete = true
+		}
+	}
+	if !sawDelete {
+		t.Errorf("expected a DELETE on system_settings, queries: %v", mdb.queries)
+	}
+}
+
+// TestHandleAuthUnsupportedMethods pins that only PUT and DELETE are served:
+// other methods keep the pre-fix 405, and an empty provider id stays 405.
+func TestHandleAuthUnsupportedMethods(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/auth/testprovider", "application/json", strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatalf("POST /auth/testprovider: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST /auth/:id: expected 405, got %d", resp.StatusCode)
+	}
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/auth/", nil)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE /auth/: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("DELETE /auth/ (empty id): expected 405, got %d", resp.StatusCode)
+	}
+}
+
+// newAuthStoreTestServer builds a shim server over a real database containing
+// only system_settings (plus the tables the server touches at boot) so auth
+// storage round-trips can be asserted against actual SQL.
+func newAuthStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
+	t.Helper()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "auth.db")
+	conn, err := driver.Open(ctx, db.Config{
+		URL:          "sqlite://" + path,
+		MaxOpenConns: 4,
+	})
+	if err != nil {
+		t.Fatalf("open auth test database: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	for _, stmt := range []string{
+		`CREATE TABLE sessions (
+			id TEXT PRIMARY KEY,
+			status TEXT NOT NULL,
+			iteration INTEGER NOT NULL DEFAULT 0,
+			heartbeat_at TEXT,
+			deleted_at TEXT
+		)`,
+		`CREATE TABLE memory_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			type TEXT NOT NULL,
+			content TEXT NOT NULL,
+			session_id TEXT NOT NULL,
+			iteration_created INTEGER NOT NULL,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE api_keys (
+			id TEXT PRIMARY KEY,
+			key_hash TEXT NOT NULL,
+			key_prefix TEXT,
+			scope TEXT NOT NULL,
+			session_id TEXT,
+			expires_at TEXT
+		)`,
+		`CREATE TABLE system_settings (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		)`,
+	} {
+		if err := conn.Exec(ctx, stmt); err != nil {
+			t.Fatalf("prepare auth test database: %v", err)
+		}
+	}
+
+	s := NewServer(conn, "test-key", nil, nil)
+	s.skipAuth = true
+	srv := httptest.NewServer(s.Handler())
+	t.Cleanup(srv.Close)
+	return s, srv, conn
+}
+
+// TestHandleAuthDeleteRemovesOnlyProviderRows drives the full cycle against a
+// real database: PUT stores auth.<providerID>.<field> rows, DELETE removes
+// exactly that provider's rows (LIKE metacharacters in the id are escaped so
+// prov_1 does not sweep provX1) and leaves every other provider's rows — and
+// non-auth settings — untouched.
+func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
+	ctx := context.Background()
+	_, srv, conn := newAuthStoreTestServer(t)
+
+	do := func(method, path, body string) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
+		if err != nil {
+			t.Fatalf("build %s %s: %v", method, path, err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s %s: %v", method, path, err)
+		}
+		return resp
+	}
+	countRows := func(keyPrefix string) int {
+		t.Helper()
+		pattern := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(keyPrefix) + "%"
+		rows, err := conn.Query(ctx,
+			`SELECT key FROM system_settings WHERE key LIKE $1 ESCAPE '\'`,
+			pattern)
+		if err != nil {
+			t.Fatalf("count %s rows: %v", keyPrefix, err)
+		}
+		return len(rows)
+	}
+
+	resp := do(http.MethodPut, "/auth/prov_1", `{"apiKey":"k1","secret":"s1"}`)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT /auth/prov_1: expected 200, got %d", resp.StatusCode)
+	}
+	// Sibling data that must survive the delete: another provider whose id
+	// shares characters with prov_1 (an unescaped _ in prov_1 would sweep
+	// provX1's rows too), another provider, and a non-auth setting.
+	for _, kv := range [][2]string{
+		{"auth.provX1.key", "keep-me"},
+		{"auth.other.key", "keep-me"},
+		{"consensus.instance.name", "keep-me"},
+	} {
+		if err := conn.Exec(ctx,
+			`INSERT INTO system_settings (key, value) VALUES ($1, $2)`, kv[0], kv[1]); err != nil {
+			t.Fatalf("seed %s: %v", kv[0], err)
+		}
+	}
+	if got := countRows("auth.prov_1."); got != 2 {
+		t.Fatalf("expected 2 stored rows for prov_1 before delete, got %d", got)
+	}
+
+	resp = do(http.MethodDelete, "/auth/prov_1", "")
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("DELETE /auth/prov_1: expected 200, got %d. Body: %s", resp.StatusCode, body)
+	}
+	var removed bool
+	if err := json.Unmarshal(body, &removed); err != nil || !removed {
+		t.Fatalf("DELETE body must be boolean true, got %q (err %v)", body, err)
+	}
+	if got := countRows("auth.prov_1."); got != 0 {
+		t.Errorf("prov_1 rows must be gone after DELETE, %d remain", got)
+	}
+	for _, prefix := range []string{"auth.provX1.", "auth.other.", "consensus.instance."} {
+		if got := countRows(prefix); got != 1 {
+			t.Errorf("rows under %s must survive the delete, got %d", prefix, got)
+		}
+	}
+}
+
 // ============================================================================
 // handleProjectVCSSStub Tests
 // ============================================================================

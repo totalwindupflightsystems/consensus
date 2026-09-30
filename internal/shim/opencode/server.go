@@ -1109,15 +1109,27 @@ func (s *Server) getMessageByID(w http.ResponseWriter, r *http.Request, sessionI
 	})
 }
 
-// handleAuth handles PUT /auth/:id — update auth/config for a provider/session.
-// SPEC-017 §3.2: HARDEN-SHIM-08 remediation.
+// handleAuth serves PUT /auth/:id — update auth/config for a provider/session
+// (SPEC-017 §3.2: HARDEN-SHIM-08 remediation) — and DELETE /auth/:id — the
+// upstream auth.remove operation (SHIM-DRIFT-059), which removes the stored
+// auth rows for that provider.
 func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/auth/")
-	if path == "" || r.Method != http.MethodPut {
+	switch {
+	case path == "":
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use PUT /auth/:id")
-		return
+	case r.Method == http.MethodPut:
+		s.handleAuthPut(w, r, path)
+	case r.Method == http.MethodDelete:
+		s.handleAuthDelete(w, r, path)
+	default:
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use PUT /auth/:id")
 	}
+}
 
+// handleAuthPut stores the submitted auth fields as system_settings rows
+// keyed auth.<providerID>.<field>.
+func (s *Server) handleAuthPut(w http.ResponseWriter, r *http.Request, path string) {
 	var req map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
@@ -1141,6 +1153,24 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 		"status":  "updated",
 		"message": "auth configuration saved",
 	})
+}
+
+// handleAuthDelete implements upstream auth.remove (SHIM-DRIFT-059): remove
+// every auth row PUT stored for the provider (system_settings keys with
+// prefix auth.<providerID>.) and answer the upstream boolean success body
+// (declared responses: 200 boolean, 400 BadRequest).
+func (s *Server) handleAuthDelete(w http.ResponseWriter, r *http.Request, providerID string) {
+	// Escape LIKE metacharacters so a provider id containing %, _ or \
+	// removes only its own rows, not a broader prefix.
+	pattern := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(providerID)
+	ctx := r.Context()
+	if err := s.db.Exec(ctx,
+		`DELETE FROM system_settings WHERE key LIKE $1 ESCAPE '\'`,
+		"auth."+pattern+".%"); err != nil {
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to remove auth configuration")
+		return
+	}
+	writeJSON(w, true)
 }
 
 func isFixedWorkspaceCompatibilityRequest(r *http.Request) bool {
