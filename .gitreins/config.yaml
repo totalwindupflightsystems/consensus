@@ -1,5 +1,6 @@
 guards:
   test_mode: diff
+  test_timeout: 600
   secrets: true
   lint: true
   tests: true
@@ -42,6 +43,7 @@ pipeline:
     - id: tests
       type: script
       run: go test -short -count=1 ./...
+      timeout: 600
       on_fail: continue
   - id: tier2
     type: ai_eval
