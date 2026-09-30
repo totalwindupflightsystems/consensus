@@ -662,3 +662,150 @@ What changed, and what did not:
   `sdk-error-shape.test.ts` 0/2, `promise.test.ts` 7/7. The change introduced no
   new divergence; the two divergence suites are the pre-existing durable gaps
   recorded above.
+
+---
+
+## 10. Addendum — 2026-09-30 re-measure at pin `7945de20`
+
+`SHIM-GAP-003`. The four pinned upstream suites were re-run with the current pin
+attached. **This section is appended; sections 1–9 above are the historical body
+and are not rewritten.** Section 6 residual 1 ("the suite has not been re-run at
+the new pin") is closed by this section.
+
+### 10.1 What was re-pinned
+
+* `specs/openapi/opencode-pin.yaml` — unchanged (it already named
+  `7945de208964a49300d7f770d1a71d078db9a4c4` / `1.18.33`).
+* `scripts/test-opencode-upstream.sh` — `REVISION` and `VERSION` moved from
+  `16747470…`/`1.18.29` to `7945de20…`/`1.18.33`; the manifest/checkout/package
+  consistency checks are untouched, and the evidence directory now derives as
+  `docs/evidence/opencode-upstream-v1.18.33`.
+* `scripts/opencode-upstream/manifest.json` — `revision`, `version` and
+  `lock_sha256` updated (`e4a33f0d…` → `b68e7ece1128eb383663e55ffca4f9f08e451530cc09fc9cf84c489bf41bdc2a`).
+* The four suite files are **byte-identical** across the two pins — the
+  manifest's per-suite `sha256` values did not change and the runner still
+  verifies them against the fresh checkout before applying the transport-only
+  adapter. Only `bun.lock` moved.
+* `internal/chronicle/opencode_upstream_runner_test.go` carries the pinned
+  revision/version/lock strings and was updated with them (it is the test that
+  makes the pin impossible to change silently).
+
+### 10.2 Target and invocation
+
+* Live target: `consensus serve` on `http://127.0.0.1:18242`, scratch SQLite
+  (`scratch.db`), binary built from this tree (`make build`).
+* `DEEPSEEK_API_KEY` was present in the environment for the run (loaded from the
+  secret store, never echoed); the server's start-up probe reported
+  `llm key probe ok`. No suite was classified LLM-DIVERGENCE, so nothing in the
+  table below rests on a missing credential.
+* Evidence directory: `docs/evidence/opencode-upstream-v1.18.33/`
+  (`summary.md`, `results.tsv`, four per-suite logs).
+* Reproduce: see §10.6.
+
+### 10.3 Suite results at pin `7945de20` (v1.18.33)
+
+34 tests ran, **32 pass, 2 fail**.
+
+| # | Actual upstream suite | Exit | Ran | Pass | Fail | Classification |
+|---:|---|---:|---:|---:|---:|---|
+| 1 | `packages/opencode/test/server/httpapi-instance.test.ts` | 0 | 7 | 7 | 0 | PASS |
+| 2 | `packages/opencode/test/server/httpapi-sdk.test.ts` | 0 | 18 | 18 | 0 | PASS |
+| 3 | `packages/opencode/test/server/sdk-error-shape.test.ts` | 1 | 2 | 0 | 2 | DIVERGENCE |
+| 4 | `packages/client/test/promise.test.ts` | 0 | 7 | 7 | 0 | PASS |
+
+Against the measured series in `docs/evidence/` (all at the **old** pin):
+
+| Evidence | Ran | Pass | Fail |
+|---|---:|---:|---:|
+| `opencode-upstream-v1.18.29` | 34 | 30 | 4 |
+| `…-r2` | 34 | 24 | 10 |
+| `…-r3` | 34 | 31 | 3 |
+| `…-r4` | 34 | 32 | 2 |
+| `…-v1.18.33` (this run) | 34 | **32** | **2** |
+
+Note for readers: the "34 ran / 24 pass / 10 fail" figure that circulated is the
+`r2` measurement, not the latest — `r3`/`r4` had already improved it to 31/3 and
+32/2. At the new pin the count is unchanged from `r4`, which is the expected
+shape given the suites are byte-identical, but the *mode* of the first remaining
+failure changed (below), so "unchanged" is a measured statement and not an
+assumption.
+
+### 10.4 The two remaining failing assertions, named
+
+Both live in `packages/opencode/test/server/sdk-error-shape.test.ts`
+(`docs/evidence/opencode-upstream-v1.18.33/packages_opencode_test_server_sdk-error-shape_test_ts.log`).
+
+**F1 — `v2 SDK error shape > 404 with NamedError body throws a real Error carrying the server message`** (test line 30; assertion at line 44):
+
+```text
+error: expect(received).toContain(expected)
+Expected to contain: "Session not found"
+Received: "GET http://test/session/ses_no_such?directory=%2Ftmp%2Fopencode-test-684l17w2e1q → 404 Not Found"
+```
+
+Live shim, same request:
+
+```
+GET /session/ses_no_such?directory=%2Ftmp        →  HTTP 404
+{"error":{"code":"NOT_FOUND","message":"session not found"}}
+```
+
+The status is now correct — at `r4` this assertion observed `401 Unauthorized`,
+so the route/auth half has since been fixed. What remains is the **body shape**:
+upstream's SDK requires the NamedError envelope
+`{name:"NotFoundError", data:{message:"…Session not found…"}}` (test lines 46–49)
+for `wrapClientError` to lift `data.message` into `Error.message`. The shim
+answers with its own `{"error":{"code":…,"message":…}}` envelope, so the SDK falls
+back to the generic fetch text and both the `.message` assertion (line 44) and the
+`cause.body` assertion (lines 46–49) fail.
+
+**F2 — `v2 SDK error shape > 400 schema rejection: SDK extracts the field-level reason from the NamedError body`** (test line 52; assertion at line 71):
+
+```text
+error: expect(received).toBe(expected)
+Expected: 400
+Received: 404
+```
+
+Live shim, same request:
+
+```
+POST /sync/history/list  {"aggregate":-1}  →  HTTP 404
+404 page not found
+```
+
+The route does not exist, so the request never reaches validation. This is the
+already-classified drift item `SHIM-DRIFT-126` (`POST /sync/history`,
+`sync.history.list`, class `NOT-SERVED`, "no shim route at all; net/http default
+404", triage `defer`) in
+`specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`.
+
+### 10.5 Board rows
+
+* **`SHIM-SUITE33-001`** (new, P2, pending) — F1, the NamedError response-body
+  envelope for `session.get`'s 404. Not previously tracked: the declared-vs-served
+  artifact classifies `session.get` as *covered* (it compares path/method/status,
+  `served_outcome: 200`, not error-body shape), so F1 is invisible to that
+  comparison and needed its own row.
+* **`DF-CONSENSUS-40`** (existing, P2, pending) — F2, 400-class validation
+  answered as 404. Updated in place with this pin's measurement rather than
+  duplicated; the same defect also sits in `SHIM-GAP-004` (error-contract
+  narrowing) and `SHIM-GAP-007` (must-serve implementation, `/sync/*` family).
+
+### 10.6 Reproduce
+
+```bash
+make build
+# scratch instance on a free port with its own SQLite file
+cd /tmp/scratch && "$OLDPWD/bin/consensus" init --db-url "sqlite://scratch.db?_journal_mode=WAL"
+"$OLDPWD/bin/consensus" serve --port 18242 --db-url "sqlite://scratch.db?_journal_mode=WAL" &
+# the runner's fetch preload authenticates with Basic opencode:<admin key>
+CONSENSUS_OPENCODE_PASSWORD=<admin key printed by init> \
+  scripts/test-opencode-upstream.sh --base-url http://127.0.0.1:18242
+```
+
+The runner fetches the pinned checkout into `$XDG_CACHE_HOME/consensus/opencode-7945de20…`,
+verifies `bun.lock` and all four suite hashes, applies the transport-only adapter,
+runs the four suites and writes `docs/evidence/opencode-upstream-v1.18.33/`.
+The secondary Go-port grade (`scripts/opencode-compat.sh`, 44 keyless checks)
+still exits 0 at this pin.
