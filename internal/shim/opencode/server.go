@@ -875,6 +875,17 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		sub = parts[1]
 	}
 
+	// "status" is a reserved opencode literal, not a session id: /session/status
+	// is the aggregate session-status operation, which the shim does not serve
+	// (SHIM-GAP-002 / SHIM-DRIFT-114). Without this branch the id parser below
+	// would look up a session literally named "status" and answer 404, telling
+	// the client the operation does not exist.
+	if path == "status" {
+		writeNotImplemented(w, r, "session.status",
+			"the shim does not serve the aggregate session-status map; read a single session's status with GET /session/{sessionID}")
+		return
+	}
+
 	switch {
 	case sub == "" && r.Method == http.MethodGet:
 		s.getSession(w, r, sessionID)
@@ -894,6 +905,17 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		s.getMessageByID(w, r, sessionID, msgID)
 	case sub == "children" && r.Method == http.MethodGet:
 		s.listChildren(w, r, sessionID)
+	case sub == "share" && r.Method == http.MethodDelete:
+		// SHIM-GAP-002 / SHIM-DRIFT-121: /session/{id}/share was routed for
+		// other methods but had no DELETE, so an unshare request fell through
+		// to the generic not-found switch. Answer the declared operation.
+		writeNotImplemented(w, r, "session.unshare",
+			"session sharing is an opencode feature; Consensus does not publish sessions (export is native, SPEC-015)")
+	case sub == "diff":
+		// SHIM-GAP-002 / SHIM-DRIFT-116: a session diff needs per-message
+		// workspace snapshots, which Consensus does not keep.
+		writeNotImplemented(w, r, "session.diff",
+			"session diff is not available: Consensus keeps no per-message workspace snapshot; use GET /instance/vcs/diff or GET /vcs/diff for the workspace diff")
 	default:
 		// Check for 501 exclusions
 		switch sub {
@@ -1179,12 +1201,42 @@ func isStubPath(path, method string) bool {
 
 // handleProjectVCSSStub returns 501 for /project and /vcs paths (opencode-specific).
 func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
+	// SHIM-GAP-002: the declared /vcs sub-operations answer the typed
+	// not-implemented envelope naming their operation id (SHIM-DRIFT-142..144)
+	// instead of the untyped stub body.
+	if op, ok := vcsDeclaredOps[r.URL.Path]; ok {
+		writeNotImplemented(w, r, op,
+			fmt.Sprintf("%s is not implemented: VCS writes and raw/whole-status views are opencode-specific; the shim serves GET /vcs (Vcs.Info) and GET /vcs/diff (FileDiff[]), or the native tool API", op))
+		return
+	}
+
 	name := "project"
 	if strings.Contains(r.URL.Path, "vcs") {
 		name = "VCS"
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		fmt.Sprintf("%s is opencode-specific, not supported by Consensus shim; use native tool API", name))
+}
+
+// vcsDeclaredOps maps the declared /vcs/* sub-paths the shim does not
+// translate to their upstream operation ids (SHIM-GAP-002). GET /vcs and
+// GET /vcs/diff are real compatibility routes (DF-CONSENSUS-38) and are not
+// in this table.
+var vcsDeclaredOps = map[string]string{
+	"/vcs/apply":    "vcs.apply",
+	"/vcs/diff/raw": "vcs.diff.raw",
+	"/vcs/status":   "vcs.status",
+}
+
+// projectDeclaredSubpaths maps the literal /project sub-paths the pinned
+// upstream document declares and the shim does not translate to their
+// operation ids (SHIM-GAP-002). These are not project ids: without this table
+// they were parsed as one and answered with the upstream ProjectNotFoundError,
+// telling the client a *project named "current"* did not exist instead of
+// saying the operation is not implemented.
+var projectDeclaredSubpaths = map[string]string{
+	"current":  "project.current",
+	"git/init": "project.initGit",
 }
 
 // handleProjectByID serves /project/{projectID} sub-paths. Consensus has no
@@ -1194,8 +1246,26 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 // ProjectNotFoundError NamedError body — exactly
 // {_tag, projectID, message}, no extra fields. Bare GET /project keeps the
 // 501 stub (handleProjectVCSSStub).
+//
+// SHIM-GAP-002 carves out the three sub-paths the upstream document declares
+// as operations rather than ids — /project/current (project.current),
+// /project/git/init (project.initGit) and /project/{projectID}/directories
+// (project.directories). They answer the typed not-implemented envelope; the
+// bare /project/{projectID} shape keeps the typed 404 untouched.
 func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	projectID := strings.TrimPrefix(r.URL.Path, "/project/")
+
+	if op, ok := projectDeclaredSubpaths[projectID]; ok {
+		writeNotImplemented(w, r, op,
+			fmt.Sprintf("%s is not implemented: Consensus keeps no project registry, so there is no project record to resolve; use GET /instance and GET /path for the workspace and the native API for work", op))
+		return
+	}
+	if dirsID, ok := strings.CutSuffix(projectID, "/directories"); ok && dirsID != "" {
+		writeNotImplemented(w, r, "project.directories",
+			"project.directories is not implemented: Consensus keeps no project registry and therefore no per-project directory list; use GET /path or GET /find?pattern= for workspace paths")
+		return
+	}
+
 	if projectID == "" {
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
 		return
@@ -2239,10 +2309,36 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // TUI Control Endpoints (SPEC-017 §3.1 — shim-only passthrough)
 // ============================================================================
 
+// tuiDeclaredOps maps the TUI sub-paths the pinned upstream document declares
+// to their operation ids (SHIM-GAP-002). The shim runs no TUI process, so
+// these are answered with the typed not-implemented envelope naming the
+// operation instead of the 404 the router used to hand back.
+//
+// The four older shim-only TUI actions (append-prompt, submit-prompt,
+// execute-command, show-toast) keep their pre-existing error body: they are
+// not part of the SHIM-GAP-002 finding set.
+var tuiDeclaredOps = map[string]string{
+	"clear-prompt":     "tui.clearPrompt",
+	"control/next":     "tui.control.next",
+	"control/response": "tui.control.response",
+	"open-help":        "tui.openHelp",
+	"open-models":      "tui.openModels",
+	"open-sessions":    "tui.openSessions",
+	"open-themes":      "tui.openThemes",
+	"publish":          "tui.publish",
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
+	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
+
+	if op, ok := tuiDeclaredOps[sub]; ok {
+		writeNotImplemented(w, r, op,
+			fmt.Sprintf("TUI control %q is not implemented: no opencode TUI process is attached to this shim; use opencode's built-in TUI", sub))
+		return
+	}
+
 	// TUI sub-paths: append-prompt, submit-prompt, execute-command, show-toast
 	// These are shim-only and do not map to native API calls.
-	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 	switch sub {
 	case "append-prompt", "submit-prompt", "execute-command", "show-toast":
 		writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
@@ -2389,6 +2485,38 @@ func writeOpencodeError(w http.ResponseWriter, r *http.Request, status int, code
 	})
 	w.Write(data)
 	slog.Warn("opencode-shim: error", "method", r.Method, "path", r.URL.Path, "status", status, "code", code)
+}
+
+// notImplementedResponse is the typed envelope every declared-but-untranslated
+// opencode operation answers with (SHIM-GAP-002).
+//
+// The shape is deliberately flat and single-purpose: `operation` names the
+// upstream operationId the client asked for and `detail` says what the shim
+// cannot serve and where the supported surface is. A client — or an operator
+// reading a log line — can therefore tell "this shim does not implement that
+// opencode operation" from "no such route", which is exactly what a silent
+// 404 from a registered route (or a bare 501) prevented.
+type notImplementedResponse struct {
+	Error     string `json:"error"`
+	Operation string `json:"operation"`
+	Detail    string `json:"detail"`
+}
+
+// writeNotImplemented answers a declared opencode operation the Consensus shim
+// does not translate: HTTP 501 plus the typed notImplementedResponse envelope
+// (SHIM-GAP-002, specs/017 §3.9). It is the single response path for that
+// whole family — no handler inlines its own stub body.
+func writeNotImplemented(w http.ResponseWriter, r *http.Request, operation, detail string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotImplemented)
+	if data, err := json.Marshal(notImplementedResponse{
+		Error:     "not_implemented",
+		Operation: operation,
+		Detail:    detail,
+	}); err == nil {
+		w.Write(data)
+	}
+	slog.Warn("opencode-shim: not implemented", "method", r.Method, "path", r.URL.Path, "operation", operation)
 }
 
 // emitShimEventForSession sends an event through the event bus for SSE subscribers.

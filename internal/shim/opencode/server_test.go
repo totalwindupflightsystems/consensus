@@ -2671,3 +2671,237 @@ func TestHandleGlobalEvent_SSE_WithFlusher(t *testing.T) {
 		t.Logf("SSE setup returned %d (may have been cut by context)", resp.StatusCode)
 	}
 }
+
+// ============================================================================
+// SHIM-GAP-002 — declared operations the shim does not translate must say so
+// ============================================================================
+
+// notImplementedRoute is one row of the shim's declared-vs-served honesty
+// contract: an opencode operation the pinned upstream document declares and
+// the Consensus shim does not translate. Before SHIM-GAP-002 each of these
+// answered a 404 from inside a registered route (13 ROUTED-404), a 404 from an
+// existing path whose method was never registered (1 METHOD-MISSING), or a
+// bare 501 with an unrelated error body (3 STUB-501) — a client could not tell
+// "no such opencode operation" from "this shim does not implement it".
+//
+// driftID is the per-item id carried by
+// specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json. Those ids
+// are positional (re-assigned by enumeration order when the comparison is
+// regenerated), so the test below pins the semantically stable key —
+// method + path shape + declared operationId — and only uses the id as a label.
+type notImplementedRoute struct {
+	driftID   string
+	method    string
+	path      string // concrete request path; placeholders filled with the ids below
+	operation string // upstream operationId the envelope must name
+}
+
+// notImplementedRoutes is every finding SHIM-GAP-002 fixes. The count is
+// asserted in the test so the table cannot silently shrink.
+var notImplementedRoutes = []notImplementedRoute{
+	// ROUTED-404 (13): route registered, handler answered 404 NOT_FOUND.
+	{"SHIM-DRIFT-099", http.MethodGet, "/project/current", "project.current"},
+	{"SHIM-DRIFT-100", http.MethodPost, "/project/git/init", "project.initGit"},
+	{"SHIM-DRIFT-101", http.MethodGet, "/project/project_missing/directories", "project.directories"},
+	{"SHIM-DRIFT-114", http.MethodGet, "/session/status", "session.status"},
+	{"SHIM-DRIFT-116", http.MethodGet, "/session/s1/diff", "session.diff"},
+	{"SHIM-DRIFT-131", http.MethodPost, "/tui/clear-prompt", "tui.clearPrompt"},
+	{"SHIM-DRIFT-132", http.MethodGet, "/tui/control/next", "tui.control.next"},
+	{"SHIM-DRIFT-133", http.MethodPost, "/tui/control/response", "tui.control.response"},
+	{"SHIM-DRIFT-135", http.MethodPost, "/tui/open-help", "tui.openHelp"},
+	{"SHIM-DRIFT-136", http.MethodPost, "/tui/open-models", "tui.openModels"},
+	{"SHIM-DRIFT-137", http.MethodPost, "/tui/open-sessions", "tui.openSessions"},
+	{"SHIM-DRIFT-138", http.MethodPost, "/tui/open-themes", "tui.openThemes"},
+	{"SHIM-DRIFT-139", http.MethodPost, "/tui/publish", "tui.publish"},
+	// METHOD-MISSING (1): path routed for other methods, this one absent.
+	{"SHIM-DRIFT-121", http.MethodDelete, "/session/s1/share", "session.unshare"},
+	// STUB-501 (3): already 501, but the stub was silent/untyped.
+	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
+	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
+	{"SHIM-DRIFT-144", http.MethodGet, "/vcs/status", "vcs.status"},
+}
+
+// shimRouteShape normalizes a concrete request path to the artifact's
+// placeholder form so the table's ids compare equal to "{sessionID}" /
+// "{projectID}" rows. "s1" and "project_missing" are the only concrete ids the
+// table uses, and neither is a literal segment of any declared opencode path.
+func shimRouteShape(path string) string {
+	segs := strings.Split(path, "/")
+	for i, seg := range segs {
+		if strings.HasPrefix(seg, "{") || seg == "s1" || seg == "project_missing" {
+			segs[i] = "{}"
+		}
+	}
+	return strings.Join(segs, "/")
+}
+
+func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, []byte) {
+	t.Helper()
+	req, err := http.NewRequest(method, base+path, nil)
+	if err != nil {
+		t.Fatalf("build %s %s: %v", method, path, err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read %s %s: %v", method, path, err)
+	}
+	return resp.StatusCode, resp.Header, body
+}
+
+// TestDeclaredUnimplementedRoutesAnswerTypedEnvelope is the SHIM-GAP-002
+// contract: every one of the 17 declared operations the shim does not
+// translate answers HTTP 501 with the typed not-implemented envelope
+// {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
+// never a 404 from a registered route, never a bare 501.
+func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
+	if len(notImplementedRoutes) != 17 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes; table has %d",
+			len(notImplementedRoutes))
+	}
+	seen := map[string]bool{}
+	for _, route := range notImplementedRoutes {
+		if seen[route.driftID] {
+			t.Fatalf("duplicate drift id %s in notImplementedRoutes", route.driftID)
+		}
+		seen[route.driftID] = true
+	}
+
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, route := range notImplementedRoutes {
+		t.Run(route.driftID+" "+route.method+" "+route.path, func(t *testing.T) {
+			status, header, body := doShimRequest(t, srv.URL, route.method, route.path)
+
+			if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
+				t.Fatalf("%s %s answered %d — a registered route may not lie with 404/405. Body: %s",
+					route.method, route.path, status, body)
+			}
+			if status != http.StatusNotImplemented {
+				t.Fatalf("%s %s: got %d, want 501. Body: %s", route.method, route.path, status, body)
+			}
+			if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+				t.Errorf("Content-Type = %q, want application/json", ct)
+			}
+
+			var got map[string]any
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatalf("501 body is not JSON: %v (%s)", err, body)
+			}
+			if len(got) != 3 {
+				t.Errorf("envelope must carry exactly 3 fields (error, operation, detail), got %d: %v", len(got), got)
+			}
+			if got["error"] != "not_implemented" {
+				t.Errorf("error = %v, want \"not_implemented\"", got["error"])
+			}
+			if got["operation"] != route.operation {
+				t.Errorf("operation = %v, want %q", got["operation"], route.operation)
+			}
+			if detail, _ := got["detail"].(string); strings.TrimSpace(detail) == "" {
+				t.Error("detail must name what is missing; got empty")
+			}
+		})
+	}
+}
+
+// TestNotImplementedEnvelopeIsNotBlanket501 is the non-vacuity control for the
+// table above: the typed envelope did not become the answer for every path in
+// these families. An unknown sub-path still 404s, and the upstream typed
+// ProjectNotFoundError contract for a bare /project/{projectID}
+// (DF-CONSENSUS-47) is untouched by the change.
+func TestNotImplementedEnvelopeIsNotBlanket501(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, tc := range []struct{ method, path string }{
+		{http.MethodGet, "/tui/unknown-action"},
+		{http.MethodGet, "/project/project_missing/unknown-sub"},
+	} {
+		status, _, body := doShimRequest(t, srv.URL, tc.method, tc.path)
+		if status != http.StatusNotFound {
+			t.Errorf("%s %s: got %d, want 404 (non-vacuity control). Body: %s",
+				tc.method, tc.path, status, body)
+		}
+	}
+
+	// The typed ProjectNotFoundError body is a strict toEqual upstream: the
+	// fix must not have swallowed the bare-project shape.
+	status, _, body := doShimRequest(t, srv.URL, http.MethodPatch, "/project/project_missing")
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /project/project_missing: got %d, want 404. Body: %s", status, body)
+	}
+	var typed map[string]any
+	if err := json.Unmarshal(body, &typed); err != nil {
+		t.Fatalf("PATCH /project/project_missing body is not JSON: %v (%s)", err, body)
+	}
+	if typed["_tag"] != "ProjectNotFoundError" {
+		t.Errorf("PATCH /project/project_missing: _tag = %v, want ProjectNotFoundError (DF-CONSENSUS-47)", typed["_tag"])
+	}
+}
+
+// TestNotImplementedTableMatchesDriftArtifact ties the table to the committed
+// declared-vs-served artifact (specs/024 §A.3): every row must still be a
+// finding there, with the same declared operationId, and the table must not
+// carry a row the artifact does not flag. Matching is on the semantically
+// stable key (method + path shape) because the artifact's SHIM-DRIFT-NNN ids
+// are positional.
+func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
+	artifact := filepath.Join("..", "..", "..", "specs", "openapi", "upstream",
+		"opencode-declared-vs-served-1.18.33.json")
+	raw, err := os.ReadFile(artifact)
+	if os.IsNotExist(err) {
+		t.Skipf("declared-vs-served artifact not present at %s", artifact)
+	}
+	if err != nil {
+		t.Fatalf("read %s: %v", artifact, err)
+	}
+
+	var doc struct {
+		Drift []struct {
+			ID          string `json:"id"`
+			Class       string `json:"class"`
+			Method      string `json:"method"`
+			Path        string `json:"path"`
+			OperationID string `json:"operationId"`
+		} `json:"drift_declared_not_served"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("decode %s: %v", artifact, err)
+	}
+	if len(doc.Drift) == 0 {
+		t.Fatal("artifact carries no drift_declared_not_served rows — refusing to pass vacuously")
+	}
+
+	fixedClasses := map[string]bool{"ROUTED-404": true, "METHOD-MISSING": true, "STUB-501": true}
+	flagged := map[string]string{} // shape+method -> operationId
+	for _, row := range doc.Drift {
+		if !fixedClasses[row.Class] {
+			continue
+		}
+		flagged[shimRouteShape(row.Path)+" "+row.Method] = row.OperationID
+	}
+	if len(flagged) != 17 {
+		t.Errorf("artifact flags %d routes in the SHIM-GAP-002 classes, want 17", len(flagged))
+	}
+
+	for _, route := range notImplementedRoutes {
+		key := shimRouteShape(route.path) + " " + route.method
+		op, ok := flagged[key]
+		if !ok {
+			t.Errorf("%s: %s %s is not a flagged finding in the artifact", route.driftID, route.method, route.path)
+			continue
+		}
+		if op != route.operation {
+			t.Errorf("%s: declared operationId is %q, table claims %q", route.driftID, op, route.operation)
+		}
+		delete(flagged, key)
+	}
+	for key, op := range flagged {
+		t.Errorf("artifact finding %s (%s) is not covered by notImplementedRoutes", key, op)
+	}
+}
