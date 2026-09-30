@@ -245,7 +245,10 @@ var configPathOverride string
 
 // LoadWithPath reads configuration with an explicit config file path override.
 // When configPath is set (e.g. via --config flag), it takes highest priority,
-// bypassing the normal chain. When empty, uses the standard priority chain.
+// bypassing the normal chain, and MUST exist: a missing explicit file returns
+// an error (QA-CONSENSUS-20) so an operator typo cannot silently boot the
+// server on defaults. When empty, uses the standard priority chain, where a
+// file that is absent everywhere still falls back to defaults + env.
 func LoadWithPath(configPath string) (Config, error) {
 	cfg := Defaults()
 
@@ -257,16 +260,18 @@ func LoadWithPath(configPath string) (Config, error) {
 	if configPath != "" {
 		data, err := os.ReadFile(configPath)
 		if err != nil {
-			if !os.IsNotExist(err) {
-				return cfg, fmt.Errorf("config: cannot read %s: %w", configPath, err)
+			// Auto-discovery only returns paths that exist, so a NotExist
+			// here means the caller passed an explicit override that is
+			// missing — fail loudly instead of proceeding with defaults.
+			if os.IsNotExist(err) && configPathOverride != "" && configPathOverride == configPath {
+				return cfg, fmt.Errorf("config: config file not found: %s", configPath)
 			}
-			// File doesn't exist — proceed with defaults + env.
-		} else {
-			if err := yaml.Unmarshal(data, &cfg); err != nil {
-				return cfg, fmt.Errorf("config: cannot parse %s: %w", configPath, err)
-			}
-			cfg.configPath = configPath
+			return cfg, fmt.Errorf("config: cannot read %s: %w", configPath, err)
 		}
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return cfg, fmt.Errorf("config: cannot parse %s: %w", configPath, err)
+		}
+		cfg.configPath = configPath
 	}
 
 	// Apply environment variable overrides.

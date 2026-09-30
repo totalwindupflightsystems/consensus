@@ -265,6 +265,52 @@ func TestApplyEnvOverrides_OpenRouterUnsetKeepsDeepSeek(t *testing.T) {
 	}
 }
 
+// --- QA-CONSENSUS-20: explicit --config must fail loudly when missing ---
+
+// TestLoadWithPath_ExplicitMissing_Fails pins the fail-loud contract for the
+// CLI --config flag: when the caller passes an explicit path (configPathOverride
+// via SetConfigPath) that does not exist, LoadWithPath must return an error
+// naming that path instead of silently booting on defaults. An operator typo
+// in --config would otherwise start a server with wrong settings.
+func TestLoadWithPath_ExplicitMissing_Fails(t *testing.T) {
+	hermeticEnv(t)
+	// Move out of the repo so the auto-discovery chain (cwd consensus.yaml,
+	// ~/.consensus/config.yaml, /etc/...) finds nothing and cannot shadow
+	// the missing explicit path.
+	t.Chdir(t.TempDir())
+
+	missing := filepath.Join(t.TempDir(), "nonexistent.yaml")
+	cfg, err := LoadWithPath(missing)
+	if err == nil {
+		t.Fatalf("LoadWithPath(%q) = no error, want explicit-path-not-found failure", missing)
+	}
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("error %q does not name the missing path %q", err.Error(), missing)
+	}
+	if cfg.configPath != "" {
+		t.Errorf("failed load set configPath to %q, want empty", cfg.configPath)
+	}
+}
+
+// TestLoadWithPath_AutoDiscoveryMissing_Succeeds preserves the pre-existing
+// auto-discovery contract: with NO explicit override and no file anywhere on
+// the chain, Load returns defaults (plus env) without error.
+func TestLoadWithPath_AutoDiscoveryMissing_Succeeds(t *testing.T) {
+	hermeticEnv(t)
+	t.Chdir(t.TempDir())
+
+	cfg, err := LoadWithPath("")
+	if err != nil {
+		t.Fatalf("LoadWithPath(\"\") with no discoverable file: %v", err)
+	}
+	if cfg.configPath != "" {
+		t.Errorf("configPath = %q, want empty for defaults-only load", cfg.configPath)
+	}
+	if cfg.Server.Port != 8090 {
+		t.Errorf("port = %d, want default 8090 when no config file exists", cfg.Server.Port)
+	}
+}
+
 // --- Crier inbound message bus (CR-IN-001) ---
 
 // TestLoad_CrierBlock pins the resolution the intake depends on: `crier` is a
