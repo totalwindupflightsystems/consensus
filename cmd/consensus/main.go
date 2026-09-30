@@ -38,6 +38,7 @@ import (
 	"github.com/wojons/consensus/internal/harness"
 	"github.com/wojons/consensus/internal/hitl"
 	"github.com/wojons/consensus/internal/llm"
+	"github.com/wojons/consensus/internal/llmcompat"
 	"github.com/wojons/consensus/internal/mcp"
 	"github.com/wojons/consensus/internal/migrate"
 	"github.com/wojons/consensus/internal/modelsync"
@@ -406,6 +407,16 @@ func runServer() {
 			apiMux.Handle(pattern, shimSrv.Handler())
 		}
 		slog.Info("consensus: opencode shim enabled")
+	}
+
+	// OpenAI-compatible LLM transport pass-through (SPEC-018 §3 planned
+	// surface, DF-CONSENSUS-39): POST /v1/chat/completions forwards to the
+	// configured llm.base_url. The upstream opencode suite's fixture calls
+	// its own fake LLM over this path; an out-of-process shim cannot
+	// reproduce that ephemeral endpoint, so the shim's transport surface
+	// must exist and pass bytes through untouched.
+	for _, pattern := range llmcompat.MountPatterns {
+		apiMux.Handle(pattern, llmcompat.NewPassThrough(cfg.LLM.BaseURL))
 	}
 
 	// H3 Protocol Shim — serves the get-h3 H3 protocol (health/process/result/
