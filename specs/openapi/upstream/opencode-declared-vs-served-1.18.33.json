@@ -16,25 +16,23 @@
   },
   "served_source": {
     "derived_from": "internal/shim/opencode/server.go",
-    "derived_at_commit": "f012e36684f27b22ee432efc9fbd75abb1bd0945",
+    "derived_at_commit": "0246241c75a6f5a835a62529a5ebe960d8fd3124",
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
-    "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md"
+    "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 71,
+    "served_route_entries": 88,
     "covered_operations": 31,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
     "drift_declared_not_served": 144,
     "drift_by_class": {
       "NOT-SERVED": 111,
-      "OUTCOME-MISMATCH": 16,
-      "ROUTED-404": 13,
-      "METHOD-MISSING": 1,
-      "STUB-501": 3
+      "OUTCOME-MISMATCH": 33
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -1610,10 +1608,10 @@
       "tags": "project",
       "declared_responses": "200,400",
       "family": "/project/*",
-      "served_outcome": "404-typed",
-      "evidence": "server.go:1197 handleProjectByID (typed ProjectNotFoundError for every sub-path)",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-099)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-099"
     },
     {
@@ -1623,10 +1621,10 @@
       "tags": "project",
       "declared_responses": "200,400",
       "family": "/project/*",
-      "served_outcome": "404-typed",
-      "evidence": "server.go:1197 handleProjectByID (typed ProjectNotFoundError for every sub-path)",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-100)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-100"
     },
     {
@@ -1636,10 +1634,10 @@
       "tags": "project",
       "declared_responses": "200,400",
       "family": "/project/*",
-      "served_outcome": "404-typed",
-      "evidence": "server.go:1197 handleProjectByID (typed ProjectNotFoundError for every sub-path)",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-101"
     },
     {
@@ -1781,10 +1779,10 @@
       "tags": "session",
       "declared_responses": "200,400",
       "family": "/session/*",
-      "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleSessionByID reserved literal status (SHIM-DRIFT-114)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-114"
     },
     {
@@ -1807,10 +1805,10 @@
       "tags": "session",
       "declared_responses": "200,400",
       "family": "/session/*",
-      "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleSessionByID sub == diff (SHIM-DRIFT-116)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-116"
     },
     {
@@ -1872,8 +1870,10 @@
       "tags": "session",
       "declared_responses": "200,400,404,500",
       "family": "/session/*",
-      "class": "METHOD-MISSING",
-      "detail": "path is routed and serves other methods, not this one",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleSessionByID sub == share && DELETE (SHIM-DRIFT-121)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400,404,500, served 501",
       "id": "SHIM-DRIFT-121"
     },
     {
@@ -1990,10 +1990,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-131"
     },
     {
@@ -2003,10 +2003,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-132"
     },
     {
@@ -2016,10 +2016,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-133"
     },
     {
@@ -2042,10 +2042,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-135"
     },
     {
@@ -2055,10 +2055,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-136"
     },
     {
@@ -2068,10 +2068,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-137"
     },
     {
@@ -2081,10 +2081,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-138"
     },
     {
@@ -2094,10 +2094,10 @@
       "tags": "tui",
       "declared_responses": "200,400",
       "family": "/tui/*",
-      "served_outcome": "404",
-      "evidence": "server.go:2242-2256",
-      "class": "ROUTED-404",
-      "detail": "router subtree matches; handler answers 404 NOT_FOUND",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-139"
     },
     {
@@ -2133,10 +2133,10 @@
       "tags": "instance",
       "declared_responses": "200,400",
       "family": "/vcs/*",
-      "served_outcome": "501",
-      "evidence": "server.go:1159 isStubPath (non-GET skips auth \u2192 501) + server.go:237; GET keeps auth so unauthenticated is 401",
-      "class": "STUB-501",
-      "detail": "routed subtree answers 501 NOT_IMPLEMENTED",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-142"
     },
     {
@@ -2146,10 +2146,10 @@
       "tags": "instance",
       "declared_responses": "200,400",
       "family": "/vcs/*",
-      "served_outcome": "501",
-      "evidence": "server.go:1159 isStubPath (non-GET skips auth \u2192 501) + server.go:237; GET keeps auth so unauthenticated is 401",
-      "class": "STUB-501",
-      "detail": "routed subtree answers 501 NOT_IMPLEMENTED",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-143"
     },
     {
@@ -2159,10 +2159,10 @@
       "tags": "instance",
       "declared_responses": "200,400",
       "family": "/vcs/*",
-      "served_outcome": "501",
-      "evidence": "server.go:1159 isStubPath (non-GET skips auth \u2192 501) + server.go:237; GET keeps auth so unauthenticated is 401",
-      "class": "STUB-501",
-      "detail": "routed subtree answers 501 NOT_IMPLEMENTED",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-144"
     }
   ],

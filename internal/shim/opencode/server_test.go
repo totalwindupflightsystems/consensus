@@ -2845,11 +2845,12 @@ func TestNotImplementedEnvelopeIsNotBlanket501(t *testing.T) {
 }
 
 // TestNotImplementedTableMatchesDriftArtifact ties the table to the committed
-// declared-vs-served artifact (specs/024 §A.3): every row must still be a
-// finding there, with the same declared operationId, and the table must not
-// carry a row the artifact does not flag. Matching is on the semantically
-// stable key (method + path shape) because the artifact's SHIM-DRIFT-NNN ids
-// are positional.
+// declared-vs-served comparison (specs/024 §A.3): the SHIM-GAP-002 set and the
+// artifact must agree one-to-one, the artifact must record each of them as
+// answered by the typed envelope (outcome 501-typed), and the dishonest drift
+// classes the row exists to remove — ROUTED-404, METHOD-MISSING, STUB-501 —
+// must be empty. Matching is on the semantically stable key (method + path
+// shape) because the artifact's SHIM-DRIFT-NNN ids are positional.
 func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 	artifact := filepath.Join("..", "..", "..", "specs", "openapi", "upstream",
 		"opencode-declared-vs-served-1.18.33.json")
@@ -2863,11 +2864,12 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 
 	var doc struct {
 		Drift []struct {
-			ID          string `json:"id"`
-			Class       string `json:"class"`
-			Method      string `json:"method"`
-			Path        string `json:"path"`
-			OperationID string `json:"operationId"`
+			ID            string `json:"id"`
+			Class         string `json:"class"`
+			Method        string `json:"method"`
+			Path          string `json:"path"`
+			OperationID   string `json:"operationId"`
+			ServedOutcome string `json:"served_outcome"`
 		} `json:"drift_declared_not_served"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -2877,31 +2879,44 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 		t.Fatal("artifact carries no drift_declared_not_served rows — refusing to pass vacuously")
 	}
 
-	fixedClasses := map[string]bool{"ROUTED-404": true, "METHOD-MISSING": true, "STUB-501": true}
-	flagged := map[string]string{} // shape+method -> operationId
-	for _, row := range doc.Drift {
-		if !fixedClasses[row.Class] {
-			continue
+	// The classes SHIM-GAP-002 exists to empty: a handler that answers 404 from
+	// inside a registered route, a registered path missing the declared method,
+	// and an untyped 501 stub.
+	dishonest := map[string]bool{"ROUTED-404": true, "METHOD-MISSING": true, "STUB-501": true}
+	byKey := map[string]int{}
+	typed := map[string]string{} // shape+method -> operationId
+	for i, row := range doc.Drift {
+		key := shimRouteShape(row.Path) + " " + row.Method
+		byKey[key] = i
+		if dishonest[row.Class] {
+			t.Errorf("artifact still classifies %s %s as %s (id %s) — SHIM-GAP-002 must empty that class",
+				row.Method, row.Path, row.Class, row.ID)
 		}
-		flagged[shimRouteShape(row.Path)+" "+row.Method] = row.OperationID
+		if row.ServedOutcome == "501-typed" {
+			typed[key] = row.OperationID
+		}
 	}
-	if len(flagged) != 17 {
-		t.Errorf("artifact flags %d routes in the SHIM-GAP-002 classes, want 17", len(flagged))
+	if len(typed) != 17 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 17 SHIM-GAP-002 findings", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {
 		key := shimRouteShape(route.path) + " " + route.method
-		op, ok := flagged[key]
+		i, ok := byKey[key]
 		if !ok {
-			t.Errorf("%s: %s %s is not a flagged finding in the artifact", route.driftID, route.method, route.path)
+			t.Errorf("%s: %s %s is not a drift row in the artifact", route.driftID, route.method, route.path)
 			continue
 		}
-		if op != route.operation {
-			t.Errorf("%s: declared operationId is %q, table claims %q", route.driftID, op, route.operation)
+		if row := doc.Drift[i]; row.OperationID != route.operation {
+			t.Errorf("%s: artifact operationId is %q, table claims %q", route.driftID, row.OperationID, route.operation)
 		}
-		delete(flagged, key)
+		if _, ok := typed[key]; !ok {
+			t.Errorf("%s: artifact served_outcome for %s %s is %q, want 501-typed",
+				route.driftID, route.method, route.path, doc.Drift[i].ServedOutcome)
+		}
+		delete(typed, key)
 	}
-	for key, op := range flagged {
-		t.Errorf("artifact finding %s (%s) is not covered by notImplementedRoutes", key, op)
+	for key, op := range typed {
+		t.Errorf("artifact records %s as 501-typed (%s) but notImplementedRoutes does not cover it", key, op)
 	}
 }

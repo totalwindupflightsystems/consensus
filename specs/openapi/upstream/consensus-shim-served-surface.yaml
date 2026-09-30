@@ -26,6 +26,10 @@
 #   404-typed         upstream-shaped typed NamedError body (e.g. ProjectNotFoundError)
 #   405               METHOD_NOT_ALLOWED
 #   501               NOT_IMPLEMENTED (declared opencode-specific stub)
+#   501-typed         NOT_IMPLEMENTED with the typed envelope
+#                     {"error":"not_implemented","operation":"<op>","detail":"..."}
+#                     (SHIM-GAP-002 — the shim says WHICH declared operation it
+#                     does not implement instead of a lying 404 or a bare 501)
 #
 # auth policy vocabulary: public | api-key | fixed-workspace-exempt (auth is
 # skipped only for the exact upstream compatibility route when the request
@@ -33,10 +37,11 @@
 
 meta:
   derived_from: internal/shim/opencode/server.go
-  derived_at_commit: f012e36684f27b22ee432efc9fbd75abb1bd0945
+  derived_at_commit: 0246241c75a6f5a835a62529a5ebe960d8fd3124
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -419,6 +424,96 @@ routes:
     outcome: 501
     auth: public
     evidence: "instanceKnownSubpaths server.go:1340"
+
+  # ── SHIM-GAP-002: declared operations answered with the typed 501 envelope ──
+  # outcome "501-typed" = HTTP 501 + {"error":"not_implemented","operation":"<op>","detail":"..."}.
+  # These were ROUTED-404 (handler answered 404 from a registered route),
+  # METHOD-MISSING or untyped STUB-501 before SHIM-GAP-002.
+  - path: /project/current
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-099)"
+  - path: /project/git/init
+    method: POST
+    outcome: 501-typed
+    auth: stub-skip-non-GET
+    evidence: "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-100)"
+  - path: /project/{projectID}/directories
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)"
+  - path: /session/status
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleSessionByID reserved literal status (SHIM-DRIFT-114)"
+  - path: /session/{sessionID}/diff
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleSessionByID sub == diff (SHIM-DRIFT-116)"
+  - path: /session/{sessionID}/share
+    method: DELETE
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleSessionByID sub == share && DELETE (SHIM-DRIFT-121)"
+  - path: /tui/clear-prompt
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)"
+  - path: /tui/control/next
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)"
+  - path: /tui/control/response
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)"
+  - path: /tui/open-help
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)"
+  - path: /tui/open-models
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)"
+  - path: /tui/open-sessions
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)"
+  - path: /tui/open-themes
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)"
+  - path: /tui/publish
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)"
+  - path: /vcs/apply
+    method: POST
+    outcome: 501-typed
+    auth: stub-skip-non-GET
+    evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)"
+  - path: /vcs/diff/raw
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)"
+  - path: /vcs/status
+    method: GET
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)"
 
 # ── Router catch-all semantics ──
 # A declared path that matches no explicit route above still reaches a handler

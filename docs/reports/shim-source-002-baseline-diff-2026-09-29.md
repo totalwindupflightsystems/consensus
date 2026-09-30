@@ -159,6 +159,10 @@ Drift classes on the declared side: `NOT-SERVED` 111 (no shim route at all),
 `ROUTED-404` 13, `STUB-501` 3, `OUTCOME-MISMATCH` 16 (declared success answered
 with 501/405/404), `METHOD-MISSING` 1.
 
+*Post-fix (2026-09-29):* the `ROUTED-404` 13, `STUB-501` 3 and `METHOD-MISSING`
+1 rows are emptied by SHIM-GAP-002 — see §9 for the updated counts, the named
+survivor rows and the re-run upstream suite.
+
 Drift by path family (declared-not-served only):
 
 | family | total | NOT-SERVED | ROUTED-404 | STUB-501 | OUTCOME-MISMATCH | METHOD-MISSING |
@@ -603,3 +607,58 @@ one the document declares for the same path+method.
 | /session/{sessionID}/message/{messageID} | GET | session.message | 200,400,404 | 200 |
 | /vcs | GET | vcs.get | 200,400 | 200 |
 | /vcs/diff | GET | vcs.diff | 200,400 | 200 |
+
+---
+
+## 9. Post-fix update — SHIM-GAP-002 (2026-09-29, commit `0246241`)
+
+This report is the baseline at commit `f012e36`; it is *updated here, not
+rewritten* — the tables above remain the pre-fix record.
+
+Board row SHIM-GAP-002 closed the 17 dishonest rows (13 `ROUTED-404`, 1
+`METHOD-MISSING`, 3 `STUB-501`) by answering each with HTTP 501 and the typed
+envelope
+
+```json
+{"error":"not_implemented","operation":"<upstream operationId>","detail":"<what is missing>"}
+```
+
+served by one helper (`writeNotImplemented`, `internal/shim/opencode/server.go`;
+documented in `specs/017-ui-adapter-layer.md` §3.9).
+
+| Class | Baseline (§4) | After SHIM-GAP-002 |
+|---|---:|---:|
+| `ROUTED-404` | 13 | 0 |
+| `METHOD-MISSING` | 1 | 0 |
+| `STUB-501` | 3 | 0 |
+| `OUTCOME-MISMATCH` | 16 | 33 |
+| `NOT-SERVED` | 111 | 111 |
+| **declared-not-served total** | 144 | 144 |
+
+What changed, and what did not:
+
+* The 17 rows keep their ids (`SHIM-DRIFT-099…144`) and remain declared-vs-served
+  drift — upstream still declares `200` for them — but each row now carries
+  `served_outcome: 501-typed` in
+  `specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`: the
+  survivors are named, and the classes that meant "a registered route lied" are
+  empty.
+* Served surface: 71 → 88 route entries — the 17 are now explicit rows in
+  `specs/openapi/upstream/consensus-shim-served-surface.yaml`, whose outcome
+  vocabulary gained `501-typed` and whose `meta.derived_at_commit` is now
+  `0246241`.
+* Unchanged: `NOT-SERVED` 111, covered operations 31, error-contract-only 11,
+  semantic collisions 2, served-not-declared 17.
+* Gate: `go test -short ./internal/shim/opencode/...` includes
+  `TestNotImplementedTableMatchesDriftArtifact`, which fails if the artifact
+  classifies any of the 17 as `ROUTED-404`/`METHOD-MISSING`/`STUB-501` or does
+  not record it as `501-typed` — this comparison can no longer go stale
+  silently for this row.
+* Reproduce: `python3 scripts/compare-opencode-declared-served.py` (the
+  regenerated result is the committed artifact).
+* Upstream suite re-run at the fix
+  (`docs/evidence/opencode-upstream-v1.18.29-r4/`): identical to `r3` —
+  `httpapi-instance.test.ts` 7/7 PASS, `httpapi-sdk.test.ts` 17/18,
+  `sdk-error-shape.test.ts` 0/2, `promise.test.ts` 7/7. The change introduced no
+  new divergence; the two divergence suites are the pre-existing durable gaps
+  recorded above.
