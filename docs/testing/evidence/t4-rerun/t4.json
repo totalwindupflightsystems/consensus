@@ -1,0 +1,107 @@
+{
+  "schema": "consensus-tier-sweep-v2",
+  "tier": "T4",
+  "subgoal": "SG-6",
+  "run_id": "20260930T092901Z",
+  "generated_at": "2026-09-30T09:29:01Z",
+  "target_sha": "18ab3c1db8651e87b84dddc5db9757448abe2e6b",
+  "base_url": "http://127.0.0.1:8090",
+  "llm_key_source": "env:T4_DEEPSEEK_KEY",
+  "control": null,
+  "audited_targets": [
+    {
+      "id": "session",
+      "kind": "sessions",
+      "table": "sessions",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/a9c1aa6c-73ea-43f1-8899-81b886646c87",
+      "why": "status + tokens_used_in/out after the round trip"
+    },
+    {
+      "id": "ledger",
+      "kind": "memory_events",
+      "table": "memory_events",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/a9c1aa6c-73ea-43f1-8899-81b886646c87/memory?limit=500",
+      "why": "the conversation actually persisted (user_message + assistant text_block)"
+    },
+    {
+      "id": "billing",
+      "kind": "agent_billing",
+      "table": "agent_billing",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/a9c1aa6c-73ea-43f1-8899-81b886646c87/billing",
+      "why": "per-iteration cost rows written by the harness usage flush"
+    }
+  ],
+  "round_trip": {
+    "session_id": "a9c1aa6c-73ea-43f1-8899-81b886646c87",
+    "create_http_status": 201,
+    "message_http_status": 200,
+    "poll_seconds": 3,
+    "final_status": "idle"
+  },
+  "session": {
+    "status": "idle",
+    "model_id": "default",
+    "iteration": 2,
+    "tokens_used_in": 1695,
+    "tokens_used_out": 128
+  },
+  "billing": {
+    "billing_rows": 1,
+    "billing_rows_cost_gt0": 1,
+    "total_cost_usd": 0.010395,
+    "total_prompt_tokens": 1695,
+    "total_completion_tokens": 128,
+    "rows_cost_gt0": [
+      {
+        "iteration": 1,
+        "model_id": "deepseek-flash",
+        "prompt_tokens": 1695,
+        "completion_tokens": 128,
+        "cost_usd": 0.010395
+      }
+    ]
+  },
+  "ledger": {
+    "total_rows": 3,
+    "types": {
+      "text_block": 2,
+      "user_message": 1
+    }
+  },
+  "checks": [
+    {
+      "id": "session-idle",
+      "expected": "status == idle after the round trip",
+      "observed": "idle",
+      "verdict": "PASS",
+      "mandated": true
+    },
+    {
+      "id": "session-tokens",
+      "expected": "tokens_used_in + tokens_used_out > 0",
+      "observed": "in=1695 out=128",
+      "verdict": "PASS",
+      "mandated": true
+    },
+    {
+      "id": "billing-rows",
+      "expected": ">=1 agent_billing row with cost_usd > 0",
+      "observed": "1 rows, 1 with cost>0, total=$0.010395",
+      "verdict": "PASS",
+      "mandated": true
+    },
+    {
+      "id": "ledger-types",
+      "expected": "memory_events persisted for the conversation (non-vacuity: rows > 0)",
+      "observed": "3 rows types={\"text_block\":2,\"user_message\":1}",
+      "verdict": "PASS",
+      "mandated": false
+    }
+  ],
+  "verdict": "PASS",
+  "falsifier": {
+    "triggered": false
+  },
+  "server_log_tail": "51-05:00 level=INFO msg=\"consensus: H3 shim enabled\"\ntime=2026-09-30T04:29:03.251-05:00 level=INFO msg=\"consensus: starting\" addr=127.0.0.1:8090 backend=sqlite\ntime=2026-09-30T04:29:03.251-05:00 level=INFO msg=\"api: starting\" addr=127.0.0.1:8090\ntime=2026-09-30T04:29:03.422-05:00 level=INFO msg=\"harness: found active session\" session_id=a9c1aa6c-73ea-43f1-8899-81b886646c87\ntime=2026-09-30T04:29:03.422-05:00 level=INFO msg=\"planning: starting interactive session\" session_id=a9c1aa6c-73ea-43f1-8899-81b886646c87 max_turns=10 timeout=3m0s\ntime=2026-09-30T04:29:03.431-05:00 level=INFO msg=\"llm: calling provider\" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=3\ntime=2026-09-30T04:29:04.673-05:00 level=INFO msg=\"llm: response received\" model=deepseek-flash elapsed_ms=1242 prompt_tokens=1695 completion_tokens=128 reasoning_promoted=false\ntime=2026-09-30T04:29:04.673-05:00 level=WARN msg=\"planning: retrying user-message consumption after sqlite busy\" session_id=a9c1aa6c-73ea-43f1-8899-81b886646c87 attempt=1 backoff=10ms error=\"sqlite tx: exec: database is locked (517)\"\ntime=2026-09-30T04:29:04.684-05:00 level=INFO msg=\"planning: responding to user\" turn=1",
+  "recompute": "bash scripts/battery/t4_sweep.sh  # from the repo root, with DEEPSEEK_API_KEY set; fresh scratch DB + random session each run"
+}

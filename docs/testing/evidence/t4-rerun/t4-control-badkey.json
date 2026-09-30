@@ -1,0 +1,102 @@
+{
+  "schema": "consensus-tier-sweep-v2",
+  "tier": "T4",
+  "subgoal": "SG-6",
+  "run_id": "20260930T092826Z",
+  "generated_at": "2026-09-30T09:28:26Z",
+  "target_sha": "18ab3c1db8651e87b84dddc5db9757448abe2e6b",
+  "base_url": "http://127.0.0.1:8090",
+  "llm_key_source": "env:DEEPSEEK_API_KEY",
+  "control": {
+    "mode": "badkey",
+    "why": "an invalid provider key makes every LLM call fail, so the session never settles idle; proves the idle check is not vacuous",
+    "expected_verdict": "FAIL"
+  },
+  "audited_targets": [
+    {
+      "id": "session",
+      "kind": "sessions",
+      "table": "sessions",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/47b5c6a7-36b3-45c0-9e44-58483f9c9691",
+      "why": "status + tokens_used_in/out after the round trip"
+    },
+    {
+      "id": "ledger",
+      "kind": "memory_events",
+      "table": "memory_events",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/47b5c6a7-36b3-45c0-9e44-58483f9c9691/memory?limit=500",
+      "why": "the conversation actually persisted (user_message + assistant text_block)"
+    },
+    {
+      "id": "billing",
+      "kind": "agent_billing",
+      "table": "agent_billing",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/47b5c6a7-36b3-45c0-9e44-58483f9c9691/billing",
+      "why": "per-iteration cost rows written by the harness usage flush"
+    }
+  ],
+  "round_trip": {
+    "session_id": "47b5c6a7-36b3-45c0-9e44-58483f9c9691",
+    "create_http_status": 201,
+    "message_http_status": 200,
+    "poll_seconds": 12,
+    "final_status": "paused"
+  },
+  "session": {
+    "status": "paused",
+    "model_id": "default",
+    "iteration": 1,
+    "tokens_used_in": 0,
+    "tokens_used_out": 0
+  },
+  "billing": {
+    "billing_rows": 0,
+    "billing_rows_cost_gt0": 0,
+    "total_cost_usd": 0,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "rows_cost_gt0": []
+  },
+  "ledger": {
+    "total_rows": 1,
+    "types": {
+      "user_message": 1
+    }
+  },
+  "checks": [
+    {
+      "id": "session-idle",
+      "expected": "status == idle after the round trip",
+      "observed": "paused",
+      "verdict": "FAIL",
+      "mandated": true
+    },
+    {
+      "id": "session-tokens",
+      "expected": "tokens_used_in + tokens_used_out > 0",
+      "observed": "in=0 out=0",
+      "verdict": "FAIL",
+      "mandated": true
+    },
+    {
+      "id": "billing-rows",
+      "expected": ">=1 agent_billing row with cost_usd > 0",
+      "observed": "0 rows, 0 with cost>0, total=$0",
+      "verdict": "FAIL",
+      "mandated": true
+    },
+    {
+      "id": "ledger-types",
+      "expected": "memory_events persisted for the conversation (non-vacuity: rows > 0)",
+      "observed": "1 rows types={\"user_message\":1}",
+      "verdict": "PASS",
+      "mandated": false
+    }
+  ],
+  "verdict": "FAIL",
+  "falsifier": {
+    "triggered": false
+  },
+  "server_log_tail": "vel=ERROR msg=\"planning: LLM call failed\" turn=1 error=\"llm: HTTP 401 — LLM auth failed: check your API key (e.g. DEEPSEEK_API_KEY or OPENAI_API_KEY env var) (Authentication Fails, Your api key: ****trol is invalid (request_id: d96dfd5f-1b54-483d-87ea-da13fbe27ccc))\"\ntime=2026-09-30T04:28:38.261-05:00 level=ERROR msg=\"planning: LLM error\" session_id=47b5c6a7-36b3-45c0-9e44-58483f9c9691 error=\"llm: HTTP 401 — LLM auth failed: check your API key (e.g. DEEPSEEK_API_KEY or OPENAI_API_KEY env var) (Authentication Fails, Your api key: ****trol is invalid (request_id: d96dfd5f-1b54-483d-87ea-da13fbe27ccc))\"\ntime=2026-09-30T04:28:38.261-05:00 level=ERROR msg=\"harness: circuit breaker tripped\" session_id=47b5c6a7-36b3-45c0-9e44-58483f9c9691 type=consecutive_errors count=3 threshold=3\ntime=2026-09-30T04:28:38.270-05:00 level=INFO msg=\"harness: circuit breaker tripped and persisted\" session_id=47b5c6a7-36b3-45c0-9e44-58483f9c9691 type=consecutive_errors count=3 tripped_at=2026-09-30T04:28:38.261-05:00\ntime=2026-09-30T04:28:38.270-05:00 level=ERROR msg=\"planning: consecutive-error circuit breaker tripped, pausing session\" session_id=47b5c6a7-36b3-45c0-9e44-58483f9c9691 count=3 threshold=3",
+  "recompute": "bash scripts/battery/t4_sweep.sh  # from the repo root, with DEEPSEEK_API_KEY set; fresh scratch DB + random session each run"
+}

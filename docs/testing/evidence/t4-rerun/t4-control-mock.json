@@ -1,0 +1,102 @@
+{
+  "schema": "consensus-tier-sweep-v2",
+  "tier": "T4",
+  "subgoal": "SG-6",
+  "run_id": "20260930T092744Z",
+  "generated_at": "2026-09-30T09:27:44Z",
+  "target_sha": "18ab3c1db8651e87b84dddc5db9757448abe2e6b",
+  "base_url": "http://127.0.0.1:8090",
+  "llm_key_source": "env:T4_DEEPSEEK_KEY",
+  "control": {
+    "mode": "mock",
+    "why": "CONSENSUS_MOCK_LLM: the session can reach idle with zero tokens and zero-cost billing; proves the token and cost checks are not vacuous",
+    "expected_verdict": "FAIL"
+  },
+  "audited_targets": [
+    {
+      "id": "session",
+      "kind": "sessions",
+      "table": "sessions",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/f7549140-65ef-4d1d-8be1-4b23203c487d",
+      "why": "status + tokens_used_in/out after the round trip"
+    },
+    {
+      "id": "ledger",
+      "kind": "memory_events",
+      "table": "memory_events",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/f7549140-65ef-4d1d-8be1-4b23203c487d/memory?limit=500",
+      "why": "the conversation actually persisted (user_message + assistant text_block)"
+    },
+    {
+      "id": "billing",
+      "kind": "agent_billing",
+      "table": "agent_billing",
+      "location": "GET http://127.0.0.1:8090/api/v1/sessions/f7549140-65ef-4d1d-8be1-4b23203c487d/billing",
+      "why": "per-iteration cost rows written by the harness usage flush"
+    }
+  ],
+  "round_trip": {
+    "session_id": "f7549140-65ef-4d1d-8be1-4b23203c487d",
+    "create_http_status": 201,
+    "message_http_status": 200,
+    "poll_seconds": 0,
+    "final_status": "idle"
+  },
+  "session": {
+    "status": "idle",
+    "model_id": "default",
+    "iteration": 1,
+    "tokens_used_in": 0,
+    "tokens_used_out": 0
+  },
+  "billing": {
+    "billing_rows": 10,
+    "billing_rows_cost_gt0": 0,
+    "total_cost_usd": 0,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "rows_cost_gt0": []
+  },
+  "ledger": {
+    "total_rows": 1,
+    "types": {
+      "user_message": 1
+    }
+  },
+  "checks": [
+    {
+      "id": "session-idle",
+      "expected": "status == idle after the round trip",
+      "observed": "idle",
+      "verdict": "PASS",
+      "mandated": true
+    },
+    {
+      "id": "session-tokens",
+      "expected": "tokens_used_in + tokens_used_out > 0",
+      "observed": "in=0 out=0",
+      "verdict": "FAIL",
+      "mandated": true
+    },
+    {
+      "id": "billing-rows",
+      "expected": ">=1 agent_billing row with cost_usd > 0",
+      "observed": "10 rows, 0 with cost>0, total=$0",
+      "verdict": "FAIL",
+      "mandated": true
+    },
+    {
+      "id": "ledger-types",
+      "expected": "memory_events persisted for the conversation (non-vacuity: rows > 0)",
+      "observed": "1 rows types={\"user_message\":1}",
+      "verdict": "PASS",
+      "mandated": false
+    }
+  ],
+  "verdict": "FAIL",
+  "falsifier": {
+    "triggered": false
+  },
+  "server_log_tail": "time=2026-09-30T04:27:46.006-05:00 level=INFO msg=\"harness: found active session\" session_id=f7549140-65ef-4d1d-8be1-4b23203c487d\ntime=2026-09-30T04:27:46.006-05:00 level=INFO msg=\"planning: starting interactive session\" session_id=f7549140-65ef-4d1d-8be1-4b23203c487d max_turns=10 timeout=3m0s\ntime=2026-09-30T04:27:46.012-05:00 level=INFO msg=\"planning: no-op turn\" turn=1\ntime=2026-09-30T04:27:46.012-05:00 level=INFO msg=\"planning: no-op turn\" turn=2\ntime=2026-09-30T04:27:46.012-05:00 level=INFO msg=\"planning: no-op turn\" turn=3\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=4\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=5\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=6\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=7\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=8\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=9\ntime=2026-09-30T04:27:46.013-05:00 level=INFO msg=\"planning: no-op turn\" turn=10\ntime=2026-09-30T04:27:46.013-05:00 level=WARN msg=\"planning: max turns reached with no productive work\"",
+  "recompute": "bash scripts/battery/t4_sweep.sh  # from the repo root, with DEEPSEEK_API_KEY set; fresh scratch DB + random session each run"
+}

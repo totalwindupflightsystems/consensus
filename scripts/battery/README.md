@@ -30,6 +30,10 @@ the class that let `C-GAP-032-ALPHA` be closed with zero upstream tests executed
   from the artifacts and pins each to a sha256. An empty run dir is VOID.
 - **`redproof.sh`** — the deliverable of SG-1. Runs every guard against deliberately bad input and
   a positive control, asserting **both** the exit code **and** the guard's own verdict voice.
+- **`t4_sweep.sh`** — the T4 sweep driver (SG-6). Runs ONE real conversation against a scratch
+  server (build → boot → create → message → settle → audit) and prints `audited_targets` before
+  the verdict; FAILs on a non-idle session or zero tokens/cost. `CONTROL_MODE=mock|badkey` are the
+  committed red controls; no live key yields an explicit `BLOCKED` artifact (exit 2), never a green.
 
 ## Usage
 
