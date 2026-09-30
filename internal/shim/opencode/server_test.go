@@ -25,6 +25,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// testPublishDeadline returns the deadline for the test-side goroutine that
+// simulates the agent publishing its response. QA-CONSENSUS-22: the whole
+// package's tests run in parallel, and under full-suite load the publisher
+// goroutine previously starved behind its fixed 1s deadline while the server
+// side kept waiting on its full 90s RESPONSE_TIMEOUT budget — the failed
+// publish then surfaced as a spurious 504 RESPONSE_TIMEOUT after ~90s
+// (observed on the 8fe455a merge battery). The publisher must be able to
+// outwait the server budget it feeds, so the default is the server's own
+// defaultMessageResponseTimeout; CONSENSUS_TEST_RESPONSE_TIMEOUT overrides it
+// (e.g. to shorten individual runs). The server-side contract is unchanged.
+func testPublishDeadline() time.Duration {
+	if v := os.Getenv("CONSENSUS_TEST_RESPONSE_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return defaultMessageResponseTimeout
+}
+
 // ============================================================================
 // Test Helpers: mock DB
 // ============================================================================
@@ -374,7 +393,7 @@ func TestSendMessageReturnsResponseForSubmittedTurn(t *testing.T) {
 
 	writeResult := make(chan error, 1)
 	go func() {
-		deadline := time.NewTimer(time.Second)
+		deadline := time.NewTimer(testPublishDeadline())
 		defer deadline.Stop()
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
@@ -2245,7 +2264,7 @@ func TestSendMessageStoresRawUserText(t *testing.T) {
 	// shim contract is exercised unchanged.
 	writeResult := make(chan error, 1)
 	go func() {
-		deadline := time.NewTimer(time.Second)
+		deadline := time.NewTimer(testPublishDeadline())
 		defer deadline.Stop()
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
