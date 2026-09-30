@@ -959,3 +959,20 @@ tasks:
   status: complete
   created_at: '2026-09-30T01:43:00.649270+00:00'
   completed_at: '2026-09-30T02:02:24.464107+00:00'
+- id: SHIM-GAP-001
+  title: Triage 174 drift findings
+  criteria:
+  - All 174 findings carry triage+triage_reason fields; report at docs/reports/shim-gap-001-triage-2026-09-30.md
+  status: complete
+  created_at: '2026-09-30T04:44:39.760964+00:00'
+  completed_at: '2026-09-30T04:50:34.710848+00:00'
+- id: DF-CONSENSUS-39
+  title: 'Fix T6 upstream gap: project skills in REST API prompt context'
+  criteria:
+  - The failing upstream assertion '(fail) HttpApi SDK > includes project skills in
+    REST API prompt context' passes
+  - go test -short ./... exits 0
+  - Commit lands on master referencing DF-CONSENSUS-39
+  status: complete
+  created_at: '2026-09-30T04:56:43.288535+00:00'
+  completed_at: '2026-09-30T06:09:24.918221+00:00'
