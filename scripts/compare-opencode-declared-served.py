@@ -105,7 +105,10 @@ def main():
         return None
 
     served_by_key = {(norm(r["path"]), r["method"].upper()): r for r in served_doc["routes"]}
-    served_paths = {norm(r["path"]) for r in served_doc["routes"]}
+    served_paths = {norm(r["path"]) for r in served_doc["routes"] if
+                    str(r.get("other_methods_outcome", "")) != "default-404"}
+    exact_method_paths = {norm(r["path"]) for r in served_doc["routes"]
+                          if str(r.get("other_methods_outcome", "")) == "default-404"}
     declared = surface["paths"]
     declared_norm_paths = {norm(p) for p in declared}
     declared_keys = {(norm(p), m) for p, ms in declared.items() for m in ms}
@@ -143,7 +146,12 @@ def main():
                         row["declared_responses"], served_code(s["outcome"]))
                     drift.append(row)
                 continue
-            if np in served_paths:
+            if np in exact_method_paths:
+                # Exact-pattern route registered for a single method; the
+                # unregistered methods on this path fall through to the
+                # net/http default 404 (route entry: other_methods_outcome).
+                klass, detail = "NOT-SERVED", "exact-pattern route serves a single method; other methods answer the net/http default 404"
+            elif np in served_paths:
                 klass = "METHOD-MISSING"
                 detail = "path is routed and serves other methods, not this one"
             else:
