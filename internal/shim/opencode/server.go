@@ -7,6 +7,7 @@
 package opencode
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -14,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -206,9 +208,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// ROUTE-ADD-112 / SHIM-DRIFT-126: the exact /sync/history path was never
 	// registered, so POST /sync/history fell through to net/http's default
 	// 404. Serve the upstream sync.history.list operation; the rest of the
-	// /sync/* family (replay, start, steal) stays unregistered — this is an
-	// exact pattern, never a /sync/* catch-all.
+	// /sync/* family (start, steal) stays unregistered — these are exact
+	// patterns, never a /sync/* catch-all.
 	mux.HandleFunc("/sync/history", s.handleSyncHistory)
+	// ROUTE-ADD-113 / SHIM-DRIFT-127: same omission one path over — POST
+	// /sync/replay had no shim route at all and answered net/http's default
+	// 404. Serve the upstream sync.replay operation.
+	mux.HandleFunc("/sync/replay", s.handleSyncReplay)
 	mux.HandleFunc("/question", s.handleQuestionList)
 	mux.HandleFunc("/question/", s.handleQuestionByID)
 
@@ -346,6 +352,7 @@ var MountPatterns = []string{
 	"/path", "/log",
 	"/question", "/question/*",
 	"/sync/history",
+	"/sync/replay",
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
@@ -2895,6 +2902,128 @@ func (s *Server) handleSyncHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, []map[string]any{})
+}
+
+// handleSyncReplay serves POST /sync/replay — upstream sync.replay
+// (ROUTE-ADD-113, SHIM-DRIFT-127, declared responses: 200
+// ReplayedSyncEvents {sessionID}, 400 BadRequest | InvalidRequestError).
+//
+// Upstream validates a complete sync event history and replays it: the
+// request body carries the workspace directory plus events[] (declared
+// minItems 1), and a well-formed history answers the sessionID of the
+// replayed session. The declared item schema is id matching ^evt_, an
+// aggregateID string, an integer seq >= 0, a type and an object data payload
+// — all required, with additionalProperties: false on the object and on the
+// items; directory and events are the object's required keys.
+//
+// The Consensus runtime keeps no sync event store and has no replay engine —
+// the same truthfulness limit handleSyncHistory documents — so the declared
+// 200 shape is answered with the one session id the shim can honestly report:
+// "" (the replay analogue of the empty SyncEvent[] /sync/history answers;
+// never a fabricated session). The declared 400 arm is answered via the
+// sibling writeOpencodeError INVALID_REQUEST envelope for malformed input — a
+// body that is not JSON, not an object, carries an unknown top-level key, or
+// violates the declared schema (missing/blank directory, missing or empty
+// events, an event that is not an object or whose fields violate the declared
+// shape), and a present-but-blank declared query param (directory, workspace
+// — the sibling handleSkill convention). The document leaves requestBody
+// optional (no required flag), so an absent body is well-formed and answers
+// the declared 200, exactly as handleSyncHistory accepts one. Non-POST
+// answers 405 METHOD_NOT_ALLOWED — sibling method-guard convention.
+func (s *Server) handleSyncReplay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		var body struct {
+			Directory *string           `json:"directory"`
+			Events    []json.RawMessage `json:"events"`
+		}
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&body); err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+			return
+		}
+		// The declared object is one JSON value; a second value after it is
+		// malformed input, not a body to ignore.
+		var trailing json.RawMessage
+		if err := dec.Decode(&trailing); err != io.EOF {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"malformed request body: unexpected data after the request object")
+			return
+		}
+		if body.Directory == nil || strings.TrimSpace(*body.Directory) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"request body must carry a non-blank directory")
+			return
+		}
+		if len(body.Events) == 0 {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"request body must carry at least one sync event (events declares minItems 1)")
+			return
+		}
+		for i, raw := range body.Events {
+			if reason := syncReplayEventInvalid(raw); reason != "" {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("events[%d]: %s", i, reason))
+				return
+			}
+		}
+	}
+	// No sync event store, so no session is replayed and none can be named:
+	// the declared shape carries the empty string rather than a fabricated id.
+	writeJSON(w, map[string]any{"sessionID": ""})
+}
+
+// syncReplayEventInvalid validates one declared sync.replay events[] item
+// against the schema the pinned upstream document declares: id (pattern
+// ^evt_), aggregateID, an integer seq >= 0, type and an object data payload —
+// all required, additionalProperties: false. It returns "" when the item is
+// well-formed and the reason the declared 400 arm must name otherwise.
+func syncReplayEventInvalid(raw json.RawMessage) string {
+	var event struct {
+		ID          *string        `json:"id"`
+		AggregateID *string        `json:"aggregateID"`
+		Seq         *float64       `json:"seq"`
+		Type        *string        `json:"type"`
+		Data        map[string]any `json:"data"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&event); err != nil {
+		return "not a valid sync event: " + err.Error()
+	}
+	if event.ID == nil {
+		return "missing required field id"
+	}
+	if !strings.HasPrefix(*event.ID, "evt_") {
+		return fmt.Sprintf("id %q does not match the declared pattern ^evt_", *event.ID)
+	}
+	if event.AggregateID == nil {
+		return "missing required field aggregateID"
+	}
+	if event.Seq == nil {
+		return "missing required field seq"
+	}
+	if *event.Seq != math.Trunc(*event.Seq) || *event.Seq < 0 {
+		return fmt.Sprintf("seq %v must be an integer >= 0", *event.Seq)
+	}
+	if event.Type == nil {
+		return "missing required field type"
+	}
+	if event.Data == nil {
+		return "missing required field data (declared type: object)"
+	}
+	return ""
 }
 
 func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
