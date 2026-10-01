@@ -421,8 +421,8 @@ func TestCreateAPIKey_Admin(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp map[string]any
@@ -497,8 +497,8 @@ func TestCreateAPIKey_WithExpiration(t *testing.T) {
 	w := httptest.NewRecorder()
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp map[string]any

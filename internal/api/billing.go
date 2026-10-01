@@ -320,6 +320,7 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	writeJSON(w, map[string]any{
 		"id":         keyID,
 		"key_prefix": keyPrefix,
