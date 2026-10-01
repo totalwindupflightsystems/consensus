@@ -229,6 +229,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 
 	// MCP management
 	mux.HandleFunc("/mcp", s.handleMCPEndpoint)
+	// ROUTE-ADD-093 / SHIM-DRIFT-092: the /mcp/{name}/auth path was never
+	// registered, so DELETE /mcp/{name}/auth fell through to net/http's
+	// default 404 ("the shim has no such operation" was indistinguishable
+	// from "this shim does not implement it"). Serve the upstream
+	// mcp.auth.remove operation; every other /mcp/* shape — the rest of the
+	// declared family (auth.start, auth/authenticate, auth/callback,
+	// connect, disconnect) and every wrong method on the auth path — keeps
+	// the byte-identical pre-change answer (http.NotFound, see handleMCPSub),
+	// so the sibling artifact rows stay NOT-SERVED until their own rows serve
+	// them. This is a shape check, never a /mcp/* catch-all.
+	mux.HandleFunc("/mcp/", s.handleMCPSub)
 
 	// Auth management (SPEC-017 §3.2)
 	mux.HandleFunc("/auth/", s.handleAuth)
@@ -302,6 +313,12 @@ var MountPatterns = []string{
 	"/tui/*",
 	"/lsp", "/lsp/*",
 	"/doc", "/doc/*",
+	// ROUTE-ADD-093: the exact declared param shape for mcp.auth.remove. The
+	// native MCP server owns /mcp/* in the combined deployment (main.go mounts
+	// it before the shim's patterns); chi prefers this deeper param route over
+	// that catch-all, so only the auth sub-path is claimed from the native
+	// mount — /mcp/sse and /mcp/message still reach the MCP server.
+	"/mcp/{name}/auth",
 	"/auth/*",
 	"/project", "/project/*",
 	"/vcs", "/vcs/*",
@@ -2490,6 +2507,115 @@ func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
 		"MCP management via opencode shim is not implemented; use /mcp/sse directly")
+}
+
+// handleMCPSub serves the /mcp/* sub-paths. Only the upstream mcp.auth.remove
+// operation — DELETE /mcp/{name}/auth (ROUTE-ADD-093, SHIM-DRIFT-092, declared
+// responses: 200 {success:true}, 400 BadRequestError, 404
+// McpServerNotFoundError) — is served. Every other /mcp/* shape answers
+// http.NotFound, the same 404 body net/http's default handler produced before
+// this route existed, so the sibling rows of the declared family
+// (mcp.auth.start, auth/authenticate, auth/callback, connect, disconnect) keep
+// the NOT-SERVED observation they are pinned to in the declared-vs-served
+// artifact, and a non-DELETE request on this path keeps its pre-change answer
+// byte-for-byte (405 is not part of this operation's declared set — the same
+// choice handleProviderAuth made for its undeclared methods, ROUTE-ADD-099).
+func (s *Server) handleMCPSub(w http.ResponseWriter, r *http.Request) {
+	name, sub, ok := parseMCPSubPath(r.URL.Path)
+	if !ok || sub != "auth" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodDelete {
+		http.NotFound(w, r)
+		return
+	}
+	s.handleMCPAuthRemove(w, r, name)
+}
+
+// parseMCPSubPath splits /mcp/{name}/{sub}. ok is true only for exactly that
+// shape: a non-empty name and one non-empty trailing segment (so
+// /mcp/{name}/auth/callback and /mcp/{name} are not this operation).
+func parseMCPSubPath(path string) (name, sub string, ok bool) {
+	rest, found := strings.CutPrefix(path, "/mcp/")
+	if !found {
+		return "", "", false
+	}
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+// handleMCPAuthRemove serves DELETE /mcp/{name}/auth — upstream
+// mcp.auth.remove (ROUTE-ADD-093, SHIM-DRIFT-092), "Remove OAuth credentials
+// for an MCP server".
+//
+// The shim keeps no MCP server registry of its own: it exposes Consensus AS an
+// MCP server and holds no OAuth credential store for the servers a client
+// configures (that is the mcp.auth.start / auth/callback half of the family,
+// still unserved). It does own a settings store — the one GET/PATCH /config
+// reads and writes and the one the sibling /auth operations key
+// (auth.<providerID>.<field>). An MCP server entry is therefore resolved from
+// that store under the flat translation of the upstream config's
+// mcp: {"<name>": ...} block: a key "mcp.<name>" or any key under "mcp.<name>.".
+// A name with no stored entry names no MCP server the shim knows, so there is
+// nothing whose credentials this call could remove — that is the declared 404.
+//
+// The declared arms map as:
+//
+//	200 → the stored OAuth rows for the server (mcp.<name>.oauth.<field>) are
+//	      removed and the declared body {"success": true} is returned. No OAuth
+//	      rows may exist — the shim has no flow that writes them yet — and the
+//	      removal is still the honest answer: after the call no stored MCP OAuth
+//	      credentials remain for that server (the removal is idempotent, the
+//	      same shape handleAuthDelete gives upstream auth.remove).
+//	400 → malformed input: a blank {name}, or a present-but-blank declared
+//	      query param (directory, workspace — the sibling handleSkill
+//	      convention). A settings-store read failure also answers this arm
+//	      rather than an undeclared 5xx, the way handleProviderAuth does.
+//	404 → typed McpServerNotFoundError {_tag, name, message} for a name with
+//	      no stored MCP server entry (the declared shape, never a bare 404).
+func (s *Server) handleMCPAuthRemove(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "MCP server name is required")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, present := r.URL.Query()[param]; present && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+
+	// Escape LIKE metacharacters so a name containing %, _ or \ resolves (and
+	// removes) only its own rows — the same treatment handleAuthDelete gives a
+	// provider id.
+	pattern := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(name)
+	ctx := r.Context()
+	rows, err := s.db.Query(ctx,
+		`SELECT key FROM system_settings WHERE key = $1 OR key LIKE $2 ESCAPE '\'`,
+		"mcp."+name, "mcp."+pattern+".%")
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to read MCP server settings")
+		return
+	}
+	if len(rows) == 0 {
+		writeOpencodeNotFoundError(w, "McpServerNotFoundError", "name", name,
+			"MCP server not found: "+name)
+		return
+	}
+
+	if err := s.db.Exec(ctx,
+		`DELETE FROM system_settings WHERE key LIKE $1 ESCAPE '\'`,
+		"mcp."+pattern+".oauth.%"); err != nil {
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR",
+			"failed to remove MCP OAuth credentials")
+		return
+	}
+	writeJSON(w, map[string]any{"success": true})
 }
 
 // ============================================================================
