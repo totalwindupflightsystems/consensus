@@ -477,8 +477,16 @@ func TestSendMessageNoResponseReturnsConcreteError(t *testing.T) {
 
 	started := time.Now()
 	s.Handler().ServeHTTP(recorder, req)
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("no-response path took %s, want bounded cancellation", elapsed)
+	// Load-aware bound (QA-CONSENSUS-22 class): under host load the 40ms
+	// context deadline plus scheduler lag was observed at ~1.5s on a
+	// loadavg-20 box, tripping the old fixed 1s assert with the code green.
+	// The regression this guards is UNbounded cancellation (the 90s default
+	// path), so scale the bound off the configured timeout. 50x was still
+	// tripped at 2.47s under loadavg 20 (SendMessage retry/backoff stacks on
+	// top of the context deadline), so use 250x — 10s here vs 90s unbounded.
+	bound := 250 * s.messageResponseTimeout
+	if elapsed := time.Since(started); elapsed > bound {
+		t.Fatalf("no-response path took %s, want bounded cancellation (bound %s)", elapsed, bound)
 	}
 	if recorder.Code != http.StatusGatewayTimeout {
 		t.Fatalf("status = %d, want 504: %s", recorder.Code, recorder.Body.String())

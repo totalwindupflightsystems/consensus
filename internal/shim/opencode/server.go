@@ -188,6 +188,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /global/* family keeps its existing registrations — this is an exact
 	// pattern, never a /global/* catch-all.
 	mux.HandleFunc("/global/dispose", s.handleGlobalDispose)
+	// ROUTE-ADD-092 / SHIM-DRIFT-090: the exact /global/upgrade path was never
+	// registered, so POST /global/upgrade fell through to net/http's default
+	// 404. Serve the upstream global.upgrade operation; this is an exact
+	// pattern, never a /global/* catch-all — /global/dispose and every other
+	// declared /global/* operation stays as it was (the /global/* entry in
+	// MountPatterns only exposes this subtree to a parent chi router).
+	mux.HandleFunc("/global/upgrade", s.handleGlobalUpgrade)
 
 	// Sessions
 	mux.HandleFunc("/session", s.handleSessions)
@@ -481,6 +488,77 @@ func (s *Server) handleGlobalDispose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, true)
+}
+
+// handleGlobalUpgrade serves POST /global/upgrade — upstream global.upgrade
+// (ROUTE-ADD-092, SHIM-DRIFT-090, declared responses: 200 UpgradeResult,
+// 400 BadRequest | InvalidRequestError). Upstream installs the opencode
+// version named by the request body; the Consensus shim is an in-process
+// protocol translation surface that manages no opencode installation, so it
+// answers the declared UpgradeResult failure arm truthfully —
+// {"success": false, "error": "<why>"} — instead of fabricating a version
+// number for an upgrade that did not happen (a bare 404 is itself the drift
+// the row closes). A parent chi mount already reaches this subtree through
+// the /global/* MountPatterns entry; only the exact mux path was missing.
+//
+// Input handling follows the declared requestBody schema — the object
+// {target*: string} with additionalProperties: false — and the sibling
+// POST-with-body convention (handleSyncHistory): an absent body is well-formed
+// (the document leaves requestBody optional), while a body that is present
+// must satisfy the schema or it answers the declared 400 via the sibling
+// writeOpencodeError INVALID_REQUEST envelope. Non-POST answers 405
+// METHOD_NOT_ALLOWED — sibling method-guard convention (handleSkill,
+// handleSyncHistory). No query parameter is validated: global.upgrade
+// declares none.
+func (s *Server) handleGlobalUpgrade(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		var body map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+			return
+		}
+		// A JSON null body decodes without error into a nil map
+		// (encoding/json leaves the destination untouched) — still not the
+		// declared {target} object.
+		if body == nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				`request body must be a JSON object with a "target" field`)
+			return
+		}
+		for field := range body {
+			if field != "target" {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("unknown field %q: the declared body schema allows only \"target\"", field))
+				return
+			}
+		}
+		raw, ok := body["target"]
+		if !ok {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				`required field "target" is missing`)
+			return
+		}
+		var target string
+		if err := json.Unmarshal(raw, &target); err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				`field "target" must be a string`)
+			return
+		}
+		if strings.TrimSpace(target) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				`field "target" must not be blank`)
+			return
+		}
+	}
+	writeJSON(w, map[string]any{
+		"success": false,
+		"error": "opencode self-upgrade is not supported by the Consensus shim: " +
+			"this surface translates the opencode protocol onto the Consensus runtime and manages no opencode installation",
+	})
 }
 
 func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {

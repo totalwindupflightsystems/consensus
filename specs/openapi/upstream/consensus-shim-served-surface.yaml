@@ -41,8 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-087 moved GET /file (SHIM-DRIFT-084) and ROUTE-ADD-088 moved GET /formatter (SHIM-DRIFT-086) and ROUTE-ADD-090 moved PATCH /global/config (SHIM-DRIFT-088) together with its declared GET sibling (SHIM-DRIFT-087) to covered to covered; regenerate with scripts/compare-opencode-declared-served.py"
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-091 moved POST /global/dispose (SHIM-DRIFT-089) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125) and ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), and ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090) to covered; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -79,6 +78,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
+  - path: /global/upgrade
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleGlobalUpgrade (ROUTE-ADD-092, formerly SHIM-DRIFT-090): declared requestBody {target*} validated; truthful UpgradeResult failure arm {success:false, error} — the shim manages no opencode installation"
   - path: /event
     method: GET
     outcome: 200-sse
