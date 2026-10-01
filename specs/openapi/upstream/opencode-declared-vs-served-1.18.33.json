@@ -20,18 +20,18 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{sessionID}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-087 moved GET /file (SHIM-DRIFT-084) and ROUTE-ADD-088 moved GET /formatter (SHIM-DRIFT-086) to covered; regenerate with scripts/compare-opencode-declared-served.py and ROUTE-ADD-090 moved PATCH /global/config (SHIM-DRIFT-088) together with its declared GET sibling (SHIM-DRIFT-087) to covered"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-091 moved POST /global/dispose (SHIM-DRIFT-089) to covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 94,
-    "covered_operations": 41,
+    "served_route_entries": 97,
+    "covered_operations": 43,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
-    "drift_declared_not_served": 134,
+    "drift_declared_not_served": 132,
     "drift_by_class": {
-      "NOT-SERVED": 104,
+      "NOT-SERVED": 102,
       "OUTCOME-MISMATCH": 30
     },
     "drift_served_not_declared": 17,
@@ -179,7 +179,37 @@
       "declared_responses": "200,400",
       "family": "/formatter",
       "served_outcome": "200",
-      "evidence": "server.go handleFormatter (ROUTE-ADD-088, formerly SHIM-DRIFT-086): truthful empty FormatterStatus[] — the runtime keeps no formatter registry"
+      "evidence": "server.go handleFormatter (ROUTE-ADD-088, formerly SHIM-DRIFT-086): truthful empty FormatterStatus[] \u2014 the runtime keeps no formatter registry"
+    },
+    {
+      "path": "/global/config",
+      "method": "GET",
+      "operationId": "global.config.get",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (SHIM-DRIFT-087): truthful empty Config document - the shim keeps no opencode global-config store"
+    },
+    {
+      "path": "/global/config",
+      "method": "PATCH",
+      "operationId": "global.config.update",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
+    },
+    {
+      "path": "/global/dispose",
+      "method": "POST",
+      "operationId": "global.dispose",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalDispose (ROUTE-ADD-091, formerly SHIM-DRIFT-089): no-op success, the shim keeps no per-instance registry to release; answers the declared boolean"
     },
     {
       "path": "/global/event",
@@ -229,7 +259,7 @@
       "declared_responses": "200,400",
       "family": "/path",
       "served_outcome": "200",
-      "evidence": "server.go:181 handlePath → instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:181 handlePath \u2192 instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/permission",
@@ -279,7 +309,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions → listSessions"
+      "evidence": "server.go:177 handleSessions \u2192 listSessions"
     },
     {
       "path": "/session",
@@ -289,7 +319,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions → createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:177 handleSessions \u2192 createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/session/status",
@@ -299,27 +329,7 @@
       "declared_responses": "200,400",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID reserved literal status → sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
-    },
-    {
-      "path": "/session/{sessionID}/command",
-      "method": "POST",
-      "operationId": "session.command",
-      "tags": "session",
-      "declared_responses": "200,400,404",
-      "family": "/session/*",
-      "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub command → sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
-    },
-    {
-      "path": "/session/{sessionID}/diff",
-      "method": "GET",
-      "operationId": "session.diff",
-      "tags": "session",
-      "declared_responses": "200,400",
-      "family": "/session/*",
-      "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub diff && GET → sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
+      "evidence": "server.go handleSessionByID reserved literal status \u2192 sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
     },
     {
       "path": "/session/{sessionID}",
@@ -372,6 +382,26 @@
       "evidence": "server.go:895 listChildren"
     },
     {
+      "path": "/session/{sessionID}/command",
+      "method": "POST",
+      "operationId": "session.command",
+      "tags": "session",
+      "declared_responses": "200,400,404",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub command \u2192 sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
+    },
+    {
+      "path": "/session/{sessionID}/diff",
+      "method": "GET",
+      "operationId": "session.diff",
+      "tags": "session",
+      "declared_responses": "200,400",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub diff && GET \u2192 sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
+    },
+    {
       "path": "/session/{sessionID}/message",
       "method": "GET",
       "operationId": "session.messages",
@@ -419,7 +449,7 @@
       "declared_responses": "200,400",
       "family": "/sync/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] — the runtime keeps no sync event store"
+      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] \u2014 the runtime keeps no sync event store"
     },
     {
       "path": "/vcs",
@@ -440,26 +470,6 @@
       "family": "/vcs/*",
       "served_outcome": "200",
       "evidence": "server.go:236 handleVCS"
-    },
-    {
-      "path": "/global/config",
-      "method": "GET",
-      "operationId": "global.config.get",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "served_outcome": "200",
-      "evidence": "server.go handleGlobalConfig (SHIM-DRIFT-087): truthful empty Config document - the shim keeps no opencode global-config store"
-    },
-    {
-      "path": "/global/config",
-      "method": "PATCH",
-      "operationId": "global.config.update",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "served_outcome": "200",
-      "evidence": "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
     }
   ],
   "narrowed_error_contract_only": [
@@ -473,9 +483,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:2152; typed PermissionNotFoundError",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-001",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-NARROWED-001"
     },
     {
       "path": "/project/{projectID}",
@@ -487,9 +495,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:234 handleProjectByID (server.go:1197); typed ProjectNotFoundError",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-002",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-002"
     },
     {
       "path": "/question/{requestID}/reject",
@@ -501,9 +507,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-003",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-NARROWED-003"
     },
     {
       "path": "/question/{requestID}/reply",
@@ -515,9 +519,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-004",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-NARROWED-004"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}",
@@ -527,11 +529,9 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:891 restricts to GET; DELETE falls to server.go:912 default → 404",
+      "evidence": "server.go:891 restricts to GET; DELETE falls to server.go:912 default \u2192 404",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-005",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-005"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}/part/{partID}",
@@ -543,9 +543,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-006",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-006"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}/part/{partID}",
@@ -557,9 +555,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-007",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-007"
     },
     {
       "path": "/session/{sessionID}/permissions/{permissionID}",
@@ -571,9 +567,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-008",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-008"
     },
     {
       "path": "/session/{sessionID}/todo",
@@ -585,9 +579,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-009",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-009"
     },
     {
       "path": "/session/{sessionID}/unrevert",
@@ -599,9 +591,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-010",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-NARROWED-010"
     },
     {
       "path": "/tui/select-session",
@@ -613,9 +603,7 @@
       "served_outcome": "404",
       "evidence": "server.go:2242-2256",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-011",
-      "triage": "never-serve",
-      "triage_reason": "TUI-only operation, not needed by harness backend"
+      "id": "SHIM-NARROWED-011"
     }
   ],
   "semantic_different": [
@@ -630,9 +618,7 @@
       "evidence": "server.go:215 handleMCPEndpoint (server.go:1930)",
       "class": "SEMANTIC-DIFFERENT",
       "detail": "upstream declares mcp.status (list MCP server statuses); the shim serves the MCP streamable-HTTP protocol endpoint",
-      "id": "SHIM-SEMANTIC-001",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-SEMANTIC-001"
     },
     {
       "path": "/mcp",
@@ -645,9 +631,7 @@
       "evidence": "server.go:215 handleMCPEndpoint",
       "class": "SEMANTIC-DIFFERENT",
       "detail": "upstream declares mcp.add (add an MCP server); the shim serves the MCP JSON-RPC endpoint",
-      "id": "SHIM-SEMANTIC-002",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-SEMANTIC-002"
     }
   ],
   "drift_declared_not_served": [
@@ -660,9 +644,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-001",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-001"
     },
     {
       "path": "/api/command",
@@ -673,9 +655,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-002",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-002"
     },
     {
       "path": "/api/credential/{credentialID}",
@@ -686,9 +666,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-003",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-003"
     },
     {
       "path": "/api/credential/{credentialID}",
@@ -699,9 +677,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-004",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-004"
     },
     {
       "path": "/api/event",
@@ -712,9 +688,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-005",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-005"
     },
     {
       "path": "/api/fs/find",
@@ -725,9 +699,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/api/fs/list",
@@ -738,9 +710,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-007",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-007"
     },
     {
       "path": "/api/fs/read/*",
@@ -751,9 +721,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/api/health",
@@ -764,9 +732,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/api/integration",
@@ -777,9 +743,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/api/integration/attempt/{attemptID}",
@@ -790,9 +754,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/api/integration/attempt/{attemptID}",
@@ -803,9 +765,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/api/integration/attempt/{attemptID}/complete",
@@ -816,9 +776,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/api/integration/{integrationID}",
@@ -829,9 +787,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/api/integration/{integrationID}/connect/key",
@@ -842,9 +798,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/api/integration/{integrationID}/connect/oauth",
@@ -855,9 +809,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-016",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/api/location",
@@ -868,9 +820,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-017",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/api/model",
@@ -881,9 +831,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-018",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-018"
     },
     {
       "path": "/api/permission/request",
@@ -894,9 +842,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-019",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-019"
     },
     {
       "path": "/api/permission/saved",
@@ -907,9 +853,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-020",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-020"
     },
     {
       "path": "/api/permission/saved/{id}",
@@ -920,9 +864,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-021",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-021"
     },
     {
       "path": "/api/provider",
@@ -933,9 +875,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-022",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-022"
     },
     {
       "path": "/api/provider/{providerID}",
@@ -946,9 +886,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-023",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-023"
     },
     {
       "path": "/api/pty",
@@ -959,9 +897,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-024",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-024"
     },
     {
       "path": "/api/pty",
@@ -972,9 +908,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-025",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-025"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -985,9 +919,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-026",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-026"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -998,9 +930,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-027",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-027"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -1011,9 +941,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-028",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-028"
     },
     {
       "path": "/api/pty/{ptyID}/connect",
@@ -1024,9 +952,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-029",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-029"
     },
     {
       "path": "/api/pty/{ptyID}/connect-token",
@@ -1037,9 +963,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-030",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-030"
     },
     {
       "path": "/api/question/request",
@@ -1050,9 +974,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-031",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-031"
     },
     {
       "path": "/api/reference",
@@ -1063,9 +985,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-032",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-032"
     },
     {
       "path": "/api/session",
@@ -1076,9 +996,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-033",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-033"
     },
     {
       "path": "/api/session",
@@ -1089,9 +1007,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-034",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-034"
     },
     {
       "path": "/api/session/active",
@@ -1102,9 +1018,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-035",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-035"
     },
     {
       "path": "/api/session/{sessionID}",
@@ -1115,9 +1029,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-036",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-036"
     },
     {
       "path": "/api/session/{sessionID}/agent",
@@ -1128,9 +1040,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-037",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-037"
     },
     {
       "path": "/api/session/{sessionID}/compact",
@@ -1141,9 +1051,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-038",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-038"
     },
     {
       "path": "/api/session/{sessionID}/context",
@@ -1154,9 +1062,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-039",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-039"
     },
     {
       "path": "/api/session/{sessionID}/event",
@@ -1167,9 +1073,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-040",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-040"
     },
     {
       "path": "/api/session/{sessionID}/history",
@@ -1180,9 +1084,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-041",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-041"
     },
     {
       "path": "/api/session/{sessionID}/interrupt",
@@ -1193,9 +1095,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-042",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-042"
     },
     {
       "path": "/api/session/{sessionID}/message",
@@ -1206,9 +1106,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-043",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-043"
     },
     {
       "path": "/api/session/{sessionID}/message/{messageID}",
@@ -1219,9 +1117,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-044",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-044"
     },
     {
       "path": "/api/session/{sessionID}/model",
@@ -1232,9 +1128,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-045",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-045"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1245,9 +1139,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-046",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-046"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1258,9 +1150,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-047",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-047"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}",
@@ -1271,9 +1161,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-048",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-048"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}/reply",
@@ -1284,9 +1172,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-049",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-049"
     },
     {
       "path": "/api/session/{sessionID}/prompt",
@@ -1297,9 +1183,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-050",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-050"
     },
     {
       "path": "/api/session/{sessionID}/question",
@@ -1310,9 +1194,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-051",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-051"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reject",
@@ -1323,9 +1205,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-052",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-052"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reply",
@@ -1336,9 +1216,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-053",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-053"
     },
     {
       "path": "/api/session/{sessionID}/revert/clear",
@@ -1349,9 +1227,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-054",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-054"
     },
     {
       "path": "/api/session/{sessionID}/revert/commit",
@@ -1362,9 +1238,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-055",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-055"
     },
     {
       "path": "/api/session/{sessionID}/revert/stage",
@@ -1375,9 +1249,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-056",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-056"
     },
     {
       "path": "/api/session/{sessionID}/wait",
@@ -1388,9 +1260,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-057",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-057"
     },
     {
       "path": "/api/skill",
@@ -1401,9 +1271,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-058",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-058"
     },
     {
       "path": "/auth/{providerID}",
@@ -1416,9 +1284,7 @@
       "evidence": "server.go:1094 (only PUT is supported)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 405",
-      "id": "SHIM-DRIFT-059",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-059"
     },
     {
       "path": "/command",
@@ -1429,9 +1295,7 @@
       "family": "/command",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-060",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-060"
     },
     {
       "path": "/experimental/capabilities",
@@ -1442,9 +1306,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-061",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-061"
     },
     {
       "path": "/experimental/console",
@@ -1455,9 +1317,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-062",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-062"
     },
     {
       "path": "/experimental/console/orgs",
@@ -1468,9 +1328,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-063",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-063"
     },
     {
       "path": "/experimental/console/switch",
@@ -1481,9 +1339,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-064",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-064"
     },
     {
       "path": "/experimental/control-plane/move-session",
@@ -1494,9 +1350,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-065",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-065"
     },
     {
       "path": "/experimental/project/{projectID}/copy",
@@ -1507,9 +1361,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-066",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-066"
     },
     {
       "path": "/experimental/project/{projectID}/copy",
@@ -1520,9 +1372,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-067",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-067"
     },
     {
       "path": "/experimental/project/{projectID}/copy/generate-name",
@@ -1533,9 +1383,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-068",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-068"
     },
     {
       "path": "/experimental/project/{projectID}/copy/refresh",
@@ -1546,9 +1394,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-069",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-069"
     },
     {
       "path": "/experimental/resource",
@@ -1559,9 +1405,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-070",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-070"
     },
     {
       "path": "/experimental/session",
@@ -1572,9 +1416,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-071",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-071"
     },
     {
       "path": "/experimental/session/{sessionID}/background",
@@ -1585,9 +1427,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-072",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-072"
     },
     {
       "path": "/experimental/workspace",
@@ -1598,9 +1438,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-073",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-073"
     },
     {
       "path": "/experimental/workspace",
@@ -1611,9 +1449,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-074",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-074"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1624,9 +1460,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-075",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-075"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1637,9 +1471,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-076",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-076"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1650,9 +1482,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-077",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-077"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1663,9 +1493,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-078",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-078"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1676,9 +1504,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-079",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-079"
     },
     {
       "path": "/experimental/worktree",
@@ -1689,9 +1515,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-080",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-080"
     },
     {
       "path": "/experimental/worktree",
@@ -1702,9 +1526,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-081",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-081"
     },
     {
       "path": "/experimental/worktree",
@@ -1715,9 +1537,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-082",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-082"
     },
     {
       "path": "/experimental/worktree/reset",
@@ -1728,9 +1548,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-083",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-083"
     },
     {
       "path": "/find/symbol",
@@ -1743,22 +1561,7 @@
       "evidence": "server.go:2017 (symbol search requires LSP)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-085",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
-    },
-    {
-      "path": "/global/dispose",
-      "method": "POST",
-      "operationId": "global.dispose",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-089",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-084"
     },
     {
       "path": "/global/upgrade",
@@ -1769,9 +1572,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-090",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-085"
     },
     {
       "path": "/instance/dispose",
@@ -1784,9 +1585,7 @@
       "evidence": "instanceKnownSubpaths server.go:1332",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-091",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-086"
     },
     {
       "path": "/mcp/{name}/auth",
@@ -1797,9 +1596,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-092",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-087"
     },
     {
       "path": "/mcp/{name}/auth",
@@ -1810,9 +1607,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-093",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-088"
     },
     {
       "path": "/mcp/{name}/auth/authenticate",
@@ -1823,9 +1618,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-094",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-089"
     },
     {
       "path": "/mcp/{name}/auth/callback",
@@ -1836,9 +1629,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-095",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-090"
     },
     {
       "path": "/mcp/{name}/connect",
@@ -1849,9 +1640,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-096",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-091"
     },
     {
       "path": "/mcp/{name}/disconnect",
@@ -1862,9 +1651,7 @@
       "family": "/mcp/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-097",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-092"
     },
     {
       "path": "/project",
@@ -1877,9 +1664,7 @@
       "evidence": "server.go:231 handleProjectVCSSStub; GET keeps auth (isStubPath server.go:1159)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-098",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-093"
     },
     {
       "path": "/project/current",
@@ -1892,9 +1677,7 @@
       "evidence": "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-099)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-099",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-094"
     },
     {
       "path": "/project/git/init",
@@ -1907,9 +1690,7 @@
       "evidence": "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-100)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-100",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-095"
     },
     {
       "path": "/project/{projectID}/directories",
@@ -1922,9 +1703,7 @@
       "evidence": "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-101",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-096"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -1935,9 +1714,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-103",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-097"
     },
     {
       "path": "/provider/{providerID}/oauth/callback",
@@ -1948,9 +1725,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-104",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-098"
     },
     {
       "path": "/pty",
@@ -1961,9 +1736,7 @@
       "family": "/pty",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-105",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-099"
     },
     {
       "path": "/pty",
@@ -1974,9 +1747,7 @@
       "family": "/pty",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-106",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-100"
     },
     {
       "path": "/pty/shells",
@@ -1987,9 +1758,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-107",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-101"
     },
     {
       "path": "/pty/{ptyID}",
@@ -2000,9 +1769,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-108",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-102"
     },
     {
       "path": "/pty/{ptyID}",
@@ -2013,9 +1780,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-109",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-103"
     },
     {
       "path": "/pty/{ptyID}",
@@ -2026,9 +1791,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-110",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-104"
     },
     {
       "path": "/pty/{ptyID}/connect",
@@ -2039,9 +1802,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-111",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-105"
     },
     {
       "path": "/pty/{ptyID}/connect-token",
@@ -2052,9 +1813,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-112",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-106"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2067,9 +1826,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-117",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-107"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2082,9 +1839,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-118",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-108"
     },
     {
       "path": "/session/{sessionID}/prompt_async",
@@ -2097,9 +1852,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 204,400,404, served 501",
-      "id": "SHIM-DRIFT-119",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-109"
     },
     {
       "path": "/session/{sessionID}/revert",
@@ -2112,9 +1865,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404,409, served 501",
-      "id": "SHIM-DRIFT-120",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-110"
     },
     {
       "path": "/session/{sessionID}/share",
@@ -2127,9 +1878,7 @@
       "evidence": "server.go handleSessionByID sub == share && DELETE (SHIM-DRIFT-121)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404,500, served 501",
-      "id": "SHIM-DRIFT-121",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-111"
     },
     {
       "path": "/session/{sessionID}/share",
@@ -2142,9 +1891,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404,500, served 501",
-      "id": "SHIM-DRIFT-122",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-112"
     },
     {
       "path": "/session/{sessionID}/shell",
@@ -2157,9 +1904,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404,409, served 501",
-      "id": "SHIM-DRIFT-123",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-113"
     },
     {
       "path": "/session/{sessionID}/summarize",
@@ -2172,9 +1917,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-124",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-114"
     },
     {
       "path": "/sync/replay",
@@ -2185,9 +1928,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-127",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-115"
     },
     {
       "path": "/sync/start",
@@ -2198,9 +1939,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-128",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-116"
     },
     {
       "path": "/sync/steal",
@@ -2211,9 +1950,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-129",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "id": "SHIM-DRIFT-117"
     },
     {
       "path": "/tui/append-prompt",
@@ -2226,9 +1963,7 @@
       "evidence": "server.go:209 handleTUI (server.go:2242)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-130",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-118"
     },
     {
       "path": "/tui/clear-prompt",
@@ -2241,9 +1976,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-131",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-119"
     },
     {
       "path": "/tui/control/next",
@@ -2256,9 +1989,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-132",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-120"
     },
     {
       "path": "/tui/control/response",
@@ -2271,9 +2002,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-133",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-121"
     },
     {
       "path": "/tui/execute-command",
@@ -2286,9 +2015,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-134",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-122"
     },
     {
       "path": "/tui/open-help",
@@ -2301,9 +2028,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-135",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-123"
     },
     {
       "path": "/tui/open-models",
@@ -2316,9 +2041,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-136",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-124"
     },
     {
       "path": "/tui/open-sessions",
@@ -2331,9 +2054,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-137",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-125"
     },
     {
       "path": "/tui/open-themes",
@@ -2346,9 +2067,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-138",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-126"
     },
     {
       "path": "/tui/publish",
@@ -2361,9 +2080,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-139",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-127"
     },
     {
       "path": "/tui/show-toast",
@@ -2376,9 +2093,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-140",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-128"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2391,9 +2106,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-141",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-129"
     },
     {
       "path": "/vcs/apply",
@@ -2406,9 +2119,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-142",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-130"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2421,9 +2132,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-143",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-131"
     },
     {
       "path": "/vcs/status",
@@ -2436,9 +2145,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-144",
-      "triage": "must-serve",
-      "triage_reason": "already served but answers wrong; fix in-place"
+      "id": "SHIM-DRIFT-132"
     }
   ],
   "drift_served_not_declared": [
@@ -2450,9 +2157,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:186 handleDoc; serves the CONSENSUS bundle (specs/openapi/bundled.yaml), not the upstream document",
       "family": "/doc",
-      "id": "SHIM-DRIFT-S001",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S001"
     },
     {
       "path": "/permission/{id}",
@@ -2462,9 +2167,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:206, 2148",
       "family": "/permission/*",
-      "id": "SHIM-DRIFT-S002",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S002"
     },
     {
       "path": "/permission/{id}/resolve",
@@ -2474,9 +2177,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:2150 resolvePermission (shim-only verb; upstream document declares reply)",
       "family": "/permission/*",
-      "id": "SHIM-DRIFT-S003",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S003"
     },
     {
       "path": "/project/{projectID}",
@@ -2486,9 +2187,7 @@
       "side": "METHOD-ABSENT",
       "evidence": "server.go:234 handleProjectByID",
       "family": "/project/*",
-      "id": "SHIM-DRIFT-S004",
-      "triage": "must-serve",
-      "triage_reason": "called in first minute by opencode client"
+      "id": "SHIM-DRIFT-S004"
     },
     {
       "path": "/vcs/{id}",
@@ -2498,9 +2197,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:237 handleProjectVCSSStub; GET keeps auth so unauthenticated is 401 (isStubPath server.go:1159)",
       "family": "/vcs/*",
-      "id": "SHIM-DRIFT-S005",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S005"
     },
     {
       "path": "/instance",
@@ -2510,9 +2207,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:238 handleInstance; authMiddleware server.go:381",
       "family": "/instance",
-      "id": "SHIM-DRIFT-S006",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S006"
     },
     {
       "path": "/instance/path",
@@ -2522,9 +2217,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:239 handleInstanceSub (server.go:1351)",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S007",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S007"
     },
     {
       "path": "/instance/vcs",
@@ -2534,9 +2227,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:1353",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S008",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S008"
     },
     {
       "path": "/instance/vcs/diff",
@@ -2546,9 +2237,7 @@
       "side": "PATH-ABSENT",
       "evidence": "server.go:1355",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S009",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S009"
     },
     {
       "path": "/instance/vcs/status",
@@ -2558,9 +2247,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1333",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S010",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S010"
     },
     {
       "path": "/instance/vcs/diff/raw",
@@ -2570,9 +2257,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1334",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S011",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S011"
     },
     {
       "path": "/instance/vcs/apply",
@@ -2582,9 +2267,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1335",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S012",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S012"
     },
     {
       "path": "/instance/command",
@@ -2594,9 +2277,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1336",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S013",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S013"
     },
     {
       "path": "/instance/agent",
@@ -2606,9 +2287,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1337",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S014",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S014"
     },
     {
       "path": "/instance/skill",
@@ -2618,9 +2297,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1338",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S015",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S015"
     },
     {
       "path": "/instance/lsp",
@@ -2630,9 +2307,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1339",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S016",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S016"
     },
     {
       "path": "/instance/formatter",
@@ -2642,9 +2317,7 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1340",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S017",
-      "triage": "defer",
-      "triage_reason": "needs design decision"
+      "id": "SHIM-DRIFT-S017"
     }
   ]
 }
