@@ -1,0 +1,17 @@
+{
+  "tick": "consensus-2026-10-01-07-52-10",
+  "created_at": "2026-10-01T08:00:00Z",
+  "wave_budget": 10,
+  "workers": [
+    {"task": "ROUTE-ADD-087", "route": "GET /file", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-087", "branch": "wt/ROUTE-ADD-087", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-088", "route": "GET /formatter", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-088", "branch": "wt/ROUTE-ADD-088", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-089", "route": "GET /global/config", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-089", "branch": "wt/ROUTE-ADD-089", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-090", "route": "PATCH /global/config", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-090", "branch": "wt/ROUTE-ADD-090", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-091", "route": "POST /global/dispose", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-091", "branch": "wt/ROUTE-ADD-091", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-092", "route": "POST /global/upgrade", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-092", "branch": "wt/ROUTE-ADD-092", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-093", "route": "DELETE /mcp/{name}/auth", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-093", "branch": "wt/ROUTE-ADD-093", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-100", "route": "POST /provider/{providerID}/oauth/authorize", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-100", "branch": "wt/ROUTE-ADD-100", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-113", "route": "POST /sync/replay", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-113", "branch": "wt/ROUTE-ADD-113", "base_sha": "34a4ab3", "status": "dispatched"},
+    {"task": "ROUTE-ADD-102", "route": "GET/POST /pty", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-102", "branch": "wt/ROUTE-ADD-102", "base_sha": "34a4ab3", "status": "salvaged-pre-committed-fc2502b", "note": "prior dead worker output committed by foreman; merge path"}
+  ]
+}
