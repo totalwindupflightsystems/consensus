@@ -198,6 +198,7 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// exact pattern first and the subtree default covers the rest.
 	mux.HandleFunc("/provider/auth", s.handleProviderAuth)
 	mux.HandleFunc("/agent", s.handleAgent)
+	mux.HandleFunc("/skill", s.handleSkill)
 
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
@@ -284,6 +285,7 @@ var MountPatterns = []string{
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
+	"/skill", "/skill/*",
 	"/experimental/*",
 	"/find", "/find/*",
 	"/file/*",
@@ -2321,6 +2323,32 @@ func (s *Server) handleProviderAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, result)
+}
+
+// handleSkill serves GET /skill — upstream app.skills (ROUTE-ADD-111,
+// SHIM-DRIFT-125, declared responses: 200 Array of Skill, 400 BadRequest).
+// The upstream Skill item is {name*, description?, location*, content*};
+// the Consensus runtime keeps no skill registry, so the truthful payload is
+// an empty array (never null — the document declares an array). The upstream
+// operation declares directory/workspace query params for workspace scoping;
+// the shim's empty answer is workspace-independent, so a valued param is
+// well-formed and filters nothing, while a present-but-blank one is malformed
+// input and answers the declared 400 via the sibling writeOpencodeError
+// INVALID_REQUEST envelope. Non-GET answers 405 METHOD_NOT_ALLOWED — sibling
+// method-guard convention, matching handleAgent/handleLSP.
+func (s *Server) handleSkill(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, []map[string]any{})
 }
 
 func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {

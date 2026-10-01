@@ -305,4 +305,3 @@ func newStatusStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
 	t.Cleanup(srv.Close)
 	return s, srv, conn
 }
-
