@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -180,6 +181,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Fixed-workspace compatibility routes used by the upstream HttpApi.
 	mux.HandleFunc("/path", s.handlePath)
 	mux.HandleFunc("/log", s.handleLog)
+	// ROUTE-ADD-112 / SHIM-DRIFT-126: the exact /sync/history path was never
+	// registered, so POST /sync/history fell through to net/http's default
+	// 404. Serve the upstream sync.history.list operation; the rest of the
+	// /sync/* family (replay, start, steal) stays unregistered — this is an
+	// exact pattern, never a /sync/* catch-all.
+	mux.HandleFunc("/sync/history", s.handleSyncHistory)
 	mux.HandleFunc("/question", s.handleQuestionList)
 	mux.HandleFunc("/question/", s.handleQuestionByID)
 
@@ -282,6 +289,7 @@ var MountPatterns = []string{
 	"/session", "/session/*",
 	"/path", "/log",
 	"/question", "/question/*",
+	"/sync/history",
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
@@ -2345,6 +2353,55 @@ func (s *Server) handleSkill(w http.ResponseWriter, r *http.Request) {
 		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
 			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
 				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, []map[string]any{})
+}
+
+// handleSyncHistory serves POST /sync/history — upstream sync.history.list
+// (ROUTE-ADD-112, SHIM-DRIFT-126, declared responses: 200 SyncEvent[],
+// 400 BadRequest | InvalidRequestError). The body is a cursor map keyed by
+// aggregate ID with non-negative integer seq values; events with seq greater
+// than a listed cursor are returned, and unlisted aggregates get their full
+// history. The Consensus runtime keeps no sync event store, so the truthful
+// payload for any well-formed cursor is an empty array (never null — the
+// document declares an array). Malformed input answers the declared 400 via
+// the sibling writeOpencodeError INVALID_REQUEST envelope: a body that is
+// not JSON, not an object, or carries a cursor value that is not an integer
+// >= 0, or a present-but-blank declared query param (directory, workspace —
+// the sibling handleSkill convention). Non-POST answers 405
+// METHOD_NOT_ALLOWED — sibling method-guard convention.
+func (s *Server) handleSyncHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	var cursors map[string]any
+	if r.Body == nil || r.ContentLength == 0 {
+		cursors = map[string]any{}
+	} else if err := json.NewDecoder(r.Body).Decode(&cursors); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+		return
+	}
+	// A JSON null body decodes without error into a nil map (encoding/json
+	// leaves the destination untouched) — still not a cursor object.
+	if cursors == nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "request body must be a JSON object of aggregate cursors")
+		return
+	}
+	for agg, seq := range cursors {
+		f, ok := seq.(float64)
+		if !ok || f != math.Trunc(f) || f < 0 {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("cursor for aggregate %q must be an integer >= 0", agg))
 			return
 		}
 	}

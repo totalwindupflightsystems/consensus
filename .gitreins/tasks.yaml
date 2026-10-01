@@ -1026,3 +1026,13 @@ tasks:
   status: complete
   created_at: '2026-10-01T03:09:07.979951+00:00'
   completed_at: '2026-10-01T03:54:38.718707+00:00'
+- id: ROUTE-ADD-112
+  title: Serve POST /sync/history per upstream contract
+  criteria:
+  - The shim serves POST /sync/history with every declared response code (200, 400);
+    a live probe against a scratch instance asserts the happy path and the documented
+    errors; the declared-vs-served comparison source item SHIM-DRIFT-126 flips from
+    not-served to covered.
+  status: complete
+  created_at: '2026-10-01T06:10:22.732804+00:00'
+  completed_at: '2026-10-01T06:49:43.607911+00:00'
