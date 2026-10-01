@@ -214,6 +214,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// File endpoints (stubs via tool execution API)
 	mux.HandleFunc("/find", s.handleFind)
 	mux.HandleFunc("/find/", s.handleFindSub)
+	// ROUTE-ADD-087 / SHIM-DRIFT-084: the exact /file path was never
+	// registered, so GET /file (upstream file.list) fell through to net/http's
+	// default 404 while the /file/* sub-paths below were served. Serve the
+	// bare listing endpoint; the exact sub-path registrations are untouched
+	// (ServeMux resolves the longer pattern first, so /file/content and
+	// /file/status keep their handlers).
+	mux.HandleFunc("/file", s.handleFileList)
 	mux.HandleFunc("/file/content", s.handleFileContent)
 	mux.HandleFunc("/file/status", s.handleFileStatus)
 
@@ -296,7 +303,7 @@ var MountPatterns = []string{
 	"/skill", "/skill/*",
 	"/experimental/*",
 	"/find", "/find/*",
-	"/file/*",
+	"/file", "/file/*",
 	"/event",
 	"/permission", "/permission/*",
 	"/tui/*",
@@ -2568,6 +2575,85 @@ func (s *Server) handleFindSub(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown find sub-path")
 	}
+}
+
+// handleFileList serves GET /file — upstream file.list (ROUTE-ADD-087,
+// SHIM-DRIFT-084, declared responses: 200 FileNode[], 400 BadRequest).
+// Upstream lists the files and directories under the required ?path= query
+// parameter (an optional directory/workspace pair scopes a relative path).
+// The shim runs on the same host filesystem as the workspace
+// (service_adapter.go), so the honest 200 payload is a real os.ReadDir
+// listing: one FileNode per entry carrying all five declared required fields
+// — name, path, absolute, type ("file"|"directory") and ignored. `ignored`
+// is always false: the shim keeps no gitignore index, so it never claims an
+// entry is ignored (the same "no registry → don't fabricate" honesty as
+// handleSkill). An empty directory answers [] — never null (the document
+// declares an array).
+//
+// Every failure is answered with the object's only declared error code, 400:
+// a missing/blank ?path= (?path= is required — sibling handleFileContent
+// convention), a present-but-blank directory/workspace (sibling handleSkill
+// convention), and a path that cannot be listed (absent, not a directory,
+// unreadable). The document declares 200 and 400 for file.list and nothing
+// else, so an unlistable path is reported as a bad request rather than as an
+// undeclared 500 — the same doctrine as handleProviderAuth. Non-GET answers
+// 405 METHOD_NOT_ALLOWED — the sibling method-guard convention shared by
+// handleSkill/handleSyncHistory/handleFileContent.
+func (s *Server) handleFileList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	q := r.URL.Query()
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := q[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	target := strings.TrimSpace(q.Get("path"))
+	if target == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "?path= is required")
+		return
+	}
+	// A relative ?path= is resolved against the declared workspace scope
+	// (directory first, then workspace) — the shim's workspace is the
+	// process working directory, so an unprefixed relative path lists
+	// against it.
+	if !filepath.IsAbs(target) {
+		if base := q.Get("directory"); base != "" {
+			target = filepath.Join(base, target)
+		} else if base := q.Get("workspace"); base != "" {
+			target = filepath.Join(base, target)
+		}
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			fmt.Sprintf("path %q cannot be listed: %v", target, err))
+		return
+	}
+	nodes := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		child := filepath.Join(target, e.Name())
+		absolute := child
+		if a, err := filepath.Abs(child); err == nil {
+			absolute = a
+		}
+		nodeType := "file"
+		if e.IsDir() {
+			nodeType = "directory"
+		}
+		nodes = append(nodes, map[string]any{
+			"name":     e.Name(),
+			"path":     child,
+			"absolute": absolute,
+			"type":     nodeType,
+			"ignored":  false,
+		})
+	}
+	writeJSON(w, nodes)
 }
 
 func (s *Server) handleFileContent(w http.ResponseWriter, r *http.Request) {
