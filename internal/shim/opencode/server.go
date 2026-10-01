@@ -919,11 +919,17 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// to the generic not-found switch. Answer the declared operation.
 		writeNotImplemented(w, r, "session.unshare",
 			"session sharing is an opencode feature; Consensus does not publish sessions (export is native, SPEC-015)")
+	case sub == "diff" && r.Method == http.MethodGet:
+		// ROUTE-FIX-010 / SHIM-DRIFT-116: the declared session.diff
+		// operation (declared responses 200,400) was served by the typed 501
+		// stub below. Serve it for real.
+		s.sessionDiff(w, r, sessionID)
 	case sub == "diff":
-		// SHIM-GAP-002 / SHIM-DRIFT-116: a session diff needs per-message
-		// workspace snapshots, which Consensus does not keep.
+		// Non-GET on the sub-path keeps the pre-existing 501 answer: only GET
+		// is a declared opencode operation for /session/{id}/diff, and 405 is
+		// not part of that operation's declared response set.
 		writeNotImplemented(w, r, "session.diff",
-			"session diff is not available: Consensus keeps no per-message workspace snapshot; use GET /instance/vcs/diff or GET /vcs/diff for the workspace diff")
+			"session diff is a GET operation; use GET /session/{sessionID}/diff, or GET /instance/vcs/diff for the workspace diff")
 	default:
 		// Check for 501 exclusions
 		switch sub {
@@ -1130,6 +1136,111 @@ func errorMessage(err error, result *MessageSendResult) string {
 		return err.Error()
 	}
 	return "the agent produced no response"
+}
+
+// sessionDiff serves GET /session/{sessionID}/diff — the upstream session.diff
+// operation (ROUTE-FIX-010, formerly SHIM-DRIFT-116).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/session/{sessionID}/diff".get): declared responses 200
+// Array(SnapshotFileDiff) and 400 BadRequest; the optional query selectors are
+// directory, workspace and messageID (declared pattern ^msg). Before this
+// change the sub-path answered the typed 501 not-implemented envelope — a code
+// the document does not declare for the operation.
+//
+// The shim has one workspace per instance, so a session's file changes ARE the
+// workspace's file changes: the same git status + numstat translation
+// GET /instance/vcs/diff and GET /vcs/diff report (SnapshotFileDiff: file,
+// additions, deletions, status ∈ {added,deleted,modified,} — additions and
+// deletions are required by the schema and always present, patch is optional
+// and omitted). Consensus keeps no per-message workspace snapshot, so a
+// messageID is validated and resolved against the session's message store but
+// does not narrow the returned set; the declared contract is served rather
+// than the stub that limitation used to justify.
+//
+// Workspace resolution matches the sibling VCS read routes: the
+// x-opencode-directory header wins, then the declared ?directory= selector,
+// then the server's configured workdir (else the process CWD).
+//
+// The declared error vocabulary for this operation is 400 — there is no
+// declared 404/5xx — so every failure answers 400 with the sibling
+// INVALID_REQUEST envelope and never a 501:
+//   - the session id is unknown
+//   - the session store cannot be read
+//   - messageID is present but blank, or does not match the declared ^msg
+//     pattern (a query-parameter violation)
+//   - messageID is well-formed but names no message in that session
+func (s *Server) sessionDiff(w http.ResponseWriter, r *http.Request, sessionID string) {
+	ctx := r.Context()
+
+	row, err := s.db.QueryRow(ctx, `SELECT id FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		// The declared vocabulary carries 400 only; a client must not have to
+		// distinguish an undeclared 404 from a real route miss.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "unknown session: "+sessionID)
+		return
+	}
+
+	if values, present := r.URL.Query()["messageID"]; present {
+		messageID := ""
+		if len(values) > 0 {
+			messageID = strings.TrimSpace(values[0])
+		}
+		if messageID == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"invalid query parameter messageID: value must not be blank")
+			return
+		}
+		if !strings.HasPrefix(messageID, "msg") {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"invalid query parameter messageID: "+messageID+" does not match the declared pattern ^msg")
+			return
+		}
+		if !s.sessionMessageExists(ctx, sessionID, messageID) {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"unknown message: "+messageID)
+			return
+		}
+	}
+
+	writeJSON(w, gitFileDiffs(ctx, s.sessionDiffWorkspaceDir(r)))
+}
+
+// sessionDiffWorkspaceDir resolves the workspace a session-diff request reads:
+// the upstream fixed-workspace selector header first, then the operation's own
+// declared ?directory= selector, then the server's configured workdir (else
+// the process CWD) — the same order the sibling /vcs and /instance/vcs reads
+// use, so every diff route agrees on which tree it is describing.
+func (s *Server) sessionDiffWorkspaceDir(r *http.Request) string {
+	if r != nil && strings.TrimSpace(r.Header.Get("x-opencode-directory")) == "" {
+		if requested := strings.TrimSpace(r.URL.Query().Get("directory")); requested != "" {
+			return filepath.Clean(requested)
+		}
+	}
+	return s.requestWorkspaceDir(r)
+}
+
+// sessionMessageExists reports whether messageID names a message in the
+// session's message store. opencode message ids are "msg-<memory_events.id>"
+// (listMessages / getMessageByID), so the numeric suffix is looked up exactly
+// and then by prefix, mirroring getMessageByID's resolution. As everywhere else
+// in the shim, a store error and an absent row are the same answer: the id is
+// not a message of this session.
+func (s *Server) sessionMessageExists(ctx context.Context, sessionID, messageID string) bool {
+	trimmed := strings.TrimPrefix(messageID, "msg-")
+	for _, query := range []string{
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) = $2 LIMIT 1`,
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) LIKE $2 LIMIT 1`,
+	} {
+		arg := trimmed
+		if strings.Contains(query, "LIKE") {
+			arg = trimmed + "%"
+		}
+		if row, err := s.db.QueryRow(ctx, query, sessionID, arg); err == nil && row != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // patchSession handles PATCH /session/:id — update session properties (title, status, goal).
