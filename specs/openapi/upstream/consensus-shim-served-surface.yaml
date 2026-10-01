@@ -41,7 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090) and ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092) and ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) to covered; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -55,34 +55,6 @@ routes:
     outcome: 200-sse
     auth: api-key
     evidence: "server.go:174 handleGlobalEvent"
-  # ROUTE-ADD-091 (formerly SHIM-DRIFT-089): upstream global.dispose — the shim
-  # keeps no per-instance registry to release, so POST answers the declared
-  # boolean as a successful no-op.
-  - path: /global/dispose
-    method: POST
-    outcome: 200
-    auth: api-key
-    evidence: "server.go handleGlobalDispose (ROUTE-ADD-091, formerly SHIM-DRIFT-089): no-op success, the shim keeps no per-instance registry to release; answers the declared boolean"
-  # ROUTE-ADD-090 / SHIM-DRIFT-088: registering the exact /global/config path
-  # routes every method, so the declared GET sibling (global.config.get,
-  # SHIM-DRIFT-087) is served by the same handler instead of lying with a 405
-  # (which the comparison classifies METHOD-MISSING — the dishonest class
-  # SHIM-GAP-002 exists to empty).
-  - path: /global/config
-    method: GET
-    outcome: 200
-    auth: api-key
-    evidence: "server.go handleGlobalConfig (SHIM-DRIFT-087): truthful empty Config document - the shim keeps no opencode global-config store"
-  - path: /global/config
-    method: PATCH
-    outcome: 200
-    auth: api-key
-    evidence: "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
-  - path: /global/upgrade
-    method: POST
-    outcome: 200
-    auth: api-key
-    evidence: "server.go handleGlobalUpgrade (ROUTE-ADD-092, formerly SHIM-DRIFT-090): declared requestBody {target*} validated; truthful UpgradeResult failure arm {success:false, error} — the shim manages no opencode installation"
   - path: /event
     method: GET
     outcome: 200-sse
@@ -263,6 +235,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go handleProviderAuth (ROUTE-ADD-099, formerly SHIM-DRIFT-102)"
+  - path: /provider/{providerID}/oauth/authorize
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleProviderOAuthAuthorize (ROUTE-ADD-100, formerly SHIM-DRIFT-103): method index validated against the stored-auth registry; the advertised method is api-key, so 200 mirrors upstream's non-oauth branch (JSON null, no fabricated URL) and a bad payload/provider/index answers 400 ProviderAuthError"
   - path: /agent
     method: GET
     outcome: 200
@@ -273,13 +250,6 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:193 handleSkill (ROUTE-ADD-111, formerly SHIM-DRIFT-125)"
-
-  # ── Formatter (ROUTE-ADD-088, formerly SHIM-DRIFT-086) ──
-  - path: /formatter
-    method: GET
-    outcome: 200
-    auth: api-key
-    evidence: "server.go handleFormatter (ROUTE-ADD-088, formerly SHIM-DRIFT-086): truthful empty FormatterStatus[] — the runtime keeps no formatter registry"
 
   # ── Tools ──
   - path: /experimental/tool
@@ -309,11 +279,6 @@ routes:
     outcome: 501
     auth: api-key
     evidence: "server.go:2017 (symbol search requires LSP)"
-  - path: /file
-    method: GET
-    outcome: 200
-    auth: api-key
-    evidence: "server.go:223 handleFileList (ROUTE-ADD-087, formerly SHIM-DRIFT-084)"
   - path: /file/content
     method: GET
     outcome: 200
@@ -385,12 +350,6 @@ routes:
     outcome: 200-mcp-delegate
     auth: api-key
     evidence: "server.go:215 handleMCPEndpoint"
-  - path: /mcp/{name}/auth
-    method: DELETE
-    outcome: 200
-    auth: api-key
-    other_methods_outcome: default-404
-    evidence: "server.go handleMCPAuthRemove (ROUTE-ADD-093, formerly SHIM-DRIFT-092): resolves the MCP server from the settings store (mcp.<name> keys) and removes its stored OAuth rows; an unresolved name answers the typed McpServerNotFoundError. Every other /mcp/* shape and every other method on this path answers http.NotFound (the unchanged net/http default), so the sibling rows stay NOT-SERVED"
 
   # ── Auth management ──
   - path: /auth/{authId}
