@@ -976,3 +976,53 @@ tasks:
   status: complete
   created_at: '2026-09-30T04:56:43.288535+00:00'
   completed_at: '2026-09-30T06:09:24.918221+00:00'
+- id: ROUTE-ADD-087
+  title: Serve GET /file per contract
+  criteria:
+  - shim serves GET /file with declared responses 200,400; live probe asserts happy
+    path + documented errors; declared-vs-served SHIM-DRIFT-084 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:45.075559+00:00'
+- id: ROUTE-ADD-088
+  title: Serve GET /formatter per contract
+  criteria:
+  - shim serves GET /formatter with declared responses 200,400; live probe asserts
+    happy path + documented errors; declared-vs-served SHIM-DRIFT-086 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:45.508000+00:00'
+- id: ROUTE-ADD-089
+  title: Serve GET /global/config per contract
+  criteria:
+  - shim serves GET /global/config with declared responses 200,400; live probe asserts
+    happy path + documented errors; declared-vs-served SHIM-DRIFT-087 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:45.950706+00:00'
+- id: ROUTE-ADD-090
+  title: Serve PATCH /global/config per contract
+  criteria:
+  - shim serves PATCH /global/config with declared responses 200,400; live probe asserts
+    happy path + documented errors; declared-vs-served SHIM-DRIFT-088 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:46.864170+00:00'
+- id: ROUTE-ADD-091
+  title: Serve POST /global/dispose per contract
+  criteria:
+  - shim serves POST /global/dispose with declared responses 200,400; live probe asserts
+    happy path + documented errors; declared-vs-served SHIM-DRIFT-089 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:47.892546+00:00'
+- id: ROUTE-ADD-092
+  title: Serve POST /global/upgrade per contract
+  criteria:
+  - shim serves POST /global/upgrade with declared responses 200,400; live probe asserts
+    happy path + documented errors; declared-vs-served SHIM-DRIFT-090 flips to covered
+  status: in_progress
+  created_at: '2026-10-01T02:17:48.499728+00:00'
+- id: route-add-099
+  title: Serve GET /provider/auth shim route
+  criteria:
+  - GET /provider/auth served per contract (200,400)
+  - Live probe happy path + documented errors; SHIM-DRIFT-102 flips to covered
+  status: complete
+  created_at: '2026-10-01T03:09:07.979951+00:00'
+  completed_at: '2026-10-01T03:54:38.718707+00:00'
