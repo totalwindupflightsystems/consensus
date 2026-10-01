@@ -173,6 +173,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Global
 	mux.HandleFunc("/global/health", s.handleGlobalHealth)
 	mux.HandleFunc("/global/event", s.handleGlobalEvent)
+	// ROUTE-ADD-091 / SHIM-DRIFT-089: the exact /global/dispose path was never
+	// registered, so POST /global/dispose fell through to net/http's default
+	// 404. Serve the upstream global.dispose operation; the rest of the
+	// /global/* family keeps its existing registrations — this is an exact
+	// pattern, never a /global/* catch-all.
+	mux.HandleFunc("/global/dispose", s.handleGlobalDispose)
 
 	// Sessions
 	mux.HandleFunc("/session", s.handleSessions)
@@ -432,6 +438,25 @@ func (s *Server) handleGlobalHealth(w http.ResponseWriter, r *http.Request) {
 		"healthy": true,
 		"version": "consensus-0.1.0",
 	})
+}
+
+// handleGlobalDispose serves POST /global/dispose — upstream global.dispose
+// (ROUTE-ADD-091, SHIM-DRIFT-089, declared responses: 200 boolean, 400
+// BadRequest). Upstream "disposes all OpenCode instances, releasing all
+// resources"; the shim keeps no per-instance registry to release — opencode
+// sessions map onto Consensus rows owned by the API service, so a dispose
+// request is honored as a successful no-op and answers the declared boolean
+// true (the sibling handleAuthDelete boolean convention, idempotent for a
+// repeated POST). The operation declares no parameters and no request body, so
+// there is no input to reject against the declared 400 arm. Non-POST answers
+// 405 METHOD_NOT_ALLOWED — the sibling method-guard convention
+// (handleSkill, handleSyncHistory).
+func (s *Server) handleGlobalDispose(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	writeJSON(w, true)
 }
 
 func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
