@@ -20,18 +20,18 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{sessionID}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-087 moved GET /file (SHIM-DRIFT-084) and ROUTE-ADD-088 moved GET /formatter (SHIM-DRIFT-086) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{sessionID}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-087 moved GET /file (SHIM-DRIFT-084) and ROUTE-ADD-088 moved GET /formatter (SHIM-DRIFT-086) to covered; regenerate with scripts/compare-opencode-declared-served.py and ROUTE-ADD-090 moved PATCH /global/config (SHIM-DRIFT-088) together with its declared GET sibling (SHIM-DRIFT-087) to covered"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 93,
-    "covered_operations": 39,
+    "served_route_entries": 94,
+    "covered_operations": 41,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
-    "drift_declared_not_served": 136,
+    "drift_declared_not_served": 134,
     "drift_by_class": {
-      "NOT-SERVED": 106,
+      "NOT-SERVED": 104,
       "OUTCOME-MISMATCH": 30
     },
     "drift_served_not_declared": 17,
@@ -229,7 +229,7 @@
       "declared_responses": "200,400",
       "family": "/path",
       "served_outcome": "200",
-      "evidence": "server.go:181 handlePath \u2192 instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:181 handlePath → instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/permission",
@@ -279,7 +279,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions \u2192 listSessions"
+      "evidence": "server.go:177 handleSessions → listSessions"
     },
     {
       "path": "/session",
@@ -289,7 +289,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions \u2192 createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:177 handleSessions → createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/session/status",
@@ -299,7 +299,7 @@
       "declared_responses": "200,400",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID reserved literal status \u2192 sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
+      "evidence": "server.go handleSessionByID reserved literal status → sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
     },
     {
       "path": "/session/{sessionID}/command",
@@ -309,7 +309,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub command \u2192 sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
+      "evidence": "server.go handleSessionByID sub command → sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
     },
     {
       "path": "/session/{sessionID}/diff",
@@ -319,7 +319,7 @@
       "declared_responses": "200,400",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub diff && GET \u2192 sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
+      "evidence": "server.go handleSessionByID sub diff && GET → sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
     },
     {
       "path": "/session/{sessionID}",
@@ -419,7 +419,7 @@
       "declared_responses": "200,400",
       "family": "/sync/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] \u2014 the runtime keeps no sync event store"
+      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] — the runtime keeps no sync event store"
     },
     {
       "path": "/vcs",
@@ -440,6 +440,26 @@
       "family": "/vcs/*",
       "served_outcome": "200",
       "evidence": "server.go:236 handleVCS"
+    },
+    {
+      "path": "/global/config",
+      "method": "GET",
+      "operationId": "global.config.get",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (SHIM-DRIFT-087): truthful empty Config document - the shim keeps no opencode global-config store"
+    },
+    {
+      "path": "/global/config",
+      "method": "PATCH",
+      "operationId": "global.config.update",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
     }
   ],
   "narrowed_error_contract_only": [
@@ -507,7 +527,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:891 restricts to GET; DELETE falls to server.go:912 default \u2192 404",
+      "evidence": "server.go:891 restricts to GET; DELETE falls to server.go:912 default → 404",
       "detail": "shim answers the declared 404 but never the declared success code",
       "id": "SHIM-NARROWED-005",
       "triage": "must-serve",
@@ -1726,32 +1746,6 @@
       "id": "SHIM-DRIFT-085",
       "triage": "must-serve",
       "triage_reason": "already served but answers wrong; fix in-place"
-    },
-    {
-      "path": "/global/config",
-      "method": "GET",
-      "operationId": "global.config.get",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-087",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
-    },
-    {
-      "path": "/global/config",
-      "method": "PATCH",
-      "operationId": "global.config.update",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-088",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
     },
     {
       "path": "/global/dispose",
