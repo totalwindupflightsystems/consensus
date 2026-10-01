@@ -56,10 +56,17 @@ func CheckToolRateLimit(ctx context.Context, database db.DB, toolName, sessionID
 		return nil
 	}
 
-	// Count recent requests for this tool in this session
-	// Use a 1-minute window from "now" for the check (the SQL trigger
-	// uses now() at insert time, so we use the same window)
-	since := time.Now().Add(-1 * time.Minute)
+	// Count recent requests for this tool in this session.
+	//
+	// The 1-minute window bound is normalized to UTC because
+	// tool_requests.created_at holds UTC timestamps: SQLite's
+	// CURRENT_TIMESTAMP / datetime('now') write UTC text and the column compares
+	// lexicographically, while Postgres stores TIMESTAMPTZ. Rendering the bound
+	// in the process-local zone shifts it by the host's UTC offset, so the window
+	// silently stops matching recent rows (positive offsets) or starts matching
+	// stale ones (negative offsets) — both clock directions are wrong
+	// (QA-CONSENSUS-23).
+	since := rateLimitWindowStart(time.Now())
 	countRows, err := database.Query(ctx, `
 		SELECT COUNT(*) as cnt
 		FROM tool_requests
@@ -83,4 +90,23 @@ func CheckToolRateLimit(ctx context.Context, database db.DB, toolName, sessionID
 	}
 
 	return nil
+}
+
+// rateLimitWindowStart returns the lower bound of the sliding one-minute
+// window evaluated by CheckToolRateLimit, normalized to UTC.
+//
+// Normalizing matters on SQLite: created_at is TEXT written in UTC (by
+// CURRENT_TIMESTAMP / datetime('now')) and SQLite compares TEXT
+// lexicographically, so a bound rendered in the process-local zone is offset by
+// the host's UTC offset — matching no recent row at positive offsets and stale
+// rows at negative ones. Postgres compares TIMESTAMPTZ instants and is
+// unaffected either way.
+//
+// The SQL-level trigger (enforce_tool_rate_limit, migration 001 §11.5) needs no
+// equivalent handling: it compares now() against the TIMESTAMPTZ created_at
+// column inside the database, where the session timezone cannot shift the
+// comparison, and the SQLite schema has no such trigger (the Go path above is
+// the only SQLite enforcement).
+func rateLimitWindowStart(now time.Time) time.Time {
+	return now.UTC().Add(-1 * time.Minute)
 }
