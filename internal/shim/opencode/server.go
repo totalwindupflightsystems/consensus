@@ -272,6 +272,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/permission", s.handlePermissions)
 	mux.HandleFunc("/permission/", s.handlePermissionByID)
 
+	// PTY (ROUTE-ADD-102 / ROUTE-FIX-010): bare /pty serves the upstream
+	// pty.list (GET, 200) and answers pty.create (POST) with the typed
+	// not-implemented envelope. /pty/* sub-paths stay unregistered.
+	mux.HandleFunc("/pty", s.handlePty)
+
 	// TUI control (shim-only, passthrough)
 	mux.HandleFunc("/tui/", s.handleTUI)
 
@@ -363,6 +368,7 @@ var MountPatterns = []string{
 	"/file", "/file/*",
 	"/event",
 	"/permission", "/permission/*",
+	"/pty",
 	"/tui/*",
 	"/lsp", "/lsp/*",
 	"/doc", "/doc/*",
@@ -3609,6 +3615,59 @@ var tuiDeclaredOps = map[string]string{
 	"open-sessions":    "tui.openSessions",
 	"open-themes":      "tui.openThemes",
 	"publish":          "tui.publish",
+}
+
+// handlePty serves the bare /pty mount (ROUTE-ADD-102 / ROUTE-FIX-010):
+//
+//	GET  /pty — upstream pty.list (SHIM-DRIFT-105, declared responses:
+//	     200 Array(Pty), 400 BadRequest | InvalidRequestError). Consensus has
+//	     no pseudo-terminal registry, so the truthful happy path is an empty
+//	     array — the contract declares a list, never null. The operation's
+//	     only request parameters are the optional directory/workspace query
+//	     selectors; when one names a path that does not exist or is not a
+//	     directory, the shim answers the declared 400 arm with the sibling
+//	     writeOpencodeError INVALID_REQUEST envelope instead of silently
+//	     serving a different workspace's (empty) list.
+//	POST /pty — upstream pty.create (SHIM-DRIFT-106): creating terminals is
+//	     opencode-specific (SPEC-017 §3.9 exclusion list); the typed
+//	     not_implemented envelope names the operation. It must stay typed and
+//	     never 404: registering the bare path means POST reaches this handler
+//	     rather than net/http's default, and a bodyless 501 or a 404 would
+//	     reintroduce the dishonesty SHIM-GAP-002 removed.
+//
+// Non-GET/POST methods answer the sibling METHOD_NOT_ALLOWED envelope.
+// /pty/* sub-paths (pty.shells, pty.get/remove/update, connect) are NOT
+// registered and stay NOT-SERVED (net/http default 404) — only the bare
+// mount is claimed. Auth is untouched: /pty is not a stub path and carries
+// no fixed-workspace exemption, so it keeps the standard api-key policy.
+func (s *Server) handlePty(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.ptyList(w, r)
+	case http.MethodPost:
+		writeNotImplemented(w, r, "pty.create",
+			"pty.create is not implemented: spawning pseudo-terminals is opencode-specific and Consensus keeps no pty registry; use the native shell tool inside an agent session")
+	default:
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET or POST")
+	}
+}
+
+// ptyList answers upstream pty.list. The declared 200 body is Array(Pty)
+// {id, title, command, args, cwd, status, pid}; the shim has nothing to list,
+// so it serves the typed empty array. The optional directory/workspace query
+// selectors are validated against the filesystem first: naming a path that
+// does not exist (or is not a directory) answers the declared 400 arm.
+func (s *Server) ptyList(w http.ResponseWriter, r *http.Request) {
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return
+			}
+		}
+	}
+	writeJSON(w, []map[string]any{})
 }
 
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
