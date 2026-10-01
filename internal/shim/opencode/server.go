@@ -206,6 +206,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/provider/auth", s.handleProviderAuth)
 	mux.HandleFunc("/agent", s.handleAgent)
 	mux.HandleFunc("/skill", s.handleSkill)
+	// ROUTE-ADD-088 / SHIM-DRIFT-086: the exact /formatter path was never
+	// registered, so GET /formatter fell through to net/http's default 404
+	// (the drift row's NOT-SERVED class, indistinguishable from "no such
+	// opencode operation"). Serve the upstream formatter.status operation.
+	// The /instance/formatter sub-path — a different surface, the /instance/*
+	// translation — keeps its 501 stub (instanceKnownSubpaths).
+	mux.HandleFunc("/formatter", s.handleFormatter)
 
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
@@ -301,6 +308,7 @@ var MountPatterns = []string{
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
 	"/skill", "/skill/*",
+	"/formatter", "/formatter/*",
 	"/experimental/*",
 	"/find", "/find/*",
 	"/file", "/file/*",
@@ -2352,6 +2360,35 @@ func (s *Server) handleProviderAuth(w http.ResponseWriter, r *http.Request) {
 // INVALID_REQUEST envelope. Non-GET answers 405 METHOD_NOT_ALLOWED — sibling
 // method-guard convention, matching handleAgent/handleLSP.
 func (s *Server) handleSkill(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, []map[string]any{})
+}
+
+// handleFormatter serves GET /formatter — upstream formatter.status
+// (ROUTE-ADD-088, SHIM-DRIFT-086, declared responses: 200 Array of
+// FormatterStatus, 400 BadRequest). The upstream FormatterStatus item is
+// {name*, extensions*: string[], enabled*}; the Consensus runtime keeps no
+// formatter registry (it shells out to no formatter and reports none), so the
+// truthful payload is an empty array (never null — the document declares an
+// array), the same honest answer the sibling /skill route gives for its own
+// absent registry. The operation declares directory/workspace query params
+// for workspace scoping; the empty answer is workspace-independent, so a
+// valued param is well-formed and filters nothing, while a present-but-blank
+// one is malformed input and answers the declared 400 via the sibling
+// writeOpencodeError INVALID_REQUEST envelope. Non-GET answers 405
+// METHOD_NOT_ALLOWED — sibling method-guard convention, matching
+// handleSkill/handleAgent/handleLSP.
+func (s *Server) handleFormatter(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
 		return
