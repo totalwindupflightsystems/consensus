@@ -20,18 +20,18 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{sessionID}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113) and ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{sessionID}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126) and ROUTE-ADD-090 moved PATCH /global/config (SHIM-DRIFT-088) together with its declared GET sibling (SHIM-DRIFT-087) to covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 92,
-    "covered_operations": 38,
+    "served_route_entries": 94,
+    "covered_operations": 40,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
-    "drift_declared_not_served": 137,
+    "drift_declared_not_served": 135,
     "drift_by_class": {
-      "NOT-SERVED": 107,
+      "NOT-SERVED": 105,
       "OUTCOME-MISMATCH": 30
     },
     "drift_served_not_declared": 17,
@@ -160,6 +160,26 @@
       "family": "/find/*",
       "served_outcome": "200",
       "evidence": "server.go:200 handleFindSub (server.go:1994)"
+    },
+    {
+      "path": "/global/config",
+      "method": "GET",
+      "operationId": "global.config.get",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (SHIM-DRIFT-087): truthful empty Config document - the shim keeps no opencode global-config store"
+    },
+    {
+      "path": "/global/config",
+      "method": "PATCH",
+      "operationId": "global.config.update",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig (ROUTE-ADD-090, formerly SHIM-DRIFT-088): optional Config body validated against the declared property set (additionalProperties:false -> 400 INVALID_REQUEST), 200 answers the resulting Config"
     },
     {
       "path": "/global/event",
@@ -390,6 +410,16 @@
       "family": "/skill",
       "served_outcome": "200",
       "evidence": "server.go:193 handleSkill (ROUTE-ADD-111, formerly SHIM-DRIFT-125)"
+    },
+    {
+      "path": "/sync/history",
+      "method": "POST",
+      "operationId": "sync.history.list",
+      "tags": "sync",
+      "declared_responses": "200,400",
+      "family": "/sync/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] \u2014 the runtime keeps no sync event store"
     },
     {
       "path": "/vcs",
@@ -1720,32 +1750,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-086",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
-    },
-    {
-      "path": "/global/config",
-      "method": "GET",
-      "operationId": "global.config.get",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-087",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
-    },
-    {
-      "path": "/global/config",
-      "method": "PATCH",
-      "operationId": "global.config.update",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-088",
       "triage": "defer",
       "triage_reason": "not called in first minute; implement after core surface"
     },

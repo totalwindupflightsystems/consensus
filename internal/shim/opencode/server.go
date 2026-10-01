@@ -173,6 +173,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Global
 	mux.HandleFunc("/global/health", s.handleGlobalHealth)
 	mux.HandleFunc("/global/event", s.handleGlobalEvent)
+	// ROUTE-ADD-090 / SHIM-DRIFT-088: the exact /global/config path was never
+	// registered, so PATCH /global/config fell through the mux to net/http's
+	// default 404 — the drift artifact's NOT-SERVED class, indistinguishable
+	// from "no such opencode operation". Registering the exact path routes
+	// every method, and the pinned document declares this path for GET as well
+	// (global.config.get, SHIM-DRIFT-087), so handleGlobalConfig serves BOTH
+	// declared operations rather than lying with a 405 on the one it does not
+	// route (see the handler). Exact pattern, never a /global/* catch-all.
+	mux.HandleFunc("/global/config", s.handleGlobalConfig)
 
 	// Sessions
 	mux.HandleFunc("/session", s.handleSessions)
@@ -2208,6 +2217,130 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET or PATCH")
 	}
+}
+
+// handleGlobalConfig serves the upstream /global/config surface — GET
+// global.config.get and PATCH global.config.update (ROUTE-ADD-090,
+// SHIM-DRIFT-088; the declared GET sibling is SHIM-DRIFT-087). Declared
+// responses for both operations: 200 Config, 400 BadRequest |
+// InvalidRequestError (specs/openapi/upstream/openapi-1.18.33.json, pinned by
+// specs/openapi/opencode-pin.yaml).
+//
+// Before this change the path was not registered at all, so both operations
+// fell through to net/http's default 404 — the drift artifact's NOT-SERVED
+// class, which a client cannot tell apart from "no such opencode operation".
+// Registering the exact path routes EVERY method, so this one handler serves
+// both declared operations: answering 405 for the GET arm would reclassify
+// SHIM-DRIFT-087 as METHOD-MISSING (the dishonest class the declared-vs-served
+// contract SHIM-GAP-002 exists to empty — a registered route may not lie with
+// 404/405), and a 501 would leave a declared operation unserved for no reason
+// when the shim can answer it truthfully.
+//
+// The runtime keeps no opencode global-config store — Consensus configuration
+// lives in system_settings and is served, as a different surface, by the
+// shim's own /config route — so:
+//
+//	GET   answers the current global config as the empty Config document {}
+//	      (never null: the document declares an object). The payload is not
+//	      derived from system_settings because those keys are Consensus
+//	      settings, not opencode Config properties.
+//	PATCH validates the optional Config body against the declared surface and
+//	      answers 200 with the resulting Config document (the accepted patch
+//	      applied to the empty current config = the patch itself). It is NOT
+//	      persisted: there is no store to persist it to, and inventing one
+//	      would fabricate state the runtime does not have. Same honesty shape
+//	      as the sibling stub routes (e.g. /skill answers the declared empty
+//	      array).
+//
+// The declared 400 arm answers the sibling writeOpencodeError INVALID_REQUEST
+// envelope for malformed input: a body that is not JSON, that is not a JSON
+// object (arrays, scalars and an explicit null are all not Config documents),
+// or that carries a top-level key the Config schema does not declare — the
+// pinned schema sets additionalProperties:false, so an undeclared key is a
+// contract violation, not an extension point. An ABSENT body is well-formed
+// (the document does not mark requestBody required) and answers 200. Non
+// GET/PATCH methods answer 405 METHOD_NOT_ALLOWED — sibling method-guard
+// convention, matching handleConfig.
+func (s *Server) handleGlobalConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		// The shim's global config is empty: it keeps no opencode Config store.
+		writeJSON(w, map[string]any{})
+		return
+	case http.MethodPatch:
+		var patch map[string]any
+		if r.Body == nil || r.ContentLength == 0 {
+			patch = map[string]any{}
+		} else if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"malformed request body: "+err.Error())
+			return
+		}
+		// A JSON null body decodes without error into a nil map (encoding/json
+		// leaves the destination untouched) — still not a Config document.
+		if patch == nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"request body must be a JSON object matching the Config schema")
+			return
+		}
+		for key := range patch {
+			if _, ok := globalConfigDeclaredKeys[key]; !ok {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("unknown config key %q: the Config schema declares no such property", key))
+				return
+			}
+		}
+		// The current global config is empty, so the resulting config IS the
+		// accepted patch — a Config document (never null, never an envelope).
+		writeJSON(w, patch)
+		return
+	default:
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET or PATCH")
+	}
+}
+
+// globalConfigDeclaredKeys is the declared top-level property surface of the
+// upstream Config schema (specs/openapi/upstream/openapi-1.18.33.json,
+// components.schemas.Config, additionalProperties:false). It is asserted
+// against that pinned document by TestGlobalConfigDeclaredKeysMatchPinnedSchema,
+// so the list cannot silently drift from the contract this route answers.
+var globalConfigDeclaredKeys = map[string]struct{}{
+	"$schema":            {},
+	"agent":              {},
+	"attachment":         {},
+	"autoshare":          {},
+	"autoupdate":         {},
+	"command":            {},
+	"compaction":         {},
+	"default_agent":      {},
+	"disabled_providers": {},
+	"enabled_providers":  {},
+	"enterprise":         {},
+	"experimental":       {},
+	"formatter":          {},
+	"instructions":       {},
+	"layout":             {},
+	"logLevel":           {},
+	"lsp":                {},
+	"mcp":                {},
+	"mode":               {},
+	"model":              {},
+	"permission":         {},
+	"plugin":             {},
+	"provider":           {},
+	"reference":          {},
+	"references":         {},
+	"server":             {},
+	"share":              {},
+	"shell":              {},
+	"skills":             {},
+	"small_model":        {},
+	"snapshot":           {},
+	"subagent_depth":     {},
+	"tool_output":        {},
+	"tools":              {},
+	"username":           {},
+	"watcher":            {},
 }
 
 func (s *Server) handleConfigProviders(w http.ResponseWriter, r *http.Request) {
