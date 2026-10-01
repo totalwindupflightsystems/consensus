@@ -41,7 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115) to covered; ROUTE-ADD-102 registered bare /pty — GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -218,6 +218,22 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:192 handleAgent"
+
+  # ── PTY (ROUTE-ADD-102 / ROUTE-FIX-010) ──
+  # Bare /pty only: pty.list is served (truthful empty Array(Pty) — Consensus
+  # keeps no pseudo-terminal registry); pty.create answers the typed
+  # not-implemented envelope (also in the SHIM-GAP-002 table below, was
+  # NOT-SERVED). /pty/* sub-paths stay unregistered (NOT-SERVED).
+  - path: /pty
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handlePty → ptyList (ROUTE-FIX-010, formerly SHIM-DRIFT-105)"
+  - path: /pty
+    method: POST
+    outcome: 501-typed
+    auth: api-key
+    evidence: "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-102 typed SHIM-DRIFT-106)"
 
   # ── Tools ──
   - path: /experimental/tool

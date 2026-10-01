@@ -20,19 +20,19 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114) and ROUTE-FIX-009 moved POST /session/{sessionID}/command (SHIM-DRIFT-115) to covered; ROUTE-ADD-102 registered bare /pty - GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 88,
-    "covered_operations": 33,
+    "served_route_entries": 90,
+    "covered_operations": 34,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
-    "drift_declared_not_served": 142,
+    "drift_declared_not_served": 141,
     "drift_by_class": {
-      "NOT-SERVED": 111,
-      "OUTCOME-MISMATCH": 31
+      "NOT-SERVED": 109,
+      "OUTCOME-MISMATCH": 32
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -230,6 +230,16 @@
       "family": "/provider",
       "served_outcome": "200",
       "evidence": "server.go:191 handleProvider"
+    },
+    {
+      "path": "/pty",
+      "method": "GET",
+      "operationId": "pty.list",
+      "tags": "pty",
+      "declared_responses": "200,400",
+      "family": "/pty",
+      "served_outcome": "200",
+      "evidence": "server.go handlePty → ptyList (ROUTE-FIX-010, formerly SHIM-DRIFT-105)"
     },
     {
       "path": "/session",
@@ -1929,29 +1939,18 @@
     },
     {
       "path": "/pty",
-      "method": "GET",
-      "operationId": "pty.list",
-      "tags": "pty",
-      "declared_responses": "200,400",
-      "family": "/pty",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-105",
-      "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
-    },
-    {
-      "path": "/pty",
       "method": "POST",
       "operationId": "pty.create",
       "tags": "pty",
       "declared_responses": "200,400",
       "family": "/pty",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-106",
       "triage": "defer",
-      "triage_reason": "not called in first minute; implement after core surface"
+      "triage_reason": "not called in first minute; implement after core surface",
+      "served_outcome": "501-typed",
+      "evidence": "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-102 typed SHIM-DRIFT-106)"
     },
     {
       "path": "/pty/shells",
