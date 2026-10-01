@@ -189,6 +189,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/config", s.handleConfig)
 	mux.HandleFunc("/config/providers", s.handleConfigProviders)
 	mux.HandleFunc("/provider", s.handleProvider)
+	// ROUTE-ADD-099 / SHIM-DRIFT-102: the exact /provider/auth path was never
+	// registered, so GET /provider/auth fell through to net/http's default
+	// 404 while /provider/* sub-paths are chi-mounted. Serve the upstream
+	// provider.auth operation; longer /provider/* sub-paths (oauth/authorize,
+	// oauth/callback) keep the default 404 — ServeMux resolves the longer
+	// exact pattern first and the subtree default covers the rest.
+	mux.HandleFunc("/provider/auth", s.handleProviderAuth)
 	mux.HandleFunc("/agent", s.handleAgent)
 
 	// Tools
@@ -2214,6 +2221,66 @@ func (s *Server) handleProvider(w http.ResponseWriter, r *http.Request) {
 		"model":     toString(row["model_id"]),
 		"maxTokens": toInt64(row["max_context"]),
 	})
+}
+
+// handleProviderAuth serves GET /provider/auth — upstream provider.auth
+// (ROUTE-ADD-099, SHIM-DRIFT-102, declared responses: 200 map of providerID
+// to ProviderAuthMethod[], 400 BadRequest). Upstream returns the auth methods
+// available per AI provider ("Retrieve available authentication methods for
+// all AI providers").
+//
+// The shim answers truthfully from the auth rows PUT /auth/{providerID}
+// stores in system_settings (keys auth.<providerID>.<field> — SPEC-017 §3.2):
+// every provider holding stored auth reports one {"type":"api"} method whose
+// prompts[] carries the required key prompt (type/key/message), mirroring
+// the stored-credential reality. An empty store answers {} — the contract
+// declares an object, never null. The declared 400 arm is answered via the
+// sibling writeOpencodeError INVALID_REQUEST envelope when the store cannot
+// be read. Non-GET keeps the generic 404 (405 is not part of the declared
+// response set).
+func (s *Server) handleProviderAuth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "endpoint not found")
+		return
+	}
+	// The LIKE pattern is a constant — the provider id is recovered from the
+	// stored key below, never spliced into the query, so no escaping is
+	// needed (contrast handleAuthDelete, which interpolates a user id).
+	ctx := r.Context()
+	rows, err := s.db.Query(ctx,
+		`SELECT key FROM system_settings WHERE key LIKE 'auth.%.%' ORDER BY key`)
+	if err != nil {
+		// The document's only error response for this operation is 400
+		// BadRequest; answer it the way sibling handlers do instead of
+		// surfacing an undeclared 500.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to read provider auth methods")
+		return
+	}
+
+	result := make(map[string]any, len(rows))
+	for _, row := range rows {
+		key := toString(row["key"])
+		providerID := strings.TrimPrefix(key, "auth.")
+		if i := strings.Index(providerID, "."); i > 0 {
+			providerID = providerID[:i]
+		}
+		if providerID == "" {
+			continue
+		}
+		if _, ok := result[providerID]; ok {
+			continue
+		}
+		result[providerID] = []map[string]any{
+			{
+				"type":  "api",
+				"label": "API key",
+				"prompts": []map[string]any{
+					{"type": "text", "key": "api_key", "message": "Enter the API key for " + providerID},
+				},
+			},
+		}
+	}
+	writeJSON(w, result)
 }
 
 func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
