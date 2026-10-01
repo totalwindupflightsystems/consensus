@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -903,6 +904,11 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// operation (declared responses: 200, 400, 404) was served by the
 		// stub-list 501 below. Serve it for real.
 		s.sessionCommand(w, r, sessionID)
+	case sub == "fork" && r.Method == http.MethodPost:
+		// ROUTE-FIX-011 / SHIM-DRIFT-117: the upstream session.fork
+		// operation (declared responses: 200, 400, 404) was served by the
+		// stub-list 501 below. Serve it for real.
+		s.sessionFork(w, r, sessionID)
 	case sub == "message" && r.Method == http.MethodPost:
 		s.sendMessage(w, r, sessionID)
 	case sub == "message" && r.Method == http.MethodGet:
@@ -1130,6 +1136,133 @@ func errorMessage(err error, result *MessageSendResult) string {
 		return err.Error()
 	}
 	return "the agent produced no response"
+}
+
+// sessionFork serves POST /session/{id}/fork — upstream session.fork
+// (ROUTE-FIX-011, SHIM-DRIFT-117, declared responses: 200 Session, 400
+// BadRequest | InvalidRequestError, 404 NotFoundError).
+//
+// Upstream creates a new session by forking an existing session at a specific
+// message point. Consensus keeps the parent/child relation on the same row set
+// (sessions.parent_id, read back by GET /session/{id}/children), so the fork is
+// served as a real child session: the new row inherits the source session's
+// agent, model, goal and context budget and carries parent_id = the source
+// session, while its own token counters and iteration start fresh.
+//
+// The requestBody is optional upstream and may name the fork point:
+// {"messageID": "^msg…"}. When it is present the shim resolves it inside the
+// source session before any child row is written, so a bad fork point never
+// creates a session.
+//
+// The declared arms map as:
+//
+//	200 → the newly created child session
+//	400 → malformed body, or a messageID violating the declared ^msg shape
+//	404 → unknown source session, or a fork point that is not a message of it
+//
+// Non-POST on the sub-path keeps the pre-existing stub-list 501 (405 is not
+// part of this operation's declared set); sibling stub subs are untouched.
+func (s *Server) sessionFork(w http.ResponseWriter, r *http.Request, sessionID string) {
+	var req struct {
+		MessageID string `json:"messageID"`
+	}
+	// An absent body is a valid fork request (no explicit fork point); only a
+	// body that is present and malformed is a client error.
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+
+	// Resolve the source session first: an unknown id answers the declared 404
+	// (NotFoundError) before any child row is written.
+	src, err := s.db.QueryRow(r.Context(),
+		`SELECT id, agent_name, model_id, status, goal, context_budget
+		 FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || src == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+
+	// A named fork point must exist in the source session. A value that does
+	// not even match the declared ^msg shape is a client contract violation
+	// (400); a well-formed id the session does not hold is the declared 404.
+	if req.MessageID != "" {
+		if !strings.HasPrefix(req.MessageID, "msg") {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "messageID must match ^msg")
+			return
+		}
+		if !s.sessionHasMessage(r.Context(), sessionID, req.MessageID) {
+			writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "fork point message not found in session")
+			return
+		}
+	}
+
+	childID := newUUID()
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	agentName := toString(src["agent_name"])
+	modelID := toString(src["model_id"])
+	goal := toString(src["goal"])
+	contextBudget := toInt64(src["context_budget"])
+	if contextBudget <= 0 {
+		contextBudget = 128000
+	}
+
+	// A forked session is a plain Consensus session: it shares the sessions
+	// store with its parent and is reachable through the ordinary
+	// GET /session/{id} and GET /session/{id}/children routes. No API key is
+	// minted — the declared 200 body is the upstream Session schema, which
+	// carries no credential, so an unreachable key would be dead state.
+	if err := s.db.Exec(r.Context(),
+		`INSERT INTO sessions (id, parent_id, agent_name, model_id, status, goal, context_budget, heartbeat_at, created_at)
+		 VALUES ($1, $2, $3, $4, 'booting', $5, $6, $7, $7)`,
+		childID, sessionID, agentName, modelID, goal, contextBudget, now,
+	); err != nil {
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fork session: "+err.Error())
+		return
+	}
+
+	// Register the shim mapping the way createSession does, so the child is
+	// addressable through the opencode bridge like any other session.
+	externalID := childID
+	if v := r.URL.Query().Get("external_id"); v != "" {
+		externalID = v
+	}
+	s.db.Exec(r.Context(),
+		`INSERT INTO shim_session_map (shim_type, external_id, session_id, created_at, last_used_at)
+		 VALUES ('opencode', $1, $2, $3, $3)`,
+		externalID, childID, now)
+
+	resp := s.translateSessionRow(map[string]any{
+		"id": childID, "agent_name": agentName, "model_id": modelID,
+		"status": "booting", "goal": goal, "context_budget": contextBudget,
+		"iteration": int64(0), "tokens_used_in": int64(0), "tokens_used_out": int64(0),
+		"created_at": now,
+	})
+	// parentID is part of the upstream Session schema and the whole point of a
+	// fork; surface the fork link alongside the translated fields.
+	resp["parentID"] = sessionID
+
+	setFixedWorkspaceSyncFence(w, r, childID)
+	writeJSON(w, resp)
+}
+
+// sessionHasMessage reports whether messageID (the opencode "msg-<id>" form)
+// resolves to a memory_event of the given session. It mirrors the resolution
+// GET /session/{id}/message/{messageID} uses: strip the "msg-" prefix and match
+// the numeric id, then fall back to a prefix match.
+func (s *Server) sessionHasMessage(ctx context.Context, sessionID, messageID string) bool {
+	trimmed := strings.TrimPrefix(messageID, "msg-")
+	row, err := s.db.QueryRow(ctx,
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) = $2 LIMIT 1`,
+		sessionID, trimmed)
+	if err == nil && row != nil {
+		return true
+	}
+	row, err = s.db.QueryRow(ctx,
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) LIKE $2 LIMIT 1`,
+		sessionID, trimmed+"%")
+	return err == nil && row != nil
 }
 
 // patchSession handles PATCH /session/:id — update session properties (title, status, goal).

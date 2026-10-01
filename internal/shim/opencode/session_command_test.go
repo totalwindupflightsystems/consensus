@@ -273,8 +273,9 @@ func TestSessionCommandNeighboursUntouched(t *testing.T) {
 		}
 	}
 
-	// Sibling stub subs unchanged.
-	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize", "/session/s1/fork"} {
+	// Sibling stub subs unchanged. /session/{id}/fork left this list in
+	// ROUTE-FIX-011 (SHIM-DRIFT-117) — it is served for real now.
+	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize", "/session/s1/revert"} {
 		status, _, body := postCommand(t, srv.URL, sub, `{}`)
 		if status != http.StatusNotImplemented {
 			t.Errorf("POST %s: got %d, want 501 (sibling stub). Body: %s", sub, status, body)
@@ -338,6 +339,7 @@ func newCommandStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) 
 			status TEXT NOT NULL DEFAULT 'booting',
 			goal TEXT,
 			context_budget INTEGER NOT NULL DEFAULT 128000,
+			project_id TEXT,
 			tokens_used_in INTEGER NOT NULL DEFAULT 0,
 			tokens_used_out INTEGER NOT NULL DEFAULT 0,
 			iteration INTEGER NOT NULL DEFAULT 0,
@@ -361,6 +363,14 @@ func newCommandStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) 
 			scope TEXT NOT NULL,
 			session_id TEXT,
 			expires_at TEXT
+		)`,
+		`CREATE TABLE shim_session_map (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			shim_type TEXT NOT NULL,
+			external_id TEXT NOT NULL,
+			session_id TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			last_used_at TEXT NOT NULL
 		)`,
 		`INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at)
 		 VALUES ('s1', 'worker', 'm', 'idle', 'g', 0, '2026-09-30T00:00:00Z')`,
