@@ -32,10 +32,35 @@ func doShimRequestBody(t *testing.T, base, method, path, body string) (int, http
 	return resp.StatusCode, resp.Header, data
 }
 
-// assertInvalidRequest decodes the sibling writeOpencodeError envelope and
-// asserts the INVALID_REQUEST code with a non-empty message.
-func assertInvalidRequest(t *testing.T, path, body string, status int, data []byte) {
+// assertInvalidRequest pins the requested 400 envelope. Existing sibling
+// handlers pass an HTTP status and keep the shim INVALID_REQUEST shape;
+// /sync/history passes Body or Payload and expects the upstream v2 SDK
+// NamedError BadRequest shape.
+func assertInvalidRequest(t *testing.T, path, body string, envelope any, data []byte) {
 	t.Helper()
+	if wantKind, ok := envelope.(string); ok {
+		var got struct {
+			Name string `json:"name"`
+			Data struct {
+				Kind    string `json:"kind"`
+				Message string `json:"message"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatalf("POST %s: body not the NamedError envelope: %v (%s)", path, err, body)
+		}
+		if got.Name != "BadRequest" {
+			t.Errorf("POST %s: name = %q, want BadRequest (body %s)", path, got.Name, body)
+		}
+		if got.Data.Kind != wantKind {
+			t.Errorf("POST %s: data.kind = %q, want %q matching ^(Body|Payload)$ (body %s)", path, got.Data.Kind, wantKind, body)
+		}
+		if got.Data.Message == "" {
+			t.Errorf("POST %s: data.message empty, want the offending input named (body %s)", path, body)
+		}
+		return
+	}
+
 	var got struct {
 		Error struct {
 			Code    string `json:"code"`
@@ -94,7 +119,7 @@ func TestSyncHistoryAnswersDeclaredList(t *testing.T) {
 }
 
 // TestSyncHistoryMalformedInputIsBadRequest pins the declared 400 arm:
-// malformed input must answer the sibling INVALID_REQUEST envelope, not 200
+// malformed input must answer the upstream NamedError BadRequest body, not 200
 // and not the pre-fix 404. Covered classes: a seq value that violates the
 // declared integer>=0 item schema (negative, fractional, non-number), a body
 // that is not valid JSON, a body that is JSON but not an object, and a
@@ -105,16 +130,16 @@ func TestSyncHistoryMalformedInputIsBadRequest(t *testing.T) {
 	defer srv.Close()
 
 	for _, tc := range []struct {
-		name, path, body string
+		name, path, body, kind string
 	}{
-		{"negative seq", "/sync/history", `{"aggregate": -1}`},
-		{"fractional seq", "/sync/history", `{"aggregate": 1.5}`},
-		{"string seq", "/sync/history", `{"aggregate": "3"}`},
-		{"not json", "/sync/history", `not json`},
-		{"json array body", "/sync/history", `[1,2]`},
-		{"json null body", "/sync/history", `null`},
-		{"blank directory param", "/sync/history?directory=", "{}"},
-		{"blank workspace param", "/sync/history?workspace=", "{}"},
+		{"negative seq", "/sync/history", `{"aggregate": -1}`, "Payload"},
+		{"fractional seq", "/sync/history", `{"aggregate": 1.5}`, "Payload"},
+		{"string seq", "/sync/history", `{"aggregate": "3"}`, "Payload"},
+		{"not json", "/sync/history", `not json`, "Body"},
+		{"json array body", "/sync/history", `[1,2]`, "Body"},
+		{"json null body", "/sync/history", `null`, "Body"},
+		{"blank directory param", "/sync/history?directory=", "{}", "Payload"},
+		{"blank workspace param", "/sync/history?workspace=", "{}", "Payload"},
 	} {
 		status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, tc.path, tc.body)
 		if status != http.StatusBadRequest {
@@ -123,7 +148,7 @@ func TestSyncHistoryMalformedInputIsBadRequest(t *testing.T) {
 		if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 			t.Errorf("%s: POST %s: Content-Type = %q, want application/json", tc.name, tc.path, ct)
 		}
-		assertInvalidRequest(t, tc.path, tc.body, status, body)
+		assertInvalidRequest(t, tc.path, tc.body, tc.kind, body)
 	}
 }
 
