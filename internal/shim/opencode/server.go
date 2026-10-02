@@ -1185,7 +1185,7 @@ func (s *Server) abortSession(w http.ResponseWriter, r *http.Request, sessionID 
 func (s *Server) listChildren(w http.ResponseWriter, r *http.Request, sessionID string) {
 	ctx := r.Context()
 	rows, err := s.db.Query(ctx,
-		`SELECT id, agent_name, status, goal, iteration, tokens_used_in, tokens_used_out, created_at
+		`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, created_at
 		 FROM sessions WHERE parent_id = $1 ORDER BY created_at DESC LIMIT 50`,
 		sessionID,
 	)

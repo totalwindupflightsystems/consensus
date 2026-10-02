@@ -1277,7 +1277,7 @@ func TestListChildren(t *testing.T) {
 		queryResults: []db.Row{
 			rowOf(map[string]any{
 				"id": "child-1", "agent_name": "sub-agent", "status": "thinking",
-				"goal": "sub task", "iteration": int64(2),
+				"goal": "sub task", "model_id": "m-1", "iteration": int64(2),
 				"tokens_used_in": int64(50), "tokens_used_out": int64(25),
 				"created_at": "2026-05-07T00:00:00Z",
 			}),
@@ -1303,6 +1303,11 @@ func TestListChildren(t *testing.T) {
 	}
 	if children[0]["id"] != "child-1" {
 		t.Errorf("expected child-1, got %v", children[0]["id"])
+	}
+	// DF-CONSENSUS-47: listChildren must project model_id like getSession does,
+	// so the same session row carries the same model through both endpoints.
+	if children[0]["model"] != "m-1" {
+		t.Errorf("expected children[0].model = m-1 (model_id projected), got %v", children[0]["model"])
 	}
 }
 

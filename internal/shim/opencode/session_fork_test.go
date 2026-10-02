@@ -125,6 +125,11 @@ func TestSessionForkCreatesChildSession(t *testing.T) {
 	for _, c := range children {
 		if toString(c["id"]) == childID {
 			found = true
+			// DF-CONSENSUS-47: the children listing must carry the same model
+			// field GET /session/{id} returns for the same row.
+			if got := toString(c["model"]); got != "m" {
+				t.Errorf("children listing model = %q, want the child's model_id \"m\" (listChildren must project model_id)", got)
+			}
 		}
 	}
 	if !found {
