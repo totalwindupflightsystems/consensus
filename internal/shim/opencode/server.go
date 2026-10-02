@@ -215,6 +215,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /sync/replay had no shim route at all and answered net/http's default
 	// 404. Serve the upstream sync.replay operation.
 	mux.HandleFunc("/sync/replay", s.handleSyncReplay)
+	// ROUTE-ADD-114 / SHIM-DRIFT-128: the exact /sync/start path was never
+	// registered either, so POST /sync/start fell through to net/http's default
+	// 404. Serve the upstream sync.start operation; /sync/steal stays
+	// unregistered — these are exact patterns, never a /sync/* catch-all.
+	mux.HandleFunc("/sync/start", s.handleSyncStart)
 	mux.HandleFunc("/question", s.handleQuestionList)
 	mux.HandleFunc("/question/", s.handleQuestionByID)
 
@@ -358,6 +363,7 @@ var MountPatterns = []string{
 	"/question", "/question/*",
 	"/sync/history",
 	"/sync/replay",
+	"/sync/start",
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
@@ -3003,6 +3009,41 @@ func (s *Server) handleSyncReplay(w http.ResponseWriter, r *http.Request) {
 	// No sync event store, so no session is replayed and none can be named:
 	// the declared shape carries the empty string rather than a fabricated id.
 	writeJSON(w, map[string]any{"sessionID": ""})
+}
+
+// handleSyncStart serves POST /sync/start — upstream sync.start
+// (ROUTE-ADD-114, SHIM-DRIFT-128, declared responses: 200 boolean, 400
+// BadRequest). Upstream starts a sync loop for every workspace in the current
+// project that has an active session; the Consensus runtime keeps no sync loop
+// engine — the same truthfulness limit handleSyncHistory and handleSyncReplay
+// document — so no loop is started and the declared boolean 200 is answered
+// with the truthful value false ("no workspace sync started") rather than the
+// fabricated true an effect-free no-op would claim (the sibling
+// handleGlobalUpgrade truthfulness convention: never assert an effect that was
+// not performed).
+//
+// The operation declares two optional query parameters (directory, workspace)
+// and no request body, so the declared 400 arm is answered via the sibling
+// writeOpencodeError INVALID_REQUEST envelope for a present-but-blank declared
+// query param (the sibling handleSkill/handleSyncHistory convention). A request
+// body is neither declared nor read: an absent body and any body are both
+// well-formed, exactly as handleGlobalDispose accepts them. Non-POST answers
+// 405 METHOD_NOT_ALLOWED — sibling method-guard convention.
+func (s *Server) handleSyncStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	// No sync loop engine exists, so no workspace sync was started: the
+	// declared boolean reports false rather than a fabricated true.
+	writeJSON(w, false)
 }
 
 // syncReplayEventInvalid validates one declared sync.replay events[] item
