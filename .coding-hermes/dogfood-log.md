@@ -165,3 +165,5 @@ Run details (2026-09-26 evening, @ fa24a3e, clean worktree — main tree had 16 
 - Artifacts: docs/dogfood/2026-09-26-opencode-shim-webhooks.md, diagnostics.md addendum, skills/consensus-usage/SKILL.md v2.9.0.
 - Foreman: NOT woken (21600 fleet law; injected rows picked up at normal cadence per briefing).
 
+
+2026-10-02 | 🟡 PROMISING-BUT-ROUGH | (angle = fork endpoint verification post-ROUTE-FIX-011; binary rebuilt Oct 2 00:43) | 1. DF-CONSENSUS-47 (P2) GET /session/{id}/children drops model_id — returns model:"" while GET /session/{id} returns correct value for same row. | t2fs ~2s (server already running from prior tick); fork API ~50ms | friction 1 | install_seconds=0 (binary pre-built) | smoke=ok (fork works, error paths correct: 404 unknown session, 400 bad messageID format, 404 missing message) | Artifacts: board row DF-CONSENSUS-47 | Foreman: NOT woken (existing cadence sufficient for P2)
