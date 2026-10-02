@@ -1,0 +1,25 @@
+{
+  "tick": "consensus-foreman-2026-10-02-19-22-39",
+  "budget": 1,
+  "mode": "serial-fallback",
+  "workers": [
+    {
+      "task_id": "ROUTE-FIX-035",
+      "title": "Serve DELETE /session/{sessionID}/message/{messageID} per contract",
+      "branch": "wt/ROUTE-FIX-035",
+      "worktree": "~/worktrees/consensus-ROUTE-FIX-035",
+      "model": "deepseek-v4-flash",
+      "provider": "deepseek-foreman",
+      "brief": "/tmp/consensus-tick-192239-brief-ROUTE-FIX-035.txt",
+      "dispatch": {
+        "session": "proc_a90ab6c99638",
+        "pid": 865474,
+        "cmd": "/tmp/consensus-tick-192239-dispatch.sh",
+        "worker_hermes_session": "20261002_142614_8aac83"
+      },
+      "gitreins_task": "route-fix-035",
+      "status": "dispatched"
+    }
+  ],
+  "notes": "Premise probed: ROUTE-FIX-014..018 wave (d8f1d59) fixed sibling routes; 035 (DELETE message) left pending. Off-by-one discover: no cached answer for the problem class. Worker committed 5c41a2d (RED-proven, live-probe evidence docs/evidence/ROUTE-FIX-035-live-probe.md, declared-vs-served flipped narrowed->covered 11->10). Foreman verified: build/vet/gofmt clean; TestSessionDeleteMessage* green; pkg suite green on merged tree (475s; two earlier reds were host-load flakes, passed on isolated re-runs). Merged --no-ff 9781a06."
+}
