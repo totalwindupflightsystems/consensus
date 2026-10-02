@@ -1,0 +1,23 @@
+{
+  "scheduler_tick_id": "consensus-foreman-2026-10-02-08-50-29",
+  "created_at": "2026-10-02T08:58:00-05:00",
+  "budget": 2,
+  "tasks": [
+    {
+      "task_id": "ROUTE-ADD-114",
+      "mode": "worker",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-114",
+      "branch": "wt/ROUTE-ADD-114",
+      "base_sha": "06ae780",
+      "brief": "/tmp/consensus-0802-brief-ROUTE-ADD-114.txt",
+      "status": "dispatched"
+    },
+    {
+      "task_id": "DF-CONSENSUS-47",
+      "mode": "foreman-direct",
+      "reason": "trivial one-file SQL projection fix + test assertion; worker budget reserved",
+      "worktree": null,
+      "status": "in_progress"
+    }
+  ]
+}
