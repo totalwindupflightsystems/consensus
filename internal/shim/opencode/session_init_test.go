@@ -326,7 +326,9 @@ func TestSessionInitNeighboursUntouched(t *testing.T) {
 		}
 	}
 
-	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize", "/session/s1/fork"} {
+	// ROUTE-FIX-011: /session/{id}/fork is now served for real (no longer a
+	// 501 stub), so it is no longer listed among the sibling stubs here.
+	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize"} {
 		status, _, body := postSessionInit(t, srv.URL, sub, `{}`)
 		if status != http.StatusNotImplemented {
 			t.Errorf("POST %s: got %d, want 501 (sibling stub). Body: %s", sub, status, body)

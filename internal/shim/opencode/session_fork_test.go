@@ -236,14 +236,22 @@ func TestSessionForkNeighboursUntouched(t *testing.T) {
 		}
 	}
 
-	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize", "/session/s1/init"} {
+	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize"} {
 		status, _, body := postCommand(t, srv.URL, sub, `{}`)
 		if status != http.StatusNotImplemented {
 			t.Errorf("POST %s: got %d, want 501 (sibling stub). Body: %s", sub, status, body)
 		}
 	}
 
-	status, _, body := postCommand(t, srv.URL, "/session/s1/message",
+	// ROUTE-FIX-012 / SHIM-DRIFT-118: /session/{id}/init is now served for
+	// real (no longer a 501 stub). With an empty body it returns 400
+	// (missing required fields), which proves the route reaches the shim.
+	status, _, body := postCommand(t, srv.URL, "/session/s1/init", `{}`)
+	if status != http.StatusBadRequest {
+		t.Errorf("POST /session/s1/init: got %d, want 400 (served for real, missing fields). Body: %s", status, body)
+	}
+
+	status, _, body = postCommand(t, srv.URL, "/session/s1/message",
 		`{"parts":[{"type":"text","text":"hi"}]}`)
 	if status != http.StatusServiceUnavailable {
 		t.Errorf("POST /session/s1/message: got %d, want 503. Body: %s", status, body)
