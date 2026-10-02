@@ -1101,6 +1101,16 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// GET /session/:id/message/:messageID
 		msgID := strings.TrimPrefix(sub, "message/")
 		s.getMessageByID(w, r, sessionID, msgID)
+	case strings.HasPrefix(sub, "message/") && r.Method == http.MethodDelete:
+		// ROUTE-FIX-035 / SHIM-NARROWED-005: the upstream
+		// session.deleteMessage operation (declared responses 200 boolean,
+		// 400 BadRequest | InvalidRequestError, 404 NotFoundError, 409
+		// SessionBusyError) answered an untyped 404 from this default arm
+		// for every request — the declared success code was unreachable.
+		// Serve the declared contract truthfully; undeclared methods on the
+		// sub-path keep the pre-existing router default 404.
+		msgID := strings.TrimPrefix(sub, "message/")
+		s.sessionDeleteMessage(w, r, sessionID, msgID)
 	case sub == "children" && r.Method == http.MethodGet:
 		s.listChildren(w, r, sessionID)
 	case sub == "diff" && r.Method == http.MethodGet:

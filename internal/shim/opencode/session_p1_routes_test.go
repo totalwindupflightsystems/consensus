@@ -444,3 +444,138 @@ func TestP1SessionNeighboursUntouched(t *testing.T) {
 		t.Errorf("GET /session/s1/unknown-sub: got %d, want 404 (non-vacuity). Body: %s", status, raw)
 	}
 }
+
+// ============================================================================
+// ROUTE-FIX-035 — DELETE /session/{sessionID}/message/{messageID}
+// (session.deleteMessage; declared responses 200 boolean "Successfully deleted
+// message", 400 BadRequest | InvalidRequestError, 404 NotFoundError, 409
+// SessionBusyError).
+// ============================================================================
+
+// TestSessionDeleteMessageServesDeclaredSuccess is the defect cell for
+// ROUTE-FIX-035 / SHIM-NARROWED-005: before this change no case in
+// handleSessionByID matched "message/<id>" + DELETE, so the request fell to
+// the router's default arm and answered an untyped 404 for EVERY request — the
+// declared success code was unreachable from outside the code.
+//
+// A known session holding the message must now answer the declared 200 with
+// the declared boolean body. The value is the truthful false, not true: a
+// message IS a memory_events row (opencode "msg-<id>" ids resolve to that
+// ledger), and that ledger is append-only by construction — SPEC-002 §2.1,
+// enforced by the triggers in migrations 017 (SQLite) and 018 (Postgres) which
+// ABORT every UPDATE and DELETE. The shim keeps no delete engine, no message
+// tombstone and no separate parts store (parts are synthesized from
+// memory_events.content), and no genuine delete analog exists to perform, so
+// no message was deleted and the boolean must not claim otherwise (the
+// sessionSummarize precedent from d8f1d59 — the sibling operation whose
+// declared 200 body is likewise a plain boolean: when the engine is absent the
+// declared boolean reports the truth). The final assertion pins the no-op: the
+// message is still readable through the sibling GET route, proving the 200 did
+// not imply a removal that never happened.
+func TestSessionDeleteMessageServesDeclaredSuccess(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodDelete, "/session/s1/message/msg-42")
+	if status != http.StatusOK {
+		t.Fatalf("DELETE /session/s1/message/msg-42: got %d, want 200 (declared boolean success). Body: %s", status, raw)
+	}
+	var deleted bool
+	if err := json.Unmarshal(raw, &deleted); err != nil {
+		t.Fatalf("DELETE /session/s1/message/msg-42: body is not the declared JSON boolean: %v (%s)", err, raw)
+	}
+	if deleted {
+		t.Errorf("DELETE /session/s1/message/msg-42: body = true, want false — memory_events is append-only (SPEC-002 §2.1) and no delete engine exists, so no message was deleted")
+	}
+
+	// Truthful no-op: nothing was deleted, so the message is still readable.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/message/msg-42")
+	if status != http.StatusOK {
+		t.Errorf("GET /session/s1/message/msg-42 after DELETE: got %d, want 200 (message must remain — no delete engine). Body: %s", status, raw)
+	}
+}
+
+// TestSessionDeleteMessageTruthfulArms covers the declared error vocabulary of
+// session.deleteMessage: unknown session 404 NotFoundError; a session mid-turn
+// (status 'thinking') 409 SessionBusyError — the genuine analog of upstream's
+// "prompt in flight", checked before message resolution exactly as
+// sessionRevert/sessionShell do (msg-42 belongs to s1, so only the busy check
+// can answer the s2 probe); an absent/blank or ill-shaped messageID 400 (the
+// declared pattern is ^msg, the sessionRevert validation precedent — and it
+// makes the declared 400 arm reachable, since the operation declares no
+// requestBody); and a well-formed messageID the session does not hold 404.
+func TestSessionDeleteMessageTruthfulArms(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	// Unknown session -> declared 404 NotFoundError.
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodDelete, "/session/smissing/message/msg-42")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/smissing/message/msg-42: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("DELETE /session/smissing/message/msg-42 body not JSON: %v (%s)", err, raw)
+	}
+	assertP1Error(t, "DELETE /session/smissing/message/msg-42", "", status, env, "NOT_FOUND")
+
+	// Mid-turn session -> declared 409 SessionBusyError.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s2/message/msg-42")
+	if status != http.StatusConflict {
+		t.Fatalf("DELETE /session/s2/message/msg-42: got %d, want 409 (declared SessionBusyError). Body: %s", status, raw)
+	}
+	var busy map[string]any
+	if err := json.Unmarshal(raw, &busy); err != nil {
+		t.Fatalf("DELETE /session/s2/message/msg-42 body not JSON: %v (%s)", err, raw)
+	}
+	if got, _ := busy["_tag"].(string); got != "SessionBusyError" {
+		t.Errorf("DELETE /session/s2/message/msg-42: _tag = %v, want SessionBusyError (declared 409 body)", got)
+	}
+	if got, _ := busy["sessionID"].(string); got != "s2" {
+		t.Errorf("DELETE /session/s2/message/msg-42: sessionID = %v, want s2", got)
+	}
+
+	// Blank messageID (the path ends at "message/") -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s1/message/")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message/: got %d, want 400 (declared BadRequest — messageID is required). Body: %s", status, raw)
+	}
+	var blank map[string]any
+	if err := json.Unmarshal(raw, &blank); err == nil {
+		assertP1Error(t, "DELETE /session/s1/message/", "", status, blank, "INVALID_REQUEST")
+	}
+
+	// Ill-shaped messageID (not the declared pattern ^msg) -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s1/message/not-a-msg")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message/not-a-msg: got %d, want 400 (declared pattern ^msg). Body: %s", status, raw)
+	}
+
+	// Well-formed messageID the session does not hold -> declared 404.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s1/message/msg-999")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/s1/message/msg-999: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+}
+
+// TestSessionDeleteMessageMethodGuards pins the path's neighbours: GET
+// /session/{id}/message/{messageID} keeps its own contract (the message is
+// still resolvable), while the methods the document does NOT declare for this
+// path (POST/PUT) keep the pre-existing router default 404 — this sub-path is
+// not in the stub-list switch, so they never answered 501 and this change must
+// not move them. DELETE is the newly served method and is asserted in
+// TestSessionDeleteMessageServesDeclaredSuccess.
+func TestSessionDeleteMessageMethodGuards(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/message/msg-42")
+	if status != http.StatusOK {
+		t.Errorf("GET /session/s1/message/msg-42: got %d, want 200 (served neighbour unchanged). Body: %s", status, raw)
+	}
+
+	for _, method := range []string{http.MethodPost, http.MethodPut} {
+		status, _, raw = doShimRequest(t, srv.URL, method, "/session/s1/message/msg-42")
+		if status != http.StatusNotFound {
+			t.Errorf("%s /session/s1/message/msg-42: got %d, want 404 (undeclared method, pre-existing router default). Body: %s",
+				method, status, raw)
+		}
+	}
+}
