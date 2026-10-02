@@ -20,19 +20,19 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-FIX-011 moved POST /session/{sessionID}/fork (SHIM-DRIFT-117), ROUTE-FIX-012 moved POST /session/{sessionID}/init (SHIM-DRIFT-118) and ROUTE-FIX-013 moved POST /session/{sessionID}/prompt_async (SHIM-DRIFT-113) to covered; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 in this artifact; SHIM-DRIFT-128 in the 2026-09-29 baseline report, the row's source item) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 96,
-    "covered_operations": 42,
+    "covered_operations": 47,
     "narrowed_error_contract_only": 11,
     "semantic_different": 2,
-    "drift_declared_not_served": 133,
+    "drift_declared_not_served": 128,
     "drift_by_class": {
       "NOT-SERVED": 103,
-      "OUTCOME-MISMATCH": 30
+      "OUTCOME-MISMATCH": 25
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -402,6 +402,56 @@
       "evidence": "server.go handleSessionByID sub prompt_async && POST \u2192 sessionPromptAsync (ROUTE-FIX-013, formerly SHIM-DRIFT-113)"
     },
     {
+      "path": "/session/{sessionID}/revert",
+      "method": "POST",
+      "operationId": "session.revert",
+      "tags": "session",
+      "declared_responses": "200,400,404,409",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub revert && POST \u2192 sessionRevert (ROUTE-FIX-014, formerly SHIM-DRIFT-120): declared body messageID required pattern ^msg (400 missing/ill-shaped), unknown session 404, unknown message 404, mid-turn session 409 SessionBusyError, idle session 200 with the Session as it stands \u2014 no revert engine exists, nothing is reverted"
+    },
+    {
+      "path": "/session/{sessionID}/share",
+      "method": "DELETE",
+      "operationId": "session.unshare",
+      "tags": "session",
+      "declared_responses": "200,400,404,500",
+      "family": "/session/*",
+      "served_outcome": "404",
+      "evidence": "server.go handleSessionByID sub share && DELETE \u2192 sessionUnshare (ROUTE-FIX-015, formerly SHIM-DRIFT-121): the runtime keeps no share concept, so every known session has no active share to remove \u2014 the declared 404 NotFoundError is the truthful answer (an unshare 200 would assert a removal that never happened)"
+    },
+    {
+      "path": "/session/{sessionID}/share",
+      "method": "POST",
+      "operationId": "session.share",
+      "tags": "session",
+      "declared_responses": "200,400,404,500",
+      "family": "/session/*",
+      "served_outcome": "400",
+      "evidence": "server.go handleSessionByID sub share && POST \u2192 sessionShare (ROUTE-FIX-016, formerly SHIM-DRIFT-122): Consensus publishes no sessions (export is native, SPEC-015) so the declared 200 share URL cannot be truthfully produced \u2014 known session answers the declared 400 naming the limitation, unknown session the declared 404"
+    },
+    {
+      "path": "/session/{sessionID}/shell",
+      "method": "POST",
+      "operationId": "session.shell",
+      "tags": "session",
+      "declared_responses": "200,400,404,409",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub shell && POST \u2192 sessionShell (ROUTE-FIX-017, formerly SHIM-DRIFT-123): declared body agent+command required (400 blank), unknown session 404, mid-turn session 409 SessionBusyError, idle session 400 naming the missing shell-execution engine (no created message fabricated)"
+    },
+    {
+      "path": "/session/{sessionID}/summarize",
+      "method": "POST",
+      "operationId": "session.summarize",
+      "tags": "session",
+      "declared_responses": "200,400,404",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub summarize && POST \u2192 sessionSummarize (ROUTE-FIX-018, formerly SHIM-DRIFT-124): declared body providerID+modelID required (400 blank), unknown session 404, known session answers the declared boolean 200 with truthful false \u2014 no summarize pipeline exists"
+    },
+    {
       "path": "/skill",
       "method": "GET",
       "operationId": "app.skills",
@@ -531,7 +581,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
+      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-006"
     },
@@ -543,7 +593,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
+      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-007"
     },
@@ -555,7 +605,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
+      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-008"
     },
@@ -567,7 +617,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
+      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-009"
     },
@@ -579,7 +629,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)",
+      "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-010"
     },
@@ -1878,71 +1928,6 @@
       "id": "SHIM-DRIFT-112"
     },
     {
-      "path": "/session/{sessionID}/revert",
-      "method": "POST",
-      "operationId": "session.revert",
-      "tags": "session",
-      "declared_responses": "200,400,404,409",
-      "family": "/session/*",
-      "served_outcome": "501",
-      "evidence": "server.go:900 stub list",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400,404,409, served 501",
-      "id": "SHIM-DRIFT-114"
-    },
-    {
-      "path": "/session/{sessionID}/share",
-      "method": "DELETE",
-      "operationId": "session.unshare",
-      "tags": "session",
-      "declared_responses": "200,400,404,500",
-      "family": "/session/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleSessionByID sub == share && DELETE (SHIM-DRIFT-121)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400,404,500, served 501",
-      "id": "SHIM-DRIFT-115"
-    },
-    {
-      "path": "/session/{sessionID}/share",
-      "method": "POST",
-      "operationId": "session.share",
-      "tags": "session",
-      "declared_responses": "200,400,404,500",
-      "family": "/session/*",
-      "served_outcome": "501",
-      "evidence": "server.go:900 stub list",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400,404,500, served 501",
-      "id": "SHIM-DRIFT-116"
-    },
-    {
-      "path": "/session/{sessionID}/shell",
-      "method": "POST",
-      "operationId": "session.shell",
-      "tags": "session",
-      "declared_responses": "200,400,404,409",
-      "family": "/session/*",
-      "served_outcome": "501",
-      "evidence": "server.go:900 stub list",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400,404,409, served 501",
-      "id": "SHIM-DRIFT-117"
-    },
-    {
-      "path": "/session/{sessionID}/summarize",
-      "method": "POST",
-      "operationId": "session.summarize",
-      "tags": "session",
-      "declared_responses": "200,400,404",
-      "family": "/session/*",
-      "served_outcome": "501",
-      "evidence": "server.go:900 stub list",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-118"
-    },
-    {
       "path": "/sync/steal",
       "method": "POST",
       "operationId": "sync.steal",
@@ -1951,7 +1936,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-120"
+      "id": "SHIM-DRIFT-113"
     },
     {
       "path": "/tui/append-prompt",
@@ -1964,7 +1949,7 @@
       "evidence": "server.go:209 handleTUI (server.go:2242)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-121"
+      "id": "SHIM-DRIFT-114"
     },
     {
       "path": "/tui/clear-prompt",
@@ -1977,7 +1962,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-122"
+      "id": "SHIM-DRIFT-115"
     },
     {
       "path": "/tui/control/next",
@@ -1990,7 +1975,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-123"
+      "id": "SHIM-DRIFT-116"
     },
     {
       "path": "/tui/control/response",
@@ -2003,7 +1988,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-124"
+      "id": "SHIM-DRIFT-117"
     },
     {
       "path": "/tui/execute-command",
@@ -2016,7 +2001,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-125"
+      "id": "SHIM-DRIFT-118"
     },
     {
       "path": "/tui/open-help",
@@ -2029,7 +2014,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-126"
+      "id": "SHIM-DRIFT-119"
     },
     {
       "path": "/tui/open-models",
@@ -2042,7 +2027,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-127"
+      "id": "SHIM-DRIFT-120"
     },
     {
       "path": "/tui/open-sessions",
@@ -2055,7 +2040,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-128"
+      "id": "SHIM-DRIFT-121"
     },
     {
       "path": "/tui/open-themes",
@@ -2068,7 +2053,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-129"
+      "id": "SHIM-DRIFT-122"
     },
     {
       "path": "/tui/publish",
@@ -2081,7 +2066,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-130"
+      "id": "SHIM-DRIFT-123"
     },
     {
       "path": "/tui/show-toast",
@@ -2094,7 +2079,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-131"
+      "id": "SHIM-DRIFT-124"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2107,7 +2092,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-132"
+      "id": "SHIM-DRIFT-125"
     },
     {
       "path": "/vcs/apply",
@@ -2120,7 +2105,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-133"
+      "id": "SHIM-DRIFT-126"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2133,7 +2118,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-134"
+      "id": "SHIM-DRIFT-127"
     },
     {
       "path": "/vcs/status",
@@ -2146,7 +2131,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-135"
+      "id": "SHIM-DRIFT-128"
     }
   ],
   "drift_served_not_declared": [

@@ -273,12 +273,16 @@ func TestSessionCommandNeighboursUntouched(t *testing.T) {
 		}
 	}
 
-	// Sibling stub subs unchanged. /session/{id}/fork left this list in
-	// ROUTE-FIX-011 (SHIM-DRIFT-117) — it is served for real now.
+	// Sibling stub subs unchanged for undeclared methods; the served siblings
+	// keep their own contracts. /session/{id}/fork left the stub list in
+	// ROUTE-FIX-011 (SHIM-DRIFT-117); shell, summarize and revert left it in
+	// ROUTE-FIX-017/018/014 — with an empty object body each answers 400
+	// (missing required fields), which proves the routes reach their
+	// handlers.
 	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize", "/session/s1/revert"} {
 		status, _, body := postCommand(t, srv.URL, sub, `{}`)
-		if status != http.StatusNotImplemented {
-			t.Errorf("POST %s: got %d, want 501 (sibling stub). Body: %s", sub, status, body)
+		if status != http.StatusBadRequest {
+			t.Errorf("POST %s: got %d, want 400 (served for real, missing fields). Body: %s", sub, status, body)
 		}
 	}
 

@@ -241,10 +241,14 @@ func TestSessionForkNeighboursUntouched(t *testing.T) {
 		}
 	}
 
+	// ROUTE-FIX-017/018: /session/{id}/shell and /session/{id}/summarize are
+	// served for real now (no longer 501 stubs). With an empty object body
+	// both answer 400 (missing required fields), which proves the routes
+	// reach their handlers.
 	for _, sub := range []string{"/session/s1/shell", "/session/s1/summarize"} {
 		status, _, body := postCommand(t, srv.URL, sub, `{}`)
-		if status != http.StatusNotImplemented {
-			t.Errorf("POST %s: got %d, want 501 (sibling stub). Body: %s", sub, status, body)
+		if status != http.StatusBadRequest {
+			t.Errorf("POST %s: got %d, want 400 (served for real, missing fields). Body: %s", sub, status, body)
 		}
 	}
 

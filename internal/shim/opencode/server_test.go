@@ -930,14 +930,18 @@ func TestShellReturns501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
+	// ROUTE-FIX-017: POST /session/{id}/shell is served for real now. The
+	// operation declares the required fields agent + command, so a nil body
+	// answers the declared 400 (contract validation) instead of the stub
+	// 501 this test pinned before the route went live.
 	resp, err := http.Post(srv.URL+"/session/s1/shell", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST /session/s1/shell failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 501 {
-		t.Errorf("expected 501 for shell endpoint, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for shell endpoint (contract validation), got %d", resp.StatusCode)
 	}
 }
 
@@ -2947,7 +2951,9 @@ type notImplementedRoute struct {
 // OUTCOME-MISMATCH row of the untyped stub list that was never in this
 // table; ROUTE-FIX-010 served GET /session/{id}/diff (SHIM-DRIFT-116), which
 // left this table — all three are covered in the declared-vs-served artifact
-// now. ROUTE-ADD-102 re-added SHIM-DRIFT-106 (POST /pty): registering the bare
+// now. ROUTE-FIX-015 served DELETE /session/{id}/share (SHIM-DRIFT-121, the
+// table's one METHOD-MISSING row) likewise. ROUTE-ADD-102 re-added
+// SHIM-DRIFT-106 (POST /pty): registering the bare
 // /pty mount means pty.create reaches the handler, where the typed
 // not-implemented envelope answers it — previously NOT-SERVED (net/http
 // default 404), a class the table could not see.
@@ -2965,8 +2971,6 @@ var notImplementedRoutes = []notImplementedRoute{
 	{"SHIM-DRIFT-137", http.MethodPost, "/tui/open-sessions", "tui.openSessions"},
 	{"SHIM-DRIFT-138", http.MethodPost, "/tui/open-themes", "tui.openThemes"},
 	{"SHIM-DRIFT-139", http.MethodPost, "/tui/publish", "tui.publish"},
-	// METHOD-MISSING (1): path routed for other methods, this one absent.
-	{"SHIM-DRIFT-121", http.MethodDelete, "/session/s1/share", "session.unshare"},
 	// STUB-501 (3): already 501, but the stub was silent/untyped.
 	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
 	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
@@ -3011,8 +3015,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	if len(notImplementedRoutes) != 16 {
-		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008) and SHIM-DRIFT-116 (ROUTE-FIX-010) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 16; table has %d",
+	if len(notImplementedRoutes) != 15 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010) and SHIM-DRIFT-121 (ROUTE-FIX-015) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 15; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3148,8 +3152,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 16 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 15 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
+	if len(typed) != 15 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 14 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff, ROUTE-FIX-015 serves DELETE /session/{id}/share) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {

@@ -1103,12 +1103,6 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		s.getMessageByID(w, r, sessionID, msgID)
 	case sub == "children" && r.Method == http.MethodGet:
 		s.listChildren(w, r, sessionID)
-	case sub == "share" && r.Method == http.MethodDelete:
-		// SHIM-GAP-002 / SHIM-DRIFT-121: /session/{id}/share was routed for
-		// other methods but had no DELETE, so an unshare request fell through
-		// to the generic not-found switch. Answer the declared operation.
-		writeNotImplemented(w, r, "session.unshare",
-			"session sharing is an opencode feature; Consensus does not publish sessions (export is native, SPEC-015)")
 	case sub == "diff" && r.Method == http.MethodGet:
 		// ROUTE-FIX-010 / SHIM-DRIFT-116: the declared session.diff
 		// operation (declared responses 200,400) was served by the typed 501
@@ -1120,6 +1114,39 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// not part of that operation's declared response set.
 		writeNotImplemented(w, r, "session.diff",
 			"session diff is a GET operation; use GET /session/{sessionID}/diff, or GET /instance/vcs/diff for the workspace diff")
+	case sub == "revert" && r.Method == http.MethodPost:
+		// ROUTE-FIX-014 / SHIM-DRIFT-120: the upstream session.revert
+		// operation (declared responses 200 Session, 400, 404, 409
+		// SessionBusyError) was served by the stub-list 501 below. Serve the
+		// declared contract truthfully; non-POST on the sub-path falls
+		// through to the stub list (405 is not in the declared set).
+		s.sessionRevert(w, r, sessionID)
+	case sub == "share" && r.Method == http.MethodDelete:
+		// ROUTE-FIX-015 / SHIM-DRIFT-121: the upstream session.unshare
+		// operation (declared responses 200, 400, 404, 500) was answered by
+		// the typed 501 stub. Serve the declared contract truthfully; the
+		// runtime keeps no share concept, so a known session has no active
+		// share to remove and answers the declared 404.
+		s.sessionUnshare(w, r, sessionID)
+	case sub == "share" && r.Method == http.MethodPost:
+		// ROUTE-FIX-016 / SHIM-DRIFT-122: the upstream session.share
+		// operation (declared responses 200, 400, 404, 500) was served by
+		// the stub-list 501 below. Serve the declared contract truthfully;
+		// Consensus publishes no sessions, so no share URL can be fabricated.
+		s.sessionShare(w, r, sessionID)
+	case sub == "shell" && r.Method == http.MethodPost:
+		// ROUTE-FIX-017 / SHIM-DRIFT-123: the upstream session.shell
+		// operation (declared responses 200 created message, 400, 404, 409
+		// SessionBusyError) was served by the stub-list 501 below. Serve the
+		// declared contract truthfully; non-POST falls through to the stub
+		// list.
+		s.sessionShell(w, r, sessionID)
+	case sub == "summarize" && r.Method == http.MethodPost:
+		// ROUTE-FIX-018 / SHIM-DRIFT-124: the upstream session.summarize
+		// operation (declared responses 200 boolean, 400, 404) was served by
+		// the stub-list 501 below. Serve the declared contract truthfully;
+		// non-POST falls through to the stub list.
+		s.sessionSummarize(w, r, sessionID)
 	case sub == "init" && r.Method == http.MethodPost:
 		// ROUTE-FIX-012 / SHIM-DRIFT-118: the upstream session.init operation
 		// (declared responses: 200 boolean, 400, 404) was served by the
@@ -1136,7 +1163,13 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// below. Serve it for real.
 		s.sessionFork(w, r, sessionID)
 	default:
-		// Check for 501 exclusions
+		// Check for 501 exclusions. The five P1 session sub-paths now answer
+		// their DECLARED methods in the cases above (ROUTE-FIX-014..018:
+		// revert/share/shell/summarize POST, share DELETE); these entries
+		// stay so every UNDECLARED method on the same sub-path (GET
+		// /session/{id}/revert, GET /session/{id}/share, PUT
+		// /session/{id}/shell, ...) keeps the pre-existing 501 — 405 is not
+		// part of any of these operations' declared response sets.
 		switch sub {
 		case "prompt_async", "shell", "command", "share", "summarize", "init", "fork", "revert":
 			writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
