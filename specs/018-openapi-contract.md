@@ -216,6 +216,10 @@ CreateSessionRequest:
     context_budget:
       type: integer
       default: 128000
+    budget_limit_cents:
+      type: integer
+      default: 0
+      description: Per-session cost cap in cents, enforced by the harness before each LLM call. 0 or absent = no limit.
     hitl_config:
       type: object
       properties:

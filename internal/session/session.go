@@ -140,6 +140,7 @@ type Session struct {
 	TrustLevel       string     `json:"trust_level"` // low, medium, high (SPEC-008 §5.4)
 	Goal             string     `json:"goal"`
 	ContextBudget    int        `json:"context_budget"`
+	BudgetLimitCents int64      `json:"budget_limit_cents"` // 0 = no limit (harness-enforced per LLM call)
 	TokensUsedIn     int64      `json:"tokens_used_in"`
 	TokensUsedOut    int64      `json:"tokens_used_out"`
 	Iteration        int64      `json:"iteration"`

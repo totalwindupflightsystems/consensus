@@ -45,11 +45,12 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := s.svc.Sessions.CreateSession(r.Context(), CreateSessionInput{
-		AgentName:     req.AgentName,
-		Goal:          req.Goal,
-		ModelID:       req.ModelID,
-		ContextBudget: req.ContextBudget,
-		ProjectID:     req.ProjectID,
+		AgentName:        req.AgentName,
+		Goal:             req.Goal,
+		ModelID:          req.ModelID,
+		ContextBudget:    req.ContextBudget,
+		BudgetLimitCents: req.BudgetLimitCents,
+		ProjectID:        req.ProjectID,
 	})
 	if err != nil {
 		slog.Error("api: failed to create session", "error", err)
@@ -60,12 +61,13 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	data, _ := json.Marshal(CreateSessionResponse{
-		ID:        result.SessionID,
-		Status:    result.Status,
-		APIKey:    result.APIKey,
-		ModelID:   result.ModelID,
-		ProjectID: result.ProjectID,
-		CreatedAt: time.Now().UTC(),
+		ID:               result.SessionID,
+		Status:           result.Status,
+		APIKey:           result.APIKey,
+		ModelID:          result.ModelID,
+		ProjectID:        result.ProjectID,
+		BudgetLimitCents: result.BudgetLimitCents,
+		CreatedAt:        time.Now().UTC(),
 	})
 	w.Write(data)
 }
@@ -540,16 +542,17 @@ func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.R
 
 func rowToSessionResponse(row db.Row) SessionResponse {
 	resp := SessionResponse{
-		ID:            toString(row["id"]),
-		AgentName:     toString(row["agent_name"]),
-		ModelID:       toString(row["model_id"]),
-		Status:        toString(row["status"]),
-		ContextBudget: toInt(row["context_budget"]),
-		TokensUsedIn:  toInt64(row["tokens_used_in"]),
-		TokensUsedOut: toInt64(row["tokens_used_out"]),
-		Iteration:     toInt64(row["iteration"]),
-		HeartbeatAt:   toString(row["heartbeat_at"]),
-		CreatedAt:     toString(row["created_at"]),
+		ID:               toString(row["id"]),
+		AgentName:        toString(row["agent_name"]),
+		ModelID:          toString(row["model_id"]),
+		Status:           toString(row["status"]),
+		ContextBudget:    toInt(row["context_budget"]),
+		BudgetLimitCents: toInt64(row["budget_limit_cents"]),
+		TokensUsedIn:     toInt64(row["tokens_used_in"]),
+		TokensUsedOut:    toInt64(row["tokens_used_out"]),
+		Iteration:        toInt64(row["iteration"]),
+		HeartbeatAt:      toString(row["heartbeat_at"]),
+		CreatedAt:        toString(row["created_at"]),
 	}
 
 	if pid := row["parent_id"]; pid != nil {

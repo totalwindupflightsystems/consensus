@@ -68,21 +68,23 @@ func (svc *SessionService) SetModelSyncer(s *modelsync.Syncer) {
 
 // CreateSessionInput is the data needed to create a new agent session.
 type CreateSessionInput struct {
-	AgentName     string
-	Goal          string
-	ModelID       string
-	ContextBudget int
-	ProjectID     string // empty = Global scope; non-empty = Project scope
+	AgentName        string
+	Goal             string
+	ModelID          string
+	ContextBudget    int
+	BudgetLimitCents int64  // 0 = no limit (enforced by the harness per LLM call)
+	ProjectID        string // empty = Global scope; non-empty = Project scope
 }
 
 // CreateSessionOutput is the result of creating a session (includes the generated API key).
 type CreateSessionOutput struct {
-	SessionID string
-	Status    string
-	APIKey    string
-	ModelID   string
-	ProjectID string // empty = Global scope
-	CreatedAt string
+	SessionID        string
+	Status           string
+	APIKey           string
+	ModelID          string
+	ProjectID        string // empty = Global scope
+	BudgetLimitCents int64
+	CreatedAt        string
 }
 
 // CreateSession creates a new agent session with a bound API key.
@@ -137,9 +139,9 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 		projectIDArg = input.ProjectID
 	}
 	err := svc.db.Exec(ctx,
-		`INSERT INTO sessions (id, agent_name, model_id, status, goal, context_budget, project_id, heartbeat_at, created_at)
-		 VALUES ($1, $2, $3, 'booting', $4, $5, $6, $7, $8)`,
-		sessionID, input.AgentName, modelID, input.Goal, contextBudget, projectIDArg, now, now,
+		`INSERT INTO sessions (id, agent_name, model_id, status, goal, context_budget, budget_limit_cents, project_id, heartbeat_at, created_at)
+		 VALUES ($1, $2, $3, 'booting', $4, $5, $6, $7, $8, $9)`,
+		sessionID, input.AgentName, modelID, input.Goal, contextBudget, input.BudgetLimitCents, projectIDArg, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
@@ -163,12 +165,13 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 	}
 
 	return &CreateSessionOutput{
-		SessionID: sessionID,
-		Status:    "booting",
-		APIKey:    apiKey,
-		ModelID:   modelID,
-		ProjectID: input.ProjectID,
-		CreatedAt: now,
+		SessionID:        sessionID,
+		Status:           "booting",
+		APIKey:           apiKey,
+		ModelID:          modelID,
+		ProjectID:        input.ProjectID,
+		BudgetLimitCents: input.BudgetLimitCents,
+		CreatedAt:        now,
 	}, nil
 }
 
@@ -217,7 +220,7 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 // session is treated as nonexistent.
 func (svc *SessionService) GetSession(ctx context.Context, id string) (*SessionResponse, error) {
 	row, err := svc.db.QueryRow(ctx,
-		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget,
+		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget, budget_limit_cents,
 		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil || row == nil {

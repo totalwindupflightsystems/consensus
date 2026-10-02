@@ -11,42 +11,45 @@ import "time"
 
 // CreateSessionRequest is the request body for POST /api/v1/sessions.
 type CreateSessionRequest struct {
-	AgentName     string         `json:"agent_name"`
-	Goal          string         `json:"goal"`
-	ModelID       string         `json:"model_id,omitempty"`
-	ContextBudget int            `json:"context_budget,omitempty"`
-	HITLConfig    map[string]any `json:"hitl_config,omitempty"`
-	ProjectID     string         `json:"project_id,omitempty"` // Project scope (empty = Global)
+	AgentName        string         `json:"agent_name"`
+	Goal             string         `json:"goal"`
+	ModelID          string         `json:"model_id,omitempty"`
+	ContextBudget    int            `json:"context_budget,omitempty"`
+	BudgetLimitCents int64          `json:"budget_limit_cents,omitempty"` // 0/absent = no limit
+	HITLConfig       map[string]any `json:"hitl_config,omitempty"`
+	ProjectID        string         `json:"project_id,omitempty"` // Project scope (empty = Global)
 }
 
 // CreateSessionResponse is the response body for POST /api/v1/sessions.
 type CreateSessionResponse struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"`
-	APIKey    string    `json:"api_key"`
-	ModelID   string    `json:"model,omitempty"`
-	ProjectID string    `json:"project_id,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID               string    `json:"id"`
+	Status           string    `json:"status"`
+	APIKey           string    `json:"api_key"`
+	ModelID          string    `json:"model,omitempty"`
+	ProjectID        string    `json:"project_id,omitempty"`
+	BudgetLimitCents int64     `json:"budget_limit_cents,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // SessionResponse is the response body for GET /api/v1/sessions/:id.
 type SessionResponse struct {
-	ID            string  `json:"id"`
-	ParentID      *string `json:"parent_id,omitempty"`
-	AgentName     string  `json:"agent_name"`
-	ModelID       string  `json:"model_id"`
-	Status        string  `json:"status"`
-	Goal          *string `json:"goal,omitempty"`
-	ContextBudget int     `json:"context_budget"`
-	TokensUsedIn  int64   `json:"tokens_used_in"`
-	TokensUsedOut int64   `json:"tokens_used_out"`
-	Iteration     int64   `json:"iteration"`
-	ProjectID     *string `json:"project_id,omitempty"`
-	HeartbeatAt   string  `json:"heartbeat_at"`
-	CreatedAt     string  `json:"created_at"`
-	CompletedAt   *string `json:"completed_at,omitempty"`
-	LastMessage   *string `json:"last_message,omitempty"` // most recent assistant response
-	LastError     *string `json:"last_error,omitempty"`   // most recent audit_logs error_message (DOGFOOD-004)
+	ID               string  `json:"id"`
+	ParentID         *string `json:"parent_id,omitempty"`
+	AgentName        string  `json:"agent_name"`
+	ModelID          string  `json:"model_id"`
+	Status           string  `json:"status"`
+	Goal             *string `json:"goal,omitempty"`
+	ContextBudget    int     `json:"context_budget"`
+	BudgetLimitCents int64   `json:"budget_limit_cents"` // 0 = no limit
+	TokensUsedIn     int64   `json:"tokens_used_in"`
+	TokensUsedOut    int64   `json:"tokens_used_out"`
+	Iteration        int64   `json:"iteration"`
+	ProjectID        *string `json:"project_id,omitempty"`
+	HeartbeatAt      string  `json:"heartbeat_at"`
+	CreatedAt        string  `json:"created_at"`
+	CompletedAt      *string `json:"completed_at,omitempty"`
+	LastMessage      *string `json:"last_message,omitempty"` // most recent assistant response
+	LastError        *string `json:"last_error,omitempty"`   // most recent audit_logs error_message (DOGFOOD-004)
 }
 
 // UpdateSessionRequest is the request body for PATCH /api/v1/sessions/:id.

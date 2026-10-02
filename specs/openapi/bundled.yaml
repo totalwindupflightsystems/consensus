@@ -2458,6 +2458,10 @@ components:
         context_budget:
           type: integer
           description: Token budget for the context window.
+        budget_limit_cents:
+          type: integer
+          format: int64
+          description: Per-session cost cap in cents (0 = no limit).
         tokens_used_in:
           type: integer
           format: int64
@@ -2524,6 +2528,11 @@ components:
           type: integer
           default: 128000
           description: Maximum token budget for the agent's context window.
+        budget_limit_cents:
+          type: integer
+          format: int64
+          default: 0
+          description: Per-session cost cap in cents, enforced by the harness before each LLM call. 0 or absent = no limit.
         hitl_config:
           type: object
           additionalProperties: true
