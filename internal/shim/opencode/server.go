@@ -1114,6 +1114,16 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// not part of that operation's declared response set.
 		writeNotImplemented(w, r, "session.diff",
 			"session diff is a GET operation; use GET /session/{sessionID}/diff, or GET /instance/vcs/diff for the workspace diff")
+	case sub == "init" && r.Method == http.MethodPost:
+		// ROUTE-FIX-012 / SHIM-DRIFT-118: the upstream session.init operation
+		// (declared responses: 200 boolean, 400, 404) was served by the
+		// stub-list 501 below. Serve it for real.
+		s.sessionInit(w, r, sessionID)
+	case sub == "fork" && r.Method == http.MethodPost:
+		// ROUTE-FIX-011 / SHIM-DRIFT-117: the upstream session.fork operation
+		// (declared responses 200,400,404) was served by the untyped stub
+		// below. Serve it for real.
+		s.sessionFork(w, r, sessionID)
 	default:
 		// Check for 501 exclusions
 		switch sub {
@@ -4037,3 +4047,194 @@ func execGitStatus(ctx context.Context) (map[string]any, error) {
 
 // Serve starts listening. Not exported — use s.Handler() to mount on parent server.
 func (s *Server) serve() {} // placeholder
+
+func (s *Server) sessionFork(w http.ResponseWriter, r *http.Request, sessionID string) {
+	var req struct {
+		MessageID string `json:"messageID"`
+	}
+	// An absent body is a valid fork request (no explicit fork point); only a
+	// body that is present and malformed is a client error.
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+
+	// Resolve the source session first: an unknown id answers the declared 404
+	// (NotFoundError) before any child row is written.
+	src, err := s.db.QueryRow(r.Context(),
+		`SELECT id, agent_name, model_id, status, goal, context_budget
+		 FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || src == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+
+	// A named fork point must exist in the source session. A value that does
+	// not even match the declared ^msg shape is a client contract violation
+	// (400); a well-formed id the session does not hold is the declared 404.
+	if req.MessageID != "" {
+		if !strings.HasPrefix(req.MessageID, "msg") {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "messageID must match ^msg")
+			return
+		}
+		if !s.sessionHasMessage(r.Context(), sessionID, req.MessageID) {
+			writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "fork point message not found in session")
+			return
+		}
+	}
+
+	childID := newUUID()
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	agentName := toString(src["agent_name"])
+	modelID := toString(src["model_id"])
+	goal := toString(src["goal"])
+	contextBudget := toInt64(src["context_budget"])
+	if contextBudget <= 0 {
+		contextBudget = 128000
+	}
+
+	// A forked session is a plain Consensus session: it shares the sessions
+	// store with its parent and is reachable through the ordinary
+	// GET /session/{id} and GET /session/{id}/children routes. No API key is
+	// minted — the declared 200 body is the upstream Session schema, which
+	// carries no credential, so an unreachable key would be dead state.
+	if err := s.db.Exec(r.Context(),
+		`INSERT INTO sessions (id, parent_id, agent_name, model_id, status, goal, context_budget, heartbeat_at, created_at)
+		 VALUES ($1, $2, $3, $4, 'booting', $5, $6, $7, $7)`,
+		childID, sessionID, agentName, modelID, goal, contextBudget, now,
+	); err != nil {
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fork session: "+err.Error())
+		return
+	}
+
+	// Register the shim mapping the way createSession does, so the child is
+	// addressable through the opencode bridge like any other session.
+	externalID := childID
+	if v := r.URL.Query().Get("external_id"); v != "" {
+		externalID = v
+	}
+	s.db.Exec(r.Context(),
+		`INSERT INTO shim_session_map (shim_type, external_id, session_id, created_at, last_used_at)
+		 VALUES ('opencode', $1, $2, $3, $3)`,
+		externalID, childID, now)
+
+	resp := s.translateSessionRow(map[string]any{
+		"id": childID, "agent_name": agentName, "model_id": modelID,
+		"status": "booting", "goal": goal, "context_budget": contextBudget,
+		"iteration": int64(0), "tokens_used_in": int64(0), "tokens_used_out": int64(0),
+		"created_at": now,
+	})
+	// parentID is part of the upstream Session schema and the whole point of a
+	// fork; surface the fork link alongside the translated fields.
+	resp["parentID"] = sessionID
+
+	setFixedWorkspaceSyncFence(w, r, childID)
+	writeJSON(w, resp)
+}
+
+// sessionHasMessage reports whether messageID (the opencode "msg-<id>" form)
+// resolves to a memory_event of the given session. It mirrors the resolution
+// GET /session/{id}/message/{messageID} uses: strip the "msg-" prefix and match
+// the numeric id, then fall back to a prefix match.
+
+func (s *Server) sessionHasMessage(ctx context.Context, sessionID, messageID string) bool {
+	trimmed := strings.TrimPrefix(messageID, "msg-")
+	row, err := s.db.QueryRow(ctx,
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) = $2 LIMIT 1`,
+		sessionID, trimmed)
+	if err == nil && row != nil {
+		return true
+	}
+	row, err = s.db.QueryRow(ctx,
+		`SELECT id FROM memory_events WHERE session_id = $1 AND CAST(id AS TEXT) LIKE $2 LIMIT 1`,
+		sessionID, trimmed+"%")
+	return err == nil && row != nil
+}
+
+// patchSession handles PATCH /session/:id — update session properties (title, status, goal).
+// SPEC-017 §3.2: HARDEN-SHIM-02 remediation.
+
+// sessionInitInstruction is the directive upstream session.init delivers to the
+// session's agent — verbatim from the pinned document's operation description
+// (openapi-1.18.33.json paths."/session/{sessionID}/init".post.description).
+const sessionInitInstruction = "Analyze the current application and create an AGENTS.md file with project-specific agent configurations."
+
+// sessionInit serves POST /session/{sessionID}/init — upstream session.init
+// (ROUTE-FIX-012, SHIM-DRIFT-118; declared responses 200 boolean,
+// 400 BadRequest | InvalidRequestError, 404 NotFoundError). The pre-fix
+// handler answered the untyped 501 stub from handleSessionByID's default arm,
+// which contradicts the declaration the client generated against.
+//
+// Translation: the upstream operation analyzes the current application and
+// produces project-specific agent instructions — it is a session turn, which
+// is why its requestBody carries the opencode ids (modelID, providerID,
+// messageID). The shim submits the same directive through the native service
+// layer as one user instruction, so the analysis and the produced
+// instructions land in the session's memory (SPEC-002), and answers the
+// declared boolean `true` once that turn is produced. Consensus keeps its own
+// bootstrapping (SPEC-017 §3.9) and the shim writes nothing into the
+// workspace itself. The declared error vocabulary for this operation is
+// 400 | 404 only, so a directive that cannot be executed (missing native
+// service layer, timeout, failed session, empty response) answers 400
+// INVALID_REQUEST naming the reason instead of an undeclared 5xx or the stub
+// 501.
+func (s *Server) sessionInit(w http.ResponseWriter, r *http.Request, sessionID string) {
+	// Upstream requestBody requires all three ids
+	// (openapi-1.18.33.json paths."/session/{sessionID}/init".post.requestBody:
+	// required ["modelID", "providerID", "messageID"]).
+	var req struct {
+		ModelID    string `json:"modelID"`
+		ProviderID string `json:"providerID"`
+		MessageID  string `json:"messageID"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+	if strings.TrimSpace(req.ModelID) == "" || strings.TrimSpace(req.ProviderID) == "" || strings.TrimSpace(req.MessageID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "modelID, providerID and messageID are required")
+		return
+	}
+
+	if s.svc == nil {
+		// The init directive cannot be delivered without the native service
+		// layer; answer inside the declared contract instead of the stub 501.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "session init requires the native service layer")
+		return
+	}
+
+	// Resolve the session first so an unknown id answers the declared 404
+	// (NotFoundError) before any turn is attempted.
+	row, err := s.db.QueryRow(r.Context(),
+		`SELECT id FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+
+	// Execute: the init directive goes through the same synchronous turn path
+	// as POST /session/{id}/message, with the same bounded response timeout
+	// (SPEC-017 §3.2).
+	timeout := s.messageResponseTimeout
+	if timeout <= 0 {
+		timeout = defaultMessageResponseTimeout
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+
+	result, err := s.svc.SendMessage(ctx, MessageSendInput{
+		SessionID: sessionID,
+		Content:   sessionInitInstruction,
+		MsgType:   "user_instruction",
+	})
+	if err != nil || result == nil || strings.TrimSpace(result.Content) == "" {
+		// A turn that cannot be produced answers the declared 400 naming the
+		// reason; never a fabricated success.
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "session init could not be executed: "+errorMessage(err, result))
+		return
+	}
+
+	// Declared 200 body: the operation's plain boolean.
+	writeJSON(w, true)
+}
