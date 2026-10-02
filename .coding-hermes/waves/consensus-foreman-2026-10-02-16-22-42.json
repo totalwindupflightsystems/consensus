@@ -1,0 +1,23 @@
+{
+  "tick": "consensus-foreman-2026-10-02-16-22-42",
+  "budget": 1,
+  "mode": "serial-fallback",
+  "workers": [
+    {
+      "task_id": "DF-CONSENSUS-40",
+      "title": "v2 SDK error-shape 400 arm: shim answers upstream NamedError BadRequest body",
+      "branch": "wt/DF-CONSENSUS-40",
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "brief": "/tmp/consensus-2026-10-02-16-22-42-msg_DF-CONSENSUS-40.txt",
+      "dispatch": {
+        "session": "proc_4b834ba1d8f3",
+        "pid": 1794611,
+        "cmd": "/tmp/consensus-2026-10-02-16-22-42-dispatch.sh"
+      },
+      "gitreins_task": "df-consensus-40",
+      "status": "dispatched"
+    }
+  ],
+  "notes": "Premise probed: ROUTE-ADD-112 (POST /sync/history) landed earlier today; the live residual for this row is the 400 body SHAPE (shim {error:{code,message}} vs upstream NamedError {name:BadRequest,data:{kind,message}}). 404 arm tracked separately as SHIM-SUITE33-001."
+}
