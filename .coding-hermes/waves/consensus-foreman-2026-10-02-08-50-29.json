@@ -10,14 +10,19 @@
       "branch": "wt/ROUTE-ADD-114",
       "base_sha": "06ae780",
       "brief": "/tmp/consensus-0802-brief-ROUTE-ADD-114.txt",
-      "status": "dispatched"
+      "status": "complete",
+      "commit": "13189b1",
+      "merge": "670cab2"
     },
     {
       "task_id": "DF-CONSENSUS-47",
       "mode": "foreman-direct",
       "reason": "trivial one-file SQL projection fix + test assertion; worker budget reserved",
       "worktree": null,
-      "status": "in_progress"
+      "status": "complete",
+      "commit": "b32f5cd"
     }
-  ]
+  ],
+  "finished_at": "2026-10-02T05:40:00-05:00",
+  "result": "both merged+pushed; CI green on c38e4f0"
 }
