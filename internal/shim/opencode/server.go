@@ -2923,11 +2923,9 @@ func (s *Server) handleFormatter(w http.ResponseWriter, r *http.Request) {
 // history. The Consensus runtime keeps no sync event store, so the truthful
 // payload for any well-formed cursor is an empty array (never null — the
 // document declares an array). Malformed input answers the declared 400 via
-// the sibling writeOpencodeError INVALID_REQUEST envelope: a body that is
-// not JSON, not an object, or carries a cursor value that is not an integer
-// >= 0, or a present-but-blank declared query param (directory, workspace —
-// the sibling handleSkill convention). Non-POST answers 405
-// METHOD_NOT_ALLOWED — sibling method-guard convention.
+// the upstream v2 SDK NamedError BadRequest body: Body identifies malformed
+// or non-object JSON; Payload identifies query or cursor schema violations.
+// Non-POST answers 405 METHOD_NOT_ALLOWED — sibling method-guard convention.
 func (s *Server) handleSyncHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
@@ -2935,7 +2933,7 @@ func (s *Server) handleSyncHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, param := range []string{"directory", "workspace"} {
 		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
-			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			writeOpencodeBadRequest(w, r, "Payload",
 				fmt.Sprintf("query parameter %q must not be blank", param))
 			return
 		}
@@ -2944,19 +2942,19 @@ func (s *Server) handleSyncHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil || r.ContentLength == 0 {
 		cursors = map[string]any{}
 	} else if err := json.NewDecoder(r.Body).Decode(&cursors); err != nil {
-		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+		writeOpencodeBadRequest(w, r, "Body", "malformed request body: "+err.Error())
 		return
 	}
 	// A JSON null body decodes without error into a nil map (encoding/json
 	// leaves the destination untouched) — still not a cursor object.
 	if cursors == nil {
-		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "request body must be a JSON object of aggregate cursors")
+		writeOpencodeBadRequest(w, r, "Body", "request body must be a JSON object of aggregate cursors")
 		return
 	}
 	for agg, seq := range cursors {
 		f, ok := seq.(float64)
 		if !ok || f != math.Trunc(f) || f < 0 {
-			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			writeOpencodeBadRequest(w, r, "Payload",
 				fmt.Sprintf("cursor for aggregate %q must be an integer >= 0", agg))
 			return
 		}
@@ -3916,6 +3914,23 @@ func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	if data, err := json.Marshal(v); err == nil {
 		w.Write(data)
 	}
+}
+
+// writeOpencodeBadRequest emits the NamedError shape consumed by the upstream
+// v2 SDK. kind is Body for malformed/non-object JSON and Payload for values
+// that violate the operation's declared query or body schema.
+func writeOpencodeBadRequest(w http.ResponseWriter, r *http.Request, kind, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	data, _ := json.Marshal(map[string]any{
+		"name": "BadRequest",
+		"data": map[string]string{
+			"kind":    kind,
+			"message": message,
+		},
+	})
+	w.Write(data)
+	slog.Warn("opencode-shim: bad request", "method", r.Method, "path", r.URL.Path, "kind", kind)
 }
 
 func writeOpencodeError(w http.ResponseWriter, r *http.Request, status int, code, message string) {
