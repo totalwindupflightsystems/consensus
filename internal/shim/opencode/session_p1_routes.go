@@ -327,3 +327,92 @@ func (s *Server) sessionSummarize(w http.ResponseWriter, r *http.Request, sessio
 	// boolean reports the truthful false — never a fabricated true.
 	writeJSON(w, false)
 }
+
+// ============================================================================
+// ROUTE-FIX-035 — DELETE /session/{sessionID}/message/{messageID}
+// (session.deleteMessage)
+// ============================================================================
+
+// sessionDeleteMessage serves DELETE /session/{sessionID}/message/{messageID}
+// — upstream session.deleteMessage (ROUTE-FIX-035, SHIM-NARROWED-005 board
+// row; declared responses: 200 boolean ("Successfully deleted message"), 400
+// BadRequest | InvalidRequestError, 404 NotFoundError, 409 SessionBusyError).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/session/{sessionID}/message/{messageID}".delete): sessionID and
+// messageID are path parameters (patterns ^ses and ^msg); the operation
+// declares no requestBody (null); the declared 200 body is a plain boolean
+// described as "Successfully deleted message" — a permanent deletion of the
+// message and all of its parts.
+//
+// Truthfulness: a message IS a memory_events row (opencode message ids are
+// "msg-<memory_events.id>"; GET /session/{id}/message/{messageID},
+// sessionHasMessage and this handler all resolve that same row), and that
+// ledger is APPEND-ONLY by construction — SPEC-002 §2.1, enforced by the
+// triggers in migrations 017 (SQLite) and 018 (Postgres), which ABORT every
+// UPDATE and DELETE. The runtime keeps no delete engine, no message tombstone
+// and no separate parts store (parts are synthesized from
+// memory_events.content), and the shim never deletes memory_events anywhere
+// (no "DELETE FROM memory_events" over internal/shim; the cognitive-firewall
+// classifier treats such a statement as a poisoning attempt), so there is no
+// genuine delete analog to perform. The one message-level state transition the
+// runtime does keep — display_modes mode='hidden' (how the harness consumes
+// user turns) — is not an analog either: the shim's own GET
+// /session/{id}/message/{messageID} reads memory_events directly and does not
+// honour display_modes, so a hidden message would remain observable and the
+// "deletion" would be a no-op.
+//
+// Per the sibling sessionSummarize precedent (ROUTE-FIX-018, d8f1d59) — the
+// other operation whose declared 200 body is a plain boolean and whose engine
+// the runtime does not keep — the declared boolean is answered with the
+// truthful false ("no message was deleted"): the truthfulness convention
+// (handleSyncStart / handleGlobalUpgrade, 13189b1) forbids asserting an effect
+// that was not performed, and 200-false is inside the declared contract, so
+// the declared success code IS reachable. Validation order mirrors
+// sessionRevert/sessionShell: unknown session -> 404; a session mid-turn
+// (sessionIsActive — the genuine analog of upstream's "prompt in flight") ->
+// the declared 409 SessionBusyError, checked before message resolution; an
+// absent/blank or ill-shaped messageID (the declared pattern is ^msg) -> the
+// declared 400 (this is what makes the declared 400 arm reachable, since the
+// operation declares no requestBody); a well-formed messageID the session does
+// not hold -> 404 via sessionHasMessage. The operation declares no
+// requestBody, so no body is read or required.
+func (s *Server) sessionDeleteMessage(w http.ResponseWriter, r *http.Request, sessionID, messageID string) {
+	status, ok := s.p1ResolveSession(w, r, sessionID)
+	if !ok {
+		return
+	}
+
+	// The declared 409 analog: a session mid-turn has a prompt in flight,
+	// which is exactly the condition upstream's SessionBusyError describes.
+	if sessionIsActive(status) {
+		s.sessionBusyError(w, r, sessionID)
+		return
+	}
+
+	// messageID is required and the declared pattern is ^msg (the
+	// sessionRevert validation precedent).
+	if strings.TrimSpace(messageID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required path parameter "messageID" is missing`)
+		return
+	}
+	if !strings.HasPrefix(messageID, "msg") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"messageID must match the declared pattern ^msg")
+		return
+	}
+
+	// A well-formed messageID the session does not hold is the declared 404.
+	if !s.sessionHasMessage(r.Context(), sessionID, messageID) {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"message not found in session")
+		return
+	}
+
+	// No delete engine exists: messages live in the append-only memory_events
+	// ledger (SPEC-002 §2.1) and no tombstone/parts store exists, so nothing
+	// was deleted. The declared boolean reports the truthful false — never a
+	// fabricated true.
+	writeJSON(w, false)
+}

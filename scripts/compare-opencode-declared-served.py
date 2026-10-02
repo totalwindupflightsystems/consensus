@@ -46,7 +46,6 @@ ERROR_CONTRACT_ONLY = {
     ("/permission/{requestID}/reply", "POST"),
     ("/question/{requestID}/reply", "POST"),
     ("/question/{requestID}/reject", "POST"),
-    ("/session/{sessionID}/message/{messageID}", "DELETE"),
 }
 # Same path+method in both surfaces, different operation (checked against the
 # upstream document's own summary/description for those operations).

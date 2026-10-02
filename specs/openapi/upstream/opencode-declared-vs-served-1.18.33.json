@@ -20,14 +20,14 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 96,
-    "covered_operations": 47,
-    "narrowed_error_contract_only": 11,
+    "covered_operations": 48,
+    "narrowed_error_contract_only": 10,
     "semantic_different": 2,
     "drift_declared_not_served": 128,
     "drift_by_class": {
@@ -383,6 +383,16 @@
     },
     {
       "path": "/session/{sessionID}/message/{messageID}",
+      "method": "DELETE",
+      "operationId": "session.deleteMessage",
+      "tags": "session",
+      "declared_responses": "200,400,404,409",
+      "family": "/session/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleSessionByID sub message/<id> && DELETE \u2192 sessionDeleteMessage (ROUTE-FIX-035, formerly SHIM-NARROWED-005): unknown session 404, mid-turn session 409 SessionBusyError, blank/ill-shaped messageID 400 (declared pattern ^msg), a well-formed messageID the session does not hold 404 via sessionHasMessage, and a known message answers the declared boolean 200 with the truthful false \u2014 messages are memory_events rows and that ledger is append-only (SPEC-002 \u00a72.1; triggers in migrations 017/018 abort every DELETE), so no delete engine exists and nothing was deleted"
+    },
+    {
+      "path": "/session/{sessionID}/message/{messageID}",
       "method": "GET",
       "operationId": "session.message",
       "tags": "session",
@@ -562,18 +572,6 @@
       "id": "SHIM-NARROWED-004"
     },
     {
-      "path": "/session/{sessionID}/message/{messageID}",
-      "method": "DELETE",
-      "operationId": "session.deleteMessage",
-      "tags": "session",
-      "declared_responses": "200,400,404,409",
-      "family": "/session/*",
-      "served_outcome": "404",
-      "evidence": "server.go:891 restricts to GET; DELETE falls to server.go:912 default \u2192 404",
-      "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-005"
-    },
-    {
       "path": "/session/{sessionID}/message/{messageID}/part/{partID}",
       "method": "DELETE",
       "operationId": "part.delete",
@@ -583,7 +581,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-006"
+      "id": "SHIM-NARROWED-005"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}/part/{partID}",
@@ -595,7 +593,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-007"
+      "id": "SHIM-NARROWED-006"
     },
     {
       "path": "/session/{sessionID}/permissions/{permissionID}",
@@ -607,7 +605,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-008"
+      "id": "SHIM-NARROWED-007"
     },
     {
       "path": "/session/{sessionID}/todo",
@@ -619,7 +617,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-009"
+      "id": "SHIM-NARROWED-008"
     },
     {
       "path": "/session/{sessionID}/unrevert",
@@ -631,7 +629,7 @@
       "served_outcome": "404",
       "evidence": "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900). The five P1 declared methods (revert/share/shell/summarize POST, share DELETE \u2014 ROUTE-FIX-014..018) are served in the routes above; this rule now covers only the UNDECLARED methods on those sub-paths (GET /session/{id}/revert, GET /session/{id}/share, PUT /session/{id}/shell, ...), which keep the 501 because 405 is not in any of those operations' declared response sets",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-010"
+      "id": "SHIM-NARROWED-009"
     },
     {
       "path": "/tui/select-session",
@@ -643,7 +641,7 @@
       "served_outcome": "404",
       "evidence": "server.go:2242-2256",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-011"
+      "id": "SHIM-NARROWED-010"
     }
   ],
   "semantic_different": [

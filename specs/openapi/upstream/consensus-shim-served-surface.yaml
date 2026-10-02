@@ -41,7 +41,7 @@ meta:
   derived_on: "2026-09-29"
   upstream_pin: "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)"
   comparison_artifact: docs/reports/shim-source-002-baseline-diff-2026-09-29.md
-  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty — GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+  refresh_note: "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty — GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; regenerate with scripts/compare-opencode-declared-served.py"
 
 routes:
   # ── Global ──
@@ -129,9 +129,9 @@ routes:
     evidence: "server.go:891 getMessageByID"
   - path: /session/{id}/message/{messageID}
     method: DELETE
-    outcome: 404
+    outcome: 200
     auth: api-key
-    evidence: "server.go:891 restricts to GET; DELETE falls to server.go:912 default → 404"
+    evidence: "server.go handleSessionByID sub message/<id> && DELETE → sessionDeleteMessage (ROUTE-FIX-035, formerly SHIM-NARROWED-005): unknown session 404, mid-turn session 409 SessionBusyError, blank/ill-shaped messageID 400 (declared pattern ^msg), a well-formed messageID the session does not hold 404 via sessionHasMessage, and a known message answers the declared boolean 200 with the truthful false — messages are memory_events rows and that ledger is append-only (SPEC-002 §2.1; triggers in migrations 017/018 abort every DELETE), so no delete engine exists and nothing was deleted"
   - path: /session/{id}/children
     method: GET
     outcome: 200
