@@ -393,6 +393,7 @@ func newSessionInitStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.
 			status TEXT NOT NULL DEFAULT 'booting',
 			goal TEXT,
 			context_budget INTEGER NOT NULL DEFAULT 128000,
+			budget_limit_cents INTEGER NOT NULL DEFAULT 0,
 			tokens_used_in INTEGER NOT NULL DEFAULT 0,
 			tokens_used_out INTEGER NOT NULL DEFAULT 0,
 			iteration INTEGER NOT NULL DEFAULT 0,
