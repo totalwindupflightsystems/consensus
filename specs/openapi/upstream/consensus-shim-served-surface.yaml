@@ -107,6 +107,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go handleSessionByID sub diff && GET → sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
+  - path: /session/{id}/prompt_async
+    method: POST
+    outcome: 204
+    auth: api-key
+    evidence: "server.go handleSessionByID sub prompt_async && POST → sessionPromptAsync (ROUTE-FIX-013, formerly SHIM-DRIFT-113)"
   - path: /session/{id}/message
     method: POST
     outcome: 200
@@ -132,11 +137,6 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:895 listChildren"
-  - path: /session/{id}/prompt_async
-    method: POST
-    outcome: 501
-    auth: api-key
-    evidence: "server.go:900 stub list"
   - path: /session/{id}/shell
     method: POST
     outcome: 501
@@ -568,7 +568,7 @@ routes:
 prefix_rules:
   - prefix: /session/
     outcome: 404
-    stub_second_segments: [prompt_async, shell, share, summarize, init, fork, revert]
+    stub_second_segments: [shell, share, summarize, init, fork, revert]
     stub_outcome: 501
     evidence: "server.go:868-913 (handleSessionByID switch; 501 stub list at server.go:900)"
   - prefix: /question/

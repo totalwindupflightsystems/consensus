@@ -908,7 +908,10 @@ func TestDocEndpointNoAuthAndScopedSkip(t *testing.T) {
 // 501 Exclusions Test
 // ============================================================================
 
-func TestPromptAsyncReturns501(t *testing.T) {
+// ROUTE-FIX-013 / SHIM-DRIFT-113: POST /session/{id}/prompt_async is now
+// served for real (was a 501 stub). The empty-body POST answers the declared
+// 400 contract arm — a shim-produced status proving the route is mounted.
+func TestPromptAsyncServedPerContract(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
@@ -918,8 +921,8 @@ func TestPromptAsyncReturns501(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 501 {
-		t.Errorf("expected 501 for opencode-specific endpoint, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty prompt_async body (contract validation), got %d", resp.StatusCode)
 	}
 }
 

@@ -122,8 +122,9 @@ sessionItem:
     operationId: shimGetSession
     description: |
       Returns one session in opencode format. opencode-specific subpaths
-      (prompt_async, shell, command, share, summarize, init, fork, revert)
-      return 501 NOT_IMPLEMENTED; unknown subpaths return 404.
+      (shell, command, share, summarize, revert) return 501 NOT_IMPLEMENTED;
+      unknown subpaths return 404. prompt_async (POST) is served per its
+      upstream contract (204/400/404), as are init and fork.
     parameters:
       - $ref: "#/parameters/ShimSessionId"
     responses:

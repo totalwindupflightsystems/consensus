@@ -1119,6 +1119,11 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// (declared responses: 200 boolean, 400, 404) was served by the
 		// stub-list 501 below. Serve it for real.
 		s.sessionInit(w, r, sessionID)
+	case sub == "prompt_async" && r.Method == http.MethodPost:
+		// ROUTE-FIX-013 / SHIM-DRIFT-113: the upstream session.prompt_async
+		// operation (declared responses 204, 400, 404) was served by the
+		// stub-list 501 below. Serve it for real.
+		s.sessionPromptAsync(w, r, sessionID)
 	case sub == "fork" && r.Method == http.MethodPost:
 		// ROUTE-FIX-011 / SHIM-DRIFT-117: the upstream session.fork operation
 		// (declared responses 200,400,404) was served by the untyped stub
@@ -4237,4 +4242,68 @@ func (s *Server) sessionInit(w http.ResponseWriter, r *http.Request, sessionID s
 
 	// Declared 200 body: the operation's plain boolean.
 	writeJSON(w, true)
+}
+
+// sessionPromptAsync handles POST /session/:id/prompt_async — the
+// fire-and-forget variant of POST /session/:id/message. It appends the user
+// message through the same message-send path the synchronous send uses
+// (memory_events append + the session wake so the heartbeat loop claims the
+// session) and answers the declared 204 No Content immediately, without
+// waiting for an agent response.
+func (s *Server) sessionPromptAsync(w http.ResponseWriter, r *http.Request, sessionID string) {
+	var req SendMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+
+	// Translate: extract text from opencode parts (same translation the
+	// synchronous send uses).
+	var textParts []string
+	for _, p := range req.Parts {
+		if p.Type == "text" && p.Text != "" {
+			textParts = append(textParts, p.Text)
+		}
+	}
+	content := strings.Join(textParts, "\n")
+	if strings.TrimSpace(content) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "message content is empty")
+		return
+	}
+
+	// Enqueueing a prompt requires the native message-send path; without the
+	// service layer nothing can be enqueued, so answer inside the declared
+	// contract instead of fabricating an acknowledgement.
+	if s.svc == nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "async prompt delivery requires the native service layer")
+		return
+	}
+
+	// Resolve the session first so an unknown id answers the declared 404
+	// (NotFoundError) before anything is enqueued.
+	row, err := s.db.QueryRow(r.Context(),
+		`SELECT id FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+
+	// Enqueue: append the user message and wake the session. Fire-and-forget —
+	// the agent's response is never awaited here. SendMessage (via the shim
+	// Service) appends to memory_events and wakes the session before waiting
+	// on the produced turn; run it on a detached, bounded goroutine so the 204
+	// goes out at enqueue time. The response event, if one is ever produced,
+	// simply stays unread — exactly the async contract.
+	enqueueCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 30*time.Second)
+	go func() {
+		defer cancel()
+		_, _ = s.svc.SendMessage(enqueueCtx, MessageSendInput{
+			SessionID: sessionID,
+			Content:   content,
+			MsgType:   "user_instruction",
+		})
+	}()
+
+	// Declared success: 204 No Content, empty body.
+	w.WriteHeader(http.StatusNoContent)
 }
