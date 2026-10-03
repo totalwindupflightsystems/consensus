@@ -579,3 +579,251 @@ func TestSessionDeleteMessageMethodGuards(t *testing.T) {
 		}
 	}
 }
+
+// p1ErrorMessage digs the message string out of the shim's error envelope
+// (the typed sibling of errorCode) so an arm can be pinned to the handler that
+// answered it rather than only to the status line.
+func p1ErrorMessage(body map[string]any) string {
+	env, ok := body["error"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	msg, _ := env["message"].(string)
+	return msg
+}
+
+// ============================================================================
+// ROUTE-FIX-037 — PATCH
+// /session/{sessionID}/message/{messageID}/part/{partID} (part.update;
+// declared responses 200 Part "Successfully updated part", 400 BadRequest |
+// InvalidRequestError, 404 NotFoundError).
+//
+// ch:trace row=ROUTE-FIX-037 spec=specs/openapi/upstream/openapi-1.18.33.json#part.update wave=consensus-foreman-2026-10-03-00-46-49.json#task-1 test=TestSessionPartUpdateTruthfulArms doc=docs/evidence/ROUTE-FIX-037-live-probe.md evidence=docs/evidence/ROUTE-FIX-037-live-probe.md witness=none:self-verified-in-worktree
+// ============================================================================
+
+// p1PartBody is a minimal well-formed Part body for the part.update probes:
+// the declared Part schema is an anyOf of object variants, so an object with a
+// "type" member is the shape every arm needs to reach the resource lookup.
+const p1PartBody = `{"type":"text","text":"edited"}`
+
+// TestSessionPartUpdateTruthfulArms covers the declared error vocabulary of
+// part.update. The route had no case in handleSessionByID, so before this
+// change every PATCH on the part sub-path fell to the router's default arm and
+// answered its generic untyped-purpose 404 — the declared 400 arm was
+// unreachable and the 404 carried none of the operation's own resolution.
+// The Consensus runtime keeps no part store and no part-editing engine (parts
+// are synthesized from memory_events.content and carry no id; memory_events is
+// append-only, SPEC-002 §2.1), so the declared 200 Part can never be produced
+// truthfully and the declared 404 NotFoundError is the answer for every
+// well-formed partID (the sessionUnshare precedent). Validation order mirrors
+// sessionDeleteMessage: unknown session 404; blank/ill-shaped messageID 400
+// (declared pattern ^msg); unknown message 404; blank/ill-shaped partID 400
+// (declared pattern ^prt); a supplied body that is not a Part object 400.
+// part.update declares NO 409, so a mid-turn session is NOT answered with
+// SessionBusyError.
+func TestSessionPartUpdateTruthfulArms(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	// Unknown session -> declared 404 NotFoundError, from the operation's own
+	// session resolution (pre-fix this was the router catch-all's
+	// "endpoint not found").
+	status, _, raw := doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/smissing/message/msg-42/part/prt-1", p1PartBody)
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /session/smissing/message/msg-42/part/prt-1: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("unknown-session body not JSON: %v (%s)", err, raw)
+	}
+	assertP1Error(t, "PATCH part.update (unknown session)", "", status, env, "NOT_FOUND")
+	if got := p1ErrorMessage(env); got != "session not found" {
+		t.Errorf("PATCH part.update (unknown session): message = %q, want the session resolution's own message (got the router catch-all?)", got)
+	}
+
+	// Malformed body -> declared 400 (p1DecodeBody convention).
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/prt-1", `{"type":`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH part.update (malformed body): got %d, want 400 (declared BadRequest | InvalidRequestError). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "PATCH part.update (malformed body)", "", status, env, "INVALID_REQUEST")
+	}
+
+	// A body that is not a Part object (the declared schema is an anyOf of
+	// object variants) -> declared 400.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/prt-1", `[1,2,3]`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH part.update (non-object body): got %d, want 400. Body: %s", status, raw)
+	}
+
+	// Absent messageID (the path segment is empty) -> declared 400.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message//part/prt-1", p1PartBody)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH /session/s1/message//part/prt-1: got %d, want 400 (messageID is required). Body: %s", status, raw)
+	}
+
+	// Ill-shaped messageID (declared pattern ^msg) -> declared 400.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/not-a-msg/part/prt-1", p1PartBody)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH /session/s1/message/not-a-msg/part/prt-1: got %d, want 400 (declared pattern ^msg). Body: %s", status, raw)
+	}
+
+	// Well-formed messageID the session does not hold -> declared 404.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-999/part/prt-1", p1PartBody)
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /session/s1/message/msg-999/part/prt-1: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "PATCH part.update (unknown message)", "", status, env, "NOT_FOUND")
+	}
+
+	// Absent partID (the path ends at "part/") -> declared 400.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/", p1PartBody)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH /session/s1/message/msg-42/part/: got %d, want 400 (partID is required). Body: %s", status, raw)
+	}
+
+	// Ill-shaped partID (declared pattern ^prt) -> declared 400.
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/not-a-prt", p1PartBody)
+	if status != http.StatusBadRequest {
+		t.Fatalf("PATCH /session/s1/message/msg-42/part/not-a-prt: got %d, want 400 (declared pattern ^prt). Body: %s", status, raw)
+	}
+
+	// Known message, well-formed partID, well-formed Part body -> the declared
+	// 404 NotFoundError: the runtime keeps no part store, so no part with this
+	// id exists to update (the false-200 would assert an update that never
+	// happened).
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/prt-1", p1PartBody)
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /session/s1/message/msg-42/part/prt-1: got %d, want 404 (declared NotFoundError — no part store exists). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "PATCH part.update (unknown part)", "", status, env, "NOT_FOUND")
+		if got := p1ErrorMessage(env); got != "part not found in message" {
+			t.Errorf("PATCH part.update (unknown part): message = %q, want %q", got, "part not found in message")
+		}
+	}
+
+	// part.update declares 200/400/404 — NO 409. A mid-turn session must NOT
+	// be answered with SessionBusyError; the message resolution is what
+	// answers (msg-42 belongs to s1, so the s2 probe is the declared 404).
+	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s2/message/msg-42/part/prt-1", p1PartBody)
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /session/s2/message/msg-42/part/prt-1 (mid-turn): got %d, want 404 — part.update declares no 409 arm. Body: %s", status, raw)
+	}
+
+	// The pre-existing neighbours on this sub-path keep their own answers:
+	// GET resolves through getMessageByID (the part segment makes the
+	// message id unresolvable -> 404) and DELETE through sessionDeleteMessage
+	// (the longer sub-path still matches its "message/" case -> 404). The new
+	// PATCH case must not have moved either.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/message/msg-42/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Errorf("GET /session/s1/message/msg-42/part/prt-1: got %d, want 404 (getMessageByID, unchanged). Body: %s", status, raw)
+	}
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s1/message/msg-42/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Errorf("DELETE /session/s1/message/msg-42/part/prt-1: got %d, want 404 (sessionDeleteMessage resolution, unchanged). Body: %s", status, raw)
+	}
+}
+
+// TestSessionPartUpdateNeverAssertsAnUpdate is the truthfulness cell for
+// ROUTE-FIX-037: serving the declared vocabulary must not fabricate the
+// declared 200 Part. The route answers the declared 404 for a known message
+// with a well-formed part id, the response carries no "part"/"info"/"parts"
+// body claiming an update, and the message's synthesized part is byte-identical
+// after the PATCH through the sibling GET route — the runtime performed no
+// effect, so nothing may assert one (the handleSyncStart / handleGlobalUpgrade
+// convention, and the sessionDeleteMessage no-op pin one route over).
+func TestSessionPartUpdateNeverAssertsAnUpdate(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	before, _, rawBefore := doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/message/msg-42")
+	if before != http.StatusOK {
+		t.Fatalf("GET /session/s1/message/msg-42 (before): got %d, want 200. Body: %s", before, rawBefore)
+	}
+
+	status, _, raw := doShimRequestBody(t, srv.URL, http.MethodPatch,
+		"/session/s1/message/msg-42/part/prt-1", p1PartBody)
+	if status != http.StatusNotFound {
+		t.Fatalf("PATCH /session/s1/message/msg-42/part/prt-1: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("PATCH part.update body not JSON: %v (%s)", err, raw)
+	}
+	for _, fabricated := range []string{"part", "parts", "info"} {
+		if _, ok := env[fabricated]; ok {
+			t.Errorf("PATCH part.update: 404 body carries %q — a part update must never be fabricated (truthfulness convention)", fabricated)
+		}
+	}
+
+	// No effect was performed: the message's synthesized content still reads
+	// exactly as before. The comparison is on the parts (the thing a real
+	// part.update would have had to change) — info.createdAt is stamped per
+	// read (getMessageByID uses time.Now), so the whole body is not stable.
+	after, _, rawAfter := doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/message/msg-42")
+	if after != http.StatusOK {
+		t.Fatalf("GET /session/s1/message/msg-42 (after): got %d, want 200. Body: %s", after, rawAfter)
+	}
+	type messageView struct {
+		Info  map[string]any   `json:"info"`
+		Parts []map[string]any `json:"parts"`
+	}
+	var beforeView, afterView messageView
+	if err := json.Unmarshal(rawBefore, &beforeView); err != nil {
+		t.Fatalf("decode message before: %v (%s)", err, rawBefore)
+	}
+	if err := json.Unmarshal(rawAfter, &afterView); err != nil {
+		t.Fatalf("decode message after: %v (%s)", err, rawAfter)
+	}
+	beforeParts, _ := json.Marshal(beforeView.Parts)
+	afterParts, _ := json.Marshal(afterView.Parts)
+	if string(beforeParts) != string(afterParts) {
+		t.Errorf("message parts changed across a part.update 404:\n before: %s\n after:  %s", beforeParts, afterParts)
+	}
+	if beforeView.Info["id"] != "msg-42" || afterView.Info["id"] != "msg-42" {
+		t.Errorf("message id changed across a part.update 404: before %v, after %v", beforeView.Info["id"], afterView.Info["id"])
+	}
+}
+
+// TestSessionPartUpdateMethodGuards pins the sub-path's other methods: the
+// document declares only PATCH for part.update (and DELETE for the sibling
+// part.delete), so POST/PUT keep the pre-existing router default 404 — the
+// router's default arm touches no store, so this cell runs on the mock harness
+// (the sibling GET/DELETE resolutions are pinned on the real store harness in
+// TestSessionPartUpdateTruthfulArms, where the rows exist).
+func TestSessionPartUpdateMethodGuards(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, method := range []string{http.MethodPost, http.MethodPut} {
+		status, _, raw := doShimRequest(t, srv.URL, method, "/session/s1/message/msg-42/part/prt-1")
+		if status != http.StatusNotFound {
+			t.Errorf("%s /session/s1/message/msg-42/part/prt-1: got %d, want 404 (undeclared method, pre-existing router default). Body: %s",
+				method, status, raw)
+			continue
+		}
+		var env map[string]any
+		if err := json.Unmarshal(raw, &env); err == nil {
+			assertP1Error(t, method+" part path", "", status, env, "NOT_FOUND")
+			if got := p1ErrorMessage(env); got != "endpoint not found" {
+				t.Errorf("%s /session/s1/message/msg-42/part/prt-1: message = %q, want the router default's %q",
+					method, got, "endpoint not found")
+			}
+		}
+	}
+}

@@ -1111,6 +1111,21 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// sub-path keep the pre-existing router default 404.
 		msgID := strings.TrimPrefix(sub, "message/")
 		s.sessionDeleteMessage(w, r, sessionID, msgID)
+	case strings.HasPrefix(sub, "message/") && strings.Contains(sub, "/part/") && r.Method == http.MethodPatch:
+		// ROUTE-FIX-037 / SHIM-NARROWED-006: the upstream part.update
+		// operation (declared responses 200 Part "Successfully updated
+		// part", 400 BadRequest | InvalidRequestError, 404 NotFoundError)
+		// had no case here, so every PATCH
+		// /session/{sessionID}/message/{messageID}/part/{partID} request fell
+		// to the router's default arm and answered an untyped 404 — the
+		// declared error vocabulary was unreachable from outside the code.
+		// Serve the declared contract truthfully (see sessionPartUpdate);
+		// the undeclared methods on the sub-path keep the pre-existing
+		// answers, and the sibling DELETE keeps its own case above.
+		//
+		// ch:trace row=ROUTE-FIX-037 spec=specs/openapi/upstream/openapi-1.18.33.json#part.update wave=consensus-foreman-2026-10-03-00-46-49.json#task-1 test=TestSessionPartUpdateTruthfulArms doc=docs/evidence/ROUTE-FIX-037-live-probe.md evidence=docs/evidence/ROUTE-FIX-037-live-probe.md witness=none:self-verified-in-worktree
+		msgID, partID := parseMessagePartSub(sub)
+		s.sessionPartUpdate(w, r, sessionID, msgID, partID)
 	case sub == "children" && r.Method == http.MethodGet:
 		s.listChildren(w, r, sessionID)
 	case sub == "diff" && r.Method == http.MethodGet:
