@@ -33,8 +33,8 @@ func TestCreateTask_Success(t *testing.T) {
 
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp TaskResponse
@@ -78,8 +78,8 @@ func TestCreateTask_DefaultPriority(t *testing.T) {
 
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp TaskResponse
@@ -106,8 +106,8 @@ func TestCreateTask_WithPrerequisites(t *testing.T) {
 
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp TaskResponse
@@ -166,7 +166,7 @@ func TestCreateTask_InvalidPriority(t *testing.T) {
 
 			expectedCode := http.StatusBadRequest
 			if tt.expect200 {
-				expectedCode = http.StatusOK
+				expectedCode = http.StatusCreated
 			}
 			if w.Code != expectedCode {
 				t.Errorf("expected %d, got %d: %s", expectedCode, w.Code, w.Body.String())
@@ -196,8 +196,8 @@ func TestCreateTask_SessionScoped_CanAccessOwn(t *testing.T) {
 
 	srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

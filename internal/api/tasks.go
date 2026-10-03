@@ -72,10 +72,12 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, sessio
 		        created_at, claimed_at, completed_at
 		 FROM tasks WHERE id = $1`, taskID)
 	if err != nil || row == nil {
+		w.WriteHeader(http.StatusCreated)
 		writeJSON(w, map[string]any{"id": taskID, "status": "pending"})
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	writeJSON(w, rowToTaskResponse(row))
 }
 
