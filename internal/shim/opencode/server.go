@@ -3617,11 +3617,18 @@ func (s *Server) handlePermissionByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getPermission(w http.ResponseWriter, r *http.Request, permID string) {
+	// ch:trace row=ROUTE-FIX-044 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// The approval_requests table (migrations/008_hitl_tables.sql, also the
+	// canonical SPEC-014 schema in internal/hitl/hitl.go) carries target_sql,
+	// review_notes and reviewed_at — there is no sql_preview / decision_reason /
+	// resolved_at column. The previous SELECT referenced the nonexistent names,
+	// so the query error was swallowed into a 404 for rows that EXIST (T1-D4).
+	// JSON keys stay as documented; only the column mapping is corrected.
 	ctx := r.Context()
 	row, err := s.db.QueryRow(ctx,
 		`SELECT ar.id, ar.session_id, ar.request_type, ar.risk_level,
-		        ar.description, ar.sql_preview, ar.status, ar.decision_reason,
-		        ar.created_at, ar.resolved_at
+		        ar.description, ar.target_sql, ar.status, ar.review_notes,
+		        ar.created_at, ar.reviewed_at
 		 FROM approval_requests ar WHERE ar.id = $1`, permID)
 	if err != nil || row == nil {
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found")
@@ -3634,11 +3641,11 @@ func (s *Server) getPermission(w http.ResponseWriter, r *http.Request, permID st
 		"type":            toString(row["request_type"]),
 		"risk_level":      toString(row["risk_level"]),
 		"description":     toString(row["description"]),
-		"sql_preview":     toString(row["sql_preview"]),
+		"sql_preview":     toString(row["target_sql"]),
 		"status":          toString(row["status"]),
-		"decision_reason": toString(row["decision_reason"]),
+		"decision_reason": toString(row["review_notes"]),
 		"created_at":      toString(row["created_at"]),
-		"resolved_at":     nilOrString(row["resolved_at"]),
+		"resolved_at":     nilOrString(row["reviewed_at"]),
 	})
 }
 
@@ -3662,12 +3669,34 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 	ctx := r.Context()
 	now := time.Now().UTC().Format(time.RFC3339)
 
+	// ch:trace row=ROUTE-FIX-045 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// The UPDATE must target REAL approval_requests columns (review_notes,
+	// reviewed_at, reviewer_id per migrations/008_hitl_tables.sql and the
+	// native ReviewApproval write in internal/hitl/hitl.go) — decision_reason /
+	// resolved_at / resolved_by do not exist and made every resolve a 500 (T1-D5).
+	// The db wrapper exposes no RowsAffected, so existence and the
+	// status='pending' guard are checked up front (same read-then-write shape
+	// as hitl.Manager.ReviewApproval). An unknown id, or a row that is no
+	// longer pending, answers the declared 404 arm — the contract documents
+	// only [200,400,401,404], so 409 is not available here.
+	row, err := s.db.QueryRow(ctx,
+		`SELECT status FROM approval_requests WHERE id = $1`, permID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found")
+		return
+	}
+	if toString(row["status"]) != "pending" {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"permission is not pending")
+		return
+	}
+
 	// Translate: opencode permission resolution → Consensus approval review
 	// SPEC-017 §3.7: Maps to POST /api/v1/approvals/:id/review
 	// HARDEN-SHIM-10: Emit event on resolution for SSE subscribers
-	err := s.db.Exec(ctx,
+	err = s.db.Exec(ctx,
 		`UPDATE approval_requests
-		 SET status = $1, decision_reason = $2, resolved_at = $3, resolved_by = 'opencode-shim'
+		 SET status = $1, review_notes = $2, reviewed_at = $3, reviewer_id = 'opencode-shim'
 		 WHERE id = $4 AND status = 'pending'`,
 		req.Decision, req.Reason, now, permID,
 	)
