@@ -1193,6 +1193,31 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// (declared responses 200,400,404) was served by the untyped stub
 		// below. Serve it for real.
 		s.sessionFork(w, r, sessionID)
+	case sub == "todo" && r.Method == http.MethodGet:
+		// ROUTE-FIX-039 / SHIM-NARROWED-009: the upstream session.todo
+		// operation (declared responses 200 Todo[], 400, 404) was answered by
+		// an untyped 404 from this default arm — the declared success code was
+		// unreachable. Serve the declared contract truthfully; non-GET falls
+		// through to the router default (405 is not in the declared set).
+		s.sessionTodo(w, r, sessionID)
+	case sub == "unrevert" && r.Method == http.MethodPost:
+		// ROUTE-FIX-040 / SHIM-NARROWED-010: the upstream session.unrevert
+		// operation (declared responses 200 Session, 400, 404, 409
+		// SessionBusyError) was answered by an untyped 404 from this default
+		// arm. Serve the declared contract truthfully with the sessionRevert
+		// handler shape; non-POST falls through to the router default.
+		s.sessionUnrevert(w, r, sessionID)
+	case strings.HasPrefix(sub, "permissions/") && r.Method == http.MethodPost:
+		// ROUTE-FIX-038 / SHIM-NARROWED-008: the upstream permission.respond
+		// operation (declared responses 200 boolean, 400, 404
+		// NotFoundError | PermissionNotFoundError) was answered by an untyped
+		// 404 from this default arm. Serve the declared contract truthfully,
+		// mapping the declared enum onto the real approval_requests columns
+		// exactly as the consent-store sidecar's POST
+		// /permission/{id}/resolve does (commit 07f2f3c); non-POST falls
+		// through to the router default.
+		permissionID := strings.TrimPrefix(sub, "permissions/")
+		s.sessionPermissionRespond(w, r, sessionID, permissionID)
 	default:
 		// Check for 501 exclusions. The five P1 session sub-paths now answer
 		// their DECLARED methods in the cases above (ROUTE-FIX-014..018:
