@@ -41,11 +41,26 @@ DEFAULT_SERVED = REPO / "specs/openapi/upstream/consensus-shim-served-surface.ya
 
 # Operations where the shim answers the declared ERROR code but never the
 # declared SUCCESS code (Consensus has no project/question/permission registry).
+#
+# ROUTE-FIX-035 REMOVED ("/session/{sessionID}/message/{messageID}", "DELETE")
+# from this set when session.deleteMessage started serving its declared 200.
+# ROUTE-FIX-037 registers the sibling PATCH route on the message-part path
+# (part.update, served/covered) and therefore has to record the path's DELETE
+# explicitly: without an entry the served-path set would absorb the path and
+# part.delete would be reclassified METHOD-MISSING ("path is routed and serves
+# other methods") even though DELETE on the sub-path is answered — the
+# message-DELETE case matches the longer "message/..." prefix, hands
+# sessionDeleteMessage a garbled "msg-<id>/part/<id>" id that never resolves,
+# and answers the declared 404 NOT_FOUND. The declared 200 boolean
+# ("Successfully deleted part") is still unreachable, so the row stays
+# error-contract-only here until ROUTE-FIX-036 gives part.delete its own
+# handler.
 ERROR_CONTRACT_ONLY = {
     ("/project/{projectID}", "PATCH"),
     ("/permission/{requestID}/reply", "POST"),
     ("/question/{requestID}/reply", "POST"),
     ("/question/{requestID}/reject", "POST"),
+    ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"),
 }
 # Same path+method in both surfaces, different operation (checked against the
 # upstream document's own summary/description for those operations).

@@ -416,3 +416,164 @@ func (s *Server) sessionDeleteMessage(w http.ResponseWriter, r *http.Request, se
 	// fabricated true.
 	writeJSON(w, false)
 }
+
+// ============================================================================
+// ROUTE-FIX-037 — PATCH /session/{sessionID}/message/{messageID}/part/{partID}
+// (part.update)
+//
+// ch:trace row=ROUTE-FIX-037 spec=specs/openapi/upstream/openapi-1.18.33.json#part.update wave=consensus-foreman-2026-10-03-00-46-49.json#task-1 test=TestSessionPartUpdateTruthfulArms doc=docs/evidence/ROUTE-FIX-037-live-probe.md evidence=docs/evidence/ROUTE-FIX-037-live-probe.md witness=none:self-verified-in-worktree
+// ============================================================================
+
+// parseMessagePartSub splits the handleSessionByID sub-path
+// "message/{messageID}/part/{partID}" into its two path parameters. It splits
+// on the first "/part/" separator, so a messageID half that happens to be
+// empty (or a trailing "/part/" with no partID) still yields both halves and
+// the handler answers the declared 400 for the missing parameter; a sub-path
+// that is not of this shape at all (impossible for the router case that calls
+// this — it requires a "/part/" segment) yields an empty partID and takes the
+// same declared 400 arm rather than an undeclared code.
+func parseMessagePartSub(sub string) (messageID, partID string) {
+	rest := strings.TrimPrefix(sub, "message/")
+	halves := strings.SplitN(rest, "/part/", 2)
+	if len(halves) != 2 {
+		return rest, ""
+	}
+	return halves[0], halves[1]
+}
+
+// sessionPartUpdate serves PATCH
+// /session/{sessionID}/message/{messageID}/part/{partID} — upstream part.update
+// (ROUTE-FIX-037; the board row's SOURCE ITEM SHIM-NARROWED-007 in
+// docs/reports/shim-source-002-baseline-diff-2026-09-29.md, and
+// SHIM-NARROWED-006 in the positional ids of
+// specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json, which
+// renumbered after ROUTE-FIX-035; declared responses: 200 Part "Successfully
+// updated part", 400 BadRequest | InvalidRequestError, 404 NotFoundError).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/session/{sessionID}/message/{messageID}/part/{partID}".patch):
+// sessionID, messageID and partID are path parameters with declared patterns
+// ^ses, ^msg and ^prt; the requestBody is a Part (anyOf of the twelve part
+// variants — TextPart, FilePart, ToolPart, ...) and the declared 200 body is
+// the (updated) Part.
+//
+// Truthfulness — why the declared 200 is NOT served. The Consensus runtime
+// keeps no message-part editing engine and no part store:
+//
+//   - A message IS a memory_events row (opencode "msg-<id>" ids resolve to
+//     that ledger; config, session_*) and that ledger is APPEND-ONLY by
+//     construction — SPEC-002 §2.1, enforced by the triggers in migrations 017
+//     (SQLite) and 018 (Postgres), which ABORT every UPDATE and DELETE. The
+//     shim never writes memory_events in place anywhere.
+//   - There is no parts table in any migration (migrations/ has sessions,
+//     memory_events, display_modes, tool_requests, ... and no part store), so
+//     parts are SYNTHESIZED on read: GET /session/{id}/message/{messageID}
+//     returns exactly one part, {"type":"text","text":<memory_events.content>},
+//     which carries NO id field at all (getMessageByID). No "prt-..." id is
+//     ever issued by this runtime, so no part identified by partID exists to
+//     update, and no part-editing engine is wired to the session.
+//   - A truthful 200 is impossible inside the declared schema: its body is a
+//     Part object, and every value that could be returned would assert an
+//     update that was not performed (the part as it currently is does not
+//     reflect the requested Part; echoing the requested Part would claim
+//     "Successfully updated part" while the synthesized part still reports the
+//     old text — the exact fabrication the handleSyncStart / handleGlobalUpgrade
+//     truthfulness convention, 13189b1 / d8f1d59, forbids). Unlike
+//     session.deleteMessage (ROUTE-FIX-035), whose declared 200 body is a plain
+//     boolean that can report the truthful false ("no message was deleted"),
+//     this operation declares an OBJECT the runtime cannot produce truthfully.
+//
+// Per the sessionUnshare precedent (ROUTE-FIX-015, SHIM-DRIFT-121) — the other
+// operation that targets a resource the runtime keeps no concept of, where the
+// declared 404 NotFoundError IS the truthful answer — the missing resource is
+// reported inside the DECLARED vocabulary: 404 NotFoundError for an unknown
+// part, never an undeclared 501 and never a fabricated 200. The declared 400
+// arm is reached by malformed input, exactly as in the sibling handlers.
+//
+// Validation order mirrors the sibling on this sub-path
+// (sessionDeleteMessage, ROUTE-FIX-035) plus the task's ordering:
+//
+//  1. unknown session -> declared 404 (p1ResolveSession);
+//  2. absent/blank messageID -> declared 400, ill-shaped messageID (declared
+//     pattern ^msg) -> declared 400 (sessionRevert/sessionDeleteMessage
+//     validation precedent);
+//  3. a well-formed messageID the session does not hold -> declared 404;
+//  4. absent/blank partID -> declared 400, ill-shaped partID (declared pattern
+//     ^prt) -> declared 400;
+//  5. a Part request body that IS supplied must be a JSON object: unparseable
+//     bytes or a non-object shape (array, string, null) -> declared 400 via
+//     the p1DecodeBody conventions. An ABSENT body is not a contract violation
+//     for this operation — its requestBody marks no required member (the whole
+//     body is a bare $ref to Part) — so the request proceeds to the resource
+//     lookup instead of inventing a 400 the declaration does not support;
+//  6. no part store exists, so every well-formed prt id is an unknown part ->
+//     the declared 404 NotFoundError.
+//
+// The declared response set for part.update is 200, 400, 404 — it declares NO
+// 409 SessionBusyError, so unlike sessionRevert/sessionShell/
+// sessionDeleteMessage this handler has no mid-turn arm and never calls
+// sessionIsActive (409 is not in the declared set; inventing it would answer
+// outside the contract).
+func (s *Server) sessionPartUpdate(w http.ResponseWriter, r *http.Request, sessionID, messageID, partID string) {
+	// 1. Unknown session -> the declared 404 NotFoundError.
+	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
+		return
+	}
+
+	// 2. messageID is a required path parameter and the declared pattern is
+	// ^msg (the sessionRevert / sessionDeleteMessage validation precedent).
+	if strings.TrimSpace(messageID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required path parameter "messageID" is missing`)
+		return
+	}
+	if !strings.HasPrefix(messageID, "msg") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"messageID must match the declared pattern ^msg")
+		return
+	}
+
+	// 3. A well-formed messageID the session does not hold -> the declared 404.
+	if !s.sessionHasMessage(r.Context(), sessionID, messageID) {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"message not found in session")
+		return
+	}
+
+	// 4. partID is a required path parameter and the declared pattern is ^prt.
+	if strings.TrimSpace(partID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required path parameter "partID" is missing`)
+		return
+	}
+	if !strings.HasPrefix(partID, "prt") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"partID must match the declared pattern ^prt")
+		return
+	}
+
+	// 5. The declared requestBody is a Part. When a body IS supplied it must be
+	// a Part object — unparseable bytes or a non-object shape is the declared
+	// 400 (the p1DecodeBody convention). An absent body is tolerated: the
+	// operation's requestBody carries no required member, so a request without
+	// one is not a contract violation and proceeds to the resource lookup.
+	if r.Body != nil && r.ContentLength != 0 {
+		var part map[string]any
+		if !p1DecodeBody(w, r, &part) {
+			return
+		}
+		if part == nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"request body must be a Part object")
+			return
+		}
+	}
+
+	// 6. No part store and no part-editing engine exist (see the truthfulness
+	// note above): parts are synthesized from memory_events.content and carry
+	// no id, so no part with this id exists to update. The declared 404
+	// NotFoundError is the truthful answer for every well-formed partID —
+	// never a fabricated 200 Part asserting an update that did not happen.
+	writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+		"part not found in message")
+}
