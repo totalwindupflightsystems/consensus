@@ -1825,6 +1825,34 @@ func TestProjectPatchMissingReturnsTypedNotFound(t *testing.T) {
 	}
 }
 
+func TestProjectGetMissingReturnsTypedNotFound(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	const projectID = "t1-sweep-project"
+	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/"+projectID)
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /project/%s: got %d, want 404 (ROUTE-FIX-043). Body: %s", projectID, status, body)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("GET /project/%s body is not JSON: %v (%s)", projectID, err, body)
+	}
+	want := map[string]any{
+		"_tag":      "ProjectNotFoundError",
+		"projectID": projectID,
+		"message":   "Project not found: " + projectID,
+	}
+	if len(got) != len(want) {
+		t.Errorf("404 body must have exactly %d fields (upstream toEqual), got %d: %v", len(want), len(got), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("404 body field %q = %v, want %v", k, got[k], v)
+		}
+	}
+}
+
 func TestVCSStubEndpointsReturn501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
