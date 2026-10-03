@@ -102,17 +102,17 @@ func TestSyncStartBlankQueryParamIsBadRequest(t *testing.T) {
 }
 
 // TestSyncStartNeighboursUntouched is the non-vacuity control: serving
-// /sync/start must not disturb the neighbouring /sync/* family — /sync/steal
-// stays unregistered (net/http default 404, the NOT-SERVED class it is still
-// pinned in) — and there is no /sync/* catch-all: a deeper sub-path stays 404.
-// The sibling /sync/history and /sync/replay routes keep answering 200.
+// /sync/start must not disturb the neighbouring /sync/* family — /sync/steal is
+// served too now (ROUTE-ADD-115) and keeps answering its declared 200 for a
+// well-formed body — and there is no /sync/* catch-all: a deeper sub-path stays
+// 404. The sibling /sync/history and /sync/replay routes keep answering 200.
 func TestSyncStartNeighboursUntouched(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", "{}")
-	if status != http.StatusNotFound {
-		t.Errorf("POST /sync/steal: got %d, want 404 (sibling /sync route must stay unregistered). Body: %s", status, body)
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", syncStealBody(syncStealValidSessionID))
+	if id := decodeSyncStealResponse(t, "/sync/steal", status, header, body); id != syncStealValidSessionID {
+		t.Errorf("POST /sync/steal: sessionID = %q, want %q (sibling route intact)", id, syncStealValidSessionID)
 	}
 
 	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/start/sub", "{}")
@@ -134,8 +134,9 @@ func TestSyncStartNeighboursUntouched(t *testing.T) {
 // TestSyncStartChiMount is the BUG-009 regression for the new route:
 // /sync/start must be listed in MountPatterns so a parent chi router mount
 // reaches the shim (a shim-produced 200 proves the wiring; chi's 404 would
-// mean the mount lost the route). /sync/steal through the same mount stays
-// chi's 404 — MountPatterns gains exact paths, never a /sync/* catch-all.
+// mean the mount lost the route). /sync/steal gained its own exact pattern
+// with ROUTE-ADD-115 and reaches the shim through the same mount —
+// MountPatterns gains exact paths, never a /sync/* catch-all.
 func TestSyncStartChiMount(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
 	s.skipAuth = true
@@ -151,8 +152,8 @@ func TestSyncStartChiMount(t *testing.T) {
 		t.Errorf("chi-mounted /sync/start: body = true, want false (no workspace sync started)")
 	}
 
-	status, _, _ = doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", "{}")
-	if status != http.StatusNotFound {
-		t.Errorf("POST /sync/steal via chi mount: got %d, want 404 (unregistered sibling)", status)
+	status, stealHeader, stealBody := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", syncStealBody(syncStealValidSessionID))
+	if id := decodeSyncStealResponse(t, "/sync/steal via chi mount", status, stealHeader, stealBody); id != syncStealValidSessionID {
+		t.Errorf("chi-mounted /sync/steal: sessionID = %q, want %q", id, syncStealValidSessionID)
 	}
 }
