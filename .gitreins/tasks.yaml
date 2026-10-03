@@ -1096,3 +1096,14 @@ tasks:
   status: complete
   created_at: '2026-10-01T21:28:02.783640+00:00'
   completed_at: '2026-10-01T22:12:44.770591+00:00'
+- id: ROUTE-FIX-039
+  title: Serve GET /session/{sessionID}/todo per contract
+  criteria:
+  - 'Route GET /session/{sessionID}/todo (operationId session.todo, declared responses
+    200,400,404) currently answers 404. Implement the success path so every declared
+    response code is reachable. Live probe must assert the success path AND each documented
+    error. Source: SHIM-NARROWED-009. Reference server.go:868-913 (handleSessionByID
+    switch; 501 stub list at server.go:900).'
+  status: complete
+  created_at: '2026-10-03T15:27:27.630381+00:00'
+  completed_at: '2026-10-03T16:17:22.714406+00:00'
