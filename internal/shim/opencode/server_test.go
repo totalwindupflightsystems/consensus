@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1115,12 +1116,16 @@ func TestListPermissionsFilterBySession(t *testing.T) {
 }
 
 func TestGetPermission(t *testing.T) {
+	// ch:trace row=ROUTE-FIX-044 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// Mock keys use the REAL approval_requests column names (target_sql,
+	// review_notes, reviewed_at) — the handler maps them onto the documented
+	// JSON keys; a mock keyed on the old nonexistent columns would re-hide T1-D4.
 	mdb := &mockDB{
 		queryRow: rowOf(map[string]any{
 			"id": "p1", "session_id": "s1", "request_type": "destructive_tool",
 			"risk_level": "high", "description": "Delete temp_cache",
-			"sql_preview": "DROP TABLE temp_cache",
-			"status":      "pending", "decision_reason": "",
+			"target_sql": "DROP TABLE temp_cache",
+			"status":     "pending", "review_notes": "",
 			"created_at": "2026-05-04T00:00:00Z",
 		}),
 	}
@@ -1145,10 +1150,38 @@ func TestGetPermission(t *testing.T) {
 	if body["risk_level"] != "high" {
 		t.Errorf("expected risk_level=high, got %v", body["risk_level"])
 	}
+	// Documented JSON keys stay served from the real columns.
+	if body["sql_preview"] != "DROP TABLE temp_cache" {
+		t.Errorf("expected sql_preview mapped from target_sql, got %v", body["sql_preview"])
+	}
+}
+
+func TestGetPermissionNotFound(t *testing.T) {
+	// ch:trace row=ROUTE-FIX-044 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// Unknown id (QueryRow returns the driver's no-rows error) must stay 404.
+	mdb := &mockDB{queryRowErr: errors.New("sqlite: no rows in result")}
+	_, srv := newTestServer(mdb)
+	defer srv.Close()
+
+	status, _, respBody := doShimRequest(t, srv.URL, http.MethodGet, "/permission/nope")
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /permission/nope: got %d, want 404. Body: %s", status, respBody)
+	}
+	var typed map[string]any
+	if err := json.Unmarshal(respBody, &typed); err != nil {
+		t.Fatalf("404 body is not JSON: %v (%s)", err, respBody)
+	}
+	if errObj, _ := typed["error"].(map[string]any); errObj == nil || errObj["code"] != "NOT_FOUND" {
+		t.Errorf("expected error.code=NOT_FOUND, got %v", typed)
+	}
 }
 
 func TestResolvePermissionApprove(t *testing.T) {
-	_, srv := newTestServer(&mockDB{})
+	// ch:trace row=ROUTE-FIX-045 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// The pre-check SELECT must see a pending row, otherwise the handler
+	// correctly answers 404 before the UPDATE is ever attempted.
+	mdb := &mockDB{queryRow: rowOf(map[string]any{"status": "pending"})}
+	_, srv := newTestServer(mdb)
 	defer srv.Close()
 
 	body := jsonBody(t, map[string]any{
@@ -1170,10 +1203,36 @@ func TestResolvePermissionApprove(t *testing.T) {
 	if respBody["status"] != "approved" {
 		t.Errorf("expected status=approved, got %v", respBody["status"])
 	}
+	if respBody["resolved"] != true {
+		t.Errorf("expected resolved=true, got %v", respBody["resolved"])
+	}
+	// The UPDATE must target real columns (T1-D5): inspect the recorded
+	// queries (the SSE emit appends a session lookup after the UPDATE, so
+	// scan rather than assume the UPDATE is last).
+	var update string
+	for _, q := range mdb.queries {
+		if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(q)), "UPDATE") {
+			update = q
+		}
+	}
+	if update == "" {
+		t.Fatalf("expected the resolve UPDATE to hit the mock DB, saw: %v", mdb.queries)
+	}
+	for _, dead := range []string{"decision_reason", "resolved_at", "resolved_by"} {
+		if strings.Contains(update, dead) {
+			t.Errorf("UPDATE still references nonexistent column %q: %s", dead, update)
+		}
+	}
+	for _, real := range []string{"review_notes", "reviewed_at", "reviewer_id"} {
+		if !strings.Contains(update, real) {
+			t.Errorf("UPDATE missing real column %q: %s", real, update)
+		}
+	}
 }
 
 func TestResolvePermissionReject(t *testing.T) {
-	_, srv := newTestServer(&mockDB{})
+	mdb := &mockDB{queryRow: rowOf(map[string]any{"status": "pending"})}
+	_, srv := newTestServer(mdb)
 	defer srv.Close()
 
 	body := jsonBody(t, map[string]any{
@@ -1194,6 +1253,72 @@ func TestResolvePermissionReject(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&respBody)
 	if respBody["status"] != "rejected" {
 		t.Errorf("expected status=rejected, got %v", respBody["status"])
+	}
+}
+
+func TestResolvePermissionMalformedBody(t *testing.T) {
+	// ch:trace row=ROUTE-FIX-045 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/permission/p1/resolve", "application/json", strings.NewReader("{not json"))
+	if err != nil {
+		t.Fatalf("POST /permission/p1/resolve: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 400 {
+		t.Errorf("expected 400 for malformed body, got %d", resp.StatusCode)
+	}
+}
+
+func TestResolvePermissionNotFound(t *testing.T) {
+	// ch:trace row=ROUTE-FIX-045 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// Unknown permID: the pre-check SELECT finds no row → declared 404 arm.
+	mdb := &mockDB{queryRowErr: errors.New("sqlite: no rows in result")}
+	_, srv := newTestServer(mdb)
+	defer srv.Close()
+
+	body := jsonBody(t, map[string]any{"decision": "approved"})
+	resp, err := http.Post(srv.URL+"/permission/nope/resolve", "application/json", body)
+	if err != nil {
+		t.Fatalf("POST /permission/nope/resolve: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 404 {
+		t.Fatalf("expected 404 for unknown id, got %d", resp.StatusCode)
+	}
+	// No UPDATE may be attempted for an unknown id.
+	for _, q := range mdb.queries {
+		if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(q)), "UPDATE") {
+			t.Errorf("UPDATE must not run for an unknown id, saw: %s", q)
+		}
+	}
+}
+
+func TestResolvePermissionAlreadyResolved(t *testing.T) {
+	// ch:trace row=ROUTE-FIX-045 spec=migrations/008_hitl_tables.sql wave=consensus-foreman-2026-10-03-00-46-49.json#task-2
+	// The status='pending' guard: resolving an already-resolved row answers
+	// the declared 404 arm (the contract documents only [200,400,401,404]).
+	mdb := &mockDB{queryRow: rowOf(map[string]any{"status": "approved"})}
+	_, srv := newTestServer(mdb)
+	defer srv.Close()
+
+	body := jsonBody(t, map[string]any{"decision": "rejected"})
+	resp, err := http.Post(srv.URL+"/permission/p1/resolve", "application/json", body)
+	if err != nil {
+		t.Fatalf("POST /permission/p1/resolve: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 404 {
+		t.Fatalf("expected 404 for non-pending row, got %d", resp.StatusCode)
+	}
+	for _, q := range mdb.queries {
+		if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(q)), "UPDATE") {
+			t.Errorf("UPDATE must not run for a non-pending row, saw: %s", q)
+		}
 	}
 }
 
