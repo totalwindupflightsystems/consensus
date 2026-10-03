@@ -185,22 +185,19 @@ func TestSyncReplayMethodGuard(t *testing.T) {
 
 // TestSyncReplayNeighboursUntouched is the non-vacuity control: serving
 // /sync/replay must not disturb the neighbouring /sync/* family — /sync/steal
-// stays unregistered (net/http default 404, the NOT-SERVED class it is still
-// pinned in; /sync/start left that class with ROUTE-ADD-114) — and there is no
-// /sync/* catch-all: a deeper sub-path stays 404. The sibling /sync/history
-// route keeps answering 200.
+// is served too now (ROUTE-ADD-115) and keeps answering its declared 200 for a
+// well-formed body — and there is no /sync/* catch-all: a deeper sub-path stays
+// 404. The sibling /sync/history route keeps answering 200.
 func TestSyncReplayNeighboursUntouched(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	for _, path := range []string{"/sync/steal"} {
-		status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, path, "{}")
-		if status != http.StatusNotFound {
-			t.Errorf("POST %s: got %d, want 404 (sibling /sync route must stay unregistered). Body: %s", path, status, body)
-		}
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", syncStealBody(syncStealValidSessionID))
+	if id := decodeSyncStealResponse(t, "/sync/steal", status, header, body); id != syncStealValidSessionID {
+		t.Errorf("POST /sync/steal: sessionID = %q, want %q (sibling route intact)", id, syncStealValidSessionID)
 	}
 
-	status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/replay/sub", "{}")
+	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/replay/sub", "{}")
 	if status != http.StatusNotFound {
 		t.Errorf("POST /sync/replay/sub: got %d, want 404 (no /sync/* catch-all). Body: %s", status, body)
 	}
@@ -214,9 +211,10 @@ func TestSyncReplayNeighboursUntouched(t *testing.T) {
 // TestSyncReplayChiMount is the BUG-009 regression for the new route:
 // /sync/replay must be listed in MountPatterns so a parent chi router mount
 // reaches the shim (a shim-produced 200 proves the wiring; chi's 404 would
-// mean the mount lost the route). /sync/steal through the same mount stays
-// chi's 404 — MountPatterns gains exact paths, never a /sync/* catch-all
-// (/sync/start gained its own exact pattern with ROUTE-ADD-114).
+// mean the mount lost the route). /sync/steal gained its own exact pattern
+// with ROUTE-ADD-115 and reaches the shim through the same mount —
+// MountPatterns gains exact paths, never a /sync/* catch-all (/sync/start
+// gained its own exact pattern with ROUTE-ADD-114).
 func TestSyncReplayChiMount(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
 	s.skipAuth = true
@@ -234,8 +232,8 @@ func TestSyncReplayChiMount(t *testing.T) {
 		t.Errorf("chi-mounted /sync/replay: sessionID = %q, want the empty string", sessionID)
 	}
 
-	status, _, _ = doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", "{}")
-	if status != http.StatusNotFound {
-		t.Errorf("POST /sync/steal via chi mount: got %d, want 404 (unregistered sibling)", status)
+	status, stealHeader, stealBody := doShimRequestBody(t, srv.URL, http.MethodPost, "/sync/steal", syncStealBody(syncStealValidSessionID))
+	if id := decodeSyncStealResponse(t, "/sync/steal via chi mount", status, stealHeader, stealBody); id != syncStealValidSessionID {
+		t.Errorf("chi-mounted /sync/steal: sessionID = %q, want %q", id, syncStealValidSessionID)
 	}
 }

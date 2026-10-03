@@ -207,9 +207,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/log", s.handleLog)
 	// ROUTE-ADD-112 / SHIM-DRIFT-126: the exact /sync/history path was never
 	// registered, so POST /sync/history fell through to net/http's default
-	// 404. Serve the upstream sync.history.list operation; the rest of the
-	// /sync/* family (start, steal) stays unregistered — these are exact
-	// patterns, never a /sync/* catch-all.
+	// 404. Serve the upstream sync.history.list operation. Every declared
+	// /sync/* operation gains its own exact pattern (history, replay, start,
+	// steal) — never a /sync/* catch-all.
 	mux.HandleFunc("/sync/history", s.handleSyncHistory)
 	// ROUTE-ADD-113 / SHIM-DRIFT-127: same omission one path over — POST
 	// /sync/replay had no shim route at all and answered net/http's default
@@ -217,9 +217,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/sync/replay", s.handleSyncReplay)
 	// ROUTE-ADD-114 / SHIM-DRIFT-128: the exact /sync/start path was never
 	// registered either, so POST /sync/start fell through to net/http's default
-	// 404. Serve the upstream sync.start operation; /sync/steal stays
-	// unregistered — these are exact patterns, never a /sync/* catch-all.
+	// 404. Serve the upstream sync.start operation.
 	mux.HandleFunc("/sync/start", s.handleSyncStart)
+	// ROUTE-ADD-115 / SHIM-DRIFT-129: the last declared /sync/* operation —
+	// POST /sync/steal — had no shim route and answered net/http's default
+	// 404 (the drift artifact's NOT-SERVED class). Serve the upstream
+	// sync.steal operation; with this the /sync family is one exact pattern
+	// per declared operation, never a /sync/* catch-all.
+	mux.HandleFunc("/sync/steal", s.handleSyncSteal)
 	mux.HandleFunc("/question", s.handleQuestionList)
 	mux.HandleFunc("/question/", s.handleQuestionByID)
 
@@ -364,6 +369,7 @@ var MountPatterns = []string{
 	"/sync/history",
 	"/sync/replay",
 	"/sync/start",
+	"/sync/steal",
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
@@ -3100,6 +3106,92 @@ func (s *Server) handleSyncStart(w http.ResponseWriter, r *http.Request) {
 	// No sync loop engine exists, so no workspace sync was started: the
 	// declared boolean reports false rather than a fabricated true.
 	writeJSON(w, false)
+}
+
+// handleSyncSteal serves POST /sync/steal — upstream sync.steal
+// (ROUTE-ADD-115, SHIM-DRIFT-129, declared responses: 200 {sessionID},
+// 400 BadRequest | InvalidRequestError). Upstream updates a session to belong
+// to the current workspace through the sync event system; the Consensus
+// runtime keeps no sync event store and has no cross-workspace migration
+// engine — the same truthfulness limit handleSyncHistory, handleSyncReplay and
+// handleSyncStart document — so no steal is performed.
+//
+// The request body declares one field, sessionID (required, pattern ^ses,
+// additionalProperties: false). The document does not mark requestBody
+// required, but sessionID is the operation's only defined field and the
+// declared 200 schema requires a ^ses id: an absent or empty body cannot name
+// a session and is refused — the same direction parseProviderOAuthAuthorizeBody
+// takes for the identical OpenAPI shape (optional requestBody whose only
+// defined field is required), and the only alternative to answering 200 with a
+// session id the shim was never given.
+//
+// The declared 200 body names the session the caller asked to steal. The shim
+// performs no migration and mints no id; it reports back the identity the
+// request concerned rather than inventing one (the sibling handleSyncReplay
+// "never a fabricated session" convention — here the declared ^ses pattern
+// leaves no truthful empty value, so the request's own id is the answer).
+//
+// The declared 400 arm answers the sibling writeOpencodeError INVALID_REQUEST
+// envelope for malformed input: a body that is not JSON, that is not a JSON
+// object (arrays, scalars and an explicit null are all not a steal request),
+// that carries an unknown top-level key or trails a second value, or whose
+// sessionID is missing, non-string, blank or does not match the declared
+// pattern ^ses — plus a present-but-blank declared query param (directory,
+// workspace — the sibling handleSkill/handleSyncStart convention). An absent
+// or empty body is the missing-sessionID class and answers 400, not 200.
+// Non-POST answers 405 METHOD_NOT_ALLOWED — sibling method-guard convention.
+func (s *Server) handleSyncSteal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	// sessionID is the operation's only defined field and the declared 200
+	// schema requires a ^ses value, so a body-less request names no session:
+	// the same refusal parseProviderOAuthAuthorizeBody answers for the
+	// identical optional-requestBody/required-field shape.
+	if r.Body == nil || r.ContentLength == 0 {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"request body must carry the session to steal (sessionID is required)")
+		return
+	}
+	var body struct {
+		SessionID *string `json:"sessionID"`
+	}
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+		return
+	}
+	// The declared object is one JSON value; a second value after it is
+	// malformed input, not a body to ignore.
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"malformed request body: unexpected data after the request object")
+		return
+	}
+	if body.SessionID == nil || strings.TrimSpace(*body.SessionID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"request body must carry a non-blank sessionID")
+		return
+	}
+	if !strings.HasPrefix(*body.SessionID, "ses") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			fmt.Sprintf("sessionID %q does not match the declared pattern ^ses", *body.SessionID))
+		return
+	}
+	// No sync event store, so no cross-workspace migration is performed: the
+	// declared 200 body names the session the caller asked to steal — the only
+	// session id the shim holds without minting one.
+	writeJSON(w, map[string]any{"sessionID": *body.SessionID})
 }
 
 // syncReplayEventInvalid validates one declared sync.replay events[] item
