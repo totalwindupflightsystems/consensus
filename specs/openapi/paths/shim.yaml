@@ -1021,15 +1021,21 @@ project:
         $ref: "../components/responses.yaml#/NotImplemented"
 
 projectItem:
-  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9).
-  x-not-implemented: true
+  # ROUTE-FIX-043: DF-CONSENSUS-47 typed 404 (ProjectNotFoundError) for every
+  # /project/{id} sub-path — the bare /project mount keeps the 501 stub
+  # (SPEC-017 §3.9). GET is NOT a not-implemented surface: the shim registers
+  # handleProjectByID (server.go:327) and answers the upstream typed
+  # ProjectNotFoundError for unknown ids, exactly as PATCH does.
   get:
     tags: [Opencode Shim]
-    summary: Project item (stub)
-    operationId: shimProjectItemStub
+    summary: Project item
+    operationId: shimProjectItem
     description: |
-      Registered stub surface: non-GET methods on /project/{id} reach the
-      stub unauthenticated and return 501 NOT_IMPLEMENTED.
+      Every project id is unknown — the Consensus shim keeps no project
+      registry — so GET answers HTTP 404 with the upstream typed
+      ProjectNotFoundError NamedError body, exactly {_tag, projectID,
+      message} (DF-CONSENSUS-47; httpapi-instance.test.ts "returns typed
+      not found bodies for missing projects").
     parameters:
       - name: projectId
         in: path
@@ -1038,8 +1044,21 @@ projectItem:
           type: string
         description: Project identifier.
     responses:
-      "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+      "404":
+        description: Typed ProjectNotFoundError body (no project registry).
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [_tag, projectID, message]
+              properties:
+                _tag:
+                  type: string
+                  enum: [ProjectNotFoundError]
+                projectID:
+                  type: string
+                message:
+                  type: string
 
 vcs:
   # DF-CONSENSUS-38: real fixed-workspace compatibility route (upstream
