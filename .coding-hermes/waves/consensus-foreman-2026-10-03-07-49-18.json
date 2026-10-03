@@ -1,0 +1,11 @@
+{
+  "tick": "consensus-foreman-2026-10-03-07-49-18",
+  "created": "2026-10-03T07:55:00-05:00",
+  "budget": 12,
+  "workers": [
+    {"task": "task-1", "board_rows": ["ROUTE-FIX-038", "ROUTE-FIX-039", "ROUTE-FIX-040"], "worktree": "/home/kara/worktrees/consensus-ROUTE-FIX-038-040", "branch": "wt/ROUTE-FIX-038-040", "surface": "internal/shim/opencode (session-family narrowed contracts)", "worker_model": "glm-5.3-flash", "worker_provider": "xkiro"},
+    {"task": "task-2", "board_rows": ["ROUTE-FIX-041", "ROUTE-FIX-042"], "worktree": "/home/kara/worktrees/consensus-ROUTE-FIX-041-042", "branch": "wt/ROUTE-FIX-041-042", "surface": "internal/api (native 201 status codes)", "worker_model": "glm-5.3-flash", "worker_provider": "xkiro"},
+    {"task": "task-3", "board_rows": ["ROUTE-FIX-043"], "worktree": "/home/kara/worktrees/consensus-ROUTE-FIX-043", "branch": "wt/ROUTE-FIX-043", "surface": "internal/shim/opencode project route or spec", "worker_model": "glm-5.3-flash", "worker_provider": "xkiro"}
+  ],
+  "independence": "task-1 edits shim session handlers; task-2 edits internal/api handlers (disjoint files); task-3 is single-route shim project fix — no shared hunks; serial merge planned in manifest order"
+}
