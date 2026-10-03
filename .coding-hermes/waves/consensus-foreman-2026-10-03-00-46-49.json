@@ -1,0 +1,25 @@
+{
+  "tick": "consensus-foreman-2026-10-03-00-46-49",
+  "created_at": "2026-10-03T01:05:00-05:00",
+  "status": "dispatched",
+  "budget": 2,
+  "tasks": [
+    {
+      "row": "ROUTE-FIX-037",
+      "worktree": "~/worktrees/consensus-ROUTE-FIX-037",
+      "branch": "wt/ROUTE-FIX-037",
+      "base_sha": "5f9239f",
+      "scope": "shim route PATCH /session/{sessionID}/message/{messageID}/part/{partID} (part.update) — serve declared 200/400/404; update comparison artifact + surface yaml"
+    },
+    {
+      "row": "ROUTE-FIX-044+045",
+      "rows": ["ROUTE-FIX-044", "ROUTE-FIX-045"],
+      "worktree": "~/worktrees/consensus-ROUTE-FIX-044",
+      "branch": "wt/ROUTE-FIX-044",
+      "base_sha": "5f9239f",
+      "scope": "native /permission/{id} + /permission/{id}/resolve — one root cause: shim SQL references nonexistent approval_requests.decision_reason/resolved_at columns; fix schema-access truthfully, rerun T1 sweep arms"
+    }
+  ],
+  "independence": "verified: no depends_on edges on any picked row; disjoint code surfaces (session message-part route vs permission handlers)",
+  "merge_plan": "serial --no-ff merges, gate per merge, full short suite on final tree"
+}
