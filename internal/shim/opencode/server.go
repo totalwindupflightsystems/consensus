@@ -1145,6 +1145,16 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// not part of that operation's declared response set.
 		writeNotImplemented(w, r, "session.diff",
 			"session diff is a GET operation; use GET /session/{sessionID}/diff, or GET /instance/vcs/diff for the workspace diff")
+	case sub == "todo" && r.Method == http.MethodGet:
+		// ROUTE-FIX-039 / SHIM-NARROWED-009: the upstream session.todo
+		// operation (declared responses 200 Array(Todo), 400 BadRequest |
+		// InvalidRequestError, 404 NotFoundError) had no case here, so every
+		// GET /session/{sessionID}/todo request fell to the router catch-all
+		// and answered an untyped 404 — the declared 200 was unreachable. Serve
+		// the declared contract truthfully from the runtime's per-session
+		// `tasks` ledger (see sessionTodo); undeclared methods on the sub-path
+		// keep the pre-existing router default 404.
+		s.sessionTodo(w, r, sessionID)
 	case sub == "revert" && r.Method == http.MethodPost:
 		// ROUTE-FIX-014 / SHIM-DRIFT-120: the upstream session.revert
 		// operation (declared responses 200 Session, 400, 404, 409
@@ -1473,6 +1483,171 @@ func (s *Server) sessionDiff(w http.ResponseWriter, r *http.Request, sessionID s
 	}
 
 	writeJSON(w, gitFileDiffs(ctx, s.sessionDiffWorkspaceDir(r)))
+}
+
+// sessionTodo serves GET /session/{sessionID}/todo — the upstream session.todo
+// operation (ROUTE-FIX-039 / SHIM-NARROWED-009 board row; declared responses:
+// 200 Array(Todo), 400 BadRequest | InvalidRequestError, 404 NotFoundError).
+//
+// ch:trace row=ROUTE-FIX-039 spec=specs/openapi/upstream/openapi-1.18.33.json#session.todo test=TestSessionTodoServesDeclared200 doc=docs/evidence/ROUTE-FIX-039-live-probe.md evidence=docs/evidence/ROUTE-FIX-039-live-probe.md witness=none:self-verified-in-worktree
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/session/{sessionID}/todo".get): the sessionID path parameter is
+// declared pattern ^ses; the optional query selectors are directory and
+// workspace; the declared 200 body is an ARRAY of Todo objects (required
+// content, status, priority; additionalProperties: false), described as
+// "Retrieve the todo list associated with a specific session, showing tasks
+// and action items". Before this change the sub-path had no case in
+// handleSessionByID and fell to the router catch-all, which answered an
+// untyped 404 for EVERY request — the declared 200 was unreachable and a
+// client could not tell "no such operation" from "this session has no todos".
+//
+// Translation: the runtime DOES keep per-session action items — the `tasks`
+// table (migrations 001/009: session_id, title, description, status,
+// priority 1..10, created_at) is a per-session work ledger, exactly the "tasks
+// and action items" the operation describes. Each row is translated into the
+// declared Todo shape:
+//
+//   - content  <- title (the task's brief description); description is the
+//     fallback when a row carries an empty title (the column is NOT NULL but
+//     not CHECKed non-empty);
+//   - status   <- the tasks.status vocabulary (pending, claimed, in_progress,
+//     reviewed, published, failed, cancelled — CHECK-constrained in both
+//     dialects) mapped onto the four values the declared field describes:
+//     pending -> pending; claimed/in_progress -> in_progress (a claimed task
+//     has been taken, so it is no longer pending); reviewed/published ->
+//     completed (both are terminal successes); failed/cancelled -> cancelled
+//     (neither will complete, and the declared set has no failed bucket). A
+//     value outside that CHECK vocabulary is passed through unchanged rather
+//     than folded into a bucket it did not earn;
+//   - priority <- the tasks.priority integer scale (1 = most urgent .. 10 =
+//     least) mapped onto the three levels the declared field describes:
+//     1-3 -> high, 4-7 -> medium, 8-10 -> low. A value <= 0 (unreachable under
+//     the CHECK) is reported as an empty string: the required key is present,
+//     but the mapper never asserts a priority it did not read.
+//
+// A session with no task rows answers the truthful empty ARRAY [] — never JSON
+// null (the declared schema is type array) and never a fabricated entry. This
+// is the same convention as GET /session/{id}/diff answering [] for a
+// workspace with no changes.
+//
+// Validation order and the declared error arms:
+//   - a present-but-blank declared query selector (directory, workspace) -> the
+//     declared 400 INVALID_REQUEST naming the parameter. This operation
+//     declares no requestBody, so the selectors are what keeps the declared 400
+//     arm reachable (the sessionDiff / sync.steal precedent: a
+//     present-but-blank declared query parameter is a contract violation, not
+//     an absent one). A well-formed selector is accepted and does not narrow
+//     the result — the runtime keeps one workspace per instance and the task
+//     ledger is session-scoped, so neither selector scopes these rows (the
+//     sibling sessionDiff messageID note);
+//   - unknown session -> the declared 404 NotFoundError, via the shared
+//     p1ResolveSession read (the session-row lookup every sibling session
+//     sub-path uses); it is checked AFTER the query validation so a malformed
+//     request is refused before any store read;
+//   - the task ledger cannot be read -> the declared 400 INVALID_REQUEST
+//     naming the reason, never an undeclared 5xx (the sessionDiff convention
+//     for an unreadable store; the operation declares no 5xx).
+//
+// The declared ^ses pattern on the sessionID path parameter is deliberately
+// NOT enforced: Consensus mints session ids as UUIDs
+// (internal/api/sessions.go newUUID, e.g. "1a2b3c4d-..."), so a ^ses gate would
+// refuse every session the runtime actually creates and leave the declared 200
+// unreachable — the very defect this row fixes. The sibling session sub-path
+// handlers (sessionRevert / sessionShell / sessionDeleteMessage /
+// sessionPartUpdate) likewise resolve the path sessionID by row lookup and
+// answer the declared 404 for an unknown id.
+func (s *Server) sessionTodo(w http.ResponseWriter, r *http.Request, sessionID string) {
+	// 1. A present-but-blank declared query selector is the declared 400 (this
+	// operation declares no requestBody, so this is what keeps the 400 arm
+	// reachable). Validation runs before the session lookup so a malformed
+	// request never reaches the store.
+	for _, param := range []string{"directory", "workspace"} {
+		values, present := r.URL.Query()[param]
+		if !present {
+			continue
+		}
+		value := ""
+		if len(values) > 0 {
+			value = strings.TrimSpace(values[0])
+		}
+		if value == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+
+	// 2. Unknown session -> the declared 404 NotFoundError.
+	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
+		return
+	}
+
+	// 3. The runtime's per-session action-item ledger.
+	rows, err := s.db.Query(r.Context(),
+		`SELECT title, description, status, priority
+		 FROM tasks WHERE session_id = $1
+		 ORDER BY created_at ASC, id ASC`,
+		sessionID)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"could not read the session todo list")
+		return
+	}
+
+	todos := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		content := toString(row["title"])
+		if strings.TrimSpace(content) == "" {
+			content = toString(row["description"])
+		}
+		todos = append(todos, map[string]any{
+			"content":  content,
+			"status":   todoStatusFromTask(toString(row["status"])),
+			"priority": todoPriorityFromTask(toInt64(row["priority"])),
+		})
+	}
+
+	// The declared 200 body is an array: an empty result is [], never null.
+	writeJSON(w, todos)
+}
+
+// todoStatusFromTask maps the runtime's tasks.status vocabulary (migrations
+// 001/009) onto the four values the declared Todo.status field describes. A
+// value outside that CHECK vocabulary is returned unchanged: the declared
+// field is a plain string, and folding an unknown state into a bucket it did
+// not earn would be less honest than passing it through.
+func todoStatusFromTask(status string) string {
+	switch status {
+	case "pending":
+		return "pending"
+	case "claimed", "in_progress":
+		return "in_progress"
+	case "reviewed", "published":
+		return "completed"
+	case "failed", "cancelled":
+		return "cancelled"
+	default:
+		return status
+	}
+}
+
+// todoPriorityFromTask maps the runtime's tasks.priority integer scale (1 =
+// most urgent .. 10 = least, migrations 001/009) onto the three levels the
+// declared Todo.priority field describes. A value <= 0 is unreachable under the
+// column's CHECK (1..10) and is reported as an empty string rather than
+// silently labelled high or low; the declared key is always present.
+func todoPriorityFromTask(priority int64) string {
+	switch {
+	case priority <= 0:
+		return ""
+	case priority <= 3:
+		return "high"
+	case priority <= 7:
+		return "medium"
+	default:
+		return "low"
+	}
 }
 
 // sessionDiffWorkspaceDir resolves the workspace a session-diff request reads:
