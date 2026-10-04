@@ -827,3 +827,281 @@ func TestSessionPartUpdateMethodGuards(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// ROUTE-FIX-038 — POST /session/{sessionID}/permissions/{permissionID}
+// (permission.respond; declared 200 boolean, 400, 404 NotFoundError |
+// PermissionNotFoundError)
+//
+// The permission harness seeds (on top of p1SessionRouteTestServer):
+//
+//	per-aaaa…  — pending, session s1 (the happy-path row)
+//	per-bbbb…  — pending, session s2 (a foreign session's row: from s1 the
+//	             session-scoped path must be indistinguishable from missing)
+//	per-cccc…  — already resolved, session s1 (the not-pending 404 row)
+// ============================================================================
+func p1PermissionRouteTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
+	t.Helper()
+	s, srv, conn := p1SessionRouteTestServer(t)
+	ctx := context.Background()
+	for _, stmt := range []string{
+		// The command-store harness creates no approval_requests table; add
+		// the production-shaped columns the handler reads/writes
+		// (migrations/008_hitl_tables.sql subset).
+		`CREATE TABLE approval_requests (
+			id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			iteration INTEGER NOT NULL DEFAULT 0,
+			request_type TEXT NOT NULL,
+			description TEXT NOT NULL,
+			risk_level TEXT NOT NULL DEFAULT 'medium',
+			context TEXT NOT NULL DEFAULT '{}',
+			target_tool TEXT,
+			target_sql TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			reviewer_id TEXT,
+			review_notes TEXT,
+			modified_sql TEXT,
+			created_at TEXT NOT NULL DEFAULT '2026-10-03T00:00:00Z',
+			reviewed_at TEXT,
+			expires_at TEXT
+		)`,
+		`INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status)
+		 VALUES ('per-aaaaaaaa-1111-1111-1111-111111111111', 's1', 0, 'tool_execution', 'probe approval', 'low', 'pending')`,
+		`INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status)
+		 VALUES ('per-bbbbbbbb-2222-2222-2222-222222222222', 's2', 0, 'tool_execution', 'foreign approval', 'low', 'pending')`,
+		`INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status, review_notes, reviewed_at, reviewer_id)
+		 VALUES ('per-cccccccc-3333-3333-3333-333333333333', 's1', 0, 'tool_execution', 'resolved approval', 'low', 'approved', 'earlier', '2026-10-01T00:00:00Z', 'opencode-shim')`,
+	} {
+		if err := conn.Exec(ctx, stmt); err != nil {
+			t.Fatalf("prepare permission test database: %v", err)
+		}
+	}
+	return s, srv, conn
+}
+
+// TestSessionPermissionRespondTruthfulArms covers the whole declared vocabulary
+// of permission.respond. The 200 boolean must be the TRUE side: the handler
+// maps the declared enum onto the real approval_requests columns exactly as the
+// consent-store sidecar's resolvePermission does (ROUTE-FIX-045, commit
+// 07f2f3c — no decision_reason column exists), so a request that passes every
+// guard genuinely resolved the row and reporting false would lie in the other
+// direction.
+func TestSessionPermissionRespondTruthfulArms(t *testing.T) {
+	_, srv, conn := p1PermissionRouteTestServer(t)
+	ctx := context.Background()
+
+	const happy = "per-aaaaaaaa-1111-1111-1111-111111111111"
+	const foreign = "per-bbbbbbbb-2222-2222-2222-222222222222"
+	const resolved = "per-cccccccc-3333-3333-3333-333333333333"
+
+	// Unknown session -> declared 404 NotFoundError.
+	status, body := p1Post(t, srv.URL, "/session/smissing/permissions/"+happy, `{"response":"once"}`)
+	if status != http.StatusNotFound {
+		t.Fatalf("POST /session/smissing/permissions/%s: got %d, want 404. Body: %v", happy, status, body)
+	}
+
+	// Malformed body -> declared 400.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+happy, `{"response":`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /session/s1/permissions/%s (malformed): got %d, want 400. Body: %v", happy, status, body)
+	}
+	assertP1Error(t, "permission.respond malformed", "", status, body, "INVALID_REQUEST")
+
+	// Missing response (the declared schema requires it) -> declared 400.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+happy, `{}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /session/s1/permissions/%s (missing response): got %d, want 400. Body: %v", happy, status, body)
+	}
+
+	// A value outside the declared enum -> declared 400.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+happy, `{"response":"sometimes"}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /session/s1/permissions/%s (bad enum): got %d, want 400. Body: %v", happy, status, body)
+	}
+
+	// Ill-shaped permissionID (the declared pattern is ^per) -> declared 400.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/not-a-per", `{"response":"once"}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /session/s1/permissions/not-a-per: got %d, want 400 (declared pattern ^per). Body: %v", status, body)
+	}
+
+	// A permission the session does not hold -> declared 404 (the
+	// session-scoped path must not resolve another session's row).
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+foreign, `{"response":"once"}`)
+	if status != http.StatusNotFound {
+		t.Fatalf("POST /session/s1/permissions/%s (foreign): got %d, want 404. Body: %v", foreign, status, body)
+	}
+
+	// An already-resolved permission -> declared 404 (no undeclared 409).
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+resolved, `{"response":"once"}`)
+	if status != http.StatusNotFound {
+		t.Fatalf("POST /session/s1/permissions/%s (not pending): got %d, want 404. Body: %v", resolved, status, body)
+	}
+
+	// A well-formed request against a pending row in the session -> the
+	// declared 200 boolean, truthful true: the row WAS resolved.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+happy, `{"response":"reject"}`)
+	if status != http.StatusOK {
+		t.Fatalf("POST /session/s1/permissions/%s (happy): got %d, want 200. Body: %v", happy, status, body)
+	}
+	if raw, _ := body["_raw"].(string); raw != "true" {
+		t.Errorf("permission.respond happy: body = %v, want the declared plain boolean true (the row was resolved)", body)
+	}
+
+	// The sidecar mapping landed on the REAL columns: status/review_notes/
+	// reviewed_at/reviewer_id (no decision_reason column exists — the
+	// resolvePermission convention, commit 07f2f3c).
+	row, err := conn.QueryRow(ctx, `SELECT status, review_notes, reviewed_at, reviewer_id FROM approval_requests WHERE id = $1`, happy)
+	if err != nil || row == nil {
+		t.Fatalf("read back resolved approval row: err=%v row=%v", err, row)
+	}
+	if got := row["status"]; got != "rejected" {
+		t.Errorf("resolved row status = %v, want rejected (response \"reject\" maps to the real status column)", got)
+	}
+	if row["reviewer_id"] != "opencode-shim" || row["reviewed_at"] == nil {
+		t.Errorf("resolved row reviewer_id/reviewed_at = %v/%v, want opencode-shim/non-nil (real approval_requests columns)", row["reviewer_id"], row["reviewed_at"])
+	}
+
+	// And the row is no longer pending: a second respond answers 404.
+	status, body = p1Post(t, srv.URL, "/session/s1/permissions/"+happy, `{"response":"once"}`)
+	if status != http.StatusNotFound {
+		t.Errorf("POST /session/s1/permissions/%s (second): got %d, want 404 (row already resolved). Body: %v", happy, status, body)
+	}
+}
+
+// TestSessionPermissionRespondMethodGuard pins the sub-path neighbours:
+// non-POST on /session/{id}/permissions/{permissionID} keeps the pre-existing
+// router default 404 (405 is not in the declared response set).
+func TestSessionPermissionRespondMethodGuard(t *testing.T) {
+	_, srv, _ := p1PermissionRouteTestServer(t)
+
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/permissions/per-aaaaaaaa-1111-1111-1111-111111111111")
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /session/s1/permissions/<id>: got %d, want 404 (undeclared method, router default). Body: %s", status, raw)
+	}
+}
+
+// ============================================================================
+// ROUTE-FIX-039 — GET /session/{sessionID}/todo (session.todo; declared
+// 200 Todo[], 400, 404 NotFoundError)
+// ============================================================================
+
+// TestSessionTodoTruthfulArms covers the declared contract of session.todo.
+// The runtime keeps no per-session todo store, so a known session answers the
+// declared 200 with the truthful EMPTY LIST (mirroring the
+// declared-boolean-truthful precedent of sessionUnshare/sessionSummarize,
+// commit d8f1d59 — the contract declares an array, so [] is the one honest
+// value) and an unknown session the declared 404.
+func TestSessionTodoTruthfulArms(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	// Unknown session -> declared 404 NotFoundError.
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodGet, "/session/smissing/todo")
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /session/smissing/todo: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("GET /session/smissing/todo body not JSON: %v (%s)", err, raw)
+	}
+	assertP1Error(t, "GET /session/smissing/todo", "", status, env, "NOT_FOUND")
+
+	// Known session (idle and mid-turn alike) -> declared 200 with the empty
+	// list — an array, never null.
+	for _, sid := range []string{"s1", "s2"} {
+		status, _, raw = doShimRequest(t, srv.URL, http.MethodGet, "/session/"+sid+"/todo")
+		if status != http.StatusOK {
+			t.Fatalf("GET /session/%s/todo: got %d, want 200 (declared Todo[]). Body: %s", sid, status, raw)
+		}
+		var todos []any
+		if err := json.Unmarshal(raw, &todos); err != nil {
+			t.Fatalf("GET /session/%s/todo: body is not the declared JSON array: %v (%s)", sid, err, raw)
+		}
+		if len(todos) != 0 {
+			t.Errorf("GET /session/%s/todo: body = %v, want [] — the runtime keeps no todo store, the list must be empty", sid, todos)
+		}
+	}
+}
+
+// TestSessionTodoMethodGuard pins the sub-path neighbours: non-GET on
+// /session/{id}/todo keeps the pre-existing router default 404 (405 is not in
+// the declared response set).
+func TestSessionTodoMethodGuard(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodPost, "/session/s1/todo")
+	if status != http.StatusNotFound {
+		t.Fatalf("POST /session/s1/todo: got %d, want 404 (undeclared method, router default). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err == nil {
+		if got := p1ErrorMessage(env); got != "endpoint not found" {
+			t.Errorf("POST /session/s1/todo: message = %q, want the router default's %q", got, "endpoint not found")
+		}
+	}
+}
+
+// ============================================================================
+// ROUTE-FIX-040 — POST /session/{sessionID}/unrevert (session.unrevert;
+// declared 200 Session, 400, 404 NotFoundError, 409 SessionBusyError)
+// ============================================================================
+
+// TestSessionUnrevertTruthfulArms covers the declared contract of
+// session.unrevert with the sessionRevert handler shape (ROUTE-FIX-014): the
+// operation declares no requestBody, so no body is read or required; unknown
+// session 404; a session mid-turn 409 SessionBusyError (typed _tag body); an
+// idle session 200 with the Session AS IT IS — no revert engine exists, nothing
+// was ever reverted, so nothing is restored and the body must not claim a
+// restored state.
+func TestSessionUnrevertTruthfulArms(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	// Unknown session -> declared 404 NotFoundError.
+	status, body := p1Post(t, srv.URL, "/session/smissing/unrevert", "")
+	if status != http.StatusNotFound {
+		t.Fatalf("POST /session/smissing/unrevert: got %d, want 404 (declared NotFoundError). Body: %v", status, body)
+	}
+
+	// Mid-turn session -> declared 409 SessionBusyError with the typed body.
+	status, body = p1Post(t, srv.URL, "/session/s2/unrevert", "")
+	if status != http.StatusConflict {
+		t.Fatalf("POST /session/s2/unrevert (busy): got %d, want 409 (declared SessionBusyError). Body: %v", status, body)
+	}
+	if got, _ := body["_tag"].(string); got != "SessionBusyError" {
+		t.Errorf("POST /session/s2/unrevert (busy): _tag = %v, want SessionBusyError (declared 409 body)", got)
+	}
+	if got, _ := body["sessionID"].(string); got != "s2" {
+		t.Errorf("POST /session/s2/unrevert (busy): sessionID = %v, want s2", got)
+	}
+
+	// Idle session -> declared 200 with the session as it stands.
+	status, body = p1Post(t, srv.URL, "/session/s1/unrevert", "")
+	if status != http.StatusOK {
+		t.Fatalf("POST /session/s1/unrevert (happy): got %d, want 200. Body: %v", status, body)
+	}
+	if got, _ := body["id"].(string); got != "s1" {
+		t.Errorf("POST /session/s1/unrevert (happy): body id = %v, want s1 (the declared 200 body is a Session)", got)
+	}
+	if st, _ := body["status"].(string); st != "idle" {
+		t.Errorf("POST /session/s1/unrevert (happy): body status = %v, want idle (the row as it stands — no restored state is claimed)", st)
+	}
+}
+
+// TestSessionUnrevertMethodGuard pins the sub-path neighbours: non-POST on
+// /session/{id}/unrevert keeps the pre-existing router default 404 (405 is not
+// in the declared response set).
+func TestSessionUnrevertMethodGuard(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodGet, "/session/s1/unrevert")
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /session/s1/unrevert: got %d, want 404 (undeclared method, router default). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err == nil {
+		if got := p1ErrorMessage(env); got != "endpoint not found" {
+			t.Errorf("GET /session/s1/unrevert: message = %q, want the router default's %q", got, "endpoint not found")
+		}
+	}
+}

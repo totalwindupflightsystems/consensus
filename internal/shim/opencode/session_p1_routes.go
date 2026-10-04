@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // ============================================================================
@@ -415,6 +416,212 @@ func (s *Server) sessionDeleteMessage(w http.ResponseWriter, r *http.Request, se
 	// was deleted. The declared boolean reports the truthful false — never a
 	// fabricated true.
 	writeJSON(w, false)
+}
+
+// ============================================================================
+// ROUTE-FIX-039 — GET /session/{sessionID}/todo (session.todo)
+// ============================================================================
+
+// sessionTodo serves GET /session/{sessionID}/todo — upstream session.todo
+// (ROUTE-FIX-039, board row source item SHIM-NARROWED-009 in the 2026-09-29
+// baseline report; declared responses: 200 Todo[], 400 BadRequest |
+// InvalidRequestError, 404 NotFoundError).
+//
+// Truthfulness: the Consensus runtime keeps no per-session todo store — no
+// migration creates a todo table and the shim synthesizes no todo state from
+// memory_events — so the declared 200 Todo[] is answered with the truthful
+// empty list for every known session. The empty array (never null) mirrors the
+// declared-boolean-truthful precedent of sessionUnshare/sessionSummarize
+// (commit d8f1d59): the contract declares an array, so `[]` is the one value
+// the runtime can honestly report ("this session has no todos"). Validation
+// order mirrors the sibling P1 handlers: unknown session -> declared 404. The
+// declared `directory`/`workspace` query parameters are accepted and ignored
+// (the shim treats the server as a singleton instance rooted at the workspace
+// directory — the same convention as the /instance/* routes). Non-GET on the
+// sub-path falls through to the router default (405 is not in the declared
+// set).
+//
+// ch:trace row=ROUTE-FIX-039 spec=specs/openapi/upstream/openapi-1.18.33.json#session.todo wave=consensus-foreman-2026-10-03-07-49-18.json#task-1 witness=none:unattended-worker-session
+func (s *Server) sessionTodo(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
+		return
+	}
+	// No per-session todo store exists: every known session truthfully has
+	// an empty todo list — never null, the contract declares an array.
+	writeJSON(w, []any{})
+}
+
+// ============================================================================
+// ROUTE-FIX-040 — POST /session/{sessionID}/unrevert (session.unrevert)
+// ============================================================================
+
+// sessionUnrevert serves POST /session/{sessionID}/unrevert — upstream
+// session.unrevert (ROUTE-FIX-040, board row source item SHIM-NARROWED-010 in
+// the 2026-09-29 baseline report; declared responses: 200 Session "Updated
+// session", 400 BadRequest | InvalidRequestError, 404 NotFoundError, 409
+// SessionBusyError).
+//
+// Upstream contract: the operation declares NO requestBody (parameters are
+// sessionID plus the optional directory/workspace query parameters), so a body
+// is neither read nor required. The declared 200 body is the (updated) Session
+// object. Handler shape mirrors sessionRevert (ROUTE-FIX-014, commit d8f1d59):
+// unknown session -> declared 404; a session mid-turn (sessionIsActive — the
+// runtime's real in-flight state) -> the declared 409 SessionBusyError
+// (restoring messages while a turn is in flight is exactly the race upstream's
+// SessionBusyError describes); otherwise the declared 200 with the session AS
+// IT IS.
+//
+// Truthfulness: sessionRevert is already a truthful no-op in this runtime (no
+// revert engine exists — nothing is ever moved out of the message list, so
+// there is nothing to restore), and unrevert inherits that: no turn is
+// dispatched and no state is rewritten, so the declared 200 is answered with
+// translateSessionRow over the row unchanged, never a claimed restored state.
+func (s *Server) sessionUnrevert(w http.ResponseWriter, r *http.Request, sessionID string) {
+	status, ok := s.p1ResolveSession(w, r, sessionID)
+	if !ok {
+		return
+	}
+
+	// The declared 409 analog: restoring messages into a session mid-turn
+	// would interleave with the in-flight prompt (the sessionRevert
+	// precedent — same declared SessionBusyError vocabulary).
+	if sessionIsActive(status) {
+		s.sessionBusyError(w, r, sessionID)
+		return
+	}
+
+	// No revert engine exists: nothing was ever reverted, so nothing is
+	// restored. The declared 200 body is the Session — answered as the row
+	// stands, never claiming a restored state.
+	row, err := s.db.QueryRow(r.Context(),
+		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget,
+		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
+		 FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	writeJSON(w, s.translateSessionRow(row))
+}
+
+// ============================================================================
+// ROUTE-FIX-038 — POST /session/{sessionID}/permissions/{permissionID}
+// (permission.respond)
+// ============================================================================
+
+// sessionPermissionRespond serves POST
+// /session/{sessionID}/permissions/{permissionID} — upstream permission.respond
+// (ROUTE-FIX-038, board row source item SHIM-NARROWED-008 in the 2026-09-29
+// baseline report; declared responses: 200 boolean "Permission processed
+// successfully", 400 BadRequest | InvalidRequestError, 404 NotFoundError |
+// PermissionNotFoundError; the operation is marked deprecated upstream but the
+// shim serves it as declared).
+//
+// Upstream contract: permissionID is a path parameter with declared pattern
+// ^per; the requestBody is {response*: "once" | "always" | "reject"} with
+// additionalProperties: false — response is REQUIRED; the declared 200 body is
+// a plain boolean. The operation is the session-scoped twin of the consent
+// sidecar's POST /permission/{id}/resolve (ROUTE-FIX-045, commit 07f2f3c), so
+// the field mapping mirrors that handler onto the REAL approval_requests
+// columns: response "reject" -> status 'rejected'; "once"/"always" -> status
+// 'approved' (both grant the pending action — the scope recorded in
+// review_notes, 'granted once' vs 'granted (always)'); review_notes carries the
+// resolution note, reviewed_at the timestamp and reviewer_id 'opencode-shim' —
+// there is no decision_reason column (migrations/008_hitl_tables.sql, the same
+// mapping getPermission/resolvePermission already use).
+//
+// Validation order mirrors the sibling P1 handlers: malformed body -> 400,
+// missing/invalid response value -> 400, unknown session -> 404, unknown or
+// already-resolved permission -> 404 (the resolvePermission convention: the
+// contract declares only 200/400/404 here, so a non-pending row answers the
+// declared 404, never an undeclared 409). A resolved permission emits the same
+// SSE approval_resolved event the sidecar resolve handler emits
+// (HARDEN-SHIM-01). The declared 200 boolean reports true ONLY when the row was
+// actually resolved (the truthful-delete precedent: never a fabricated
+// success), which is every request that passes the guards above.
+func (s *Server) sessionPermissionRespond(w http.ResponseWriter, r *http.Request, sessionID, permissionID string) {
+	var req struct {
+		Response string `json:"response"`
+	}
+	if !p1DecodeBody(w, r, &req) {
+		return
+	}
+	switch req.Response {
+	case "once", "always", "reject":
+		// declared enum values
+	default:
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required field "response" must be one of "once", "always", "reject"`)
+		return
+	}
+	if !strings.HasPrefix(permissionID, "per") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"permissionID must match the declared pattern ^per")
+		return
+	}
+
+	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
+		return
+	}
+
+	ctx := r.Context()
+	// Existence + pending guard up front (the resolvePermission convention —
+	// the db wrapper exposes no RowsAffected).
+	row, err := s.db.QueryRow(ctx,
+		`SELECT session_id, status FROM approval_requests WHERE id = $1`, permissionID)
+	if err != nil || row == nil {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "permission not found")
+		return
+	}
+	if rowSession := toString(row["session_id"]); rowSession != "" && rowSession != sessionID {
+		// The permission exists but belongs to another session: from this
+		// session-scoped path it is indistinguishable from a missing one.
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"permission not found in session")
+		return
+	}
+	if toString(row["status"]) != "pending" {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"permission is not pending")
+		return
+	}
+
+	// Map the declared enum onto the REAL approval_requests columns (the
+	// resolvePermission / ROUTE-FIX-045 mapping — no decision_reason column
+	// exists): reject -> 'rejected', once/always -> 'approved' with the
+	// grant scope in review_notes.
+	decision := "approved"
+	note := "granted (always)"
+	switch req.Response {
+	case "reject":
+		decision = "rejected"
+		note = "denied by permission.respond"
+	case "once":
+		note = "granted once"
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := s.db.Exec(ctx,
+		`UPDATE approval_requests
+		 SET status = $1, review_notes = $2, reviewed_at = $3, reviewer_id = 'opencode-shim'
+		 WHERE id = $4 AND status = 'pending'`,
+		decision, note, now, permissionID,
+	); err != nil {
+		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR",
+			"failed to resolve permission: "+err.Error())
+		return
+	}
+
+	// Emit the same SSE event the sidecar resolve handler emits
+	// (HARDEN-SHIM-01: permission.resolved for SSE subscribers).
+	s.emitShimEventForSession(sessionID, "approval_resolved", map[string]any{
+		"approval_id": permissionID,
+		"status":      decision,
+	})
+
+	// The permission WAS resolved: the declared boolean reports the truthful
+	// true — never a no-op success.
+	writeJSON(w, true)
 }
 
 // ============================================================================
