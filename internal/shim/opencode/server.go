@@ -1107,6 +1107,21 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// GET /session/:id/message/:messageID
 		msgID := strings.TrimPrefix(sub, "message/")
 		s.getMessageByID(w, r, sessionID, msgID)
+	case strings.HasPrefix(sub, "message/") && strings.Contains(sub, "/part/") && r.Method == http.MethodDelete:
+		// ROUTE-FIX-036 / SHIM-NARROWED-007: the upstream part.delete
+		// operation (declared responses 200, 400 BadRequest |
+		// InvalidRequestError, 404 NotFoundError) had no case here, so every
+		// DELETE /session/{sessionID}/message/{messageID}/part/{partID}
+		// request fell to the router's default arm and answered an untyped
+		// 404 — the declared error vocabulary was unreachable from outside
+		// the code. Serve the declared contract truthfully (see
+		// sessionPartDelete); the undeclared methods on the sub-path keep
+		// the pre-existing answers, and the sibling PATCH keeps its own case
+		// below.
+		//
+		// ch:trace row=ROUTE-FIX-036 spec=specs/openapi/upstream/openapi-1.18.33.json#part.delete wave=consensus-foreman-2026-10-04-06-15-38.json#task-1 test=TestSessionPartDeleteTruthfulArms doc=docs/evidence/ROUTE-FIX-036-live-probe.md evidence=docs/evidence/ROUTE-FIX-036-live-probe.md witness=none:self-verified-in-worktree
+		msgID, partID := parseMessagePartSub(sub)
+		s.sessionPartDelete(w, r, sessionID, msgID, partID)
 	case strings.HasPrefix(sub, "message/") && r.Method == http.MethodDelete:
 		// ROUTE-FIX-035 / SHIM-NARROWED-005: the upstream
 		// session.deleteMessage operation (declared responses 200 boolean,

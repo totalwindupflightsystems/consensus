@@ -751,3 +751,87 @@ func (s *Server) sessionPartUpdate(w http.ResponseWriter, r *http.Request, sessi
 	writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
 		"part not found in message")
 }
+
+// sessionPartDelete serves DELETE
+// /session/{sessionID}/message/{messageID}/part/{partID} — upstream part.delete
+// (ROUTE-FIX-036; declared responses: 200, 400 BadRequest |
+// InvalidRequestError, 404 NotFoundError).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/session/{sessionID}/message/{messageID}/part/{partID}".delete):
+// sessionID, messageID and partID are path parameters with declared patterns
+// ^ses, ^msg and ^prt, exactly as for the sibling part.update operation
+// (ROUTE-FIX-037). Unlike part.update the operation declares NO requestBody.
+//
+// Truthfulness — the same reasoning as sessionPartUpdate applies verbatim and
+// is not restated in full here: the Consensus runtime keeps no message-part
+// editing engine and no part store (parts are SYNTHESIZED on read from
+// memory_events.content and carry no id — memory_events is APPEND-ONLY by
+// construction, SPEC-002 §2.1, enforced by the triggers in migrations 017
+// (SQLite) and 018 (Postgres)), so there is no part identified by partID to
+// delete, no tombstone can be recorded, and no truthful 200 exists to serve.
+// Per the sessionUnshare precedent (ROUTE-FIX-015) the missing resource is
+// reported inside the DECLARED vocabulary: a well-formed partID always gets
+// the declared 404 NotFoundError "part not found in message" — never an
+// undeclared 501 and never a fabricated 200.
+//
+// Validation order mirrors sessionPartUpdate (the sibling on this sub-path)
+// and the task's ordering:
+//
+//  1. unknown session -> declared 404 (p1ResolveSession);
+//  2. absent/blank messageID -> declared 400, ill-shaped messageID (declared
+//     pattern ^msg) -> declared 400;
+//  3. a well-formed messageID the session does not hold -> declared 404;
+//  4. absent/blank partID -> declared 400, ill-shaped partID (declared
+//     pattern ^prt) -> declared 400;
+//  5. no part store exists, so every well-formed prt id is an unknown part ->
+//     the declared 404 NotFoundError.
+//
+// The declared response set for part.delete is 200, 400, 404 — it declares NO
+// 409 SessionBusyError, so this handler has no mid-turn arm and never calls
+// sessionIsActive.
+func (s *Server) sessionPartDelete(w http.ResponseWriter, r *http.Request, sessionID, messageID, partID string) {
+	// 1. Unknown session -> the declared 404 NotFoundError.
+	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
+		return
+	}
+
+	// 2. messageID is a required path parameter and the declared pattern is
+	// ^msg (the sessionPartUpdate validation precedent).
+	if strings.TrimSpace(messageID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required path parameter "messageID" is missing`)
+		return
+	}
+	if !strings.HasPrefix(messageID, "msg") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"messageID must match the declared pattern ^msg")
+		return
+	}
+
+	// 3. A well-formed messageID the session does not hold -> the declared 404.
+	if !s.sessionHasMessage(r.Context(), sessionID, messageID) {
+		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+			"message not found in session")
+		return
+	}
+
+	// 4. partID is a required path parameter and the declared pattern is ^prt.
+	if strings.TrimSpace(partID) == "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			`required path parameter "partID" is missing`)
+		return
+	}
+	if !strings.HasPrefix(partID, "prt") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"partID must match the declared pattern ^prt")
+		return
+	}
+
+	// 5. No part store exists (see the truthfulness note above): parts are
+	// synthesized from memory_events.content and carry no id, so no part with
+	// this id exists to delete. The declared 404 NotFoundError is the truthful
+	// answer for every well-formed partID — never a fabricated 200.
+	writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND",
+		"part not found in message")
+}

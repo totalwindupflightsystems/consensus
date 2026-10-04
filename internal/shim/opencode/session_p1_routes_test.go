@@ -1051,3 +1051,129 @@ func TestSessionUnrevertMethodGuard(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// ROUTE-FIX-036 — DELETE
+// /session/{sessionID}/message/{messageID}/part/{partID} (part.delete;
+// declared responses 200, 400 BadRequest | InvalidRequestError, 404
+// NotFoundError).
+//
+// ch:trace row=ROUTE-FIX-036 spec=specs/openapi/upstream/openapi-1.18.33.json#part.delete wave=consensus-foreman-2026-10-04-06-15-38.json#task-1 test=TestSessionPartDeleteTruthfulArms doc=docs/evidence/ROUTE-FIX-036-live-probe.md evidence=docs/evidence/ROUTE-FIX-036-live-probe.md witness=none:self-verified-in-worktree
+// ============================================================================
+
+// TestSessionPartDeleteTruthfulArms covers the declared error vocabulary of
+// part.delete. The route had no case in handleSessionByID, so before this
+// change every DELETE on the part sub-path fell to the router's default arm
+// and answered its generic untyped-purpose 404 — the declared 400 arm was
+// unreachable and the 404 carried none of the operation's own resolution.
+// The Consensus runtime keeps no part store (parts are synthesized from
+// memory_events.content and carry no id; memory_events is append-only,
+// SPEC-002 §2.1), so the declared 200 can never be produced truthfully and
+// the declared 404 NotFoundError is the answer for every well-formed partID
+// (the sessionUnshare precedent). Validation order mirrors
+// sessionPartUpdate: unknown session 404; blank/ill-shaped messageID 400
+// (declared pattern ^msg); unknown message 404; blank/ill-shaped partID 400
+// (declared pattern ^prt). part.delete declares NO 409 and NO requestBody.
+func TestSessionPartDeleteTruthfulArms(t *testing.T) {
+	_, srv, _ := p1SessionRouteTestServer(t)
+
+	// Unknown session -> declared 404 NotFoundError, from the operation's own
+	// session resolution (pre-fix this was the router catch-all's
+	// "endpoint not found").
+	status, _, raw := doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/smissing/message/msg-42/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/smissing/message/msg-42/part/prt-1: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("unknown-session body not JSON: %v (%s)", err, raw)
+	}
+	assertP1Error(t, "DELETE part.delete (unknown session)", "", status, env, "NOT_FOUND")
+	if got := p1ErrorMessage(env); got != "session not found" {
+		t.Errorf("DELETE part.delete (unknown session): message = %q, want the session resolution's own message (got the router catch-all?)", got)
+	}
+
+	// Absent messageID (the path segment is empty) -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message//part/prt-1")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message//part/prt-1: got %d, want 400 (messageID is required). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (missing messageID)", "", status, env, "INVALID_REQUEST")
+	}
+
+	// Ill-shaped messageID (declared pattern ^msg) -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message/not-a-msg/part/prt-1")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message/not-a-msg/part/prt-1: got %d, want 400 (declared pattern ^msg). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (bad messageID pattern)", "", status, env, "INVALID_REQUEST")
+	}
+
+	// Well-formed messageID the session does not hold -> declared 404.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message/msg-999/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/s1/message/msg-999/part/prt-1: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (unknown message)", "", status, env, "NOT_FOUND")
+		if got := p1ErrorMessage(env); got != "message not found in session" {
+			t.Errorf("DELETE part.delete (unknown message): message = %q, want %q", got, "message not found in session")
+		}
+	}
+
+	// Absent partID (the path ends at "part/") -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message/msg-42/part/")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message/msg-42/part/: got %d, want 400 (partID is required). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (missing partID)", "", status, env, "INVALID_REQUEST")
+	}
+
+	// Ill-shaped partID (declared pattern ^prt) -> declared 400.
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message/msg-42/part/not-a-prt")
+	if status != http.StatusBadRequest {
+		t.Fatalf("DELETE /session/s1/message/msg-42/part/not-a-prt: got %d, want 400 (declared pattern ^prt). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (bad partID pattern)", "", status, env, "INVALID_REQUEST")
+	}
+
+	// Known message, well-formed partID -> the declared 404 NotFoundError:
+	// the runtime keeps no part store, so no part with this id exists to
+	// delete (a 200 would assert a deletion that never happened).
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s1/message/msg-42/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/s1/message/msg-42/part/prt-1: got %d, want 404 (declared NotFoundError — no part store exists). Body: %s", status, raw)
+	}
+	env = map[string]any{}
+	if err := json.Unmarshal(raw, &env); err == nil {
+		assertP1Error(t, "DELETE part.delete (unknown part)", "", status, env, "NOT_FOUND")
+		if got := p1ErrorMessage(env); got != "part not found in message" {
+			t.Errorf("DELETE part.delete (unknown part): message = %q, want %q", got, "part not found in message")
+		}
+	}
+
+	// part.delete declares 200/400/404 — NO 409. A mid-turn session must NOT
+	// be answered with SessionBusyError; the message resolution is what
+	// answers (msg-42 belongs to s1, so the s2 probe is the declared 404).
+	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
+		"/session/s2/message/msg-42/part/prt-1")
+	if status != http.StatusNotFound {
+		t.Fatalf("DELETE /session/s2/message/msg-42/part/prt-1 (mid-turn): got %d, want 404 — part.delete declares no 409 arm. Body: %s", status, raw)
+	}
+}
