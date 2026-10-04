@@ -332,7 +332,7 @@ image:
 # ====================================
 # Consensus + PostgreSQL 16 + pgvector, no dev tools.
 #
-# Start:   docker compose -f docker-compose.prod.yml up -d
+# Start:   docker compose -f docker-compose.prod.yml up -d --wait
 # Stop:    docker compose -f docker-compose.prod.yml down
 # Logs:    docker compose -f docker-compose.prod.yml logs -f
 #
