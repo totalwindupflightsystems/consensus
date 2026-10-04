@@ -1,0 +1,8 @@
+{
+  "tick": "consensus-foreman-2026-10-04-22-14-58",
+  "budget": 8,
+  "workers": [
+    {"task": "QA-CONSENSUS-8", "worktree": "/home/kara/worktrees/consensus-QA-CONSENSUS-8", "branch": "wt/QA-CONSENSUS-8"},
+    {"task": "QA-CONSENSUS-9", "worktree": "/home/kara/worktrees/consensus-QA-CONSENSUS-9", "branch": "wt/QA-CONSENSUS-9"}
+  ]
+}
