@@ -2075,6 +2075,14 @@ func projectTimeSeconds(v any) int64 {
 func isStubPath(path, method string) bool {
 	for _, p := range []string{"/project", "/vcs"} {
 		if (path == p || strings.HasPrefix(path, p+"/")) && method != http.MethodGet {
+			// ROUTE-FIX-006: POST /project/git/init serves real data and
+			// performs a real workspace mutation, so it keeps api-key auth
+			// like every other implemented route — the stub exemption was
+			// justified by "NOT_IMPLEMENTED with zero data, nothing to
+			// protect", which no longer holds for this sub-path.
+			if path == "/project/git/init" {
+				return false
+			}
 			return true
 		}
 	}
@@ -2116,11 +2124,10 @@ var vcsDeclaredOps = map[string]string{
 // they were parsed as one and answered with the upstream ProjectNotFoundError,
 // telling the client a *project named "current"* did not exist instead of
 // saying the operation is not implemented. GET /project/current left the table
-// in ROUTE-FIX-005 (projectCurrent serves the declared contract); the table
+// in ROUTE-FIX-005 (projectCurrent serves the declared contract) and
+// POST /project/git/init left it in ROUTE-FIX-006 (projectInitGit); the table
 // now covers only the operations the shim does not translate.
-var projectDeclaredSubpaths = map[string]string{
-	"git/init": "project.initGit",
-}
+var projectDeclaredSubpaths = map[string]string{}
 
 // handleProjectByID serves /project/{projectID} sub-paths. Consensus has no
 // project registry, so every project id is unknown and the upstream opencode
@@ -2152,6 +2159,15 @@ func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeNotImplemented(w, r, "project.current",
 			"project.current is declared as a GET operation; the shim translates GET only")
+		return
+	}
+	if projectID == "git/init" {
+		if r.Method == http.MethodPost {
+			s.projectInitGit(w, r)
+			return
+		}
+		writeNotImplemented(w, r, "project.initGit",
+			"project.initGit is declared as a POST operation; the shim translates POST only")
 		return
 	}
 	if op, ok := projectDeclaredSubpaths[projectID]; ok {
@@ -2187,6 +2203,125 @@ func writeOpencodeNotFoundError(w http.ResponseWriter, tag, idField, id, message
 	if err := json.NewEncoder(w).Encode(body); err != nil {
 		slog.Warn("opencode-shim: failed to encode typed not-found body", "tag", tag)
 	}
+}
+
+// ch:trace row=ROUTE-FIX-006 spec=specs/openapi/upstream/openapi-1.18.33.json#project.initGit test=TestProjectInitGitServesDeclared200 doc=docs/evidence/ROUTE-FIX-006-live-probe.md evidence=docs/evidence/ROUTE-FIX-006-live-probe.md witness=none:unattended-worker-session
+//
+// projectInitGit serves POST /project/git/init — the upstream project.initGit
+// operation (ROUTE-FIX-006 board row, source item SHIM-DRIFT-100; declared
+// responses: 200 Project, 400 BadRequest).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/project/git/init".post): the optional query selectors are directory
+// and workspace; the declared 200 body is the refreshed Project object
+// ("Create a git repository for the current project and return the refreshed
+// project info"), and the declared error is 400 BadRequestError. Before this
+// change the sub-path sat in projectDeclaredSubpaths and answered the typed
+// not-implemented envelope for EVERY request — the declared 200 was
+// unreachable (SHIM-DRIFT-100, "declared 200,400, served 501").
+//
+// Translation: unlike session.init (which translates to a native turn), this
+// operation's effect is a workspace filesystem effect the shim CAN perform for
+// real — upstream runs `git init` in the project's worktree. The shim does the
+// Consensus-native equivalent on the single real workspace the instance
+// serves (the singleton convention every /instance/* and project.current
+// translation already uses, resolved by x-opencode-directory): when the
+// workspace is not yet a git repository, `git init` runs in it via runGit
+// (the gitEnv-stripped, ctx-bounded git helper all workspace git reads use);
+// when it already is one, git init is idempotent upstream ("reinitialize" is
+// not an error), so the handler skips the subprocess and reports the same
+// success — the observable project state is identical. The declared Project
+// body is then derived exactly the way projectCurrent derives it (same fields,
+// same sources, nothing invented), which IS the "refreshed project info" the
+// operation describes.
+//
+// Validation order and the declared error arms (the sibling projectCurrent
+// convention; the operation declares no requestBody, so the query selectors
+// are the client-input surface that keeps 400 reachable):
+//   - a present-but-blank declared query selector (directory, workspace) → the
+//     declared 400 naming the parameter, answered with the declared
+//     BadRequestError envelope (writeOpencodeBadRequest, kind "Query" — the
+//     instanceDispose blank-query convention). Validation runs before any git
+//     call so a malformed request never touches the workspace;
+//   - `git init` fails (git absent, workspace not writable) → the declared
+//     400 INVALID_REQUEST naming the reason, never an undeclared 5xx and
+//     never a fabricated success.
+func (s *Server) projectInitGit(w http.ResponseWriter, r *http.Request) {
+	// 1. A present-but-blank declared query selector is the declared 400.
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+
+	// 2. The single workspace this instance serves.
+	dir := s.requestWorkspaceDir(r)
+	ctx := r.Context()
+
+	// 3. The real effect: initialize git in the workspace when it is not one
+	// already. runGit resolves the repo from dir alone (GIT_* env stripped),
+	// so the init cannot leak into an ambient repository.
+	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err != nil || inside != "true" {
+		if out, err := runGit(ctx, dir, "init"); err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"could not initialize git in the workspace: "+err.Error()+" "+out)
+			return
+		}
+	}
+
+	// 4. Declared 200 body: the refreshed Project, derived from the real
+	// workspace exactly as project.current derives it (shared translation,
+	// nothing invented).
+	project, err := s.deriveProject(ctx, dir)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"could not read the project timestamps: "+err.Error())
+		return
+	}
+	writeJSON(w, project)
+}
+
+// deriveProject builds the declared upstream Project body from the single
+// real workspace this instance serves — the shared translation of
+// project.current (ROUTE-FIX-005) and project.initGit (ROUTE-FIX-006):
+//   - id        <- instanceID(dir), the short-sha256 workspace id the
+//     singleton GET /instance entry already reports;
+//   - worktree  <- gitWorktree(dir): the repository top-level when the
+//     workspace is a git repo, the directory itself otherwise;
+//   - name      <- the workspace directory's base name;
+//   - vcs       <- "git" only when `git rev-parse --is-inside-work-tree`
+//     succeeds in the workspace (declared enum ["git"]; absent otherwise);
+//   - commands  <- the workspace's consensus.json "commands" key when present
+//     and an object; absent otherwise (optional field, no file → no claim);
+//   - time      <- {created, updated} from the schema_versions ledger in
+//     milliseconds since the epoch (the ProjectTime unit);
+//   - sandboxes <- [] (required key): the runtime spawns no sandboxes.
+//     icon is omitted (optional; nothing asserts it).
+//
+// An unreadable ledger returns an error — both callers answer the declared
+// 400 (neither operation declares a 5xx), never a fabricated timestamp.
+func (s *Server) deriveProject(ctx context.Context, dir string) (map[string]any, error) {
+	project := map[string]any{
+		"id":       instanceID(dir),
+		"worktree": gitWorktree(ctx, dir, dir),
+		"name":     filepath.Base(dir),
+		// Required key; the runtime spawns no sandboxes.
+		"sandboxes": []any{},
+	}
+	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err == nil && inside == "true" {
+		project["vcs"] = "git"
+	}
+	if cfg := readWorkspaceCommands(dir); cfg != nil {
+		project["commands"] = cfg
+	}
+	created, updated, err := s.migrationLedgerBounds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	project["time"] = map[string]any{"created": created, "updated": updated}
+	return project, nil
 }
 
 // projectCurrent serves GET /project/current — the upstream project.current
@@ -2272,33 +2407,14 @@ func (s *Server) projectCurrent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 2. The single workspace this instance serves.
-	dir := s.requestWorkspaceDir(r)
-	ctx := r.Context()
-
-	project := map[string]any{
-		"id":       instanceID(dir),
-		"worktree": gitWorktree(ctx, dir, dir),
-		"name":     filepath.Base(dir),
-		// Required key; the runtime spawns no sandboxes.
-		"sandboxes": []any{},
-	}
-	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err == nil && inside == "true" {
-		project["vcs"] = "git"
-	}
-	if cfg := readWorkspaceCommands(dir); cfg != nil {
-		project["commands"] = cfg
-	}
-
-	// 3. time: the migration ledger is the project-state clock. An unreadable
-	// ledger is the declared 400 (no 5xx is declared for this operation).
-	created, updated, err := s.migrationLedgerBounds(ctx)
+	// 2. The single workspace this instance serves, and the declared Project
+	// derived from it (shared deriveProject translation — see above).
+	project, err := s.deriveProject(r.Context(), s.requestWorkspaceDir(r))
 	if err != nil {
 		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
 			"could not read the project timestamps: "+err.Error())
 		return
 	}
-	project["time"] = map[string]any{"created": created, "updated": updated}
 
 	writeJSON(w, project)
 }

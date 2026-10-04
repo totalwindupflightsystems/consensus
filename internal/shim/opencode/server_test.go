@@ -3125,9 +3125,10 @@ type notImplementedRoute struct {
 // default 404), a class the table could not see. ROUTE-FIX-005 served
 // GET /project/current (SHIM-DRIFT-099, the table's longest-standing
 // ROUTED-404 row), which left this table likewise (projectCurrent).
+// ROUTE-FIX-006 served POST /project/git/init (SHIM-DRIFT-100, the table's
+// first ROUTED-404 row), which left it too (projectInitGit).
 var notImplementedRoutes = []notImplementedRoute{
 	// ROUTED-404 (12): route registered, handler answered 404 NOT_FOUND.
-	{"SHIM-DRIFT-100", http.MethodPost, "/project/git/init", "project.initGit"},
 	{"SHIM-DRIFT-101", http.MethodGet, "/project/project_missing/directories", "project.directories"},
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
 	{"SHIM-DRIFT-131", http.MethodPost, "/tui/clear-prompt", "tui.clearPrompt"},
@@ -3182,8 +3183,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	if len(notImplementedRoutes) != 14 {
-		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010), SHIM-DRIFT-121 (ROUTE-FIX-015) and SHIM-DRIFT-099 (ROUTE-FIX-005) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 14; table has %d",
+	if len(notImplementedRoutes) != 13 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010), SHIM-DRIFT-121 (ROUTE-FIX-015), SHIM-DRIFT-099 (ROUTE-FIX-005) and SHIM-DRIFT-100 (ROUTE-FIX-006) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 13; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3319,8 +3320,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 14 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 14 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff, ROUTE-FIX-015 serves DELETE /session/{id}/share, ROUTE-FIX-005 serves GET /project/current) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
+	if len(typed) != 13 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 13 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff, ROUTE-FIX-015 serves DELETE /session/{id}/share, ROUTE-FIX-005 serves GET /project/current, ROUTE-FIX-006 serves POST /project/git/init) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {
