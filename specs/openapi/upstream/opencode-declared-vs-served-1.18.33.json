@@ -20,19 +20,19 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-002 moved GET /find/symbol (find.symbols \u2014 SHIM-DRIFT-085) to covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 101,
-    "covered_operations": 52,
+    "covered_operations": 53,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 128,
+    "drift_declared_not_served": 127,
     "drift_by_class": {
       "NOT-SERVED": 103,
-      "OUTCOME-MISMATCH": 25
+      "OUTCOME-MISMATCH": 24
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -160,6 +160,16 @@
       "family": "/find/*",
       "served_outcome": "200",
       "evidence": "server.go:200 handleFindSub (server.go:1994)"
+    },
+    {
+      "path": "/find/symbol",
+      "method": "GET",
+      "operationId": "find.symbols",
+      "tags": "file",
+      "declared_responses": "200,400",
+      "family": "/find/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleFindSub symbol && GET \u2192 findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank \u2192 400 INVALID_REQUEST), present-but-blank directory/workspace \u2192 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list \u2014 the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
     },
     {
       "path": "/global/event",
@@ -1590,19 +1600,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-084"
-    },
-    {
-      "path": "/find/symbol",
-      "method": "GET",
-      "operationId": "find.symbols",
-      "tags": "file",
-      "declared_responses": "200,400",
-      "family": "/find/*",
-      "served_outcome": "501",
-      "evidence": "server.go:2017 (symbol search requires LSP)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-085"
     },
     {
       "path": "/formatter",

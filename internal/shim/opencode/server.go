@@ -3713,10 +3713,24 @@ func (s *Server) handleFindSub(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{"files": matches, "count": len(matches), "query": query})
 
+	case strings.HasPrefix(path, "symbol") && r.Method == http.MethodGet:
+		// ROUTE-FIX-002 / SHIM-DRIFT-085: the upstream find.symbols
+		// operation (declared responses 200 Symbol[], 400 BadRequestError)
+		// was answered by the untyped 501 stub below for EVERY request, so
+		// neither declared code was reachable from outside. Serve the
+		// declared contract truthfully (see findSymbolRoutes.go): the
+		// declared 200 is the empty Symbol list — the shim has no LSP
+		// integration (handleLSP reports enabled:false unconditionally), so
+		// there is no symbol producer and entries would be fabricated —
+		// and the 400 arm carries the sibling INVALID_REQUEST envelope.
+		s.findSymbols(w, r)
 	case strings.HasPrefix(path, "symbol"):
-		// Symbol search requires LSP — still not available
-		writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
-			"symbol search requires LSP integration, not yet available")
+		// Undeclared methods on the sub-path keep a not-implemented answer
+		// (405 is not part of find.symbols' declared response set), typed
+		// per the session.diff sibling convention (ROUTE-FIX-010) naming
+		// the operation and the real GET route.
+		writeNotImplemented(w, r, "find.symbols",
+			"symbol search is a GET operation; use GET /find/symbol?query=<name>")
 	default:
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown find sub-path")
 	}
