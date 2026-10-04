@@ -2,7 +2,10 @@
   "tick": "consensus-foreman-2026-10-04-22-14-58",
   "budget": 8,
   "workers": [
-    {"task": "QA-CONSENSUS-8", "worktree": "/home/kara/worktrees/consensus-QA-CONSENSUS-8", "branch": "wt/QA-CONSENSUS-8"},
-    {"task": "QA-CONSENSUS-9", "worktree": "/home/kara/worktrees/consensus-QA-CONSENSUS-9", "branch": "wt/QA-CONSENSUS-9"}
-  ]
+    {"id": "DOC-13", "worktree": "wt/DOC-13", "brief": "/tmp/consensus-briefs/DOC-13.txt"},
+    {"id": "ROUTE-FIX-007", "worktree": "wt/ROUTE-FIX-007", "brief": "/tmp/consensus-briefs/ROUTE-FIX-007.txt"},
+    {"id": "ROUTE-FIX-033", "worktree": "wt/ROUTE-FIX-033", "brief": "/tmp/consensus-briefs/ROUTE-FIX-033.txt"},
+    {"id": "ROUTE-FIX-019", "worktree": "wt/ROUTE-FIX-019", "brief": "/tmp/consensus-briefs/ROUTE-FIX-019.txt"}
+  ],
+  "independence": "verified: all four rows have depends_on=null, blocks=null, disjoint files (docs/ + internal/shim/opencode route files)"
 }
