@@ -2149,12 +2149,36 @@ var projectDeclaredSubpaths = map[string]string{}
 // SHIM-GAP-002 carves out the sub-paths the upstream document declares
 // as operations rather than ids — /project/current (project.current),
 // /project/git/init (project.initGit) and /project/{projectID}/directories
-// (project.directories). ROUTE-FIX-005 serves GET /project/current for real
-// (projectCurrent, below); the other two still answer the typed
-// not-implemented envelope, and the bare /project/{projectID} shape keeps the
-// typed 404 untouched.
+// (project.directories). ROUTE-FIX-005 serves GET /project/current,
+// ROUTE-FIX-006 serves POST /project/git/init and ROUTE-FIX-007 serves GET
+// /project/{projectID}/directories. The bare /project/{projectID} shape keeps
+// the typed 404 untouched.
 func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	projectID := strings.TrimPrefix(r.URL.Path, "/project/")
+
+	// ROUTE-FIX-007: project.directories is a real singleton-workspace
+	// translation. Only the workspace's project id can resolve; optional
+	// directory/workspace selectors are accepted when nonblank, matching the
+	// fixed-workspace behavior of project.current and project.initGit.
+	if dirsID, ok := strings.CutSuffix(projectID, "/directories"); ok && dirsID != "" {
+		if r.Method != http.MethodGet {
+			writeNotImplemented(w, r, "project.directories",
+				"project.directories is declared as a GET operation; the shim translates GET only")
+			return
+		}
+		if dirsID != instanceID(s.workspaceDir()) {
+			writeOpencodeBadRequest(w, r, "Payload", "unknown projectID")
+			return
+		}
+		for _, key := range []string{"directory", "workspace"} {
+			if value, present := r.URL.Query()[key]; present && (len(value) == 0 || strings.TrimSpace(value[0]) == "") {
+				writeOpencodeBadRequest(w, r, "Query", key+" must not be blank when provided")
+				return
+			}
+		}
+		writeJSON(w, []map[string]string{{"directory": s.workspaceDir()}})
+		return
+	}
 
 	// ROUTE-FIX-005 / SHIM-DRIFT-099: the upstream project.current operation
 	// (declared responses 200 Project, 400) was served by the typed

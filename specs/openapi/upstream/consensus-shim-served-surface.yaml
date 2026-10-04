@@ -529,7 +529,9 @@ routes:
   # (SHIM-DRIFT-116) likewise; ROUTE-FIX-015 moved /session/{id}/share DELETE
   # (SHIM-DRIFT-121, the block's METHOD-MISSING row) likewise; ROUTE-FIX-005
   # moved /project/current GET (SHIM-DRIFT-099) likewise; ROUTE-FIX-006
-  # moved /project/git/init POST (SHIM-DRIFT-100) likewise; 12 entries remain.
+  # moved /project/git/init POST (SHIM-DRIFT-100) likewise; ROUTE-FIX-007
+  # moved /project/{projectID}/directories GET (SHIM-DRIFT-101) likewise;
+  # 11 entries remain.
   - path: /project/git/init
     method: POST
     outcome: 200
@@ -537,9 +539,9 @@ routes:
     evidence: "server.go handleProjectByID sub git/init && POST → projectInitGit (ROUTE-FIX-006, formerly SHIM-DRIFT-100): declared responses 200 Project, 400 BadRequest. Upstream runs git init in the project worktree; the shim performs the same real effect on the instance's single real workspace (the singleton convention of /instance, /path and project.current, resolved by x-opencode-directory): when the workspace is not yet a git repo, git init runs in it via runGit (GIT_* env stripped, ctx-bounded); an already-initialized workspace is a no-op re-init (idempotent upstream). The declared 200 Project is derived by the shared deriveProject translation (same fields and sources as project.current — id, worktree, name, vcs, commands, time, sandboxes). Served arms: a present-but-blank declared query selector (directory, workspace) answers the declared BadRequestError envelope (writeOpencodeBadRequest, kind Query — the instanceDispose blank-query convention; the operation declares no requestBody, so the selectors keep the 400 arm reachable); a failed git init and an unreadable schema_versions ledger answer 400 INVALID_REQUEST (the operation declares no 5xx), never a fabricated success or timestamp. Non-POST keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the directories typed 501 are untouched"
   - path: /project/{projectID}/directories
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
-    evidence: "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)"
+    evidence: "server.go handleProjectByID directories suffix (ROUTE-FIX-007, SHIM-DRIFT-101): returns the singleton workspace directory for the matching project id; blank selectors and unknown ids answer 400 BadRequest; non-GET remains typed 501"
   - path: /tui/clear-prompt
     method: POST
     outcome: 501-typed

@@ -410,8 +410,8 @@ func TestProjectCurrentNeverAnswers501(t *testing.T) {
 }
 
 // Neighbour guard: the sibling /project sub-paths keep their own contracts
-// (typed 404 for bare /project/{id}, typed 501 for the still-unserved
-// declared operations).
+// (typed 404 for bare /project/{id}; the declared project operations answer
+// only their declared 200/400 responses).
 func TestProjectCurrentSiblingsUntouched(t *testing.T) {
 	_, srv, _, _ := newProjectCurrentTestServer(t)
 
@@ -423,8 +423,8 @@ func TestProjectCurrentSiblingsUntouched(t *testing.T) {
 		// the declared {200,400} and never answer the old typed 501.
 		t.Errorf("POST /project/git/init: got %d, want a declared code (200 or 400, ROUTE-FIX-006). Body: %s", status, body)
 	}
-	if status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/project_missing/directories"); status != http.StatusNotImplemented {
-		t.Errorf("GET /project/project_missing/directories: got %d, want 501 (still unserved, ROUTE-FIX-007's row). Body: %s", status, body)
+	if status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/project_missing/directories"); status != http.StatusBadRequest {
+		t.Errorf("GET /project/project_missing/directories: got %d, want 400 BadRequest for unknown project id (ROUTE-FIX-007). Body: %s", status, body)
 	}
 	if status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/current/unknown-sub"); status != http.StatusNotFound {
 		t.Errorf("GET /project/current/unknown-sub: got %d, want 404 (non-vacuity control). Body: %s", status, body)

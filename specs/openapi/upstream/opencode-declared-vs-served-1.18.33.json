@@ -1779,10 +1779,8 @@
       "tags": "project",
       "declared_responses": "200,400",
       "family": "/project/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
+      "served_outcome": "200",
+      "evidence": "server.go handleProjectByID directories suffix (ROUTE-FIX-007): returns the singleton workspace directory for the matching project id; blank selectors and unknown ids answer 400 BadRequest; non-GET remains typed 501",
       "id": "SHIM-DRIFT-096"
     },
     {
