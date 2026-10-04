@@ -241,6 +241,51 @@ func TestProjectListEmptyStoreAnswersEmptyArray(t *testing.T) {
 	}
 }
 
+// TestProjectListParsesTextTimestamps pins the live-store finding: SQLite
+// type affinity does not force created_at writers to integers (a live probe
+// stored "1791098154" as TEXT through strftime('%s','now')), and the declared
+// ProjectTime fields are integers — the handler must parse numeric TEXT and
+// answer 0 for anything unreadable, never a fabricated stamp.
+func TestProjectListParsesTextTimestamps(t *testing.T) {
+	_, srv, conn := newProjectListStoreTestServer(t, true)
+	ctx := context.Background()
+
+	for _, stmt := range []string{
+		`INSERT INTO projects (id, name, description, created_at) VALUES ('prj-text', 'TextStamp', NULL, '1728000123')`,
+		`INSERT INTO projects (id, name, description, created_at) VALUES ('prj-junk', 'JunkStamp', NULL, 'not-a-number')`,
+	} {
+		if err := conn.Exec(ctx, stmt); err != nil {
+			t.Fatalf("seed text-stamp project: %v", err)
+		}
+	}
+
+	status, _, body := getProjectList(t, srv.URL, "/project", nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /project: got %d, want 200. Body: %s", status, body.Raw)
+	}
+	byID := map[string]map[string]any{}
+	for _, row := range body.Rows {
+		id, _ := row["id"].(string)
+		byID[id] = row
+	}
+	textRow, ok := byID["prj-text"]
+	if !ok {
+		t.Fatalf("prj-text missing from the list: %s", body.Raw)
+	}
+	timeObj := textRow["time"].(map[string]any)
+	if timeObj["created"] != float64(1728000123) {
+		t.Errorf("TEXT created_at parsed as %v, want 1728000123", timeObj["created"])
+	}
+	junkRow := byID["prj-junk"]
+	if junkRow == nil {
+		t.Fatalf("prj-junk missing from the list: %s", body.Raw)
+	}
+	junkTime := junkRow["time"].(map[string]any)
+	if junkTime["created"] != float64(0) {
+		t.Errorf("unreadable created_at answered %v, want 0", junkTime["created"])
+	}
+}
+
 // TestProjectListReadFailureAnswersDeclared400 answers the store-failure arm:
 // the declared error vocabulary for this operation is 400 only (no declared
 // 404/5xx), so a store read failure answers 400 INVALID_REQUEST naming the

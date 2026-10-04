@@ -2020,15 +2020,44 @@ func (s *Server) handleProject(w http.ResponseWriter, r *http.Request) {
 
 	projects := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
+		created := projectTimeSeconds(row["created_at"])
 		projects = append(projects, map[string]any{
 			"id":        toString(row["id"]),
 			"worktree":  s.workspaceDir(),
 			"name":      toString(row["name"]),
-			"time":      map[string]any{"created": toInt64(row["created_at"]), "updated": toInt64(row["created_at"])},
+			"time":      map[string]any{"created": created, "updated": created},
 			"sandboxes": []any{},
 		})
 	}
 	writeJSON(w, projects)
+}
+
+// projectTimeSeconds reads a projects.created_at cell as Unix seconds. The
+// column is declared TIMESTAMPTZ in migrations 014/015, but SQLite type
+// affinity does not force every writer to integers — a live probe stored the
+// cell as TEXT ("1791098154") through strftime('%s','now'). The declared
+// ProjectTime fields are integers (minimum 0), so numeric strings are parsed
+// and anything unreadable answers 0 rather than a fabricated stamp.
+func projectTimeSeconds(v any) int64 {
+	switch n := v.(type) {
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	case float64:
+		return int64(n)
+	case string:
+		trimmed := strings.TrimSpace(n)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+			return parsed
+		}
+		return 0
+	default:
+		return 0
+	}
 }
 
 // isStubPath reports whether a path maps to an opencode-specific 501 stub

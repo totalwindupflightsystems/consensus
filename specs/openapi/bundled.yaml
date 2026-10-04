@@ -2207,22 +2207,82 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
   /project:
-    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
-      summary: Project info (stub)
-      operationId: shimProjectStub
+      summary: List all projects
+      operationId: shimProjectList
       description: |
-        Registered stub surface: project management is opencode-specific and
-        not supported by the Consensus shim. GET requires auth (401
-        unauthenticated) and otherwise returns 501 NOT_IMPLEMENTED; use the
-        native tool API instead.
+        Serves the upstream project.list operation: an array of Project
+        objects translated from the runtime's `projects` table — id and name
+        from the row, worktree from the server's configured workdir (the
+        single-workspace translation /vcs and /session/{id}/diff use),
+        time {created, updated} from created_at (Unix seconds; numeric TEXT
+        cells are parsed), sandboxes [] (the runtime provisions none). The
+        optional ?directory=/?workspace= selectors are accepted but do not
+        narrow (one workspace, no per-project path columns). A store whose
+        projects table is absent answers [].
       responses:
+        '200':
+          description: List of projects.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - id
+                    - worktree
+                    - time
+                    - sandboxes
+                  properties:
+                    id:
+                      type: string
+                    worktree:
+                      type: string
+                    name:
+                      type: string
+                    time:
+                      type: object
+                      required:
+                        - created
+                        - updated
+                      properties:
+                        created:
+                          type: integer
+                          minimum: 0
+                        updated:
+                          type: integer
+                          minimum: 0
+                    sandboxes:
+                      type: array
+                      items:
+                        type: string
+        '400':
+          description: Store read failure (the declared error vocabulary for this operation).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                      - code
+                      - message
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - INVALID_REQUEST
+                      message:
+                        type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+      x-undeclared-methods: 501 stub (SPEC-017 §3.9; 405 is not in the declared response set)
   /project/{projectId}:
     get:
       tags:
