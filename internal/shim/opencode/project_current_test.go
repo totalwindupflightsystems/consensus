@@ -418,8 +418,10 @@ func TestProjectCurrentSiblingsUntouched(t *testing.T) {
 	if status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/project_missing"); status != http.StatusNotFound {
 		t.Errorf("GET /project/project_missing: got %d, want 404 (typed ProjectNotFoundError). Body: %s", status, body)
 	}
-	if status, _, body := doShimRequest(t, srv.URL, http.MethodPost, "/project/git/init"); status != http.StatusNotImplemented {
-		t.Errorf("POST /project/git/init: got %d, want 501 (still unserved, ROUTE-FIX-006's row). Body: %s", status, body)
+	if status, _, body := doShimRequest(t, srv.URL, http.MethodPost, "/project/git/init"); status != http.StatusOK && status != http.StatusBadRequest {
+		// ROUTE-FIX-006 serves project.initGit now; the arm must stay inside
+		// the declared {200,400} and never answer the old typed 501.
+		t.Errorf("POST /project/git/init: got %d, want a declared code (200 or 400, ROUTE-FIX-006). Body: %s", status, body)
 	}
 	if status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/project/project_missing/directories"); status != http.StatusNotImplemented {
 		t.Errorf("GET /project/project_missing/directories: got %d, want 501 (still unserved, ROUTE-FIX-007's row). Body: %s", status, body)
