@@ -419,42 +419,9 @@ func (s *Server) sessionDeleteMessage(w http.ResponseWriter, r *http.Request, se
 }
 
 // ============================================================================
-// ROUTE-FIX-039 — GET /session/{sessionID}/todo (session.todo)
-// ============================================================================
-
-// sessionTodo serves GET /session/{sessionID}/todo — upstream session.todo
-// (ROUTE-FIX-039, board row source item SHIM-NARROWED-009 in the 2026-09-29
-// baseline report; declared responses: 200 Todo[], 400 BadRequest |
-// InvalidRequestError, 404 NotFoundError).
-//
-// Truthfulness: the Consensus runtime keeps no per-session todo store — no
-// migration creates a todo table and the shim synthesizes no todo state from
-// memory_events — so the declared 200 Todo[] is answered with the truthful
-// empty list for every known session. The empty array (never null) mirrors the
-// declared-boolean-truthful precedent of sessionUnshare/sessionSummarize
-// (commit d8f1d59): the contract declares an array, so `[]` is the one value
-// the runtime can honestly report ("this session has no todos"). Validation
-// order mirrors the sibling P1 handlers: unknown session -> declared 404. The
-// declared `directory`/`workspace` query parameters are accepted and ignored
-// (the shim treats the server as a singleton instance rooted at the workspace
-// directory — the same convention as the /instance/* routes). Non-GET on the
-// sub-path falls through to the router default (405 is not in the declared
-// set).
-//
-// ch:trace row=ROUTE-FIX-039 spec=specs/openapi/upstream/openapi-1.18.33.json#session.todo wave=consensus-foreman-2026-10-03-07-49-18.json#task-1 witness=none:unattended-worker-session
-func (s *Server) sessionTodo(w http.ResponseWriter, r *http.Request, sessionID string) {
-	if _, ok := s.p1ResolveSession(w, r, sessionID); !ok {
-		return
-	}
-	// No per-session todo store exists: every known session truthfully has
-	// an empty todo list — never null, the contract declares an array.
-	writeJSON(w, []any{})
-}
-
-// ============================================================================
 // ROUTE-FIX-040 — POST /session/{sessionID}/unrevert (session.unrevert)
 // ============================================================================
-
+//
 // sessionUnrevert serves POST /session/{sessionID}/unrevert — upstream
 // session.unrevert (ROUTE-FIX-040, board row source item SHIM-NARROWED-010 in
 // the 2026-09-29 baseline report; declared responses: 200 Session "Updated

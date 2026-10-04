@@ -839,6 +839,7 @@ func TestSessionPartUpdateMethodGuards(t *testing.T) {
 //	per-bbbb…  — pending, session s2 (a foreign session's row: from s1 the
 //	             session-scoped path must be indistinguishable from missing)
 //	per-cccc…  — already resolved, session s1 (the not-pending 404 row)
+//
 // ============================================================================
 func p1PermissionRouteTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
 	t.Helper()
@@ -982,65 +983,10 @@ func TestSessionPermissionRespondMethodGuard(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// ROUTE-FIX-039 — GET /session/{sessionID}/todo (session.todo; declared
-// 200 Todo[], 400, 404 NotFoundError)
-// ============================================================================
-
-// TestSessionTodoTruthfulArms covers the declared contract of session.todo.
-// The runtime keeps no per-session todo store, so a known session answers the
-// declared 200 with the truthful EMPTY LIST (mirroring the
-// declared-boolean-truthful precedent of sessionUnshare/sessionSummarize,
-// commit d8f1d59 — the contract declares an array, so [] is the one honest
-// value) and an unknown session the declared 404.
-func TestSessionTodoTruthfulArms(t *testing.T) {
-	_, srv, _ := p1SessionRouteTestServer(t)
-
-	// Unknown session -> declared 404 NotFoundError.
-	status, _, raw := doShimRequest(t, srv.URL, http.MethodGet, "/session/smissing/todo")
-	if status != http.StatusNotFound {
-		t.Fatalf("GET /session/smissing/todo: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
-	}
-	var env map[string]any
-	if err := json.Unmarshal(raw, &env); err != nil {
-		t.Fatalf("GET /session/smissing/todo body not JSON: %v (%s)", err, raw)
-	}
-	assertP1Error(t, "GET /session/smissing/todo", "", status, env, "NOT_FOUND")
-
-	// Known session (idle and mid-turn alike) -> declared 200 with the empty
-	// list — an array, never null.
-	for _, sid := range []string{"s1", "s2"} {
-		status, _, raw = doShimRequest(t, srv.URL, http.MethodGet, "/session/"+sid+"/todo")
-		if status != http.StatusOK {
-			t.Fatalf("GET /session/%s/todo: got %d, want 200 (declared Todo[]). Body: %s", sid, status, raw)
-		}
-		var todos []any
-		if err := json.Unmarshal(raw, &todos); err != nil {
-			t.Fatalf("GET /session/%s/todo: body is not the declared JSON array: %v (%s)", sid, err, raw)
-		}
-		if len(todos) != 0 {
-			t.Errorf("GET /session/%s/todo: body = %v, want [] — the runtime keeps no todo store, the list must be empty", sid, todos)
-		}
-	}
-}
-
-// TestSessionTodoMethodGuard pins the sub-path neighbours: non-GET on
-// /session/{id}/todo keeps the pre-existing router default 404 (405 is not in
-// the declared response set).
-func TestSessionTodoMethodGuard(t *testing.T) {
-	_, srv, _ := p1SessionRouteTestServer(t)
-
-	status, _, raw := doShimRequest(t, srv.URL, http.MethodPost, "/session/s1/todo")
-	if status != http.StatusNotFound {
-		t.Fatalf("POST /session/s1/todo: got %d, want 404 (undeclared method, router default). Body: %s", status, raw)
-	}
-	var env map[string]any
-	if err := json.Unmarshal(raw, &env); err == nil {
-		if got := p1ErrorMessage(env); got != "endpoint not found" {
-			t.Errorf("POST /session/s1/todo: message = %q, want the router default's %q", got, "endpoint not found")
-		}
-	}
-}
+// NOTE: the superseded TestSessionTodoTruthfulArms / TestSessionTodoMethodGuard
+// (empty-list reading of session.todo) were dropped at the ROUTE-FIX-038-040
+// merge — ROUTE-FIX-039 (a481480) serves todo from the runtime tasks ledger and
+// its authoritative tests live in session_todo_test.go.
 
 // ============================================================================
 // ROUTE-FIX-040 — POST /session/{sessionID}/unrevert (session.unrevert;
