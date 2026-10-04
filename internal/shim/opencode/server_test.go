@@ -1762,7 +1762,13 @@ func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
 // handleProjectVCSSStub Tests
 // ============================================================================
 
-func TestProjectEndpointReturns501(t *testing.T) {
+// ROUTE-FIX-004: bare GET /project serves the declared project.list operation
+// (200 Project[], 400) from the runtime's projects table — the untyped 501
+// stub it previously answered for every method (SHIM-DRIFT-098,
+// OUTCOME-MISMATCH "declared 200,400, served 501") keeps only the UNDECLARED
+// methods on the mount. The full declared-contract battery lives in
+// project_list_test.go.
+func TestProjectEndpointGetServesDeclaredList(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
@@ -1772,8 +1778,12 @@ func TestProjectEndpointReturns501(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 501 {
-		t.Errorf("expected 501 for /project, got %d", resp.StatusCode)
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200 for /project, got %d", resp.StatusCode)
+	}
+	data, _ := io.ReadAll(resp.Body)
+	if strings.TrimSpace(string(data)) != "[]" {
+		t.Errorf("expected an empty project list, got %q", data)
 	}
 }
 

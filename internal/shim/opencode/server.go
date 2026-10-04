@@ -321,7 +321,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// them with x-opencode-directory and expects 200); the remaining /vcs/*
 	// sub-paths keep the 501 stub. ServeMux resolves the longer pattern, so
 	// the exact /vcs/diff registration wins over the /vcs/ subtree stub.
-	mux.HandleFunc("/project", s.handleProjectVCSSStub)
+	// ROUTE-FIX-004: bare GET /project serves the declared project.list
+	// operation (200 Project[], 400) from the runtime's projects table; the
+	// 501 stub keeps every other method on the mount.
+	mux.HandleFunc("/project", s.handleProject)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
@@ -1945,6 +1948,116 @@ func isRequestActionPath(path, prefix, action string) bool {
 	}
 	parts := strings.Split(strings.TrimPrefix(path, prefix), "/")
 	return len(parts) == 2 && parts[0] != "" && parts[1] == action
+}
+
+// handleProject serves the bare /project mount. GET is the upstream
+// project.list operation (ROUTE-FIX-004; declared responses 200
+// Array(Project), 400 BadRequest; optional query selectors directory and
+// workspace). Before this handler the mount answered the untyped 501 stub for
+// every method (SHIM-DRIFT-098, class OUTCOME-MISMATCH: "declared 200,400,
+// served 501").
+//
+// ch:trace row=ROUTE-FIX-004 spec=specs/openapi/upstream/openapi-1.18.33.json#project.list test=TestProjectListServesDeclaredContract doc=docs/evidence/ROUTE-FIX-004-live-probe.md evidence=docs/evidence/ROUTE-FIX-004-live-probe.md witness=none:self-verified-in-worktree
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/project".get): the 200 body is an ARRAY of Project objects
+// (required: id, worktree, time, sandboxes; additionalProperties: false),
+// described as "Get a list of projects that have been opened with OpenCode."
+//
+// Translation: the runtime DOES keep that registry — the `projects` table
+// (migrations 014/015: id, name, description, created_at; SPEC-004 §RBAC
+// scope boundaries; sessions/tasks carry project_id). Each row is translated
+// into the declared Project shape:
+//
+//   - id        <- projects.id
+//   - name      <- projects.name
+//   - worktree  <- the project's scope root: the server's configured workdir
+//     (else the process CWD) — the same single-workspace translation every
+//     workspace-resolving sibling uses (GET /vcs, GET /vcs/diff,
+//     GET /session/{id}/diff). The column set has no per-project path, so the
+//     truthful answer for each registered project is the workspace the
+//     runtime serves.
+//   - time      <- {created, updated} <- created_at (Unix seconds). The
+//     runtime keeps no separate updated timestamp, so updated truthfully
+//     repeats created (the schema requires both).
+//   - sandboxes <- [] — the runtime provisions no sandboxes; the field is
+//     schema-required and the empty array is the truthful value.
+//
+// Optional selectors (?directory=, ?workspace=) are accepted but do not
+// narrow the result: the runtime has exactly one workspace (the workdir
+// above) and no per-project directory/workspace columns to filter on, and
+// neither value is a project id. The declared error vocabulary is 400 only —
+// there is no declared 404/5xx — so a store read failure answers 400 with the
+// sibling INVALID_REQUEST envelope (the same arm sessionDiff uses for its
+// store reads) and never a 501. A store with NO projects table (a database
+// predating migration 014) answers the declared empty array — a list with no
+// rows is the honest translation there. Every other method on the mount keeps
+// the pre-existing 501 stub (405 is not in the declared response set).
+func (s *Server) handleProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		// Not a declared operation for this mount; 405 is not in the declared
+		// response set — keep the pre-existing stub answer byte-identical.
+		s.handleProjectVCSSStub(w, r)
+		return
+	}
+
+	ctx := r.Context()
+	rows, err := s.db.Query(ctx,
+		`SELECT id, name, created_at FROM projects ORDER BY created_at, id`)
+	if err != nil {
+		// The declared vocabulary carries 400 only; a client must not have to
+		// distinguish an undeclared 503 from a real store failure. A store
+		// whose projects table is absent (pre-014 database) is also the
+		// declared empty list — the runtime simply has no registered projects.
+		if strings.Contains(strings.ToLower(err.Error()), "no such table: projects") {
+			writeJSON(w, []any{})
+			return
+		}
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"failed to read projects: "+err.Error())
+		return
+	}
+
+	projects := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		created := projectTimeSeconds(row["created_at"])
+		projects = append(projects, map[string]any{
+			"id":        toString(row["id"]),
+			"worktree":  s.workspaceDir(),
+			"name":      toString(row["name"]),
+			"time":      map[string]any{"created": created, "updated": created},
+			"sandboxes": []any{},
+		})
+	}
+	writeJSON(w, projects)
+}
+
+// projectTimeSeconds reads a projects.created_at cell as Unix seconds. The
+// column is declared TIMESTAMPTZ in migrations 014/015, but SQLite type
+// affinity does not force every writer to integers — a live probe stored the
+// cell as TEXT ("1791098154") through strftime('%s','now'). The declared
+// ProjectTime fields are integers (minimum 0), so numeric strings are parsed
+// and anything unreadable answers 0 rather than a fabricated stamp.
+func projectTimeSeconds(v any) int64 {
+	switch n := v.(type) {
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	case float64:
+		return int64(n)
+	case string:
+		trimmed := strings.TrimSpace(n)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+			return parsed
+		}
+		return 0
+	default:
+		return 0
+	}
 }
 
 // isStubPath reports whether a path maps to an opencode-specific 501 stub
