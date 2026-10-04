@@ -323,9 +323,9 @@ routes:
     evidence: "server.go:200 handleFindSub (server.go:1994)"
   - path: /find/symbol
     method: GET
-    outcome: 501
+    outcome: 200
     auth: api-key
-    evidence: "server.go:2017 (symbol search requires LSP)"
+    evidence: "server.go handleFindSub symbol && GET → findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank → 400 INVALID_REQUEST), present-but-blank directory/workspace → 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list — the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
   - path: /file/content
     method: GET
     outcome: 200
@@ -608,8 +608,8 @@ prefix_rules:
   - prefix: /find/
     outcome: 404
     stub_second_segments: [symbol]
-    stub_outcome: 501
-    evidence: "server.go:1989-2024 (handleFindSub: file → 200, symbol → 501, else 404)"
+    stub_outcome: 501-typed
+    evidence: "server.go handleFindSub: file → 200, symbol GET → 200 findSymbols (ROUTE-FIX-002, served above), symbol non-GET → typed 501 find.symbols, else 404. This rule now covers only UNDECLARED methods on the symbol sub-path (the declared GET is a served route above)"
   - prefix: /tui/
     outcome: 404
     stub_second_segments: [append-prompt, submit-prompt, execute-command, show-toast]
