@@ -367,9 +367,9 @@ routes:
   # ── TUI (shim-only passthrough stubs) ──
   - path: /tui/append-prompt
     method: POST
-    outcome: 501
+    outcome: 200,400
     auth: api-key
-    evidence: "server.go:209 handleTUI (server.go:2242)"
+    evidence: "server.go tuiAppendPrompt (handleTUI route)"
   - path: /tui/submit-prompt
     method: POST
     outcome: 501

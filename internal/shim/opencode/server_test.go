@@ -1344,18 +1344,56 @@ func TestResolvePermissionInvalidDecision(t *testing.T) {
 // TUI Endpoint Tests
 // ============================================================================
 
-func TestTUIAppendPromptReturns501(t *testing.T) {
+func TestTUIAppendPromptServesDeclaredResponses(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/tui/append-prompt", "application/json", nil)
-	if err != nil {
-		t.Fatalf("POST /tui/append-prompt: %v", err)
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/append-prompt", `{"text":"hello"}`)
+	if status != http.StatusOK {
+		t.Fatalf("POST /tui/append-prompt: got %d, want 200 (declared). Body: %s", status, body)
 	}
-	defer resp.Body.Close()
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var processed bool
+	if err := json.Unmarshal(body, &processed); err != nil {
+		t.Fatalf("200 body is not the declared boolean: %v (%s)", err, body)
+	}
+	if processed {
+		t.Error("append-prompt returned true although no TUI process is attached")
+	}
 
-	if resp.StatusCode != 501 {
-		t.Errorf("expected 501 for TUI append-prompt, got %d", resp.StatusCode)
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"malformed JSON", `{"text":`},
+		{"missing required text", `{}`},
+		{"text is not a string", `{"text":42}`},
+		{"undeclared property", `{"text":"hello","extra":true}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/append-prompt", tc.body)
+			if status != http.StatusBadRequest {
+				t.Fatalf("POST /tui/append-prompt: got %d, want 400 (declared). Body: %s", status, body)
+			}
+			if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+				t.Errorf("Content-Type = %q, want application/json", ct)
+			}
+			var got struct {
+				Name string `json:"name"`
+				Data struct {
+					Kind    string `json:"kind"`
+					Message string `json:"message"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatalf("400 body is not the declared BadRequest envelope: %v (%s)", err, body)
+			}
+			if got.Name != "BadRequest" || got.Data.Kind == "" || got.Data.Message == "" {
+				t.Errorf("400 body = %+v, want BadRequest with kind and message", got)
+			}
+		})
 	}
 }
 
