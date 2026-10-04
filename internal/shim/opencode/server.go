@@ -2002,9 +2002,10 @@ var vcsDeclaredOps = map[string]string{
 // operation ids (SHIM-GAP-002). These are not project ids: without this table
 // they were parsed as one and answered with the upstream ProjectNotFoundError,
 // telling the client a *project named "current"* did not exist instead of
-// saying the operation is not implemented.
+// saying the operation is not implemented. GET /project/current left the table
+// in ROUTE-FIX-005 (projectCurrent serves the declared contract); the table
+// now covers only the operations the shim does not translate.
 var projectDeclaredSubpaths = map[string]string{
-	"current":  "project.current",
 	"git/init": "project.initGit",
 }
 
@@ -2016,14 +2017,30 @@ var projectDeclaredSubpaths = map[string]string{
 // {_tag, projectID, message}, no extra fields. Bare GET /project keeps the
 // 501 stub (handleProjectVCSSStub).
 //
-// SHIM-GAP-002 carves out the three sub-paths the upstream document declares
+// SHIM-GAP-002 carves out the sub-paths the upstream document declares
 // as operations rather than ids — /project/current (project.current),
 // /project/git/init (project.initGit) and /project/{projectID}/directories
-// (project.directories). They answer the typed not-implemented envelope; the
-// bare /project/{projectID} shape keeps the typed 404 untouched.
+// (project.directories). ROUTE-FIX-005 serves GET /project/current for real
+// (projectCurrent, below); the other two still answer the typed
+// not-implemented envelope, and the bare /project/{projectID} shape keeps the
+// typed 404 untouched.
 func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	projectID := strings.TrimPrefix(r.URL.Path, "/project/")
 
+	// ROUTE-FIX-005 / SHIM-DRIFT-099: the upstream project.current operation
+	// (declared responses 200 Project, 400) was served by the typed
+	// not-implemented envelope from the projectDeclaredSubpaths table. Serve
+	// the declared contract truthfully; non-GET keeps the typed 501 (405 is
+	// not in the declared set).
+	if projectID == "current" {
+		if r.Method == http.MethodGet {
+			s.projectCurrent(w, r)
+			return
+		}
+		writeNotImplemented(w, r, "project.current",
+			"project.current is declared as a GET operation; the shim translates GET only")
+		return
+	}
 	if op, ok := projectDeclaredSubpaths[projectID]; ok {
 		writeNotImplemented(w, r, op,
 			fmt.Sprintf("%s is not implemented: Consensus keeps no project registry, so there is no project record to resolve; use GET /instance and GET /path for the workspace and the native API for work", op))
@@ -2057,6 +2074,171 @@ func writeOpencodeNotFoundError(w http.ResponseWriter, tag, idField, id, message
 	if err := json.NewEncoder(w).Encode(body); err != nil {
 		slog.Warn("opencode-shim: failed to encode typed not-found body", "tag", tag)
 	}
+}
+
+// projectCurrent serves GET /project/current — the upstream project.current
+// operation (ROUTE-FIX-005 board row, source item SHIM-DRIFT-099; declared
+// responses: 200 Project, 400 BadRequest).
+//
+// ch:trace row=ROUTE-FIX-005 spec=specs/openapi/upstream/openapi-1.18.33.json#project.current test=TestProjectCurrentServesDeclared200 doc=docs/evidence/ROUTE-FIX-005-live-probe.md evidence=docs/evidence/ROUTE-FIX-005-live-probe.md witness=none:unattended-worker-session
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/project/current".get): the optional query selectors are directory
+// and workspace; the declared 200 body is a single Project object (required
+// id, worktree, time, sandboxes; additionalProperties: false), described as
+// "Retrieve the currently active project that OpenCode is working with."
+// Before this change the sub-path was in projectDeclaredSubpaths and answered
+// the typed not-implemented envelope for EVERY request — the declared 200 was
+// unreachable and a client could not tell "this shim does not implement it"
+// from "here is the current project".
+//
+// Translation: the runtime keeps exactly one workspace per instance (the
+// singleton-instance convention every /instance/* translation already
+// serves): the x-opencode-directory header when the request carries one
+// (upstream fixed-workspace semantics, the requestWorkspaceDir convention of
+// /path and /vcs), else the server workspace. The declared Project fields are
+// all derived from that real workspace directory — nothing is invented:
+//
+//   - id        <- instanceID(dir), the short-sha256 workspace id the
+//     singleton GET /instance entry already reports (a stable per-workspace
+//     identity, never a fabricated registry key);
+//   - worktree  <- gitWorktree(dir): the repository top-level when the
+//     workspace is a git repo, the directory itself otherwise — exactly the
+//     value GET /path reports as "worktree";
+//   - name      <- the workspace directory's base name (the human label
+//     upstream shows for a project);
+//   - vcs       <- "git" only when `git rev-parse --is-inside-work-tree`
+//     succeeds in the workspace (declared enum ["git"]; absent otherwise —
+//     the field is optional and never asserted without evidence);
+//   - commands  <- {} read from the workspace's consensus.json "commands"
+//     key when present and an object; absent otherwise (optional field, no
+//     file → no claim);
+//   - time      <- {created, updated} from the schema_versions ledger
+//     (internal/migrate bootstrapSQL): created = the earliest applied_at
+//     (the workspace was initialized then), updated = the latest applied_at
+//     (the schema — the project state the runtime tracks — was last touched
+//     then). Milliseconds since the epoch, the unit the upstream
+//     ProjectTime schema declares (integer, minimum 0). A ledger that cannot
+//     be read answers 400 INVALID_REQUEST (the declared error arm), never an
+//     undeclared 5xx and never a fabricated timestamp; the ledger table
+//     always exists because the server auto-migrates on boot;
+//   - sandboxes <- [] (required key): the runtime spawns no sandboxes.
+//     icon is omitted (optional; nothing asserts it).
+//
+// Validation order and the declared error arms:
+//   - a present-but-blank declared query selector (directory, workspace) → the
+//     declared 400 INVALID_REQUEST naming the parameter. The operation
+//     declares no requestBody, so the selectors are what keeps the declared
+//     400 arm reachable (the sessionTodo / sync.steal precedent:
+//     a present-but-blank declared query parameter is a contract violation,
+//     not an absent one). A well-formed selector is accepted and does not
+//     change the answer — the runtime keeps one workspace per instance, so
+//     neither selector selects a different project (the sibling sessionDiff
+//     note);
+//   - the migration ledger cannot be read → the declared 400
+//     INVALID_REQUEST naming the reason (the sessionTodo convention for an
+//     unreadable store; the operation declares no 5xx and no 404).
+func (s *Server) projectCurrent(w http.ResponseWriter, r *http.Request) {
+	// 1. A present-but-blank declared query selector is the declared 400 (this
+	// operation declares no requestBody, so this is what keeps the 400 arm
+	// reachable). Validation runs before any store read so a malformed request
+	// never reaches the database.
+	for _, param := range []string{"directory", "workspace"} {
+		values, present := r.URL.Query()[param]
+		if !present {
+			continue
+		}
+		value := ""
+		if len(values) > 0 {
+			value = strings.TrimSpace(values[0])
+		}
+		if value == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+
+	// 2. The single workspace this instance serves.
+	dir := s.requestWorkspaceDir(r)
+	ctx := r.Context()
+
+	project := map[string]any{
+		"id":       instanceID(dir),
+		"worktree": gitWorktree(ctx, dir, dir),
+		"name":     filepath.Base(dir),
+		// Required key; the runtime spawns no sandboxes.
+		"sandboxes": []any{},
+	}
+	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err == nil && inside == "true" {
+		project["vcs"] = "git"
+	}
+	if cfg := readWorkspaceCommands(dir); cfg != nil {
+		project["commands"] = cfg
+	}
+
+	// 3. time: the migration ledger is the project-state clock. An unreadable
+	// ledger is the declared 400 (no 5xx is declared for this operation).
+	created, updated, err := s.migrationLedgerBounds(ctx)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"could not read the project timestamps: "+err.Error())
+		return
+	}
+	project["time"] = map[string]any{"created": created, "updated": updated}
+
+	writeJSON(w, project)
+}
+
+// readWorkspaceCommands reads the workspace's consensus.json "commands" object
+// when one exists (declared Project.commands translation). Returns nil when
+// the file is absent, unreadable, or does not carry an object under
+// "commands" — an optional field is never synthesized.
+func readWorkspaceCommands(dir string) map[string]any {
+	raw, err := os.ReadFile(filepath.Join(dir, "consensus.json"))
+	if err != nil {
+		return nil
+	}
+	var cfg struct {
+		Commands map[string]any `json:"commands"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil || cfg.Commands == nil {
+		return nil
+	}
+	return cfg.Commands
+}
+
+// migrationLedgerBounds returns (created, updated) in milliseconds since the
+// epoch from the schema_versions ledger: the earliest and the latest
+// applied_at RFC3339 timestamps. Errors surface to the caller (declared 400)
+// instead of being swallowed into a fabricated timestamp.
+func (s *Server) migrationLedgerBounds(ctx context.Context) (int64, int64, error) {
+	rows, err := s.db.Query(ctx, `SELECT applied_at FROM schema_versions`)
+	if err != nil {
+		return 0, 0, err
+	}
+	if len(rows) == 0 {
+		return 0, 0, fmt.Errorf("the schema_versions ledger holds no rows")
+	}
+	var oldest, newest int64
+	for i, row := range rows {
+		ts := toString(row["applied_at"])
+		if ts == "" {
+			return 0, 0, fmt.Errorf("schema_versions row %d carries a blank applied_at", i+1)
+		}
+		t, err := time.Parse(time.RFC3339, ts)
+		if err != nil {
+			return 0, 0, fmt.Errorf("schema_versions row %d applied_at %q is not RFC3339", i+1, ts)
+		}
+		ms := t.UnixMilli()
+		if i == 0 || ms < oldest {
+			oldest = ms
+		}
+		if i == 0 || ms > newest {
+			newest = ms
+		}
+	}
+	return oldest, newest, nil
 }
 
 func (s *Server) handlePath(w http.ResponseWriter, r *http.Request) {
