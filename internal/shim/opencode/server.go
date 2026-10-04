@@ -240,8 +240,8 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// 404 while /provider/* sub-paths are chi-mounted. Serve the upstream
 	// provider.auth operation. The exact pattern wins over the wildcard below,
 	// and no pattern here is a /provider/* catch-all, so an unrelated
-	// /provider/* sub-path (oauth/callback, unknown operations) keeps the
-	// net/http default 404 it is classified with.
+	// /provider/* sub-path (unknown operations) keeps the net/http default 404
+	// it is classified with.
 	mux.HandleFunc("/provider/auth", s.handleProviderAuth)
 	// ROUTE-ADD-100 / SHIM-DRIFT-103: the declared provider.oauth.authorize
 	// operation (POST /provider/{providerID}/oauth/authorize) had no shim
@@ -251,6 +251,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the shape (one provider-id segment + the literal oauth/authorize
 	// suffix), so it matches exactly the declared operation.
 	mux.HandleFunc("/provider/{providerID}/oauth/authorize", s.handleProviderOAuthAuthorize)
+	// ROUTE-ADD-101 / SHIM-DRIFT-098: the declared provider.oauth.callback
+	// operation (POST /provider/{providerID}/oauth/callback) had the same gap
+	// as its authorize sibling — no shim route, so it fell through to
+	// net/http's default 404. Serve it for real. The pattern pins the shape
+	// (one provider-id segment + the literal oauth/callback suffix), so it
+	// matches exactly the declared operation; a deeper path, the two-segment
+	// /provider/oauth/callback and every other /provider/* sub-path keep the
+	// default 404 (no catch-all).
+	mux.HandleFunc("/provider/{providerID}/oauth/callback", s.handleProviderOAuthCallback)
 	mux.HandleFunc("/agent", s.handleAgent)
 	mux.HandleFunc("/skill", s.handleSkill)
 	// ROUTE-ADD-088 / SHIM-DRIFT-086: the exact /formatter path was never
@@ -3556,6 +3565,151 @@ func writeProviderAuthError(w http.ResponseWriter, name string, data map[string]
 		"name": name,
 		"data": data,
 	})
+}
+
+// handleProviderOAuthCallback serves POST /provider/{providerID}/oauth/callback
+// — upstream provider.oauth.callback (ROUTE-ADD-101, SHIM-DRIFT-098, declared
+// responses: 200 boolean "OAuth callback processed successfully" and 400
+// ProviderAuthError | InvalidRequestError). Upstream hands the authorization
+// code (or the no-code arm) to the flow the matching authorize call parked in
+// instance state and, when that flow reports success, stores the returned
+// credential and answers the declared 200 boolean true
+// (packages/opencode/src/server/routes/instance/httpapi/handlers/provider.ts
+// "callback", over packages/opencode/src/provider/auth.ts `callback` — which
+// faults ProviderAuthOauthMissing when no flow is pending for the providerID —
+// at the pinned commit 7945de208964a49300d7f770d1a71d078db9a4c4 / v1.18.33;
+// the declared surface line is
+// specs/openapi/upstream/openapi-1.18.33.surface.txt:127).
+//
+// The shim has no OAuth implementation and parks no flow: its provider-method
+// registry (storedProviderAuthMethods) advertises only "api" methods, so no
+// authorize call ever starts a flow and there is no pending credential for a
+// callback to complete. The truthful answer to "was an OAuth callback
+// processed?" is therefore false — there was nothing to process — and the
+// handler answers the declared 200 with the JSON boolean false. It never
+// fabricates a processed callback (upstream's literal `true` would claim a
+// credential was stored), never serializes null (the declared type is boolean,
+// so a null body would violate the contract), and never answers the pre-fix
+// net/http default 404 for an operation it now serves.
+//
+// The declared 400 arm is answered with the document's own error shapes:
+//
+//   - a body that is absent, not JSON, not an object, whose required `method`
+//     field is missing or is not a non-negative integer, whose optional `code`
+//     field is not a string, or that carries a field the contract does not
+//     declare (the request schema is additionalProperties: false) answers
+//     ProviderAuthError {"name":"BadRequest","data":{...}} — the name upstream
+//     maps a payload decode failure onto;
+//   - a provider holding no stored credentials (so the shim advertises no
+//     method for it) and a `method` index the provider does not advertise both
+//     answer ProviderAuthError {"name":"BadRequest","data":{"providerID":...}}
+//     — upstream resolves the pending flow by providerID and faults on either;
+//     the shim answers the declared code with a named reason instead;
+//   - a store that cannot be read answers InvalidRequestError
+//     {"_tag":"InvalidRequestError","message":...} — the document's second
+//     declared 400 shape.
+//
+// Non-POST answers 405 METHOD_NOT_ALLOWED (the sibling POST-route method guard;
+// 405 is not part of the declared response set, so it is never the answer to a
+// well-formed POST).
+func (s *Server) handleProviderOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	providerID := r.PathValue("providerID")
+	if providerID == "" {
+		writeProviderAuthError(w, "BadRequest", map[string]any{})
+		return
+	}
+	methodIndex, reason, ok := parseProviderOAuthCallbackBody(r)
+	if !ok {
+		writeProviderAuthError(w, "BadRequest", map[string]any{"message": reason})
+		return
+	}
+
+	methods, err := s.storedProviderAuthMethods(r.Context())
+	if err != nil {
+		// The document declares no 5xx for this operation; answer the declared
+		// 400 with its second shape instead of surfacing an undeclared 500.
+		writeJSONStatus(w, http.StatusBadRequest, map[string]any{
+			"_tag":    "InvalidRequestError",
+			"message": "failed to read provider auth methods",
+		})
+		return
+	}
+
+	advertised := methods[providerID]
+	if len(advertised) == 0 {
+		writeProviderAuthError(w, "BadRequest", map[string]any{
+			"providerID": providerID,
+			"message":    "no auth methods registered for provider " + providerID,
+		})
+		return
+	}
+	if methodIndex >= int64(len(advertised)) {
+		writeProviderAuthError(w, "BadRequest", map[string]any{
+			"providerID": providerID,
+			"field":      "method",
+			"message": fmt.Sprintf("auth method index %d is not advertised for provider %s (0-%d)",
+				methodIndex, providerID, len(advertised)-1),
+		})
+		return
+	}
+
+	// The advertised method is an API-key method, never an OAuth method, and
+	// this shim parks no authorize flow, so there is no callback to process and
+	// no credential to store: the truthful answer to the declared boolean is
+	// false, serialized as JSON false (the declared type is boolean).
+	writeJSON(w, false)
+}
+
+// parseProviderOAuthCallbackBody decodes the declared request body
+// ({method: <auth method index>, code?: <OAuth authorization code>} —
+// components.schemas of the pinned opencode document). It returns the method
+// index, a human-readable reason for a refusal, and whether the body is
+// well-formed. The document does not mark requestBody required, but its only
+// required field (`method`) is mandatory, so an absent or empty body cannot
+// select a method and is refused — the same direction upstream's runtime takes
+// when decoding an empty request text fails.
+//
+// Unlike the authorize body (whose undeclared fields are ignored), this
+// operation's schema is additionalProperties: false, so a field the contract
+// does not declare is refused with the same BadRequest shape rather than
+// silently dropped.
+func parseProviderOAuthCallbackBody(r *http.Request) (int64, string, bool) {
+	if r.Body == nil || r.ContentLength == 0 {
+		return 0, "request body must carry the auth method index", false
+	}
+	var raw any
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		return 0, "malformed request body: " + err.Error(), false
+	}
+	// A JSON null body decodes without error into a nil interface, and an
+	// array/scalar is not the declared object either.
+	body, ok := raw.(map[string]any)
+	if !ok {
+		return 0, "request body must be a JSON object carrying the auth method index", false
+	}
+	for key := range body {
+		if key != "method" && key != "code" {
+			return 0, fmt.Sprintf("request body carries undeclared field %q", key), false
+		}
+	}
+	value, present := body["method"]
+	if !present {
+		return 0, `request body is missing the required "method" field`, false
+	}
+	index, ok := value.(float64)
+	if !ok || index != math.Trunc(index) || index < 0 {
+		return 0, `"method" must be a non-negative integer auth method index`, false
+	}
+	if code, present := body["code"]; present {
+		if _, ok := code.(string); !ok {
+			return 0, `"code" must be a string`, false
+		}
+	}
+	return int64(index), "", true
 }
 
 // handleSkill serves GET /skill — upstream app.skills (ROUTE-ADD-111,

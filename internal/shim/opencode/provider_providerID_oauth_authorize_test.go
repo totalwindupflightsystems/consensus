@@ -294,13 +294,17 @@ func TestProviderOAuthAuthorizeMethodGuard(t *testing.T) {
 
 // TestProviderOAuthAuthorizeNeighboursUntouched is the non-vacuity control:
 // serving provider.oauth.authorize must not turn /provider/* into a catch-all.
-// The sibling oauth/callback operation stays unregistered (still the net/http
-// default 404 body it is classified NOT-SERVED with), a deeper path does not
-// match the wildcard, the two-segment /provider/oauth/authorize path is not the
-// declared operation, and the neighbouring /provider and /provider/auth routes
-// keep their own answers.
+// A deeper path does not match the wildcard, the two-segment
+// /provider/oauth/authorize path is not the declared operation, and the
+// neighbouring /provider and /provider/auth routes keep their own answers. The
+// sibling oauth/callback operation used to be one of the unregistered
+// neighbours here; ROUTE-ADD-101 now serves it for real, so it is asserted
+// against its own handler below instead of the default 404.
 func TestProviderOAuthAuthorizeNeighboursUntouched(t *testing.T) {
 	mdb := &mockDB{
+		queryResults: []db.Row{
+			rowOf(map[string]any{"key": "auth.openai.api_key"}),
+		},
 		queryRow: rowOf(map[string]any{"model_id": "m-1", "max_context": int64(128000)}),
 	}
 	_, srv := newTestServer(mdb)
@@ -309,7 +313,6 @@ func TestProviderOAuthAuthorizeNeighboursUntouched(t *testing.T) {
 	for _, tc := range []struct {
 		name, method, path, body string
 	}{
-		{"sibling callback stays unregistered", http.MethodPost, "/provider/openai/oauth/callback", `{"method":0,"code":"x"}`},
 		{"deeper path is not the declared operation", http.MethodPost, "/provider/openai/oauth/authorize/extra", `{"method":0}`},
 		{"declared operation needs the provider segment", http.MethodPost, "/provider/oauth/authorize", `{"method":0}`},
 	} {
@@ -342,13 +345,29 @@ func TestProviderOAuthAuthorizeNeighboursUntouched(t *testing.T) {
 	if status != http.StatusOK {
 		t.Errorf("GET /provider: got %d, want 200 (sibling provider.list intact). Body: %s", status, body)
 	}
+	// ROUTE-ADD-101 serves the sibling provider.oauth.callback operation on the
+	// same /provider/{providerID}/oauth/ subtree: a well-formed POST for a
+	// provider holding stored auth reaches the callback handler and answers the
+	// declared 200 with the boolean false (this shim parks no OAuth flow), so
+	// the path is no longer one of the neighbours that fall through to the
+	// default 404 above.
+	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost,
+		"/provider/openai/oauth/callback", `{"method":0}`)
+	if status != http.StatusOK {
+		t.Errorf("POST /provider/openai/oauth/callback: got %d, want 200 (ROUTE-ADD-101 serves it). Body: %s", status, body)
+	}
+	if trimmed := strings.TrimSpace(string(body)); trimmed != "false" {
+		t.Errorf("POST /provider/openai/oauth/callback: body = %q, want false", trimmed)
+	}
 }
 
 // TestProviderOAuthAuthorizeChiMount is the BUG-009 regression for the new
 // route: it must be reachable through the parent chi router's /provider/*
 // mount (MountPatterns), not only through the shim's own mux. A shim-produced
-// 200 proves the mount reaches the wildcard pattern; the unmounted sibling
-// callback staying chi's/shim's 404 proves the mount was not narrowed.
+// 200 proves the mount reaches the wildcard pattern; the sibling
+// provider.oauth.callback operation ROUTE-ADD-101 serves on the same subtree
+// answers its own 200 through the mount too, so the mount carries both
+// wildcard routes rather than being narrowed to one.
 func TestProviderOAuthAuthorizeChiMount(t *testing.T) {
 	mdb := &mockDB{
 		queryResults: []db.Row{
@@ -376,10 +395,16 @@ func TestProviderOAuthAuthorizeChiMount(t *testing.T) {
 		t.Errorf("chi-mounted authorize: body = %q, want null", trimmed)
 	}
 
-	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost,
+	status, header, body = doShimRequestBody(t, srv.URL, http.MethodPost,
 		"/provider/openai/oauth/callback", `{"method":0}`)
-	if status != http.StatusNotFound {
-		t.Errorf("chi-mounted sibling callback: got %d, want 404 (no catch-all). Body: %s", status, body)
+	if status != http.StatusOK {
+		t.Errorf("chi-mounted sibling callback: got %d, want 200 (ROUTE-ADD-101 serves it through the mount). Body: %s", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("chi-mounted callback: Content-Type = %q, want application/json", ct)
+	}
+	if trimmed := strings.TrimSpace(string(body)); trimmed != "false" {
+		t.Errorf("chi-mounted callback: body = %q, want false", trimmed)
 	}
 }
 
