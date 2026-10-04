@@ -2221,11 +2221,21 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleInstanceSub serves /instance/* sub-paths: the implemented translation
-// endpoints (/instance/path, /instance/vcs, /instance/vcs/diff) plus the
-// 501/404 convention for everything else.
+// endpoints (/instance/path, /instance/vcs, /instance/vcs/diff), the
+// instance.dispose operation (ROUTE-FIX-003), and the 501/404 convention for
+// everything else.
 func (s *Server) handleInstanceSub(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/instance/")
 	switch {
+	case sub == "dispose" && r.Method == http.MethodPost:
+		// ROUTE-FIX-003 / SHIM-DRIFT-091: the upstream instance.dispose
+		// operation (declared responses 200 boolean, 400 BadRequest) was
+		// answered by the typed 501 stub below — a code the document does
+		// not declare for the operation. Serve the declared contract
+		// truthfully; non-POST falls through to the stub (501 is not a
+		// declared response either, but it is the pre-change answer and no
+		// declared code exists for a wrong method).
+		s.instanceDispose(w, r)
 	case sub == "path" && r.Method == http.MethodGet:
 		s.instancePath(w, r)
 	case sub == "vcs" && r.Method == http.MethodGet:
@@ -2284,6 +2294,37 @@ func (s *Server) instanceVCS(w http.ResponseWriter, r *http.Request) {
 // non-git workspace returns [].
 func (s *Server) instanceVCSDiff(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, gitFileDiffs(r.Context(), s.requestWorkspaceDir(r)))
+}
+
+// ch:trace row=ROUTE-FIX-003 spec=specs/openapi/upstream/openapi-1.18.33.json#instance.dispose test=TestInstanceDisposeAnswersDeclaredBoolean doc=docs/evidence/ROUTE-FIX-003-live-probe.md evidence=docs/evidence/ROUTE-FIX-003-live-probe.md witness=none:unattended-worker-session
+// instanceDispose serves POST /instance/dispose — upstream instance.dispose
+// (ROUTE-FIX-003, SHIM-DRIFT-091, declared responses: 200 boolean, 400
+// BadRequest). Upstream "clean up and dispose the current OpenCode instance,
+// releasing all resources"; the shim is ONE instance rooted at the workspace
+// directory and keeps no per-instance registry to release — the Consensus
+// server IS the singleton, and disposing it is not something an HTTP request
+// to a compatibility shim may do. The request is therefore honored as a
+// successful no-op answering the declared boolean true, the sibling
+// handleGlobalDispose convention (idempotent for a repeated POST).
+//
+// The operation declares directory/workspace query selectors for workspace
+// scoping; the no-op answer is workspace-independent, so a valued param is
+// well-formed and scopes nothing, while a present-but-blank one is malformed
+// input and answers the declared 400 via writeOpencodeBadRequest (the
+// upstream v2 SDK NamedError envelope, kind "Query") — the
+// handleSkill/handleFormatter blank query convention with this operation's
+// declared body shape. The operation declares no requestBody, so none is
+// read. Non-POST never reaches this handler (the dispatch case above is
+// POST-only and falls through to the 501 stub).
+func (s *Server) instanceDispose(w http.ResponseWriter, r *http.Request) {
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, true)
 }
 
 // requestWorkspaceDir returns the workspace directory a request operates on:

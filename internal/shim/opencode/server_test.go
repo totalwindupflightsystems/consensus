@@ -2281,7 +2281,7 @@ func TestInstanceKnownSubpathReturns501(t *testing.T) {
 
 	for _, sub := range []string{
 		"/instance/vcs/status", "/instance/vcs/diff/raw", "/instance/vcs/apply",
-		"/instance/dispose", "/instance/command", "/instance/agent",
+		"/instance/command", "/instance/agent",
 		"/instance/skill", "/instance/lsp", "/instance/formatter",
 	} {
 		resp, err := http.Get(srv.URL + sub)
@@ -2295,15 +2295,18 @@ func TestInstanceKnownSubpathReturns501(t *testing.T) {
 		}
 	}
 
-	// upstream POST endpoints reach the 501 branch regardless of method
-	req, _ := http.NewRequest("POST", srv.URL+"/instance/dispose", nil)
+	// ROUTE-FIX-003 / SHIM-DRIFT-091: POST /instance/dispose serves its
+	// declared contract now (200 boolean / 400 BadRequest — see
+	// instance_dispose_test.go) and left the stub set; the remaining POST
+	// stub (/instance/vcs/apply) still reaches the 501 branch.
+	req, _ := http.NewRequest("POST", srv.URL+"/instance/vcs/apply", nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatalf("POST /instance/dispose: %v", err)
+		t.Fatalf("POST /instance/vcs/apply: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 501 {
-		t.Errorf("POST /instance/dispose: expected 501, got %d", resp.StatusCode)
+		t.Errorf("POST /instance/vcs/apply: expected 501, got %d", resp.StatusCode)
 	}
 }
 
