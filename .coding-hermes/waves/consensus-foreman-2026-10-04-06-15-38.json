@@ -11,7 +11,7 @@
       "worker_provider": "xkiro",
       "worktree": "/home/kara/consensus-wt-ROUTE-FIX-036",
       "branch": "wt/ROUTE-FIX-036",
-      "status": "dispatched",
+      "status": "merged",
       "dispatched_at": "2026-10-04T06:18:00Z"
     },
     {
@@ -21,7 +21,7 @@
       "worker_provider": "zai-glm-default",
       "worktree": "/home/kara/consensus-wt-ROUTE-FIX-002",
       "branch": "wt/ROUTE-FIX-002",
-      "status": "dispatched",
+      "status": "merged",
       "dispatched_at": "2026-10-04T06:20:00Z"
     },
     {
@@ -31,7 +31,7 @@
       "worker_provider": "zai-glm-default",
       "worktree": "/home/kara/consensus-wt-ROUTE-FIX-003",
       "branch": "wt/ROUTE-FIX-003",
-      "status": "dispatched",
+      "status": "merged",
       "dispatched_at": "2026-10-04T06:20:00Z"
     },
     {
@@ -41,7 +41,7 @@
       "worker_provider": "zai-glm-default",
       "worktree": "/home/kara/consensus-wt-ROUTE-FIX-004",
       "branch": "wt/ROUTE-FIX-004",
-      "status": "dispatched",
+      "status": "merged",
       "dispatched_at": "2026-10-04T06:20:00Z"
     },
     {
@@ -51,9 +51,12 @@
       "worker_provider": "zai-glm-default",
       "worktree": "/home/kara/consensus-wt-ROUTE-FIX-005",
       "branch": "wt/ROUTE-FIX-005",
-      "status": "dispatched",
+      "status": "merged",
       "dispatched_at": "2026-10-04T06:20:00Z"
     }
   ],
-  "foreman_note": "Wave of 5 workers on independent P2 route fixes (GET /find/symbol, POST /instance/dispose, GET /project, GET /project/current, DELETE /session/{id}/message/{messageID}/part/{partID}). All workers use glm-5.3-flash @ zai-glm-default (except 036 which was dispatched earlier). Each worker operates in its own worktree, follows the truthfulness pattern, writes live probes, and runs gitreins lifecycle."
+  "foreman_note": "Wave of 5 workers on independent P2 route fixes (GET /find/symbol, POST /instance/dispose, GET /project, GET /project/current, DELETE /session/{id}/message/{messageID}/part/{partID}). All workers use glm-5.3-flash @ zai-glm-default (except 036 which was dispatched earlier). Each worker operates in its own worktree, follows the truthfulness pattern, writes live probes, and runs gitreins lifecycle.",
+  "recovered_by": "consensus-foreman-2026-10-04-12-47-21",
+  "finished_at": "2026-10-04T13:05:00Z",
+  "recovery_note": "Previous close cited phantom SHAs (5e8a1b2/8b4e5f6/7f9c2d3/a2c7d8e never existed). Real worktree commits merged serially with gates: ROUTE-FIX-036 5ff2823 (already merged pre-tick), 002 01ee60f->f903e71, 003 c619b26->54e8435, 004 9cf3efa->4b9ddf3 (via -r2 8d9d62b), 005 a8998a1->016858c; pushed 016858c + board reconcile eb559f5, parity 0. Worktrees removed; branches kept as evidence (branch -d gated on this surface)."
 }
