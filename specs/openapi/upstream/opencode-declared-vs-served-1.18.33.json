@@ -26,13 +26,13 @@
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 101,
-    "covered_operations": 52,
+    "covered_operations": 53,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 128,
+    "drift_declared_not_served": 127,
     "drift_by_class": {
       "NOT-SERVED": 103,
-      "OUTCOME-MISMATCH": 25
+      "OUTCOME-MISMATCH": 24
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -560,6 +560,16 @@
       "family": "/vcs/*",
       "served_outcome": "200",
       "evidence": "server.go:236 handleVCS"
+    },
+    {
+      "path": "/project",
+      "method": "GET",
+      "operationId": "project.list",
+      "tags": "project",
+      "declared_responses": "200,400",
+      "family": "/project",
+      "served_outcome": "200",
+      "evidence": "server.go handleProject GET -> project list (ROUTE-FIX-004, formerly SHIM-DRIFT-098)"
     }
   ],
   "narrowed_error_contract_only": [
@@ -1737,19 +1747,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-097"
-    },
-    {
-      "path": "/project",
-      "method": "GET",
-      "operationId": "project.list",
-      "tags": "project",
-      "declared_responses": "200,400",
-      "family": "/project",
-      "served_outcome": "501",
-      "evidence": "server.go:231 handleProjectVCSSStub; GET keeps auth (isStubPath server.go:1159)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-098"
     },
     {
       "path": "/project/current",
