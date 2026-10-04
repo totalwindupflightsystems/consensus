@@ -14,6 +14,10 @@ This directory is the entry point for Consensus's executable QA doctrine. It ind
 - [`quorum-q1-2026-09-26/`](quorum-q1-2026-09-26/) contains the quorum brief and raw seat logs behind the merged verdicts.
 - Some plan rows name run-specific evidence outside this directory. Follow the path recorded by that row rather than treating this index as a claim that every tier has run.
 
+## Memory-constrained Go tests
+
+On this host, `go test ./... -count=1` passed in a user systemd scope capped at 3 GiB and 1 GiB. At a 512 MiB cap, the default package parallelism timed out in `internal/shim/opencode` (`TestSendMessageReturnsResponseForSubmittedTurn`, 90-second response timeout); no kernel OOM record was observed. Serial package execution passed at the same 512 MiB cap. For constrained environments, run `go test -p 1 ./... -count=1`; 512 MiB is the lowest cap verified here, not a proven minimum. Evidence logs: `/tmp/qa9-logs/capped-3g.log`, `/tmp/qa9-logs/capped-1g.log`, `/tmp/qa9-logs/capped-512m.log`, and `/tmp/qa9-logs/capped-512m-p1.log`.
+
 ## Run the battery guards
 
 Run commands from the repository root. Start with the self-contained red-proof:
