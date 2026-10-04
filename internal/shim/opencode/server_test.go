@@ -1909,7 +1909,7 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); the
 	// remaining /vcs/* sub-paths stay 501 stubs (SPEC-017 §3.9). The test
 	// server skips auth, so the stub — not 401 — answers.
-	for _, path := range []string{"/vcs/status", "/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
+	for _, path := range []string{"/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
@@ -3176,10 +3176,9 @@ var notImplementedRoutes = []notImplementedRoute{
 	{"SHIM-DRIFT-137", http.MethodPost, "/tui/open-sessions", "tui.openSessions"},
 	{"SHIM-DRIFT-138", http.MethodPost, "/tui/open-themes", "tui.openThemes"},
 	{"SHIM-DRIFT-139", http.MethodPost, "/tui/publish", "tui.publish"},
-	// STUB-501 (3): already 501, but the stub was silent/untyped.
+	// STUB-501 (2): already 501, but the stub was silent/untyped.
 	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
 	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
-	{"SHIM-DRIFT-144", http.MethodGet, "/vcs/status", "vcs.status"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3220,8 +3219,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	if len(notImplementedRoutes) != 12 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 12 after ROUTE-FIX-008/009/010/015, ROUTE-FIX-005/006/007 and ROUTE-ADD-102; table has %d",
+	if len(notImplementedRoutes) != 14 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010), SHIM-DRIFT-121 (ROUTE-FIX-015), and SHIM-DRIFT-144 (ROUTE-FIX-033) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 14; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3357,8 +3356,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 12 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 12 remaining SHIM-GAP-002 findings (ROUTE-FIX-007 now serves project.directories)", len(typed))
+	if len(typed) != 14 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 13 remaining SHIM-GAP-002 findings plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {

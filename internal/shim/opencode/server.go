@@ -327,18 +327,18 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// DF-CONSENSUS-38: bare GET /vcs and GET /vcs/diff are real
 	// fixed-workspace compatibility routes (upstream
 	// httpapi-instance.test.ts "serves path and VCS read endpoints" probes
-	// them with x-opencode-directory and expects 200); the remaining /vcs/*
-	// sub-paths keep the 501 stub. ServeMux resolves the longer pattern, so
-	// the exact /vcs/diff registration wins over the /vcs/ subtree stub.
-	// ROUTE-FIX-004: bare GET /project serves the declared project.list
-	// operation (200 Project[], 400) from the runtime's projects table; the
-	// 501 stub keeps every other method on the mount.
-	mux.HandleFunc("/project", s.handleProject)
+	// them with x-opencode-directory and expects 200); GET /vcs/status is the
+	// declared per-file status route below. Other /vcs/* sub-paths keep the 501
+	// stub. ServeMux resolves the longer exact patterns before the subtree stub.
+	mux.HandleFunc("/project", s.handleProjectVCSSStub)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
 	mux.HandleFunc("/vcs", s.handleVCS)
 	mux.HandleFunc("/vcs/diff", s.handleVCS)
+	// ROUTE-FIX-033 / SHIM-DRIFT-144: GET /vcs/status is the declared
+	// per-file status read. Register it before the /vcs/* stub subtree.
+	mux.HandleFunc("/vcs/status", s.handleVCSStatus)
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
 	mux.HandleFunc("/instance", s.handleInstance)
 	mux.HandleFunc("/instance/", s.handleInstanceSub)
@@ -2124,7 +2124,6 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 var vcsDeclaredOps = map[string]string{
 	"/vcs/apply":    "vcs.apply",
 	"/vcs/diff/raw": "vcs.diff.raw",
-	"/vcs/status":   "vcs.status",
 }
 
 // projectDeclaredSubpaths maps the literal /project sub-paths the pinned
@@ -2528,6 +2527,50 @@ func (s *Server) handleVCS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.instanceVCS(w, r)
+}
+
+func (s *Server) handleVCSStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+
+	// Both selectors are optional in the upstream contract. A supplied value
+	// must identify a directory; an absent selector uses the server workspace.
+	for _, param := range []string{"directory", "workspace"} {
+		values, present := r.URL.Query()[param]
+		if !present {
+			continue
+		}
+		value := ""
+		if len(values) > 0 {
+			value = strings.TrimSpace(values[0])
+		}
+		if value == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+		info, err := os.Stat(value)
+		if err != nil || !info.IsDir() {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("%s %q does not exist or is not a directory", param, value))
+			return
+		}
+	}
+
+	dir := s.requestWorkspaceDir(r)
+	if strings.TrimSpace(r.Header.Get("x-opencode-directory")) == "" {
+		for _, param := range []string{"directory", "workspace"} {
+			if value := strings.TrimSpace(r.URL.Query().Get(param)); value != "" {
+				dir = filepath.Clean(value)
+				if param == "directory" {
+					break
+				}
+			}
+		}
+	}
+	writeJSON(w, gitFileDiffs(r.Context(), dir))
 }
 
 func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {

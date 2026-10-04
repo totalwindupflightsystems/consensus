@@ -25,14 +25,14 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 102,
-    "covered_operations": 60,
-    "narrowed_error_contract_only": 6,
+    "served_route_entries": 99,
+    "covered_operations": 51,
+    "narrowed_error_contract_only": 8,
     "semantic_different": 2,
-    "drift_declared_not_served": 120,
+    "drift_declared_not_served": 127,
     "drift_by_class": {
-      "NOT-SERVED": 102,
-      "OUTCOME-MISMATCH": 18
+      "NOT-SERVED": 103,
+      "OUTCOME-MISMATCH": 24
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -640,6 +640,16 @@
       "family": "/vcs/*",
       "served_outcome": "200",
       "evidence": "server.go:236 handleVCS"
+    },
+    {
+      "path": "/vcs/status",
+      "method": "GET",
+      "operationId": "vcs.status",
+      "tags": "instance",
+      "declared_responses": "200,400",
+      "family": "/vcs/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleVCSStatus \u2192 gitFileDiffs (ROUTE-FIX-033 / SHIM-DRIFT-144)"
     }
   ],
   "narrowed_error_contract_only": [
@@ -2086,20 +2096,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-119"
-    },
-    {
-      "path": "/vcs/status",
-      "method": "GET",
-      "operationId": "vcs.status",
-      "tags": "instance",
-      "declared_responses": "200,400",
-      "family": "/vcs/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-120"
+      "id": "SHIM-DRIFT-127"
     }
   ],
   "drift_served_not_declared": [
