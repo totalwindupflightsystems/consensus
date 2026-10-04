@@ -5,6 +5,7 @@ Operational runbooks for the Consensus agent runtime. Each runbook follows the s
 | Runbook | Purpose | Severity |
 |---------|---------|----------|
 | [deployment.md](deployment.md) | Binary build, DB migration, health check | Normal |
+| [serve-adapters.md](serve-adapters.md) | Effective `serve` flags and YAML protocol adapter settings | Normal |
 | [troubleshooting.md](troubleshooting.md) | Log locations, startup failures, common config errors | Varies |
 | [backup-restore.md](backup-restore.md) | Postgres/SQLite backup and restore | Critical |
 | [admin-key-rotation.md](admin-key-rotation.md) | Rotate bootstrap admin key | High |
