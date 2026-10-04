@@ -26,13 +26,13 @@
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 99,
-    "covered_operations": 50,
+    "covered_operations": 51,
     "narrowed_error_contract_only": 8,
     "semantic_different": 2,
-    "drift_declared_not_served": 128,
+    "drift_declared_not_served": 127,
     "drift_by_class": {
       "NOT-SERVED": 103,
-      "OUTCOME-MISMATCH": 25
+      "OUTCOME-MISMATCH": 24
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -520,6 +520,16 @@
       "family": "/sync/*",
       "served_outcome": "200",
       "evidence": "server.go handleSyncStart (ROUTE-ADD-114, formerly SHIM-DRIFT-119 here / source item SHIM-DRIFT-128): declared directory + workspace query params validated (blank -> declared 400), declared boolean 200 answered false \u2014 no workspace sync started, the runtime keeps no sync loop engine"
+    },
+    {
+      "path": "/tui/append-prompt",
+      "method": "POST",
+      "operationId": "tui.appendPrompt",
+      "tags": "tui",
+      "declared_responses": "200,400",
+      "family": "/tui/*",
+      "served_outcome": "200,400",
+      "evidence": "server.go tuiAppendPrompt (handleTUI route)"
     },
     {
       "path": "/vcs",
@@ -1933,19 +1943,6 @@
       "id": "SHIM-DRIFT-113"
     },
     {
-      "path": "/tui/append-prompt",
-      "method": "POST",
-      "operationId": "tui.appendPrompt",
-      "tags": "tui",
-      "declared_responses": "200,400",
-      "family": "/tui/*",
-      "served_outcome": "501",
-      "evidence": "server.go:209 handleTUI (server.go:2242)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-114"
-    },
-    {
       "path": "/tui/clear-prompt",
       "method": "POST",
       "operationId": "tui.clearPrompt",
@@ -1956,7 +1953,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-115"
+      "id": "SHIM-DRIFT-114"
     },
     {
       "path": "/tui/control/next",
@@ -1969,7 +1966,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-116"
+      "id": "SHIM-DRIFT-115"
     },
     {
       "path": "/tui/control/response",
@@ -1982,7 +1979,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-117"
+      "id": "SHIM-DRIFT-116"
     },
     {
       "path": "/tui/execute-command",
@@ -1995,7 +1992,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-118"
+      "id": "SHIM-DRIFT-117"
     },
     {
       "path": "/tui/open-help",
@@ -2008,7 +2005,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-119"
+      "id": "SHIM-DRIFT-118"
     },
     {
       "path": "/tui/open-models",
@@ -2021,7 +2018,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-120"
+      "id": "SHIM-DRIFT-119"
     },
     {
       "path": "/tui/open-sessions",
@@ -2034,7 +2031,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-121"
+      "id": "SHIM-DRIFT-120"
     },
     {
       "path": "/tui/open-themes",
@@ -2047,7 +2044,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-122"
+      "id": "SHIM-DRIFT-121"
     },
     {
       "path": "/tui/publish",
@@ -2060,7 +2057,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-123"
+      "id": "SHIM-DRIFT-122"
     },
     {
       "path": "/tui/show-toast",
@@ -2073,7 +2070,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-124"
+      "id": "SHIM-DRIFT-123"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2086,7 +2083,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-125"
+      "id": "SHIM-DRIFT-124"
     },
     {
       "path": "/vcs/apply",
@@ -2099,7 +2096,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-126"
+      "id": "SHIM-DRIFT-125"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2112,7 +2109,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-127"
+      "id": "SHIM-DRIFT-126"
     },
     {
       "path": "/vcs/status",
@@ -2125,7 +2122,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-128"
+      "id": "SHIM-DRIFT-127"
     }
   ],
   "drift_served_not_declared": [

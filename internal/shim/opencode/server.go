@@ -4011,9 +4011,9 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // these are answered with the typed not-implemented envelope naming the
 // operation instead of the 404 the router used to hand back.
 //
-// The four older shim-only TUI actions (append-prompt, submit-prompt,
-// execute-command, show-toast) keep their pre-existing error body: they are
-// not part of the SHIM-GAP-002 finding set.
+// The remaining shim-only actions (submit-prompt, execute-command, show-toast)
+// keep their pre-existing error body: they are not part of the SHIM-GAP-002
+// finding set. append-prompt is served by tuiAppendPrompt below.
 var tuiDeclaredOps = map[string]string{
 	"clear-prompt":     "tui.clearPrompt",
 	"control/next":     "tui.control.next",
@@ -4078,8 +4078,43 @@ func (s *Server) ptyList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, []map[string]any{})
 }
 
+// tuiAppendPrompt serves the declared tui.appendPrompt contract. The shim has
+// no attached TUI process to receive the text, so valid input returns the
+// declared boolean false rather than claiming that a prompt was processed.
+func (s *Server) tuiAppendPrompt(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Text *string `json:"text"`
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		writeOpencodeBadRequest(w, r, "Body", "request body must be an object containing only a string text field")
+		return
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON object")
+		return
+	}
+	if req.Text == nil {
+		writeOpencodeBadRequest(w, r, "Payload", "required field text must be a string")
+		return
+	}
+
+	writeJSON(w, false)
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
+
+	if sub == "append-prompt" {
+		if r.Method != http.MethodPost {
+			writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+			return
+		}
+		s.tuiAppendPrompt(w, r)
+		return
+	}
 
 	if op, ok := tuiDeclaredOps[sub]; ok {
 		writeNotImplemented(w, r, op,
