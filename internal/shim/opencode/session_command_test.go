@@ -70,7 +70,12 @@ func TestSessionCommandServesCommandAgainstSession(t *testing.T) {
 	// handles — ServiceAdapter.waitForMessageResponse polls for it).
 	writeResult := make(chan error, 1)
 	go func() {
-		deadline := time.NewTimer(2 * time.Second)
+		// ROUTE-FIX-039 salvage gate: a hard 2s ceiling turned this into a
+		// deterministic load-flake (the 5ms poll loop + DB write routinely
+		// exceeds 2s at host load 40-60). Wait on the message with a
+		// generous ceiling; the test still fails if the user_message
+		// never lands (30s << go test's 10m package timeout).
+		deadline := time.NewTimer(30 * time.Second)
 		defer deadline.Stop()
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
