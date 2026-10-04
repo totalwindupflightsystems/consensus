@@ -100,8 +100,8 @@ psql "$CONSENSUS_DB_URL" -c "SELECT count(*) FROM pg_stat_activity WHERE datname
 docker restart consensus
 # or: systemctl restart consensus
 
-# 4. If pool exhaustion: reduce concurrent agents
-# Set CONSENSUS_MAX_WORKERS=2 in environment before restart
+# 4. If pool exhaustion: reduce concurrent agents by stopping
+#    extra agent processes (no server-side concurrency knob exists)
 
 # 5. Verify reconnection
 curl -s http://localhost:8090/api/v1/health | jq '.database'
@@ -214,7 +214,7 @@ docker start consensus
 sqlite3 dev.db "PRAGMA integrity_check;"
 
 # 3. Reduce concurrent agent count
-export CONSENSUS_MAX_WORKERS=2
+#    (no server-side concurrency knob; stop surplus agents, then start)
 ./bin/consensus serve
 
 # 4. Add systemd resource limits
