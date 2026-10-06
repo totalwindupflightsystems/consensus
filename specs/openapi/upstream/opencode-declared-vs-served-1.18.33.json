@@ -649,7 +649,7 @@
       "declared_responses": "200,400",
       "family": "/tui/*",
       "served_outcome": "200",
-      "evidence": "server.go tuiClearPrompt (ROUTE-FIX-020, SHIM-DRIFT-131): 200 false (no TUI attached), 400 on bad directory/workspace selectors, 405 on non-POST"
+      "evidence": "server.go tuiClearPrompt via handleTUI (ROUTE-FIX-022b, SHIM-DRIFT-131): declared 200 boolean false (no TUI attached), 400 INVALID_REQUEST on invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
     },
     {
       "path": "/tui/control/next",

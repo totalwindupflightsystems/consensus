@@ -1344,6 +1344,54 @@ func TestResolvePermissionInvalidDecision(t *testing.T) {
 // TUI Endpoint Tests
 // ============================================================================
 
+func TestTUIClearPrompt(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	// The OpenAPI contract returns a boolean; with no TUI attached, false is
+	// the truthful result even when the optional workspace selector is valid.
+	workspace := t.TempDir()
+	status, header, body := doShimRequest(t, srv.URL, http.MethodPost,
+		"/tui/clear-prompt?workspace="+workspace)
+	if status != http.StatusOK {
+		t.Fatalf("POST /tui/clear-prompt: got %d, want 200. Body: %s", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var cleared bool
+	if err := json.Unmarshal(body, &cleared); err != nil {
+		t.Fatalf("200 body is not the declared boolean: %v (%s)", err, body)
+	}
+	if cleared {
+		t.Error("clear-prompt returned true although no TUI process is attached")
+	}
+
+	// Invalid optional selectors take the declared 400 INVALID_REQUEST arm.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodPost,
+		"/tui/clear-prompt?directory=/nonexistent-clear-prompt-workspace")
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /tui/clear-prompt with invalid directory: got %d, want 400. Body: %s", status, body)
+	}
+	var invalid struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &invalid); err != nil {
+		t.Fatalf("400 body is not a JSON error envelope: %v (%s)", err, body)
+	}
+	if invalid.Error.Code != "INVALID_REQUEST" {
+		t.Errorf("400 error.code = %q, want INVALID_REQUEST", invalid.Error.Code)
+	}
+
+	// The routed operation rejects every method other than POST.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/tui/clear-prompt")
+	if status != http.StatusMethodNotAllowed {
+		t.Fatalf("GET /tui/clear-prompt: got %d, want 405. Body: %s", status, body)
+	}
+}
+
 func TestTUIAppendPromptServesDeclaredResponses(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
@@ -3274,11 +3322,11 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 10 = the table above. Was 11 before ROUTE-FIX-021 (SHIM-DRIFT-132,
-	// GET /tui/control/next) flipped to served by tuiControlNext — the
-	// drift artifact's OUTCOME-MISMATCH count drops 17 -> 16 with it.
+	// 10 = the table above. ROUTE-FIX-022b restores /tui/clear-prompt,
+	// which was already absent from this table/artifact drift set; the six
+	// other TUI operations listed here remain typed 501s pending separate rows.
 	if len(notImplementedRoutes) != 10 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 10 after ROUTE-FIX-008/009/010/015, ROUTE-FIX-005/006/007, ROUTE-ADD-102, ROUTE-FIX-020 and ROUTE-FIX-021; table has %d",
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 10 after ROUTE-FIX-022b restores /tui/clear-prompt; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
