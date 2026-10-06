@@ -266,6 +266,13 @@ type ToolExecutor interface {
 // HeartbeatConfig controls the background task polling loop.
 type HeartbeatConfig struct {
 	Interval time.Duration // polling interval, e.g. 5 * time.Second
+
+	// ClaimVisibilityTimeout is the claim-lease visibility timeout: how long
+	// a task may stay 'in_progress' before the background reaper considers
+	// the claim stale (worker died mid-task) and returns the task to
+	// 'pending' so it can be re-claimed. Zero means "use the default"
+	// (defaultClaimVisibilityTimeout, 5 minutes).
+	ClaimVisibilityTimeout time.Duration
 }
 
 // New creates a new Harness with the given dependencies.
@@ -275,7 +282,8 @@ func New(database db.DB, llm LLMClient) *Harness {
 		LLMClient:   llm,
 		secretStore: secrets.New(),
 		HeartbeatConfig: HeartbeatConfig{
-			Interval: 5 * time.Second,
+			Interval:               5 * time.Second,
+			ClaimVisibilityTimeout: defaultClaimVisibilityTimeout,
 		},
 		MaxConsecutiveErrors: 3, // SPEC-006 §Circuit Breakers default; config may override
 		inFlight:             make(map[string]time.Time),

@@ -651,6 +651,14 @@ const (
 	inFlightTTL = 15 * time.Minute
 )
 
+// claimReaperInterval is how often the claim reaper scans for stale task
+// claims (REVIEW-CONSENSUS-1).
+const claimReaperInterval = 30 * time.Second
+
+// defaultClaimVisibilityTimeout is the claim-lease visibility timeout used
+// when HeartbeatConfig.ClaimVisibilityTimeout is zero (REVIEW-CONSENSUS-1).
+const defaultClaimVisibilityTimeout = 5 * time.Minute
+
 // RequestWake signals the heartbeat loop to dispatch the given session as
 // soon as possible instead of waiting for the next tick (PERF-CONSENSUS-11
 // fire-on-message wake). Safe for concurrent use and never blocks: if the
@@ -739,6 +747,10 @@ func (h *Harness) StartHeartbeatLoop(ctx context.Context) {
 	slog.Info("harness: heartbeat loop started", "interval", h.HeartbeatConfig.Interval)
 	ticker := time.NewTicker(h.HeartbeatConfig.Interval)
 	defer ticker.Stop()
+
+	// REVIEW-CONSENSUS-1: the claim-lease reaper runs alongside the polling
+	// loop so a worker that dies mid-task cannot block its row forever.
+	go h.runClaimReaper(ctx)
 
 	for {
 		select {
@@ -859,6 +871,111 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 	}
 }
 
+// claimVisibilityTimeout resolves the effective claim-lease visibility
+// timeout: the configured value, or the default when zero (REVIEW-CONSENSUS-1).
+func (h *Harness) claimVisibilityTimeout() time.Duration {
+	if h.HeartbeatConfig.ClaimVisibilityTimeout > 0 {
+		return h.HeartbeatConfig.ClaimVisibilityTimeout
+	}
+	return defaultClaimVisibilityTimeout
+}
+
+// runClaimReaper periodically reclaims stale task claims (REVIEW-CONSENSUS-1).
+//
+// A task whose claim has been held longer than the visibility timeout is
+// presumed abandoned (its worker died mid-task) and is returned to 'pending'
+// with claimed_at cleared, so the normal heartbeat path can re-claim it.
+// Exits when ctx is cancelled.
+func (h *Harness) runClaimReaper(ctx context.Context) {
+	// Reap once immediately: a server restarting after a worker crash must
+	// reclaim stale claims without waiting for the first tick.
+	if _, err := h.reapStaleClaims(ctx); err != nil {
+		slog.Error("harness: claim reaper failed", "error", err)
+	}
+
+	ticker := time.NewTicker(claimReaperInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("harness: claim reaper stopped")
+			return
+		case <-ticker.C:
+			if _, err := h.reapStaleClaims(ctx); err != nil {
+				slog.Error("harness: claim reaper failed", "error", err)
+			}
+		}
+	}
+}
+
+// reapStaleClaims resets one pass worth of stale 'in_progress' claims to
+// 'pending'. Returns the number of tasks reclaimed.
+func (h *Harness) reapStaleClaims(ctx context.Context) (int, error) {
+	// claimed_at is TEXT (RFC3339 UTC) on SQLite and TIMESTAMPTZ on
+	// Postgres, so the lease-expiry arithmetic must run on the parsed
+	// timestamp, not inside SQL. Rows are read then reset in a second
+	// statement so the same SQL works on both backends.
+	rows, err := h.db.Query(ctx, `
+		SELECT id, session_id, claimed_at FROM tasks
+		WHERE status = 'in_progress' AND claimed_at IS NOT NULL
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("claim reaper: select: %w", err)
+	}
+
+	now := time.Now()
+	reaped := 0
+	for _, r := range rows {
+		claimedAt, ok := parseClaimedAt(toString(r["claimed_at"]))
+		if !ok {
+			slog.Warn("harness: claim reaper skipping task with unparseable claimed_at",
+				"task_id", toString(r["id"]), "claimed_at", toString(r["claimed_at"]))
+			continue
+		}
+		held := now.Sub(claimedAt)
+		if held <= h.claimVisibilityTimeout() {
+			continue // lease still valid — a live worker owns this claim
+		}
+
+		taskID := toString(r["id"])
+		sessionID := toString(r["session_id"])
+		if err := h.db.Exec(ctx, `
+			UPDATE tasks SET status = 'pending', claimed_at = NULL
+			WHERE id = $1 AND status = 'in_progress'
+		`, taskID); err != nil {
+			slog.Error("harness: claim reaper failed to reclaim task",
+				"task_id", taskID, "session_id", sessionID, "error", err)
+			continue
+		}
+		reaped++
+		slog.Warn("harness: reclaimed stale task claim",
+			"task_id", taskID,
+			"session_id", sessionID,
+			"held_for", held.Round(time.Second),
+			"visibility_timeout", h.claimVisibilityTimeout(),
+		)
+	}
+	return reaped, nil
+}
+
+// parseClaimedAt parses the tasks.claimed_at timestamp. SQLite stores it as
+// TEXT (RFC3339 UTC — the format ClaimNextReadyTask and mcp/tools.go write);
+// the Postgres driver returns TIMESTAMPTZ as time.Time. Also tolerates the
+// bare SQLite datetime('now') format ('2006-01-02 15:04:05', UTC) for rows
+// written by hand.
+func parseClaimedAt(v string) (time.Time, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05"} {
+		if t, err := time.Parse(layout, v); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // findActiveSessions queries for sessions that need harness attention:
 // thinking (just received a message), planning (multi-step), or tool_exec (external tool running).
 // Soft-deleted sessions are excluded — a tombstoned session must never be
@@ -898,9 +1015,13 @@ func (h *Harness) ClaimNextReadyTask(ctx context.Context) (*ClaimedTask, error) 
 		lockClause = " FOR UPDATE SKIP LOCKED"
 	}
 
+	// Stamp claimed_at as the lease anchor for the visibility timeout
+	// (REVIEW-CONSENSUS-1). RFC3339 UTC text works on both SQLite (TEXT
+	// column) and Postgres (TIMESTAMPTZ parses RFC3339).
+	claimedAt := time.Now().UTC().Format(time.RFC3339)
 	query := `
 		UPDATE tasks
-		SET status = 'in_progress'
+		SET status = 'in_progress', claimed_at = $1
 		WHERE status = 'pending'
 		  AND id = (
 		    SELECT id FROM tasks
@@ -908,10 +1029,10 @@ func (h *Harness) ClaimNextReadyTask(ctx context.Context) (*ClaimedTask, error) 
 		    ORDER BY priority DESC, created_at ASC
 		    LIMIT 1` + lockClause + `
 		  )
-		RETURNING id, session_id
+		RETURNING id, session_id, claimed_at
 	`
 
-	rows, err := h.db.Query(ctx, query)
+	rows, err := h.db.Query(ctx, query, claimedAt)
 	if err != nil {
 		return nil, fmt.Errorf("claim: %w", err)
 	}
