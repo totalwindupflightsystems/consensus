@@ -1359,6 +1359,81 @@ func TestTUIAppendPromptReturns501(t *testing.T) {
 	}
 }
 
+// TestTUIClearPrompt pins the ROUTE-FIX-020 contract for POST /tui/clear-prompt
+// (upstream operationId tui.clearPrompt, declared responses 200 boolean +
+// 400 BadRequest): empty body or valid selectors answer 200 with body `false`
+// (the shim has no TUI process to clear), invalid selectors answer the
+// declared 400 arm with the INVALID_REQUEST envelope, and a non-POST method
+// answers METHOD_NOT_ALLOWED.
+func TestTUIClearPrompt(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	do := func(t *testing.T, path string) (int, []byte) {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, srv.URL+path, nil)
+		if err != nil {
+			t.Fatalf("build POST %s: %v", path, err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read POST %s: %v", path, err)
+		}
+		return resp.StatusCode, body
+	}
+
+	// 200 arms: empty body and valid directory/workspace selectors.
+	for _, path := range []string{"/tui/clear-prompt", "/tui/clear-prompt?directory=/tmp", "/tui/clear-prompt?directory=/tmp&workspace=/tmp"} {
+		status, body := do(t, path)
+		if status != http.StatusOK {
+			t.Errorf("%s: got %d, want 200 (body: %s)", path, status, body)
+		}
+		if strings.TrimSpace(string(body)) != "false" {
+			t.Errorf("%s: body = %q, want `false`", path, body)
+		}
+	}
+
+	// 400 arms: invalid selectors answer the INVALID_REQUEST envelope.
+	for _, tc := range []struct{ name, path, param string }{
+		{"invalid directory", "/tui/clear-prompt?directory=/nonexistent-ROUTE-FIX-020", "directory"},
+		{"invalid workspace", "/tui/clear-prompt?workspace=/nonexistent-ROUTE-FIX-020", "workspace"},
+	} {
+		status, body := do(t, tc.path)
+		if status != http.StatusBadRequest {
+			t.Errorf("%s: got %d, want 400 (body: %s)", tc.name, status, body)
+		}
+		var got struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Fatalf("%s: body is not JSON: %v (%s)", tc.name, err, body)
+		}
+		if got.Error.Code != "INVALID_REQUEST" {
+			t.Errorf("%s: error.code = %q, want INVALID_REQUEST", tc.name, got.Error.Code)
+		}
+		if !strings.Contains(got.Error.Message, tc.param) {
+			t.Errorf("%s: error.message %q must name the offending %s selector", tc.name, got.Error.Message, tc.param)
+		}
+	}
+
+	// 405 arm: the declared operation only serves POST.
+	status, header, body := doShimRequest(t, srv.URL, http.MethodGet, "/tui/clear-prompt")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("GET /tui/clear-prompt: got %d, want 405 (body: %s)", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("GET /tui/clear-prompt: Content-Type = %q, want application/json", ct)
+	}
+}
+
 // ============================================================================
 // LSP Endpoint Test
 // ============================================================================
@@ -3116,7 +3191,6 @@ var notImplementedRoutes = []notImplementedRoute{
 	{"SHIM-DRIFT-100", http.MethodPost, "/project/git/init", "project.initGit"},
 	{"SHIM-DRIFT-101", http.MethodGet, "/project/project_missing/directories", "project.directories"},
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
-	{"SHIM-DRIFT-131", http.MethodPost, "/tui/clear-prompt", "tui.clearPrompt"},
 	{"SHIM-DRIFT-132", http.MethodGet, "/tui/control/next", "tui.control.next"},
 	{"SHIM-DRIFT-133", http.MethodPost, "/tui/control/response", "tui.control.response"},
 	{"SHIM-DRIFT-135", http.MethodPost, "/tui/open-help", "tui.openHelp"},
@@ -3168,8 +3242,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	if len(notImplementedRoutes) != 15 {
-		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010) and SHIM-DRIFT-121 (ROUTE-FIX-015) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 15; table has %d",
+	if len(notImplementedRoutes) != 14 {
+		t.Fatalf("SHIM-GAP-002 pins 13 ROUTED-404 + 1 METHOD-MISSING + 3 STUB-501 = 17 routes, minus SHIM-DRIFT-114 (ROUTE-FIX-008), SHIM-DRIFT-116 (ROUTE-FIX-010), SHIM-DRIFT-121 (ROUTE-FIX-015) and SHIM-DRIFT-131 (ROUTE-FIX-020, /tui/clear-prompt now served) now served, plus SHIM-DRIFT-106 typed by ROUTE-ADD-102 = 14; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3305,8 +3379,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 15 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 14 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff, ROUTE-FIX-015 serves DELETE /session/{id}/share) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
+	if len(typed) != 14 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 13 remaining SHIM-GAP-002 findings (ROUTE-FIX-008 serves /session/status, ROUTE-FIX-010 serves /session/{id}/diff, ROUTE-FIX-015 serves DELETE /session/{id}/share, ROUTE-FIX-020 serves POST /tui/clear-prompt) plus the SHIM-DRIFT-106 row typed by ROUTE-ADD-102 (POST /pty)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {

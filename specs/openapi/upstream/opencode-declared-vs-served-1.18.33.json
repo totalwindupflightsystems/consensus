@@ -20,19 +20,19 @@
     "derived_on": "2026-09-29",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-039 moved GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009 in the 2026-09-29 baseline report, SHIM-NARROWED-007 in this artifact's positional ids) to covered: the handler serves the declared 200 Array(Todo) translated from the runtime's per-session `tasks` ledger, the declared 400 for a present-but-blank declared query selector, and the declared 404 for an unknown session; regenerate with scripts/compare-opencode-declared-served.py"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-039 moved GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009 in the 2026-09-29 baseline report, SHIM-NARROWED-007 in this artifact's positional ids) to covered: the handler serves the declared 200 Array(Todo) translated from the runtime's per-session `tasks` ledger, the declared 400 for a present-but-blank declared query selector, and the declared 404 for an unknown session; ROUTE-FIX-020 moved POST /tui/clear-prompt (SHIM-DRIFT-131) to covered: the handler serves the declared 200 boolean (false, no TUI attached) and the declared 400 for invalid directory/workspace selectors; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 99,
-    "covered_operations": 50,
+    "covered_operations": 51,
     "narrowed_error_contract_only": 8,
     "semantic_different": 2,
-    "drift_declared_not_served": 128,
+    "drift_declared_not_served": 127,
     "drift_by_class": {
       "NOT-SERVED": 103,
-      "OUTCOME-MISMATCH": 25
+      "OUTCOME-MISMATCH": 24
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -520,6 +520,16 @@
       "family": "/sync/*",
       "served_outcome": "200",
       "evidence": "server.go handleSyncStart (ROUTE-ADD-114, formerly SHIM-DRIFT-119 here / source item SHIM-DRIFT-128): declared directory + workspace query params validated (blank -> declared 400), declared boolean 200 answered false \u2014 no workspace sync started, the runtime keeps no sync loop engine"
+    },
+    {
+      "path": "/tui/clear-prompt",
+      "method": "POST",
+      "operationId": "tui.clearPrompt",
+      "tags": "tui",
+      "declared_responses": "200,400",
+      "family": "/tui/*",
+      "served_outcome": "200",
+      "evidence": "server.go tuiClearPrompt (ROUTE-FIX-020, SHIM-DRIFT-131)"
     },
     {
       "path": "/vcs",
@@ -1946,19 +1956,6 @@
       "id": "SHIM-DRIFT-114"
     },
     {
-      "path": "/tui/clear-prompt",
-      "method": "POST",
-      "operationId": "tui.clearPrompt",
-      "tags": "tui",
-      "declared_responses": "200,400",
-      "family": "/tui/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-131)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-115"
-    },
-    {
       "path": "/tui/control/next",
       "method": "GET",
       "operationId": "tui.control.next",
@@ -1969,7 +1966,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-116"
+      "id": "SHIM-DRIFT-115"
     },
     {
       "path": "/tui/control/response",
@@ -1982,7 +1979,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-117"
+      "id": "SHIM-DRIFT-116"
     },
     {
       "path": "/tui/execute-command",
@@ -1995,7 +1992,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-118"
+      "id": "SHIM-DRIFT-117"
     },
     {
       "path": "/tui/open-help",
@@ -2008,7 +2005,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-119"
+      "id": "SHIM-DRIFT-118"
     },
     {
       "path": "/tui/open-models",
@@ -2021,7 +2018,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-120"
+      "id": "SHIM-DRIFT-119"
     },
     {
       "path": "/tui/open-sessions",
@@ -2034,7 +2031,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-121"
+      "id": "SHIM-DRIFT-120"
     },
     {
       "path": "/tui/open-themes",
@@ -2047,7 +2044,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-122"
+      "id": "SHIM-DRIFT-121"
     },
     {
       "path": "/tui/publish",
@@ -2060,7 +2057,7 @@
       "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-123"
+      "id": "SHIM-DRIFT-122"
     },
     {
       "path": "/tui/show-toast",
@@ -2073,7 +2070,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-124"
+      "id": "SHIM-DRIFT-123"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2086,7 +2083,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-125"
+      "id": "SHIM-DRIFT-124"
     },
     {
       "path": "/vcs/apply",
@@ -2099,7 +2096,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-126"
+      "id": "SHIM-DRIFT-125"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2112,7 +2109,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-127"
+      "id": "SHIM-DRIFT-126"
     },
     {
       "path": "/vcs/status",
@@ -2125,7 +2122,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-128"
+      "id": "SHIM-DRIFT-127"
     }
   ],
   "drift_served_not_declared": [

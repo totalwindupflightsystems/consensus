@@ -4015,7 +4015,6 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // execute-command, show-toast) keep their pre-existing error body: they are
 // not part of the SHIM-GAP-002 finding set.
 var tuiDeclaredOps = map[string]string{
-	"clear-prompt":     "tui.clearPrompt",
 	"control/next":     "tui.control.next",
 	"control/response": "tui.control.response",
 	"open-help":        "tui.openHelp",
@@ -4078,12 +4077,41 @@ func (s *Server) ptyList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, []map[string]any{})
 }
 
+// tuiClearPrompt answers upstream tui.clearPrompt. The declared 200 body is a
+// boolean — the shim has no TUI process, so the truthful happy path is false.
+// The optional directory/workspace query selectors are validated against the
+// filesystem first: naming a path that does not exist (or is not a directory)
+// answers the declared 400 arm with the INVALID_REQUEST envelope.
+func (s *Server) tuiClearPrompt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return
+			}
+		}
+	}
+	writeJSON(w, false)
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
 	if op, ok := tuiDeclaredOps[sub]; ok {
 		writeNotImplemented(w, r, op,
 			fmt.Sprintf("TUI control %q is not implemented: no opencode TUI process is attached to this shim; use opencode's built-in TUI", sub))
+		return
+	}
+
+	// clear-prompt is a declared operation served per contract (ROUTE-FIX-020):
+	// POST answers 200 false (the shim has no TUI), invalid selectors 400.
+	if sub == "clear-prompt" {
+		s.tuiClearPrompt(w, r)
 		return
 	}
 
