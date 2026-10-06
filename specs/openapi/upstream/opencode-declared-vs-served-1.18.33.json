@@ -26,13 +26,13 @@
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 102,
-    "covered_operations": 61,
+    "covered_operations": 62,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 119,
+    "drift_declared_not_served": 118,
     "drift_by_class": {
       "NOT-SERVED": 102,
-      "OUTCOME-MISMATCH": 17
+      "OUTCOME-MISMATCH": 16
     },
     "drift_served_not_declared": 17,
     "served_drift_by_class": {
@@ -650,6 +650,16 @@
       "family": "/tui/*",
       "served_outcome": "200",
       "evidence": "server.go tuiClearPrompt (ROUTE-FIX-020, SHIM-DRIFT-131): 200 false (no TUI attached), 400 on bad directory/workspace selectors, 405 on non-POST"
+    },
+    {
+      "path": "/tui/control/next",
+      "method": "GET",
+      "operationId": "tui.control.next",
+      "tags": "tui",
+      "declared_responses": "200,400",
+      "family": "/tui/*",
+      "served_outcome": "200",
+      "evidence": "server.go tuiControlNext (ROUTE-FIX-021, SHIM-DRIFT-132): 200 {path,body} empty-queue representation (no TUI process), 400 on bad directory/workspace selectors, 405 on non-GET"
     }
   ],
   "narrowed_error_contract_only": [
@@ -1928,19 +1938,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-106"
-    },
-    {
-      "path": "/tui/control/next",
-      "method": "GET",
-      "operationId": "tui.control.next",
-      "tags": "tui",
-      "declared_responses": "200,400",
-      "family": "/tui/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-108"
     },
     {
       "path": "/tui/control/response",

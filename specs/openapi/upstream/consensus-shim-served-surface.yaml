@@ -551,7 +551,7 @@ routes:
     method: GET
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)"
+    evidence: "server.go tuiControlNext (ROUTE-FIX-021, SHIM-DRIFT-132)"
   - path: /tui/control/response
     method: POST
     outcome: 200

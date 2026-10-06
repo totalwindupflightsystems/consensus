@@ -4697,10 +4697,10 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 //
 // The remaining shim-only actions (submit-prompt, execute-command, show-toast)
 // keep their pre-existing error body: they are not part of the SHIM-GAP-002
-// finding set. append-prompt is served by tuiAppendPrompt below.
+// finding set. append-prompt is served by tuiAppendPrompt and control/next by
+// tuiControlNext (ROUTE-FIX-021), both below.
 var tuiDeclaredOps = map[string]string{
 	"clear-prompt":     "tui.clearPrompt",
-	"control/next":     "tui.control.next",
 	"control/response": "tui.control.response",
 	"open-help":        "tui.openHelp",
 	"open-models":      "tui.openModels",
@@ -4788,6 +4788,32 @@ func (s *Server) tuiAppendPrompt(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, false)
 }
 
+// tuiControlNext answers upstream tui.control.next. The declared 200 body is
+// {path: string, body: any} with both fields required. The shim runs no TUI
+// process, so there is no "next" control to select and the truthful happy path
+// is the EMPTY queue representation — path "" and body null, never a
+// fabricated control object. The optional directory/workspace query selectors
+// are validated against the filesystem first: naming a path that does not
+// exist (or is not a directory) answers the declared 400 arm with the
+// INVALID_REQUEST envelope, and a non-GET method answers the sibling
+// METHOD_NOT_ALLOWED (ROUTE-FIX-021, SHIM-DRIFT-132 / drift row SHIM-DRIFT-108).
+func (s *Server) tuiControlNext(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return
+			}
+		}
+	}
+	writeJSON(w, map[string]any{"path": "", "body": nil})
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
@@ -4797,6 +4823,14 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.tuiAppendPrompt(w, r)
+		return
+	}
+
+	// control/next is a declared operation served per contract (ROUTE-FIX-021):
+	// GET answers 200 {path, body} (the empty-queue representation — the shim
+	// has no TUI process), invalid selectors 400, non-GET 405.
+	if sub == "control/next" {
+		s.tuiControlNext(w, r)
 		return
 	}
 
