@@ -1501,6 +1501,183 @@ func TestTUIControlNext(t *testing.T) {
 	}
 }
 
+func requireTUIFalse(t *testing.T, status int, header http.Header, body []byte) {
+	t.Helper()
+	if status != http.StatusOK {
+		t.Fatalf("got %d, want 200. Body: %s", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var result bool
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatalf("200 body is not the declared boolean: %v (%s)", err, body)
+	}
+	if result {
+		t.Error("operation returned true although no TUI process is attached")
+	}
+}
+
+func requireTUIBadRequest(t *testing.T, status int, body []byte) {
+	t.Helper()
+	if status != http.StatusBadRequest {
+		t.Fatalf("got %d, want 400. Body: %s", status, body)
+	}
+	var got struct {
+		Name string `json:"name"`
+		Data struct {
+			Kind    string `json:"kind"`
+			Message string `json:"message"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("400 body is not the declared BadRequest envelope: %v (%s)", err, body)
+	}
+	if got.Name != "BadRequest" || got.Data.Kind == "" || got.Data.Message == "" {
+		t.Errorf("400 body = %+v, want BadRequest with kind and message", got)
+	}
+}
+
+func requireTUIMethodNotAllowed(t *testing.T, status int, body []byte) {
+	t.Helper()
+	if status != http.StatusMethodNotAllowed {
+		t.Fatalf("got %d, want 405. Body: %s", status, body)
+	}
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("405 body is not a JSON error envelope: %v (%s)", err, body)
+	}
+	if got.Error.Code != "METHOD_NOT_ALLOWED" {
+		t.Errorf("405 error.code = %q, want METHOD_NOT_ALLOWED", got.Error.Code)
+	}
+}
+
+func testTUIBodylessBooleanOperation(t *testing.T, path string) {
+	t.Helper()
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	workspace := t.TempDir()
+	status, header, body := doShimRequest(t, srv.URL, http.MethodPost, path+"?workspace="+workspace)
+	requireTUIFalse(t, status, header, body)
+
+	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost, path, `{}`)
+	requireTUIBadRequest(t, status, body)
+
+	status, _, body = doShimRequest(t, srv.URL, http.MethodPost, path+"?directory=/nonexistent-tui-workspace")
+	if status != http.StatusBadRequest {
+		t.Fatalf("invalid directory: got %d, want 400. Body: %s", status, body)
+	}
+
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, path)
+	requireTUIMethodNotAllowed(t, status, body)
+}
+
+func TestTUIControlResponse(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	// requestBody is optional in the pinned document.
+	status, header, body := doShimRequest(t, srv.URL, http.MethodPost, "/tui/control/response")
+	requireTUIFalse(t, status, header, body)
+
+	// The upstream body schema is unconstrained. Any one valid JSON value is
+	// accepted, but the shim truthfully reports false because no TUI queue exists.
+	status, header, body = doShimRequestBody(t, srv.URL, http.MethodPost,
+		"/tui/control/response", `{"requestID":"req-1","accepted":true}`)
+	requireTUIFalse(t, status, header, body)
+
+	status, _, body = doShimRequestBody(t, srv.URL, http.MethodPost,
+		"/tui/control/response", `{"requestID":`)
+	requireTUIBadRequest(t, status, body)
+
+	status, _, body = doShimRequest(t, srv.URL, http.MethodPost,
+		"/tui/control/response?directory=/nonexistent-tui-control-response")
+	if status != http.StatusBadRequest {
+		t.Fatalf("invalid directory: got %d, want 400. Body: %s", status, body)
+	}
+
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/tui/control/response")
+	requireTUIMethodNotAllowed(t, status, body)
+}
+
+func TestTUIOpenHelp(t *testing.T) {
+	testTUIBodylessBooleanOperation(t, "/tui/open-help")
+}
+
+func TestTUIOpenModels(t *testing.T) {
+	testTUIBodylessBooleanOperation(t, "/tui/open-models")
+}
+
+func TestTUIOpenSessions(t *testing.T) {
+	testTUIBodylessBooleanOperation(t, "/tui/open-sessions")
+}
+
+func TestTUIOpenThemes(t *testing.T) {
+	testTUIBodylessBooleanOperation(t, "/tui/open-themes")
+}
+
+func TestTUIPublish(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"prompt append", `{"type":"tui.prompt.append","properties":{"text":"hello"}}`},
+		{"command execute", `{"type":"tui.command.execute","properties":{"command":"session.list"}}`},
+		{"toast show", `{"type":"tui.toast.show","properties":{"message":"saved","variant":"success","duration":1000}}`},
+		{"session select", `{"type":"tui.session.select","properties":{"sessionID":"ses_1"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/publish", tc.body)
+			requireTUIFalse(t, status, header, body)
+		})
+	}
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"missing properties", `{"type":"tui.prompt.append"}`},
+		{"missing required nested field", `{"type":"tui.prompt.append","properties":{}}`},
+		{"unknown event type", `{"type":"tui.unknown","properties":{}}`},
+		{"invalid toast variant", `{"type":"tui.toast.show","properties":{"message":"x","variant":"maybe"}}`},
+		{"invalid session id", `{"type":"tui.session.select","properties":{"sessionID":"bad"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/publish", tc.body)
+			requireTUIBadRequest(t, status, body)
+		})
+	}
+
+	status, _, body := doShimRequest(t, srv.URL, http.MethodPost,
+		"/tui/publish?workspace=/nonexistent-tui-publish")
+	if status != http.StatusBadRequest {
+		t.Fatalf("invalid workspace: got %d, want 400. Body: %s", status, body)
+	}
+
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/tui/publish")
+	requireTUIMethodNotAllowed(t, status, body)
+}
+
+func TestTUIShimOnlyActionsRemain501(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	for _, path := range []string{"/tui/submit-prompt", "/tui/execute-command", "/tui/show-toast"} {
+		status, _, body := doShimRequest(t, srv.URL, http.MethodPost, path)
+		if status != http.StatusNotImplemented {
+			t.Errorf("POST %s: got %d, want unchanged 501. Body: %s", path, status, body)
+		}
+	}
+}
+
 // ============================================================================
 // LSP Endpoint Test
 // ============================================================================
@@ -3268,16 +3445,11 @@ type notImplementedRoute struct {
 // GET /project/current (SHIM-DRIFT-099, the table's longest-standing
 // ROUTED-404 row), which left this table likewise (projectCurrent).
 // ROUTE-FIX-007 served GET /project/{projectID}/directories (SHIM-DRIFT-101),
-// which left this table too.
+// which left this table too. ROUTE-FIX-023 serves the six TUI operations that
+// formerly occupied SHIM-DRIFT-133 and SHIM-DRIFT-135..139.
 var notImplementedRoutes = []notImplementedRoute{
-	// ROUTED-404 (7): route registered, handler answered 404 NOT_FOUND.
+	// ROUTED-404: route registered, handler answered 404 NOT_FOUND.
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
-	{"SHIM-DRIFT-133", http.MethodPost, "/tui/control/response", "tui.control.response"},
-	{"SHIM-DRIFT-135", http.MethodPost, "/tui/open-help", "tui.openHelp"},
-	{"SHIM-DRIFT-136", http.MethodPost, "/tui/open-models", "tui.openModels"},
-	{"SHIM-DRIFT-137", http.MethodPost, "/tui/open-sessions", "tui.openSessions"},
-	{"SHIM-DRIFT-138", http.MethodPost, "/tui/open-themes", "tui.openThemes"},
-	{"SHIM-DRIFT-139", http.MethodPost, "/tui/publish", "tui.publish"},
 	// STUB-501 (3): already 501, but the stub was silent/untyped.
 	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
 	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
@@ -3322,11 +3494,10 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 10 = the table above. ROUTE-FIX-022b restores /tui/clear-prompt,
-	// which was already absent from this table/artifact drift set; the six
-	// other TUI operations listed here remain typed 501s pending separate rows.
-	if len(notImplementedRoutes) != 10 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 10 after ROUTE-FIX-022b restores /tui/clear-prompt; table has %d",
+	// 4 = pty.create plus the three VCS typed stubs. ROUTE-FIX-023 moved the
+	// six pinned-upstream TUI operations to truthful 200/400 handlers.
+	if len(notImplementedRoutes) != 4 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 4 after ROUTE-FIX-023 serves six TUI operations; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3462,8 +3633,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 10 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 10 remaining SHIM-GAP-002 findings (ROUTE-FIX-007 serves project.directories, ROUTE-FIX-020 serves /tui/clear-prompt, ROUTE-FIX-021 serves /tui/control/next)", len(typed))
+	if len(typed) != 4 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 4 remaining SHIM-GAP-002 findings after ROUTE-FIX-023 serves six TUI operations", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {
