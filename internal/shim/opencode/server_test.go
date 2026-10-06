@@ -1397,6 +1397,62 @@ func TestTUIAppendPromptServesDeclaredResponses(t *testing.T) {
 	}
 }
 
+// TestTUIControlNext pins the ROUTE-FIX-021 contract for GET /tui/control/next
+// (upstream operationId tui.control.next, declared responses 200 {path:
+// string, body: any — both required} + 400 BadRequestError): a happy-path GET
+// answers 200 with the empty-queue representation {"path": "", "body": null}
+// (the shim runs no TUI process, so there is no "next" control to select),
+// an invalid directory/workspace selector answers the declared 400 arm with
+// the INVALID_REQUEST envelope, and a non-GET method answers
+// METHOD_NOT_ALLOWED.
+func TestTUIControlNext(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	// 200 arm: the declared object carries the required path and body keys.
+	status, header, body := doShimRequest(t, srv.URL, http.MethodGet, "/tui/control/next")
+	if status != http.StatusOK {
+		t.Fatalf("GET /tui/control/next: got %d, want 200 (declared). Body: %s", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("200 body is not a JSON object: %v (%s)", err, body)
+	}
+	if _, ok := got["path"]; !ok {
+		t.Errorf("200 body missing required key path: %v", got)
+	}
+	if _, ok := got["body"]; !ok {
+		t.Errorf("200 body missing required key body: %v", got)
+	}
+
+	// 400 arm: an invalid selector answers the declared INVALID_REQUEST envelope.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/tui/control/next?directory=/nonexistent-path-xyz")
+	if status != http.StatusBadRequest {
+		t.Fatalf("GET /tui/control/next?directory=...: got %d, want 400. Body: %s", status, body)
+	}
+	var env struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil {
+		t.Fatalf("400 body is not the INVALID_REQUEST envelope: %v (%s)", err, body)
+	}
+	if env.Error.Code != "INVALID_REQUEST" {
+		t.Errorf("400 error.code = %q, want INVALID_REQUEST", env.Error.Code)
+	}
+
+	// 405 arm: a non-GET method answers METHOD_NOT_ALLOWED.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodPost, "/tui/control/next")
+	if status != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /tui/control/next: got %d, want 405. Body: %s", status, body)
+	}
+}
+
 // ============================================================================
 // LSP Endpoint Test
 // ============================================================================
@@ -3166,9 +3222,8 @@ type notImplementedRoute struct {
 // ROUTE-FIX-007 served GET /project/{projectID}/directories (SHIM-DRIFT-101),
 // which left this table too.
 var notImplementedRoutes = []notImplementedRoute{
-	// ROUTED-404 (11): route registered, handler answered 404 NOT_FOUND.
+	// ROUTED-404 (7): route registered, handler answered 404 NOT_FOUND.
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
-	{"SHIM-DRIFT-132", http.MethodGet, "/tui/control/next", "tui.control.next"},
 	{"SHIM-DRIFT-133", http.MethodPost, "/tui/control/response", "tui.control.response"},
 	{"SHIM-DRIFT-135", http.MethodPost, "/tui/open-help", "tui.openHelp"},
 	{"SHIM-DRIFT-136", http.MethodPost, "/tui/open-models", "tui.openModels"},
@@ -3219,11 +3274,11 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 11 = the table above. Was 12 before ROUTE-FIX-020 (SHIM-DRIFT-131,
-	// POST /tui/clear-prompt) flipped to served by tuiClearPrompt — the
-	// drift artifact's OUTCOME-MISMATCH count drops 18 -> 17 with it.
-	if len(notImplementedRoutes) != 11 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 11 after ROUTE-FIX-008/009/010/015, ROUTE-FIX-005/006/007, ROUTE-ADD-102 and ROUTE-FIX-020; table has %d",
+	// 10 = the table above. Was 11 before ROUTE-FIX-021 (SHIM-DRIFT-132,
+	// GET /tui/control/next) flipped to served by tuiControlNext — the
+	// drift artifact's OUTCOME-MISMATCH count drops 17 -> 16 with it.
+	if len(notImplementedRoutes) != 10 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 10 after ROUTE-FIX-008/009/010/015, ROUTE-FIX-005/006/007, ROUTE-ADD-102, ROUTE-FIX-020 and ROUTE-FIX-021; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3359,8 +3414,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 11 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 11 remaining SHIM-GAP-002 findings (ROUTE-FIX-007 serves project.directories, ROUTE-FIX-020 serves /tui/clear-prompt)", len(typed))
+	if len(typed) != 10 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 10 remaining SHIM-GAP-002 findings (ROUTE-FIX-007 serves project.directories, ROUTE-FIX-020 serves /tui/clear-prompt, ROUTE-FIX-021 serves /tui/control/next)", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {
