@@ -284,7 +284,7 @@ routes:
     evidence: "server.go handlePty → ptyList (ROUTE-ADD-102, formerly SHIM-DRIFT-105): the runtime spawns no pseudo-terminals, so the list is truthfully empty"
   - path: /pty
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-102 typed SHIM-DRIFT-106)"
 
@@ -510,17 +510,17 @@ routes:
   # (SHIM-DRIFT-121, the block's METHOD-MISSING row) likewise; 14 entries remain.
   - path: /project/current
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-099)"
   - path: /project/git/init
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: stub-skip-non-GET
     evidence: "server.go handleProjectByID projectDeclaredSubpaths (SHIM-DRIFT-100)"
   - path: /project/{projectID}/directories
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleProjectByID directories suffix (SHIM-DRIFT-101)"
   - path: /tui/clear-prompt
@@ -530,52 +530,52 @@ routes:
     evidence: "server.go tuiClearPrompt (ROUTE-FIX-020, SHIM-DRIFT-131)"
   - path: /tui/control/next
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-132)"
   - path: /tui/control/response
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)"
   - path: /tui/open-help
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)"
   - path: /tui/open-models
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)"
   - path: /tui/open-sessions
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)"
   - path: /tui/open-themes
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)"
   - path: /tui/publish
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)"
   - path: /vcs/apply
     method: POST
-    outcome: 501-typed
+    outcome: 200
     auth: stub-skip-non-GET
     evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)"
   - path: /vcs/diff/raw
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)"
   - path: /vcs/status
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
     evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)"
 

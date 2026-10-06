@@ -3168,7 +3168,6 @@ func TestHandleGlobalEvent_SSE_WithFlusher(t *testing.T) {
 type notImplementedRoute struct {
 	driftID   string
 	method    string
-	path      string // concrete request path; placeholders filled with the ids below
 	operation string // upstream operationId the envelope must name
 }
 
