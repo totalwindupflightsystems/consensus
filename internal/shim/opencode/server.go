@@ -4690,23 +4690,14 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // TUI Control Endpoints (SPEC-017 §3.1 — shim-only passthrough)
 // ============================================================================
 
-// tuiDeclaredOps maps the remaining TUI sub-paths the pinned upstream document
-// declares but this shim does not implement. They are answered with the typed
-// not-implemented envelope naming the operation instead of the 404 the router
-// would otherwise hand back.
+// tuiDeclaredOps is retained as the typed fallback for future pinned-upstream
+// TUI operations that are declared but not yet translated. Every currently
+// declared operation formerly listed here is now served by a truthful handler.
 //
-// The remaining shim-only actions (submit-prompt, execute-command, show-toast)
-// keep their pre-existing error body: they are not part of the SHIM-GAP-002
-// finding set. append-prompt and clear-prompt are served by their handlers, and
-// control/next is served by tuiControlNext (ROUTE-FIX-021), below.
-var tuiDeclaredOps = map[string]string{
-	"control/response": "tui.control.response",
-	"open-help":        "tui.openHelp",
-	"open-models":      "tui.openModels",
-	"open-sessions":    "tui.openSessions",
-	"open-themes":      "tui.openThemes",
-	"publish":          "tui.publish",
-}
+// The shim-only actions (submit-prompt, execute-command, show-toast) keep their
+// pre-existing 501 error body and tuiAction stub contract. They are deliberately
+// outside this map and are not part of ROUTE-FIX-023.
+var tuiDeclaredOps = map[string]string{}
 
 // handlePty serves the bare /pty mount (ROUTE-ADD-102 / ROUTE-FIX-010):
 //
@@ -4834,6 +4825,213 @@ func (s *Server) tuiControlNext(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"path": "", "body": nil})
 }
 
+// validateTUISelectors applies the directory/workspace filesystem contract used
+// by tui.clearPrompt and pty.list. Empty selectors preserve the pinned optional
+// parameter semantics; valued selectors must name an existing directory.
+func validateTUISelectors(w http.ResponseWriter, r *http.Request) bool {
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// decodeTUIJSONBody decodes exactly one JSON value and emits the upstream
+// BadRequest envelope on malformed or trailing input.
+func decodeTUIJSONBody(w http.ResponseWriter, r *http.Request, dst any, message string) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		writeOpencodeBadRequest(w, r, "Body", message)
+		return false
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON value")
+		return false
+	}
+	return true
+}
+
+// rejectUndeclaredTUIBody enforces the four open-* operations' lack of a
+// requestBody declaration. A client body cannot affect a detached TUI and is
+// rejected rather than silently ignored.
+func rejectUndeclaredTUIBody(w http.ResponseWriter, r *http.Request) bool {
+	if r.Body != nil && r.ContentLength != 0 {
+		writeOpencodeBadRequest(w, r, "Body", "this operation does not declare a request body")
+		return false
+	}
+	return true
+}
+
+// tuiControlResponse serves tui.control.response. Its request body schema is
+// deliberately unconstrained, so any single valid JSON value is accepted. No
+// TUI request queue is attached, therefore false is the truthful boolean result.
+func (s *Server) tuiControlResponse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) {
+		return
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		var response any
+		if !decodeTUIJSONBody(w, r, &response, "request body must contain valid JSON") {
+			return
+		}
+	}
+	writeJSON(w, false)
+}
+
+func (s *Server) tuiOpenHelp(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) || !rejectUndeclaredTUIBody(w, r) {
+		return
+	}
+	writeJSON(w, false)
+}
+
+func (s *Server) tuiOpenModels(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) || !rejectUndeclaredTUIBody(w, r) {
+		return
+	}
+	writeJSON(w, false)
+}
+
+func (s *Server) tuiOpenSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) || !rejectUndeclaredTUIBody(w, r) {
+		return
+	}
+	writeJSON(w, false)
+}
+
+func (s *Server) tuiOpenThemes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) || !rejectUndeclaredTUIBody(w, r) {
+		return
+	}
+	writeJSON(w, false)
+}
+
+func decodeTUIEventProperties(raw json.RawMessage, dst any) error {
+	if len(raw) == 0 {
+		return errors.New("required field properties must be an object")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return errors.New("properties must contain exactly one JSON object")
+	}
+	return nil
+}
+
+// tuiPublish serves tui.publish's EventTui* union. The event is validated but
+// not delivered because this shim has no attached TUI event sink; false is the
+// declared boolean representation of that truthful no-op.
+func (s *Server) tuiPublish(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) {
+		return
+	}
+
+	var request struct {
+		Type       *string         `json:"type"`
+		Properties json.RawMessage `json:"properties"`
+	}
+	if !decodeTUIJSONBody(w, r, &request,
+		"request body must be one EventTuiPromptAppend, EventTuiCommandExecute, EventTuiToastShow, or EventTuiSessionSelect object") {
+		return
+	}
+	if request.Type == nil || len(request.Properties) == 0 {
+		writeOpencodeBadRequest(w, r, "Payload", "required fields type and properties must be present")
+		return
+	}
+
+	var err error
+	switch *request.Type {
+	case "tui.prompt.append":
+		var properties struct {
+			Text *string `json:"text"`
+		}
+		err = decodeTUIEventProperties(request.Properties, &properties)
+		if err == nil && properties.Text == nil {
+			err = errors.New("required property text must be a string")
+		}
+	case "tui.command.execute":
+		var properties struct {
+			Command *string `json:"command"`
+		}
+		err = decodeTUIEventProperties(request.Properties, &properties)
+		if err == nil && properties.Command == nil {
+			err = errors.New("required property command must be a string")
+		}
+	case "tui.toast.show":
+		var properties struct {
+			Title    *string `json:"title"`
+			Message  *string `json:"message"`
+			Variant  *string `json:"variant"`
+			Duration *int    `json:"duration"`
+		}
+		err = decodeTUIEventProperties(request.Properties, &properties)
+		if err == nil && (properties.Message == nil || properties.Variant == nil) {
+			err = errors.New("required properties message and variant must be strings")
+		}
+		if err == nil {
+			switch *properties.Variant {
+			case "info", "success", "warning", "error":
+			default:
+				err = errors.New("property variant must be info, success, warning, or error")
+			}
+		}
+		if err == nil && properties.Duration != nil && *properties.Duration <= 0 {
+			err = errors.New("property duration must be a positive integer")
+		}
+	case "tui.session.select":
+		var properties struct {
+			SessionID *string `json:"sessionID"`
+		}
+		err = decodeTUIEventProperties(request.Properties, &properties)
+		if err == nil && (properties.SessionID == nil || !strings.HasPrefix(*properties.SessionID, "ses")) {
+			err = errors.New("required property sessionID must match ^ses")
+		}
+	default:
+		err = fmt.Errorf("unsupported TUI event type %q", *request.Type)
+	}
+	if err != nil {
+		writeOpencodeBadRequest(w, r, "Payload", err.Error())
+		return
+	}
+
+	writeJSON(w, false)
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
@@ -4856,6 +5054,30 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	// has no TUI process), invalid selectors 400, non-GET 405.
 	if sub == "control/next" {
 		s.tuiControlNext(w, r)
+		return
+	}
+
+	// ROUTE-FIX-023: these pinned-upstream POST operations all declare a
+	// boolean 200 and a 400 arm. Each handler validates its exact input schema
+	// and returns false because this shim has no attached TUI process.
+	switch sub {
+	case "control/response":
+		s.tuiControlResponse(w, r)
+		return
+	case "open-help":
+		s.tuiOpenHelp(w, r)
+		return
+	case "open-models":
+		s.tuiOpenModels(w, r)
+		return
+	case "open-sessions":
+		s.tuiOpenSessions(w, r)
+		return
+	case "open-themes":
+		s.tuiOpenThemes(w, r)
+		return
+	case "publish":
+		s.tuiPublish(w, r)
 		return
 	}
 

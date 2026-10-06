@@ -531,8 +531,10 @@ routes:
   # moved /project/current GET (SHIM-DRIFT-099) likewise; ROUTE-FIX-006
   # moved /project/git/init POST (SHIM-DRIFT-100) likewise; ROUTE-FIX-007
   # moved /project/{projectID}/directories GET (SHIM-DRIFT-101) likewise;
-  # 10 entries remain (the previously covered clear-prompt route was restored
-  # by ROUTE-FIX-022b after INT-CI-004 removed its handler).
+  # 4 typed-501 entries remain: pty.create and the three VCS stubs. The
+  # previously covered clear-prompt route was restored by ROUTE-FIX-022b;
+  # ROUTE-FIX-023 moved the six neighboring pinned TUI operations below to
+  # truthful 200/400 handlers.
   - path: /project/git/init
     method: POST
     outcome: 200
@@ -557,32 +559,32 @@ routes:
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-133)"
+    evidence: "server.go tuiControlResponse via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-133): accepts the unconstrained requestBody schema as one valid JSON value, returns 200 false because no TUI queue is attached, 400 BadRequest on malformed JSON or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/open-help
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-135)"
+    evidence: "server.go tuiOpenHelp via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-135): 200 false because no TUI is attached, 400 BadRequest on an undeclared request body or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/open-models
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-136)"
+    evidence: "server.go tuiOpenModels via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-136): 200 false because no TUI is attached, 400 BadRequest on an undeclared request body or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/open-sessions
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-137)"
+    evidence: "server.go tuiOpenSessions via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-137): 200 false because no TUI is attached, 400 BadRequest on an undeclared request body or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/open-themes
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-138)"
+    evidence: "server.go tuiOpenThemes via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-138): 200 false because no TUI is attached, 400 BadRequest on an undeclared request body or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/publish
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go handleTUI tuiDeclaredOps (SHIM-DRIFT-139)"
+    evidence: "server.go tuiPublish via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-139): validates the declared EventTuiPromptAppend|EventTuiCommandExecute|EventTuiToastShow|EventTuiSessionSelect union and returns 200 false because no TUI event sink is attached; malformed/invalid events or selectors answer declared 400, non-POST answers 405"
   - path: /vcs/apply
     method: POST
     outcome: 200
