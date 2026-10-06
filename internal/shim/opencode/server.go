@@ -240,8 +240,8 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// 404 while /provider/* sub-paths are chi-mounted. Serve the upstream
 	// provider.auth operation. The exact pattern wins over the wildcard below,
 	// and no pattern here is a /provider/* catch-all, so an unrelated
-	// /provider/* sub-path (unknown operations) keeps the net/http default 404
-	// it is classified with.
+	// /provider/* sub-path (oauth/callback, unknown operations) keeps the
+	// net/http default 404 it is classified with.
 	mux.HandleFunc("/provider/auth", s.handleProviderAuth)
 	// ROUTE-ADD-100 / SHIM-DRIFT-103: the declared provider.oauth.authorize
 	// operation (POST /provider/{providerID}/oauth/authorize) had no shim
@@ -251,15 +251,6 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the shape (one provider-id segment + the literal oauth/authorize
 	// suffix), so it matches exactly the declared operation.
 	mux.HandleFunc("/provider/{providerID}/oauth/authorize", s.handleProviderOAuthAuthorize)
-	// ROUTE-ADD-101 / SHIM-DRIFT-098: the declared provider.oauth.callback
-	// operation (POST /provider/{providerID}/oauth/callback) had the same gap
-	// as its authorize sibling — no shim route, so it fell through to
-	// net/http's default 404. Serve it for real. The pattern pins the shape
-	// (one provider-id segment + the literal oauth/callback suffix), so it
-	// matches exactly the declared operation; a deeper path, the two-segment
-	// /provider/oauth/callback and every other /provider/* sub-path keep the
-	// default 404 (no catch-all).
-	mux.HandleFunc("/provider/{providerID}/oauth/callback", s.handleProviderOAuthCallback)
 	mux.HandleFunc("/agent", s.handleAgent)
 	mux.HandleFunc("/skill", s.handleSkill)
 	// ROUTE-ADD-088 / SHIM-DRIFT-086: the exact /formatter path was never
@@ -330,10 +321,7 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// them with x-opencode-directory and expects 200); the remaining /vcs/*
 	// sub-paths keep the 501 stub. ServeMux resolves the longer pattern, so
 	// the exact /vcs/diff registration wins over the /vcs/ subtree stub.
-	// ROUTE-FIX-004: bare GET /project serves the declared project.list
-	// operation (200 Project[], 400) from the runtime's projects table; the
-	// 501 stub keeps every other method on the mount.
-	mux.HandleFunc("/project", s.handleProject)
+	mux.HandleFunc("/project", s.handleProjectVCSSStub)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
@@ -1119,21 +1107,6 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// GET /session/:id/message/:messageID
 		msgID := strings.TrimPrefix(sub, "message/")
 		s.getMessageByID(w, r, sessionID, msgID)
-	case strings.HasPrefix(sub, "message/") && strings.Contains(sub, "/part/") && r.Method == http.MethodDelete:
-		// ROUTE-FIX-036 / SHIM-NARROWED-007: the upstream part.delete
-		// operation (declared responses 200, 400 BadRequest |
-		// InvalidRequestError, 404 NotFoundError) had no case here, so every
-		// DELETE /session/{sessionID}/message/{messageID}/part/{partID}
-		// request fell to the router's default arm and answered an untyped
-		// 404 — the declared error vocabulary was unreachable from outside
-		// the code. Serve the declared contract truthfully (see
-		// sessionPartDelete); the undeclared methods on the sub-path keep
-		// the pre-existing answers, and the sibling PATCH keeps its own case
-		// below.
-		//
-		// ch:trace row=ROUTE-FIX-036 spec=specs/openapi/upstream/openapi-1.18.33.json#part.delete wave=consensus-foreman-2026-10-04-06-15-38.json#task-1 test=TestSessionPartDeleteTruthfulArms doc=docs/evidence/ROUTE-FIX-036-live-probe.md evidence=docs/evidence/ROUTE-FIX-036-live-probe.md witness=none:self-verified-in-worktree
-		msgID, partID := parseMessagePartSub(sub)
-		s.sessionPartDelete(w, r, sessionID, msgID, partID)
 	case strings.HasPrefix(sub, "message/") && r.Method == http.MethodDelete:
 		// ROUTE-FIX-035 / SHIM-NARROWED-005: the upstream
 		// session.deleteMessage operation (declared responses 200 boolean,
@@ -1230,31 +1203,6 @@ func (s *Server) handleSessionByID(w http.ResponseWriter, r *http.Request) {
 		// (declared responses 200,400,404) was served by the untyped stub
 		// below. Serve it for real.
 		s.sessionFork(w, r, sessionID)
-	case sub == "todo" && r.Method == http.MethodGet:
-		// ROUTE-FIX-039 / SHIM-NARROWED-009: the upstream session.todo
-		// operation (declared responses 200 Todo[], 400, 404) was answered by
-		// an untyped 404 from this default arm — the declared success code was
-		// unreachable. Serve the declared contract truthfully; non-GET falls
-		// through to the router default (405 is not in the declared set).
-		s.sessionTodo(w, r, sessionID)
-	case sub == "unrevert" && r.Method == http.MethodPost:
-		// ROUTE-FIX-040 / SHIM-NARROWED-010: the upstream session.unrevert
-		// operation (declared responses 200 Session, 400, 404, 409
-		// SessionBusyError) was answered by an untyped 404 from this default
-		// arm. Serve the declared contract truthfully with the sessionRevert
-		// handler shape; non-POST falls through to the router default.
-		s.sessionUnrevert(w, r, sessionID)
-	case strings.HasPrefix(sub, "permissions/") && r.Method == http.MethodPost:
-		// ROUTE-FIX-038 / SHIM-NARROWED-008: the upstream permission.respond
-		// operation (declared responses 200 boolean, 400, 404
-		// NotFoundError | PermissionNotFoundError) was answered by an untyped
-		// 404 from this default arm. Serve the declared contract truthfully,
-		// mapping the declared enum onto the real approval_requests columns
-		// exactly as the consent-store sidecar's POST
-		// /permission/{id}/resolve does (commit 07f2f3c); non-POST falls
-		// through to the router default.
-		permissionID := strings.TrimPrefix(sub, "permissions/")
-		s.sessionPermissionRespond(w, r, sessionID, permissionID)
 	default:
 		// Check for 501 exclusions. The five P1 session sub-paths now answer
 		// their DECLARED methods in the cases above (ROUTE-FIX-014..018:
@@ -1959,116 +1907,6 @@ func isRequestActionPath(path, prefix, action string) bool {
 	return len(parts) == 2 && parts[0] != "" && parts[1] == action
 }
 
-// handleProject serves the bare /project mount. GET is the upstream
-// project.list operation (ROUTE-FIX-004; declared responses 200
-// Array(Project), 400 BadRequest; optional query selectors directory and
-// workspace). Before this handler the mount answered the untyped 501 stub for
-// every method (SHIM-DRIFT-098, class OUTCOME-MISMATCH: "declared 200,400,
-// served 501").
-//
-// ch:trace row=ROUTE-FIX-004 spec=specs/openapi/upstream/openapi-1.18.33.json#project.list test=TestProjectListServesDeclaredContract doc=docs/evidence/ROUTE-FIX-004-live-probe.md evidence=docs/evidence/ROUTE-FIX-004-live-probe.md witness=none:self-verified-in-worktree
-//
-// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
-// paths."/project".get): the 200 body is an ARRAY of Project objects
-// (required: id, worktree, time, sandboxes; additionalProperties: false),
-// described as "Get a list of projects that have been opened with OpenCode."
-//
-// Translation: the runtime DOES keep that registry — the `projects` table
-// (migrations 014/015: id, name, description, created_at; SPEC-004 §RBAC
-// scope boundaries; sessions/tasks carry project_id). Each row is translated
-// into the declared Project shape:
-//
-//   - id        <- projects.id
-//   - name      <- projects.name
-//   - worktree  <- the project's scope root: the server's configured workdir
-//     (else the process CWD) — the same single-workspace translation every
-//     workspace-resolving sibling uses (GET /vcs, GET /vcs/diff,
-//     GET /session/{id}/diff). The column set has no per-project path, so the
-//     truthful answer for each registered project is the workspace the
-//     runtime serves.
-//   - time      <- {created, updated} <- created_at (Unix seconds). The
-//     runtime keeps no separate updated timestamp, so updated truthfully
-//     repeats created (the schema requires both).
-//   - sandboxes <- [] — the runtime provisions no sandboxes; the field is
-//     schema-required and the empty array is the truthful value.
-//
-// Optional selectors (?directory=, ?workspace=) are accepted but do not
-// narrow the result: the runtime has exactly one workspace (the workdir
-// above) and no per-project directory/workspace columns to filter on, and
-// neither value is a project id. The declared error vocabulary is 400 only —
-// there is no declared 404/5xx — so a store read failure answers 400 with the
-// sibling INVALID_REQUEST envelope (the same arm sessionDiff uses for its
-// store reads) and never a 501. A store with NO projects table (a database
-// predating migration 014) answers the declared empty array — a list with no
-// rows is the honest translation there. Every other method on the mount keeps
-// the pre-existing 501 stub (405 is not in the declared response set).
-func (s *Server) handleProject(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		// Not a declared operation for this mount; 405 is not in the declared
-		// response set — keep the pre-existing stub answer byte-identical.
-		s.handleProjectVCSSStub(w, r)
-		return
-	}
-
-	ctx := r.Context()
-	rows, err := s.db.Query(ctx,
-		`SELECT id, name, created_at FROM projects ORDER BY created_at, id`)
-	if err != nil {
-		// The declared vocabulary carries 400 only; a client must not have to
-		// distinguish an undeclared 503 from a real store failure. A store
-		// whose projects table is absent (pre-014 database) is also the
-		// declared empty list — the runtime simply has no registered projects.
-		if strings.Contains(strings.ToLower(err.Error()), "no such table: projects") {
-			writeJSON(w, []any{})
-			return
-		}
-		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
-			"failed to read projects: "+err.Error())
-		return
-	}
-
-	projects := make([]map[string]any, 0, len(rows))
-	for _, row := range rows {
-		created := projectTimeSeconds(row["created_at"])
-		projects = append(projects, map[string]any{
-			"id":        toString(row["id"]),
-			"worktree":  s.workspaceDir(),
-			"name":      toString(row["name"]),
-			"time":      map[string]any{"created": created, "updated": created},
-			"sandboxes": []any{},
-		})
-	}
-	writeJSON(w, projects)
-}
-
-// projectTimeSeconds reads a projects.created_at cell as Unix seconds. The
-// column is declared TIMESTAMPTZ in migrations 014/015, but SQLite type
-// affinity does not force every writer to integers — a live probe stored the
-// cell as TEXT ("1791098154") through strftime('%s','now'). The declared
-// ProjectTime fields are integers (minimum 0), so numeric strings are parsed
-// and anything unreadable answers 0 rather than a fabricated stamp.
-func projectTimeSeconds(v any) int64 {
-	switch n := v.(type) {
-	case int64:
-		return n
-	case int:
-		return int64(n)
-	case float64:
-		return int64(n)
-	case string:
-		trimmed := strings.TrimSpace(n)
-		if trimmed == "" {
-			return 0
-		}
-		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
-			return parsed
-		}
-		return 0
-	default:
-		return 0
-	}
-}
-
 // isStubPath reports whether a path maps to an opencode-specific 501 stub
 // (SPEC-017 §3.9). These endpoints return NOT_IMPLEMENTED with zero data, so
 // auth is skipped for them — contract tests and unauthenticated clients get
@@ -2084,14 +1922,6 @@ func projectTimeSeconds(v any) int64 {
 func isStubPath(path, method string) bool {
 	for _, p := range []string{"/project", "/vcs"} {
 		if (path == p || strings.HasPrefix(path, p+"/")) && method != http.MethodGet {
-			// ROUTE-FIX-006: POST /project/git/init serves real data and
-			// performs a real workspace mutation, so it keeps api-key auth
-			// like every other implemented route — the stub exemption was
-			// justified by "NOT_IMPLEMENTED with zero data, nothing to
-			// protect", which no longer holds for this sub-path.
-			if path == "/project/git/init" {
-				return false
-			}
 			return true
 		}
 	}
@@ -2132,11 +1962,11 @@ var vcsDeclaredOps = map[string]string{
 // operation ids (SHIM-GAP-002). These are not project ids: without this table
 // they were parsed as one and answered with the upstream ProjectNotFoundError,
 // telling the client a *project named "current"* did not exist instead of
-// saying the operation is not implemented. GET /project/current left the table
-// in ROUTE-FIX-005 (projectCurrent serves the declared contract) and
-// POST /project/git/init left it in ROUTE-FIX-006 (projectInitGit); the table
-// now covers only the operations the shim does not translate.
-var projectDeclaredSubpaths = map[string]string{}
+// saying the operation is not implemented.
+var projectDeclaredSubpaths = map[string]string{
+	"current":  "project.current",
+	"git/init": "project.initGit",
+}
 
 // handleProjectByID serves /project/{projectID} sub-paths. Consensus has no
 // project registry, so every project id is unknown and the upstream opencode
@@ -2146,63 +1976,14 @@ var projectDeclaredSubpaths = map[string]string{}
 // {_tag, projectID, message}, no extra fields. Bare GET /project keeps the
 // 501 stub (handleProjectVCSSStub).
 //
-// SHIM-GAP-002 carves out the sub-paths the upstream document declares
+// SHIM-GAP-002 carves out the three sub-paths the upstream document declares
 // as operations rather than ids — /project/current (project.current),
 // /project/git/init (project.initGit) and /project/{projectID}/directories
-// (project.directories). ROUTE-FIX-005 serves GET /project/current,
-// ROUTE-FIX-006 serves POST /project/git/init and ROUTE-FIX-007 serves GET
-// /project/{projectID}/directories. The bare /project/{projectID} shape keeps
-// the typed 404 untouched.
+// (project.directories). They answer the typed not-implemented envelope; the
+// bare /project/{projectID} shape keeps the typed 404 untouched.
 func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 	projectID := strings.TrimPrefix(r.URL.Path, "/project/")
 
-	// ROUTE-FIX-007: project.directories is a real singleton-workspace
-	// translation. Only the workspace's project id can resolve; optional
-	// directory/workspace selectors are accepted when nonblank, matching the
-	// fixed-workspace behavior of project.current and project.initGit.
-	if dirsID, ok := strings.CutSuffix(projectID, "/directories"); ok && dirsID != "" {
-		if r.Method != http.MethodGet {
-			writeNotImplemented(w, r, "project.directories",
-				"project.directories is declared as a GET operation; the shim translates GET only")
-			return
-		}
-		if dirsID != instanceID(s.workspaceDir()) {
-			writeOpencodeBadRequest(w, r, "Payload", "unknown projectID")
-			return
-		}
-		for _, key := range []string{"directory", "workspace"} {
-			if value, present := r.URL.Query()[key]; present && (len(value) == 0 || strings.TrimSpace(value[0]) == "") {
-				writeOpencodeBadRequest(w, r, "Query", key+" must not be blank when provided")
-				return
-			}
-		}
-		writeJSON(w, []map[string]string{{"directory": s.workspaceDir()}})
-		return
-	}
-
-	// ROUTE-FIX-005 / SHIM-DRIFT-099: the upstream project.current operation
-	// (declared responses 200 Project, 400) was served by the typed
-	// not-implemented envelope from the projectDeclaredSubpaths table. Serve
-	// the declared contract truthfully; non-GET keeps the typed 501 (405 is
-	// not in the declared set).
-	if projectID == "current" {
-		if r.Method == http.MethodGet {
-			s.projectCurrent(w, r)
-			return
-		}
-		writeNotImplemented(w, r, "project.current",
-			"project.current is declared as a GET operation; the shim translates GET only")
-		return
-	}
-	if projectID == "git/init" {
-		if r.Method == http.MethodPost {
-			s.projectInitGit(w, r)
-			return
-		}
-		writeNotImplemented(w, r, "project.initGit",
-			"project.initGit is declared as a POST operation; the shim translates POST only")
-		return
-	}
 	if op, ok := projectDeclaredSubpaths[projectID]; ok {
 		writeNotImplemented(w, r, op,
 			fmt.Sprintf("%s is not implemented: Consensus keeps no project registry, so there is no project record to resolve; use GET /instance and GET /path for the workspace and the native API for work", op))
@@ -2236,271 +2017,6 @@ func writeOpencodeNotFoundError(w http.ResponseWriter, tag, idField, id, message
 	if err := json.NewEncoder(w).Encode(body); err != nil {
 		slog.Warn("opencode-shim: failed to encode typed not-found body", "tag", tag)
 	}
-}
-
-// ch:trace row=ROUTE-FIX-006 spec=specs/openapi/upstream/openapi-1.18.33.json#project.initGit test=TestProjectInitGitServesDeclared200 doc=docs/evidence/ROUTE-FIX-006-live-probe.md evidence=docs/evidence/ROUTE-FIX-006-live-probe.md witness=none:unattended-worker-session
-//
-// projectInitGit serves POST /project/git/init — the upstream project.initGit
-// operation (ROUTE-FIX-006 board row, source item SHIM-DRIFT-100; declared
-// responses: 200 Project, 400 BadRequest).
-//
-// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
-// paths."/project/git/init".post): the optional query selectors are directory
-// and workspace; the declared 200 body is the refreshed Project object
-// ("Create a git repository for the current project and return the refreshed
-// project info"), and the declared error is 400 BadRequestError. Before this
-// change the sub-path sat in projectDeclaredSubpaths and answered the typed
-// not-implemented envelope for EVERY request — the declared 200 was
-// unreachable (SHIM-DRIFT-100, "declared 200,400, served 501").
-//
-// Translation: unlike session.init (which translates to a native turn), this
-// operation's effect is a workspace filesystem effect the shim CAN perform for
-// real — upstream runs `git init` in the project's worktree. The shim does the
-// Consensus-native equivalent on the single real workspace the instance
-// serves (the singleton convention every /instance/* and project.current
-// translation already uses, resolved by x-opencode-directory): when the
-// workspace is not yet a git repository, `git init` runs in it via runGit
-// (the gitEnv-stripped, ctx-bounded git helper all workspace git reads use);
-// when it already is one, git init is idempotent upstream ("reinitialize" is
-// not an error), so the handler skips the subprocess and reports the same
-// success — the observable project state is identical. The declared Project
-// body is then derived exactly the way projectCurrent derives it (same fields,
-// same sources, nothing invented), which IS the "refreshed project info" the
-// operation describes.
-//
-// Validation order and the declared error arms (the sibling projectCurrent
-// convention; the operation declares no requestBody, so the query selectors
-// are the client-input surface that keeps 400 reachable):
-//   - a present-but-blank declared query selector (directory, workspace) → the
-//     declared 400 naming the parameter, answered with the declared
-//     BadRequestError envelope (writeOpencodeBadRequest, kind "Query" — the
-//     instanceDispose blank-query convention). Validation runs before any git
-//     call so a malformed request never touches the workspace;
-//   - `git init` fails (git absent, workspace not writable) → the declared
-//     400 INVALID_REQUEST naming the reason, never an undeclared 5xx and
-//     never a fabricated success.
-func (s *Server) projectInitGit(w http.ResponseWriter, r *http.Request) {
-	// 1. A present-but-blank declared query selector is the declared 400.
-	for _, param := range []string{"directory", "workspace"} {
-		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
-			writeOpencodeBadRequest(w, r, "Query",
-				fmt.Sprintf("query parameter %q must not be blank", param))
-			return
-		}
-	}
-
-	// 2. The single workspace this instance serves.
-	dir := s.requestWorkspaceDir(r)
-	ctx := r.Context()
-
-	// 3. The real effect: initialize git in the workspace when it is not one
-	// already. runGit resolves the repo from dir alone (GIT_* env stripped),
-	// so the init cannot leak into an ambient repository.
-	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err != nil || inside != "true" {
-		if out, err := runGit(ctx, dir, "init"); err != nil {
-			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
-				"could not initialize git in the workspace: "+err.Error()+" "+out)
-			return
-		}
-	}
-
-	// 4. Declared 200 body: the refreshed Project, derived from the real
-	// workspace exactly as project.current derives it (shared translation,
-	// nothing invented).
-	project, err := s.deriveProject(ctx, dir)
-	if err != nil {
-		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
-			"could not read the project timestamps: "+err.Error())
-		return
-	}
-	writeJSON(w, project)
-}
-
-// deriveProject builds the declared upstream Project body from the single
-// real workspace this instance serves — the shared translation of
-// project.current (ROUTE-FIX-005) and project.initGit (ROUTE-FIX-006):
-//   - id        <- instanceID(dir), the short-sha256 workspace id the
-//     singleton GET /instance entry already reports;
-//   - worktree  <- gitWorktree(dir): the repository top-level when the
-//     workspace is a git repo, the directory itself otherwise;
-//   - name      <- the workspace directory's base name;
-//   - vcs       <- "git" only when `git rev-parse --is-inside-work-tree`
-//     succeeds in the workspace (declared enum ["git"]; absent otherwise);
-//   - commands  <- the workspace's consensus.json "commands" key when present
-//     and an object; absent otherwise (optional field, no file → no claim);
-//   - time      <- {created, updated} from the schema_versions ledger in
-//     milliseconds since the epoch (the ProjectTime unit);
-//   - sandboxes <- [] (required key): the runtime spawns no sandboxes.
-//     icon is omitted (optional; nothing asserts it).
-//
-// An unreadable ledger returns an error — both callers answer the declared
-// 400 (neither operation declares a 5xx), never a fabricated timestamp.
-func (s *Server) deriveProject(ctx context.Context, dir string) (map[string]any, error) {
-	project := map[string]any{
-		"id":       instanceID(dir),
-		"worktree": gitWorktree(ctx, dir, dir),
-		"name":     filepath.Base(dir),
-		// Required key; the runtime spawns no sandboxes.
-		"sandboxes": []any{},
-	}
-	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err == nil && inside == "true" {
-		project["vcs"] = "git"
-	}
-	if cfg := readWorkspaceCommands(dir); cfg != nil {
-		project["commands"] = cfg
-	}
-	created, updated, err := s.migrationLedgerBounds(ctx)
-	if err != nil {
-		return nil, err
-	}
-	project["time"] = map[string]any{"created": created, "updated": updated}
-	return project, nil
-}
-
-// projectCurrent serves GET /project/current — the upstream project.current
-// operation (ROUTE-FIX-005 board row, source item SHIM-DRIFT-099; declared
-// responses: 200 Project, 400 BadRequest).
-//
-// ch:trace row=ROUTE-FIX-005 spec=specs/openapi/upstream/openapi-1.18.33.json#project.current test=TestProjectCurrentServesDeclared200 doc=docs/evidence/ROUTE-FIX-005-live-probe.md evidence=docs/evidence/ROUTE-FIX-005-live-probe.md witness=none:unattended-worker-session
-//
-// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
-// paths."/project/current".get): the optional query selectors are directory
-// and workspace; the declared 200 body is a single Project object (required
-// id, worktree, time, sandboxes; additionalProperties: false), described as
-// "Retrieve the currently active project that OpenCode is working with."
-// Before this change the sub-path was in projectDeclaredSubpaths and answered
-// the typed not-implemented envelope for EVERY request — the declared 200 was
-// unreachable and a client could not tell "this shim does not implement it"
-// from "here is the current project".
-//
-// Translation: the runtime keeps exactly one workspace per instance (the
-// singleton-instance convention every /instance/* translation already
-// serves): the x-opencode-directory header when the request carries one
-// (upstream fixed-workspace semantics, the requestWorkspaceDir convention of
-// /path and /vcs), else the server workspace. The declared Project fields are
-// all derived from that real workspace directory — nothing is invented:
-//
-//   - id        <- instanceID(dir), the short-sha256 workspace id the
-//     singleton GET /instance entry already reports (a stable per-workspace
-//     identity, never a fabricated registry key);
-//   - worktree  <- gitWorktree(dir): the repository top-level when the
-//     workspace is a git repo, the directory itself otherwise — exactly the
-//     value GET /path reports as "worktree";
-//   - name      <- the workspace directory's base name (the human label
-//     upstream shows for a project);
-//   - vcs       <- "git" only when `git rev-parse --is-inside-work-tree`
-//     succeeds in the workspace (declared enum ["git"]; absent otherwise —
-//     the field is optional and never asserted without evidence);
-//   - commands  <- {} read from the workspace's consensus.json "commands"
-//     key when present and an object; absent otherwise (optional field, no
-//     file → no claim);
-//   - time      <- {created, updated} from the schema_versions ledger
-//     (internal/migrate bootstrapSQL): created = the earliest applied_at
-//     (the workspace was initialized then), updated = the latest applied_at
-//     (the schema — the project state the runtime tracks — was last touched
-//     then). Milliseconds since the epoch, the unit the upstream
-//     ProjectTime schema declares (integer, minimum 0). A ledger that cannot
-//     be read answers 400 INVALID_REQUEST (the declared error arm), never an
-//     undeclared 5xx and never a fabricated timestamp; the ledger table
-//     always exists because the server auto-migrates on boot;
-//   - sandboxes <- [] (required key): the runtime spawns no sandboxes.
-//     icon is omitted (optional; nothing asserts it).
-//
-// Validation order and the declared error arms:
-//   - a present-but-blank declared query selector (directory, workspace) → the
-//     declared 400 INVALID_REQUEST naming the parameter. The operation
-//     declares no requestBody, so the selectors are what keeps the declared
-//     400 arm reachable (the sessionTodo / sync.steal precedent:
-//     a present-but-blank declared query parameter is a contract violation,
-//     not an absent one). A well-formed selector is accepted and does not
-//     change the answer — the runtime keeps one workspace per instance, so
-//     neither selector selects a different project (the sibling sessionDiff
-//     note);
-//   - the migration ledger cannot be read → the declared 400
-//     INVALID_REQUEST naming the reason (the sessionTodo convention for an
-//     unreadable store; the operation declares no 5xx and no 404).
-func (s *Server) projectCurrent(w http.ResponseWriter, r *http.Request) {
-	// 1. A present-but-blank declared query selector is the declared 400 (this
-	// operation declares no requestBody, so this is what keeps the 400 arm
-	// reachable). Validation runs before any store read so a malformed request
-	// never reaches the database.
-	for _, param := range []string{"directory", "workspace"} {
-		values, present := r.URL.Query()[param]
-		if !present {
-			continue
-		}
-		value := ""
-		if len(values) > 0 {
-			value = strings.TrimSpace(values[0])
-		}
-		if value == "" {
-			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
-				fmt.Sprintf("query parameter %q must not be blank", param))
-			return
-		}
-	}
-
-	// 2. The single workspace this instance serves, and the declared Project
-	// derived from it (shared deriveProject translation — see above).
-	project, err := s.deriveProject(r.Context(), s.requestWorkspaceDir(r))
-	if err != nil {
-		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
-			"could not read the project timestamps: "+err.Error())
-		return
-	}
-
-	writeJSON(w, project)
-}
-
-// readWorkspaceCommands reads the workspace's consensus.json "commands" object
-// when one exists (declared Project.commands translation). Returns nil when
-// the file is absent, unreadable, or does not carry an object under
-// "commands" — an optional field is never synthesized.
-func readWorkspaceCommands(dir string) map[string]any {
-	raw, err := os.ReadFile(filepath.Join(dir, "consensus.json"))
-	if err != nil {
-		return nil
-	}
-	var cfg struct {
-		Commands map[string]any `json:"commands"`
-	}
-	if err := json.Unmarshal(raw, &cfg); err != nil || cfg.Commands == nil {
-		return nil
-	}
-	return cfg.Commands
-}
-
-// migrationLedgerBounds returns (created, updated) in milliseconds since the
-// epoch from the schema_versions ledger: the earliest and the latest
-// applied_at RFC3339 timestamps. Errors surface to the caller (declared 400)
-// instead of being swallowed into a fabricated timestamp.
-func (s *Server) migrationLedgerBounds(ctx context.Context) (int64, int64, error) {
-	rows, err := s.db.Query(ctx, `SELECT applied_at FROM schema_versions`)
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(rows) == 0 {
-		return 0, 0, fmt.Errorf("the schema_versions ledger holds no rows")
-	}
-	var oldest, newest int64
-	for i, row := range rows {
-		ts := toString(row["applied_at"])
-		if ts == "" {
-			return 0, 0, fmt.Errorf("schema_versions row %d carries a blank applied_at", i+1)
-		}
-		t, err := time.Parse(time.RFC3339, ts)
-		if err != nil {
-			return 0, 0, fmt.Errorf("schema_versions row %d applied_at %q is not RFC3339", i+1, ts)
-		}
-		ms := t.UnixMilli()
-		if i == 0 || ms < oldest {
-			oldest = ms
-		}
-		if i == 0 || ms > newest {
-			newest = ms
-		}
-	}
-	return oldest, newest, nil
 }
 
 func (s *Server) handlePath(w http.ResponseWriter, r *http.Request) {
@@ -2665,21 +2181,11 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleInstanceSub serves /instance/* sub-paths: the implemented translation
-// endpoints (/instance/path, /instance/vcs, /instance/vcs/diff), the
-// instance.dispose operation (ROUTE-FIX-003), and the 501/404 convention for
-// everything else.
+// endpoints (/instance/path, /instance/vcs, /instance/vcs/diff) plus the
+// 501/404 convention for everything else.
 func (s *Server) handleInstanceSub(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/instance/")
 	switch {
-	case sub == "dispose" && r.Method == http.MethodPost:
-		// ROUTE-FIX-003 / SHIM-DRIFT-091: the upstream instance.dispose
-		// operation (declared responses 200 boolean, 400 BadRequest) was
-		// answered by the typed 501 stub below — a code the document does
-		// not declare for the operation. Serve the declared contract
-		// truthfully; non-POST falls through to the stub (501 is not a
-		// declared response either, but it is the pre-change answer and no
-		// declared code exists for a wrong method).
-		s.instanceDispose(w, r)
 	case sub == "path" && r.Method == http.MethodGet:
 		s.instancePath(w, r)
 	case sub == "vcs" && r.Method == http.MethodGet:
@@ -2738,37 +2244,6 @@ func (s *Server) instanceVCS(w http.ResponseWriter, r *http.Request) {
 // non-git workspace returns [].
 func (s *Server) instanceVCSDiff(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, gitFileDiffs(r.Context(), s.requestWorkspaceDir(r)))
-}
-
-// ch:trace row=ROUTE-FIX-003 spec=specs/openapi/upstream/openapi-1.18.33.json#instance.dispose test=TestInstanceDisposeAnswersDeclaredBoolean doc=docs/evidence/ROUTE-FIX-003-live-probe.md evidence=docs/evidence/ROUTE-FIX-003-live-probe.md witness=none:unattended-worker-session
-// instanceDispose serves POST /instance/dispose — upstream instance.dispose
-// (ROUTE-FIX-003, SHIM-DRIFT-091, declared responses: 200 boolean, 400
-// BadRequest). Upstream "clean up and dispose the current OpenCode instance,
-// releasing all resources"; the shim is ONE instance rooted at the workspace
-// directory and keeps no per-instance registry to release — the Consensus
-// server IS the singleton, and disposing it is not something an HTTP request
-// to a compatibility shim may do. The request is therefore honored as a
-// successful no-op answering the declared boolean true, the sibling
-// handleGlobalDispose convention (idempotent for a repeated POST).
-//
-// The operation declares directory/workspace query selectors for workspace
-// scoping; the no-op answer is workspace-independent, so a valued param is
-// well-formed and scopes nothing, while a present-but-blank one is malformed
-// input and answers the declared 400 via writeOpencodeBadRequest (the
-// upstream v2 SDK NamedError envelope, kind "Query") — the
-// handleSkill/handleFormatter blank query convention with this operation's
-// declared body shape. The operation declares no requestBody, so none is
-// read. Non-POST never reaches this handler (the dispatch case above is
-// POST-only and falls through to the 501 stub).
-func (s *Server) instanceDispose(w http.ResponseWriter, r *http.Request) {
-	for _, param := range []string{"directory", "workspace"} {
-		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
-			writeOpencodeBadRequest(w, r, "Query",
-				fmt.Sprintf("query parameter %q must not be blank", param))
-			return
-		}
-	}
-	writeJSON(w, true)
 }
 
 // requestWorkspaceDir returns the workspace directory a request operates on:
@@ -3591,151 +3066,6 @@ func writeProviderAuthError(w http.ResponseWriter, name string, data map[string]
 	})
 }
 
-// handleProviderOAuthCallback serves POST /provider/{providerID}/oauth/callback
-// — upstream provider.oauth.callback (ROUTE-ADD-101, SHIM-DRIFT-098, declared
-// responses: 200 boolean "OAuth callback processed successfully" and 400
-// ProviderAuthError | InvalidRequestError). Upstream hands the authorization
-// code (or the no-code arm) to the flow the matching authorize call parked in
-// instance state and, when that flow reports success, stores the returned
-// credential and answers the declared 200 boolean true
-// (packages/opencode/src/server/routes/instance/httpapi/handlers/provider.ts
-// "callback", over packages/opencode/src/provider/auth.ts `callback` — which
-// faults ProviderAuthOauthMissing when no flow is pending for the providerID —
-// at the pinned commit 7945de208964a49300d7f770d1a71d078db9a4c4 / v1.18.33;
-// the declared surface line is
-// specs/openapi/upstream/openapi-1.18.33.surface.txt:127).
-//
-// The shim has no OAuth implementation and parks no flow: its provider-method
-// registry (storedProviderAuthMethods) advertises only "api" methods, so no
-// authorize call ever starts a flow and there is no pending credential for a
-// callback to complete. The truthful answer to "was an OAuth callback
-// processed?" is therefore false — there was nothing to process — and the
-// handler answers the declared 200 with the JSON boolean false. It never
-// fabricates a processed callback (upstream's literal `true` would claim a
-// credential was stored), never serializes null (the declared type is boolean,
-// so a null body would violate the contract), and never answers the pre-fix
-// net/http default 404 for an operation it now serves.
-//
-// The declared 400 arm is answered with the document's own error shapes:
-//
-//   - a body that is absent, not JSON, not an object, whose required `method`
-//     field is missing or is not a non-negative integer, whose optional `code`
-//     field is not a string, or that carries a field the contract does not
-//     declare (the request schema is additionalProperties: false) answers
-//     ProviderAuthError {"name":"BadRequest","data":{...}} — the name upstream
-//     maps a payload decode failure onto;
-//   - a provider holding no stored credentials (so the shim advertises no
-//     method for it) and a `method` index the provider does not advertise both
-//     answer ProviderAuthError {"name":"BadRequest","data":{"providerID":...}}
-//     — upstream resolves the pending flow by providerID and faults on either;
-//     the shim answers the declared code with a named reason instead;
-//   - a store that cannot be read answers InvalidRequestError
-//     {"_tag":"InvalidRequestError","message":...} — the document's second
-//     declared 400 shape.
-//
-// Non-POST answers 405 METHOD_NOT_ALLOWED (the sibling POST-route method guard;
-// 405 is not part of the declared response set, so it is never the answer to a
-// well-formed POST).
-func (s *Server) handleProviderOAuthCallback(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
-		return
-	}
-	providerID := r.PathValue("providerID")
-	if providerID == "" {
-		writeProviderAuthError(w, "BadRequest", map[string]any{})
-		return
-	}
-	methodIndex, reason, ok := parseProviderOAuthCallbackBody(r)
-	if !ok {
-		writeProviderAuthError(w, "BadRequest", map[string]any{"message": reason})
-		return
-	}
-
-	methods, err := s.storedProviderAuthMethods(r.Context())
-	if err != nil {
-		// The document declares no 5xx for this operation; answer the declared
-		// 400 with its second shape instead of surfacing an undeclared 500.
-		writeJSONStatus(w, http.StatusBadRequest, map[string]any{
-			"_tag":    "InvalidRequestError",
-			"message": "failed to read provider auth methods",
-		})
-		return
-	}
-
-	advertised := methods[providerID]
-	if len(advertised) == 0 {
-		writeProviderAuthError(w, "BadRequest", map[string]any{
-			"providerID": providerID,
-			"message":    "no auth methods registered for provider " + providerID,
-		})
-		return
-	}
-	if methodIndex >= int64(len(advertised)) {
-		writeProviderAuthError(w, "BadRequest", map[string]any{
-			"providerID": providerID,
-			"field":      "method",
-			"message": fmt.Sprintf("auth method index %d is not advertised for provider %s (0-%d)",
-				methodIndex, providerID, len(advertised)-1),
-		})
-		return
-	}
-
-	// The advertised method is an API-key method, never an OAuth method, and
-	// this shim parks no authorize flow, so there is no callback to process and
-	// no credential to store: the truthful answer to the declared boolean is
-	// false, serialized as JSON false (the declared type is boolean).
-	writeJSON(w, false)
-}
-
-// parseProviderOAuthCallbackBody decodes the declared request body
-// ({method: <auth method index>, code?: <OAuth authorization code>} —
-// components.schemas of the pinned opencode document). It returns the method
-// index, a human-readable reason for a refusal, and whether the body is
-// well-formed. The document does not mark requestBody required, but its only
-// required field (`method`) is mandatory, so an absent or empty body cannot
-// select a method and is refused — the same direction upstream's runtime takes
-// when decoding an empty request text fails.
-//
-// Unlike the authorize body (whose undeclared fields are ignored), this
-// operation's schema is additionalProperties: false, so a field the contract
-// does not declare is refused with the same BadRequest shape rather than
-// silently dropped.
-func parseProviderOAuthCallbackBody(r *http.Request) (int64, string, bool) {
-	if r.Body == nil || r.ContentLength == 0 {
-		return 0, "request body must carry the auth method index", false
-	}
-	var raw any
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
-		return 0, "malformed request body: " + err.Error(), false
-	}
-	// A JSON null body decodes without error into a nil interface, and an
-	// array/scalar is not the declared object either.
-	body, ok := raw.(map[string]any)
-	if !ok {
-		return 0, "request body must be a JSON object carrying the auth method index", false
-	}
-	for key := range body {
-		if key != "method" && key != "code" {
-			return 0, fmt.Sprintf("request body carries undeclared field %q", key), false
-		}
-	}
-	value, present := body["method"]
-	if !present {
-		return 0, `request body is missing the required "method" field`, false
-	}
-	index, ok := value.(float64)
-	if !ok || index != math.Trunc(index) || index < 0 {
-		return 0, `"method" must be a non-negative integer auth method index`, false
-	}
-	if code, present := body["code"]; present {
-		if _, ok := code.(string); !ok {
-			return 0, `"code" must be a string`, false
-		}
-	}
-	return int64(index), "", true
-}
-
 // handleSkill serves GET /skill — upstream app.skills (ROUTE-ADD-111,
 // SHIM-DRIFT-125, declared responses: 200 Array of Skill, 400 BadRequest).
 // The upstream Skill item is {name*, description?, location*, content*};
@@ -4343,24 +3673,10 @@ func (s *Server) handleFindSub(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{"files": matches, "count": len(matches), "query": query})
 
-	case strings.HasPrefix(path, "symbol") && r.Method == http.MethodGet:
-		// ROUTE-FIX-002 / SHIM-DRIFT-085: the upstream find.symbols
-		// operation (declared responses 200 Symbol[], 400 BadRequestError)
-		// was answered by the untyped 501 stub below for EVERY request, so
-		// neither declared code was reachable from outside. Serve the
-		// declared contract truthfully (see findSymbolRoutes.go): the
-		// declared 200 is the empty Symbol list — the shim has no LSP
-		// integration (handleLSP reports enabled:false unconditionally), so
-		// there is no symbol producer and entries would be fabricated —
-		// and the 400 arm carries the sibling INVALID_REQUEST envelope.
-		s.findSymbols(w, r)
 	case strings.HasPrefix(path, "symbol"):
-		// Undeclared methods on the sub-path keep a not-implemented answer
-		// (405 is not part of find.symbols' declared response set), typed
-		// per the session.diff sibling convention (ROUTE-FIX-010) naming
-		// the operation and the real GET route.
-		writeNotImplemented(w, r, "find.symbols",
-			"symbol search is a GET operation; use GET /find/symbol?query=<name>")
+		// Symbol search requires LSP — still not available
+		writeOpencodeError(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED",
+			"symbol search requires LSP integration, not yet available")
 	default:
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown find sub-path")
 	}
@@ -4695,11 +4011,10 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // these are answered with the typed not-implemented envelope naming the
 // operation instead of the 404 the router used to hand back.
 //
-// The remaining shim-only actions (submit-prompt, execute-command, show-toast)
-// keep their pre-existing error body: they are not part of the SHIM-GAP-002
-// finding set. append-prompt is served by tuiAppendPrompt below.
+// The four older shim-only TUI actions (append-prompt, submit-prompt,
+// execute-command, show-toast) keep their pre-existing error body: they are
+// not part of the SHIM-GAP-002 finding set.
 var tuiDeclaredOps = map[string]string{
-	"clear-prompt":     "tui.clearPrompt",
 	"control/next":     "tui.control.next",
 	"control/response": "tui.control.response",
 	"open-help":        "tui.openHelp",
@@ -4762,47 +4077,41 @@ func (s *Server) ptyList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, []map[string]any{})
 }
 
-// tuiAppendPrompt serves the declared tui.appendPrompt contract. The shim has
-// no attached TUI process to receive the text, so valid input returns the
-// declared boolean false rather than claiming that a prompt was processed.
-func (s *Server) tuiAppendPrompt(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Text *string `json:"text"`
-	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&req); err != nil {
-		writeOpencodeBadRequest(w, r, "Body", "request body must be an object containing only a string text field")
+// tuiClearPrompt answers upstream tui.clearPrompt. The declared 200 body is a
+// boolean — the shim has no TUI process, so the truthful happy path is false.
+// The optional directory/workspace query selectors are validated against the
+// filesystem first: naming a path that does not exist (or is not a directory)
+// answers the declared 400 arm with the INVALID_REQUEST envelope.
+func (s *Server) tuiClearPrompt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
 		return
 	}
-	var trailing any
-	if err := dec.Decode(&trailing); err != io.EOF {
-		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON object")
-		return
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return
+			}
+		}
 	}
-	if req.Text == nil {
-		writeOpencodeBadRequest(w, r, "Payload", "required field text must be a string")
-		return
-	}
-
 	writeJSON(w, false)
 }
 
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
-	if sub == "append-prompt" {
-		if r.Method != http.MethodPost {
-			writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
-			return
-		}
-		s.tuiAppendPrompt(w, r)
-		return
-	}
-
 	if op, ok := tuiDeclaredOps[sub]; ok {
 		writeNotImplemented(w, r, op,
 			fmt.Sprintf("TUI control %q is not implemented: no opencode TUI process is attached to this shim; use opencode's built-in TUI", sub))
+		return
+	}
+
+	// clear-prompt is a declared operation served per contract (ROUTE-FIX-020):
+	// POST answers 200 false (the shim has no TUI), invalid selectors 400.
+	if sub == "clear-prompt" {
+		s.tuiClearPrompt(w, r)
 		return
 	}
 
