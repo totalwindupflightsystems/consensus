@@ -1107,3 +1107,49 @@ tasks:
   status: complete
   created_at: '2026-10-03T15:27:27.630381+00:00'
   completed_at: '2026-10-03T16:17:22.714406+00:00'
+- id: route-fix-038-040
+  title: Serve POST /session/{id}/permissions/{id} and POST /session/{id}/unrevert
+    per declared contract
+  criteria:
+  - POST /session/{sessionID}/permissions/{permissionID} answers the declared 200/400/404
+    mapping the approval enum onto approval_requests
+  - POST /session/{sessionID}/unrevert answers the declared 200 Session / 400 / 404
+    / 409 with the sessionRevert handler shape
+  - declared-vs-served artifact regenerated and both rows flip to covered
+  status: complete
+  created_at: '2026-10-04T05:54:38.262933+00:00'
+  completed_at: '2026-10-04T05:54:45.720428+00:00'
+- id: ROUTE-FIX-036
+  title: DELETE /session/{id}/message/{messageID}/part/{partID} per contract
+  criteria:
+  - 200,400,404 responses + tests + live probe
+  status: complete
+  created_at: '2026-10-04T06:33:05.170550+00:00'
+  completed_at: '2026-10-04T06:33:05.930321+00:00'
+- id: ROUTE-FIX-006
+  title: Serve POST /project/git/init per contract (SHIM-DRIFT-100)
+  criteria:
+  - POST /project/git/init answers 200 on the happy path and 400 BadRequest/InvalidRequest
+    on malformed input, per the declared contract (previously 501 stub)
+  - A live probe against a running shim server shows 200/400 codes reachable, and
+    the declared-vs-served comparison flips SHIM-DRIFT-100 to covered
+  status: complete
+  created_at: '2026-10-04T13:31:22.855464+00:00'
+  completed_at: '2026-10-04T13:58:43.216595+00:00'
+- id: route-add-101
+  title: Serve POST /provider/{providerID}/oauth/callback per contract
+  criteria:
+  - shim serves POST /provider/{providerID}/oauth/callback with declared 200 (boolean
+    false) and 400 arms; sibling test assertions updated; SHIM-DRIFT-098 flipped in
+    the declared-vs-served artifact
+  status: complete
+  created_at: '2026-10-04T21:50:02.108915+00:00'
+  completed_at: '2026-10-04T22:04:37.934939+00:00'
+- id: doc-12
+  title: Remove dead CONSENSUS_MAX_WORKERS from failure-modes runbook
+  criteria:
+  - grep -c CONSENSUS_MAX_WORKERS docs/runbooks/failure-modes.md returns 0
+  - No code reader for the var exists (verified tree-wide)
+  status: complete
+  created_at: '2026-10-04T22:00:58.417211+00:00'
+  completed_at: '2026-10-04T22:01:37.724728+00:00'
