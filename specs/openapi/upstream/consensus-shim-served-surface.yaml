@@ -531,7 +531,8 @@ routes:
   # moved /project/current GET (SHIM-DRIFT-099) likewise; ROUTE-FIX-006
   # moved /project/git/init POST (SHIM-DRIFT-100) likewise; ROUTE-FIX-007
   # moved /project/{projectID}/directories GET (SHIM-DRIFT-101) likewise;
-  # 11 entries remain.
+  # 10 entries remain (the previously covered clear-prompt route was restored
+  # by ROUTE-FIX-022b after INT-CI-004 removed its handler).
   - path: /project/git/init
     method: POST
     outcome: 200
@@ -546,7 +547,7 @@ routes:
     method: POST
     outcome: 200
     auth: api-key
-    evidence: "server.go tuiClearPrompt (ROUTE-FIX-020, SHIM-DRIFT-131)"
+    evidence: "server.go tuiClearPrompt via handleTUI (ROUTE-FIX-022b): 200 false (no TUI attached), 400 INVALID_REQUEST on invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST; declared OpenAPI responses are 200 boolean and 400 BadRequest"
   - path: /tui/control/next
     method: GET
     outcome: 200

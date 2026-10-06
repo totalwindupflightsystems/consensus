@@ -4690,17 +4690,16 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 // TUI Control Endpoints (SPEC-017 §3.1 — shim-only passthrough)
 // ============================================================================
 
-// tuiDeclaredOps maps the TUI sub-paths the pinned upstream document declares
-// to their operation ids (SHIM-GAP-002). The shim runs no TUI process, so
-// these are answered with the typed not-implemented envelope naming the
-// operation instead of the 404 the router used to hand back.
+// tuiDeclaredOps maps the remaining TUI sub-paths the pinned upstream document
+// declares but this shim does not implement. They are answered with the typed
+// not-implemented envelope naming the operation instead of the 404 the router
+// would otherwise hand back.
 //
 // The remaining shim-only actions (submit-prompt, execute-command, show-toast)
 // keep their pre-existing error body: they are not part of the SHIM-GAP-002
-// finding set. append-prompt is served by tuiAppendPrompt and control/next by
-// tuiControlNext (ROUTE-FIX-021), both below.
+// finding set. append-prompt and clear-prompt are served by their handlers, and
+// control/next is served by tuiControlNext (ROUTE-FIX-021), below.
 var tuiDeclaredOps = map[string]string{
-	"clear-prompt":     "tui.clearPrompt",
 	"control/response": "tui.control.response",
 	"open-help":        "tui.openHelp",
 	"open-models":      "tui.openModels",
@@ -4762,6 +4761,27 @@ func (s *Server) ptyList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, []map[string]any{})
 }
 
+// tuiClearPrompt serves tui.clearPrompt's declared boolean response. The shim
+// has no attached TUI process, so a valid request returns false rather than
+// claiming that prompt state was cleared. The optional directory/workspace
+// selectors are validated against the filesystem, matching ptyList.
+func (s *Server) tuiClearPrompt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v := strings.TrimSpace(r.URL.Query().Get(param)); v != "" {
+			if info, err := os.Stat(v); err != nil || !info.IsDir() {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+					fmt.Sprintf("%s %q does not exist or is not a directory", param, v))
+				return
+			}
+		}
+	}
+	writeJSON(w, false)
+}
+
 // tuiAppendPrompt serves the declared tui.appendPrompt contract. The shim has
 // no attached TUI process to receive the text, so valid input returns the
 // declared boolean false rather than claiming that a prompt was processed.
@@ -4816,6 +4836,11 @@ func (s *Server) tuiControlNext(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
+
+	if sub == "clear-prompt" {
+		s.tuiClearPrompt(w, r)
+		return
+	}
 
 	if sub == "append-prompt" {
 		if r.Method != http.MethodPost {
