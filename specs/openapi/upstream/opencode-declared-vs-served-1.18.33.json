@@ -16,11 +16,11 @@
   },
   "served_source": {
     "derived_from": "internal/shim/opencode/server.go",
-    "derived_at_commit": "0246241c75a6f5a835a62529a5ebe960d8fd3124",
-    "derived_on": "2026-09-29",
+    "derived_at_commit": "89394b1b65c5335b2481fe7a364e6dd29d1771fe",
+    "derived_on": "2026-10-07",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty — GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update — SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond — SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo — SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert — SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose — SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current — SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit — SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact — the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; regenerate with scripts/compare-opencode-declared-served.py; ROUTE-FIX-023 moved POST /tui/control/response, /tui/open-help, /tui/open-models, /tui/open-sessions, /tui/open-themes and /tui/publish from typed-501 drift to covered"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose \u2014 SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current \u2014 SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit \u2014 SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; ; SHIM-GAP-005 declared the 17 formerly served-not-declared rows as intentional shim extensions (x-shim-extension: true + extension-rationale on each route): /doc (S001), /permission/{id} GET (S002), /permission/{id}/resolve POST (S003), /project/{projectID} GET (S004, METHOD-ABSENT beside the declared PATCH), /vcs/{id} GET (S005), /instance GET + /instance/path GET + /instance/vcs GET + /instance/vcs/diff GET (S006..009) and the eight known-but-untranslated 501 stubs /instance/vcs/status, /instance/vcs/diff/raw, /instance/vcs/apply, /instance/command, /instance/agent, /instance/skill, /instance/lsp, /instance/formatter (S010..017); the comparison classifies these as shim_extensions (appendix-shim-extensions.md, count shim_extension_operations), leaving drift_served_not_declared at 0; SHIM-GAP-005 also restored four served-surface outcomes rotted to 200 in the ROUTE-FIX-020 window (/pty POST, /vcs/apply POST, /vcs/diff/raw GET, /vcs/status GET are all 501-typed per their handlers, and the /find/ prefix rule stub_outcome is 501) that a fresh comparison run had silently re-scored covered; regenerate with scripts/compare-opencode-declared-served.py"
   },
   "counts": {
     "declared_paths": 162,
@@ -34,11 +34,9 @@
       "NOT-SERVED": 102,
       "OUTCOME-MISMATCH": 10
     },
-    "drift_served_not_declared": 17,
-    "served_drift_by_class": {
-      "PATH-ABSENT": 16,
-      "METHOD-ABSENT": 1
-    }
+    "drift_served_not_declared": 0,
+    "served_drift_by_class": {},
+    "shim_extension_operations": 17
   },
   "covered": [
     {
@@ -169,7 +167,7 @@
       "declared_responses": "200,400",
       "family": "/find/*",
       "served_outcome": "200",
-      "evidence": "server.go handleFindSub symbol && GET → findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank → 400 INVALID_REQUEST), present-but-blank directory/workspace → 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list — the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
+      "evidence": "server.go handleFindSub symbol && GET \u2192 findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank \u2192 400 INVALID_REQUEST), present-but-blank directory/workspace \u2192 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list \u2014 the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
     },
     {
       "path": "/global/event",
@@ -199,7 +197,7 @@
       "declared_responses": "200,400",
       "family": "/instance/*",
       "served_outcome": "200",
-      "evidence": "server.go handleInstanceSub sub dispose && POST → instanceDispose (ROUTE-FIX-003, formerly SHIM-DRIFT-091): declared responses 200 boolean, 400 BadRequest. The shim is ONE instance rooted at the workspace directory and keeps no per-instance registry to release, so the truthful payload is the declared boolean true (the handleGlobalDispose convention, idempotent for a repeated POST). The declared 400 has one reachable client input: a present-but-blank directory/workspace query parameter answers the declared BadRequestError envelope (writeOpencodeBadRequest, kind Query — the handleSkill/handleFormatter blank query convention); valued params are well-formed and scope nothing; the operation declares no requestBody, so none is read. Non-POST keeps the pre-change 501 stub from the sub-switch default"
+      "evidence": "server.go handleInstanceSub sub dispose && POST \u2192 instanceDispose (ROUTE-FIX-003, formerly SHIM-DRIFT-091): declared responses 200 boolean, 400 BadRequest. The shim is ONE instance rooted at the workspace directory and keeps no per-instance registry to release, so the truthful payload is the declared boolean true (the handleGlobalDispose convention, idempotent for a repeated POST). The declared 400 has one reachable client input: a present-but-blank directory/workspace query parameter answers the declared BadRequestError envelope (writeOpencodeBadRequest, kind Query \u2014 the handleSkill/handleFormatter blank query convention); valued params are well-formed and scope nothing; the operation declares no requestBody, so none is read. Non-POST keeps the pre-change 501 stub from the sub-switch default"
     },
     {
       "path": "/log",
@@ -229,7 +227,7 @@
       "declared_responses": "200,400",
       "family": "/path",
       "served_outcome": "200",
-      "evidence": "server.go:181 handlePath → instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:181 handlePath \u2192 instancePath; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/permission",
@@ -259,7 +257,7 @@
       "declared_responses": "200,400",
       "family": "/project/*",
       "served_outcome": "200",
-      "evidence": "server.go handleProjectByID sub current && GET → projectCurrent (ROUTE-FIX-005, formerly SHIM-DRIFT-099): declared responses 200 Project, 400 BadRequest. The runtime keeps exactly one workspace per instance (the singleton convention of /instance and /path), so the declared Project is derived from that real workspace directory: id <- instanceID(dir) (the GET /instance singleton id), worktree <- gitWorktree(dir) (git toplevel, else the directory — the /path convention), name <- the workspace base name, vcs <- \"git\" only when git rev-parse --is-inside-work-tree succeeds (optional enum [\"git\"], absent otherwise), commands <- the workspace consensus.json \"commands\" object when present (optional, never synthesized), time <- {created, updated} from the schema_versions ledger (earliest/latest applied_at as epoch millis, the ProjectTime unit), sandboxes <- [] (required key; the runtime spawns no sandboxes), icon omitted (optional). Served arms: a present-but-blank declared query selector (directory, workspace) answers 400 INVALID_REQUEST — the operation declares no requestBody, so the selectors are what keep the declared 400 reachable (the sessionTodo / sync.steal precedent); an unreadable schema_versions ledger answers the declared 400 (the operation declares no 5xx), never a fabricated timestamp. Non-GET on the sub-path keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the git/init + directories typed 501s are untouched"
+      "evidence": "server.go handleProjectByID sub current && GET \u2192 projectCurrent (ROUTE-FIX-005, formerly SHIM-DRIFT-099): declared responses 200 Project, 400 BadRequest. The runtime keeps exactly one workspace per instance (the singleton convention of /instance and /path), so the declared Project is derived from that real workspace directory: id <- instanceID(dir) (the GET /instance singleton id), worktree <- gitWorktree(dir) (git toplevel, else the directory \u2014 the /path convention), name <- the workspace base name, vcs <- \"git\" only when git rev-parse --is-inside-work-tree succeeds (optional enum [\"git\"], absent otherwise), commands <- the workspace consensus.json \"commands\" object when present (optional, never synthesized), time <- {created, updated} from the schema_versions ledger (earliest/latest applied_at as epoch millis, the ProjectTime unit), sandboxes <- [] (required key; the runtime spawns no sandboxes), icon omitted (optional). Served arms: a present-but-blank declared query selector (directory, workspace) answers 400 INVALID_REQUEST \u2014 the operation declares no requestBody, so the selectors are what keep the declared 400 reachable (the sessionTodo / sync.steal precedent); an unreadable schema_versions ledger answers the declared 400 (the operation declares no 5xx), never a fabricated timestamp. Non-GET on the sub-path keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the git/init + directories typed 501s are untouched"
     },
     {
       "path": "/project/git/init",
@@ -269,7 +267,7 @@
       "declared_responses": "200,400",
       "family": "/project/*",
       "served_outcome": "200",
-      "evidence": "server.go handleProjectByID sub git/init && POST → projectInitGit (ROUTE-FIX-006, formerly SHIM-DRIFT-100): declared responses 200 Project, 400 BadRequest. Upstream runs git init in the project worktree; the shim performs the same real effect on the instance's single real workspace (the singleton convention of /instance, /path and project.current, resolved by x-opencode-directory): when the workspace is not yet a git repo, git init runs in it via runGit (GIT_* env stripped, ctx-bounded); an already-initialized workspace is a no-op re-init (idempotent upstream). The declared 200 Project is derived by the shared deriveProject translation (same fields and sources as project.current — id, worktree, name, vcs, commands, time, sandboxes). Served arms: a present-but-blank declared query selector (directory, workspace) answers the declared BadRequestError envelope (writeOpencodeBadRequest, kind Query — the instanceDispose blank-query convention; the operation declares no requestBody, so the selectors keep the 400 arm reachable); a failed git init and an unreadable schema_versions ledger answer 400 INVALID_REQUEST (the operation declares no 5xx), never a fabricated success or timestamp. Non-POST keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the directories typed 501 are untouched"
+      "evidence": "server.go handleProjectByID sub git/init && POST \u2192 projectInitGit (ROUTE-FIX-006, formerly SHIM-DRIFT-100): declared responses 200 Project, 400 BadRequest. Upstream runs git init in the project worktree; the shim performs the same real effect on the instance's single real workspace (the singleton convention of /instance, /path and project.current, resolved by x-opencode-directory): when the workspace is not yet a git repo, git init runs in it via runGit (GIT_* env stripped, ctx-bounded); an already-initialized workspace is a no-op re-init (idempotent upstream). The declared 200 Project is derived by the shared deriveProject translation (same fields and sources as project.current \u2014 id, worktree, name, vcs, commands, time, sandboxes). Served arms: a present-but-blank declared query selector (directory, workspace) answers the declared BadRequestError envelope (writeOpencodeBadRequest, kind Query \u2014 the instanceDispose blank-query convention; the operation declares no requestBody, so the selectors keep the 400 arm reachable); a failed git init and an unreadable schema_versions ledger answer 400 INVALID_REQUEST (the operation declares no 5xx), never a fabricated success or timestamp. Non-POST keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the directories typed 501 are untouched"
     },
     {
       "path": "/project/{projectID}/directories",
@@ -309,7 +307,7 @@
       "declared_responses": "200,400",
       "family": "/provider/*",
       "served_outcome": "200",
-      "evidence": "server.go handleProviderOAuthCallback (ROUTE-ADD-101, formerly SHIM-DRIFT-098 — the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect): body schema checked strictly (method required non-negative integer, code optional string, additionalProperties: false so undeclared fields are refused), method index validated against the stored-auth registry, and the declared 200 answers the truthful boolean false (this shim parks no OAuth flow, so there is no callback to process — never null, never upstream's literal true); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError"
+      "evidence": "server.go handleProviderOAuthCallback (ROUTE-ADD-101, formerly SHIM-DRIFT-098 \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect): body schema checked strictly (method required non-negative integer, code optional string, additionalProperties: false so undeclared fields are refused), method index validated against the stored-auth registry, and the declared 200 answers the truthful boolean false (this shim parks no OAuth flow, so there is no callback to process \u2014 never null, never upstream's literal true); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError"
     },
     {
       "path": "/pty",
@@ -319,7 +317,7 @@
       "declared_responses": "200,400",
       "family": "/pty",
       "served_outcome": "200",
-      "evidence": "server.go handlePty → ptyList (ROUTE-ADD-102, formerly SHIM-DRIFT-105): the runtime spawns no pseudo-terminals, so the list is truthfully empty"
+      "evidence": "server.go handlePty \u2192 ptyList (ROUTE-ADD-102, formerly SHIM-DRIFT-105): the runtime spawns no pseudo-terminals, so the list is truthfully empty"
     },
     {
       "path": "/question",
@@ -339,7 +337,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions → listSessions"
+      "evidence": "server.go:177 handleSessions \u2192 listSessions"
     },
     {
       "path": "/session",
@@ -349,7 +347,7 @@
       "declared_responses": "200,400",
       "family": "/session",
       "served_outcome": "200",
-      "evidence": "server.go:177 handleSessions → createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
+      "evidence": "server.go:177 handleSessions \u2192 createSession; isFixedWorkspaceCompatibilityRequest server.go:1128"
     },
     {
       "path": "/session/status",
@@ -359,7 +357,7 @@
       "declared_responses": "200,400",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID reserved literal status → sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
+      "evidence": "server.go handleSessionByID reserved literal status \u2192 sessionStatus (ROUTE-FIX-008, formerly SHIM-DRIFT-114)"
     },
     {
       "path": "/session/{sessionID}",
@@ -419,7 +417,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub command → sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
+      "evidence": "server.go handleSessionByID sub command \u2192 sessionCommand (ROUTE-FIX-009, formerly SHIM-DRIFT-115)"
     },
     {
       "path": "/session/{sessionID}/diff",
@@ -429,7 +427,7 @@
       "declared_responses": "200,400",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub diff && GET → sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
+      "evidence": "server.go handleSessionByID sub diff && GET \u2192 sessionDiff (ROUTE-FIX-010, formerly SHIM-DRIFT-116)"
     },
     {
       "path": "/session/{sessionID}/message",
@@ -459,7 +457,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub message/<id> && DELETE → sessionDeleteMessage (ROUTE-FIX-035, formerly SHIM-NARROWED-005): unknown session 404, mid-turn session 409 SessionBusyError, blank/ill-shaped messageID 400 (declared pattern ^msg), a well-formed messageID the session does not hold 404 via sessionHasMessage, and a known message answers the declared boolean 200 with the truthful false — messages are memory_events rows and that ledger is append-only (SPEC-002 §2.1; triggers in migrations 017/018 abort every DELETE), so no delete engine exists and nothing was deleted"
+      "evidence": "server.go handleSessionByID sub message/<id> && DELETE \u2192 sessionDeleteMessage (ROUTE-FIX-035, formerly SHIM-NARROWED-005): unknown session 404, mid-turn session 409 SessionBusyError, blank/ill-shaped messageID 400 (declared pattern ^msg), a well-formed messageID the session does not hold 404 via sessionHasMessage, and a known message answers the declared boolean 200 with the truthful false \u2014 messages are memory_events rows and that ledger is append-only (SPEC-002 \u00a72.1; triggers in migrations 017/018 abort every DELETE), so no delete engine exists and nothing was deleted"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}",
@@ -479,7 +477,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go handleSessionByID sub message/<id>/part/<id> && PATCH → sessionPartUpdate (ROUTE-FIX-037, formerly SHIM-NARROWED-006 in this artifact's positional ids / SHIM-NARROWED-007 in the 2026-09-29 baseline report): declared responses 200 Part 'Successfully updated part', 400 BadRequest | InvalidRequestError, 404 NotFoundError. Served arms: unknown session 404 (typed session not found), blank messageID 400, ill-shaped messageID 400 (declared pattern ^msg), unknown message 404, blank partID 400, ill-shaped partID 400 (declared pattern ^prt), a supplied body that is not a Part object 400 (p1DecodeBody), and the declared 404 for every well-formed partID. The declared 200 Part is NOT served and never fabricated: the runtime keeps no parts table (migrations/ has none) and no part-editing engine — parts are SYNTHESIZED by getMessageByID from memory_events.content as one id-less text part, so no part with a 'prt-...' id exists to update, and memory_events is append-only (SPEC-002 §2.1; triggers 017/018 abort every UPDATE/DELETE). Unlike session.deleteMessage (whose declared 200 is a plain boolean that can report the truthful false) this operation declares an OBJECT the runtime cannot produce truthfully, so the declared 404 NotFoundError IS the answer (the sessionUnshare precedent, ROUTE-FIX-015). part.update declares NO 409, so a mid-turn session is not answered SessionBusyError. NOTE: the sibling DELETE on this same path is recorded below on purpose — it is still error-contract-only (the 404 comes from the message-DELETE case, not from a part.delete route); ROUTE-FIX-036 owns giving it a dedicated handler"
+      "evidence": "server.go handleSessionByID sub message/<id>/part/<id> && PATCH \u2192 sessionPartUpdate (ROUTE-FIX-037, formerly SHIM-NARROWED-006 in this artifact's positional ids / SHIM-NARROWED-007 in the 2026-09-29 baseline report): declared responses 200 Part 'Successfully updated part', 400 BadRequest | InvalidRequestError, 404 NotFoundError. Served arms: unknown session 404 (typed session not found), blank messageID 400, ill-shaped messageID 400 (declared pattern ^msg), unknown message 404, blank partID 400, ill-shaped partID 400 (declared pattern ^prt), a supplied body that is not a Part object 400 (p1DecodeBody), and the declared 404 for every well-formed partID. The declared 200 Part is NOT served and never fabricated: the runtime keeps no parts table (migrations/ has none) and no part-editing engine \u2014 parts are SYNTHESIZED by getMessageByID from memory_events.content as one id-less text part, so no part with a 'prt-...' id exists to update, and memory_events is append-only (SPEC-002 \u00a72.1; triggers 017/018 abort every UPDATE/DELETE). Unlike session.deleteMessage (whose declared 200 is a plain boolean that can report the truthful false) this operation declares an OBJECT the runtime cannot produce truthfully, so the declared 404 NotFoundError IS the answer (the sessionUnshare precedent, ROUTE-FIX-015). part.update declares NO 409, so a mid-turn session is not answered SessionBusyError. NOTE: the sibling DELETE on this same path is recorded below on purpose \u2014 it is still error-contract-only (the 404 comes from the message-DELETE case, not from a part.delete route); ROUTE-FIX-036 owns giving it a dedicated handler"
     },
     {
       "path": "/session/{sessionID}/permissions/{permissionID}",
@@ -489,7 +487,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub permissions/<id> && POST → sessionPermissionRespond (ROUTE-FIX-038, formerly SHIM-NARROWED-008 in this artifact's positional ids / SHIM-NARROWED-006 in the 2026-09-29 baseline report): declared body {response*: once|always|reject} additionalProperties false (400 malformed/missing/bad-enum, 400 ill-shaped permissionID — declared pattern ^per), unknown session 404, unknown/foreign-session/non-pending permission 404 (the resolvePermission convention: only 200/400/404 declared here, no 409), known pending permission 200 with the truthful boolean true. Field mapping mirrors the consent-store sidecar's POST /permission/{id}/resolve (ROUTE-FIX-045, commit 07f2f3c) onto the REAL approval_requests columns: reject → status 'rejected', once/always → status 'approved' with the grant scope in review_notes ('granted once' / 'granted (always)'), reviewed_at the timestamp, reviewer_id 'opencode-shim' — no decision_reason column exists. Emits the same SSE approval_resolved event the sidecar resolve handler emits (HARDEN-SHIM-01)"
+      "evidence": "server.go handleSessionByID sub permissions/<id> && POST \u2192 sessionPermissionRespond (ROUTE-FIX-038, formerly SHIM-NARROWED-008 in this artifact's positional ids / SHIM-NARROWED-006 in the 2026-09-29 baseline report): declared body {response*: once|always|reject} additionalProperties false (400 malformed/missing/bad-enum, 400 ill-shaped permissionID \u2014 declared pattern ^per), unknown session 404, unknown/foreign-session/non-pending permission 404 (the resolvePermission convention: only 200/400/404 declared here, no 409), known pending permission 200 with the truthful boolean true. Field mapping mirrors the consent-store sidecar's POST /permission/{id}/resolve (ROUTE-FIX-045, commit 07f2f3c) onto the REAL approval_requests columns: reject \u2192 status 'rejected', once/always \u2192 status 'approved' with the grant scope in review_notes ('granted once' / 'granted (always)'), reviewed_at the timestamp, reviewer_id 'opencode-shim' \u2014 no decision_reason column exists. Emits the same SSE approval_resolved event the sidecar resolve handler emits (HARDEN-SHIM-01)"
     },
     {
       "path": "/session/{sessionID}/prompt_async",
@@ -499,7 +497,7 @@
       "declared_responses": "204,400,404",
       "family": "/session/*",
       "served_outcome": "204",
-      "evidence": "server.go handleSessionByID sub prompt_async && POST → sessionPromptAsync (ROUTE-FIX-013, formerly SHIM-DRIFT-113)"
+      "evidence": "server.go handleSessionByID sub prompt_async && POST \u2192 sessionPromptAsync (ROUTE-FIX-013, formerly SHIM-DRIFT-113)"
     },
     {
       "path": "/session/{sessionID}/revert",
@@ -509,7 +507,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub revert && POST → sessionRevert (ROUTE-FIX-014, formerly SHIM-DRIFT-120): declared body messageID required pattern ^msg (400 missing/ill-shaped), unknown session 404, unknown message 404, mid-turn session 409 SessionBusyError, idle session 200 with the Session as it stands — no revert engine exists, nothing is reverted"
+      "evidence": "server.go handleSessionByID sub revert && POST \u2192 sessionRevert (ROUTE-FIX-014, formerly SHIM-DRIFT-120): declared body messageID required pattern ^msg (400 missing/ill-shaped), unknown session 404, unknown message 404, mid-turn session 409 SessionBusyError, idle session 200 with the Session as it stands \u2014 no revert engine exists, nothing is reverted"
     },
     {
       "path": "/session/{sessionID}/share",
@@ -519,7 +517,7 @@
       "declared_responses": "200,400,404,500",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go handleSessionByID sub share && DELETE → sessionUnshare (ROUTE-FIX-015, formerly SHIM-DRIFT-121): the runtime keeps no share concept, so every known session has no active share to remove — the declared 404 NotFoundError is the truthful answer (an unshare 200 would assert a removal that never happened)"
+      "evidence": "server.go handleSessionByID sub share && DELETE \u2192 sessionUnshare (ROUTE-FIX-015, formerly SHIM-DRIFT-121): the runtime keeps no share concept, so every known session has no active share to remove \u2014 the declared 404 NotFoundError is the truthful answer (an unshare 200 would assert a removal that never happened)"
     },
     {
       "path": "/session/{sessionID}/share",
@@ -529,7 +527,7 @@
       "declared_responses": "200,400,404,500",
       "family": "/session/*",
       "served_outcome": "400",
-      "evidence": "server.go handleSessionByID sub share && POST → sessionShare (ROUTE-FIX-016, formerly SHIM-DRIFT-122): Consensus publishes no sessions (export is native, SPEC-015) so the declared 200 share URL cannot be truthfully produced — known session answers the declared 400 naming the limitation, unknown session the declared 404"
+      "evidence": "server.go handleSessionByID sub share && POST \u2192 sessionShare (ROUTE-FIX-016, formerly SHIM-DRIFT-122): Consensus publishes no sessions (export is native, SPEC-015) so the declared 200 share URL cannot be truthfully produced \u2014 known session answers the declared 400 naming the limitation, unknown session the declared 404"
     },
     {
       "path": "/session/{sessionID}/shell",
@@ -539,7 +537,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub shell && POST → sessionShell (ROUTE-FIX-017, formerly SHIM-DRIFT-123): declared body agent+command required (400 blank), unknown session 404, mid-turn session 409 SessionBusyError, idle session 400 naming the missing shell-execution engine (no created message fabricated)"
+      "evidence": "server.go handleSessionByID sub shell && POST \u2192 sessionShell (ROUTE-FIX-017, formerly SHIM-DRIFT-123): declared body agent+command required (400 blank), unknown session 404, mid-turn session 409 SessionBusyError, idle session 400 naming the missing shell-execution engine (no created message fabricated)"
     },
     {
       "path": "/session/{sessionID}/summarize",
@@ -549,7 +547,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub summarize && POST → sessionSummarize (ROUTE-FIX-018, formerly SHIM-DRIFT-124): declared body providerID+modelID required (400 blank), unknown session 404, known session answers the declared boolean 200 with truthful false — no summarize pipeline exists"
+      "evidence": "server.go handleSessionByID sub summarize && POST \u2192 sessionSummarize (ROUTE-FIX-018, formerly SHIM-DRIFT-124): declared body providerID+modelID required (400 blank), unknown session 404, known session answers the declared boolean 200 with truthful false \u2014 no summarize pipeline exists"
     },
     {
       "path": "/session/{sessionID}/todo",
@@ -559,7 +557,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub todo && GET → sessionTodo (ROUTE-FIX-039, formerly SHIM-NARROWED-009 in this artifact's positional ids / SHIM-NARROWED-007 in the 2026-09-29 baseline report): unknown session 404, known session 200 with the truthful EMPTY LIST — the runtime keeps no per-session todo store, so the declared Todo[] is answered [] (never null), the declared-boolean-truthful precedent of sessionUnshare/sessionSummarize (d8f1d59). The declared 400 has no reachable client input: the only parameter is the path sessionID and the optional directory/workspace query parameters are accepted and ignored (singleton-instance convention)"
+      "evidence": "server.go handleSessionByID sub todo && GET \u2192 sessionTodo (ROUTE-FIX-039, formerly SHIM-NARROWED-009 in this artifact's positional ids / SHIM-NARROWED-007 in the 2026-09-29 baseline report): unknown session 404, known session 200 with the truthful EMPTY LIST \u2014 the runtime keeps no per-session todo store, so the declared Todo[] is answered [] (never null), the declared-boolean-truthful precedent of sessionUnshare/sessionSummarize (d8f1d59). The declared 400 has no reachable client input: the only parameter is the path sessionID and the optional directory/workspace query parameters are accepted and ignored (singleton-instance convention)"
     },
     {
       "path": "/session/{sessionID}/unrevert",
@@ -569,7 +567,7 @@
       "declared_responses": "200,400,404,409",
       "family": "/session/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSessionByID sub unrevert && POST → sessionUnrevert (ROUTE-FIX-040, formerly SHIM-NARROWED-010 in this artifact's positional ids / SHIM-NARROWED-008 in the 2026-09-29 baseline report): the operation declares NO requestBody (nothing read or required), unknown session 404, mid-turn session 409 SessionBusyError (typed _tag body — the sessionRevert analog), idle session 200 with the Session AS IT STANDS — no revert engine exists, nothing was ever reverted, nothing is restored"
+      "evidence": "server.go handleSessionByID sub unrevert && POST \u2192 sessionUnrevert (ROUTE-FIX-040, formerly SHIM-NARROWED-010 in this artifact's positional ids / SHIM-NARROWED-008 in the 2026-09-29 baseline report): the operation declares NO requestBody (nothing read or required), unknown session 404, mid-turn session 409 SessionBusyError (typed _tag body \u2014 the sessionRevert analog), idle session 200 with the Session AS IT STANDS \u2014 no revert engine exists, nothing was ever reverted, nothing is restored"
     },
     {
       "path": "/skill",
@@ -589,7 +587,7 @@
       "declared_responses": "200,400",
       "family": "/sync/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] — the runtime keeps no sync event store"
+      "evidence": "server.go handleSyncHistory (ROUTE-ADD-112, formerly SHIM-DRIFT-126): cursor-map body validated, truthful empty SyncEvent[] \u2014 the runtime keeps no sync event store"
     },
     {
       "path": "/sync/replay",
@@ -599,7 +597,7 @@
       "declared_responses": "200,400",
       "family": "/sync/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSyncReplay (ROUTE-ADD-113, formerly SHIM-DRIFT-127): declared directory + events[] body validated, declared ReplayedSyncEvents {sessionID} answered with the empty session id — no sync event store and no replay engine"
+      "evidence": "server.go handleSyncReplay (ROUTE-ADD-113, formerly SHIM-DRIFT-127): declared directory + events[] body validated, declared ReplayedSyncEvents {sessionID} answered with the empty session id \u2014 no sync event store and no replay engine"
     },
     {
       "path": "/sync/start",
@@ -609,7 +607,7 @@
       "declared_responses": "200,400",
       "family": "/sync/*",
       "served_outcome": "200",
-      "evidence": "server.go handleSyncStart (ROUTE-ADD-114, formerly SHIM-DRIFT-119 here / source item SHIM-DRIFT-128): declared directory + workspace query params validated (blank -> declared 400), declared boolean 200 answered false — no workspace sync started, the runtime keeps no sync loop engine"
+      "evidence": "server.go handleSyncStart (ROUTE-ADD-114, formerly SHIM-DRIFT-119 here / source item SHIM-DRIFT-128): declared directory + workspace query params validated (blank -> declared 400), declared boolean 200 answered false \u2014 no workspace sync started, the runtime keeps no sync loop engine"
     },
     {
       "path": "/tui/append-prompt",
@@ -622,26 +620,6 @@
       "evidence": "server.go tuiAppendPrompt (handleTUI route)"
     },
     {
-      "path": "/vcs",
-      "method": "GET",
-      "operationId": "vcs.get",
-      "tags": "instance",
-      "declared_responses": "200,400",
-      "family": "/vcs",
-      "served_outcome": "200",
-      "evidence": "server.go:235 handleVCS (server.go:1238)"
-    },
-    {
-      "path": "/vcs/diff",
-      "method": "GET",
-      "operationId": "vcs.diff",
-      "tags": "instance",
-      "declared_responses": "200,400",
-      "family": "/vcs/*",
-      "served_outcome": "200",
-      "evidence": "server.go:236 handleVCS"
-    },
-    {
       "path": "/tui/clear-prompt",
       "method": "POST",
       "operationId": "tui.clearPrompt",
@@ -649,7 +627,7 @@
       "declared_responses": "200,400",
       "family": "/tui/*",
       "served_outcome": "200",
-      "evidence": "server.go tuiClearPrompt via handleTUI (ROUTE-FIX-022b, SHIM-DRIFT-131): declared 200 boolean false (no TUI attached), 400 INVALID_REQUEST on invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
+      "evidence": "server.go tuiClearPrompt via handleTUI (ROUTE-FIX-022b): 200 false (no TUI attached), 400 INVALID_REQUEST on invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST; declared OpenAPI responses are 200 boolean and 400 BadRequest"
     },
     {
       "path": "/tui/control/next",
@@ -659,7 +637,7 @@
       "declared_responses": "200,400",
       "family": "/tui/*",
       "served_outcome": "200",
-      "evidence": "server.go tuiControlNext (ROUTE-FIX-021, SHIM-DRIFT-132): 200 {path,body} empty-queue representation (no TUI process), 400 on bad directory/workspace selectors, 405 on non-GET"
+      "evidence": "server.go tuiControlNext (ROUTE-FIX-021, SHIM-DRIFT-132)"
     },
     {
       "path": "/tui/control/response",
@@ -720,6 +698,26 @@
       "family": "/tui/*",
       "served_outcome": "200",
       "evidence": "server.go tuiPublish via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-139): validates the declared EventTuiPromptAppend|EventTuiCommandExecute|EventTuiToastShow|EventTuiSessionSelect union and returns 200 false because no TUI event sink is attached; malformed/invalid events or selectors answer declared 400, non-POST answers 405"
+    },
+    {
+      "path": "/vcs",
+      "method": "GET",
+      "operationId": "vcs.get",
+      "tags": "instance",
+      "declared_responses": "200,400",
+      "family": "/vcs",
+      "served_outcome": "200",
+      "evidence": "server.go:235 handleVCS (server.go:1238)"
+    },
+    {
+      "path": "/vcs/diff",
+      "method": "GET",
+      "operationId": "vcs.diff",
+      "tags": "instance",
+      "declared_responses": "200,400",
+      "family": "/vcs/*",
+      "served_outcome": "200",
+      "evidence": "server.go:236 handleVCS"
     }
   ],
   "narrowed_error_contract_only": [
@@ -779,7 +777,7 @@
       "declared_responses": "200,400,404",
       "family": "/session/*",
       "served_outcome": "404",
-      "evidence": "server.go handleSessionByID sub message/<id> && DELETE still matches the longer part sub-path (ROUTE-FIX-035's case is a message/ prefix match), so DELETE /session/{id}/message/{msgID}/part/{partID} reaches sessionDeleteMessage with messageID 'msg-<id>/part/<id>', which never resolves and answers the declared 404 NOT_FOUND. The declared part.delete 200 (boolean 'Successfully deleted part') is unreachable — the row stays error-contract-only in the comparison artifact (scripts/compare-opencode-declared-served.py ERROR_CONTRACT_ONLY) exactly as it was before this route entry existed; a dedicated part.delete handler (with ^prt validation and a truthful answer) is ROUTE-FIX-036's scope, not this change's",
+      "evidence": "server.go handleSessionByID sub message/<id> && DELETE still matches the longer part sub-path (ROUTE-FIX-035's case is a message/ prefix match), so DELETE /session/{id}/message/{msgID}/part/{partID} reaches sessionDeleteMessage with messageID 'msg-<id>/part/<id>', which never resolves and answers the declared 404 NOT_FOUND. The declared part.delete 200 (boolean 'Successfully deleted part') is unreachable \u2014 the row stays error-contract-only in the comparison artifact (scripts/compare-opencode-declared-served.py ERROR_CONTRACT_ONLY) exactly as it was before this route entry existed; a dedicated part.delete handler (with ^prt validation and a truthful answer) is ROUTE-FIX-036's scope, not this change's",
       "detail": "shim answers the declared 404 but never the declared success code",
       "id": "SHIM-NARROWED-005"
     },
@@ -2010,7 +2008,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-110"
+      "id": "SHIM-DRIFT-107"
     },
     {
       "path": "/tui/show-toast",
@@ -2023,7 +2021,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-116"
+      "id": "SHIM-DRIFT-108"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2036,7 +2034,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-117"
+      "id": "SHIM-DRIFT-109"
     },
     {
       "path": "/vcs/apply",
@@ -2049,7 +2047,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-118"
+      "id": "SHIM-DRIFT-110"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2062,7 +2060,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-119"
+      "id": "SHIM-DRIFT-111"
     },
     {
       "path": "/vcs/status",
@@ -2075,19 +2073,21 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-120"
+      "id": "SHIM-DRIFT-112"
     }
   ],
-  "drift_served_not_declared": [
+  "drift_served_not_declared": [],
+  "shim_extensions": [
     {
       "path": "/doc",
       "method": "GET",
       "outcome": "200",
       "auth": "public",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:186 handleDoc; serves the CONSENSUS bundle (specs/openapi/bundled.yaml), not the upstream document",
+      "evidence": "server.go:186 handleDoc; serves the CONSENSUS bundle (specs/openapi/bundled.yaml), not the upstream document; empty bundle answers 404 NOT_FOUND, spec parse failure 500 INTERNAL_ERROR",
       "family": "/doc",
-      "id": "SHIM-DRIFT-S001"
+      "rationale": "shim-side doc surface: serves the Consensus API contract (the embedded bundle, JSON default or Accept: application/yaml) at the path upstream clients probe for a machine-readable document; upstream v1.18.33 declares no /doc operation",
+      "id": "SHIM-EXT-001"
     },
     {
       "path": "/permission/{id}",
@@ -2095,9 +2095,10 @@
       "outcome": "200",
       "auth": "api-key",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:206, 2148",
+      "evidence": "server.go handlePermissionByID sub \"\" && GET \u2192 getPermission (server.go:4559): 200 with the approval row (id, session_id, type, risk_level, description, sql_preview, status, decision_reason, created_at, resolved_at), 404 NOT_FOUND for an unknown id or a failed lookup",
       "family": "/permission/*",
-      "id": "SHIM-DRIFT-S002"
+      "rationale": "shim-side HITL detail read (SPEC-017 \u00a73.7): returns the Consensus approval_requests row keyed by id; the upstream document declares only the list (GET /permission) and reply verbs",
+      "id": "SHIM-EXT-002"
     },
     {
       "path": "/permission/{id}/resolve",
@@ -2105,9 +2106,10 @@
       "outcome": "200",
       "auth": "api-key",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:2150 resolvePermission (shim-only verb; upstream document declares reply)",
+      "evidence": "server.go resolvePermission (server.go:4611): 200 {id, status, resolved: true, timestamp} after the approval_requests UPDATE; 400 INVALID_REQUEST for a malformed body or a decision outside the three values; 404 NOT_FOUND for an unknown id or a row no longer pending; 500 INTERNAL_ERROR on a failed write; emits the approval_resolved SSE event",
       "family": "/permission/*",
-      "id": "SHIM-DRIFT-S003"
+      "rationale": "shim-side HITL verb (SPEC-017 \u00a73.7): resolves a pending Consensus approval (decision approved|rejected|modified + reason); the upstream document declares reply, not resolve",
+      "id": "SHIM-EXT-003"
     },
     {
       "path": "/project/{projectID}",
@@ -2115,9 +2117,10 @@
       "outcome": "404-typed",
       "auth": "stub-skip-non-GET",
       "side": "METHOD-ABSENT",
-      "evidence": "server.go:234 handleProjectByID",
+      "evidence": "server.go handleProjectByID fallthrough (server.go:2208): any {projectID} that is not current/git/init/<id>/directories answers the typed ProjectNotFoundError 404 (_tag/projectID/message, DF-CONSENSUS-47); GET keeps auth so unauthenticated is 401 (isStubPath server.go:2084)",
       "family": "/project/*",
-      "id": "SHIM-DRIFT-S004"
+      "rationale": "upstream declares PATCH only on this path (project.update); the shim answers GET with the same typed ProjectNotFoundError 404 the PATCH arm serves, because Consensus keeps no project registry to resolve an id against",
+      "id": "SHIM-EXT-004"
     },
     {
       "path": "/vcs/{id}",
@@ -2125,9 +2128,10 @@
       "outcome": "501",
       "auth": "api-key",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:237 handleProjectVCSSStub; GET keeps auth so unauthenticated is 401 (isStubPath server.go:1159)",
+      "evidence": "server.go:237 handleProjectVCSSStub; GET keeps auth so unauthenticated is 401 (isStubPath server.go:2084)",
       "family": "/vcs/*",
-      "id": "SHIM-DRIFT-S005"
+      "rationale": "shim-side stub keep-alive for the /vcs/ subtree catch-all: an unregistered /vcs/{id} sub-path answers the untyped NOT_IMPLEMENTED stub so clients get an explicit not-implemented instead of a 404; upstream declares no /vcs/{id} operation (its declared /vcs/* sub-paths are served or typed per SHIM-GAP-002)",
+      "id": "SHIM-EXT-005"
     },
     {
       "path": "/instance",
@@ -2135,9 +2139,10 @@
       "outcome": "200",
       "auth": "public",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:238 handleInstance; authMiddleware server.go:381",
+      "evidence": "server.go:238 handleInstance; authMiddleware /instance* public (server.go:390); 200 with the one-element [{id, path, createdAt, updatedAt}] list; non-GET answers 405 METHOD_NOT_ALLOWED",
       "family": "/instance",
-      "id": "SHIM-DRIFT-S006"
+      "rationale": "shim-side instance enumeration (SPEC-017 \u00a73.10): the singleton instance list upstream clients probe unauthenticated; upstream v1.18.33 declares no /instance operation",
+      "id": "SHIM-EXT-006"
     },
     {
       "path": "/instance/path",
@@ -2145,9 +2150,10 @@
       "outcome": "200",
       "auth": "public",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:239 handleInstanceSub (server.go:1351)",
+      "evidence": "server.go handleInstanceSub sub path && GET \u2192 instancePath (server.go:1351, 2702)",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S007"
+      "rationale": "shim-side fixed-workspace read (SPEC-017 \u00a73.10): opencode PathInfo {home, state, config, worktree, directory} for the singleton workspace; upstream v1.18.33 declares no /instance/path operation",
+      "id": "SHIM-EXT-007"
     },
     {
       "path": "/instance/vcs",
@@ -2155,9 +2161,10 @@
       "outcome": "200",
       "auth": "public",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:1353",
+      "evidence": "server.go handleInstanceSub sub vcs && GET \u2192 instanceVCS (server.go:1353, 2726); never errors \u2014 a non-git workspace answers {}",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S008"
+      "rationale": "shim-side VCS read (SPEC-017 \u00a73.10, DF-CONSENSUS-38): opencode Vcs.Info {branch?, default_branch?} for the workspace (x-opencode-directory header first); upstream v1.18.33 declares no /instance/vcs operation",
+      "id": "SHIM-EXT-008"
     },
     {
       "path": "/instance/vcs/diff",
@@ -2165,9 +2172,10 @@
       "outcome": "200",
       "auth": "public",
       "side": "PATH-ABSENT",
-      "evidence": "server.go:1355",
+      "evidence": "server.go handleInstanceSub sub vcs/diff && GET \u2192 instanceVCSDiff (server.go:1355, 2752); a clean or non-git workspace answers []",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S009"
+      "rationale": "shim-side VCS read (SPEC-017 \u00a73.10, DF-CONSENSUS-38): opencode Array(Vcs.FileDiff) [{file, additions, deletions, status?}] for the workspace; upstream v1.18.33 declares no /instance/vcs/diff operation",
+      "id": "SHIM-EXT-009"
     },
     {
       "path": "/instance/vcs/status",
@@ -2177,7 +2185,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1333",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S010"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (per-file VCS status list) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/status operation",
+      "id": "SHIM-EXT-010"
     },
     {
       "path": "/instance/vcs/diff/raw",
@@ -2187,7 +2196,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1334",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S011"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (raw unified diff text) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/diff/raw operation",
+      "id": "SHIM-EXT-011"
     },
     {
       "path": "/instance/vcs/apply",
@@ -2197,7 +2207,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1335",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S012"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (apply a patch) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/apply operation",
+      "id": "SHIM-EXT-012"
     },
     {
       "path": "/instance/command",
@@ -2207,7 +2218,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1336",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S013"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode slash commands) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/command operation",
+      "id": "SHIM-EXT-013"
     },
     {
       "path": "/instance/agent",
@@ -2217,7 +2229,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1337",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S014"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode agent registry) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/agent operation",
+      "id": "SHIM-EXT-014"
     },
     {
       "path": "/instance/skill",
@@ -2227,7 +2240,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1338",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S015"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode skill registry) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/skill operation",
+      "id": "SHIM-EXT-015"
     },
     {
       "path": "/instance/lsp",
@@ -2237,7 +2251,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1339",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S016"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (LSP server status) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/lsp operation",
+      "id": "SHIM-EXT-016"
     },
     {
       "path": "/instance/formatter",
@@ -2247,7 +2262,8 @@
       "side": "PATH-ABSENT",
       "evidence": "instanceKnownSubpaths server.go:1340",
       "family": "/instance/*",
-      "id": "SHIM-DRIFT-S017"
+      "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (formatter status) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/formatter operation",
+      "id": "SHIM-EXT-017"
     }
   ]
 }
