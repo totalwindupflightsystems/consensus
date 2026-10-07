@@ -26,6 +26,13 @@ Drift classes:
   STUB-501         routed subtree answers 501 NOT_IMPLEMENTED
   METHOD-MISSING   handler answers 405 METHOD_NOT_ALLOWED
   OUTCOME-MISMATCH served code is not one the document declares for that operation
+
+Served-but-not-declared routes (the reverse direction) that carry
+x-shim-extension: true + extension-rationale in the served-surface file are
+NOT drift: they are the shim's own declared extension surface (SHIM-GAP-005)
+and land in shim_extensions / appendix-shim-extensions.md instead. An
+x-shim-extension row without a rationale aborts the comparison — an
+unexplained extension must not silently pass as accounted divergence.
 """
 import json
 import re
@@ -128,6 +135,7 @@ def main():
     declared_keys = {(norm(p), m) for p, ms in declared.items() for m in ms}
 
     covered, drift, narrowed, semantic = [], [], [], []
+    extensions = []  # SHIM-GAP-005: served routes declared as shim extensions
     for path, methods in sorted(declared.items()):
         np = norm(path)
         for method, spec in sorted(methods.items()):
@@ -202,17 +210,37 @@ def main():
         key = (norm(r["path"]), r["method"].upper())
         if key in declared_keys:
             continue
-        served_only.append({
+        row = {
             "path": r["path"], "method": r["method"].upper(),
             "outcome": str(r["outcome"]), "auth": r["auth"],
             "side": "METHOD-ABSENT" if key[0] in declared_norm_paths else "PATH-ABSENT",
             "evidence": r["evidence"], "family": family(r["path"]),
-        })
+        }
+        # SHIM-GAP-005: a route the shim's spec contribution declares as an
+        # intentional extension (x-shim-extension: true + extension-rationale
+        # naming why the surface exists outside upstream v1.18.33) is not
+        # undeclared drift — it is documented divergence. It moves to its own
+        # appendix and count so drift_served_not_declared keeps meaning "the
+        # shim serves something neither the upstream document nor its own
+        # spec contribution accounts for".
+        if r.get("x-shim-extension") is True:
+            row["rationale"] = str(r.get("extension-rationale") or "").strip()
+            if not row["rationale"]:
+                raise SystemExit(
+                    "served-surface route %s %s sets x-shim-extension: true "
+                    "without an extension-rationale — refusing to classify an "
+                    "unexplained extension as declared divergence"
+                    % (row["method"], row["path"]))
+            extensions.append(row)
+        else:
+            served_only.append(row)
 
     for i, r in enumerate(drift, 1):
         r["id"] = "SHIM-DRIFT-%03d" % i
     for i, r in enumerate(served_only, 1):
         r["id"] = "SHIM-DRIFT-S%03d" % i
+    for i, r in enumerate(extensions, 1):
+        r["id"] = "SHIM-EXT-%03d" % i
     for i, r in enumerate(narrowed, 1):
         r["id"] = "SHIM-NARROWED-%03d" % i
     for i, r in enumerate(semantic, 1):
@@ -229,6 +257,10 @@ def main():
         "drift_by_class": dict(Counter(d["class"] for d in drift)),
         "drift_served_not_declared": len(served_only),
         "served_drift_by_class": dict(Counter(d["side"] for d in served_only)),
+        # SHIM-GAP-005: served routes outside the upstream document that the
+        # shim's spec contribution declares as intentional extensions, each
+        # with an extension-rationale. Not drift — accounted divergence.
+        "shim_extension_operations": len(extensions),
     }
     (out / "declared-vs-served.json").write_text(json.dumps({
         "declared_source": surface.get("source"),
@@ -240,6 +272,7 @@ def main():
         "semantic_different": semantic,
         "drift_declared_not_served": drift,
         "drift_served_not_declared": served_only,
+        "shim_extensions": extensions,
     }, indent=2) + "\n")
 
     (out / "appendix-drift-declared.md").write_text(md_table(drift, [
@@ -247,6 +280,9 @@ def main():
         "served_outcome", "detail"]))
     (out / "appendix-drift-served.md").write_text(md_table(served_only, [
         "id", "path", "method", "outcome", "auth", "side", "evidence"]))
+    # SHIM-GAP-005: the extension rows, one per accounted served-only operation.
+    (out / "appendix-shim-extensions.md").write_text(md_table(extensions, [
+        "id", "path", "method", "outcome", "auth", "side", "rationale"]))
     (out / "appendix-covered.md").write_text(md_table(covered, [
         "path", "method", "operationId", "declared_responses", "served_outcome"]))
     (out / "appendix-narrowed.md").write_text(md_table(narrowed, [

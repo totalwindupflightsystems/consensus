@@ -809,3 +809,38 @@ verifies `bun.lock` and all four suite hashes, applies the transport-only adapte
 runs the four suites and writes `docs/evidence/opencode-upstream-v1.18.33/`.
 The secondary Go-port grade (`scripts/opencode-compat.sh`, 44 keyless checks)
 still exits 0 at this pin.
+
+---
+
+## Addendum — SHIM-GAP-005 (2026-10-07): the 17 served-not-declared rows declared as shim extensions
+
+The `SHIM-SURFACE-INSTANCE-001` question this report posed — "our own `/doc`
+documents the shim's extensions, or the divergence is recorded as intentional" —
+was answered "recorded as intentional" on the served-surface side:
+
+* All 17 Appendix B rows (`SHIM-DRIFT-S001…S017`) now carry
+  `x-shim-extension: true` plus a per-row `extension-rationale` in
+  `specs/openapi/upstream/consensus-shim-served-surface.yaml`, truthfully
+  describing each served behavior from its handler evidence: the two HITL reads
+  (`/permission/{id}` GET, `/permission/{id}/resolve` POST), the method-absent
+  sibling `/project/{projectID}` GET (same typed `ProjectNotFoundError` 404 as
+  the declared PATCH arm), the `/vcs/{id}` stub keep-alive, `/doc` (serves the
+  Consensus bundle, JSON default / YAML on `Accept: application/yaml`), the four
+  real `/instance*` translations (200 public), and the eight known-but-untranslated
+  501 stubs under `/instance/*`.
+* `scripts/compare-opencode-declared-served.py` classifies rationale-carrying
+  extension rows as accounted divergence — a new `shim_extensions` block +
+  `appendix-shim-extensions.md` + `counts.shim_extension_operations` (17) —
+  and aborts if an `x-shim-extension` row lacks its rationale. Fresh run at
+  commit 89394b1: `drift_served_not_declared: 0`, `covered_operations: 68`
+  (the pre-SHIM-GAP-005 artifact's 72 was inflated: four outcomes had rotted to
+  `200` in the served YAML during the 2026-10-06 ROUTE-FIX-020 window while
+  their handlers answer typed 501 — `/pty` POST, `/vcs/apply` POST,
+  `/vcs/diff/raw` GET, `/vcs/status` GET; SHIM-GAP-005 restored all four, plus
+  the `/find/` prefix-rule `stub_outcome`).
+* The pinned upstream surface (`openapi-1.18.33.surface.json`) is untouched:
+  declaring on our own contribution is the honest alternative to editing a
+  pinned third-party document. Appendix B above remains the historical baseline
+  (17 rows, 2026-09-29); the live state is the regenerated
+  `specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`.
+
