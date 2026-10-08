@@ -641,9 +641,9 @@ routes:
     evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)"
   - path: /vcs/status
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
-    evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-144)"
+    evidence: "server.go handleVCSStatus → gitFileDiffs (ROUTE-FIX-033 / SHIM-DRIFT-144): declared responses 200 File[], 400 BadRequest"
 
 # ── Router catch-all semantics ──
 # A declared path that matches no explicit route above still reaches a handler

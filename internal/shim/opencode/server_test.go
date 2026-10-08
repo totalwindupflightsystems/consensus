@@ -2249,10 +2249,12 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 	defer srv.Close()
 
 	// Bare GET /vcs and GET /vcs/diff are real fixed-workspace compatibility
-	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); the
-	// remaining /vcs/* sub-paths stay 501 stubs (SPEC-017 §3.9). The test
-	// server skips auth, so the stub — not 401 — answers.
-	for _, path := range []string{"/vcs/status", "/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
+	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); GET
+	// /vcs/status is served per the declared contract since ROUTE-FIX-033
+	// (TestVCSStatusDeclaredContract). The remaining /vcs/* sub-paths stay 501
+	// stubs (SPEC-017 §3.9). The test server skips auth, so the stub — not
+	// 401 — answers.
+	for _, path := range []string{"/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
@@ -3515,7 +3517,6 @@ var notImplementedRoutes = []notImplementedRoute{
 	// STUB-501 (3): already 501, but the stub was silent/untyped.
 	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
 	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
-	{"SHIM-DRIFT-144", http.MethodGet, "/vcs/status", "vcs.status"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3558,7 +3559,7 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
 	// 4 = pty.create plus the three VCS typed stubs. ROUTE-FIX-023 moved the
 	// six pinned-upstream TUI operations to truthful 200/400 handlers.
-	if len(notImplementedRoutes) != 4 {
+	if len(notImplementedRoutes) != 3 {
 		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 4 after ROUTE-FIX-023 serves six TUI operations; table has %d",
 			len(notImplementedRoutes))
 	}
@@ -3695,7 +3696,7 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 4 {
+	if len(typed) != 3 {
 		t.Errorf("artifact records %d operations with outcome 501-typed, want the 4 remaining SHIM-GAP-002 findings after ROUTE-FIX-023 serves six TUI operations", len(typed))
 	}
 

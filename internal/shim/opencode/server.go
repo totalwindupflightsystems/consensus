@@ -334,6 +334,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// operation (200 Project[], 400) from the runtime's projects table; the
 	// 501 stub keeps every other method on the mount.
 	mux.HandleFunc("/project", s.handleProject)
+	// ROUTE-FIX-033 / SHIM-DRIFT-144: GET /vcs/status is the declared
+	// per-file status route; served via the shared git status/diff
+	// translator with declared directory/workspace selector validation.
+	mux.HandleFunc("/vcs/status", s.handleVCSStatus)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
@@ -2098,6 +2102,53 @@ func isStubPath(path, method string) bool {
 	return false
 }
 
+// handleVCSStatus serves GET /vcs/status — upstream instance vcs.status
+// (ROUTE-FIX-033, SHIM-DRIFT-144; declared responses: 200 File[], 400
+// BadRequest). Both directory/workspace selectors are optional; a supplied
+// value must name an existing directory. The workspace resolves like the
+// fixed-workspace compatibility routes (x-opencode-directory header first,
+// then a directory/workspace query value, then the server workspace) and the
+// per-file status list is produced by the shared git status/diff translator.
+func (s *Server) handleVCSStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		values, present := r.URL.Query()[param]
+		if !present {
+			continue
+		}
+		value := ""
+		if len(values) > 0 {
+			value = strings.TrimSpace(values[0])
+		}
+		if value == "" {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+		info, err := os.Stat(value)
+		if err != nil || !info.IsDir() {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				fmt.Sprintf("%s %q does not exist or is not a directory", param, value))
+			return
+		}
+	}
+	dir := s.requestWorkspaceDir(r)
+	if strings.TrimSpace(r.Header.Get("x-opencode-directory")) == "" {
+		for _, param := range []string{"directory", "workspace"} {
+			if value := strings.TrimSpace(r.URL.Query().Get(param)); value != "" {
+				dir = filepath.Clean(value)
+				if param == "directory" {
+					break
+				}
+			}
+		}
+	}
+	writeJSON(w, gitFileDiffs(r.Context(), dir))
+}
+
 // handleProjectVCSSStub returns 501 for /project and /vcs paths (opencode-specific).
 func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 	// SHIM-GAP-002: the declared /vcs sub-operations answer the typed
@@ -2124,7 +2175,6 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 var vcsDeclaredOps = map[string]string{
 	"/vcs/apply":    "vcs.apply",
 	"/vcs/diff/raw": "vcs.diff.raw",
-	"/vcs/status":   "vcs.status",
 }
 
 // projectDeclaredSubpaths maps the literal /project sub-paths the pinned
