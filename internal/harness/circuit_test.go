@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -27,8 +28,10 @@ func setupCircuitTestDB(t *testing.T) (db.DB, func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	// Use a temp file instead of :memory: so all pool connections see the same DB
-	dbPath := "/tmp/circuit-test-" + t.Name() + ".db"
+	// Use a per-run temp file instead of :memory: so all pool connections see the same
+	// DB. A fixed /tmp path opens pre-existing files readonly on clean machines
+	// (QA-CONSENSUS-14, events 449/455/523). t.TempDir() is unique per test run.
+	dbPath := filepath.Join(t.TempDir(), "circuit-test.db")
 	os.Remove(dbPath)
 	os.Remove(dbPath + "-wal")
 	os.Remove(dbPath + "-shm")

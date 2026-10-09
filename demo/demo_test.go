@@ -37,7 +37,16 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "FATAL: %v\n", err)
 		os.Exit(1)
 	}
-	tmpBin := filepath.Join(os.TempDir(), "consensus-demo")
+	// Build into a per-run unique temp dir: a fixed os.TempDir()/consensus-demo path
+	// collides across users on clean machines (QA-CONSENSUS-14 — stale binary owned
+	// by another user => 'permission denied' on go build output).
+	tmpDir, err := os.MkdirTemp("", "consensus-demo-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+	tmpBin := filepath.Join(tmpDir, "consensus-demo")
 	build := exec.Command("go", "build", "-o", tmpBin, "./cmd/consensus/")
 	build.Dir = projectRoot
 	if out, err := build.CombinedOutput(); err != nil {
