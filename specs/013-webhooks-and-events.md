@@ -60,6 +60,7 @@ CREATE TABLE external_events (
     workflow_id     UUID REFERENCES workflows(id),  -- NULL if no workflow match
     status          TEXT NOT NULL DEFAULT 'pending'
                     CHECK (status IN ('pending', 'routed', 'processing', 'completed', 'failed', 'quarantined')),
+    last_error      TEXT,           -- Final delivery-failure error (NULL unless status = 'failed', §5.3)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at    TIMESTAMPTZ
 );
@@ -258,6 +259,51 @@ WHERE id = NEW.id AND NEW.signature_valid = false;
 
 Quarantined events require Alt-Mode approval before processing.
 
+### 5.3 Routed-Payload Delivery Retry (REVIEW-CONSENSUS-5)
+
+The session-target delivery in §5.1 (the `user_message` memory_events INSERT)
+is retried with bounded exponential backoff: up to 3 attempts, sleeping 200ms
+before the second attempt and 400ms before the third (doubling, capped at
+800ms). The bounds are constants in `internal/webhook`, not configuration —
+no config surface exists for them by design.
+
+Attempts stop on the first success. A shutdown guard abandons remaining
+attempts when the routing loop's context is already cancelled, so shutdown
+never waits out the backoff. Each retry logs an attempt-scoped warning; a
+delivery that succeeds after a retry logs an info line.
+
+When every attempt fails, the outcome is persisted on the event row itself
+(SPEC-013 §3.1 lifecycle value `'failed'`) instead of being dropped with only
+a log line:
+
+```sql
+UPDATE external_events
+SET status = 'failed', last_error = :final_error, processed_at = :failure_time
+WHERE id = :event_id;
+```
+
+- `status = 'failed'` is the terminal delivery-failure state. The routing
+  target (`session_id`) is preserved for diagnosis and manual redelivery.
+- `last_error` (added by migration 026) carries the final attempt's error
+  text; it is NULL on every non-failed row.
+- A transient failure (a later attempt succeeds) leaves the event `'routed'`
+  with no `last_error`.
+
+Failed deliveries are reviewable with:
+
+```sql
+SELECT id, source, event_type, session_id, last_error, processed_at
+FROM external_events
+WHERE status = 'failed' AND session_id IS NOT NULL
+ORDER BY processed_at DESC;
+```
+
+Migration 026 adds the `last_error` column and the partial index
+`idx_events_failed_delivery` backing that review query. No backfill:
+pre-026 rows carry no verifiable delivery-outcome signal (memory_events rows
+have no event_id link), so historical rows are left exactly as they are and
+the lifecycle starts at deploy time.
+
 ---
 
 ## 6. Example Workflows
@@ -391,6 +437,11 @@ ON CONFLICT (source, source_id) WHERE source_id IS NOT NULL DO NOTHING;
 ## 9. Open Questions
 
 1. **Retry semantics**: When an event fails processing, should we retry with exponential backoff? Or leave it in 'failed' status for manual review?
+   - RESOLVED (REVIEW-CONSENSUS-5, §5.3): the routed-payload session delivery
+     retries with bounded exponential backoff (3 attempts, 200ms doubling,
+     capped); a terminal failure persists `status = 'failed'` + `last_error` on
+     the event row for manual review. Processing-stage retries (rule execution,
+     agent handling) remain out of scope.
 2. **Event ordering**: Should events be processed strictly in order per source, or can they be processed in parallel?
 3. **Webhook secret rotation**: How often should HMAC secrets be rotated? Can this be done without downtime?
 4. **Event archival**: How long should completed events remain in `external_events` before archival or deletion?

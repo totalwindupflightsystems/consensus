@@ -507,11 +507,16 @@ func (s *Store) routePendingEvents(ctx context.Context) error {
 					// 1. Deliver the payload — always, for every live target.
 					// session_id is FK'd to sessions; the existence check above
 					// keeps the insert from ever violating it.
-					if err := s.database.Exec(ctx, `
-						INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
-						VALUES ('user_message', $1, $2, $3, $4)
-					`, content, match.TargetSessionID, nextIteration, time.Now().UTC().Format(time.RFC3339)); err != nil {
-						slog.Warn("webhook: failed to deliver routed payload to session", "session_id", match.TargetSessionID, "event_id", eventID, "error", err)
+					//
+					// REVIEW-CONSENSUS-5: a failed insert used to be logged and
+					// dropped, silently losing the delivery. Retry with bounded
+					// exponential backoff (up to 3 attempts, 200ms → 400ms →
+					// 800ms between them) and persist the outcome on the event
+					// row when every attempt fails, so the loss is observable
+					// instead of a warn line nobody queries.
+					if err := s.deliverRoutedPayload(ctx, content, match.TargetSessionID, nextIteration); err != nil {
+						slog.Warn("webhook: failed to deliver routed payload to session", "session_id", match.TargetSessionID, "event_id", eventID, "error", err, "attempts", deliveryMaxAttempts)
+						s.markDeliveryFailed(ctx, eventID, match.TargetSessionID, err)
 					}
 
 					// 2. Wake non-active sessions to 'thinking' so the heartbeat
@@ -547,6 +552,92 @@ func (s *Store) routePendingEvents(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// ============================================================================
+// Routed-payload delivery with bounded backoff (REVIEW-CONSENSUS-5)
+// ============================================================================
+
+// Bounded exponential backoff for routed-payload delivery. Constants, not
+// config: no webhook delivery retry config field exists today, and the brief
+// forbids inventing new config surfaces.
+const (
+	// deliveryMaxAttempts is the total number of delivery attempts: 1 initial
+	// + 2 retries.
+	deliveryMaxAttempts = 3
+
+	// deliveryInitialBackoff is the pre-retry sleep after the FIRST failed
+	// attempt. Each subsequent failure doubles it (200ms → 400ms).
+	deliveryInitialBackoff = 200 * time.Millisecond
+
+	// deliveryMaxBackoff caps the pre-retry sleep so the worst case
+	// (200+400ms of sleeps across 3 attempts) stays well inside the routing
+	// loop's default 5s tick.
+	deliveryMaxBackoff = 800 * time.Millisecond
+)
+
+// deliverPayload is the delivery-attempt seam, kept package-level so tests
+// can stub it without sleeping for real. It is assigned exactly once here and
+// must never be rebound at runtime.
+//
+//lint:ignore U1000 assigned via closure; see deliverRoutedPayload
+var deliverPayload = func(ctx context.Context, s *Store, content, sessionID string, iteration int64) error {
+	return s.database.Exec(ctx, `
+		INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		VALUES ('user_message', $1, $2, $3, $4)
+	`, content, sessionID, iteration, time.Now().UTC().Format(time.RFC3339))
+}
+
+// deliverSleep is the backoff sleep seam, kept package-level like
+// deliverPayload so tests can intercept the computed delays (and assert the
+// 200ms/400ms schedule) without waiting for real time.
+var deliverSleep = time.Sleep
+
+// deliverRoutedPayload attempts the payload delivery up to
+// deliveryMaxAttempts times, sleeping deliveryInitialBackoff*d^(attempt-1)
+// between attempts (capped at deliveryMaxBackoff). Each retry logs an
+// attempt-scoped line; the caller logs the final failure. Best-effort ctx
+// cancellation: the backoff sleep is aborted if ctx is already done, so
+// shutdown is never delayed by more than one in-flight attempt.
+func (s *Store) deliverRoutedPayload(ctx context.Context, content, sessionID string, iteration int64) error {
+	var err error
+	for attempt := 1; attempt <= deliveryMaxAttempts; attempt++ {
+		if err = deliverPayload(ctx, s, content, sessionID, iteration); err == nil {
+			if attempt > 1 {
+				slog.Info("webhook: routed payload delivered after retry", "session_id", sessionID, "attempt", attempt)
+			}
+			return nil
+		}
+		if attempt < deliveryMaxAttempts {
+			slog.Warn("webhook: routed payload delivery attempt failed, retrying", "session_id", sessionID, "attempt", attempt, "error", err)
+			delay := deliveryInitialBackoff << (attempt - 1) // 200ms, 400ms, ...
+			if delay > deliveryMaxBackoff {
+				delay = deliveryMaxBackoff
+			}
+			if ctx.Err() != nil {
+				return err // shutdown: abandon the remaining attempts
+			}
+			deliverSleep(delay)
+		}
+	}
+	return err
+}
+
+// markDeliveryFailed persists a terminal delivery failure on the event row
+// itself (SPEC-013 §3.1 lifecycle 'failed'): status → 'failed', last_error →
+// final attempt error, processed_at → failure time. Best-effort: the primary
+// outcome signal remains the warn log; if this write fails too, the original
+// delivery error is re-logged so the event keeps its (unpersisted) failure
+// reason on the record.
+func (s *Store) markDeliveryFailed(ctx context.Context, eventID int64, sessionID string, deliveryErr error) {
+	err := s.database.Exec(ctx, `
+		UPDATE external_events
+		SET status = $1, last_error = $2, processed_at = $3
+		WHERE id = $4
+	`, EventStatusFailed, deliveryErr.Error(), time.Now(), eventID)
+	if err != nil {
+		slog.Warn("webhook: failed to record delivery failure on event", "event_id", eventID, "session_id", sessionID, "error", err, "delivery_error", deliveryErr)
+	}
 }
 
 // loadRoutingRules loads all enabled routing rules ordered by priority.
