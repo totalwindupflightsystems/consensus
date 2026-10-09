@@ -81,7 +81,7 @@ func writeFileIfAbsent(path, content string) (bool, error) {
 		return false, err
 	}
 	if _, err := f.WriteString(content); err != nil {
-		f.Close()
+		_ = f.Close()
 		return false, err
 	}
 	return true, f.Close()

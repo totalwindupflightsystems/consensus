@@ -77,15 +77,15 @@ func startConsensus(t *testing.T) (string, *fcSession, func()) {
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
 		resp, err := http.Get(baseURL + "/global/health")
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				return adminKey, &fcSession{baseURL, tmpDir, adminKey}, func() { serveCmd.Process.Kill(); serveCmd.Wait(); os.RemoveAll(tmpDir) }
+				return adminKey, &fcSession{baseURL, tmpDir, adminKey}, func() { _ = serveCmd.Process.Kill(); _ = serveCmd.Wait(); _ = os.RemoveAll(tmpDir) }
 			}
 		}
 	}
-	serveCmd.Process.Kill()
-	serveCmd.Wait()
-	os.RemoveAll(tmpDir)
+	_ = serveCmd.Process.Kill()
+	_ = serveCmd.Wait()
+	_ = os.RemoveAll(tmpDir)
 	t.Fatal("server unhealthy after 10s")
 	panic("unreachable")
 }
@@ -94,7 +94,7 @@ func codeFrom(resp *http.Response) int {
 	if resp == nil {
 		return -1
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode
 }
 
@@ -108,7 +108,7 @@ func fcGet(t *testing.T, url, key string) (*http.Response, string) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	return resp, string(body)
 }
@@ -124,7 +124,7 @@ func fcPost(t *testing.T, url, key, jsonBody string) (*http.Response, string) {
 	if err != nil {
 		t.Fatalf("POST %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	return resp, string(body)
 }
@@ -176,7 +176,7 @@ func TestFullContract_HealthDoc(t *testing.T) {
 		if err := json.Unmarshal([]byte(body), &h); err != nil {
 			t.Fatalf("not JSON: %v", err)
 		}
-		if v, _ := h["healthy"]; v != true {
+		if v := h["healthy"]; v != true {
 			t.Errorf("C02: healthy != true: %v", h)
 		}
 	})
@@ -198,7 +198,7 @@ func TestFullContract_SessionLifecycle(t *testing.T) {
 	t.Run("C04: POST /session creates session with {id, title, status, api_key, createdAt}", func(t *testing.T) {
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc","goal":"contract test"}`)
 		var sess map[string]any
-		json.Unmarshal([]byte(body), &sess)
+		_ = json.Unmarshal([]byte(body), &sess)
 		for _, f := range []string{"id", "title", "status", "api_key", "createdAt"} {
 			if _, ok := sess[f]; !ok {
 				t.Errorf("C04: missing %q", f)
@@ -214,14 +214,14 @@ func TestFullContract_SessionLifecycle(t *testing.T) {
 	t.Run("C06: GET /session/:id returns session with matching id", func(t *testing.T) {
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-get","goal":"retrieval"}`)
 		var created map[string]any
-		json.Unmarshal([]byte(body), &created)
+		_ = json.Unmarshal([]byte(body), &created)
 		sid, _ := created["id"].(string)
 		if sid == "" {
 			t.Fatal("no session id")
 		}
 		_, getBody := fcGet(t, s.baseURL+"/session/"+sid, key)
 		var retrieved map[string]any
-		json.Unmarshal([]byte(getBody), &retrieved)
+		_ = json.Unmarshal([]byte(getBody), &retrieved)
 		if id, _ := retrieved["id"].(string); id != sid {
 			t.Errorf("C06: id mismatch: got %q, want %q", id, sid)
 		}
@@ -239,7 +239,7 @@ func TestFullContract_SessionLifecycle(t *testing.T) {
 	t.Run("C08: DELETE /session/:id deletes session", func(t *testing.T) {
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-del","goal":"delete"}`)
 		var created map[string]any
-		json.Unmarshal([]byte(body), &created)
+		_ = json.Unmarshal([]byte(body), &created)
 		sid, _ := created["id"].(string)
 		if sid == "" {
 			t.Fatal("no session id")
@@ -250,7 +250,7 @@ func TestFullContract_SessionLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DELETE: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		delBody, _ := io.ReadAll(resp.Body)
 		assertCode(t, resp, 200, string(delBody))
 	})
@@ -266,7 +266,7 @@ func TestFullContract_Messages(t *testing.T) {
 
 	_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-msg","goal":"message test"}`)
 	var created map[string]any
-	json.Unmarshal([]byte(body), &created)
+	_ = json.Unmarshal([]byte(body), &created)
 	sid, _ := created["id"].(string)
 	if sid == "" {
 		t.Fatal("no session id")
@@ -278,7 +278,7 @@ func TestFullContract_Messages(t *testing.T) {
 		assertCode(t, resp, 200, rbody)
 		// Response should have parts array
 		var result map[string]any
-		json.Unmarshal([]byte(rbody), &result)
+		_ = json.Unmarshal([]byte(rbody), &result)
 		if parts, ok := result["parts"]; !ok || parts == nil {
 			t.Errorf("C09: response missing 'parts' array: %s", rbody)
 		}
@@ -413,8 +413,8 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 			if err := json.Unmarshal([]byte(body), &parsed); err != nil {
 				t.Fatalf("C19: GET %s body is not JSON: %v\n%s", ep, err, body)
 			}
-			switch {
-			case ep == "/instance":
+			switch ep {
+			case "/instance":
 				instances, ok := parsed.([]any)
 				if !ok || len(instances) == 0 {
 					t.Fatalf("C19: GET /instance is not a non-empty array: %s", body)
@@ -428,7 +428,7 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 						t.Errorf("C19: GET /instance entry missing non-empty %q: %s", f, body)
 					}
 				}
-			case ep == "/instance/path":
+			case "/instance/path":
 				paths, ok := parsed.(map[string]any)
 				if !ok {
 					t.Fatalf("C19: GET /instance/path not an object: %s", body)
@@ -439,7 +439,7 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 						t.Errorf("C19: GET /instance/path missing non-empty %q: %s", f, body)
 					}
 				}
-			case ep == "/instance/vcs":
+			case "/instance/vcs":
 				vcs, ok := parsed.(map[string]any)
 				if !ok {
 					t.Fatalf("C19: GET /instance/vcs not an object: %s", body)
@@ -451,7 +451,7 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 				if branch == "" && defBranch == "" {
 					t.Errorf("C19: GET /instance/vcs has no branch info: %s", body)
 				}
-			case ep == "/instance/vcs/diff":
+			case "/instance/vcs/diff":
 				diffs, ok := parsed.([]any)
 				if !ok {
 					t.Fatalf("C19: GET /instance/vcs/diff not an array: %s", body)
@@ -485,7 +485,7 @@ func TestFullContract_InstanceVCS(t *testing.T) {
 			gap(t, "C20", fmt.Sprintf("PATCH /project/:id failed: %v", err))
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode == 501 || resp.StatusCode == 404 {
 			if resp.StatusCode == 501 {
@@ -598,7 +598,7 @@ func TestFullContract_SSEEvents(t *testing.T) {
 		// Create session first to get a session_id
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-sse","goal":"event test"}`)
 		var created map[string]any
-		json.Unmarshal([]byte(body), &created)
+		_ = json.Unmarshal([]byte(body), &created)
 		sid, _ := created["id"].(string)
 
 		resp, err := http.Get(s.baseURL + "/global/event?session_id=" + sid)
@@ -606,7 +606,7 @@ func TestFullContract_SSEEvents(t *testing.T) {
 			gap(t, "C25", fmt.Sprintf("GET /global/event failed: %v", err))
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		ct := resp.Header.Get("Content-Type")
 		if !strings.Contains(ct, "text/event-stream") {
@@ -631,9 +631,9 @@ func TestFullContract_SSEEvents(t *testing.T) {
 		if n > 0 {
 			body := string(buf[:n])
 			if strings.HasPrefix(body, "data:") || strings.Contains(body, "event:") {
-				t.Logf("C25: SSE stream working ✓\nFirst bytes: %s", body[:len(body)])
+				t.Logf("C25: SSE stream working ✓\nFirst bytes: %s", body[:])
 			} else {
-				gap(t, "C25", fmt.Sprintf("/global/event returned non-SSE: %s", body[:len(body)]))
+				gap(t, "C25", fmt.Sprintf("/global/event returned non-SSE: %s", body[:]))
 			}
 		} else {
 			gap(t, "C25", "/global/event read timeout or empty stream")
@@ -660,7 +660,7 @@ func TestFullContract_SDKCompatibility(t *testing.T) {
 		// Create a session first for messages
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-sdk","goal":"sdk test"}`)
 		var created map[string]any
-		json.Unmarshal([]byte(body), &created)
+		_ = json.Unmarshal([]byte(body), &created)
 		sid, _ := created["id"].(string)
 		if sid == "" {
 			t.Fatal("C26: failed to create session for SDK test")
@@ -712,7 +712,7 @@ func TestFullContract_SDKCompatibility(t *testing.T) {
 	t.Run("C27: Session scoped key works for per-session auth", func(t *testing.T) {
 		_, body := fcPost(t, s.baseURL+"/session", key, `{"agent_name":"fc-scoped","goal":"scoped auth"}`)
 		var created map[string]any
-		json.Unmarshal([]byte(body), &created)
+		_ = json.Unmarshal([]byte(body), &created)
 		sid, _ := created["id"].(string)
 		sk, _ := created["api_key"].(string)
 		if sid == "" || sk == "" {
@@ -721,7 +721,7 @@ func TestFullContract_SDKCompatibility(t *testing.T) {
 		// Use session-scoped key to access the session
 		_, getBody := fcGet(t, s.baseURL+"/session/"+sid, sk)
 		var retrieved map[string]any
-		json.Unmarshal([]byte(getBody), &retrieved)
+		_ = json.Unmarshal([]byte(getBody), &retrieved)
 		if id, _ := retrieved["id"].(string); id != sid {
 			t.Errorf("C27: scoped-key GET returned wrong session: got %q, want %q", id, sid)
 		}

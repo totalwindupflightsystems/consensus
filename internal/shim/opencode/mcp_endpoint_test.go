@@ -19,7 +19,7 @@ func TestHandleMCPEndpoint_ImplementedRequestsDelegate(t *testing.T) {
 	srv.SetMCPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		delegated = true
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("mcp-handler"))
+		_, _ = w.Write([]byte("mcp-handler"))
 	}))
 
 	// A JSON-RPC POST body means "an MCP client is speaking to /mcp" —

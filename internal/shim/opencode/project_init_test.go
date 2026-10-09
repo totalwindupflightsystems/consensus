@@ -73,7 +73,7 @@ func postProjectGitInit(t *testing.T, base, path string) initResponse {
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read POST %s: %v", path, err)
@@ -250,7 +250,7 @@ func TestProjectInitGitServesDeclared200(t *testing.T) {
 		if err != nil {
 			t.Fatalf("POST /project/git/init: %v", err)
 		}
-		defer respDo.Body.Close()
+		defer func() { _ = respDo.Body.Close() }()
 		data, _ := io.ReadAll(respDo.Body)
 		if respDo.StatusCode != http.StatusOK {
 			t.Fatalf("POST /project/git/init (header workspace): got %d, want 200. Body: %s", respDo.StatusCode, data)

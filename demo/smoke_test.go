@@ -34,9 +34,9 @@ func reserveSmokePort(t *testing.T) (net.Listener, int) {
 
 func TestSmokePortReservationsAreIndependent(t *testing.T) {
 	first, firstPort := reserveSmokePort(t)
-	defer first.Close()
+	defer func() { _ = first.Close() }()
 	second, secondPort := reserveSmokePort(t)
-	defer second.Close()
+	defer func() { _ = second.Close() }()
 
 	if firstPort == secondPort {
 		t.Fatalf("concurrent smoke reservations reused port %d", firstPort)
@@ -127,8 +127,8 @@ compression:
 		t.Fatalf("smoke: start server: %v", err)
 	}
 	t.Cleanup(func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	})
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", smokePort)
 	if !waitForHealth(serverURL, 20*time.Second) {

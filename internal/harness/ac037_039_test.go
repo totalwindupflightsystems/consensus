@@ -74,7 +74,7 @@ func TestAC038_HITLApprovalReview(t *testing.T) {
 	}
 
 	// Create approval request
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status)
 		VALUES ('apr-038-1', $1, 1, 'tool_execution', 'Run database migration', 'high', 'pending')
 	`, sessionID)
@@ -104,7 +104,7 @@ func TestAC038_HITLApprovalReview(t *testing.T) {
 	t.Log("AC-038 PASS: approval request reviewed and approved")
 
 	// Now test rejection
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status)
 		VALUES ('apr-038-2', $1, 1, 'destructive_action', 'Delete production data', 'critical', 'pending')
 	`, sessionID)
@@ -142,10 +142,10 @@ func TestAC039_SessionPauseResume(t *testing.T) {
 	}
 
 	// Set to thinking (actively running)
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
 
 	// Pause for HITL
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
 
 	rows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
 	pausedStatus := "unknown"
@@ -158,7 +158,7 @@ func TestAC039_SessionPauseResume(t *testing.T) {
 	t.Logf("AC-039: session paused at %s", time.Now().Format(time.RFC3339))
 
 	// Resume
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
 
 	rows2, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
 	resumedStatus := "unknown"

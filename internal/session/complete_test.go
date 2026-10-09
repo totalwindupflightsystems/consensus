@@ -60,8 +60,8 @@ func setupTMTestDB(t *testing.T) (db.DB, func()) {
 	}
 
 	cleanup := func() {
-		database.Close()
-		os.Remove(t.Name())
+		_ = database.Close()
+		_ = os.Remove(t.Name())
 	}
 	return database, cleanup
 }

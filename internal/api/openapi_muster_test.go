@@ -40,7 +40,7 @@ func servedSpecDoc(t *testing.T) map[string]any {
 	if err != nil {
 		t.Fatalf("GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Fatalf("GET /openapi.json: got %d, want 200", resp.StatusCode)
 	}
@@ -101,7 +101,7 @@ func resolveResponse(doc map[string]any, resp map[string]any) map[string]any {
 	}
 	components, _ := doc["components"].(map[string]any)
 	responses, _ := components["responses"].(map[string]any)
-	node, _ := responses[parts[2]]
+	node := responses[parts[2]]
 	resolved, _ := node.(map[string]any)
 	// Walk any remaining pointer segments (~1 escapes "/" per RFC 6901).
 	for _, seg := range parts[3:] {

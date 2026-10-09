@@ -48,7 +48,7 @@ func TestRealLLMIntegration(t *testing.T) {
 	// Write temp config with the selected provider
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "consensus-test-llm.db")
-	os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(fmt.Sprintf(`server:
+	_ = os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(fmt.Sprintf(`server:
   hostname: 127.0.0.1
   port: %d
 llm:
@@ -95,21 +95,21 @@ api_rate:
 		t.Fatalf("start consensus: %v", err)
 	}
 	defer func() {
-		cmd.Process.Signal(os.Interrupt)
-		cmd.Wait()
+		_ = cmd.Process.Signal(os.Interrupt)
+		_ = cmd.Wait()
 	}()
 
 	// Parse bootstrap admin key
 	adminKey := parseBootstrapKey(t, stdoutPipe, 10*time.Second)
 	if adminKey == "" {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		t.Fatal("could not find bootstrap admin key")
 	}
 	t.Logf("bootstrap admin key: %s...", adminKey[:16])
 
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealth(t, serverURL, 15*time.Second) {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		t.Fatal("consensus did not become healthy")
 	}
 	t.Logf("consensus healthy")
@@ -117,7 +117,7 @@ api_rate:
 	// Step 1: Create session
 	createResp := apiPost(t, serverURL+"/api/v1/sessions",
 		`{"agent_name":"real-llm-test","goal":"Prove real LLM integration. Respond with a valid AgentOutput containing a memory_state_change INSERT into memory_events."}`, adminKey)
-	defer createResp.Body.Close()
+	defer func() { _ = createResp.Body.Close() }()
 	if createResp.StatusCode != http.StatusOK && createResp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(createResp.Body)
 		t.Fatalf("create session: HTTP %d: %s", createResp.StatusCode, string(body))
@@ -128,7 +128,7 @@ api_rate:
 		Status    string `json:"status"`
 		Iteration int64  `json:"iteration"`
 	}
-	json.NewDecoder(createResp.Body).Decode(&created)
+	_ = json.NewDecoder(createResp.Body).Decode(&created)
 	sessionID := created.ID
 	sessionKey := created.APIKey
 	t.Logf("session created: id=%s status=%s api_key=%s...", sessionID, created.Status, sessionKey[:16])
@@ -142,7 +142,7 @@ api_rate:
 	// Step 2: Send message to trigger harness loop
 	msgResp := apiPost(t, serverURL+"/api/v1/sessions/"+sessionID+"/message",
 		`{"content":"Respond with a valid AgentOutput JSON containing a memory_state_change that inserts into memory_events."}`, sessionKey)
-	msgResp.Body.Close()
+	_ = msgResp.Body.Close()
 	if msgResp.StatusCode != http.StatusOK && msgResp.StatusCode != http.StatusCreated {
 		t.Fatalf("send message: HTTP %d", msgResp.StatusCode)
 	}
@@ -177,12 +177,12 @@ pollLoop:
 				continue
 			}
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			var s struct {
 				Status    string `json:"status"`
 				Iteration int64  `json:"iteration"`
 			}
-			json.Unmarshal(body, &s)
+			_ = json.Unmarshal(body, &s)
 			t.Logf("  status=%s iteration=%d (HTTP %d)", s.Status, s.Iteration, resp.StatusCode)
 			if terminalStates[s.Status] || s.Iteration > 0 && s.Status == "planning" {
 				// If the harness hasn't finished but iteration advanced, give it more time.
@@ -199,7 +199,7 @@ pollLoop:
 	// Step 4: Verify memory events were committed by the LLM.
 	// The memory endpoint returns a JSON array of memory events (not wrapped in {"events": ...}).
 	memResp := apiGet(t, serverURL+"/api/v1/sessions/"+sessionID+"/memory", sessionKey)
-	defer memResp.Body.Close()
+	defer func() { _ = memResp.Body.Close() }()
 
 	var memoryEvents []map[string]any
 	if err := json.NewDecoder(memResp.Body).Decode(&memoryEvents); err != nil {
@@ -213,13 +213,13 @@ pollLoop:
 
 	// Step 5: Verify iteration advanced (proof harness picked up the session).
 	sessResp := apiGet(t, serverURL+"/api/v1/sessions/"+sessionID, sessionKey)
-	defer sessResp.Body.Close()
+	defer func() { _ = sessResp.Body.Close() }()
 	var finalSess struct {
 		Status    string `json:"status"`
 		Iteration int64  `json:"iteration"`
 	}
 	body, _ := io.ReadAll(sessResp.Body)
-	json.Unmarshal(body, &finalSess)
+	_ = json.Unmarshal(body, &finalSess)
 	t.Logf("final: status=%s iteration=%d", finalSess.Status, finalSess.Iteration)
 
 	// Assertions
@@ -282,7 +282,7 @@ func lmStudioReachable(t *testing.T) bool {
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }
 
@@ -297,14 +297,14 @@ func apiReachable(t *testing.T, baseURL, apiKey string) bool {
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }
 
 func randomPort(t *testing.T) int {
 	t.Helper()
 	l, _ := net.Listen("tcp", "127.0.0.1:0")
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	return l.Addr().(*net.TCPAddr).Port
 }
 
@@ -318,7 +318,7 @@ func waitForHealth(t *testing.T, baseURL string, timeout time.Duration) bool {
 		default:
 			resp, err := http.Get(baseURL + "/api/v1/health")
 			if err == nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				if resp.StatusCode == http.StatusOK {
 					return true
 				}

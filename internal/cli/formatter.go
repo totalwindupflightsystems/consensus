@@ -89,7 +89,7 @@ func (f *Formatter) PrintText(format string, args ...any) {
 	if f.quiet {
 		return
 	}
-	fmt.Fprintf(f.w, format, args...)
+	_, _ = fmt.Fprintf(f.w, format, args...)
 }
 
 // Println writes a line (honors --quiet).
@@ -97,7 +97,7 @@ func (f *Formatter) Println(args ...any) {
 	if f.quiet {
 		return
 	}
-	fmt.Fprintln(f.w, args...)
+	_, _ = fmt.Fprintln(f.w, args...)
 }
 
 // printJSON marshals the value as indented JSON.
@@ -140,9 +140,9 @@ func (f *Formatter) printTableWithHeaders(v any, headers []string) error {
 
 	if len(rows) == 0 {
 		if f.emptyHint != "" {
-			fmt.Fprintln(f.w, f.emptyHint)
+			_, _ = fmt.Fprintln(f.w, f.emptyHint)
 		} else {
-			fmt.Fprintln(f.w, "(no results)")
+			_, _ = fmt.Fprintln(f.w, "(no results)")
 		}
 		return nil
 	}
@@ -151,9 +151,9 @@ func (f *Formatter) printTableWithHeaders(v any, headers []string) error {
 
 	// Print headers
 	for _, h := range headers {
-		fmt.Fprintf(tw, "%s\t", strings.ToUpper(h))
+		_, _ = fmt.Fprintf(tw, "%s\t", strings.ToUpper(h))
 	}
-	fmt.Fprintln(tw)
+	_, _ = fmt.Fprintln(tw)
 
 	// Print rows
 	for _, row := range rows {
@@ -167,9 +167,9 @@ func (f *Formatter) printTableWithHeaders(v any, headers []string) error {
 			if len(s) > 60 {
 				s = s[:57] + "..."
 			}
-			fmt.Fprintf(tw, "%s\t", s)
+			_, _ = fmt.Fprintf(tw, "%s\t", s)
 		}
-		fmt.Fprintln(tw)
+		_, _ = fmt.Fprintln(tw)
 	}
 
 	return tw.Flush()

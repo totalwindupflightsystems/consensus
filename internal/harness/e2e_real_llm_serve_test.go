@@ -102,7 +102,7 @@ api_rate:
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() { _ = cmd.Process.Kill() }()
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealthE2E(t, baseURL, 15*time.Second) {
@@ -170,11 +170,11 @@ func waitForHealthE2E(t *testing.T, baseURL string, timeout time.Duration) bool 
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(baseURL + "/api/v1/health")
 		if err == nil && resp.StatusCode == 200 {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return true
 		}
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -209,7 +209,7 @@ func seedModels(t *testing.T, baseURL, adminKey string) {
 			t.Logf("seed model %s: %v (may already exist)", m, err)
 			continue
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 }
 
@@ -223,11 +223,11 @@ func createSession(t *testing.T, baseURL, adminKey string) string {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var result struct {
 		ID string `json:"id"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	if result.ID == "" {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		t.Fatalf("create session returned no ID (status %d): %s", resp.StatusCode, string(bodyBytes))
@@ -246,7 +246,7 @@ func sendMessage(t *testing.T, baseURL, adminKey, sessionID, content string) {
 	if err != nil {
 		t.Fatalf("send message: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		t.Fatalf("send message failed (status %d): %s", resp.StatusCode, string(bodyBytes))
@@ -286,13 +286,13 @@ func querySession(t *testing.T, baseURL, adminKey, sessionID string) sessionResu
 		t.Logf("session query timed out (harness holds write lock): %v", err)
 		return sessionResult{Status: "blocked"}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var s struct {
 		Status    string `json:"status"`
 		Iteration int    `json:"iteration"`
 	}
-	json.NewDecoder(resp.Body).Decode(&s)
+	_ = json.NewDecoder(resp.Body).Decode(&s)
 
 	// Query memory events count
 	memCount := 0
@@ -303,9 +303,9 @@ func querySession(t *testing.T, baseURL, adminKey, sessionID string) sessionResu
 	if err == nil {
 		var events []json.RawMessage
 		bodyBytes, _ := io.ReadAll(memResp.Body)
-		json.Unmarshal(bodyBytes, &events)
+		_ = json.Unmarshal(bodyBytes, &events)
 		memCount = len(events)
-		memResp.Body.Close()
+		_ = memResp.Body.Close()
 	}
 
 	return sessionResult{
@@ -325,13 +325,13 @@ func queryTables(t *testing.T, baseURL, adminKey, sessionID string) []string {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var events []struct {
 		Type    string `json:"type"`
 		Content string `json:"content"`
 	}
 	bodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(bodyBytes, &events)
+	_ = json.Unmarshal(bodyBytes, &events)
 
 	var tables []string
 	for _, e := range events {

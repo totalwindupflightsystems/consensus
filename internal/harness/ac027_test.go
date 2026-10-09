@@ -47,11 +47,11 @@ func TestAC027_ExecuteStagedSQL_WithTransaction(t *testing.T) {
 	}
 	defer func() {
 		if tx.IsActive() {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
-	tx.SetSessionContext(th.ctx, sessionID)
+	_ = tx.SetSessionContext(th.ctx, sessionID)
 
 	// Stage and execute a SQL command
 	entry := &StagingEntry{
@@ -78,7 +78,7 @@ func TestAC027_ExecuteStagedSQL_WithTransaction(t *testing.T) {
 	t.Log("AC-027: SQL command executed successfully")
 
 	// Verify result was written back
-	th.updateStagingResult(th.ctx, tx, entry.ID, rawResult)
+	_ = th.updateStagingResult(th.ctx, tx, entry.ID, rawResult)
 
 	var resultMap map[string]string
 	if err := json.Unmarshal(*rawResult, &resultMap); err != nil {
@@ -106,7 +106,7 @@ func TestAC027_StageAndExecuteMultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AC-027: begin tx: %v", err)
 	}
-	tx.SetSessionContext(th.ctx, sessionID)
+	_ = tx.SetSessionContext(th.ctx, sessionID)
 
 	// Stage and execute 3 commands in sequence
 	commands := []struct {
@@ -135,7 +135,7 @@ func TestAC027_StageAndExecuteMultipleCommands(t *testing.T) {
 		if execErr != nil {
 			t.Fatalf("AC-027: execute entry %d: %v", i, execErr)
 		}
-		th.updateStagingResult(th.ctx, tx, entry.ID, result)
+		_ = th.updateStagingResult(th.ctx, tx, entry.ID, result)
 	}
 
 	// Commit the transaction to make changes visible
@@ -255,10 +255,10 @@ func TestAC027_StagedCommandFailure(t *testing.T) {
 	}
 	defer func() {
 		if tx.IsActive() {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
-	tx.SetSessionContext(th.ctx, sessionID)
+	_ = tx.SetSessionContext(th.ctx, sessionID)
 
 	// A command that will fail (nonexistent table)
 	entry := &StagingEntry{

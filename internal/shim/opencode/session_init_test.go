@@ -45,7 +45,7 @@ func postSessionInit(t *testing.T, base, path, body string) (int, http.Header, [
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read body: %v", err)
@@ -96,7 +96,7 @@ func TestSessionInitServesDeclaredBoolean(t *testing.T) {
 			done <- httpResult{err: err}
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		data, err := io.ReadAll(resp.Body)
 		done <- httpResult{status: resp.StatusCode, header: resp.Header, body: data, err: err}
 	}()
@@ -320,7 +320,7 @@ func TestSessionInitNeighboursUntouched(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /session/s1/init: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("%s /session/s1/init: got %d, want 501 (stub-list residual)", method, resp.StatusCode)
 		}

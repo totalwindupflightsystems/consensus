@@ -65,7 +65,7 @@ func getFindSymbols(t *testing.T, base, path string) (int, findSymbolsBody) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read GET %s: %v", path, err)
@@ -191,7 +191,7 @@ func TestFindSymbolsNeverAnswers501(t *testing.T) {
 			t.Fatalf("GET %s: %v", path, err)
 		}
 		data, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		status := resp.StatusCode
 		if status == http.StatusNotImplemented {
 			t.Errorf("GET %s answered 501 — SHIM-DRIFT-085 regression. Body: %s", path, data)
@@ -227,7 +227,7 @@ func TestFindSymbolsMethodGuardKeepsTyped501(t *testing.T) {
 			t.Fatalf("%s /find/symbol: %v", method, err)
 		}
 		data, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("%s /find/symbol: got %d, want 501 (undeclared method keeps the typed stub). Body: %s", method, resp.StatusCode, data)
 			continue

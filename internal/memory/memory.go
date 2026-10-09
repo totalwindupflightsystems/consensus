@@ -186,18 +186,18 @@ func FormatContextAsMarkdown(ctx *ActiveContext) string {
 
 	// Session info
 	if ctx.Session != nil {
-		b.WriteString(fmt.Sprintf("## Session: %s (%s)\n", ctx.Session.AgentName, ctx.Session.ID))
+		fmt.Fprintf(&b, "## Session: %s (%s)\n", ctx.Session.AgentName, ctx.Session.ID)
 		if ctx.Session.Goal != "" {
-			b.WriteString(fmt.Sprintf("**Goal:** %s\n", ctx.Session.Goal))
+			fmt.Fprintf(&b, "**Goal:** %s\n", ctx.Session.Goal)
 		}
-		b.WriteString(fmt.Sprintf("**Status:** %s | **Iteration:** %d\n\n", ctx.Session.Status, ctx.Session.Iteration))
+		fmt.Fprintf(&b, "**Status:** %s | **Iteration:** %d\n\n", ctx.Session.Status, ctx.Session.Iteration)
 	}
 
 	// Available tools (cache layer 1)
 	if len(ctx.Tools) > 0 {
 		b.WriteString("## Available Tools\n\n")
 		for _, t := range ctx.Tools {
-			b.WriteString(fmt.Sprintf("- **%s** (%s): %s\n", t.Name, t.Hemisphere, t.Description))
+			fmt.Fprintf(&b, "- **%s** (%s): %s\n", t.Name, t.Hemisphere, t.Description)
 		}
 		b.WriteString("\n")
 	}
@@ -207,7 +207,7 @@ func FormatContextAsMarkdown(ctx *ActiveContext) string {
 		b.WriteString("## Available Skills\n\n")
 		for _, s := range ctx.Skills {
 			if s.Enabled {
-				b.WriteString(fmt.Sprintf("- **%s**: %s\n", s.Name, s.Description))
+				fmt.Fprintf(&b, "- **%s**: %s\n", s.Name, s.Description)
 			}
 		}
 		b.WriteString("\n")
@@ -225,8 +225,8 @@ func FormatContextAsMarkdown(ctx *ActiveContext) string {
 			if evt.DisplayMode == "compressed" {
 				displayLabel = " [compressed]"
 			}
-			b.WriteString(fmt.Sprintf("### [%s] %s%s\n", evt.Type, formatTimestamp(evt.CreatedAt), displayLabel))
-			b.WriteString(fmt.Sprintf("%s\n\n", text))
+			fmt.Fprintf(&b, "### [%s] %s%s\n", evt.Type, formatTimestamp(evt.CreatedAt), displayLabel)
+			fmt.Fprintf(&b, "%s\n\n", text)
 		}
 	}
 
@@ -234,18 +234,18 @@ func FormatContextAsMarkdown(ctx *ActiveContext) string {
 	if len(ctx.MemoryPages) > 0 {
 		b.WriteString("## Compressed Memory Pages\n\n")
 		for _, p := range ctx.MemoryPages {
-			b.WriteString(fmt.Sprintf("- **%s** (events: %d)\n", p.Name, len(p.TargetIDs)))
+			fmt.Fprintf(&b, "- **%s** (events: %d)\n", p.Name, len(p.TargetIDs))
 		}
 		b.WriteString("\n")
 	}
 
 	// Constraints (cache layer 3 — always at end)
 	b.WriteString("## Constraints\n\n")
-	b.WriteString(fmt.Sprintf("- Iteration: %d / %d\n", ctx.Constraints.Iteration, ctx.Constraints.MaxIterations))
-	b.WriteString(fmt.Sprintf("- Budget used: %d / %d cents\n", ctx.Constraints.BudgetUsedCents, ctx.Constraints.BudgetLimitCents))
-	b.WriteString(fmt.Sprintf("- Consecutive errors: %d / %d\n", ctx.Constraints.ConsecutiveErrors, ctx.Constraints.MaxConsErrors))
-	b.WriteString(fmt.Sprintf("- Planning turns: %d max\n", ctx.Constraints.PlanningMaxTurns))
-	b.WriteString(fmt.Sprintf("- Context budget: %d tokens\n", ctx.Constraints.ContextBudget))
+	fmt.Fprintf(&b, "- Iteration: %d / %d\n", ctx.Constraints.Iteration, ctx.Constraints.MaxIterations)
+	fmt.Fprintf(&b, "- Budget used: %d / %d cents\n", ctx.Constraints.BudgetUsedCents, ctx.Constraints.BudgetLimitCents)
+	fmt.Fprintf(&b, "- Consecutive errors: %d / %d\n", ctx.Constraints.ConsecutiveErrors, ctx.Constraints.MaxConsErrors)
+	fmt.Fprintf(&b, "- Planning turns: %d max\n", ctx.Constraints.PlanningMaxTurns)
+	fmt.Fprintf(&b, "- Context budget: %d tokens\n", ctx.Constraints.ContextBudget)
 	b.WriteString("\n")
 
 	return b.String()

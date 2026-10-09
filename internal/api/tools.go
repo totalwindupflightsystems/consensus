@@ -75,7 +75,7 @@ func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }
 
 // ============================================================================
@@ -100,7 +100,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 		var meta any
 		rawMeta := toString(row["metadata"])
 		if rawMeta != "" {
-			json.Unmarshal([]byte(rawMeta), &meta)
+			_ = json.Unmarshal([]byte(rawMeta), &meta)
 		}
 
 		results = append(results, SkillResponse{
@@ -112,7 +112,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }
 
 // ============================================================================
@@ -134,7 +134,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request, skillNam
 	var meta any
 	rawMeta := toString(row["metadata"])
 	if rawMeta != "" {
-		json.Unmarshal([]byte(rawMeta), &meta)
+		_ = json.Unmarshal([]byte(rawMeta), &meta)
 	}
 
 	resp := SkillDetailResponse{
@@ -245,7 +245,7 @@ func (s *Server) executeSQLFunctionTool(w http.ResponseWriter, r *http.Request, 
 	}
 
 	// Also insert a tool_requests record for audit
-	s.db.Exec(ctx,
+	_ = s.db.Exec(ctx,
 		`INSERT INTO tool_requests (session_id, tool_name, parameters, status, completed_at)
 		 VALUES ($1, $2, $3, 'completed', datetime('now'))`,
 		req.SessionID, toolName, "{}",

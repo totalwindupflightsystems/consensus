@@ -51,7 +51,7 @@ func TestProbeKey_ModelsListOK(t *testing.T) {
 		seenMethod, seenPath = r.Method, r.URL.Path
 		seenAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":[{"id":"m1"}]}`)
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"m1"}]}`)
 	}))
 	defer srv.Close()
 
@@ -79,7 +79,7 @@ func TestProbeKey_AuthFailedStatuses(t *testing.T) {
 	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(status)
-			fmt.Fprint(w, `{"error":{"message":"invalid api key"}}`)
+			_, _ = fmt.Fprint(w, `{"error":{"message":"invalid api key"}}`)
 		}))
 		v := ProbeKey(context.Background(), nil, ProviderOpenAI, srv.URL, probeTestKey, "test-model")
 		srv.Close()
@@ -137,7 +137,7 @@ func TestProbeKey_FallsBackToChatWhenModelsMissing(t *testing.T) {
 		chatAuth = r.Header.Get("Authorization")
 		chatBody, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"choices":[{"message":{"content":"ok"}}]}`)
+		_, _ = fmt.Fprint(w, `{"choices":[{"message":{"content":"ok"}}]}`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -172,7 +172,7 @@ func TestProbeKey_AnthropicUsesMessagesWithXAPIKey(t *testing.T) {
 		gotKey = r.Header.Get("x-api-key")
 		gotVersion = r.Header.Get("anthropic-version")
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"content":[{"type":"text","text":"hi"}]}`)
+		_, _ = fmt.Fprint(w, `{"content":[{"type":"text","text":"hi"}]}`)
 	}))
 	defer srv.Close()
 

@@ -162,7 +162,6 @@ func DefaultConfiguration() Configuration {
 type Manager struct {
 	database      db.DB
 	subscriptions map[string][]chan Notification
-	mu            sync.RWMutex
 }
 
 // New creates a new HITL manager backed by the given database.

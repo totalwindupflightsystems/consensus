@@ -102,7 +102,7 @@ func (e *flowTestEnv) createSessionViaAPI(t *testing.T, agentName, goal, modelID
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
@@ -133,7 +133,7 @@ func (e *flowTestEnv) sendMessageViaAPI(t *testing.T, sessionID, apiKey, content
 	if err != nil {
 		t.Fatalf("send message: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode
 }
 
@@ -147,11 +147,11 @@ func (e *flowTestEnv) getSessionViaAPI(t *testing.T, sessionID, apiKey string) *
 	if err != nil {
 		t.Fatalf("get session via API: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	var sr api.SessionResponse
-	json.Unmarshal(respBody, &sr)
+	_ = json.Unmarshal(respBody, &sr)
 	return &sr
 }
 
@@ -211,7 +211,7 @@ func TestUserFlowProof_DeveloperFirstConnection(t *testing.T) {
 	// Verify admin key works
 	req, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/health", nil)
 	resp, _ := e.apiTS.Client().Do(req)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("health check failed: %d", resp.StatusCode)
 	}
@@ -433,7 +433,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	reqMCP, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions/"+sessionID, nil)
 	reqMCP.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respMCP, _ := e.apiTS.Client().Do(reqMCP)
-	respMCP.Body.Close()
+	_ = respMCP.Body.Close()
 	if respMCP.StatusCode != http.StatusOK {
 		t.Errorf("MCP get_session_status: HTTP %d", respMCP.StatusCode)
 	}
@@ -444,12 +444,12 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	reqMem.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respMem, _ := e.apiTS.Client().Do(reqMem)
 	bodyMem, _ := io.ReadAll(respMem.Body)
-	respMem.Body.Close()
+	_ = respMem.Body.Close()
 	if respMem.StatusCode != http.StatusOK {
 		t.Errorf("MCP list_memory: HTTP %d", respMem.StatusCode)
 	}
 	var memList []map[string]interface{}
-	json.Unmarshal(bodyMem, &memList)
+	_ = json.Unmarshal(bodyMem, &memList)
 	t.Logf("  MCP list_memory: %d events found", len(memList))
 	t.Log("")
 
@@ -461,9 +461,9 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	reqCLI.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respCLI, _ := e.apiTS.Client().Do(reqCLI)
 	bodyCLI, _ := io.ReadAll(respCLI.Body)
-	respCLI.Body.Close()
+	_ = respCLI.Body.Close()
 	var sessions []map[string]interface{}
-	json.Unmarshal(bodyCLI, &sessions)
+	_ = json.Unmarshal(bodyCLI, &sessions)
 	t.Logf("  CLI: %d active sessions", len(sessions))
 
 	// CLI cost check
@@ -471,7 +471,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	reqCost, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions/"+sessionID+"/billing", nil)
 	reqCost.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respCost, _ := e.apiTS.Client().Do(reqCost)
-	respCost.Body.Close()
+	_ = respCost.Body.Close()
 	t.Logf("  CLI cost: HTTP %d (billing endpoint available)", respCost.StatusCode)
 	t.Log("")
 
@@ -490,7 +490,7 @@ func TestUserFlowProof_DeveloperMultiTool(t *testing.T) {
 	reqRLS, _ := http.NewRequest("GET", e.apiTS.URL+"/api/v1/sessions/nope-1234", nil)
 	reqRLS.Header.Set("Authorization", "Bearer "+sessionKey)
 	respRLS, _ := e.apiTS.Client().Do(reqRLS)
-	respRLS.Body.Close()
+	_ = respRLS.Body.Close()
 	if respRLS.StatusCode != http.StatusForbidden {
 		t.Errorf("session-scoped key accessed other session: %d", respRLS.StatusCode)
 	}
@@ -563,7 +563,7 @@ func TestUserFlowProof_OperatorDeployment(t *testing.T) {
 
 	// Verify the admin API key creation works on both paths
 	admin2 := fmt.Sprintf("cs_sk_flow_supabase_%s", t.Name()[:4])
-	e.th.conn.Exec(e.ctx,
+	_ = e.th.conn.Exec(e.ctx,
 		`INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ($1, $2, 'cs_sk_su', 'admin', datetime('now'))`,
 		"key-supabase-"+t.Name()[:4], sha256Hash(admin2))
 
@@ -647,12 +647,12 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 	reqList.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respList, _ := e.apiTS.Client().Do(reqList)
 	bodyList, _ := io.ReadAll(respList.Body)
-	respList.Body.Close()
+	_ = respList.Body.Close()
 	if respList.StatusCode != http.StatusOK {
 		t.Errorf("list approvals: HTTP %d", respList.StatusCode)
 	}
 	var approvalsList []map[string]interface{}
-	json.Unmarshal(bodyList, &approvalsList)
+	_ = json.Unmarshal(bodyList, &approvalsList)
 	t.Logf("  CLI: %d pending approval(s)", len(approvalsList))
 
 	t.Log("$ consensus approve show " + approval.ID)
@@ -680,7 +680,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 
 	// ---- Step 3b: Create another approval and reject it ----
 	// Set session back to thinking so it can accept more approvals
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
 
 	approval2, _ := e.hitlMgr.RequestApproval(e.ctx, sessionID,
 		hitl.RequestSchemaChange,
@@ -708,7 +708,7 @@ func TestUserFlowProof_OperatorHITLApproval(t *testing.T) {
 	t.Log("$ consensus session cancel " + sessionID)
 
 	// Transition session to failed to simulate cancel
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
 	e.assertSessionStatus(t, sessionID, string(session.StatusFailed))
 	t.Log("  ✓ Session cancelled: status = failed")
 	t.Log("")
@@ -817,7 +817,7 @@ func TestUserFlowProof_TeamOnboarding(t *testing.T) {
 	t.Log("  ✓ Schema installed on shared PostgreSQL")
 
 	// Set HITL config
-	e.hitlMgr.SetConfiguration(e.ctx, hitl.DefaultConfiguration())
+	_ = e.hitlMgr.SetConfiguration(e.ctx, hitl.DefaultConfiguration())
 	t.Log("  ✓ Global HITL config set by admin")
 
 	// Step 2: Create keys for team members
@@ -831,7 +831,7 @@ func TestUserFlowProof_TeamOnboarding(t *testing.T) {
 	}
 
 	for _, dev := range devs {
-		e.th.conn.Exec(e.ctx,
+		_ = e.th.conn.Exec(e.ctx,
 			`INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ($1, $2, 'cs_sk_te', 'session', datetime('now'))`,
 			dev.keyID, sha256Hash(dev.key))
 		t.Logf("  Key created for %s: %s (scoped to session)", dev.name, dev.key)
@@ -972,9 +972,9 @@ func TestUserFlowProof_MCPOnlyOnboarding(t *testing.T) {
 	reqTools.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respTools, _ := e.apiTS.Client().Do(reqTools)
 	bodyTools, _ := io.ReadAll(respTools.Body)
-	respTools.Body.Close()
+	_ = respTools.Body.Close()
 	var tools []map[string]interface{}
-	json.Unmarshal(bodyTools, &tools)
+	_ = json.Unmarshal(bodyTools, &tools)
 	t.Logf("  MCP resource: %d tools available", len(tools))
 	t.Log("")
 
@@ -983,9 +983,9 @@ func TestUserFlowProof_MCPOnlyOnboarding(t *testing.T) {
 	reqMem.Header.Set("Authorization", "Bearer "+e.adminKey)
 	respMem, _ := e.apiTS.Client().Do(reqMem)
 	bodyMem, _ := io.ReadAll(respMem.Body)
-	respMem.Body.Close()
+	_ = respMem.Body.Close()
 	var memory []map[string]interface{}
-	json.Unmarshal(bodyMem, &memory)
+	_ = json.Unmarshal(bodyMem, &memory)
 	t.Logf("  MCP list_memory: %d events", len(memory))
 	t.Log("")
 
@@ -1028,7 +1028,7 @@ func TestUserFlowProof_StuckAgentRecovery(t *testing.T) {
 			"INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'Session initialized', '" + sessionID + "', " + itoa64(iterSetup) + ")",
 		},
 	})
-	e.th.RunAgentIteration(e.ctx, sessionID)
+	_, _ = e.th.RunAgentIteration(e.ctx, sessionID)
 	e.assertSessionStatus(t, sessionID, string(session.StatusIdle))
 
 	// Configure aggressive circuit breaker
@@ -1036,7 +1036,7 @@ func TestUserFlowProof_StuckAgentRecovery(t *testing.T) {
 	sc.Scope = hitl.ScopeSession
 	sc.SessionID = sessionID
 	sc.AutoPauseOnErrorThreshold = 3 // trip after 3 errors
-	e.hitlMgr.SetConfiguration(e.ctx, sc)
+	_ = e.hitlMgr.SetConfiguration(e.ctx, sc)
 
 	// --- Error 1: Bad column name ---
 	t.Log("--- Error #1: Bad column ---")
@@ -1148,7 +1148,7 @@ func TestUserFlowProof_BudgetExceededRecovery(t *testing.T) {
 	sc.Scope = hitl.ScopeSession
 	sc.SessionID = sessionID
 	// Simulate budget cap via HITL config's budget override mechanism
-	e.hitlMgr.SetConfiguration(e.ctx, sc)
+	_ = e.hitlMgr.SetConfiguration(e.ctx, sc)
 	t.Log("  Budget limit: $5.00")
 	t.Log("")
 
@@ -1194,7 +1194,7 @@ func TestUserFlowProof_BudgetExceededRecovery(t *testing.T) {
 	t.Log("")
 
 	t.Log("--- Agent resumes ---")
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
 	iter2 := getSessionIteration(t, e.th, sessionID) + 1
 	e.runIteration(t, sessionID, &AgentOutput{
 		InternalMonologue: "Resuming with higher budget.",
@@ -1248,7 +1248,7 @@ func TestUserFlowProof_ServerUnreachableRecovery(t *testing.T) {
 		t.Logf("  Error: %v", err)
 	}
 	if resp != nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	t.Log("")
 
@@ -1264,7 +1264,7 @@ func TestUserFlowProof_ServerUnreachableRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normal health check failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("health check: HTTP %d", resp.StatusCode)
 	}
@@ -1315,11 +1315,11 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 		"Working on data analytics pipeline", "test-model")
 
 	// Set session back to idle
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'idle' WHERE id = $1`, sessionID)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'idle' WHERE id = $1`, sessionID)
 	t.Logf("  Session %s: idle (running)", sessionID)
 
 	// Set initial schema version
-	e.th.conn.Exec(e.ctx,
+	_ = e.th.conn.Exec(e.ctx,
 		`INSERT INTO system_settings (key, value) VALUES ('schema_version', '0.2.0')`)
 	t.Log("  Schema version: 0.2.0")
 	t.Log("")
@@ -1333,7 +1333,7 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 
 	// Simulate pausing sessions
 	t.Log("  Sessions PAUSED (1 session waiting for migration)")
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'paused' WHERE status IN ('idle', 'thinking')`)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'paused' WHERE status IN ('idle', 'thinking')`)
 	e.assertSessionStatus(t, sessionID, string(session.StatusPaused))
 	t.Log("")
 
@@ -1345,7 +1345,7 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 	t.Log("  Running migration 003_add_memory_pages.sql...")
 
 	// Update schema version to simulate completed migration
-	e.th.conn.Exec(e.ctx,
+	_ = e.th.conn.Exec(e.ctx,
 		`UPDATE system_settings SET value = '0.3.0' WHERE key = 'schema_version'`)
 	t.Log("  ✓ Schema updated to 0.3.0")
 
@@ -1359,7 +1359,7 @@ func TestUserFlowProof_SchemaMigrationRecovery(t *testing.T) {
 
 	// Step 3: Resume sessions
 	t.Log("--- Resume sessions ---")
-	e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE status = 'paused'`)
+	_ = e.th.conn.Exec(e.ctx, `UPDATE sessions SET status = 'thinking' WHERE status = 'paused'`)
 	t.Log("  ✓ 1 session resumed")
 
 	// Verify session works after migration

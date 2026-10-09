@@ -166,14 +166,14 @@ func TestHealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /global/health failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["healthy"] != true {
 		t.Error("expected healthy=true")
 	}
@@ -204,14 +204,14 @@ func TestListSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var sessions []map[string]any
-	json.NewDecoder(resp.Body).Decode(&sessions)
+	_ = json.NewDecoder(resp.Body).Decode(&sessions)
 
 	if len(sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(sessions))
@@ -241,14 +241,14 @@ func TestCreateSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var session map[string]any
-	json.NewDecoder(resp.Body).Decode(&session)
+	_ = json.NewDecoder(resp.Body).Decode(&session)
 
 	if session["title"] != "test-agent" {
 		t.Errorf("expected title=test-agent, got %v", session["title"])
@@ -276,14 +276,14 @@ func TestGetSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1 failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var session map[string]any
-	json.NewDecoder(resp.Body).Decode(&session)
+	_ = json.NewDecoder(resp.Body).Decode(&session)
 	if session["id"] != "s1" {
 		t.Errorf("expected id=s1, got %v", session["id"])
 	}
@@ -301,7 +301,7 @@ func TestGetSessionNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/nonexistent failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 404 {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
@@ -317,14 +317,14 @@ func TestDeleteSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE /session/s1 failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["status"] != "deleted" {
 		t.Errorf("expected status=deleted, got %v", body["status"])
 	}
@@ -338,14 +338,14 @@ func TestAbortSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/abort failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["status"] != "aborted" {
 		t.Errorf("expected status=aborted, got %v", body["status"])
 	}
@@ -373,7 +373,7 @@ func TestSendMessageRequiresResponseService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/message failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("expected 503 without response service, got %d", resp.StatusCode)
@@ -438,7 +438,7 @@ func TestSendMessageReturnsResponseForSubmittedTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/message failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := <-writeResult; err != nil {
 		t.Fatalf("publish agent response: %v", err)
 	}
@@ -531,7 +531,7 @@ func TestMountPatternsChi(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/message via chi mount failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("expected 503 via chi MountPatterns mount, got %d", resp.StatusCode)
 	}
@@ -541,7 +541,7 @@ func TestMountPatternsChi(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1 via chi mount failed: %v", err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	if resp2.StatusCode == 404 {
 		t.Error("GET /session/s1 returned 404 — bare /session pattern not mounted")
 	}
@@ -551,7 +551,7 @@ func TestMountPatternsChi(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /nope/not-mounted failed: %v", err)
 	}
-	defer resp3.Body.Close()
+	defer func() { _ = resp3.Body.Close() }()
 	if resp3.StatusCode != 404 {
 		t.Errorf("expected 404 for unmounted path, got %d", resp3.StatusCode)
 	}
@@ -568,7 +568,7 @@ func TestSendMessageEmptyContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/message: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 400 {
 		t.Errorf("expected 400 for empty message, got %d", resp.StatusCode)
@@ -593,7 +593,7 @@ func TestGetConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /config failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -627,7 +627,7 @@ func TestGetConfigWithoutDefaultModel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /config failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var cfg struct {
 		Settings        map[string]any    `json:"settings"`
@@ -663,14 +663,14 @@ func TestGetConfigProviders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /config/providers failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	providers, ok := body["providers"].([]any)
 	if !ok || len(providers) == 0 {
 		t.Error("expected providers array in response")
@@ -685,14 +685,14 @@ func TestGetProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /provider failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["provider"] != "consensus" {
 		t.Errorf("expected provider=consensus, got %v", body["provider"])
 	}
@@ -706,14 +706,14 @@ func TestGetAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /agent failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var agents []map[string]any
-	json.NewDecoder(resp.Body).Decode(&agents)
+	_ = json.NewDecoder(resp.Body).Decode(&agents)
 	if len(agents) == 0 {
 		t.Error("expected non-empty agent list")
 	}
@@ -740,14 +740,14 @@ func TestListTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /experimental/tool failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var tools []map[string]any
-	json.NewDecoder(resp.Body).Decode(&tools)
+	_ = json.NewDecoder(resp.Body).Decode(&tools)
 	if len(tools) == 0 {
 		t.Error("expected non-empty tool list")
 	}
@@ -767,14 +767,14 @@ func TestListToolIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /experimental/tool/ids failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var ids []string
-	json.NewDecoder(resp.Body).Decode(&ids)
+	_ = json.NewDecoder(resp.Body).Decode(&ids)
 	if len(ids) != 2 {
 		t.Errorf("expected 2 tool IDs, got %d", len(ids))
 	}
@@ -798,7 +798,7 @@ func TestDocEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /doc failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -854,7 +854,7 @@ func TestDocEndpointYAMLAccept(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /doc with Accept: application/yaml failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -890,7 +890,7 @@ func TestDocEndpointNoAuthAndScopedSkip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /doc failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Errorf("expected /doc to be public (200), got %d", resp.StatusCode)
 	}
@@ -899,7 +899,7 @@ func TestDocEndpointNoAuthAndScopedSkip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /config failed: %v", err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	if resp2.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected /config to stay protected (401) in the same harness, got %d", resp2.StatusCode)
 	}
@@ -920,7 +920,7 @@ func TestPromptAsyncServedPerContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/prompt_async failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400 for empty prompt_async body (contract validation), got %d", resp.StatusCode)
@@ -939,7 +939,7 @@ func TestShellReturns501(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/shell failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400 for shell endpoint (contract validation), got %d", resp.StatusCode)
@@ -958,14 +958,14 @@ func TestFindEndpointReturns200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /find: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for /find, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["files"] == nil {
 		t.Error("expected files array in response")
 	}
@@ -979,14 +979,14 @@ func TestFindFileEndpointReturns200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /find/file: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for /find/file, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["files"] == nil {
 		t.Error("expected files array in response")
 	}
@@ -1002,14 +1002,14 @@ func TestFileContentEndpointReturns200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /file/content: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for /file/content, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["content"] == nil {
 		t.Error("expected content in response")
 	}
@@ -1023,14 +1023,14 @@ func TestFileStatusEndpointReturns200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /file/status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for /file/status, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["status"] == nil {
 		t.Error("expected status in response")
 	}
@@ -1044,7 +1044,7 @@ func TestFindMissingPatternReturns400(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /find: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 400 {
 		t.Errorf("expected 400 for /find without pattern, got %d", resp.StatusCode)
@@ -1077,14 +1077,14 @@ func TestListPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /permission failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	permissions, ok := body["permissions"].([]any)
 	if !ok || len(permissions) != 2 {
 		t.Errorf("expected 2 permissions, got %d", len(permissions))
@@ -1108,7 +1108,7 @@ func TestListPermissionsFilterBySession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /permission: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -1136,14 +1136,14 @@ func TestGetPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /permission/p1: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["id"] != "p1" {
 		t.Errorf("expected id=p1, got %v", body["id"])
 	}
@@ -1192,14 +1192,14 @@ func TestResolvePermissionApprove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/p1/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var respBody map[string]any
-	json.NewDecoder(resp.Body).Decode(&respBody)
+	_ = json.NewDecoder(resp.Body).Decode(&respBody)
 	if respBody["status"] != "approved" {
 		t.Errorf("expected status=approved, got %v", respBody["status"])
 	}
@@ -1243,14 +1243,14 @@ func TestResolvePermissionReject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/p1/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var respBody map[string]any
-	json.NewDecoder(resp.Body).Decode(&respBody)
+	_ = json.NewDecoder(resp.Body).Decode(&respBody)
 	if respBody["status"] != "rejected" {
 		t.Errorf("expected status=rejected, got %v", respBody["status"])
 	}
@@ -1265,7 +1265,7 @@ func TestResolvePermissionMalformedBody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/p1/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 400 {
 		t.Errorf("expected 400 for malformed body, got %d", resp.StatusCode)
@@ -1284,7 +1284,7 @@ func TestResolvePermissionNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/nope/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 404 {
 		t.Fatalf("expected 404 for unknown id, got %d", resp.StatusCode)
@@ -1310,7 +1310,7 @@ func TestResolvePermissionAlreadyResolved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/p1/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 404 {
 		t.Fatalf("expected 404 for non-pending row, got %d", resp.StatusCode)
@@ -1333,7 +1333,7 @@ func TestResolvePermissionInvalidDecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /permission/p1/resolve: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 400 {
 		t.Errorf("expected 400 for invalid decision, got %d", resp.StatusCode)
@@ -1792,14 +1792,14 @@ func TestLSPEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /lsp: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for LSP endpoint, got %d", resp.StatusCode)
 	}
 
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["enabled"] != false {
 		t.Error("expected LSP disabled by default")
 	}
@@ -1840,14 +1840,14 @@ func TestListChildren(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/parent-1/children: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var children []map[string]any
-	json.NewDecoder(resp.Body).Decode(&children)
+	_ = json.NewDecoder(resp.Body).Decode(&children)
 	if len(children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(children))
 	}
@@ -1883,14 +1883,14 @@ func TestPatchSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH /session/s1: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	var session map[string]any
-	json.NewDecoder(resp.Body).Decode(&session)
+	_ = json.NewDecoder(resp.Body).Decode(&session)
 	if session["status"] != "paused" {
 		t.Errorf("expected paused, got %v", session["status"])
 	}
@@ -1915,7 +1915,7 @@ func TestGetMessageByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1/message/msg-1: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should return 200 with message parts
 	if resp.StatusCode != 200 {
@@ -1943,7 +1943,7 @@ func TestListMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1/message: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -1962,7 +1962,7 @@ func TestHandleAuth_GET(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /auth/api-key: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should return 200 (auth returns mock key info)
 	if resp.StatusCode != 200 {
@@ -1990,7 +1990,7 @@ func TestHandleAuthDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DELETE /auth/testprovider: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("read body: %v", err)
@@ -2031,7 +2031,7 @@ func TestHandleAuthUnsupportedMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /auth/testprovider: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("POST /auth/:id: expected 405, got %d", resp.StatusCode)
 	}
@@ -2041,7 +2041,7 @@ func TestHandleAuthUnsupportedMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE /auth/: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("DELETE /auth/ (empty id): expected 405, got %d", resp.StatusCode)
 	}
@@ -2138,7 +2138,7 @@ func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
 	}
 
 	resp := do(http.MethodPut, "/auth/prov_1", `{"apiKey":"k1","secret":"s1"}`)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT /auth/prov_1: expected 200, got %d", resp.StatusCode)
 	}
@@ -2160,7 +2160,7 @@ func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
 	}
 
 	resp = do(http.MethodDelete, "/auth/prov_1", "")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE /auth/prov_1: expected 200, got %d. Body: %s", resp.StatusCode, body)
@@ -2197,7 +2197,7 @@ func TestProjectEndpointGetServesDeclaredList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /project: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200 for /project, got %d", resp.StatusCode)
@@ -2230,7 +2230,7 @@ func TestProjectPatchMissingReturnsTypedNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH /project/%s: %v", projectID, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		body, _ := io.ReadAll(resp.Body)
@@ -2300,7 +2300,7 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 			t.Fatalf("GET %s: %v", path, err)
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != 501 {
 			t.Errorf("GET %s: expected 501 stub, got %d: %s", path, resp.StatusCode, body)
 		}
@@ -2345,7 +2345,7 @@ func TestVCSReadCompatibilityEndpoints(t *testing.T) {
 
 	// GET /path → 200 {directory, worktree} (upstream PathInfo).
 	paths := get(repo, "/path")
-	defer paths.Body.Close()
+	defer func() { _ = paths.Body.Close() }()
 	if paths.StatusCode != 200 {
 		t.Fatalf("GET /path: got %d, want 200", paths.StatusCode)
 	}
@@ -2362,7 +2362,7 @@ func TestVCSReadCompatibilityEndpoints(t *testing.T) {
 
 	// GET /vcs → 200 {branch} (upstream Vcs.Info).
 	vcs := get(repo, "/vcs")
-	defer vcs.Body.Close()
+	defer func() { _ = vcs.Body.Close() }()
 	if vcs.StatusCode != 200 {
 		t.Fatalf("GET /vcs: got %d, want 200", vcs.StatusCode)
 	}
@@ -2377,7 +2377,7 @@ func TestVCSReadCompatibilityEndpoints(t *testing.T) {
 	// GET /vcs/diff?mode=git → 200 [{file, additions, status}] including the
 	// untracked file counted the upstream way.
 	diff := get(repo, "/vcs/diff?mode=git")
-	defer diff.Body.Close()
+	defer func() { _ = diff.Body.Close() }()
 	if diff.StatusCode != 200 {
 		t.Fatalf("GET /vcs/diff: got %d, want 200", diff.StatusCode)
 	}
@@ -2408,7 +2408,7 @@ func TestVCSReadCompatibilityEndpoints(t *testing.T) {
 	// directory yields the neutral shapes.
 	shim.workdir = t.TempDir()
 	nonGit := get(t.TempDir(), "/vcs")
-	defer nonGit.Body.Close()
+	defer func() { _ = nonGit.Body.Close() }()
 	if nonGit.StatusCode != 200 {
 		t.Fatalf("GET /vcs (non-git header dir): got %d, want 200", nonGit.StatusCode)
 	}
@@ -2480,7 +2480,7 @@ func TestInstanceEndpoint_GET(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /instance: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -2511,7 +2511,7 @@ func TestInstanceEndpoint_RequiresGET(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /instance: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 405 {
 		t.Errorf("expected 405, got %d", resp.StatusCode)
 	}
@@ -2527,7 +2527,7 @@ func TestInstancePathEndpoint_GET(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /instance/path: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -2561,7 +2561,7 @@ func TestInstanceVCSEndpoint_GET(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /instance/vcs: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
@@ -2587,7 +2587,7 @@ func TestInstanceVCSEndpoint_GET(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /instance/vcs: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200 (never error), got %d", resp.StatusCode)
 		}
@@ -2612,7 +2612,7 @@ func TestInstanceVCSDiffEndpoint_GET(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /instance/vcs/diff: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
@@ -2671,7 +2671,7 @@ func TestInstanceVCSDiffEndpoint_GET(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /instance/vcs/diff: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
@@ -2694,7 +2694,7 @@ func TestInstanceVCSDiffEndpoint_GET(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /instance/vcs/diff: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200 (never error), got %d", resp.StatusCode)
 		}
@@ -2722,7 +2722,7 @@ func TestInstanceKnownSubpathReturns501(t *testing.T) {
 			t.Fatalf("GET %s: %v", sub, err)
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != 501 {
 			t.Errorf("GET %s: expected 501, got %d: %s", sub, resp.StatusCode, body)
 		}
@@ -2737,7 +2737,7 @@ func TestInstanceKnownSubpathReturns501(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /instance/vcs/apply: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 501 {
 		t.Errorf("POST /instance/vcs/apply: expected 501, got %d", resp.StatusCode)
 	}
@@ -2751,7 +2751,7 @@ func TestInstanceUnknownSubpathReturns404(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /instance/foo: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 404 {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
@@ -2786,7 +2786,7 @@ func TestGlobalEventEndpoint_SSE_FlushesAndReplays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /global/event: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -2833,7 +2833,7 @@ func TestGlobalEventEndpoint_SSE_EmptySession_ReplaysGlobal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /global/event: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -2918,7 +2918,7 @@ func TestSendMessageStoresRawUserText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session/s1/message failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := <-writeResult; err != nil {
 		t.Fatalf("publish agent response: %v", err)
 	}
@@ -2926,7 +2926,7 @@ func TestSendMessageStoresRawUserText(t *testing.T) {
 		responseBody, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, responseBody)
 	}
-	io.Copy(io.Discard, resp.Body)
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	// Read the durable row — not the HTTP response — for the exact content.
 	rows, err := conn.Query(context.Background(),
@@ -3074,7 +3074,7 @@ func TestCreateSession_NoGoal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Without goal, should still succeed (goal is optional in request — default set)
 	if resp.StatusCode != 200 {
@@ -3096,7 +3096,7 @@ func TestCORS_ActualRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OPTIONS /session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should return 204 for preflight
 	if resp.StatusCode != 204 {
@@ -3122,7 +3122,7 @@ func TestPatchConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH /config: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -3501,7 +3501,7 @@ func TestHandleGlobalEvent_SSE_WithFlusher(t *testing.T) {
 		}
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should return 200 (SSE started) or the connection was cut
 	if resp.StatusCode != http.StatusOK {
@@ -3583,7 +3583,7 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read %s %s: %v", method, path, err)

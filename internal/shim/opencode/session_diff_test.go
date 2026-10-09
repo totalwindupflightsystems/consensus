@@ -29,17 +29,6 @@ import (
 // shaped as the upstream SnapshotFileDiff[] and with the required schema
 // fields present.
 
-// snapshotFileDiff is the upstream SnapshotFileDiff schema
-// (required: additions, deletions; additionalProperties: false) used to prove
-// the 200 body conforms field-for-field.
-type snapshotFileDiff struct {
-	File      string  `json:"file"`
-	Patch     *string `json:"patch"`
-	Additions float64 `json:"additions"`
-	Deletions float64 `json:"deletions"`
-	Status    string  `json:"status"`
-}
-
 // diffBody is the parsed 200 body plus its raw form (so an empty array can be
 // distinguished from JSON null).
 type diffBody struct {
@@ -60,7 +49,7 @@ func getDiff(t *testing.T, base, path string, headers map[string]string) (int, h
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read GET %s: %v", path, err)
@@ -188,7 +177,7 @@ func TestSessionDiffErrorPathsAnswerDeclared400(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		data, _ := io.ReadAll(resp.Body)
 		return resp.StatusCode, string(data)
 	}
@@ -254,7 +243,7 @@ func TestSessionDiffErrorPathsAnswerDeclared400(t *testing.T) {
 		if err != nil {
 			t.Fatalf("POST /session/s1/diff: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("POST /session/s1/diff: got %d, want 501 (only GET is declared)", resp.StatusCode)
 		}
@@ -314,7 +303,7 @@ func TestSessionDiffChiMountMatchesProductionWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1/diff via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusNotFound {
 		t.Fatalf("GET /session/s1/diff returned 404 — MountPatterns did not pass the sub-path through. Body: %s", data)

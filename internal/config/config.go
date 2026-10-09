@@ -357,7 +357,7 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Server.Hostname = v
 	}
 	if v := os.Getenv("CONSENSUS_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &cfg.Server.Port)
+		_, _ = fmt.Sscanf(v, "%d", &cfg.Server.Port)
 	}
 	if v := os.Getenv("CONSENSUS_DB_URL"); v != "" {
 		cfg.Database.URL = resolveDBURL(v)

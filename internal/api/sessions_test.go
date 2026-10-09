@@ -41,13 +41,13 @@ func newIntegrationServer(t *testing.T) *integrationServer {
 
 	// Run migration
 	if err := runIntegrationMigration(ctx, conn); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		t.Fatalf("migration: %v", err)
 	}
 
 	// Seed model_registry (required FK)
 	if err := conn.Exec(ctx, `INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out) VALUES ('gpt-4o', 1, 128000, 2.50, 10.00)`); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		t.Fatalf("seed model: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func newIntegrationServer(t *testing.T) *integrationServer {
 	prefix := "cs_ak_ad"
 
 	if err := conn.Exec(ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ('key-admin-1', $1, $2, 'admin', datetime('now'))`, hash, prefix); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		t.Fatalf("create admin key: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func newIntegrationServer(t *testing.T) *integrationServer {
 }
 
 func (is *integrationServer) close() {
-	is.conn.Close()
+	_ = is.conn.Close()
 }
 
 func runIntegrationMigration(ctx context.Context, conn db.DB) error {
@@ -210,7 +210,7 @@ func TestCreateSession_WithSpecificModel(t *testing.T) {
 
 	// Verify model stored correctly
 	var resp CreateSessionResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	ctx := context.Background()
 	rows, _ := srv.conn.Query(ctx, `SELECT model_id FROM sessions WHERE id = $1`, resp.ID)
@@ -321,12 +321,12 @@ func TestCreateSession_NonAdminKey(t *testing.T) {
 
 	// Create a session so the key has a valid session_id to reference
 	ctx := context.Background()
-	srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('test-session-id', 'existing', 'gpt-4o', 'idle', 'Existing', datetime('now'), datetime('now'))`)
+	_ = srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ('test-session-id', 'existing', 'gpt-4o', 'idle', 'Existing', datetime('now'), datetime('now'))`)
 
 	sessionKey := "cs_sk_session_test_key_abcdefgh"
 	hash := sha256Hash(sessionKey)
 	prefix := sessionKey[:min(8, len(sessionKey))]
-	srv.conn.Exec(ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, session_id, created_at) VALUES ('key-sess-1', $1, $2, 'session', 'test-session-id', datetime('now'))`, hash, prefix)
+	_ = srv.conn.Exec(ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, session_id, created_at) VALUES ('key-sess-1', $1, $2, 'session', 'test-session-id', datetime('now'))`, hash, prefix)
 
 	body := `{"agent_name":"hacker","goal":"steal data"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
@@ -393,7 +393,7 @@ func TestListSessions_WithStatusFilter(t *testing.T) {
 	}
 
 	var sessions []SessionResponse
-	json.NewDecoder(w.Body).Decode(&sessions)
+	_ = json.NewDecoder(w.Body).Decode(&sessions)
 
 	for _, s := range sessions {
 		if s.Status != "idle" && s.Status != "thinking" {
@@ -427,7 +427,7 @@ func TestListSessions_SessionScoped(t *testing.T) {
 	}
 
 	var sessions []SessionResponse
-	json.NewDecoder(w.Body).Decode(&sessions)
+	_ = json.NewDecoder(w.Body).Decode(&sessions)
 
 	// Session-scoped key should only see own session
 	if len(sessions) != 1 {

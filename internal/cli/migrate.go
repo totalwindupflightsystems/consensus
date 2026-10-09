@@ -175,13 +175,13 @@ The file is created as '<timestamp>_<name>.sql' with up/down sections.`,
 				return fmt.Errorf("cannot create migrations directory: %w", err)
 			}
 
-			content := fmt.Sprintf(`-- +goose Up
+			content := `-- +goose Up
 -- SQL in this section is executed when the migration is applied.
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
 
-`)
+`
 
 			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 				return fmt.Errorf("cannot create migration file: %w", err)

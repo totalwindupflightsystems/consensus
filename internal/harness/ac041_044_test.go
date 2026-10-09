@@ -87,23 +87,23 @@ func TestAC043_MemoryIsolationBetweenAgents(t *testing.T) {
 	agentB := "b2b2b2b2-bbbb-bbbb-bbbb-b2b2b2b2b2b2"
 
 	// Create both sessions
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ($1, 'agent-1', 'test-model', 'idle', 'Goal A')
 	`, agentA)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ($1, 'agent-2', 'test-model', 'idle', 'Goal B')
 	`, agentB)
 
 	// Agent A writes a memory event
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO memory_events (id, type, content, session_id, iteration_created)
 		VALUES (1001, 'text_block', 'SECRET_DATA_ONLY_FOR_A', $1, 1)
 	`, agentA)
 
 	// Agent B writes a different memory event
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO memory_events (id, type, content, session_id, iteration_created)
 		VALUES (1002, 'text_block', 'SECRET_DATA_ONLY_FOR_B', $1, 1)
 	`, agentB)
@@ -169,7 +169,7 @@ func TestAC044_SessionStatusLifecycle(t *testing.T) {
 
 	for _, tr := range transitions {
 		// Reset to from status first (if not already there)
-		th.conn.Exec(th.ctx, `UPDATE sessions SET status = $1 WHERE id = $2`, tr.from, sessionID)
+		_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = $1 WHERE id = $2`, tr.from, sessionID)
 
 		// Verify we're at from
 		checkFrom, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
@@ -178,7 +178,7 @@ func TestAC044_SessionStatusLifecycle(t *testing.T) {
 		}
 
 		// Transition to to
-		th.conn.Exec(th.ctx, `UPDATE sessions SET status = $1, heartbeat_at = datetime('now') WHERE id = $2`, tr.to, sessionID)
+		_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = $1, heartbeat_at = datetime('now') WHERE id = $2`, tr.to, sessionID)
 
 		// Verify
 		checkTo, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)

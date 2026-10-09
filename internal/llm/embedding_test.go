@@ -57,7 +57,7 @@ func TestEmbeddingClient_Embed_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -110,7 +110,7 @@ func TestEmbeddingClient_EmbedBatch_Success(t *testing.T) {
 			Usage: openaiEmbeddingUsage{PromptTokens: 15, TotalTokens: 15},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -128,7 +128,7 @@ func TestEmbeddingClient_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(openaiEmbeddingResponse{
+		_ = json.NewEncoder(w).Encode(openaiEmbeddingResponse{
 			Error: &openaiError{
 				Message: "Invalid API key",
 				Type:    "invalid_request_error",
@@ -159,7 +159,7 @@ func TestEmbeddingClient_EmptyInput(t *testing.T) {
 func TestEmbeddingClient_MissingData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(openaiEmbeddingResponse{
+		_ = json.NewEncoder(w).Encode(openaiEmbeddingResponse{
 			Object: "list",
 			Data:   []openaiEmbeddingData{},
 			Model:  "text-embedding-3-small",

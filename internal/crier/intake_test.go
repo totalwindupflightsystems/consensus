@@ -369,7 +369,7 @@ func newTestLedger(t *testing.T) (db.DB, string) {
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
-	t.Cleanup(func() { database.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	const sessionID = "sess-crier-intake"
 	statements := []string{

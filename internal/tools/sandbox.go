@@ -124,7 +124,7 @@ func createTempWorkDir(toolName string) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("sandbox: create temp dir: %w", err)
 	}
-	return dir, func() { os.RemoveAll(dir) }, nil
+	return dir, func() { _ = os.RemoveAll(dir) }, nil
 }
 
 // sanitizeName makes a tool name safe for filesystem use.

@@ -62,12 +62,12 @@ logging:
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() { _ = cmd.Process.Kill() }()
 
 	adminKey := parseBootstrapKey(t, stdout, 10*time.Second)
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealth(t, serverURL, 15*time.Second) {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		t.Fatal("server not healthy")
 	}
 
@@ -85,7 +85,7 @@ logging:
 		if err != nil {
 			t.Fatalf("request %s %s: %v", method, path, err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		b, _ := io.ReadAll(resp.Body)
 		return resp.StatusCode, string(b)
 	}
@@ -100,7 +100,7 @@ logging:
 		ID     string `json:"id"`
 		APIKey string `json:"api_key"`
 	}
-	json.Unmarshal([]byte(bodyA), &sessionA)
+	_ = json.Unmarshal([]byte(bodyA), &sessionA)
 	t.Logf("session A: id=%s key=%s...", sessionA.ID, sessionA.APIKey[:16])
 
 	// Create session B
@@ -113,7 +113,7 @@ logging:
 		ID     string `json:"id"`
 		APIKey string `json:"api_key"`
 	}
-	json.Unmarshal([]byte(bodyB), &sessionB)
+	_ = json.Unmarshal([]byte(bodyB), &sessionB)
 	t.Logf("session B: id=%s key=%s...", sessionB.ID, sessionB.APIKey[:16])
 
 	// Test 1: Session B's key tries to read A's session → expect 403

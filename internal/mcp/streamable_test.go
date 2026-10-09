@@ -193,7 +193,7 @@ func TestStreamable_GETMCPReturnsSSEStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /mcp: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /mcp: expected 200, got %d", resp.StatusCode)
 	}

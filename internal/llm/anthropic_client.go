@@ -226,7 +226,7 @@ func (c *anthropicClient) sendAnthropic(ctx context.Context, reqBody anthropicMe
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("llm: anthropic read response: %w", err)
 	}
@@ -338,7 +338,7 @@ func (c *anthropicClient) anthropicFallbackToOpenAI(ctx context.Context, message
 		slog.Warn("llm: anthropic fallback failed", "error", err)
 		return nil, fmt.Errorf("llm: anthropic fallback request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

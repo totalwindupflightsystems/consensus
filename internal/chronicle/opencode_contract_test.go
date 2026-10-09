@@ -127,7 +127,7 @@ func TestOpenCodeContract_AuthRequired(t *testing.T) {
 		if err != nil {
 			t.Fatalf("C04: request failed: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		respBody, _ := io.ReadAll(resp.Body)
 
 		if resp.StatusCode != http.StatusUnauthorized {
@@ -183,7 +183,7 @@ func TestOpenCodeContract_GetSession(t *testing.T) {
 		}
 
 		var created map[string]any
-		json.Unmarshal([]byte(createResp), &created)
+		_ = json.Unmarshal([]byte(createResp), &created)
 		sessionID, _ := created["id"].(string)
 		if sessionID == "" {
 			t.Fatal("C06: no session id in create response")
@@ -292,20 +292,20 @@ func startConsensusForContract(t *testing.T) (string, *contractSession, func()) 
 		time.Sleep(200 * time.Millisecond)
 		resp, err := http.Get(baseURL + "/global/health")
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				cleanup := func() {
-					serveCmd.Process.Kill()
-					serveCmd.Wait()
-					os.RemoveAll(tmpDir)
+					_ = serveCmd.Process.Kill()
+					_ = serveCmd.Wait()
+					_ = os.RemoveAll(tmpDir)
 				}
 				return adminKey, &contractSession{baseURL: baseURL, tmpDir: tmpDir, adminKey: adminKey}, cleanup
 			}
 		}
 	}
-	serveCmd.Process.Kill()
-	serveCmd.Wait()
-	os.RemoveAll(tmpDir)
+	_ = serveCmd.Process.Kill()
+	_ = serveCmd.Wait()
+	_ = os.RemoveAll(tmpDir)
 	t.Fatal("server did not become healthy within 10s")
 	panic("unreachable")
 }
@@ -325,7 +325,7 @@ func doGet(t *testing.T, url, key string) (*http.Response, string) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	return resp, string(body)
 }
@@ -344,7 +344,7 @@ func doPost(t *testing.T, url, key, jsonBody string) (*http.Response, string) {
 	if err != nil {
 		t.Fatalf("POST %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	return resp, string(body)
 }

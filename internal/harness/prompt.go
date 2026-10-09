@@ -194,10 +194,10 @@ func (b *SystemPromptBuilder) buildIdentityLayer(config *SystemPromptConfig) str
 	sb.WriteString("Your mind is a PostgreSQL (or SQLite) database. You think by writing SQL.\n\n")
 
 	// Agent identity
-	sb.WriteString(fmt.Sprintf("**Agent:** %s\n", config.AgentName))
-	sb.WriteString(fmt.Sprintf("**Model:** %s\n", config.ModelID))
-	sb.WriteString(fmt.Sprintf("**Session:** %s\n", config.SessionID))
-	sb.WriteString(fmt.Sprintf("**Goal:** %s\n\n", config.Goal))
+	fmt.Fprintf(&sb, "**Agent:** %s\n", config.AgentName)
+	fmt.Fprintf(&sb, "**Model:** %s\n", config.ModelID)
+	fmt.Fprintf(&sb, "**Session:** %s\n", config.SessionID)
+	fmt.Fprintf(&sb, "**Goal:** %s\n\n", config.Goal)
 
 	// Core principles
 	sb.WriteString("## Core Principles\n\n")
@@ -317,7 +317,7 @@ func (b *SystemPromptBuilder) buildSchemaLayer(schema *SchemaData) string {
 				cols = "(discover failed)"
 			}
 		}
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", t.Name, cols, writable))
+		fmt.Fprintf(&sb, "| `%s` | %s | %s |\n", t.Name, cols, writable)
 	}
 	sb.WriteString("\n")
 
@@ -327,7 +327,7 @@ func (b *SystemPromptBuilder) buildSchemaLayer(schema *SchemaData) string {
 		sb.WriteString("| Table | Columns |\n")
 		sb.WriteString("|---|---|\n")
 		for _, t := range schema.DynamicTables {
-			sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", t.Name, t.Columns))
+			fmt.Fprintf(&sb, "| `%s` | %s |\n", t.Name, t.Columns)
 		}
 		sb.WriteString("\n")
 	}
@@ -353,7 +353,7 @@ func (b *SystemPromptBuilder) buildToolsLayer(tools []ToolInfo, notice ...string
 
 	// Sub-agent notice (SPEC-012 §6)
 	if len(notice) > 0 && notice[0] != "" {
-		sb.WriteString(fmt.Sprintf("> **Notice:** %s\n\n", notice[0]))
+		fmt.Fprintf(&sb, "> **Notice:** %s\n\n", notice[0])
 	}
 
 	if len(tools) == 0 {
@@ -364,7 +364,7 @@ func (b *SystemPromptBuilder) buildToolsLayer(tools []ToolInfo, notice ...string
 	sb.WriteString("| Tool | Hemisphere | Description |\n")
 	sb.WriteString("|---|---|---|\n")
 	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", t.Name, t.Hemisphere, t.Description))
+		fmt.Fprintf(&sb, "| `%s` | %s | %s |\n", t.Name, t.Hemisphere, t.Description)
 	}
 	sb.WriteString("\n")
 
@@ -394,7 +394,7 @@ func (b *SystemPromptBuilder) buildSkillsLayer(skills []SkillMetadata, notice ..
 
 	// Sub-agent notice (SPEC-012 §6)
 	if len(notice) > 0 && notice[0] != "" {
-		sb.WriteString(fmt.Sprintf("> **Notice:** %s\n\n", notice[0]))
+		fmt.Fprintf(&sb, "> **Notice:** %s\n\n", notice[0])
 	}
 
 	if len(skills) == 0 {
@@ -408,7 +408,7 @@ func (b *SystemPromptBuilder) buildSkillsLayer(skills []SkillMetadata, notice ..
 	sb.WriteString("| Skill | When to Use |\n")
 	sb.WriteString("|---|---|\n")
 	for _, s := range skills {
-		sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", s.Name, s.WhenToUse))
+		fmt.Fprintf(&sb, "| `%s` | %s |\n", s.Name, s.WhenToUse)
 	}
 	sb.WriteString("\n")
 
@@ -423,14 +423,14 @@ func (b *SystemPromptBuilder) buildConstraintsLayer(config *SystemPromptConfig) 
 	var sb strings.Builder
 
 	sb.WriteString("## Session Constraints\n\n")
-	sb.WriteString(fmt.Sprintf("- **Iteration:** %d / %d (max turns: %d)\n",
-		config.Iteration, config.MaxIterations, config.PlanningMaxTurns))
-	sb.WriteString(fmt.Sprintf("- **Tokens used:** %d / %d context budget\n",
-		0, config.ContextBudget)) // tokens_used comes from LLM response, not tracked pre-call
-	sb.WriteString(fmt.Sprintf("- **Budget:** %d / %d cents\n",
-		config.BudgetUsedCents, config.BudgetLimitCents))
-	sb.WriteString(fmt.Sprintf("- **Consecutive errors:** %d / %d (circuit breaker at %d)\n",
-		config.ConsecutiveErrors, config.MaxConsecutiveErrors, config.MaxConsecutiveErrors))
+	fmt.Fprintf(&sb, "- **Iteration:** %d / %d (max turns: %d)\n",
+		config.Iteration, config.MaxIterations, config.PlanningMaxTurns)
+	fmt.Fprintf(&sb, "- **Tokens used:** %d / %d context budget\n",
+		0, config.ContextBudget) // tokens_used comes from LLM response, not tracked pre-call
+	fmt.Fprintf(&sb, "- **Budget:** %d / %d cents\n",
+		config.BudgetUsedCents, config.BudgetLimitCents)
+	fmt.Fprintf(&sb, "- **Consecutive errors:** %d / %d (circuit breaker at %d)\n",
+		config.ConsecutiveErrors, config.MaxConsecutiveErrors, config.MaxConsecutiveErrors)
 	sb.WriteString("- **Status transitions:** booting → idle → thinking → (planning → executing) → idle/complete\n")
 	sb.WriteString("- **Append-only enforcement:** UPDATE/DELETE on memory_events is REJECTED by the database kernel.\n")
 	sb.WriteString("- **Secrets:** You reference secrets via `{{SECRET.NAME}}` aliases. The harness replaces them before execution. Real values are scrubbed from your responses before storage.\n")
@@ -453,15 +453,15 @@ func (b *SystemPromptBuilder) buildContextLayer(config *SystemPromptConfig) stri
 func (b *SystemPromptBuilder) formatUserContext(config *SystemPromptConfig, memories []MemoryEventInfo, tools []ToolInfo, layers *PromptLayers) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("# Active Context — Session %s\n\n", config.SessionID))
+	fmt.Fprintf(&sb, "# Active Context — Session %s\n\n", config.SessionID)
 
 	// Goal + Status
 	sb.WriteString("## Current Task\n")
-	sb.WriteString(fmt.Sprintf("**Goal:** %s\n", config.Goal))
-	sb.WriteString(fmt.Sprintf("**Status:** %s | Iteration: %d / %d\n\n", config.Status, config.Iteration, config.MaxIterations))
+	fmt.Fprintf(&sb, "**Goal:** %s\n", config.Goal)
+	fmt.Fprintf(&sb, "**Status:** %s | Iteration: %d / %d\n\n", config.Status, config.Iteration, config.MaxIterations)
 
 	// Memory ledger snapshot
-	sb.WriteString(fmt.Sprintf("## Recent Memory (%d events)\n", len(memories)))
+	fmt.Fprintf(&sb, "## Recent Memory (%d events)\n", len(memories))
 	if len(memories) == 0 {
 		sb.WriteString("(No memory events recorded yet)\n\n")
 	} else {
@@ -476,10 +476,10 @@ func (b *SystemPromptBuilder) formatUserContext(config *SystemPromptConfig, memo
 
 	// Current state summary
 	sb.WriteString("## Current State\n")
-	sb.WriteString(fmt.Sprintf("- Status: %s\n", config.Status))
-	sb.WriteString(fmt.Sprintf("- Iteration: %d / %d\n", config.Iteration, config.MaxIterations))
-	sb.WriteString(fmt.Sprintf("- Consecutive errors: %d / %d\n", config.ConsecutiveErrors, config.MaxConsecutiveErrors))
-	sb.WriteString(fmt.Sprintf("- Budget remaining: %d cents\n", config.BudgetLimitCents-config.BudgetUsedCents))
+	fmt.Fprintf(&sb, "- Status: %s\n", config.Status)
+	fmt.Fprintf(&sb, "- Iteration: %d / %d\n", config.Iteration, config.MaxIterations)
+	fmt.Fprintf(&sb, "- Consecutive errors: %d / %d\n", config.ConsecutiveErrors, config.MaxConsecutiveErrors)
+	fmt.Fprintf(&sb, "- Budget remaining: %d cents\n", config.BudgetLimitCents-config.BudgetUsedCents)
 
 	return sb.String()
 }

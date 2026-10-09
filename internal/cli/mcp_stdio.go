@@ -42,13 +42,13 @@ Environment variables:
   CONSENSUS_API_KEY  API key for authentication (or --api-key)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if dbURL, _ := cmd.Flags().GetString("db-url"); dbURL != "" {
-				os.Setenv("CONSENSUS_DB_URL", dbURL)
+				_ = os.Setenv("CONSENSUS_DB_URL", dbURL)
 			}
 			if logLevel, _ := cmd.Flags().GetString("log-level"); logLevel != "info" {
-				os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
+				_ = os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
 			}
 			if port, _ := cmd.Flags().GetInt("port"); port != 8090 {
-				os.Setenv("CONSENSUS_PORT", strconv.Itoa(port))
+				_ = os.Setenv("CONSENSUS_PORT", strconv.Itoa(port))
 			}
 			// DOGFOOD-106: forward the resolved API key (priority:
 			// --api-key flag > CONSENSUS_API_KEY env > consensus.yaml
@@ -57,7 +57,7 @@ Environment variables:
 			// documented invocation (`consensus mcp-stdio --api-key cs_ak_...`)
 			// authenticate without the client crafting _meta.authorization.
 			if optAPIKey != "" {
-				os.Setenv("CONSENSUS_API_KEY", optAPIKey)
+				_ = os.Setenv("CONSENSUS_API_KEY", optAPIKey)
 			}
 			if optConfig != "" {
 				config.SetConfigPath(optConfig)

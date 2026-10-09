@@ -87,7 +87,7 @@ func TestListMemory_WithTypeFilter(t *testing.T) {
 	}
 
 	var events []MemoryEventResponse
-	json.NewDecoder(w.Body).Decode(&events)
+	_ = json.NewDecoder(w.Body).Decode(&events)
 
 	if len(events) != 2 {
 		t.Errorf("expected 2 text_block events, got %d", len(events))
@@ -123,7 +123,7 @@ func TestListMemory_WithLimit(t *testing.T) {
 	}
 
 	var events []MemoryEventResponse
-	json.NewDecoder(w.Body).Decode(&events)
+	_ = json.NewDecoder(w.Body).Decode(&events)
 
 	if len(events) != 3 {
 		t.Errorf("expected 3 events (limit=3), got %d", len(events))
@@ -155,7 +155,7 @@ func TestListMemory_SessionScoped_CanAccessOwn(t *testing.T) {
 	}
 
 	var events []MemoryEventResponse
-	json.NewDecoder(w.Body).Decode(&events)
+	_ = json.NewDecoder(w.Body).Decode(&events)
 	if len(events) != 1 {
 		t.Errorf("expected 1 event, got %d", len(events))
 	}
@@ -344,7 +344,7 @@ func TestGetActiveContext_HiddenEventsExcluded(t *testing.T) {
 	}
 
 	var ctxRows []ActiveContextResponse
-	json.NewDecoder(w.Body).Decode(&ctxRows)
+	_ = json.NewDecoder(w.Body).Decode(&ctxRows)
 
 	// Hidden event should be excluded — only 1 visible
 	if len(ctxRows) != 1 {
@@ -379,7 +379,7 @@ func TestGetActiveContext_CompressedMode(t *testing.T) {
 	}
 
 	var ctxRows []ActiveContextResponse
-	json.NewDecoder(w.Body).Decode(&ctxRows)
+	_ = json.NewDecoder(w.Body).Decode(&ctxRows)
 
 	if len(ctxRows) != 1 {
 		t.Fatalf("expected 1 context row, got %d", len(ctxRows))
@@ -476,7 +476,7 @@ func TestListIterations_WithLimit(t *testing.T) {
 	}
 
 	var iterations []IterationCommitResponse
-	json.NewDecoder(w.Body).Decode(&iterations)
+	_ = json.NewDecoder(w.Body).Decode(&iterations)
 
 	if len(iterations) != 2 {
 		t.Errorf("expected 2 iterations (limit=2), got %d", len(iterations))
@@ -508,7 +508,7 @@ func TestListIterations_SessionScoped_CanAccessOwn(t *testing.T) {
 	}
 
 	var iterations []IterationCommitResponse
-	json.NewDecoder(w.Body).Decode(&iterations)
+	_ = json.NewDecoder(w.Body).Decode(&iterations)
 	if len(iterations) != 1 {
 		t.Errorf("expected 1 iteration, got %d", len(iterations))
 	}
@@ -562,7 +562,7 @@ func TestListMemory_NoEvents_ReturnsEmpty(t *testing.T) {
 	}
 
 	var events []MemoryEventResponse
-	json.NewDecoder(w.Body).Decode(&events)
+	_ = json.NewDecoder(w.Body).Decode(&events)
 
 	if len(events) != 0 {
 		t.Errorf("expected empty array, got %d events", len(events))
@@ -588,7 +588,7 @@ func TestListIterations_NoIterations_ReturnsEmpty(t *testing.T) {
 	}
 
 	var iterations []IterationCommitResponse
-	json.NewDecoder(w.Body).Decode(&iterations)
+	_ = json.NewDecoder(w.Body).Decode(&iterations)
 
 	if len(iterations) != 0 {
 		t.Errorf("expected empty array, got %d iterations", len(iterations))
@@ -621,7 +621,7 @@ func TestListMemory_WithDisplayMode(t *testing.T) {
 	}
 
 	var events []MemoryEventResponse
-	json.NewDecoder(w.Body).Decode(&events)
+	_ = json.NewDecoder(w.Body).Decode(&events)
 
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))

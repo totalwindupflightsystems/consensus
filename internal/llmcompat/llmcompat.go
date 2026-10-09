@@ -65,9 +65,9 @@ func NewPassThrough(providerBaseURL string) http.Handler {
 	// base's own path instead:
 	//   in /v1/chat/completions + base .../v1  → out /v1/chat/completions
 	//   in /chat/completions     + base .../v1  → out /v1/chat/completions
-	origDirector := proxy.Director
+	origDirector := proxy.Director //nolint:staticcheck // SA1019: Director is the only hook NewSingleHostReverseProxy exposes for path rewriting; Rewrite would bypass its base-path join
 	basePath := strings.TrimRight(target.Path, "/")
-	proxy.Director = func(req *http.Request) {
+	proxy.Director = func(req *http.Request) { //nolint:staticcheck // SA1019: see origDirector above
 		origDirector(req)
 		if basePath == "" {
 			return

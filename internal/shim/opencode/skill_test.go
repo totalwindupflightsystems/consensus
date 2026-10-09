@@ -137,7 +137,7 @@ func TestSkillChiMount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /skill via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /skill via chi mount: got %d, want 200 — /skill must be registered in MountPatterns", resp.StatusCode)
 	}

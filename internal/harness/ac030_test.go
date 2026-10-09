@@ -64,7 +64,7 @@ func TestAC030_SkillsRegistry_UpdateSkill(t *testing.T) {
 	defer th.close()
 
 	// Insert a skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-up-1', 'data_analyzer', '{"description":"Analyze datasets","version":"1.0"}', 'Run analysis queries', 1)
 	`)
@@ -103,7 +103,7 @@ func TestAC030_SkillsRegistry_UniqueName(t *testing.T) {
 	defer th.close()
 
 	// Insert first skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-u1', 'unique_skill', '{}', 'do stuff', 1)
 	`)

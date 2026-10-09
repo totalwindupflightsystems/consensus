@@ -51,7 +51,7 @@ func getProjectList(t *testing.T, base, path string, headers map[string]string) 
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read GET %s: %v", path, err)
@@ -214,7 +214,7 @@ func TestProjectListServesDeclaredContract(t *testing.T) {
 			t.Fatalf("GET /project with the admin key: %v", err)
 		}
 		data, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /project with the admin key: got %d, want 200. Body: %s", resp.StatusCode, data)
 		}
@@ -360,7 +360,7 @@ func TestProjectListUndeclaredMethodKeepsStub(t *testing.T) {
 			t.Fatalf("%s /project: %v", method, err)
 		}
 		data, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("%s /project: got %d, want the pre-existing 501 stub. Body: %s", method, resp.StatusCode, data)
 		}
@@ -392,7 +392,7 @@ func TestProjectListChiMountMatchesProductionWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /project via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusNotFound {
 		t.Fatalf("GET /project returned 404 — MountPatterns did not pass the mount through. Body: %s", data)

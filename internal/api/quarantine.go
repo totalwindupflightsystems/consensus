@@ -11,8 +11,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/wojons/consensus/internal/quarantine"
 )
@@ -128,16 +126,3 @@ func (s *Server) getQuarantineService() (*quarantine.QuarantineService, bool) {
 
 // parseQuarantineID extracts a quarantine item ID from the URL path.
 // Path format: /api/v1/quarantine/123/approve or /api/v1/quarantine/123/reject
-func parseQuarantineID(path, prefix string) (int64, string, error) {
-	rest := strings.TrimPrefix(path, prefix)
-	rest = strings.TrimPrefix(rest, "/")
-	parts := strings.SplitN(rest, "/", 2)
-	if len(parts) < 2 {
-		return 0, "", http.ErrNotSupported
-	}
-	id, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, "", err
-	}
-	return id, parts[1], nil
-}

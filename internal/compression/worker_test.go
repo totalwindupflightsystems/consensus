@@ -299,7 +299,7 @@ func TestOpenAISummarizer_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -317,7 +317,7 @@ func TestOpenAISummarizer_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(chatCompletionResponse{
+		_ = json.NewEncoder(w).Encode(chatCompletionResponse{
 			Error: &chatError{Message: "Invalid model", Type: "invalid_request_error"},
 		})
 	}))
@@ -357,7 +357,7 @@ func TestWorkerProcessOneWithMockServer(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		// Chat completions endpoint
@@ -367,7 +367,7 @@ func TestWorkerProcessOneWithMockServer(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -516,12 +516,12 @@ func openCompressionBenchDB(b *testing.B) (db.DB, func()) {
 		b.Fatalf("bench: create temp db: %v", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	ctx := context.Background()
 	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: open sqlite: %v", err)
 	}
 
@@ -531,21 +531,21 @@ func openCompressionBenchDB(b *testing.B) (db.DB, func()) {
 			continue
 		}
 		if err := conn.Exec(ctx, trimmed); err != nil {
-			conn.Close()
-			os.Remove(tmpPath)
+			_ = conn.Close()
+			_ = os.Remove(tmpPath)
 			b.Fatalf("bench: apply schema (%s): %v", trimmed, err)
 		}
 	}
 
 	if err := conn.Exec(ctx, `INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out) VALUES ('gpt-4o-mini', 1, 128000, 0.15, 0.60)`); err != nil {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: seed model_registry: %v", err)
 	}
 
 	cleanup := func() {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 	}
 	return conn, cleanup
 }
@@ -561,26 +561,6 @@ func seedCompressionQueue(b *testing.B, conn db.DB, count int) {
 			 VALUES ($1, 1, 2, 'pending', 0, 3)`, int64(i+1)); err != nil {
 			b.Fatalf("bench: insert queue row: %v", err)
 		}
-	}
-}
-
-// seedMemoryEvent inserts a single memory_events row used by processOne
-// benchmarks so the SELECT inside fetchMemoryEvent returns data.
-func seedMemoryEvent(b *testing.B, conn db.DB, sessionID string, eventID int64) {
-	b.Helper()
-	ctx := context.Background()
-	if err := conn.Exec(ctx,
-		`INSERT INTO memory_events (id, type, content, session_id, iteration_created)
-		 VALUES ($1, 'text_block', $2, $3, 1)`,
-		eventID, "Benchmark content: this is the original memory event body that will be compressed by the worker. "+
-			"It has enough length to be a realistic input for the summarization path - roughly 200 characters.",
-		sessionID); err != nil {
-		b.Fatalf("bench: insert memory_events: %v", err)
-	}
-	if err := conn.Exec(ctx,
-		`INSERT INTO display_modes (memory_id, mode, session_id) VALUES ($1, 'full', $2)`,
-		eventID, sessionID); err != nil {
-		b.Fatalf("bench: insert display_modes: %v", err)
 	}
 }
 

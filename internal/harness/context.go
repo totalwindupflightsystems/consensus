@@ -372,8 +372,8 @@ func (h *Harness) formatSystemPrompt(ic *IterationContext, tools []ToolInfo) str
 	sb.WriteString("- You cannot UPDATE or DELETE from memory_events (append-only ledger).\n")
 	sb.WriteString("- Only access tables scoped to your session_id.\n")
 	sb.WriteString("- If you encounter an error, the harness injects it into the next context for recovery.\n")
-	sb.WriteString(fmt.Sprintf("- Max iterations: %d. Max consecutive errors: %d.\n",
-		ic.MaxIterations, ic.MaxConsecutiveErrors))
+	fmt.Fprintf(&sb, "- Max iterations: %d. Max consecutive errors: %d.\n",
+		ic.MaxIterations, ic.MaxConsecutiveErrors)
 	sb.WriteString("- Format all dates as ISO 8601. Quote identifiers with double-quotes.\n\n")
 
 	// Sub-agent filtering (SPEC-012 §6): sub-agents only see internal hemisphere tools
@@ -391,7 +391,7 @@ func (h *Harness) formatSystemPrompt(ic *IterationContext, tools []ToolInfo) str
 
 	sb.WriteString("Available tools:\n")
 	for _, t := range filteredTools {
-		sb.WriteString(fmt.Sprintf("- %s (%s): %s\n", t.Name, t.Hemisphere, t.Description))
+		fmt.Fprintf(&sb, "- %s (%s): %s\n", t.Name, t.Hemisphere, t.Description)
 	}
 
 	return sb.String()
@@ -406,15 +406,15 @@ func (h *Harness) formatSystemPrompt(ic *IterationContext, tools []ToolInfo) str
 func (h *Harness) formatContextMarkdown(ic *IterationContext, memories []MemoryEventInfo, tools []ToolInfo) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("# Active Context — Session %s\n\n", ic.SessionID))
+	fmt.Fprintf(&sb, "# Active Context — Session %s\n\n", ic.SessionID)
 
 	// Task state
 	sb.WriteString("## Current Task\n")
-	sb.WriteString(fmt.Sprintf("Goal: %s\n", ic.Goal))
-	sb.WriteString(fmt.Sprintf("Status: %s | Iteration: %d / %d\n\n", ic.Status, ic.Iteration, ic.MaxIterations))
+	fmt.Fprintf(&sb, "Goal: %s\n", ic.Goal)
+	fmt.Fprintf(&sb, "Status: %s | Iteration: %d / %d\n\n", ic.Status, ic.Iteration, ic.MaxIterations)
 
 	// Memory ledger
-	sb.WriteString(fmt.Sprintf("## Memory (%d events)\n", len(memories)))
+	fmt.Fprintf(&sb, "## Memory (%d events)\n", len(memories))
 	if len(memories) == 0 {
 		sb.WriteString("(no memory events yet)\n\n")
 	} else {
@@ -426,16 +426,16 @@ func (h *Harness) formatContextMarkdown(ic *IterationContext, memories []MemoryE
 	// Tool reference
 	sb.WriteString("## Available Tools\n")
 	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("- **%s** (%s): %s\n", t.Name, t.Hemisphere, t.Description))
+		fmt.Fprintf(&sb, "- **%s** (%s): %s\n", t.Name, t.Hemisphere, t.Description)
 	}
 	sb.WriteString("\n")
 
 	// Constraints
 	sb.WriteString("## Constraints\n")
-	sb.WriteString(fmt.Sprintf("- Iteration: %d / %d\n", ic.Iteration, ic.MaxIterations))
-	sb.WriteString(fmt.Sprintf("- Tokens used: %d in / %d out\n", ic.TokensUsedIn, ic.TokensUsedOut))
-	sb.WriteString(fmt.Sprintf("- Budget: %d/%d cents\n", ic.BudgetUsedCents, ic.BudgetLimitCents))
-	sb.WriteString(fmt.Sprintf("- Consecutive errors: %d / %d\n", ic.ConsecutiveErrors, ic.MaxConsecutiveErrors))
+	fmt.Fprintf(&sb, "- Iteration: %d / %d\n", ic.Iteration, ic.MaxIterations)
+	fmt.Fprintf(&sb, "- Tokens used: %d in / %d out\n", ic.TokensUsedIn, ic.TokensUsedOut)
+	fmt.Fprintf(&sb, "- Budget: %d/%d cents\n", ic.BudgetUsedCents, ic.BudgetLimitCents)
+	fmt.Fprintf(&sb, "- Consecutive errors: %d / %d\n", ic.ConsecutiveErrors, ic.MaxConsecutiveErrors)
 
 	return sb.String()
 }
@@ -497,41 +497,6 @@ type ToolInfo struct {
 	Name        string
 	Description string
 	Hemisphere  string // "internal" | "external"
-}
-
-func (h *Harness) readSession(ctx context.Context, sessionID string) (*sessionRow, error) {
-	rows, err := h.db.Query(ctx, `
-		SELECT agent_name, model_id, status,
-		       COALESCE(trust_level, 'high') AS trust_level,
-		       COALESCE(goal, '') AS goal,
-		       context_budget, tokens_used_in, tokens_used_out,
-		       iteration, planning_max_turns, 3,
-		       COALESCE(budget_limit_cents, 0) AS budget_limit_cents,
-		       COALESCE(parent_id, '') AS parent_id
-		FROM sessions WHERE id = $1
-	`, sessionID)
-	if err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
-	}
-	r := rows[0]
-	return &sessionRow{
-		AgentName:            toString(r["agent_name"]),
-		ModelID:              toString(r["model_id"]),
-		Status:               toString(r["status"]),
-		TrustLevel:           toString(r["trust_level"]),
-		Goal:                 toString(r["goal"]),
-		ContextBudget:        toInt(r["context_budget"]),
-		TokensUsedIn:         toInt64(r["tokens_used_in"]),
-		TokensUsedOut:        toInt64(r["tokens_used_out"]),
-		Iteration:            toInt64(r["iteration"]),
-		BudgetLimitCents:     toInt64(r["budget_limit_cents"]),
-		MaxIterations:        toInt(r["planning_max_turns"]),
-		MaxConsecutiveErrors: 3,
-		ParentID:             toString(r["parent_id"]),
-	}, nil
 }
 
 // readSessionTx reads a session row within a transaction.

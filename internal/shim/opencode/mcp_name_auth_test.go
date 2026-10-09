@@ -265,7 +265,7 @@ func TestMCPAuthRemoveFamilyNeighboursUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /mcp: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if !delegated || resp.StatusCode != http.StatusOK {
 		t.Errorf("POST /mcp (JSON-RPC) via the shim: status %d delegated %v, want the injected MCP handler (MCP-DIRECT-001)", resp.StatusCode, delegated)
 	}

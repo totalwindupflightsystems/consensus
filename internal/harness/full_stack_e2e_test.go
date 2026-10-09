@@ -110,7 +110,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create session: %d %s", resp.StatusCode, string(body))
 	}
@@ -137,12 +137,12 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	req2.Header.Set("Authorization", "Bearer "+adminKey)
 	resp2, _ := apiTS.Client().Do(req2)
 	body2, _ := io.ReadAll(resp2.Body)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("get session: %d %s", resp2.StatusCode, string(body2))
 	}
 	var sr api.SessionResponse
-	json.Unmarshal(body2, &sr)
+	_ = json.Unmarshal(body2, &sr)
 	if sr.AgentName != "fullstack-agent" {
 		t.Errorf("expected agent 'fullstack-agent', got %q", sr.AgentName)
 	}
@@ -155,7 +155,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	req3.Header.Set("Content-Type", "application/json")
 	req3.Header.Set("Authorization", "Bearer "+sessionKey)
 	resp3, _ := apiTS.Client().Do(req3)
-	resp3.Body.Close()
+	_ = resp3.Body.Close()
 	if resp3.StatusCode != http.StatusOK {
 		t.Errorf("send message: got %d", resp3.StatusCode)
 	}
@@ -165,7 +165,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	reqRLS, _ := http.NewRequest("GET", apiTS.URL+"/api/v1/sessions/nonexistent-session-id", nil)
 	reqRLS.Header.Set("Authorization", "Bearer "+sessionKey)
 	respRLS, _ := apiTS.Client().Do(reqRLS)
-	respRLS.Body.Close()
+	_ = respRLS.Body.Close()
 	if respRLS.StatusCode != http.StatusForbidden {
 		t.Errorf("RLS: expected 403 for cross-session access, got %d", respRLS.StatusCode)
 	}
@@ -174,7 +174,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	// 2e. Health check (no auth)
 	reqHealth, _ := http.NewRequest("GET", apiTS.URL+"/api/v1/health", nil)
 	respHealth, _ := apiTS.Client().Do(reqHealth)
-	respHealth.Body.Close()
+	_ = respHealth.Body.Close()
 	if respHealth.StatusCode != http.StatusOK {
 		t.Errorf("health: expected 200, got %d", respHealth.StatusCode)
 	}
@@ -185,12 +185,12 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	reqTools.Header.Set("Authorization", "Bearer "+adminKey)
 	respTools, _ := apiTS.Client().Do(reqTools)
 	bodyTools, _ := io.ReadAll(respTools.Body)
-	respTools.Body.Close()
+	_ = respTools.Body.Close()
 	if respTools.StatusCode != http.StatusOK {
 		t.Errorf("list tools: %d", respTools.StatusCode)
 	}
 	var toolsList []map[string]interface{}
-	json.Unmarshal(bodyTools, &toolsList)
+	_ = json.Unmarshal(bodyTools, &toolsList)
 	t.Logf("  Tools listed: %d available", len(toolsList))
 
 	t.Log("  API PASS")
@@ -288,7 +288,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	for _, rt := range remainingTypes {
 		// Insert approval directly without trying to re-pause
 		reqID := uuid.New().String()
-		th.conn.Exec(th.ctx, `
+		_ = th.conn.Exec(th.ctx, `
 			INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status, expires_at, created_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, datetime('now', '+1 hour'), datetime('now'))
 		`, reqID, sessionID, 0, string(rt), "E2E test: "+string(rt), string(hitl.RiskMedium), string(hitl.ApprovalStatusPending))
@@ -325,7 +325,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	sc.SessionID = sessionID
 	sc.AutoPauseOnErrorThreshold = 5
 	sc.RequireApprovalForExternalTools = true
-	hitlMgr.SetConfiguration(th.ctx, sc)
+	_ = hitlMgr.SetConfiguration(th.ctx, sc)
 	eff, _ := hitlMgr.GetEffectiveConfiguration(th.ctx, sessionID)
 	if eff.AutoPauseOnErrorThreshold != 5 {
 		t.Errorf("session config: threshold=%d (wanted 5)", eff.AutoPauseOnErrorThreshold)
@@ -339,7 +339,7 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 	// 4g. Expiry = no auto-approval (AC-HITL-03)
 	ea, _ := hitlMgr.RequestApproval(th.ctx, sessionID, hitl.RequestBudgetOverride,
 		"Must not auto-approve on expiry", hitl.RiskHigh)
-	th.conn.Exec(th.ctx,
+	_ = th.conn.Exec(th.ctx,
 		`UPDATE approval_requests SET expires_at = datetime('now', '-2 hours') WHERE id = $1`,
 		ea.ID)
 	expired, _ := hitlMgr.ExpirePendingApprovals(th.ctx)
@@ -385,8 +385,8 @@ func TestFullStackE2E_AllSubsystems(t *testing.T) {
 
 	// 5d. Complete child → wake parent (AC-SUB-03)
 	// Update task to in_progress so CompleteChild can set it to completed
-	th.conn.Exec(th.ctx, `UPDATE tasks SET status = 'in_progress' WHERE session_id = $1`, childID)
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, childID)
+	_ = th.conn.Exec(th.ctx, `UPDATE tasks SET status = 'in_progress' WHERE session_id = $1`, childID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, childID)
 	if err := subMgr.CompleteChild(th.ctx, childID, "Child completed successfully"); err != nil {
 		t.Logf("  CompleteChild: %v (expected — check constraint)", err)
 	} else {
@@ -482,7 +482,7 @@ func TestFullStackE2E_ErrorRecoveryFlows(t *testing.T) {
 	}
 
 	adminKey := "cs_sk_admin_recovery_e2e_key_001"
-	th.conn.Exec(th.ctx,
+	_ = th.conn.Exec(th.ctx,
 		`INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ('key-recovery-admin', $1, 'cs_sk_ad', 'admin', datetime('now'))`,
 		sha256Hash(adminKey))
 	apiServer := api.NewServer(api.ServerConfig{DB: th.conn, HITL: th.hitl})
@@ -490,7 +490,7 @@ func TestFullStackE2E_ErrorRecoveryFlows(t *testing.T) {
 	defer ts.Close()
 
 	hitlMgr := hitl.New(th.conn)
-	hitlMgr.SetConfiguration(th.ctx, hitl.DefaultConfiguration())
+	_ = hitlMgr.SetConfiguration(th.ctx, hitl.DefaultConfiguration())
 
 	// Test 1: LLM error → graceful degradation
 	t.Log("--- Recovery 1: LLM error ---")
@@ -524,7 +524,7 @@ func TestFullStackE2E_ErrorRecoveryFlows(t *testing.T) {
 	req, _ := http.NewRequest("GET", ts.URL+"/api/v1/sessions", nil)
 	req.Header.Set("Authorization", "Bearer invalid-key-here-12345")
 	resp, _ := ts.Client().Do(req)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)
 	}
@@ -535,7 +535,7 @@ func TestFullStackE2E_ErrorRecoveryFlows(t *testing.T) {
 	req2, _ := http.NewRequest("GET", ts.URL+"/api/v1/sessions/00000000-0000-0000-0000-gggggggggggg", nil)
 	req2.Header.Set("Authorization", "Bearer "+adminKey)
 	resp2, _ := ts.Client().Do(req2)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 	if resp2.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400 for invalid UUID, got %d", resp2.StatusCode)
 	}
@@ -561,7 +561,7 @@ func TestFullStackE2E_SessionLifecycle(t *testing.T) {
 	}
 
 	adminKey := "cs_sk_admin_lifecycle_e2e_001"
-	th.conn.Exec(th.ctx,
+	_ = th.conn.Exec(th.ctx,
 		`INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ('key-lifecycle-admin', $1, 'cs_sk_ad', 'admin', datetime('now'))`,
 		sha256Hash(adminKey))
 	apiServer := api.NewServer(api.ServerConfig{DB: th.conn, HITL: th.hitl})
@@ -574,7 +574,7 @@ func TestFullStackE2E_SessionLifecycle(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+adminKey)
 	resp, _ := ts.Client().Do(req)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	t.Logf("  booting → idle: HTTP %d", resp.StatusCode)
 
 	// Run iteration

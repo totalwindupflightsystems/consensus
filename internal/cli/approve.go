@@ -152,11 +152,11 @@ func approveInteractive() error {
 
 	choice := strings.TrimSpace(strings.ToLower(scanner.Text()))
 
-	switch {
-	case choice == "q":
+	switch choice {
+	case "q":
 		fmt.Println("Cancelled.")
 		return nil
-	case choice == "a":
+	case "a":
 		// Approve all
 		for _, a := range pending {
 			id := valString(a["id"])
@@ -168,7 +168,7 @@ func approveInteractive() error {
 			fmt.Printf("Approved: %s...\n", id[:8])
 		}
 		return nil
-	case choice == "r":
+	case "r":
 		// Reject all
 		for _, a := range pending {
 			id := valString(a["id"])

@@ -168,8 +168,8 @@ func TestExecuteExternalTool_EnvWhitelist(t *testing.T) {
 	cfg.AllowedEnv = []string{"CONSENSUS_*", "HOME"}
 
 	// Set a test env var with the allowed prefix
-	os.Setenv("CONSENSUS_TEST_VAR", "should_pass")
-	defer os.Unsetenv("CONSENSUS_TEST_VAR")
+	_ = os.Setenv("CONSENSUS_TEST_VAR", "should_pass")
+	defer func() { _ = os.Unsetenv("CONSENSUS_TEST_VAR") }()
 
 	result, err := ExecuteExternalTool(ctx, "sh", []string{"-c", "echo CONSENSUS_TEST_VAR=$CONSENSUS_TEST_VAR"}, cfg)
 	if err != nil {

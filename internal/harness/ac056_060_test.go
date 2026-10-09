@@ -33,16 +33,16 @@ func TestAC056_AgentSessionLifecycle(t *testing.T) {
 	t.Logf("AC-056: initial state — status=%s, iteration=%d", status, iteration)
 
 	// 2. Agent thinks (simulate harness starting work)
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
 
 	// 3. Agent writes a memory event (doing work)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO memory_events (type, content, session_id, iteration_created)
 		VALUES ('text_block', 'Agent is working on task', $1, 1)
 	`, sessionID)
 
 	// 4. Agent completes
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		UPDATE sessions SET status = 'completed', iteration = iteration + 1, heartbeat_at = datetime('now')
 		WHERE id = $1
 	`, sessionID)
@@ -80,21 +80,21 @@ func TestAC057_ParallelAgents(t *testing.T) {
 	agent1 := "p1p1p1p1-1111-1111-1111-p1p1p1p1p1p1"
 	agent2 := "p2p2p2p2-2222-2222-2222-p2p2p2p2p2p2"
 
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ($1, 'parallel-A', 'test-model', 'thinking', 'Task Alpha')
 	`, agent1)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ($1, 'parallel-B', 'test-model', 'thinking', 'Task Beta')
 	`, agent2)
 
 	// Both agents write events simultaneously
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO memory_events (type, content, session_id, iteration_created)
 		VALUES ('text_block', 'Agent A event', $1, 1)
 	`, agent1)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO memory_events (type, content, session_id, iteration_created)
 		VALUES ('text_block', 'Agent B event', $1, 2)
 	`, agent2)
@@ -140,36 +140,36 @@ func TestAC058_SubAgentChain(t *testing.T) {
 	rootID := "root-root-root-root-rootrootroot1"
 
 	// Create root
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ($1, 'root-agent', 'test-model', 'thinking', 'Root task')
 	`, rootID)
 
 	// Root creates a pending task
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO tasks (id, session_id, title, description, status)
 		VALUES ('task-chain-1', $1, 'Delegated task', 'Child should do this', 'pending')
 	`, rootID)
 
 	// Child is spawned from the task
 	childID := "child-child-child-child-childchild1"
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, parent_id, goal)
 		VALUES ($1, 'child-agent', 'test-model', 'thinking', $2, 'Child task')
 	`, childID, rootID)
 
 	// Root sets waiting_sub
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'waiting_sub' WHERE id = $1`, rootID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'waiting_sub' WHERE id = $1`, rootID)
 
 	// Child creates a subtask
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO tasks (id, session_id, title, description, status)
 		VALUES ('task-chain-2', $1, 'Sub-delegated task', 'Grandchild should do this', 'pending')
 	`, childID)
 
 	// Grandchild spawned
 	grandchildID := "grand-grand-grand-grand-grandchild1"
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, parent_id, goal)
 		VALUES ($1, 'grandchild-agent', 'test-model', 'thinking', $2, 'Grandchild task')
 	`, grandchildID, childID)
@@ -222,16 +222,16 @@ func TestAC059_HITLApprovalFlow(t *testing.T) {
 	}
 
 	// Agent is thinking → requests tool that needs approval
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID)
 
 	// Create approval request
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO approval_requests (id, session_id, request_type, reason, status, reviewed_by, created_at)
 		VALUES ('apr-059', $1, 'destructive_action', 'Agent wants to delete records', 'pending', '', datetime('now'))
 	`, sessionID)
 
 	// Session pauses for approval
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'paused' WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'paused' WHERE id = $1`, sessionID)
 
 	// Verify paused
 	pRows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
@@ -240,13 +240,13 @@ func TestAC059_HITLApprovalFlow(t *testing.T) {
 	}
 
 	// Human reviews and approves
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		UPDATE approval_requests SET status = 'approved', reviewed_by = 'admin', reviewed_at = datetime('now')
 		WHERE id = 'apr-059'
 	`)
 
 	// Session resumes
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`, sessionID)
 
 	rRows, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
 	resumedStatus := toString(rRows[0]["status"])
@@ -283,7 +283,7 @@ func TestAC060_FullSystemIntegrity(t *testing.T) {
 		id := fmt.Sprintf("full-%d-system-agent-%d", i, i)
 		agentIDs = append(agentIDs, id)
 		goal := fmt.Sprintf("System integrity test agent %d", i)
-		th.conn.Exec(th.ctx, `
+		_ = th.conn.Exec(th.ctx, `
 			INSERT INTO sessions (id, agent_name, model_id, status, goal)
 			VALUES ($1, $2, 'test-model', 'idle', $3)
 		`, id, fmt.Sprintf("agent-%d", i), goal)
@@ -291,14 +291,14 @@ func TestAC060_FullSystemIntegrity(t *testing.T) {
 
 	// 2. Each agent has memory events
 	for _, id := range agentIDs {
-		th.conn.Exec(th.ctx, `
+		_ = th.conn.Exec(th.ctx, `
 			INSERT INTO memory_events (type, content, session_id, iteration_created)
 			VALUES ('text_block', 'System integrity event for '+$1, $1, 1)
 		`, id)
 	}
 
 	// 3. Skills registry is populated
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-full-1', 'core_skill', '{"description":"Core system skill"}', 'Core instructions', 1)
 	`)

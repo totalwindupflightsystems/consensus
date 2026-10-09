@@ -291,7 +291,7 @@ func ExecuteTier2(stmt string, whitelist *TableWhitelist) *ExecuteTier2Result {
 	seenParams := make(map[int]bool)
 	for _, m := range paramMatches {
 		var idx int
-		fmt.Sscanf(m[1], "%d", &idx)
+		_, _ = fmt.Sscanf(m[1], "%d", &idx)
 		if idx < 1 {
 			return &ExecuteTier2Result{
 				Allowed:    false,

@@ -34,7 +34,7 @@ func TestPostgresBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to Postgres: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	if database.Backend() != db.BackendPostgres {
 		t.Fatalf("expected postgres backend, got %s", database.Backend())
@@ -291,7 +291,7 @@ func TestPostgresRepairCircuitBreakers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to Postgres: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// The driver's AfterConnect hook runs SET ROLE agent_role (RLS). Once
 	// migration 021 has created agent_role, the main pool runs with reduced
@@ -440,7 +440,7 @@ func TestPostgresRepairCircuitBreakersOldShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to Postgres: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	adminDB := database
 	if pgdb, ok := database.(*pgpostgres.DB); ok {

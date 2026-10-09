@@ -29,7 +29,7 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	// Seed admin API key
 	adminKey := "cs_sk_admin_e2e_test_key_42"
 	adminHash := sha256Hash(adminKey)
-	th.conn.Exec(th.ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ('key-admin', $1, 'cs_sk_ad', 'admin', datetime('now'))`, adminHash)
+	_ = th.conn.Exec(th.ctx, `INSERT INTO api_keys (id, key_hash, key_prefix, scope, created_at) VALUES ('key-admin', $1, 'cs_sk_ad', 'admin', datetime('now'))`, adminHash)
 
 	// Wire API server on same DB
 	apiServer := api.NewServer(api.ServerConfig{DB: th.conn, HITL: hitl.New(th.conn)})
@@ -44,13 +44,13 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create session: %d %s", resp.StatusCode, string(body))
 	}
 	var created api.CreateSessionResponse
-	json.Unmarshal(body, &created)
+	_ = json.Unmarshal(body, &created)
 	sessionID := created.ID
 	sessionKey := created.APIKey
 	t.Logf("session created: %s", sessionID)
@@ -60,7 +60,7 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Authorization", "Bearer "+sessionKey)
 	resp2, _ := ts.Client().Do(req2)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 
 	// Run harness iteration
 	iter := getSessionIteration(t, th, sessionID) + 1
@@ -101,10 +101,10 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get session request: %v", err)
 	}
-	defer resp3.Body.Close()
+	defer func() { _ = resp3.Body.Close() }()
 	body3, _ := io.ReadAll(resp3.Body)
 	var sr api.SessionResponse
-	json.Unmarshal(body3, &sr)
+	_ = json.Unmarshal(body3, &sr)
 	if sr.AgentName != "e2e-agent" {
 		t.Errorf("expected agent 'e2e-agent', got %q", sr.AgentName)
 	}
@@ -113,7 +113,7 @@ func TestEndToEnd_FullStack(t *testing.T) {
 	req4, _ := http.NewRequest("GET", ts.URL+"/api/v1/sessions/nonexistent", nil)
 	req4.Header.Set("Authorization", "Bearer "+sessionKey)
 	resp4, _ := ts.Client().Do(req4)
-	resp4.Body.Close()
+	_ = resp4.Body.Close()
 	if resp4.StatusCode != http.StatusForbidden {
 		t.Errorf("RLS: expected 403, got %d", resp4.StatusCode)
 	}

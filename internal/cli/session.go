@@ -202,7 +202,7 @@ func followSessionLogs(client *Client, fm *Formatter, sessionID string, initial 
 	// Print initial results
 	if len(initial) > 0 {
 		fm.PrintText("=== Current iterations ===\n")
-		fm.PrintTable(initial, []string{"iteration_id", "session_id", "rows_affected", "created_at"})
+		_ = fm.PrintTable(initial, []string{"iteration_id", "session_id", "rows_affected", "created_at"})
 	}
 
 	lastCount := len(initial)
@@ -210,26 +210,25 @@ func followSessionLogs(client *Client, fm *Formatter, sessionID string, initial 
 
 	// Poll every 3 seconds for new iterations
 	for {
-		select {
-		case <-time.After(3 * time.Second):
-			results, err := client.ListIterations(sessionID)
-			if err != nil {
-				// Don't exit on transient errors, just warn
-				fm.PrintText("Poll error: %v (retrying)\n", err)
-				continue
+		time.Sleep(3 * time.Second)
+
+		results, err := client.ListIterations(sessionID)
+		if err != nil {
+			// Don't exit on transient errors, just warn
+			fm.PrintText("Poll error: %v (retrying)\n", err)
+			continue
+		}
+
+		if len(results) > lastCount {
+			newOnes := results[lastCount:]
+			for _, iter := range newOnes {
+				_ = fm.PrintTable([]map[string]any{iter}, []string{"iteration_id", "session_id", "rows_affected", "created_at"})
 			}
+			lastCount = len(results)
 
-			if len(results) > lastCount {
-				newOnes := results[lastCount:]
-				for _, iter := range newOnes {
-					fm.PrintTable([]map[string]any{iter}, []string{"iteration_id", "session_id", "rows_affected", "created_at"})
-				}
-				lastCount = len(results)
-
-				// Stop if we've exceeded the max
-				if maxIterations > 0 && lastCount >= maxIterations {
-					return nil
-				}
+			// Stop if we've exceeded the max
+			if maxIterations > 0 && lastCount >= maxIterations {
+				return nil
 			}
 		}
 	}

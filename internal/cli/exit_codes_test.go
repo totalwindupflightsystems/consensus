@@ -87,12 +87,12 @@ func TestConfigGet_ConnectionFailure(t *testing.T) {
 func TestStatus_MetricsAuthRejected(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.URL.Path == "/api/v1/health":
-			json.NewEncoder(w).Encode(map[string]any{"status": "ok", "version": "0.1.0"})
-		case r.URL.Path == "/api/v1/metrics":
+		switch r.URL.Path {
+		case "/api/v1/health":
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "version": "0.1.0"})
+		case "/api/v1/metrics":
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"error": map[string]string{"code": "UNAUTHENTICATED", "message": "invalid or expired API key"},
 			})
 		default:

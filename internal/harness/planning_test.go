@@ -617,28 +617,28 @@ func openBenchmarkSQLite(b *testing.B) (db.DB, func()) {
 		b.Fatalf("bench: create temp db: %v", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	ctx := context.Background()
 	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: open sqlite: %v", err)
 	}
 	if err := runTestMigration(ctx, conn); err != nil {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: migration: %v", err)
 	}
 	if err := seedModelRegistry(ctx, conn); err != nil {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: seed models: %v", err)
 	}
 
 	cleanup := func() {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 	}
 	return conn, cleanup
 }

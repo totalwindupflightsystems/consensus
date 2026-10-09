@@ -21,13 +21,13 @@ func TestAC033_SkillDisableAndReEnable(t *testing.T) {
 	defer th.close()
 
 	// Insert an enabled skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-life-1', 'toggle_skill', '{"description":"Toggle test"}', 'do thing', 1)
 	`)
 
 	// Verify it appears in enabled skills
-	skills, _ := th.Harness.readSkillsMetadata(th.ctx)
+	skills, _ := th.readSkillsMetadata(th.ctx)
 	if len(skills) != 1 {
 		t.Fatalf("AC-033: expected 1 enabled skill initially, got %d", len(skills))
 	}
@@ -40,17 +40,17 @@ func TestAC033_SkillDisableAndReEnable(t *testing.T) {
 	}
 
 	// Should be excluded from metadata query
-	skills, _ = th.Harness.readSkillsMetadata(th.ctx)
+	skills, _ = th.readSkillsMetadata(th.ctx)
 	if len(skills) != 0 {
 		t.Errorf("AC-033: expected 0 enabled skills after disable, got %d", len(skills))
 	}
 	t.Log("AC-033: disabled skill excluded from context")
 
 	// Re-enable it
-	th.conn.Exec(th.ctx, `UPDATE skills_registry SET enabled = 1, updated_at = datetime('now') WHERE name = $1`, "toggle_skill")
+	_ = th.conn.Exec(th.ctx, `UPDATE skills_registry SET enabled = 1, updated_at = datetime('now') WHERE name = $1`, "toggle_skill")
 
 	// Should be visible again
-	skills, _ = th.Harness.readSkillsMetadata(th.ctx)
+	skills, _ = th.readSkillsMetadata(th.ctx)
 	if len(skills) != 1 {
 		t.Errorf("AC-033: expected 1 enabled skill after re-enable, got %d", len(skills))
 	}
@@ -65,7 +65,7 @@ func TestAC033_SkillUpdateTimestamp(t *testing.T) {
 	defer th.close()
 
 	// Insert skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-ts-1', 'time_skill', '{"description":"Time test"}', 'check time', 1)
 	`)
@@ -114,7 +114,7 @@ func TestAC033_SkillDelete(t *testing.T) {
 	defer th.close()
 
 	// Insert and then delete a skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-del-1', 'deletable_skill', '{}', 'temp', 1)
 	`)

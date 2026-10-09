@@ -159,7 +159,7 @@ func (m *Manager) SpawnSubAgent(ctx context.Context, parentSessionID, childAgent
 		}
 	}
 	if currentDepth >= maxDepth {
-		return nil, fmt.Errorf("subagent: depth limit reached (%d/%d). Cannot spawn sub-agent.", currentDepth, maxDepth)
+		return nil, fmt.Errorf("subagent: depth limit reached (%d/%d). Cannot spawn sub-agent", currentDepth, maxDepth)
 	}
 
 	// Generate IDs
@@ -201,11 +201,10 @@ func (m *Manager) SpawnSubAgent(ctx context.Context, parentSessionID, childAgent
 		return nil, fmt.Errorf("subagent: create task: %w", err)
 	}
 
-	// Fork memory from parent to child
-	if _, err := m.ForkMemory(ctx, parentSessionID, childSessionID); err != nil {
-		// Memory fork failure is non-fatal; child starts with empty memory
-		// and can still execute the task
-	}
+	// Fork memory from parent to child.
+	// Memory fork failure is non-fatal; child starts with empty memory and can
+	// still execute the task.
+	_, _ = m.ForkMemory(ctx, parentSessionID, childSessionID)
 
 	// Transition parent to waiting_sub
 	err = m.database.Exec(ctx, `
@@ -489,8 +488,4 @@ func toString(v interface{}) string {
 		return s
 	}
 	return fmt.Sprintf("%v", v)
-}
-
-func getSessionStatus(status string) session.Status {
-	return session.Status(status)
 }

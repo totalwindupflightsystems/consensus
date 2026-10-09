@@ -225,6 +225,9 @@ func (s *Server) toolCreateSession(args json.RawMessage, sess *mcpSession) (any,
 		`INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('header', $2, $1, 0)`,
 		sessionID, fmt.Sprintf("Session created for: %s", input.Goal),
 	)
+	if err != nil {
+		return nil, &JSONRPCErrObj{Code: -32603, Message: "Internal error", Data: err.Error()}
+	}
 
 	result := map[string]any{
 		"id":      sessionID,
@@ -285,7 +288,7 @@ func (s *Server) toolSendMessage(args json.RawMessage, sess *mcpSession) (any, *
 
 	// If session is idle, paused, or booting, wake it to thinking
 	if status == "idle" || status == "paused" || status == "booting" {
-		s.db.Exec(ctx,
+		_ = s.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1`,
 			input.SessionID,
 		)
@@ -436,7 +439,7 @@ func (s *Server) toolReviewApproval(args json.RawMessage, sess *mcpSession) (any
 
 	// If approved/resolved, resume the session
 	if input.Decision == "approved" || input.Decision == "modified" {
-		s.db.Exec(ctx,
+		_ = s.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = $1 AND status = 'paused'`,
 			sessionID,
 		)

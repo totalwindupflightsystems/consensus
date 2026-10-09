@@ -270,8 +270,8 @@ func TestResolveConfigPath_ExplicitFlag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
 
 	oldConfig := optConfig
 	optConfig = tmpFile.Name()
@@ -775,7 +775,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Health ───────────────────────────────────────────
 	if path == "/api/v1/health" && method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"healthy": true, "version": "consensus-0.1.0",
 			"schema_version": "1.0.0", "status": "running",
 		})
@@ -784,7 +784,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Metrics ──────────────────────────────────────────
 	if path == "/api/v1/metrics" && method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"active_sessions": float64(3), "pending_tasks": float64(1),
 			"pending_approvals": float64(2), "total_sessions": float64(15), "total_cost_usd": 4.20,
 		})
@@ -798,7 +798,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /memory/pages
 		if strings.Contains(suffix, "/memory/pages") && method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{
+			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"id": float64(1), "name": "page1", "created_at": "2026-05-07T00:00:00Z"},
 			})
 			return
@@ -806,7 +806,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /memory/{id}
 		if strings.Contains(suffix, "/memory/") && method == http.MethodGet {
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"id": float64(1), "type": "text_block", "content": "hello world",
 				"iteration_created": float64(1), "created_at": "2026-05-07T00:00:00Z",
 			})
@@ -815,7 +815,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /memory (list)
 		if strings.Contains(suffix, "/memory") && method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{
+			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"id": float64(1), "type": "text_block", "content": "hello", "iteration_created": float64(1),
 					"display_mode": "full", "created_at": "2026-05-07T00:00:00Z"},
 				{"id": float64(2), "type": "tool_call", "content": "scrape", "iteration_created": float64(1),
@@ -826,7 +826,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /context
 		if strings.Contains(suffix, "/context") && method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{
+			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"id": float64(1), "iteration_created": float64(1), "type": "text_block",
 					"display_mode": "full", "rendered_text": "Active context content"},
 			})
@@ -835,7 +835,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /iterations
 		if strings.Contains(suffix, "/iterations") && method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{
+			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"iteration_id": "1", "session_id": sessID, "rows_affected": "2", "created_at": "2026-05-07T00:00:00Z"},
 				{"iteration_id": "2", "session_id": sessID, "rows_affected": "3", "created_at": "2026-05-07T00:01:00Z"},
 			})
@@ -844,7 +844,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /billing
 		if strings.Contains(suffix, "/billing") {
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"session_id":              sessID,
 				"total_cost_usd":          0.0084,
 				"total_prompt_tokens":     float64(200),
@@ -865,13 +865,13 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// /message
 		if strings.Contains(suffix, "/message") && method == http.MethodPost {
-			json.NewEncoder(w).Encode(map[string]any{"sent": true, "info": "Message queued"})
+			_ = json.NewEncoder(w).Encode(map[string]any{"sent": true, "info": "Message queued"})
 			return
 		}
 
 		// /approvals (session-scoped)
 		if strings.Contains(suffix, "/approvals") {
-			json.NewEncoder(w).Encode([]map[string]any{
+			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"id": "appr-1", "session_id": sessID, "status": "pending"},
 			})
 			return
@@ -879,7 +879,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// PATCH session
 		if method == http.MethodPatch {
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"id": sessID, "status": "paused",
 				"created_at": "2026-05-07T00:00:00Z",
 			})
@@ -888,13 +888,13 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 		// DELETE session
 		if method == http.MethodDelete {
-			json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "id": sessID})
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "id": sessID})
 			return
 		}
 
 		// GET session by ID
 		if method == http.MethodGet {
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"id": sessID, "agent_name": "test-agent", "status": "thinking",
 				"goal": "test goal", "iteration": float64(5),
 				"tokens_used_in": float64(200), "tokens_used_out": float64(100),
@@ -907,7 +907,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Session list/create (root-level) ────────────────
 	if path == "/api/v1/sessions" && method == http.MethodGet {
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"id": "sess-1", "agent_name": "researcher", "status": "idle",
 				"goal": "analyze data", "iteration": float64(3),
 				"tokens_used_in": float64(100), "tokens_used_out": float64(50),
@@ -920,7 +920,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if path == "/api/v1/sessions" && method == http.MethodPost {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id": "sess-001", "status": "booting",
 			"api_key": "cs_sk_test123", "created_at": "2026-05-07T00:00:00Z",
 		})
@@ -929,20 +929,20 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Tools & Skills ────────────────────────────────────
 	if path == "/api/v1/tools" && method == http.MethodGet {
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"name": "scraper", "description": "Scrapes web pages",
 				"hemisphere": "external", "handler_type": "subprocess", "status": "active"},
 		})
 		return
 	}
 	if path == "/api/v1/skills" && method == http.MethodGet {
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"name": "excel_generator", "id": "sk-1", "enabled": true},
 		})
 		return
 	}
 	if strings.HasPrefix(path, "/api/v1/skills/") && method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name": "excel_generator", "id": "sk-1",
 			"metadata": "generates excel", "instructions": "step 1...",
 		})
@@ -951,7 +951,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Approvals ─────────────────────────────────────────
 	if path == "/api/v1/approvals" && method == http.MethodGet {
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"id": "appr-1", "session_id": "sess-1", "request_type": "destructive_tool",
 				"risk_level": "high", "status": "pending", "description": "Delete temp_cache",
 				"created_at": "2026-05-07T00:00:00Z"},
@@ -959,7 +959,7 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.HasPrefix(path, "/api/v1/approvals/") && !strings.Contains(path, "/review") && method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id": "appr-1", "session_id": "sess-1", "request_type": "destructive_tool",
 			"risk_level": "high", "status": "pending", "description": "Delete temp_cache",
 			"sql_preview": "DROP TABLE temp_cache",
@@ -970,15 +970,15 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(path, "/api/v1/approvals/") && strings.Contains(path, "/review") && method == http.MethodPost {
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
-		json.Unmarshal(body, &req)
+		_ = json.Unmarshal(body, &req)
 		req["status"] = req["decision"]
-		json.NewEncoder(w).Encode(req)
+		_ = json.NewEncoder(w).Encode(req)
 		return
 	}
 
 	// ─── Config ────────────────────────────────────────────
 	if path == "/api/v1/config" && method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"llm":  map[string]any{"default_model": "gpt-4o", "provider": "openai"},
 			"hitl": map[string]any{"require_approval_for_destructive": true},
 		})
@@ -987,12 +987,12 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 	if path == "/api/v1/config" && method == http.MethodPatch {
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
-		json.Unmarshal(body, &req)
-		json.NewEncoder(w).Encode(map[string]any{"updated": true, "settings": req})
+		_ = json.Unmarshal(body, &req)
+		_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "settings": req})
 		return
 	}
 	if path == "/api/v1/config/models" && method == http.MethodGet {
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"model_id": "gpt-4o", "tier": 1, "max_context": float64(128000),
 				"cost_per_m_in": 2.5, "cost_per_m_out": 10.0, "enabled": true},
 		})
@@ -1001,19 +1001,19 @@ func (ms *mockAPIServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	// ─── Migration ─────────────────────────────────────────
 	if path == "/api/v1/migrate" && method == http.MethodPost {
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"version": "1.0.0", "applied_at": "2026-05-07T00:00:00Z", "status": "ok",
 		})
 		return
 	}
 	if path == "/api/v1/migrate/rollback" && method == http.MethodPost {
-		json.NewEncoder(w).Encode(map[string]any{"status": "rolled_back", "version": "0.9.0"})
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "rolled_back", "version": "0.9.0"})
 		return
 	}
 
 	// ─── Fallback: 404 ─────────────────────────────────────
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]string{"code": "NOT_FOUND", "message": "Unknown route"},
 	})
 }
@@ -1147,7 +1147,7 @@ func TestSessionPauseResume_SendsActionVerbs(t *testing.T) {
 			body, _ := io.ReadAll(r.Body)
 			gotBodies = append(gotBodies, string(body))
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"id": "sess-1", "status": "paused", "created_at": "2026-05-07T00:00:00Z",
 			})
 			return
@@ -1538,8 +1538,8 @@ func TestMigrateCreate_Success(t *testing.T) {
 
 	// Create in temp dir
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir("..")
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir("..") }()
 
 	cmd := newMigrateCreateCmd()
 	cmd.SetArgs([]string{"add_test_table"})
@@ -1902,7 +1902,7 @@ func TestClient_Health(t *testing.T) {
 func TestClient_DecodeBody_400Error(t *testing.T) {
 	ms := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]string{"code": "INVALID_REQUEST", "message": "bad input"},
 		})
 	}))
@@ -1922,7 +1922,7 @@ func TestClient_DecodeBody_400Error(t *testing.T) {
 func TestClient_DecodeBody_500Error(t *testing.T) {
 	ms := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
-		w.Write([]byte("internal boom"))
+		_, _ = w.Write([]byte("internal boom"))
 	}))
 	defer ms.Close()
 	c := NewClient(ms.URL, "")
@@ -2016,12 +2016,12 @@ func TestInitCommand_OutputGoesToStdoutNotStderr(t *testing.T) {
 
 func TestLoadCLIConfig_WithValidConfigFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir("..")
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir("..") }()
 
 	// Write a valid config file
 	cfgData := "server:\n  url: http://my-server:9000\n  api_key: my-config-key\n"
-	os.WriteFile("consensus.yaml", []byte(cfgData), 0644)
+	_ = os.WriteFile("consensus.yaml", []byte(cfgData), 0644)
 
 	// Reset optConfig for this test
 	prevConfig := optConfig
@@ -2042,11 +2042,11 @@ func TestLoadCLIConfig_WithValidConfigFile(t *testing.T) {
 
 func TestLoadCLIConfig_WithExplicitFlag(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir("..")
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir("..") }()
 
 	cfgPath := filepath.Join(tmpDir, "explicit.yaml")
-	os.WriteFile(cfgPath, []byte("server:\n  url: http://explicit:8080\n"), 0644)
+	_ = os.WriteFile(cfgPath, []byte("server:\n  url: http://explicit:8080\n"), 0644)
 
 	prevConfig := optConfig
 	optConfig = cfgPath
@@ -2067,21 +2067,21 @@ func TestApplyConfigOverrides_NoConfig(t *testing.T) {
 	prevServer := optServer
 	optServer = ""
 	prevSrvEnv := os.Getenv("CONSENSUS_SERVER")
-	os.Unsetenv("CONSENSUS_SERVER")
+	_ = os.Unsetenv("CONSENSUS_SERVER")
 	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
-	os.Unsetenv("CONSENSUS_API_KEY")
+	_ = os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
 		if prevSrvEnv == "" {
-			os.Unsetenv("CONSENSUS_SERVER")
+			_ = os.Unsetenv("CONSENSUS_SERVER")
 		} else {
-			os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
+			_ = os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
 		}
 		if prevKeyEnv == "" {
-			os.Unsetenv("CONSENSUS_API_KEY")
+			_ = os.Unsetenv("CONSENSUS_API_KEY")
 		} else {
-			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+			_ = os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
 		}
 	}()
 
@@ -2113,22 +2113,22 @@ server:
 	prevKey := optAPIKey
 	optAPIKey = ""
 	prevSrvEnv := os.Getenv("CONSENSUS_SERVER")
-	os.Unsetenv("CONSENSUS_SERVER")
+	_ = os.Unsetenv("CONSENSUS_SERVER")
 	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
-	os.Unsetenv("CONSENSUS_API_KEY")
+	_ = os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
 		optAPIKey = prevKey
 		if prevSrvEnv == "" {
-			os.Unsetenv("CONSENSUS_SERVER")
+			_ = os.Unsetenv("CONSENSUS_SERVER")
 		} else {
-			os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
+			_ = os.Setenv("CONSENSUS_SERVER", prevSrvEnv)
 		}
 		if prevKeyEnv == "" {
-			os.Unsetenv("CONSENSUS_API_KEY")
+			_ = os.Unsetenv("CONSENSUS_API_KEY")
 		} else {
-			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+			_ = os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
 		}
 	}()
 
@@ -2162,22 +2162,22 @@ server:
 	prevKey := optAPIKey
 	optAPIKey = ""
 	prevEnv := os.Getenv("CONSENSUS_SERVER")
-	os.Setenv("CONSENSUS_SERVER", "http://env-server:8888")
+	_ = os.Setenv("CONSENSUS_SERVER", "http://env-server:8888")
 	prevKeyEnv := os.Getenv("CONSENSUS_API_KEY")
-	os.Unsetenv("CONSENSUS_API_KEY")
+	_ = os.Unsetenv("CONSENSUS_API_KEY")
 	defer func() {
 		optConfig = prevConfig
 		optServer = prevServer
 		optAPIKey = prevKey
 		if prevEnv == "" {
-			os.Unsetenv("CONSENSUS_SERVER")
+			_ = os.Unsetenv("CONSENSUS_SERVER")
 		} else {
-			os.Setenv("CONSENSUS_SERVER", prevEnv)
+			_ = os.Setenv("CONSENSUS_SERVER", prevEnv)
 		}
 		if prevKeyEnv == "" {
-			os.Unsetenv("CONSENSUS_API_KEY")
+			_ = os.Unsetenv("CONSENSUS_API_KEY")
 		} else {
-			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+			_ = os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
 		}
 	}()
 
@@ -2254,7 +2254,7 @@ func TestNewFormatterFromGlobals(t *testing.T) {
 	// Quiet mode should be active
 	var buf bytes.Buffer
 	fm.SetWriter(&buf)
-	fm.PrintTable([]map[string]any{}, []string{})
+	_ = fm.PrintTable([]map[string]any{}, []string{})
 	if buf.Len() != 0 {
 		t.Error("expected empty output in quiet mode from global formatter")
 	}
@@ -2342,7 +2342,7 @@ func TestClient_VerifyIdentity_Success(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"status":"ok","version":"0.1.0","uptime_seconds":42}`)
+		_, _ = fmt.Fprintln(w, `{"status":"ok","version":"0.1.0","uptime_seconds":42}`)
 	}))
 	defer srv.Close()
 
@@ -2360,7 +2360,7 @@ func TestClient_VerifyIdentity_WrongService(t *testing.T) {
 		// or a 404 default page might return.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintln(w, "<html><body>404 — page not found</body></html>")
+		_, _ = fmt.Fprintln(w, "<html><body>404 — page not found</body></html>")
 	}))
 	defer srv.Close()
 
@@ -2384,7 +2384,7 @@ func TestClient_VerifyIdentity_WrongService(t *testing.T) {
 func TestClient_VerifyIdentity_WrongService_JSONWithoutOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"status":"running","version":"other-1.0.0"}`)
+		_, _ = fmt.Fprintln(w, `{"status":"running","version":"other-1.0.0"}`)
 	}))
 	defer srv.Close()
 
@@ -2465,7 +2465,7 @@ func TestPreRun_VerifyIdentity_SkipCustomServer(t *testing.T) {
 	// against this URL, it would produce the shadowing diagnostic.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, "<html><body>Not Consensus</body></html>")
+		_, _ = fmt.Fprintln(w, "<html><body>Not Consensus</body></html>")
 	}))
 	defer srv.Close()
 
@@ -2498,7 +2498,7 @@ func TestPreRun_VerifyIdentity_SkipCustomServer(t *testing.T) {
 func TestPreRun_VerifyIdentity_RunsByDefault(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintln(w, "definitely not consensus")
+		_, _ = fmt.Fprintln(w, "definitely not consensus")
 	}))
 	defer srv.Close()
 
@@ -2521,18 +2521,18 @@ func TestPreRun_VerifyIdentity_RunsByDefault(t *testing.T) {
 // ============================================================================
 
 // captureStdout runs fn and returns its error and captured stdout.
-func captureStdout(fn func() error) (error, string) {
+func captureStdout(fn func() error) (error, string) { //nolint:staticcheck // ST1008: (error, string) order kept to avoid churning 13 existing call sites
 	r, w, _ := os.Pipe()
 	old := os.Stdout
 	os.Stdout = w
 
 	err := fn()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	return err, buf.String()
 }
 
@@ -2633,7 +2633,7 @@ func TestProbePort_FreePort(t *testing.T) {
 		t.Fatalf("listen: %v", err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
+	_ = ln.Close()
 
 	res := ProbePort("127.0.0.1", port)
 	if res.Occupied {
@@ -2648,7 +2648,7 @@ func TestProbePort_ConsensusOccupant(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/health" {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{"status":"ok","version":"0.1.0"}`)
+			_, _ = fmt.Fprint(w, `{"status":"ok","version":"0.1.0"}`)
 			return
 		}
 		http.NotFound(w, r)
@@ -2686,7 +2686,7 @@ func TestProbePort_NonHTTPOccupant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	t.Cleanup(func() { ln.Close() })
+	t.Cleanup(func() { _ = ln.Close() })
 	port := ln.Addr().(*net.TCPAddr).Port
 	go func() {
 		for {
@@ -2694,7 +2694,7 @@ func TestProbePort_NonHTTPOccupant(t *testing.T) {
 			if err != nil {
 				return
 			}
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
@@ -2725,7 +2725,7 @@ func TestProbePort_FreePortDoesNotBlock(t *testing.T) {
 		t.Fatalf("listen: %v", err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
+	_ = ln.Close()
 
 	res := ProbePort("127.0.0.1", port)
 	if res.Occupied {

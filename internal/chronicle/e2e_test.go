@@ -85,7 +85,7 @@ api_rate:
 	if err := serveCmd.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer serveCmd.Process.Kill()
+	defer func() { _ = serveCmd.Process.Kill() }()
 
 	apiBase := fmt.Sprintf("http://127.0.0.1:%d", port)
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -149,7 +149,7 @@ api_rate:
 	if err != nil {
 		t.Fatalf("Chronicle UI request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Chronicle UI returned %d, want 200", resp.StatusCode)
 	}
@@ -167,7 +167,7 @@ api_rate:
 	if err != nil {
 		t.Fatalf("CSS request failed: %v", err)
 	}
-	defer cssResp.Body.Close()
+	defer func() { _ = cssResp.Body.Close() }()
 	if cssResp.StatusCode != http.StatusOK {
 		t.Fatalf("CSS returned %d", cssResp.StatusCode)
 	}
@@ -177,9 +177,9 @@ api_rate:
 	if err != nil {
 		t.Fatalf("session GET failed: %v", err)
 	}
-	defer sessionResp.Body.Close()
+	defer func() { _ = sessionResp.Body.Close() }()
 	var sessionData map[string]any
-	json.NewDecoder(sessionResp.Body).Decode(&sessionData)
+	_ = json.NewDecoder(sessionResp.Body).Decode(&sessionData)
 	t.Logf("session: status=%v iteration=%v tokens_in=%v tokens_out=%v",
 		sessionData["status"], sessionData["iteration"],
 		sessionData["tokens_used_in"], sessionData["tokens_used_out"])
@@ -225,11 +225,11 @@ func waitForHealth(t *testing.T, client *http.Client, url string, timeout time.D
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
 		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return true
 		}
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -245,7 +245,7 @@ func seedModels(t *testing.T, client *http.Client, apiBase, adminKey string) {
 	req.Header.Set("Authorization", "Bearer "+adminKey)
 	resp, _ := client.Do(req)
 	if resp != nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 }
 
@@ -270,13 +270,13 @@ func createSession(t *testing.T, client *http.Client, apiBase, adminKey, agentNa
 	if err != nil {
 		t.Fatalf("create session failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("create session returned %d: %s", resp.StatusCode, body)
 	}
 	var result map[string]any
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	sessionID, _ := result["id"].(string)
 	sessionKey, _ := result["api_key"].(string)
 	if sessionID == "" {
@@ -297,7 +297,7 @@ func sendMessage(t *testing.T, client *http.Client, apiBase, sessionID, sessionK
 	if err != nil {
 		t.Fatalf("send message failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("send message returned %d", resp.StatusCode)
 	}
@@ -314,8 +314,8 @@ func waitForSessionComplete(t *testing.T, client *http.Client, apiBase, sessionI
 			continue
 		}
 		var data map[string]any
-		json.NewDecoder(resp.Body).Decode(&data)
-		resp.Body.Close()
+		_ = json.NewDecoder(resp.Body).Decode(&data)
+		_ = resp.Body.Close()
 		status, _ := data["status"].(string)
 		iteration, _ := data["iteration"].(float64)
 		t.Logf("  session status=%s iteration=%.0f", status, iteration)
@@ -337,8 +337,8 @@ func listMemory(t *testing.T, client *http.Client, apiBase, sessionID, adminKey 
 	if err != nil {
 		t.Fatalf("list memory failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var events []map[string]any
-	json.NewDecoder(resp.Body).Decode(&events)
+	_ = json.NewDecoder(resp.Body).Decode(&events)
 	return events
 }

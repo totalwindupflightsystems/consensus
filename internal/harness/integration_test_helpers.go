@@ -44,25 +44,25 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 		return nil, fmt.Errorf("test harness: create temp db: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		cancel()
 		return nil, fmt.Errorf("test harness: open sqlite: %w", err)
 	}
 
 	// Run test migration
 	if err := runTestMigration(ctx, conn); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		cancel()
 		return nil, fmt.Errorf("test harness: migration: %w", err)
 	}
 
 	// Seed model_registry (required FK for sessions)
 	if err := seedModelRegistry(ctx, conn); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		cancel()
 		return nil, fmt.Errorf("test harness: seed models: %w", err)
 	}
@@ -85,11 +85,11 @@ func newTestHarness(llm LLMClient) (*testHarness, error) {
 // SQLite deletes them itself on a clean last-connection close).
 func (th *testHarness) close() {
 	th.cancel()
-	th.conn.Close()
+	_ = th.conn.Close()
 	if th.tmpPath != "" {
-		os.Remove(th.tmpPath)
-		os.Remove(th.tmpPath + "-wal")
-		os.Remove(th.tmpPath + "-shm")
+		_ = os.Remove(th.tmpPath)
+		_ = os.Remove(th.tmpPath + "-wal")
+		_ = os.Remove(th.tmpPath + "-shm")
 	}
 }
 
@@ -162,13 +162,6 @@ func (th *testHarness) createTestSession() (string, error) {
 	// SQLite doesn't have gen_random_uuid(), use a fixed test UUID
 	sessionID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1"
 	err := th.conn.Exec(th.ctx, `INSERT INTO sessions (id, agent_name, model_id, status, trust_level, goal) VALUES ($1, 'test-agent', 'test-model', 'idle', 'high', 'Test goal: prove the harness works')`, sessionID)
-	return sessionID, err
-}
-
-// createTestSessionWithTrustLevel creates a test session with a specific trust level.
-func (th *testHarness) createTestSessionWithTrustLevel(trustLevel string) (string, error) {
-	sessionID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee" + trustLevel[:1]
-	err := th.conn.Exec(th.ctx, `INSERT INTO sessions (id, agent_name, model_id, status, trust_level, goal) VALUES ($1, 'test-agent', 'test-model', 'idle', $2, 'Test goal')`, sessionID, trustLevel)
 	return sessionID, err
 }
 

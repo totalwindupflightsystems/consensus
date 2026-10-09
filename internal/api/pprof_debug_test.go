@@ -27,7 +27,7 @@ func TestSessionMessageWakeFiredOnThinkingTransition(t *testing.T) {
 
 	wakeMu := sync.Mutex{}
 	wakes := make([]string, 0, 1)
-	is.Server.wake = func(sessionID string) {
+	is.wake = func(sessionID string) {
 		wakeMu.Lock()
 		defer wakeMu.Unlock()
 		wakes = append(wakes, sessionID)
@@ -95,7 +95,7 @@ func TestPprofLoopbackListenerServesAndPublicRouterDoesNot(t *testing.T) {
 	if addr == nil {
 		t.Fatal("startPprofListener returned nil for a valid loopback address")
 	}
-	defer addr.Close()
+	defer func() { _ = addr.Close() }()
 
 	url := "http://" + addr.Addr().String() + "/debug/pprof/"
 	client := &http.Client{Timeout: 3 * time.Second}
@@ -103,7 +103,7 @@ func TestPprofLoopbackListenerServesAndPublicRouterDoesNot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("loopback /debug/pprof/: expected 200, got %d", resp.StatusCode)
 	}
@@ -123,7 +123,7 @@ func TestPprofLoopbackListenerServesAndPublicRouterDoesNot(t *testing.T) {
 func TestStartPprofListenerRejectsNonLoopback(t *testing.T) {
 	for _, host := range []string{"0.0.0.0", "192.168.1.50"} {
 		if addr := StartPprofListener(host + ":0"); addr != nil {
-			addr.Close()
+			_ = addr.Close()
 			t.Errorf("startPprofListener accepted non-loopback host %q", host)
 		}
 	}

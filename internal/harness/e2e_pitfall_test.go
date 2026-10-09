@@ -58,11 +58,6 @@ func TestE2E_CircuitBreakerTripsOnConsecutiveErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "cb-test.db")
 
-	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		apiKey = "test-fake-key-not-a-real-secret"
-	}
-
 	// Configure aggressive circuit breaker: 1 error → trip
 	// Also use invalid API key to guarantee LLM failures
 	configYAML := fmt.Sprintf(`server:
@@ -124,7 +119,7 @@ api_rate:
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() { _ = cmd.Process.Kill() }()
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealthE2E(t, baseURL, 15*time.Second) {
@@ -267,7 +262,7 @@ api_rate:
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() { _ = cmd.Process.Kill() }()
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealthE2E(t, baseURL, 15*time.Second) {
@@ -443,8 +438,8 @@ api_rate:
 
 	// Kill the server while the second transaction is open.
 	t.Log("  💥 killing server while work is in flight...")
-	cmd.Process.Kill()
-	cmd.Wait()
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
 
 	crashBoundary := readHarnessRecoverySnapshot(t, dbPath, sessionID)
 	if err := recoverydiag.VerifyDurableAgentProgress(preCrash, crashBoundary); err != nil {
@@ -462,7 +457,7 @@ api_rate:
 	if err := cmd2.Start(); err != nil {
 		t.Fatalf("restart server: %v", err)
 	}
-	defer cmd2.Process.Kill()
+	defer func() { _ = cmd2.Process.Kill() }()
 
 	if !waitForHealthE2E(t, baseURL, 15*time.Second) {
 		t.Fatal("server did not become healthy after restart")
@@ -503,7 +498,7 @@ func readHarnessRecoverySnapshot(t *testing.T, dbPath, sessionID string) recover
 	if err != nil {
 		t.Fatalf("open recovery diagnostics database: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	snapshot, err := recoverydiag.Read(ctx, database, sessionID)
 	if err != nil {
@@ -543,7 +538,7 @@ func queryMemoryEvents(t *testing.T, baseURL, adminKey, sessionID string) []memo
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read raw body for debugging, then parse
 	bodyBytes := make([]byte, 0, 4096)
@@ -611,10 +606,3 @@ func queryMemoryEvents(t *testing.T, baseURL, adminKey, sessionID string) []memo
 // querySession is already defined in e2e_real_llm_serve_test.go.
 // createSession, sendMessage, pollSessionComplete, waitForHealthE2E, seedModels,
 // extractAdminKey are also defined there.
-
-// needServiceRestart returns true if the database driver requires DSN reconnection
-// after a server restart to pick up WAL changes. SQLite via the Go driver should
-// not require this — the WAL is visible immediately on new connection.
-func needServiceRestart(_ context.Context, _ string) bool {
-	return false
-}

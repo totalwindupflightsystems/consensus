@@ -242,7 +242,7 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 			// current content hash (migrationChecksum) OR the legacy
 			// length-based hex (legacyChecksum) — otherwise the embedded file
 			// content differs from what was recorded (BUG-012).
-			stored, _ := appliedChecksums[av]
+			stored := appliedChecksums[av]
 			if stored != "" &&
 				!strings.EqualFold(stored, migrationChecksum(m.SQL)) &&
 				!strings.EqualFold(stored, legacyChecksum(m.SQL)) {
@@ -291,11 +291,9 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 	}
 
 	// Pause all active agent sessions before migration to prevent data races
-	pausedSessions, err := r.pauseActiveSessions(ctx)
-	if err != nil {
-		// Non-fatal: log and continue even if pause fails
-		// The migration is still safe — sessions may see stale schema until restart
-	}
+	// Non-fatal: ignore pause failures — the migration is still safe, though
+	// sessions may see stale schema until restart.
+	pausedSessions, _ := r.pauseActiveSessions(ctx)
 
 	var applied []string
 	for _, m := range r.migrations {
@@ -353,9 +351,8 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 
 	// Resume paused sessions that were active before migration
 	if len(pausedSessions) > 0 {
-		if resumeErr := r.resumePausedSessions(ctx, pausedSessions); resumeErr != nil {
-			// Non-fatal: log — sessions may remain paused but migration is done
-		}
+		// Non-fatal: ignore — sessions may remain paused but migration is done.
+		_ = r.resumePausedSessions(ctx, pausedSessions)
 	}
 
 	return applied, nil
@@ -440,18 +437,16 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 	// Repair: migration 013 had a bug (filterForSQLite stripped valid SQLite
 	// ALTER TABLE ADD COLUMN). DBs initialized before the fix have migration 013
 	// recorded but trust_level missing. Detect and repair silently.
-	if err := r.repairTrustLevel(ctx); err != nil {
-		// Non-fatal: the repair is best-effort. The harness will catch the
-		// missing column in its planning phase and report a clear error.
-	}
+	// Non-fatal: the repair is best-effort. The harness will catch the missing
+	// column in its planning phase and report a clear error.
+	_ = r.repairTrustLevel(ctx)
 
 	// Repair: migration 017's append-only triggers were silently stripped by
 	// filterForSQLite (multi-line CREATE TRIGGER header without " BEGIN " on
 	// the first line). SQLite DBs initialized before the fix have v17 recorded
 	// as applied but no triggers in sqlite_master (DOGFOOD-001).
-	if err := r.repairAppendOnlyTriggers(ctx); err != nil {
-		// Non-fatal: best-effort, same policy as repairTrustLevel.
-	}
+	// Non-fatal: best-effort, same policy as repairTrustLevel.
+	_ = r.repairAppendOnlyTriggers(ctx)
 
 	// Repair: migration 008 was recorded as applied on some installs without
 	// its DDL landing (recorded-but-not-executed — same family as 013/017),
@@ -459,10 +454,9 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 	// missing while schema_versions says v8 applied. Every startup then warns
 	// "failed to initialize HITL defaults: relation hitl_configuration does
 	// not exist" (BUG-010, dexdat sidecar 2026-08-07).
-	if err := r.repairHitlConfiguration(ctx); err != nil {
-		// Non-fatal: best-effort. HITL flows surface the missing table with a
-		// clear error at first use.
-	}
+	// Non-fatal: best-effort. HITL flows surface the missing table with a
+	// clear error at first use.
+	_ = r.repairHitlConfiguration(ctx)
 
 	// Repair: migration 003 drifted on the dexdat sidecar PG —
 	// agent_circuit_breakers was created without breaker_type (and possibly
@@ -470,10 +464,9 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 	// The harness upserts via ON CONFLICT (session_id, breaker_type), which
 	// fails without the column + unique constraint. Reconcile additively
 	// (BUG-012, recorded-but-different-content).
-	if err := r.repairCircuitBreakers(ctx); err != nil {
-		// Non-fatal: best-effort. The harness will surface the missing column
-		// as a query error on first circuit-breaker write.
-	}
+	// Non-fatal: best-effort. The harness will surface the missing column as a
+	// query error on first circuit-breaker write.
+	_ = r.repairCircuitBreakers(ctx)
 
 	// One-time transition: pre-BUG-012 installs recorded length-based hex
 	// checksums (e.g. "2e7" for migration 003). Rewrite those rows to the
@@ -482,11 +475,10 @@ func (r *Runner) AutoMigrate(ctx context.Context) (bool, error) {
 	// checksum matches NEITHER the legacy form NOR the content hash are
 	// genuine recorded-but-different-content drift and are left untouched
 	// (GetState flags them).
-	if err := r.normalizeLegacyChecksums(ctx); err != nil {
-		// Non-fatal: best-effort. GetState still accepts legacy checksums, so
-		// an un-normalized install simply keeps the old scheme until the
-		// next successful startup.
-	}
+	// Non-fatal: best-effort. GetState still accepts legacy checksums, so an
+	// un-normalized install simply keeps the old scheme until the next
+	// successful startup.
+	_ = r.normalizeLegacyChecksums(ctx)
 
 	return len(applied) > 0, nil
 }

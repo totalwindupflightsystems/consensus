@@ -427,7 +427,7 @@ func toFloat64(v any) float64 {
 	case string:
 		// SQLite may return numeric values as strings
 		var f float64
-		json.Unmarshal([]byte(n), &f)
+		_ = json.Unmarshal([]byte(n), &f)
 		return f
 	default:
 		return 0

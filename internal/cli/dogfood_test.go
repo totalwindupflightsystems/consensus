@@ -18,10 +18,10 @@ func TestToolList_EmptyRegistry_PrintsHint(t *testing.T) {
 	defer overrideGlobals(ms.URL, "test-key", "table", false)()
 
 	// Override the mock to return an empty tools registry.
-	ms.Server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ms.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v1/tools" && r.Method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{})
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
 			return
 		}
 		ms.handle(w, r)
@@ -45,10 +45,10 @@ func TestSkillList_EmptyRegistry_PrintsHint(t *testing.T) {
 	defer ms.Close()
 	defer overrideGlobals(ms.URL, "test-key", "table", false)()
 
-	ms.Server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ms.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v1/skills" && r.Method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{})
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
 			return
 		}
 		ms.handle(w, r)
@@ -76,10 +76,10 @@ func TestSessionLogs_EmptyIterations_PrintsExplanation(t *testing.T) {
 	defer ms.Close()
 	defer overrideGlobals(ms.URL, "test-key", "table", false)()
 
-	ms.Server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ms.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if strings.Contains(r.URL.Path, "/iterations") && r.Method == http.MethodGet {
-			json.NewEncoder(w).Encode([]map[string]any{})
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
 			return
 		}
 		ms.handle(w, r)

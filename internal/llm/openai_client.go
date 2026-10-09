@@ -424,7 +424,7 @@ func (c *openaiClient) sendToURL(ctx context.Context, reqBody openaiChatRequest,
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		return resp, nil, fmt.Errorf("llm: read response: %w", err)
 	}
@@ -750,9 +750,7 @@ func stripMarkdownCodeBlock(s string) string {
 			s = strings.TrimPrefix(s, "```")
 		}
 	}
-	if strings.HasSuffix(s, "```") {
-		s = s[:len(s)-3]
-	}
+	s = strings.TrimSuffix(s, "```")
 	return strings.TrimSpace(s)
 }
 

@@ -73,7 +73,7 @@ func (h *Harness) RunAgentIteration(ctx context.Context, sessionID string) (*Ite
 		}
 		if exceeded {
 			slog.Error("harness: budget exceeded, pausing session", "session_id", sessionID)
-			h.db.Exec(ctx, `UPDATE sessions SET status = 'paused' WHERE id = $1`, sessionID)
+			_ = h.db.Exec(ctx, `UPDATE sessions SET status = 'paused' WHERE id = $1`, sessionID)
 			return &IterationResult{
 				Status:        "blocked",
 				NextStatus:    "paused",
@@ -130,13 +130,6 @@ func (h *Harness) RunAgentIteration(ctx context.Context, sessionID string) (*Ite
 // Transaction Execution
 // ============================================================================
 
-type txExecutionResult struct {
-	Result       string
-	SQLExecuted  []string
-	RowsAffected int
-	Error        error
-}
-
 // executeInTransaction runs the agent's SQL inside a database transaction.
 func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic *IterationContext, output *AgentOutput, llmResponseJSON []byte) (*IterationResult, error) {
 	tx, err := h.db.BeginTx(ctx)
@@ -146,13 +139,13 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 
 	defer func() {
 		if tx.IsActive() {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
 	// Set RLS context
 	if err := tx.SetSessionContext(ctx, sessionID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("iteration: set session context: %w", err)
 	}
 
@@ -168,7 +161,7 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 	// Classify + execute memory_state_changes
 	for _, stmt := range SplitStatementsSemicolon(output.MemoryStateChanges) {
 		if err := h.executeStatement(ctx, tx, stmt, sessionID, trustLevel); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
 		}
 		allSQL = append(allSQL, stmt)
@@ -177,7 +170,7 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 	// Classify + execute system_actions
 	for _, stmt := range SplitStatementsSemicolon(output.SystemActions) {
 		if err := h.executeStatement(ctx, tx, stmt, sessionID, trustLevel); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
 		}
 		allSQL = append(allSQL, stmt)
@@ -185,10 +178,10 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 
 	// Write tool_requests as pending rows
 	for _, tr := range output.ToolRequests {
-		stmt := fmt.Sprintf("INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status) VALUES ($1, $2, $3, $4, 'pending')")
+		stmt := "INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status) VALUES ($1, $2, $3, $4, 'pending')"
 		params, _ := json.Marshal(tr.Parameters)
 		if err := tx.Exec(ctx, stmt, sessionID, ic.Iteration, tr.ToolName, string(params)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
 		}
 		allSQL = append(allSQL, stmt)
@@ -198,7 +191,7 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 	for _, spawn := range output.SubAgentSpawns {
 		stmt := `INSERT INTO tasks (session_id, title, description, status) VALUES ($1, $2, $3, 'pending')`
 		if err := tx.Exec(ctx, stmt, sessionID, spawn.Goal, spawn.Goal); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
 		}
 		allSQL = append(allSQL, stmt)
@@ -208,7 +201,7 @@ func (h *Harness) executeInTransaction(ctx context.Context, sessionID string, ic
 	newStatus := h.determineNextStatus(output)
 	if err := tx.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = CURRENT_TIMESTAMP, iteration = iteration + 1 WHERE id = $2`,
 		newStatus, sessionID); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return h.buildRollbackResult(sessionID, ic, output, err, allSQL, llmResponseJSON), nil
 	}
 
@@ -292,15 +285,6 @@ func (h *Harness) executeStatement(ctx context.Context, tx interface {
 	}
 
 	return nil
-}
-
-// executeStatementLegacy is the original executeStatement signature preserved for
-// callers that haven't been updated to pass trust level yet.
-// It defaults to Tier 3 (high trust) for backward compatibility.
-func (h *Harness) executeStatementLegacy(ctx context.Context, tx interface {
-	Exec(context.Context, string, ...any) error
-}, stmt string, sessionID string) error {
-	return h.executeStatement(ctx, tx, stmt, sessionID, DefaultTrustLevel)
 }
 
 // SplitStatementsSemicolon splits a list of SQL strings on semicolons.
@@ -867,7 +851,7 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 		}
 
 		slog.Info("harness: dispatched task", "session_id", task.SessionID, "task_id", task.ID)
-		go h.RunAgentIteration(ctx, task.SessionID)
+		go func() { _, _ = h.RunAgentIteration(ctx, task.SessionID) }()
 	}
 }
 

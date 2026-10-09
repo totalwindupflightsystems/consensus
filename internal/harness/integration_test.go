@@ -288,7 +288,7 @@ func TestIntegration_SystemPrompt_DynamicAssembly_WithRealDB(t *testing.T) {
 		t.Fatalf("ReadActiveContext failed: %v", err)
 	}
 
-	if ic.Messages == nil || len(ic.Messages) < 2 {
+	if len(ic.Messages) < 2 {
 		t.Fatalf("expected at least 2 messages (system + user), got %d", len(ic.Messages))
 	}
 

@@ -117,9 +117,8 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 
 	// Auto-register unrecognized models from models.dev if syncer is wired.
 	if svc.modelSyncer != nil && modelID != "default" {
-		if err := svc.modelSyncer.RegisterIfMissing(ctx, modelID); err != nil {
-			// Non-fatal: session creation proceeds even if registration fails.
-		}
+		// Non-fatal: session creation proceeds even if registration fails.
+		_ = svc.modelSyncer.RegisterIfMissing(ctx, modelID)
 	}
 
 	contextBudget := input.ContextBudget
@@ -155,7 +154,7 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 		keyID, keyHash, keyPrefix, sessionID, now,
 	)
 	if err != nil {
-		svc.db.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
+		_ = svc.db.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
 		return nil, fmt.Errorf("failed to create api key: %w", err)
 	}
 
@@ -284,7 +283,7 @@ func (svc *SessionService) UpdateSession(ctx context.Context, id string, action 
 		targetStatus = "failed"
 
 	case "title":
-		targetStatus = currentStatus // no status change, title only handled by caller
+		// no status change, title only handled by caller
 		return nil
 
 	default:
@@ -409,11 +408,6 @@ func (svc *MessageService) SendMessage(ctx context.Context, input SendMessageInp
 		return fmt.Errorf("content is required")
 	}
 
-	msgType := input.MsgType
-	if msgType == "" {
-		msgType = "user_instruction"
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// Check session status
@@ -436,7 +430,7 @@ func (svc *MessageService) SendMessage(ctx context.Context, input SendMessageInp
 	// so the heartbeat loop claims them. (Native HTTP handler + shim both
 	// route through here via Service.SendMessage.)
 	if status == "idle" || status == "booting" {
-		svc.db.Exec(ctx,
+		_ = svc.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1 WHERE id = $2`,
 			now, input.SessionID)
 		if svc.events != nil {

@@ -55,7 +55,7 @@ func setupApprovalTestDB(t *testing.T) (db.DB, func()) {
 		)`,
 	} {
 		if err := database.Exec(ctx, stmt); err != nil {
-			database.Close()
+			_ = database.Close()
 			t.Fatalf("create table: %v", err)
 		}
 	}
@@ -63,7 +63,7 @@ func setupApprovalTestDB(t *testing.T) (db.DB, func()) {
 	_ = database.Exec(ctx, `INSERT INTO sessions (id) VALUES ('sess-ap-01')`)
 	_ = database.Exec(ctx, `INSERT INTO sessions (id) VALUES ('sess-ap-02')`)
 
-	cleanup := func() { database.Close() }
+	cleanup := func() { _ = database.Close() }
 	return database, cleanup
 }
 

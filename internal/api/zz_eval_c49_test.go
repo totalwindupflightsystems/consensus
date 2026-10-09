@@ -35,7 +35,7 @@ func TestEval_C49_PostSessionThenGlobalStreamTerminates(t *testing.T) {
 		t.Fatalf("POST sessions: %v", err)
 	}
 	raw, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	t.Logf("POST /api/v1/sessions -> %d %s", resp.StatusCode, string(raw))
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		t.Fatalf("create session: expected 2xx, got %d: %s", resp.StatusCode, raw)
@@ -45,7 +45,7 @@ func TestEval_C49_PostSessionThenGlobalStreamTerminates(t *testing.T) {
 
 	// 2. Stream consumer on /api/v1/events WITHOUT session_id
 	sresp := sseConnect(t, ts, srv.adminKey, "")
-	defer sresp.Body.Close()
+	defer func() { _ = sresp.Body.Close() }()
 	if sresp.StatusCode != http.StatusOK {
 		t.Fatalf("global SSE connect: expected 200, got %d", sresp.StatusCode)
 	}

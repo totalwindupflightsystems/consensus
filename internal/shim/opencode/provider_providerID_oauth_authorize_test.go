@@ -34,14 +34,6 @@ import (
 // Every arm below answers net/http's default 404 ("404 page not found") on
 // the pre-fix router, which registered no route for this path.
 
-// providerOAuthAuthorizeBody mirrors the declared request body
-// (components.schemas of the pinned document): method is required, inputs is
-// an optional map of prompt values.
-type providerOAuthAuthorizeBody struct {
-	Method *float64           `json:"method,omitempty"`
-	Inputs map[string]*string `json:"inputs,omitempty"`
-}
-
 // assertProviderAuthError decodes the document's ProviderAuthError shape
 // (components.schemas.ProviderAuthError1: required "name" and "data") and
 // asserts the declared name with a non-empty message in the data bag.

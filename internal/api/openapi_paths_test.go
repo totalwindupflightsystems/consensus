@@ -115,7 +115,7 @@ func TestFullDeployDocServesOpenAPIJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /doc on full-deployment tree failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 for /doc on full-deployment tree, got %d", resp.StatusCode)
@@ -178,7 +178,7 @@ func TestServedSpecPathsAreRegisteredAtRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var doc map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
 		t.Fatalf("decode /openapi.json: %v", err)
@@ -225,7 +225,7 @@ func TestServedSpecPathsAreRegisteredAtRuntime(t *testing.T) {
 				continue
 			}
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			if resp.StatusCode == http.StatusMethodNotAllowed {
 				t.Errorf("spec declares %s %s but the runtime answers 405 — route not registered", method, pattern)

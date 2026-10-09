@@ -328,7 +328,7 @@ func (s *Server) StartContext(ctx context.Context) error {
 		slog.Info("api: shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		srv.Shutdown(shutdownCtx)
+		_ = srv.Shutdown(shutdownCtx)
 	}()
 
 	slog.Info("api: starting", "addr", s.addr)
@@ -451,7 +451,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 	}
 
 	if len(rows) == 0 {
-		s.db.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, CURRENT_TIMESTAMP)`, prefix)
+		_ = s.db.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, CURRENT_TIMESTAMP)`, prefix)
 		return true
 	}
 
@@ -464,7 +464,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 	}
 
 	if time.Since(t) > time.Minute {
-		s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = CURRENT_TIMESTAMP WHERE key_prefix = $1`, prefix)
+		_ = s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = CURRENT_TIMESTAMP WHERE key_prefix = $1`, prefix)
 		return true
 	}
 
@@ -472,7 +472,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 		return false
 	}
 
-	s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = requests_count + 1 WHERE key_prefix = $1`, prefix)
+	_ = s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = requests_count + 1 WHERE key_prefix = $1`, prefix)
 	return true
 }
 
@@ -515,7 +515,7 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	data, _ := json.Marshal(ErrorResponse{Error: APIError{Code: code, Message: message, Details: message}})
-	w.Write(data)
+	_, _ = w.Write(data)
 	slog.Warn("api: error", "method", r.Method, "path", r.URL.Path, "status", status, "code", code)
 }
 
@@ -523,7 +523,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	data, _ := json.Marshal(v)
 	if data != nil {
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 

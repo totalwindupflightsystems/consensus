@@ -245,7 +245,7 @@ func TestNullIfEmpty_Empty(t *testing.T) {
 func TestNullIfEmpty_NonEmpty(t *testing.T) {
 	result := nullIfEmpty("hello")
 	if result == nil {
-		t.Error("expected non-nil for non-empty string")
+		t.Fatal("expected non-nil for non-empty string")
 	}
 	if *result != "hello" {
 		t.Errorf("expected 'hello', got %q", *result)

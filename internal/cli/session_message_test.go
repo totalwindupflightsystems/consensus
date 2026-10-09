@@ -31,7 +31,7 @@ func newMessageCapturingServer(t *testing.T) (*httptest.Server, *string, *map[st
 			t.Errorf("decode request body: %v", err)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"sent": true, "type": "user_instruction", "session_id": "sess-42"}`))
+		_, _ = w.Write([]byte(`{"sent": true, "type": "user_instruction", "session_id": "sess-42"}`))
 	}))
 	return srv, &gotPath, &gotBody
 }

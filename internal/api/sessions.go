@@ -69,7 +69,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		BudgetLimitCents: result.BudgetLimitCents,
 		CreatedAt:        time.Now().UTC(),
 	})
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // ============================================================================
@@ -89,7 +89,7 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }
 
 // ============================================================================
@@ -256,7 +256,7 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"updated"}`))
+		_, _ = w.Write([]byte(`{"status":"updated"}`))
 	}
 }
 
@@ -290,7 +290,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request, id 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"deleted"}`))
+	_, _ = w.Write([]byte(`{"status":"deleted"}`))
 }
 
 // ============================================================================
@@ -315,11 +315,6 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 	if req.Content == "" {
 		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "content is required")
 		return
-	}
-
-	msgType := req.Type
-	if msgType == "" {
-		msgType = "user_instruction"
 	}
 
 	if r.Header.Get("Idempotency-Key") != "" {
@@ -368,7 +363,8 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 	// Idle and booting sessions wake normally. A new message also explicitly
 	// recovers a failed session: clear its terminal timestamp and send it through
 	// the same thinking -> planning claim as any other conversational turn.
-	if currentStatus == "idle" || currentStatus == "booting" || currentStatus == "failed" {
+	switch currentStatus {
+	case "idle", "booting", "failed":
 		if err := s.db.Exec(ctx,
 			`UPDATE sessions SET status = 'thinking', heartbeat_at = $1, iteration = iteration + 1, completed_at = NULL WHERE id = $2`,
 			now, id); err != nil {
@@ -384,7 +380,7 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 		if s.wake != nil {
 			s.wake(id)
 		}
-	} else if currentStatus == "paused" {
+	case "paused":
 		// Message queues for next iteration, leave paused
 	}
 

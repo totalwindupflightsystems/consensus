@@ -150,7 +150,7 @@ func (s *Server) serveStdioIO(ctx context.Context, in io.Reader, out io.Writer) 
 			}
 
 			writeMu.Lock()
-			fmt.Fprintln(out, string(data))
+			_, _ = fmt.Fprintln(out, string(data))
 			writeMu.Unlock()
 		}
 	}()
@@ -214,7 +214,7 @@ func (s *Server) writeStdioError(out io.Writer, mu *sync.Mutex, id any, code int
 	}
 
 	mu.Lock()
-	fmt.Fprintln(out, string(body))
+	_, _ = fmt.Fprintln(out, string(body))
 	mu.Unlock()
 }
 

@@ -111,7 +111,7 @@ api_rate:
 	if err := serveCmd.Start(); err != nil {
 		t.Fatalf("start shim serve: %v", err)
 	}
-	defer serveCmd.Process.Kill()
+	defer func() { _ = serveCmd.Process.Kill() }()
 
 	apiBase := fmt.Sprintf("http://127.0.0.1:%d", port)
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -180,7 +180,7 @@ func waitForShimHealth(t *testing.T, client *http.Client, apiBase string, timeou
 		resp, err := client.Get(url)
 		if err == nil {
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				t.Logf("/global/health 200 — %s", strings.TrimSpace(string(body)))
 				return true
@@ -205,7 +205,7 @@ func shimCreateSession(t *testing.T, client *http.Client, apiBase, adminKey, tit
 	if err != nil {
 		t.Fatalf("POST /session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		t.Fatalf("POST /session returned %d: %s", resp.StatusCode, respBody)
@@ -242,7 +242,7 @@ func shimSendMessage(t *testing.T, client *http.Client, apiBase, sessionID, admi
 		t.Fatalf("POST /session/%s/message: %v", sessionID, err)
 	}
 	respBody, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		t.Fatalf("POST /session/%s/message returned %d: %s", sessionID, resp.StatusCode, respBody)
 	}
@@ -264,7 +264,7 @@ func waitForShimSessionIdle(t *testing.T, client *http.Client, apiBase, sessionI
 			continue
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			t.Logf("  GET /session/%s: %d — %s", sessionID, resp.StatusCode, strings.TrimSpace(string(body)))
 			time.Sleep(1 * time.Second)
@@ -305,7 +305,7 @@ func shimListEvents(t *testing.T, client *http.Client, apiBase, adminKey string)
 	if err != nil {
 		t.Fatalf("GET /event: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("GET /event returned %d: %s", resp.StatusCode, body)

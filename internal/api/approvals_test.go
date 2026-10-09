@@ -112,7 +112,7 @@ func TestListApprovals_SessionFilter(t *testing.T) {
 	}
 
 	var approvals []ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&approvals)
+	_ = json.NewDecoder(w.Body).Decode(&approvals)
 
 	if len(approvals) != 1 {
 		t.Fatalf("expected 1 approval for sess-a, got %d", len(approvals))
@@ -298,7 +298,7 @@ func TestReviewApproval_Reject(t *testing.T) {
 	}
 
 	var resp ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.Status != "rejected" {
 		t.Errorf("expected 'rejected', got %q", resp.Status)
@@ -330,7 +330,7 @@ func TestReviewApproval_Modify(t *testing.T) {
 	}
 
 	var resp ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.Status != "modified" {
 		t.Errorf("expected 'modified', got %q", resp.Status)
@@ -510,7 +510,7 @@ func TestSessionApprovals_StatusFilter(t *testing.T) {
 	}
 
 	var approvals []ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&approvals)
+	_ = json.NewDecoder(w.Body).Decode(&approvals)
 
 	if len(approvals) != 1 {
 		t.Fatalf("expected 1 approved, got %d", len(approvals))
@@ -543,7 +543,7 @@ func TestSessionApprovals_All(t *testing.T) {
 	}
 
 	var approvals []ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&approvals)
+	_ = json.NewDecoder(w.Body).Decode(&approvals)
 
 	if len(approvals) != 3 {
 		t.Fatalf("expected 3 approvals total, got %d", len(approvals))
@@ -600,7 +600,7 @@ func TestSessionApprovals_OwnSessionKey(t *testing.T) {
 	}
 
 	var approvals []ApprovalResponse
-	json.NewDecoder(w.Body).Decode(&approvals)
+	_ = json.NewDecoder(w.Body).Decode(&approvals)
 
 	if len(approvals) != 1 {
 		t.Fatalf("expected 1 approval, got %d", len(approvals))

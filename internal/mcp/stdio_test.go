@@ -74,8 +74,7 @@ func TestServeStdio_Initialize(t *testing.T) {
 
 	// Send initialize with auth in _meta
 	params := `{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"},"_meta":{"authorization":"Bearer cs_ak_testkey"}}`
-	var raw json.RawMessage
-	raw = json.RawMessage(params)
+	raw := json.RawMessage(params)
 
 	req := &JSONRPCRequest{
 		JSONRPC: "2.0",
