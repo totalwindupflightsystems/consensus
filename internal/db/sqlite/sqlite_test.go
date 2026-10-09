@@ -22,7 +22,7 @@ func TestOpenCreatesParentDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if fi, err := os.Stat(dbPath); err != nil {
 		t.Fatalf("database file not created: %v", err)
@@ -56,7 +56,7 @@ func TestOpenExistingParentDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	fi, err := os.Stat(filepath.Join(dir, "existing"))
 	if err != nil {
@@ -74,7 +74,7 @@ func TestOpenMemorySkippedParentCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open :memory:: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 }
 
 // TestOpenMaxOpenConnsOverrideReachesDriver proves the max_open_conns
@@ -90,7 +90,7 @@ func TestOpenMaxOpenConnsOverrideReachesDriver(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open: %v", err)
 		}
-		defer d.Close()
+		defer func() { _ = d.Close() }()
 
 		if got := d.conn.Stats().MaxOpenConnections; got != 3 {
 			t.Errorf("MaxOpenConnections = %d, want 3 (cfg.MaxOpenConns=3 must reach the driver)", got)
@@ -102,7 +102,7 @@ func TestOpenMaxOpenConnsOverrideReachesDriver(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open: %v", err)
 		}
-		defer d.Close()
+		defer func() { _ = d.Close() }()
 
 		if got := d.conn.Stats().MaxOpenConnections; got != 4 {
 			t.Errorf("MaxOpenConnections = %d, want 4 (MaxOpenConns<=0 falls back to 4)", got)

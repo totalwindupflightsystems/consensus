@@ -31,7 +31,7 @@ func TestOpenMaxOpenConnsOverrideReachesPool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open: %v", err)
 		}
-		defer d.Close()
+		defer func() { _ = d.Close() }()
 
 		if got := d.pool.Stat().MaxConns(); got != 3 {
 			t.Errorf("pool MaxConns = %d, want 3 (cfg.MaxOpenConns=3 must reach the pool)", got)
@@ -43,7 +43,7 @@ func TestOpenMaxOpenConnsOverrideReachesPool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open: %v", err)
 		}
-		defer d.Close()
+		defer func() { _ = d.Close() }()
 
 		if got := d.pool.Stat().MaxConns(); got != 10 {
 			t.Errorf("pool MaxConns = %d, want 10 (MaxOpenConns<=0 falls back to 10)", got)

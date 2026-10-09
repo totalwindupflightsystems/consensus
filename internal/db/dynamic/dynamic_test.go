@@ -177,7 +177,7 @@ func TestValidateName(t *testing.T) {
 
 func TestCreateTable(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -211,7 +211,7 @@ func TestCreateTable(t *testing.T) {
 
 func TestCreateTableWithSanitization(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -228,7 +228,7 @@ func TestCreateTableWithSanitization(t *testing.T) {
 
 func TestCreateTableDuplicate(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -252,7 +252,7 @@ func TestCreateTableDuplicate(t *testing.T) {
 
 func TestCreateTableReservedName(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -268,7 +268,7 @@ func TestCreateTableReservedName(t *testing.T) {
 
 func TestCreateTableInvalidName(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -285,7 +285,7 @@ func TestCreateTableInvalidName(t *testing.T) {
 
 func TestSoftDelete(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -358,7 +358,7 @@ func TestSystemColumnNames(t *testing.T) {
 
 func TestFullLifecycle(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -466,7 +466,7 @@ const schemaOrderTracking = `{
 
 func TestCreateTableWithJSONSchema(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -506,7 +506,7 @@ func TestCreateTableWithJSONSchema(t *testing.T) {
 
 func TestCreateTableWithInvalidSchema(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -529,7 +529,7 @@ func TestCreateTableWithInvalidSchema(t *testing.T) {
 
 func TestValidateData(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -573,7 +573,7 @@ func TestValidateData(t *testing.T) {
 
 func TestValidateDataNoConstraint(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -600,7 +600,7 @@ func TestValidateDataNoConstraint(t *testing.T) {
 
 func TestAddJSONConstraintAfterCreate(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -636,7 +636,7 @@ func TestAddJSONConstraintAfterCreate(t *testing.T) {
 
 func TestAlterJSONConstraintVersioning(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -702,7 +702,7 @@ func TestAlterJSONConstraintVersioning(t *testing.T) {
 
 func TestRemoveJSONConstraint(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -739,7 +739,7 @@ func TestRemoveJSONConstraint(t *testing.T) {
 
 func TestValidateDynamicInsert(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -762,7 +762,7 @@ func TestValidateDynamicInsert(t *testing.T) {
 
 func TestDynamicInsertWithSchemaEndToEnd(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -799,7 +799,7 @@ func TestDynamicInsertWithSchemaEndToEnd(t *testing.T) {
 func TestSchemaConcurrentAccess(t *testing.T) {
 	// Test that the SQLite in-memory schema registry handles concurrent access
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	sessionID := insertTestSession(t, database)
 	ctx := context.Background()
@@ -838,7 +838,7 @@ func TestSchemaConcurrentAccess(t *testing.T) {
 
 func TestIsExecutableOnBackend(t *testing.T) {
 	database := openTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// On SQLite, Postgres-specific functions are NOT executable
 	if dynamic.IsExecutableOnBackend(database, "create_agent_memory_table") {
