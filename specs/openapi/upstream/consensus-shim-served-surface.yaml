@@ -393,9 +393,9 @@ routes:
     evidence: "server.go:209 handleTUI"
   - path: /tui/execute-command
     method: POST
-    outcome: 501
+    outcome: 200,400
     auth: api-key
-    evidence: "server.go:209 handleTUI"
+    evidence: "server.go tuiExecuteCommand via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-107): 200 false because no TUI is attached, 400 BadRequest on a schema-violating body (required non-empty command, additionalProperties false), 405 METHOD_NOT_ALLOWED on non-POST"
   - path: /tui/show-toast
     method: POST
     outcome: 200
@@ -668,9 +668,9 @@ prefix_rules:
     evidence: "server.go handleFindSub: file → 200, symbol GET → 200 findSymbols (ROUTE-FIX-002, served above), symbol non-GET → typed 501 find.symbols, else 404. This rule now covers only UNDECLARED methods on the symbol sub-path (the declared GET is a served route above)"
   - prefix: /tui/
     outcome: 404
-    stub_second_segments: [append-prompt, submit-prompt, execute-command]
+    stub_second_segments: [append-prompt, submit-prompt]
     stub_outcome: 501
-    evidence: "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 (declared tui.showToast, served by the /tui/show-toast route above)"
+    evidence: "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 and execute-command in ROUTE-FIX-023 (both declared, served above)"
   - prefix: /permission/
     outcome: 404
     evidence: "server.go:2137-2162 (sub-path switch: GET {id}, POST {id}/resolve, POST {id}/reply)"
