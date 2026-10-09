@@ -81,3 +81,71 @@ NotImplemented:
     application/json:
       schema:
         $ref: "#/ErrorResponse/content/application~1json/schema"
+
+# ── MUSTER-INT-001: served body shapes that had no component ──
+# Every response the server can actually emit must carry a schema so
+# spec-driven clients (muster CLI/MCP/Go library) can decode the wire.
+# These three components cover the shapes the shim's handlers write that
+# the standard envelope did not.
+
+MethodNotAllowed:
+  description: HTTP method not supported on this path.
+  content:
+    application/json:
+      schema:
+        oneOf:
+          - $ref: "#/ErrorResponse/content/application~1json/schema"
+          - type: object
+            description: Bare "method not allowed" text body (chi's default 405 writer).
+            properties:
+              error:
+                type: string
+                description: Error code (e.g. NOT_IMPLEMENTED for shim stubs).
+
+# OpencodeBadRequest is the shim's typed opencode NamedError envelope
+# (writeOpencodeBadRequest): {name: "BadRequest", data: {kind, message}} —
+# the upstream opencode contract's BadRequestError shape, NOT the standard
+# Consensus error envelope.
+OpencodeBadRequest:
+  description: Opencode typed BadRequestError (NamedError envelope).
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [name]
+        properties:
+          name:
+            type: string
+            description: NamedError tag; "BadRequest" for request-validation failures.
+            enum: [BadRequest]
+          data:
+            type: object
+            description: Structured validation detail.
+            properties:
+              kind:
+                type: string
+                description: What failed validation — "Payload" (body) or "Query" (query parameter).
+              message:
+                type: string
+                description: Human-readable validation failure.
+
+# NotImplementable is the shim's typed not-implemented envelope
+# (writeNotImplemented): {error: "not_implemented", operation, detail} — a
+# sibling of, but distinct from, the standard NOT_IMPLEMENTED error envelope.
+NotImplementable:
+  description: Operation is a declared not-implemented surface (typed envelope).
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [error, operation, detail]
+        properties:
+          error:
+            type: string
+            const: not_implemented
+          operation:
+            type: string
+            description: Upstream operation id that is not implemented (e.g. vcs.apply).
+          detail:
+            type: string
+            description: Why it is not implemented and what to use instead.

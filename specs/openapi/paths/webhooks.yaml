@@ -109,11 +109,31 @@ post:
             message: event already ingested
     "403":
       description: The matching webhook registration is disabled.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/responses.yaml#/Forbidden/content/application~1json/schema"
     "404":
       description: No webhook registration matches the source.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/responses.yaml#/NotFound/content/application~1json/schema"
     "413":
       description: The request body exceeds the 1 MB limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/responses.yaml#/BadRequest/content/application~1json/schema"
     "429":
       description: The source exceeded the webhook token-bucket rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/responses.yaml#/RateLimited/content/application~1json/schema"
     "500":
       description: The request body could not be read or the event could not be stored.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/responses.yaml#/InternalError/content/application~1json/schema"

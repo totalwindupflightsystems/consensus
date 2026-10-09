@@ -892,3 +892,85 @@ QuarantineDecisionResponse:
       example: approved
     item:
       $ref: "#/QuarantineItem"
+
+# ── MUSTER-INT-001: opencode shim object shapes ──
+# These mirror the pinned upstream opencode contract (specs/openapi/upstream/
+# openapi-1.18.33.json components.schemas) for the surfaces the shim serves.
+# They are deliberately shim-local (Shim* prefix): the native API schemas above
+# model Consensus domain objects, not the opencode protocol shapes.
+
+# ShimSymbol mirrors upstream Symbol. The shim has no LSP producer, so GET
+# /find/symbol answers the EMPTY array — the schema pins the shape a client
+# must decode when a producer exists.
+ShimSymbol:
+  type: object
+  required: [name, kind, location]
+  properties:
+    name:
+      type: string
+      description: Symbol name (function, class, variable).
+    kind:
+      type: integer
+      minimum: 0
+      description: LSP symbol kind code.
+    location:
+      type: object
+      required: [uri, range]
+      properties:
+        uri:
+          type: string
+          description: Document URI containing the symbol.
+        range:
+          type: object
+          required: [start, end]
+          properties:
+            start:
+              $ref: "#/ShimSymbolPosition"
+            end:
+              $ref: "#/ShimSymbolPosition"
+      additionalProperties: false
+
+ShimSymbolPosition:
+  type: object
+  required: [line, character]
+  properties:
+    line:
+      type: integer
+      minimum: 0
+    character:
+      type: integer
+      minimum: 0
+  additionalProperties: false
+
+# ShimProject mirrors upstream Project as served by projectCurrent (GET
+# /project/current): {id, name, sandboxes, time, worktree}.
+ShimProject:
+  type: object
+  required: [id, name]
+  properties:
+    id:
+      type: string
+      description: Project instance id (consensus-<hash>).
+    name:
+      type: string
+      description: Workspace directory name.
+    worktree:
+      type: string
+      description: Absolute path of the singleton fixed workspace.
+    sandboxes:
+      type: array
+      items:
+        type: string
+      description: Attached sandbox ids (empty on the shim).
+    time:
+      type: object
+      required: [created, updated]
+      properties:
+        created:
+          type: integer
+          format: int64
+          description: Creation time, unix milliseconds.
+        updated:
+          type: integer
+          format: int64
+          description: Last update time, unix milliseconds.

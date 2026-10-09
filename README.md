@@ -446,6 +446,7 @@ networks:
 
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
 - **[OpenAPI spec](specs/018-openapi-contract.md)** — the REST contract is served at `/openapi.json` and `/openapi.yaml`, with its Swagger UI at `/doc/api`; the opencode-compatible shim contract is served separately at `/doc` (all are embedded in the binary and available from any working directory and in the Docker image)
+- **[Muster client generation](docs/MUSTER.md)** — generate a CLI, MCP server, and Go library from the served spec with [muster](https://github.com/wojons/muster): `openapi-cli generate http://localhost:8090/openapi.json` (no hand-written glue; the muster-facing contract is pinned by tests)
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
 - **[Debugging guide](docs/DEBUGGING.md)** — the pprof debug listener: capturing goroutine/heap/CPU profiles from a running server, plus a wedge playbook
 

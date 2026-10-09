@@ -614,18 +614,59 @@ findFile:
         $ref: "../components/responses.yaml#/InternalError"
 
 findSymbol:
-  # DF-CONSENSUS-18: declared 501 stub — no runtime symbol search.
-  x-not-implemented: true
+  # ROUTE-FIX-002: GET /find/symbol is a REAL served operation — findSymbols
+  # (find_symbol_routes.go) validates the required ?query= plus the optional
+  # directory/workspace selectors and answers the declared 200 Symbol[] (the
+  # truthful EMPTY list: the shim has no LSP producer, so entries would be
+  # fabricated) or the 400 INVALID_REQUEST arm. Non-GET methods keep the
+  # typed 501 (405 is not in the declared set, session.diff ROUTE-FIX-010
+  # convention). x-not-implemented was WRONG here — it told generators to
+  # expect any answer while the handler has served the declared contract
+  # since ROUTE-FIX-002.
   get:
     tags: [Opencode Shim]
-    summary: Find symbols (stub)
+    summary: Find symbols
     operationId: shimFindSymbolStub
     description: |
-      Registered stub surface: symbol search requires LSP integration and
-      is not yet available — always returns 501 NOT_IMPLEMENTED.
+      Searches workspace symbols (functions, classes, variables) named by
+      the required ?query= parameter. The optional directory/workspace
+      selectors are validated (a present-but-blank value is a 400) but do
+      not narrow the result: the shim has no LSP integration, so there is
+      no symbol producer and the truthful 200 body is the EMPTY list — an
+      array, never null. Missing or blank ?query= answers the 400 arm with
+      the INVALID_REQUEST envelope.
+    parameters:
+      - name: query
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Symbol name search text (functions, classes, variables).
+      - name: directory
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional search scope; must not be blank when provided.
+      - name: workspace
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional search scope; must not be blank when provided.
     responses:
-      "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+      "200":
+        description: Matching symbols — the EMPTY list (no LSP producer; never fabricated).
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/ShimSymbol"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
 
 fileContent:
   get:
@@ -781,15 +822,26 @@ permissionResolve:
 
 # ── TUI / LSP / MCP ──
 tuiAction:
+  # MUSTER-INT-001 (live-probed against a scratch instance 2026-10-09):
+  # GET /tui/{action} answers 404 NOT_FOUND for unknown actions and 405
+  # METHOD_NOT_ALLOWED for POST-only actions named without a body (clear-prompt,
+  # show-toast, append-prompt — each serves its own POST contract); it never
+  # answers 501. POST /tui/{action} is REAL for the actions the shim serves:
+  # clear-prompt, append-prompt, control/response, open-help, open-models,
+  # open-sessions, open-themes, publish, show-toast all validate their body and
+  # answer the declared boolean 200 (the shim has no TUI process, so the
+  # truthful boolean is false); submit-prompt and execute-command keep the
+  # 501 NOT_IMPLEMENTED answer (shim-only, use opencode's built-in TUI). The
+  # declared 400 arm carries the opencode NamedError BadRequest envelope
+  # (writeOpencodeBadRequest: {name: BadRequest, data: {kind, message}}).
   get:
     tags: [Opencode Shim]
-    summary: TUI control (stub)
+    summary: TUI action status
     operationId: shimTUIControlStub
     description: |
-      Registered stub surface (shim-only passthrough): actions
-      append-prompt, submit-prompt, execute-command and show-toast always
-      return 501 NOT_IMPLEMENTED — use opencode's built-in TUI. Unknown
-      actions return 404.
+      TUI action lookup. POST-only actions named without a body answer 405
+      METHOD_NOT_ALLOWED naming the POST contract; unknown actions answer
+      404 NOT_FOUND ("unknown TUI action").
     parameters:
       - name: action
         in: path
@@ -801,6 +853,58 @@ tuiAction:
     responses:
       "404":
         $ref: "../components/responses.yaml#/NotFound"
+      "405":
+        $ref: "../components/responses.yaml#/MethodNotAllowed"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+  post:
+    tags: [Opencode Shim]
+    summary: Execute a TUI action
+    operationId: shimTUIAction
+    description: |
+      Executes a TUI action against the shim's (absent) TUI process. Valid
+      requests answer the declared boolean 200 — false, truthfully: no TUI
+      process is attached, so nothing was displayed. Malformed bodies
+      answer 400 with the opencode NamedError BadRequest envelope.
+      submit-prompt and execute-command are not implemented in this shim
+      and keep the 501 NOT_IMPLEMENTED answer (use opencode's built-in
+      TUI).
+    parameters:
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [append-prompt, clear-prompt, control/response, open-help,
+                 open-models, open-sessions, open-themes, publish, show-toast,
+                 submit-prompt, execute-command]
+        description: TUI action to execute.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+          examples:
+            append-prompt:
+              value:
+                text: "hello"
+            show-toast:
+              value:
+                message: "build finished"
+                variant: info
+    responses:
+      "200":
+        description: "Action accepted — boolean result (false: no TUI process attached)."
+        content:
+          application/json:
+            schema:
+              type: boolean
+      "400":
+        $ref: "../components/responses.yaml#/OpencodeBadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
       "501":
         $ref: "../components/responses.yaml#/NotImplemented"
 
@@ -883,7 +987,9 @@ mcp:
             schema:
               type: string
       "202":
-        description: Accepted — the request was a notification (no response body).
+        description: >
+          Accepted — the request was a notification (no response body). The
+          answer is intentionally empty (zero bytes), not a JSON document.
       "400":
         description: Malformed request (parse error or invalid JSON-RPC envelope).
         content:
@@ -901,12 +1007,22 @@ mcp:
             schema:
               $ref: "../components/schemas.yaml#/MCPJSONRPCResponse"
       "405":
-        description: Method not allowed (only GET and POST are served).
+        description: Method not allowed (only GET and POST are served). Answered by
+          chi's default 405 writer with a bare "method not allowed" text body.
+        content:
+          text/plain:
+            schema:
+              type: string
       "501":
         description: >
           MCP traffic is not served on this mount — bare deployments without
-          the API-level MCP mount answer 501 NOT_IMPLEMENTED (the opencode
-          shim stub). Mount consensus serve to reach the real surface.
+          the API-level MCP mount answer 501 NOT_IMPLEMENTED with the shim
+          stub's NOT_IMPLEMENTED error envelope. Mount consensus serve to
+          reach the real surface.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/responses.yaml#/NotImplemented/content/application~1json/schema"
 
 # MCPJSONRPCResponse: loose shape of a JSON-RPC 2.0 response as served by the
 # MCP HTTP endpoints. Result and error are intentionally open (MCP results
@@ -972,6 +1088,10 @@ authItem:
         $ref: "../components/responses.yaml#/Unauthorized"
       "405":
         description: Method not allowed — only PUT is supported.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/responses.yaml#/MethodNotAllowed/content/application~1json/schema"
 
 # ── Event (standalone alias of /global/event) ──
 event:
@@ -1075,31 +1195,42 @@ project:
     x-undeclared-methods: 501 stub (SPEC-017 §3.9; 405 is not in the declared response set)
 
 projectItem:
-  # ROUTE-FIX-043: DF-CONSENSUS-47 typed 404 (ProjectNotFoundError) for every
-  # /project/{id} sub-path — the bare /project mount keeps the 501 stub
-  # (SPEC-017 §3.9). GET is NOT a not-implemented surface: the shim registers
-  # handleProjectByID (server.go:327) and answers the upstream typed
-  # ProjectNotFoundError for unknown ids, exactly as PATCH does.
+  # ROUTE-FIX-043 + MUSTER-INT-001 (live-probed 2026-10-09): GET
+  # /project/{projectID} answers 200 with the upstream Project object when the
+  # id resolves to the singleton workspace's project (only "current" resolves
+  # today — projectCurrent), 404 with the typed ProjectNotFoundError NamedError
+  # body for every other id, and 401 unauthenticated. PATCH answers the same
+  # typed 404 (DF-CONSENSUS-47; httpapi-instance.test.ts "returns typed not
+  # found bodies for missing projects").
   get:
     tags: [Opencode Shim]
     summary: Project item
     operationId: shimProjectItem
     description: |
-      Every project id is unknown — the Consensus shim keeps no project
-      registry — so GET answers HTTP 404 with the upstream typed
-      ProjectNotFoundError NamedError body, exactly {_tag, projectID,
-      message} (DF-CONSENSUS-47; httpapi-instance.test.ts "returns typed
-      not found bodies for missing projects").
+      Resolves a project id. The id of the singleton fixed workspace (the
+      value "current", or its instance id) answers 200 with the upstream
+      Project object {id, name, sandboxes, time, worktree}. Every other id
+      is unknown — the Consensus shim keeps no project registry — and
+      answers HTTP 404 with the upstream typed ProjectNotFoundError
+      NamedError body, exactly {_tag, projectID, message} (DF-CONSENSUS-47;
+      httpapi-instance.test.ts "returns typed not found bodies for missing
+      projects").
     parameters:
       - name: projectId
         in: path
         required: true
         schema:
           type: string
-        description: Project identifier.
+        description: Project identifier, or "current" for the singleton workspace.
     responses:
+      "200":
+        description: The singleton workspace's project (id resolves; today only "current" does).
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/ShimProject"
       "404":
-        description: Typed ProjectNotFoundError body (no project registry).
+        description: Typed ProjectNotFoundError body (no project registry — unknown id).
         content:
           application/json:
             schema:
@@ -1113,6 +1244,8 @@ projectItem:
                   type: string
                 message:
                   type: string
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
 
 vcs:
   # DF-CONSENSUS-38: real fixed-workspace compatibility route (upstream
@@ -1179,25 +1312,47 @@ vcsDiff:
         $ref: "../components/responses.yaml#/Unauthorized"
 
 vcsItem:
-  # DF-CONSENSUS-18: declared 501 stub (SPEC-017 §3.9).
+  # MUSTER-INT-001 (live-probed 2026-10-09): GET /vcs/{id} requires auth —
+  # an unauthenticated call answers 401 before any stub handling (probe:
+  # "GET /vcs/apply [noauth] -> 401"), so the no-auth claim in the old
+  # description was wrong. The marker stays HONEST here: this path IS the
+  # declared not-implemented surface (declared /vcs/* operations answer 501),
+  # and unlike the pre-fix state the 501 bodies now carry schemas so
+  # spec-driven clients can decode both shapes. Real reads live at GET /vcs
+  # and GET /vcs/diff (both declared with 200s on their own path items).
   x-not-implemented: true
   get:
     tags: [Opencode Shim]
     summary: VCS item (stub)
     operationId: shimVCSItemStub
     description: |
-      Registered stub surface: non-GET methods on /vcs/{id} reach the stub
-      unauthenticated and return 501 NOT_IMPLEMENTED.
+      VCS sub-operations are opencode-specific. Declared operations the
+      shim does not translate (vcs.apply, vcs.diff.raw) answer the typed
+      not_implemented envelope naming the operation; any other id answers
+      the standard NOT_IMPLEMENTED error envelope. Real reads live at
+      GET /vcs (Vcs.Info) and GET /vcs/diff (FileDiff[]).
     parameters:
       - name: vcsId
         in: path
         required: true
         schema:
           type: string
-        description: VCS identifier.
+        description: VCS operation name or unknown sub-path id.
     responses:
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
       "501":
-        $ref: "../components/responses.yaml#/NotImplemented"
+        description: >
+          Opencode-specific VCS operations are not implemented: declared
+          operations (vcs.apply, vcs.diff.raw) answer the typed
+          not_implemented envelope {error, operation, detail}; unknown ids
+          answer the standard NOT_IMPLEMENTED error envelope.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../components/responses.yaml#/NotImplementable/content/application~1json/schema"
+                - $ref: "../components/responses.yaml#/NotImplemented/content/application~1json/schema"
 
 # ── Instance (opencode-protocol translation, SPEC-017 §3.10) ──
 # C-GAP-031: /instance/* translates the opencode server protocol into

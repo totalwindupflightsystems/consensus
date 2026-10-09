@@ -1089,14 +1089,34 @@ paths:
                 status: accepted
         '403':
           description: The matching webhook registration is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
         '404':
           description: No webhook registration matches the source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
         '413':
           description: The request body exceeds the 1 MB limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
         '429':
           description: The source exceeded the webhook token-bucket rate limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
         '500':
           description: The request body could not be read or the event could not be stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
   /api/v1/events:
     get:
       tags:
@@ -1864,18 +1884,51 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /find/symbol:
-    x-not-implemented: true
     get:
       tags:
         - Opencode Shim
-      summary: Find symbols (stub)
+      summary: Find symbols
       operationId: shimFindSymbolStub
       description: |
-        Registered stub surface: symbol search requires LSP integration and
-        is not yet available — always returns 501 NOT_IMPLEMENTED.
+        Searches workspace symbols (functions, classes, variables) named by
+        the required ?query= parameter. The optional directory/workspace
+        selectors are validated (a present-but-blank value is a 400) but do
+        not narrow the result: the shim has no LSP integration, so there is
+        no symbol producer and the truthful 200 body is the EMPTY list — an
+        array, never null. Missing or blank ?query= answers the 400 arm with
+        the INVALID_REQUEST envelope.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Symbol name search text (functions, classes, variables).
+        - name: directory
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional search scope; must not be blank when provided.
+        - name: workspace
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional search scope; must not be blank when provided.
       responses:
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+        '200':
+          description: Matching symbols — the EMPTY list (no LSP producer; never fabricated).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShimSymbol'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /file/content:
     get:
       tags:
@@ -2035,13 +2088,12 @@ paths:
     get:
       tags:
         - Opencode Shim
-      summary: TUI control (stub)
+      summary: TUI action status
       operationId: shimTUIControlStub
       description: |
-        Registered stub surface (shim-only passthrough): actions
-        append-prompt, submit-prompt, execute-command and show-toast always
-        return 501 NOT_IMPLEMENTED — use opencode's built-in TUI. Unknown
-        actions return 404.
+        TUI action lookup. POST-only actions named without a body answer 405
+        METHOD_NOT_ALLOWED naming the POST contract; unknown actions answer
+        404 NOT_FOUND ("unknown TUI action").
       parameters:
         - name: action
           in: path
@@ -2055,8 +2107,70 @@ paths:
               - show-toast
           description: TUI action name.
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+    post:
+      tags:
+        - Opencode Shim
+      summary: Execute a TUI action
+      operationId: shimTUIAction
+      description: |
+        Executes a TUI action against the shim's (absent) TUI process. Valid
+        requests answer the declared boolean 200 — false, truthfully: no TUI
+        process is attached, so nothing was displayed. Malformed bodies
+        answer 400 with the opencode NamedError BadRequest envelope.
+        submit-prompt and execute-command are not implemented in this shim
+        and keep the 501 NOT_IMPLEMENTED answer (use opencode's built-in
+        TUI).
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - append-prompt
+              - clear-prompt
+              - control/response
+              - open-help
+              - open-models
+              - open-sessions
+              - open-themes
+              - publish
+              - show-toast
+              - submit-prompt
+              - execute-command
+          description: TUI action to execute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            examples:
+              append-prompt:
+                value:
+                  text: hello
+              show-toast:
+                value:
+                  message: build finished
+                  variant: info
+      responses:
+        '200':
+          description: 'Action accepted — boolean result (false: no TUI process attached).'
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          $ref: '#/components/responses/OpencodeBadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '501':
           $ref: '#/components/responses/NotImplemented'
   /lsp:
@@ -2130,7 +2244,8 @@ paths:
               schema:
                 type: string
         '202':
-          description: Accepted — the request was a notification (no response body).
+          description: |
+            Accepted — the request was a notification (no response body). The answer is intentionally empty (zero bytes), not a JSON document.
         '400':
           description: Malformed request (parse error or invalid JSON-RPC envelope).
           content:
@@ -2145,10 +2260,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPJSONRPCResponse'
         '405':
-          description: Method not allowed (only GET and POST are served).
+          description: Method not allowed (only GET and POST are served). Answered by chi's default 405 writer with a bare "method not allowed" text body.
+          content:
+            text/plain:
+              schema:
+                type: string
         '501':
           description: |
-            MCP traffic is not served on this mount — bare deployments without the API-level MCP mount answer 501 NOT_IMPLEMENTED (the opencode shim stub). Mount consensus serve to reach the real surface.
+            MCP traffic is not served on this mount — bare deployments without the API-level MCP mount answer 501 NOT_IMPLEMENTED with the shim stub's NOT_IMPLEMENTED error envelope. Mount consensus serve to reach the real surface.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema'
   /auth/{authId}:
     put:
       tags:
@@ -2188,6 +2311,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '405':
           description: Method not allowed — only PUT is supported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema-2'
   /event:
     get:
       tags:
@@ -2290,21 +2417,32 @@ paths:
       summary: Project item
       operationId: shimProjectItem
       description: |
-        Every project id is unknown — the Consensus shim keeps no project
-        registry — so GET answers HTTP 404 with the upstream typed
-        ProjectNotFoundError NamedError body, exactly {_tag, projectID,
-        message} (DF-CONSENSUS-47; httpapi-instance.test.ts "returns typed
-        not found bodies for missing projects").
+        Resolves a project id. The id of the singleton fixed workspace (the
+        value "current", or its instance id) answers 200 with the upstream
+        Project object {id, name, sandboxes, time, worktree}. Every other id
+        is unknown — the Consensus shim keeps no project registry — and
+        answers HTTP 404 with the upstream typed ProjectNotFoundError
+        NamedError body, exactly {_tag, projectID, message} (DF-CONSENSUS-47;
+        httpapi-instance.test.ts "returns typed not found bodies for missing
+        projects").
       parameters:
         - name: projectId
           in: path
           required: true
           schema:
             type: string
-          description: Project identifier.
+          description: Project identifier, or "current" for the singleton workspace.
       responses:
+        '200':
+          description: The singleton workspace's project (id resolves; today only "current" does).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShimProject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
-          description: Typed ProjectNotFoundError body (no project registry).
+          description: Typed ProjectNotFoundError body (no project registry — unknown id).
           content:
             application/json:
               schema:
@@ -2385,18 +2523,30 @@ paths:
       summary: VCS item (stub)
       operationId: shimVCSItemStub
       description: |
-        Registered stub surface: non-GET methods on /vcs/{id} reach the stub
-        unauthenticated and return 501 NOT_IMPLEMENTED.
+        VCS sub-operations are opencode-specific. Declared operations the
+        shim does not translate (vcs.apply, vcs.diff.raw) answer the typed
+        not_implemented envelope naming the operation; any other id answers
+        the standard NOT_IMPLEMENTED error envelope. Real reads live at
+        GET /vcs (Vcs.Info) and GET /vcs/diff (FileDiff[]).
       parameters:
         - name: vcsId
           in: path
           required: true
           schema:
             type: string
-          description: VCS identifier.
+          description: VCS operation name or unknown sub-path id.
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '501':
-          $ref: '#/components/responses/NotImplemented'
+          description: |
+            Opencode-specific VCS operations are not implemented: declared operations (vcs.apply, vcs.diff.raw) answer the typed not_implemented envelope {error, operation, detail}; unknown ids answer the standard NOT_IMPLEMENTED error envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/schema-3'
+                  - $ref: '#/components/schemas/schema'
   /instance:
     get:
       tags:
@@ -3439,6 +3589,53 @@ components:
         reason:
           type: string
           description: Why the content was rejected. Defaults to "Rejected by operator" server-side when empty.
+    ShimSymbolPosition:
+      type: object
+      required:
+        - line
+        - character
+      properties:
+        line:
+          type: integer
+          minimum: 0
+        character:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    ShimSymbol:
+      type: object
+      required:
+        - name
+        - kind
+        - location
+      properties:
+        name:
+          type: string
+          description: Symbol name (function, class, variable).
+        kind:
+          type: integer
+          minimum: 0
+          description: LSP symbol kind code.
+        location:
+          type: object
+          required:
+            - uri
+            - range
+          properties:
+            uri:
+              type: string
+              description: Document URI containing the symbol.
+            range:
+              type: object
+              required:
+                - start
+                - end
+              properties:
+                start:
+                  $ref: '#/components/schemas/ShimSymbolPosition'
+                end:
+                  $ref: '#/components/schemas/ShimSymbolPosition'
+          additionalProperties: false
     MCPJSONRPCResponse:
       type: object
       description: |
@@ -3463,6 +3660,49 @@ components:
               type: string
             data:
               description: Optional error detail.
+    schema-2:
+      oneOf:
+        - $ref: '#/components/schemas/schema'
+        - type: object
+          description: Bare "method not allowed" text body (chi's default 405 writer).
+          properties:
+            error:
+              type: string
+              description: Error code (e.g. NOT_IMPLEMENTED for shim stubs).
+    ShimProject:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: Project instance id (consensus-<hash>).
+        name:
+          type: string
+          description: Workspace directory name.
+        worktree:
+          type: string
+          description: Absolute path of the singleton fixed workspace.
+        sandboxes:
+          type: array
+          items:
+            type: string
+          description: Attached sandbox ids (empty on the shim).
+        time:
+          type: object
+          required:
+            - created
+            - updated
+          properties:
+            created:
+              type: integer
+              format: int64
+              description: Creation time, unix milliseconds.
+            updated:
+              type: integer
+              format: int64
+              description: Last update time, unix milliseconds.
     VcsInfo:
       type: object
       properties:
@@ -3497,6 +3737,22 @@ components:
             - modified
           description: Change classification.
       description: opencode Vcs.FileDiff translation — patch omitted (optional upstream).
+    schema-3:
+      type: object
+      required:
+        - error
+        - operation
+        - detail
+      properties:
+        error:
+          type: string
+          const: not_implemented
+        operation:
+          type: string
+          description: Upstream operation id that is not implemented (e.g. vcs.apply).
+        detail:
+          type: string
+          description: Why it is not implemented and what to use instead.
     InstanceInfo:
       type: object
       required:
@@ -3704,6 +3960,43 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/schema'
+    MethodNotAllowed:
+      description: HTTP method not supported on this path.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/schema'
+              - type: object
+                description: Bare "method not allowed" text body (chi's default 405 writer).
+                properties:
+                  error:
+                    type: string
+                    description: Error code (e.g. NOT_IMPLEMENTED for shim stubs).
+    OpencodeBadRequest:
+      description: Opencode typed BadRequestError (NamedError envelope).
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                description: NamedError tag; "BadRequest" for request-validation failures.
+                enum:
+                  - BadRequest
+              data:
+                type: object
+                description: Structured validation detail.
+                properties:
+                  kind:
+                    type: string
+                    description: What failed validation — "Payload" (body) or "Query" (query parameter).
+                  message:
+                    type: string
+                    description: Human-readable validation failure.
     NotImplemented:
       description: Endpoint is a registered stub surface — not implemented.
       content:
