@@ -3,8 +3,8 @@
 # Run:    docker run -p 8090:8090 consensus
 # Prod:   docker run -e CONSENSUS_API_KEY=cs_ak_... -v consensus-data:/data consensus
 
-ARG GO_IMAGE=golang:1.26-alpine
-ARG ALPINE_IMAGE=alpine:3.21
+ARG GO_IMAGE=public.ecr.aws/docker/library/golang:1.26-alpine
+ARG ALPINE_IMAGE=public.ecr.aws/docker/library/alpine:3.21
 
 # ── Stage 1: Build ──────────────────────────────────────────────────
 FROM ${GO_IMAGE} AS builder
