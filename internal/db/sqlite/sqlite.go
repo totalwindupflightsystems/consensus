@@ -76,7 +76,7 @@ func Open(ctx context.Context, cfg db.Config) (*DB, error) {
 
 	// Verify connection
 	if err := conn.PingContext(ctx); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("sqlite: ping failed: %w", err)
 	}
 
@@ -125,7 +125,7 @@ func (d *DB) Query(ctx context.Context, query string, args ...any) ([]db.Row, er
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanRows(rows)
 }
 
@@ -135,7 +135,7 @@ func (d *DB) QueryRow(ctx context.Context, query string, args ...any) (db.Row, e
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: query row: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		return nil, fmt.Errorf("sqlite: no rows in result")
@@ -184,7 +184,7 @@ func (tx *Tx) Query(ctx context.Context, query string, args ...any) ([]db.Row, e
 	if err != nil {
 		return nil, fmt.Errorf("sqlite tx: query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanRows(rows)
 }
 
@@ -194,7 +194,7 @@ func (tx *Tx) QueryRow(ctx context.Context, query string, args ...any) (db.Row, 
 	if err != nil {
 		return nil, fmt.Errorf("sqlite tx: query row: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		return nil, fmt.Errorf("sqlite tx: no rows in result")

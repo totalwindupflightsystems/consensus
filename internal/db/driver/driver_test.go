@@ -19,7 +19,7 @@ func TestOpenSQLiteInMemory(t *testing.T) {
 	if database == nil {
 		t.Fatal("expected non-nil db")
 	}
-	database.Close()
+	_ = database.Close()
 }
 
 func TestOpenSQLiteFileTemp(t *testing.T) {
@@ -30,18 +30,18 @@ func TestOpenSQLiteFileTemp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	f.Close()
+	_ = f.Close()
 	path := f.Name()
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	database, err := Open(ctx, db.Config{URL: "sqlite://" + path})
 	if err != nil {
 		t.Fatalf("Open(sqlite file) unexpected error: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Create schema
-	database.Exec(ctx, "CREATE TABLE IF NOT EXISTS _test (id INTEGER PRIMARY KEY, name TEXT)")
+	_ = database.Exec(ctx, "CREATE TABLE IF NOT EXISTS _test (id INTEGER PRIMARY KEY, name TEXT)")
 
 	// Begin transaction
 	tx, err := database.BeginTx(ctx)
@@ -82,18 +82,18 @@ func TestTransactionRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Create schema
-	database.Exec(ctx, "CREATE TABLE IF NOT EXISTS _test (id INTEGER PRIMARY KEY, name TEXT)")
-	database.Exec(ctx, "INSERT INTO _test VALUES (1, 'before_rollback')")
+	_ = database.Exec(ctx, "CREATE TABLE IF NOT EXISTS _test (id INTEGER PRIMARY KEY, name TEXT)")
+	_ = database.Exec(ctx, "INSERT INTO _test VALUES (1, 'before_rollback')")
 
 	tx, err := database.BeginTx(ctx)
 	if err != nil {
 		t.Fatalf("BeginTx: %v", err)
 	}
 
-	tx.Exec(ctx, "INSERT INTO _test VALUES (2, 'should_not_exist')")
+	_ = tx.Exec(ctx, "INSERT INTO _test VALUES (2, 'should_not_exist')")
 
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("Rollback: %v", err)
