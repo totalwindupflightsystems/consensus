@@ -36,7 +36,7 @@ func TestAC028_RollbackUndoesWork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AC-028: begin tx1: %v", err)
 	}
-	tx1.SetSessionContext(th.ctx, sessionID)
+	_ = tx1.SetSessionContext(th.ctx, sessionID)
 
 	// Insert a memory event within tx1
 	err = tx1.Exec(th.ctx, `INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'tx1-data', $1, 1)`, sessionID)
@@ -45,7 +45,7 @@ func TestAC028_RollbackUndoesWork(t *testing.T) {
 	}
 
 	// Rollback tx1
-	tx1.Rollback()
+	_ = tx1.Rollback()
 	t.Log("AC-028: tx1 rolled back")
 
 	// Verify the work was undone — memory_events count should be back to initial
@@ -66,10 +66,10 @@ func TestAC028_RollbackUndoesWork(t *testing.T) {
 	}
 	defer func() {
 		if tx2.IsActive() {
-			tx2.Rollback()
+			_ = tx2.Rollback()
 		}
 	}()
-	tx2.SetSessionContext(th.ctx, sessionID)
+	_ = tx2.SetSessionContext(th.ctx, sessionID)
 
 	// Successfully insert this time
 	err = tx2.Exec(th.ctx, `INSERT INTO memory_events (type, content, session_id, iteration_created) VALUES ('text_block', 'tx2-retry-data', $1, 1)`, sessionID)
@@ -78,7 +78,7 @@ func TestAC028_RollbackUndoesWork(t *testing.T) {
 	}
 
 	// Commit tx2
-	tx2.Commit()
+	_ = tx2.Commit()
 	t.Log("AC-028: tx2 committed — retry succeeded")
 
 	// Verify tx2 work is visible

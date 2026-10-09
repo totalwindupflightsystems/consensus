@@ -198,12 +198,12 @@ document.getElementById('session-lookup').addEventListener('keydown',function(e)
 
 func (s *Server) handleHealthPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"healthy":true,"version":"consensus-0.1.0","ui":"web-admin"}`))
+	_, _ = w.Write([]byte(`{"healthy":true,"version":"consensus-0.1.0","ui":"web-admin"}`))
 }
 
 func (s *Server) html(w http.ResponseWriter, page string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte("<!DOCTYPE html>\n" + page))
+	_, _ = w.Write([]byte("<!DOCTYPE html>\n" + page))
 }
 
 func pageShell(title, apiURL, active, content string) string {
@@ -321,7 +321,7 @@ func (s *Server) handleAPIProxy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"upstream unreachable"}`, http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	for k, vs := range resp.Header {
 		for _, v := range vs {
@@ -334,7 +334,7 @@ func (s *Server) handleAPIProxy(w http.ResponseWriter, r *http.Request) {
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			w.Write(buf[:n])
+			_, _ = w.Write(buf[:n])
 		}
 		if err != nil {
 			break

@@ -51,7 +51,7 @@ func runModelsSync(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	adminDB := dbdriver.AdminDB(database)
 

@@ -191,7 +191,7 @@ func TestGlobalConfigChiMount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /global/config via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /global/config via chi mount: got %d, want 200 — /global/* must cover this route", resp.StatusCode)
 	}
@@ -211,7 +211,7 @@ func TestGlobalConfigChiMount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH /global/config via chi mount: %v", err)
 	}
-	defer patched.Body.Close()
+	defer func() { _ = patched.Body.Close() }()
 	if patched.StatusCode != http.StatusOK {
 		t.Errorf("PATCH /global/config via chi mount: got %d, want 200", patched.StatusCode)
 	}

@@ -29,7 +29,7 @@ func TestBudgetExhaustion_StrictLimit(t *testing.T) {
 	defer th.close()
 
 	// Wire a real BillingTracker (not nil — budget enforcement requires it)
-	th.Harness.BillingTracker = billing.NewTracker(th.conn)
+	th.BillingTracker = billing.NewTracker(th.conn)
 
 	// Create session with $0.01 budget limit (1 cent)
 	sessionID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1"
@@ -42,11 +42,11 @@ func TestBudgetExhaustion_StrictLimit(t *testing.T) {
 	}
 
 	// Record billing at $0.02 (2 cents) — exceeds the $0.01 limit
-	tracker := th.Harness.BillingTracker
+	tracker := th.BillingTracker
 	tracker.RecordBilling(th.ctx, sessionID, 1, "test-model", "cognition", 5000, 1000, 0, 0, 0.02)
 
 	// Run iteration — should be blocked because budget is exceeded
-	result, err := th.Harness.RunAgentIteration(th.ctx, sessionID)
+	result, err := th.RunAgentIteration(th.ctx, sessionID)
 	if err != nil {
 		t.Fatalf("RunAgentIteration returned unexpected error: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestBudgetExhaustion_BelowLimit(t *testing.T) {
 	}
 	defer th.close()
 
-	th.Harness.BillingTracker = billing.NewTracker(th.conn)
+	th.BillingTracker = billing.NewTracker(th.conn)
 
 	// Use same session ID as minimalOutput() so mock memory events reference live session
 	sessionID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1"
@@ -98,10 +98,10 @@ func TestBudgetExhaustion_BelowLimit(t *testing.T) {
 	}
 
 	// Record billing at $0.01 — well under the $1.00 limit
-	th.Harness.BillingTracker.RecordBilling(th.ctx, sessionID, 1, "test-model", "cognition", 5000, 1000, 0, 0, 0.01)
+	th.BillingTracker.RecordBilling(th.ctx, sessionID, 1, "test-model", "cognition", 5000, 1000, 0, 0, 0.01)
 
 	// Run iteration — should NOT be blocked (budget not exceeded)
-	result, err := th.Harness.RunAgentIteration(th.ctx, sessionID)
+	result, err := th.RunAgentIteration(th.ctx, sessionID)
 	if err != nil {
 		t.Fatalf("RunAgentIteration returned unexpected error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestBudgetExhaustion_ZeroLimit(t *testing.T) {
 	}
 	defer th.close()
 
-	th.Harness.BillingTracker = billing.NewTracker(th.conn)
+	th.BillingTracker = billing.NewTracker(th.conn)
 
 	sessionID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1"
 	err = th.conn.Exec(th.ctx, `
@@ -134,10 +134,10 @@ func TestBudgetExhaustion_ZeroLimit(t *testing.T) {
 	}
 
 	// Record billing at $100.00 — massive cost, but limit is 0 (no limit)
-	th.Harness.BillingTracker.RecordBilling(th.ctx, sessionID, 1, "test-model", "cognition", 500000, 100000, 0, 0, 100.00)
+	th.BillingTracker.RecordBilling(th.ctx, sessionID, 1, "test-model", "cognition", 500000, 100000, 0, 0, 100.00)
 
 	// Run iteration — should NOT be blocked (0 = no limit)
-	result, err := th.Harness.RunAgentIteration(th.ctx, sessionID)
+	result, err := th.RunAgentIteration(th.ctx, sessionID)
 	if err != nil {
 		t.Fatalf("RunAgentIteration returned unexpected error: %v", err)
 	}
@@ -164,10 +164,10 @@ func TestBudgetExhaustion_NoBillingTracker(t *testing.T) {
 	}
 
 	// Set a strict budget limit — but BillingTracker is nil, so it won't be enforced
-	th.conn.Exec(th.ctx, `UPDATE sessions SET budget_limit_cents = 1 WHERE id = $1`, sessionID)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET budget_limit_cents = 1 WHERE id = $1`, sessionID)
 
 	// Run iteration — should NOT be blocked (no billing tracker = no enforcement)
-	result, err := th.Harness.RunAgentIteration(th.ctx, sessionID)
+	result, err := th.RunAgentIteration(th.ctx, sessionID)
 	if err != nil {
 		t.Fatalf("RunAgentIteration returned unexpected error: %v", err)
 	}

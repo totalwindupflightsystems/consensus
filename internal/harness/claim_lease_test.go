@@ -15,8 +15,7 @@ import (
 
 // stubLLM is a no-op LLM client — the reaper path never calls the LLM.
 type stubLLM struct {
-	mu       sync.Mutex
-	callFrom *time.Time
+	mu sync.Mutex
 }
 
 func (s *stubLLM) Call(_ context.Context, _ []Message) (*LLMResponse, error) {
@@ -66,7 +65,7 @@ func TestClaimLeaseExpiry(t *testing.T) {
 	defer th.close()
 	h := th.Harness
 
-	h.HeartbeatConfig.Interval = 2 * time.Minute          // polling tick cannot fire inside this test
+	h.HeartbeatConfig.Interval = 2 * time.Minute // polling tick cannot fire inside this test
 	h.HeartbeatConfig.ClaimVisibilityTimeout = 100 * time.Millisecond
 
 	seedClaimedTask(t, th, "lease-expired", time.Now().Add(-5*time.Minute))

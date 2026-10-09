@@ -69,12 +69,12 @@ logging:
 	if err := cmd1.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
-	defer cmd1.Process.Kill()
+	defer func() { _ = cmd1.Process.Kill() }()
 
 	adminKey := parseBootstrapKey(t, bufio.NewReader(stdout1), 10*time.Second)
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if !waitForHealth(t, serverURL, 15*time.Second) {
-		cmd1.Process.Kill()
+		_ = cmd1.Process.Kill()
 		t.Fatal("server did not become healthy")
 	}
 
@@ -86,17 +86,17 @@ logging:
 
 	createResp, err := http.DefaultClient.Do(createReq)
 	if err != nil {
-		cmd1.Process.Kill()
+		_ = cmd1.Process.Kill()
 		t.Fatalf("create session: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { _ = createResp.Body.Close() }()
 
 	var created struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&created); err != nil {
-		cmd1.Process.Kill()
+		_ = cmd1.Process.Kill()
 		t.Fatalf("decode: %v", err)
 	}
 	t.Logf("created session: id=%s status=%s", created.ID, created.Status)
@@ -104,8 +104,8 @@ logging:
 
 	// --- PHASE 2: Kill server ---
 	t.Log("killing server...")
-	cmd1.Process.Signal(os.Interrupt)
-	cmd1.Wait()
+	_ = cmd1.Process.Signal(os.Interrupt)
+	_ = cmd1.Wait()
 	t.Log("server stopped")
 
 	// --- PHASE 3: Restart server with SAME db ---
@@ -117,11 +117,11 @@ logging:
 	if err := cmd2.Start(); err != nil {
 		t.Fatalf("restart server: %v", err)
 	}
-	defer cmd2.Process.Kill()
+	defer func() { _ = cmd2.Process.Kill() }()
 
 	_ = parseBootstrapKey(t, bufio.NewReader(stdout2), 10*time.Second)
 	if !waitForHealth(t, serverURL, 15*time.Second) {
-		cmd2.Process.Kill()
+		_ = cmd2.Process.Kill()
 		t.Fatal("server did not become healthy on restart")
 	}
 	t.Log("server restarted")
@@ -134,7 +134,7 @@ logging:
 	if err != nil {
 		t.Fatalf("get session: %v", err)
 	}
-	defer getResp.Body.Close()
+	defer func() { _ = getResp.Body.Close() }()
 
 	body, _ := io.ReadAll(getResp.Body)
 	if getResp.StatusCode != 200 {

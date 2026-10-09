@@ -103,7 +103,7 @@ func TestListTools_StatusFilter(t *testing.T) {
 	}
 
 	var tools []ToolResponse
-	json.NewDecoder(w.Body).Decode(&tools)
+	_ = json.NewDecoder(w.Body).Decode(&tools)
 
 	if len(tools) != 1 {
 		t.Errorf("expected 1 active tool, got %d", len(tools))
@@ -132,7 +132,7 @@ func TestListTools_HemisphereFilter(t *testing.T) {
 	}
 
 	var tools []ToolResponse
-	json.NewDecoder(w.Body).Decode(&tools)
+	_ = json.NewDecoder(w.Body).Decode(&tools)
 
 	if len(tools) != 1 {
 		t.Errorf("expected 1 external tool, got %d", len(tools))
@@ -226,7 +226,7 @@ func TestListSkills_DisabledFiltered(t *testing.T) {
 	}
 
 	var skills []SkillResponse
-	json.NewDecoder(w.Body).Decode(&skills)
+	_ = json.NewDecoder(w.Body).Decode(&skills)
 
 	found := false
 	for _, s := range skills {
@@ -316,7 +316,7 @@ func TestGetSkill_Disabled(t *testing.T) {
 	}
 
 	var resp SkillDetailResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.Name != "disabled_skill" {
 		t.Errorf("expected name 'disabled_skill', got %q", resp.Name)
@@ -504,7 +504,7 @@ func TestRouteTools_SkillsDetail(t *testing.T) {
 	}
 
 	var resp SkillDetailResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.Name != "route_test" {
 		t.Errorf("expected name 'route_test', got %q", resp.Name)
@@ -536,7 +536,7 @@ func TestRouteTools_ExecuteRoute(t *testing.T) {
 	}
 
 	var resp ExecuteToolResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.IsError {
 		t.Errorf("expected no error, got: %s", resp.Error)

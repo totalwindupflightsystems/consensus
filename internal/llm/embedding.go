@@ -189,7 +189,7 @@ func (c *openaiEmbeddingClient) EmbedBatch(ctx context.Context, inputs []string)
 		elapsed := time.Since(startTime).Milliseconds()
 		return nil, fmt.Errorf("embedding: http request failed after %dms: %w", elapsed, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -308,7 +308,7 @@ func VectorToString(v []float64) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(fmt.Sprintf("%.10f", val))
+		fmt.Fprintf(&b, "%.10f", val)
 	}
 	b.WriteByte(']')
 	return b.String()

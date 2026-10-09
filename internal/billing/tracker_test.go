@@ -43,9 +43,9 @@ func setupTestDB(t *testing.T) (db.DB, func()) {
 	)`)
 
 	cleanup := func() {
-		database.Close()
+		_ = database.Close()
 		// Clean up any file-based DB
-		os.Remove(t.Name())
+		_ = os.Remove(t.Name())
 	}
 	return database, cleanup
 }

@@ -402,7 +402,7 @@ func TestFetchModels_Success(t *testing.T) {
 		{ID: "claude-3", Provider: "anthropic", ContextWindow: 200000, Capabilities: []string{"vision"}},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -435,7 +435,7 @@ func TestFetchModels_Non200(t *testing.T) {
 
 func TestFetchModels_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("not json"))
+		_, _ = w.Write([]byte("not json"))
 	}))
 	defer server.Close()
 
@@ -495,7 +495,7 @@ func TestRegisterIfMissing_NotFound_NotInFetch(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -535,7 +535,7 @@ func TestSync_InsertNewModel(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000, Capabilities: []string{"code"}},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -563,7 +563,7 @@ func TestSync_UpdateExistingModel(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000, Capabilities: []string{"code", "vision"}},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -593,7 +593,7 @@ func TestSync_SkipsStaticEntry(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -623,7 +623,7 @@ func TestSync_SkipsStaticEntry(t *testing.T) {
 
 func TestSync_EmptyResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]ModelEntry{})
+		_ = json.NewEncoder(w).Encode([]ModelEntry{})
 	}))
 	defer server.Close()
 
@@ -669,7 +669,7 @@ func TestSync_LookupErrorSkipsModel(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -697,7 +697,7 @@ func TestSync_InsertError(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -723,7 +723,7 @@ func TestSync_UpdateError(t *testing.T) {
 		{ID: "gpt-4", Provider: "openai", ContextWindow: 128000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -753,7 +753,7 @@ func TestSync_MultipleModels(t *testing.T) {
 		{ID: "small-model", Provider: "unknown", ContextWindow: 16000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 
@@ -779,7 +779,7 @@ func TestSync_StaticEntrySkipped(t *testing.T) {
 		{ID: "claude-3", Provider: "anthropic", ContextWindow: 200000},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(models)
+		_ = json.NewEncoder(w).Encode(models)
 	}))
 	defer server.Close()
 

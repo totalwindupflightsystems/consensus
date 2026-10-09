@@ -11,15 +11,15 @@ import (
 // properly transitions a session to status='failed'.
 func TestHandlePlanningErrorSetsFailed(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	ctx := context.Background()
 
 	// Add heartbeat_at to the test session table (setupTestDB doesn't include it)
-	database.Exec(ctx, `ALTER TABLE sessions ADD COLUMN heartbeat_at TEXT`)
+	_ = database.Exec(ctx, `ALTER TABLE sessions ADD COLUMN heartbeat_at TEXT`)
 
 	// Create a session
 	sessionID := "ac017-direct-test"
-	database.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, heartbeat_at)
+	_ = database.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, heartbeat_at)
 		VALUES ('ac017-direct-test', 'ac017-test', 'mock', 'planning', 'test handlePlanningError', datetime('now'))`)
 
 	// Create harness

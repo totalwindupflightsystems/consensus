@@ -279,7 +279,7 @@ func vectorToJSON(v []float64) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(fmt.Sprintf("%.10f", val))
+		fmt.Fprintf(&b, "%.10f", val)
 	}
 	b.WriteByte(']')
 	return b.String()

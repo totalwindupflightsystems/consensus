@@ -115,13 +115,13 @@ func TestAC036_SubAgentDepthLimit(t *testing.T) {
 
 	// Create chain: root → child → grandchild
 	childID := "dddddddd-bbbb-cccc-dddd-eeeeeeeeeee4"
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, parent_id, goal)
 		VALUES ($1, 'child', 'test-model', 'idle', $2, 'level1')
 	`, childID, rootID)
 
 	grandchildID := "eeeeeeee-bbbb-cccc-dddd-eeeeeeeeeee5"
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, parent_id, goal)
 		VALUES ($1, 'grandchild', 'test-model', 'idle', $2, 'level2')
 	`, grandchildID, childID)

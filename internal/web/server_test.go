@@ -142,7 +142,7 @@ func TestAPIProxy_GET(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/health" && r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"healthy":true}`))
+			_, _ = w.Write([]byte(`{"healthy":true}`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -168,7 +168,7 @@ func TestAPIProxy_AuthForwarding(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"received":true}`))
+		_, _ = w.Write([]byte(`{"received":true}`))
 	}))
 	defer upstream.Close()
 
@@ -191,7 +191,7 @@ func TestAPIProxy_QueryString(t *testing.T) {
 	var receivedQuery string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedQuery = r.URL.RawQuery
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer upstream.Close()
 

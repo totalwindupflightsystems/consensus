@@ -55,7 +55,7 @@ func getTodo(t *testing.T, base, path string) (int, todoBody) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read GET %s: %v", path, err)
@@ -262,7 +262,7 @@ func TestSessionTodoErrorArmsAnswerDeclaredCodes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("POST /session/sesprobe1/todo: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		data, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("POST /session/sesprobe1/todo: got %d, want 404 (only GET is declared). Body: %s", resp.StatusCode, data)
@@ -333,7 +333,7 @@ func TestSessionTodoChiMountMatchesProductionWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /session/s1/todo via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusNotFound {
 		t.Fatalf("GET /session/s1/todo returned 404 — MountPatterns did not pass the sub-path through, or the router catch-all answered. Body: %s", data)

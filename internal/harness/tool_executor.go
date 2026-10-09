@@ -42,7 +42,6 @@ type ToolExecutorImpl struct {
 	pollMS    int           // polling interval in milliseconds
 	timeout   time.Duration // max execution time per tool
 	shutdown  chan struct{}
-	stopped   atomic.Bool
 	running   atomic.Bool
 	processed atomic.Int64
 	lastError atomic.Value // stores error string
@@ -153,7 +152,7 @@ func (e *ToolExecutorImpl) pollLoop(ctx context.Context) {
 		case <-e.shutdown:
 			return
 		default:
-			e.PollOnce(ctx)
+			_, _ = e.PollOnce(ctx)
 			// Jittered sleep
 			jitter := time.Duration(rand.Intn(e.pollMS/2)) * time.Millisecond
 			time.Sleep(time.Duration(e.pollMS)*time.Millisecond + jitter)
@@ -206,13 +205,13 @@ func (e *ToolExecutorImpl) PollOnce(ctx context.Context) (int, error) {
 		LIMIT 10
 	`)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		e.lastError.Store(err.Error())
 		return 0, fmt.Errorf("tool_executor: query pending: %w", err)
 	}
 
 	if len(rows) == 0 {
-		tx.Rollback()
+		_ = tx.Rollback()
 		// If we only had approval-gated tools, still return 0 (they weren't "processed")
 		return 0, nil
 	}
@@ -223,7 +222,7 @@ func (e *ToolExecutorImpl) PollOnce(ctx context.Context) (int, error) {
 		if err := tx.Exec(ctx, `UPDATE tool_requests SET status = 'executing', executed_at = $1 WHERE id = $2 AND status = 'pending'`,
 			time.Now(), id,
 		); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return 0, fmt.Errorf("tool_executor: claim %s: %w", id, err)
 		}
 	}
@@ -577,7 +576,7 @@ func (e *ToolExecutorImpl) executeHTTPEndpoint(ctx context.Context, toolName, ha
 			case <-time.After(time.Duration(1<<(attempt-1)) * time.Second):
 			}
 			if br, ok := bodyReader.(*bytes.Reader); ok {
-				br.Seek(0, io.SeekStart)
+				_, _ = br.Seek(0, io.SeekStart)
 			}
 		}
 
@@ -603,7 +602,7 @@ func (e *ToolExecutorImpl) executeHTTPEndpoint(ctx context.Context, toolName, ha
 		}
 
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return string(body), nil

@@ -44,7 +44,7 @@ func TestAC029_AutoCommitOnMaxTurns_WithWork(t *testing.T) {
 
 	// Run interactive planning — the mock returns minimalOutput() which has
 	// memory_state_changes, so it will stage work on each turn
-	result, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	result, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg)
 	if err != nil {
 		t.Fatalf("AC-029: RunInteractivePlanning: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestAC029_MaxTurnsNoWork_SessionIdle(t *testing.T) {
 	cfg.MaxTurns = 2
 	cfg.AutoCommitOnMax = true
 
-	result, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	result, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg)
 	if err != nil {
 		t.Fatalf("AC-029: RunInteractivePlanning: %v", err)
 	}

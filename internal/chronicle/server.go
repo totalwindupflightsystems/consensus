@@ -72,10 +72,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Write(index)
+	_, _ = w.Write(index)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"healthy":true,"ui":"chronicle","phase":"1.1-design-system"}`))
+	_, _ = w.Write([]byte(`{"healthy":true,"ui":"chronicle","phase":"1.1-design-system"}`))
 }

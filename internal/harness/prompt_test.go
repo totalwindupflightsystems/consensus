@@ -4,6 +4,7 @@
 package harness
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -347,10 +348,11 @@ func TestPromptCacheFriendly_StaticPrefix(t *testing.T) {
 	}
 
 	// The system prompt should have immutable content at the top
-	layers, err := b.buildLayers(nil, config)
+	layers, err := b.buildLayers(context.TODO(), config)
 	if err != nil {
-		// Schema discovery will fail without a real DB, but that's fine for unit test
-		// The important thing is the static layers come first
+		// Schema discovery will fail without a real DB, but that's fine for unit test.
+		// The important thing is the static layers come first.
+		t.Logf("buildLayers returned (expected without a DB): %v", err)
 	}
 
 	_ = layers
@@ -430,7 +432,7 @@ func TestPromptIncludesJSONSchema(t *testing.T) {
 func TestPromptBuilder_ConfigNilCheck(t *testing.T) {
 	b := &SystemPromptBuilder{harness: &Harness{}}
 
-	_, err := b.Build(nil, nil)
+	_, err := b.Build(context.TODO(), nil)
 	if err == nil {
 		t.Skip("nil config accepted — implementation dependent")
 	}

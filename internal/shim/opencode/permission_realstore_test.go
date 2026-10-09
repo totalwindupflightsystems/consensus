@@ -84,7 +84,7 @@ func postResolve(t *testing.T, base, id, body string) (int, []byte) {
 	if err != nil {
 		t.Fatalf("POST /permission/%s/resolve: %v", id, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read resolve body: %v", err)

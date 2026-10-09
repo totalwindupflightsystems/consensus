@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
@@ -75,9 +74,6 @@ type Server struct {
 
 	// Server start time — reported as the singleton instance's createdAt.
 	startedAt time.Time
-
-	// Mutex for shim_session_map writes
-	mu sync.Mutex
 
 	// mcpHandler is the real MCP HTTP handler (internal/mcp), injected via
 	// SetMCPHandler by cmd/consensus/main.go. When set, the shim's bare /mcp
@@ -678,7 +674,7 @@ func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
 			case evt := <-ch:
 				data, _ := json.Marshal(evt)
 				eventType := toString(evt["type"])
-				fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
+				_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
 				flusher.Flush()
 			}
 		}
@@ -698,7 +694,7 @@ func (s *Server) handleGlobalEvent(w http.ResponseWriter, r *http.Request) {
 			for _, evt := range events {
 				data, _ := json.Marshal(evt)
 				eventType := toString(evt["type"])
-				fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
+				_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
 				flusher.Flush()
 			}
 		}
@@ -758,7 +754,7 @@ func (s *Server) replaySessionEvents(ctx context.Context, w http.ResponseWriter,
 
 		data, _ := json.Marshal(evt)
 		eventType := toString(evt["type"])
-		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
+		_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, string(data))
 		flusher.Flush()
 	}
 }
@@ -979,7 +975,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 			externalID = v
 		}
 		now := time.Now().UTC().Format(time.RFC3339)
-		s.db.Exec(r.Context(),
+		_ = s.db.Exec(r.Context(),
 			`INSERT INTO shim_session_map (shim_type, external_id, session_id, created_at, last_used_at)
 			 VALUES ('opencode', $1, $2, $3, $3)`,
 			externalID, result.SessionID, now,
@@ -1040,7 +1036,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		keyID, keyHash, keyPrefix, sessionID, now,
 	)
 	if err != nil {
-		s.db.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
+		_ = s.db.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
 		writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create api key")
 		return
 	}
@@ -1049,7 +1045,7 @@ func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("external_id"); v != "" {
 		externalID = v
 	}
-	s.db.Exec(ctx,
+	_ = s.db.Exec(ctx,
 		`INSERT INTO shim_session_map (shim_type, external_id, session_id, created_at, last_used_at)
 		 VALUES ('opencode', $1, $2, $3, $3)`,
 		externalID, sessionID, now,
@@ -1896,7 +1892,7 @@ func (s *Server) handleAuthPut(w http.ResponseWriter, r *http.Request, path stri
 	for k, v := range req {
 		key := fmt.Sprintf("auth.%s.%s", path, k)
 		val := toString(v)
-		s.db.Exec(ctx,
+		_ = s.db.Exec(ctx,
 			`INSERT INTO system_settings (key, value) VALUES ($1, $2)
 			 ON CONFLICT (key) DO UPDATE SET value = $2`,
 			key, val,
@@ -3198,7 +3194,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		for k, v := range req {
 			val := toString(v)
-			s.db.Exec(ctx,
+			_ = s.db.Exec(ctx,
 				`INSERT INTO system_settings (key, value) VALUES ($1, $2)
 				 ON CONFLICT (key) DO UPDATE SET value = $2`,
 				k, val,
@@ -5277,7 +5273,7 @@ func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
 
 	if acceptsYAML(r) {
 		w.Header().Set("Content-Type", "application/yaml")
-		w.Write(specs.BundledYAML)
+		_, _ = w.Write(specs.BundledYAML)
 		return
 	}
 
@@ -5352,7 +5348,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	data, _ := json.Marshal(v)
 	if data != nil {
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 
@@ -5365,7 +5361,7 @@ func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if data, err := json.Marshal(v); err == nil {
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 
@@ -5382,7 +5378,7 @@ func writeOpencodeBadRequest(w http.ResponseWriter, r *http.Request, kind, messa
 			"message": message,
 		},
 	})
-	w.Write(data)
+	_, _ = w.Write(data)
 	slog.Warn("opencode-shim: bad request", "method", r.Method, "path", r.URL.Path, "kind", kind)
 }
 
@@ -5395,7 +5391,7 @@ func writeOpencodeError(w http.ResponseWriter, r *http.Request, status int, code
 			"message": message,
 		},
 	})
-	w.Write(data)
+	_, _ = w.Write(data)
 	slog.Warn("opencode-shim: error", "method", r.Method, "path", r.URL.Path, "status", status, "code", code)
 }
 
@@ -5426,7 +5422,7 @@ func writeNotImplemented(w http.ResponseWriter, r *http.Request, operation, deta
 		Operation: operation,
 		Detail:    detail,
 	}); err == nil {
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 	slog.Warn("opencode-shim: not implemented", "method", r.Method, "path", r.URL.Path, "operation", operation)
 }
@@ -5500,7 +5496,7 @@ func toFloat64(v any) float64 {
 		return float64(n)
 	case string:
 		var f float64
-		json.Unmarshal([]byte(n), &f)
+		_ = json.Unmarshal([]byte(n), &f)
 		return f
 	default:
 		return 0
@@ -5592,9 +5588,6 @@ func execGitStatus(ctx context.Context) (map[string]any, error) {
 	}, nil
 }
 
-// Serve starts listening. Not exported — use s.Handler() to mount on parent server.
-func (s *Server) serve() {} // placeholder
-
 func (s *Server) sessionFork(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req struct {
 		MessageID string `json:"messageID"`
@@ -5661,7 +5654,7 @@ func (s *Server) sessionFork(w http.ResponseWriter, r *http.Request, sessionID s
 	if v := r.URL.Query().Get("external_id"); v != "" {
 		externalID = v
 	}
-	s.db.Exec(r.Context(),
+	_ = s.db.Exec(r.Context(),
 		`INSERT INTO shim_session_map (shim_type, external_id, session_id, created_at, last_used_at)
 		 VALUES ('opencode', $1, $2, $3, $3)`,
 		externalID, childID, now)

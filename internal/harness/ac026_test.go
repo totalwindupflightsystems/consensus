@@ -96,11 +96,11 @@ func TestAC026_StagingBuffer_ExcludesCommitted(t *testing.T) {
 	// Insert one staged and one committed entry
 	pay1, _ := json.Marshal("SELECT 1")
 	pay2, _ := json.Marshal("SELECT 2")
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO staging_buffer (session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
 		VALUES ($1, 1, 1, 1, 'sql', $2, 'active', 'staged', datetime('now'))
 	`, sessionID, string(pay1))
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO staging_buffer (session_id, iteration, turn, seq, cmd_type, payload, description, status, created_at)
 		VALUES ($1, 1, 2, 1, 'sql', $2, 'finalized', 'committed', datetime('now'))
 	`, sessionID, string(pay2))

@@ -29,19 +29,19 @@ database configuration.`,
 			// Push CLI flags into environment for config.Load() to pick up
 			// (preserves the priority chain: flags > env > config file > defaults).
 			if port, _ := cmd.Flags().GetInt("port"); port != 8090 {
-				os.Setenv("CONSENSUS_PORT", strconv.Itoa(port))
+				_ = os.Setenv("CONSENSUS_PORT", strconv.Itoa(port))
 			}
 			if hostname, _ := cmd.Flags().GetString("hostname"); hostname != "127.0.0.1" {
-				os.Setenv("CONSENSUS_HOSTNAME", hostname)
+				_ = os.Setenv("CONSENSUS_HOSTNAME", hostname)
 			}
 			if dbURL, _ := cmd.Flags().GetString("db-url"); dbURL != "" {
-				os.Setenv("CONSENSUS_DB_URL", dbURL)
+				_ = os.Setenv("CONSENSUS_DB_URL", dbURL)
 			}
 			if logLevel, _ := cmd.Flags().GetString("log-level"); logLevel != "info" {
-				os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
+				_ = os.Setenv("CONSENSUS_LOG_LEVEL", logLevel)
 			}
 			if autoSync, _ := cmd.Flags().GetString("auto-sync"); autoSync != "" {
-				os.Setenv("CONSENSUS_AUTO_SYNC", autoSync)
+				_ = os.Setenv("CONSENSUS_AUTO_SYNC", autoSync)
 			}
 			// Scope the --config override to ServerFunc. The production callback
 			// calls config.Load(), and restoring the prior path prevents command

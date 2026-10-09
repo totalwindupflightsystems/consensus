@@ -38,7 +38,7 @@ func TestOpenAIClient_ReasoningContentFallback(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -96,7 +96,7 @@ func TestOpenAIClient_ReasoningContentFallback_EmptyBoth(t *testing.T) {
 			Usage: openaiChatUsage{PromptTokens: 1, CompletionTokens: 0, TotalTokens: 1},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 

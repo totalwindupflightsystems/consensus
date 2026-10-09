@@ -55,7 +55,7 @@ func ProbePort(host string, port int) ProbeResult {
 		// Refused, unroutable, or timed out — treat as free.
 		return ProbeResult{Occupied: false, Class: OccupantNone, Addr: addr, Port: port}
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	client := &http.Client{
 		Timeout: 2 * time.Second,
@@ -70,7 +70,7 @@ func ProbePort(host string, port int) ProbeResult {
 		// Accepts TCP but no HTTP response: TLS terminator, raw protocol, or immediate close.
 		return ProbeResult{Occupied: true, Class: OccupantNonHTTP, Addr: addr, Port: port}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Limited read — the occupant may not be Consensus at all.
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))

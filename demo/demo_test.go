@@ -95,14 +95,14 @@ database:
 logging:
   level: info
 `, demoPort, apiKey, dbPath)
-	os.WriteFile(configPath, []byte(config), 0644)
+	_ = os.WriteFile(configPath, []byte(config), 0644)
 
 	// Start server
 	adminKey, cmd, _, err := startServer(t, configPath)
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() { _ = cmd.Process.Kill() }()
 
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d", demoPort)
 	if !waitForHealth(serverURL, 15*time.Second) {
@@ -182,8 +182,8 @@ logging:
 	fmt.Printf("   ✓ Observed in-flight status %q\n", inFlightStatus)
 
 	// Kill server while the second transaction is open.
-	cmd.Process.Kill()
-	cmd.Wait()
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
 	fmt.Println("   💥 Server killed while work was in flight")
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -202,7 +202,7 @@ logging:
 	if err2 != nil {
 		t.Fatalf("restart: %v", err2)
 	}
-	defer cmd2.Process.Kill()
+	defer func() { _ = cmd2.Process.Kill() }()
 
 	if !waitForHealth(serverURL, 15*time.Second) {
 		t.Fatal("restart not healthy")
@@ -231,7 +231,7 @@ logging:
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 
-	cmd2.Process.Kill()
+	_ = cmd2.Process.Kill()
 }
 
 // ============================================================================
@@ -252,7 +252,7 @@ func startServer(t *testing.T, configPath string) (string, *exec.Cmd, *bytes.Buf
 	for adminKey == "" {
 		select {
 		case <-deadline:
-			cmd.Process.Kill()
+			_ = cmd.Process.Kill()
 			return "", nil, nil, fmt.Errorf("key timeout. Output:\n%s", stdout.String())
 		default:
 			for _, line := range strings.Split(stdout.String(), "\n") {
@@ -297,7 +297,7 @@ func createSession(t *testing.T, url, key, goal string) string {
 	var r struct {
 		ID string `json:"id"`
 	}
-	json.Unmarshal([]byte(resp.Body), &r)
+	_ = json.Unmarshal([]byte(resp.Body), &r)
 	if r.ID == "" {
 		t.Fatalf("create session: %d %s", resp.Status, resp.Body)
 	}
@@ -307,14 +307,14 @@ func createSession(t *testing.T, url, key, goal string) string {
 func getMemory(t *testing.T, url, key, sid string) []map[string]interface{} {
 	resp := api(t, url, key, "GET", fmt.Sprintf("/api/v1/sessions/%s/memory", sid), "")
 	var r []map[string]interface{}
-	json.Unmarshal([]byte(resp.Body), &r)
+	_ = json.Unmarshal([]byte(resp.Body), &r)
 	return r
 }
 
 func getSession(t *testing.T, url, key, sid string) map[string]interface{} {
 	resp := api(t, url, key, "GET", fmt.Sprintf("/api/v1/sessions/%s", sid), "")
 	var r map[string]interface{}
-	json.Unmarshal([]byte(resp.Body), &r)
+	_ = json.Unmarshal([]byte(resp.Body), &r)
 	return r
 }
 
@@ -325,7 +325,7 @@ func readRecoverySnapshot(t *testing.T, dbPath, sessionID string) recoverydiag.S
 	if err != nil {
 		t.Fatalf("open recovery diagnostics database: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	snapshot, err := recoverydiag.Read(ctx, database, sessionID)
 	if err != nil {
@@ -430,7 +430,7 @@ func showSessionResult(t *testing.T, url, key, sid, label string) {
 		if etype == "thinking" || etype == "system" {
 			continue
 		} // skip noise
-		prefix := "  "
+		var prefix string
 		switch etype {
 		case "tool_call":
 			prefix = "  🔧"
@@ -471,7 +471,7 @@ func api(t *testing.T, url, key, method, path, body string) apiResp {
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	return apiResp{resp.StatusCode, string(b)}
 }
@@ -485,7 +485,7 @@ func waitForHealth(url string, timeout time.Duration) bool {
 		default:
 			resp, err := http.Get(url + "/api/v1/health")
 			if err == nil && resp.StatusCode == 200 {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				return true
 			}
 			time.Sleep(500 * time.Millisecond)

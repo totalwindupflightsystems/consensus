@@ -175,7 +175,7 @@ func TestQuestionListMethodNotAllowed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /question: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusMethodNotAllowed {
 			t.Errorf("%s /question: got %d, want 405 METHOD_NOT_ALLOWED", method, resp.StatusCode)
 		}

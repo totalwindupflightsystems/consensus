@@ -99,7 +99,7 @@ func setupToolExecutorTestDB(t *testing.T) (db.DB, func()) {
 		)`,
 	} {
 		if err := database.Exec(ctx, stmt); err != nil {
-			database.Close()
+			_ = database.Close()
 			t.Fatalf("create table: %v", err)
 		}
 	}
@@ -117,7 +117,7 @@ func setupToolExecutorTestDB(t *testing.T) (db.DB, func()) {
 	_ = database.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
 		VALUES ('tool-te-02', 'sql_test_tool', 'A SQL function tool', 'internal', 'sql_function', 'upper', 1)`)
 
-	cleanup := func() { database.Close() }
+	cleanup := func() { _ = database.Close() }
 	return database, cleanup
 }
 

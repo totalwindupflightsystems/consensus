@@ -73,7 +73,7 @@ func TestTenantIDDefaultsMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to Postgres: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	if database.Backend() != db.BackendPostgres {
 		t.Fatalf("expected postgres backend, got %s", database.Backend())

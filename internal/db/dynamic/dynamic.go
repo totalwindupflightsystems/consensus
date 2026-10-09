@@ -884,7 +884,7 @@ func toVersion(v any) int {
 		return val
 	case string:
 		var result int
-		fmt.Sscanf(val, "%d", &result)
+		_, _ = fmt.Sscanf(val, "%d", &result)
 		return result
 	default:
 		return 0

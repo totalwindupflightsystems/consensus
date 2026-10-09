@@ -21,7 +21,7 @@ func TestAC032_SkillLookupByName(t *testing.T) {
 	defer th.close()
 
 	// Insert a skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-lu-1', 'excel_generator', '{"description":"Generate Excel files","when_to_use":"User requests spreadsheet"}', 'To generate Excel: 1. Call gen_excel() 2. Write to tool_files 3. Return path', 1)
 	`)
@@ -55,7 +55,7 @@ func TestAC032_SkillLinkedTools(t *testing.T) {
 	defer th.close()
 
 	// Insert a skill with linked tool IDs (as JSON array in TEXT column for SQLite)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, linked_tool_ids, enabled)
 		VALUES ('sk-tl-1', 'web_automation', '{"description":"Browser automation","when_to_use":"User needs web data"}', 'Use the scraper tool', '["tool-fetch","tool-parse"]', 1)
 	`)
@@ -85,12 +85,12 @@ func TestAC032_SkillMissingMetadataFallback(t *testing.T) {
 	defer th.close()
 
 	// Insert a skill with minimal metadata
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-mf-1', 'custom_script', '{}', 'Run the custom script with parameters', 1)
 	`)
 
-	skills, err := th.Harness.readSkillsMetadata(th.ctx)
+	skills, err := th.readSkillsMetadata(th.ctx)
 	if err != nil {
 		t.Fatalf("AC-032: readSkillsMetadata: %v", err)
 	}

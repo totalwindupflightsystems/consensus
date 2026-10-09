@@ -59,14 +59,14 @@ func setupRateLimitTestDB(t *testing.T) (db.DB, func()) {
 		)`,
 	} {
 		if err := database.Exec(ctx, stmt); err != nil {
-			database.Close()
+			_ = database.Close()
 			t.Fatalf("create table: %v", err)
 		}
 	}
 
 	_ = database.Exec(ctx, `INSERT INTO sessions (id) VALUES ('sess-rl-01')`)
 
-	cleanup := func() { database.Close() }
+	cleanup := func() { _ = database.Close() }
 	return database, cleanup
 }
 

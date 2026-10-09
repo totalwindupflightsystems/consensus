@@ -111,7 +111,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var req JSONRPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -134,7 +134,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if !(rpcErr != nil && bootstrapped && !sess.authenticated) {
+	if rpcErr == nil || !bootstrapped || sess.authenticated {
 		// Echo the session id back so the client can address follow-ups —
 		// but only while the session remains addressable. A failed
 		// handshake on a bootstrapped session tears that session down on
@@ -147,7 +147,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 
 	if rpcErr != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(JSONRPCErrorResponse{
+		_ = json.NewEncoder(w).Encode(JSONRPCErrorResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
 			Error:   *rpcErr,
@@ -155,7 +155,7 @@ func (s *Server) HandleStreamable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(JSONRPCResponse{
+	_ = json.NewEncoder(w).Encode(JSONRPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
 		Result:  result,
@@ -177,7 +177,7 @@ func (s *Server) writeHTTPError(w http.ResponseWriter, status int, id any, code 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // handleMCPRoot dispatches the bare /mcp mount by method: GET serves the SSE

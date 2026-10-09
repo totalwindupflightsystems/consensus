@@ -33,26 +33,16 @@ func captureGlobals(t *testing.T) {
 	t.Cleanup(func() {
 		optServer, optAPIKey, optConfig = prevServer, prevAPIKey, prevConfig
 		if prevServerEnv == "" {
-			os.Unsetenv("CONSENSUS_SERVER")
+			_ = os.Unsetenv("CONSENSUS_SERVER")
 		} else {
-			os.Setenv("CONSENSUS_SERVER", prevServerEnv)
+			_ = os.Setenv("CONSENSUS_SERVER", prevServerEnv)
 		}
 		if prevKeyEnv == "" {
-			os.Unsetenv("CONSENSUS_API_KEY")
+			_ = os.Unsetenv("CONSENSUS_API_KEY")
 		} else {
-			os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
+			_ = os.Setenv("CONSENSUS_API_KEY", prevKeyEnv)
 		}
 	})
-}
-
-// newKeyCapturingServer returns an httptest server that records the
-// Authorization header of every request and replies with an empty session
-// list (the response shape `session list` decodes).
-func newKeyCapturingServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
-	}))
 }
 
 // ============================================================================
@@ -63,10 +53,10 @@ func TestResolveDefaults_FlagBeatsEnv(t *testing.T) {
 	captureGlobals(t)
 
 	fs := newFlagSetForResolution()
-	fs.Set("server", "http://flag-server:1111")
-	fs.Set("api-key", "flag-key")
-	os.Setenv("CONSENSUS_SERVER", "http://env-server:2222")
-	os.Setenv("CONSENSUS_API_KEY", "env-key")
+	_ = fs.Set("server", "http://flag-server:1111")
+	_ = fs.Set("api-key", "flag-key")
+	_ = os.Setenv("CONSENSUS_SERVER", "http://env-server:2222")
+	_ = os.Setenv("CONSENSUS_API_KEY", "env-key")
 
 	server, apiKey := resolveDefaults(fs, nil)
 
@@ -82,8 +72,8 @@ func TestResolveDefaults_EnvBeatsConfig(t *testing.T) {
 	captureGlobals(t)
 
 	fs := newFlagSetForResolution()
-	os.Setenv("CONSENSUS_SERVER", "http://env-server:2222")
-	os.Setenv("CONSENSUS_API_KEY", "env-key")
+	_ = os.Setenv("CONSENSUS_SERVER", "http://env-server:2222")
+	_ = os.Setenv("CONSENSUS_API_KEY", "env-key")
 
 	server, apiKey := resolveDefaults(fs, nil)
 
@@ -146,12 +136,12 @@ func TestExecute_APIKeyFromEnv_ReachesWire(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srv.Close()
 
-	os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
-	os.Unsetenv("CONSENSUS_SERVER")
+	_ = os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
+	_ = os.Unsetenv("CONSENSUS_SERVER")
 
 	cmd := NewRootCommand()
 	cmd.SetArgs([]string{"--server", srv.URL, "session", "list"})
@@ -172,11 +162,11 @@ func TestExecute_APIKeyFlagBeatsEnv_ReachesWire(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srv.Close()
 
-	os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
+	_ = os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
 
 	cmd := NewRootCommand()
 	cmd.SetArgs([]string{"--server", srv.URL, "--api-key", "flag-secret-key", "session", "list"})
@@ -198,18 +188,18 @@ func TestExecute_ServerFromEnv_ReachesWire(t *testing.T) {
 	srvDefault := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitsDefault++
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srvDefault.Close()
 	srvEnv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitsEnv++
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srvEnv.Close()
 
-	os.Setenv("CONSENSUS_SERVER", srvEnv.URL)
-	os.Unsetenv("CONSENSUS_API_KEY")
+	_ = os.Setenv("CONSENSUS_SERVER", srvEnv.URL)
+	_ = os.Unsetenv("CONSENSUS_API_KEY")
 
 	cmd := NewRootCommand()
 	cmd.SetArgs([]string{"session", "list"})
@@ -234,7 +224,7 @@ func TestExecute_APIKeyFromConfig_ReachesWire(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srv.Close()
 
@@ -245,8 +235,8 @@ func TestExecute_APIKeyFromConfig_ReachesWire(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	os.Unsetenv("CONSENSUS_SERVER")
-	os.Unsetenv("CONSENSUS_API_KEY")
+	_ = os.Unsetenv("CONSENSUS_SERVER")
+	_ = os.Unsetenv("CONSENSUS_API_KEY")
 
 	// --config is passed on the command line (the production shape): the
 	// flag bind resets a pre-written optConfig var, so the config path must
@@ -272,12 +262,12 @@ func TestExecute_Entry_APIKeyFromEnv(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srv.Close()
 
-	os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
-	os.Unsetenv("CONSENSUS_SERVER")
+	_ = os.Setenv("CONSENSUS_API_KEY", "env-secret-key")
+	_ = os.Unsetenv("CONSENSUS_SERVER")
 
 	prevArgs := os.Args
 	os.Args = []string{"consensus", "--server", srv.URL, "session", "list"}
@@ -291,7 +281,7 @@ func TestExecute_Entry_APIKeyFromEnv(t *testing.T) {
 	os.Stdout = devNull
 	code := Execute()
 	os.Stdout = prevStdout
-	devNull.Close()
+	_ = devNull.Close()
 
 	if code != 0 {
 		t.Errorf("Execute returned %d, want 0", code)

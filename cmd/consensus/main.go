@@ -121,7 +121,7 @@ func runServer() {
 		fmt.Fprintf(os.Stderr, "db: %v\n", err)
 		os.Exit(1)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Admin DB bypasses RLS for migrations + bootstrap (table owner, not agent_role)
 	adminDB := dbdriver.AdminDB(database)
@@ -192,7 +192,7 @@ func runServer() {
 	// public API router never mounts /debug/pprof (unauthenticated —
 	// DF-CONSENSUS-19 exposure class).
 	if pprofLn := api.StartPprofListener(cfg.Server.PprofAddr); pprofLn != nil {
-		defer pprofLn.Close()
+		defer func() { _ = pprofLn.Close() }()
 	}
 
 	// Compression Worker (WI-012, CS-GAP-001) — background memory compression pipeline.
@@ -484,7 +484,7 @@ func runMCPStdio() {
 		fmt.Fprintf(os.Stderr, "db: %v\n", err)
 		os.Exit(1)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Admin DB bypasses RLS for migrations + bootstrap (table owner, not agent_role)
 	adminDB := dbdriver.AdminDB(database)
@@ -548,7 +548,7 @@ func runMigrate(action string, dbURL string) error {
 	if err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	adminDB := dbdriver.AdminDB(database)
 
@@ -626,7 +626,7 @@ func runInit(dbURL string) error {
 	if err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	migrated, err := migrate.New(database).AutoMigrate(ctx)
 	if err != nil {

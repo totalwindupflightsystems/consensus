@@ -293,7 +293,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status":           "ok",
 		"version":          "1.0.0",
 		"transport":        "rest",
@@ -486,7 +486,7 @@ func (s *Server) handleCancel(w http.ResponseWriter, r *http.Request) {
 
 	// Known session (or unparseable body): acknowledge cancellation.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
 }
 
 // handleSessionGet serves GET /v1/sessions/{id} — a documented H3 protocol
@@ -517,7 +517,7 @@ func (s *Server) handleSessionGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"session_id": id,
 		"status":     status,
 		"turn_count": sess.turns,
@@ -577,7 +577,7 @@ func (s *Server) parseToolCall(response string) *ToolCall {
 	if toolReqs, ok := parsed["tool_requests"].([]any); ok && len(toolReqs) > 0 {
 		if tr, ok := toolReqs[0].(map[string]any); ok {
 			name, _ := tr["tool_name"].(string)
-			params, _ := tr["parameters"]
+			params := tr["parameters"]
 			reasoning, _ := parsed["internal_monologue"].(string)
 			return &ToolCall{
 				Name:      name,
@@ -592,7 +592,7 @@ func (s *Server) parseToolCall(response string) *ToolCall {
 
 func (s *Server) writeDecision(w http.ResponseWriter, d Decision) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(d)
+	_ = json.NewEncoder(w).Encode(d)
 }
 
 func (s *Server) writeError(w http.ResponseWriter, code, message string) {
@@ -602,7 +602,7 @@ func (s *Server) writeError(w http.ResponseWriter, code, message string) {
 func (s *Server) writeErrorStatus(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": ErrorDetail{Code: code, Message: message},
 	})
 }

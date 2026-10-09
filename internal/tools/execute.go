@@ -287,7 +287,7 @@ func executeHTTPEndpoint(ctx context.Context, database db.DB, req *ToolExecution
 			case <-time.After(time.Duration(1<<(attempt-1)) * time.Second):
 			}
 			if br, ok := bodyReader.(*bytes.Reader); ok {
-				br.Seek(0, io.SeekStart)
+				_, _ = br.Seek(0, io.SeekStart)
 			}
 		}
 
@@ -313,7 +313,7 @@ func executeHTTPEndpoint(ctx context.Context, database db.DB, req *ToolExecution
 		}
 
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return &ToolExecutionResult{

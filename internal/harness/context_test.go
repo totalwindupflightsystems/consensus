@@ -83,7 +83,7 @@ func mustExec(t *testing.T, database db.DB, query string) {
 
 func TestReadActiveContext_SessionNotFound(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	h := &Harness{db: database}
 	_, err := h.ReadActiveContext(context.Background(), "non-existent-id")
@@ -97,7 +97,7 @@ func TestReadActiveContext_SessionNotFound(t *testing.T) {
 
 func TestReadActiveContext_SessionFound(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Insert a test session
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
@@ -128,7 +128,7 @@ func TestReadActiveContext_SessionFound(t *testing.T) {
 
 func TestReadActiveContext_WithMemoryEvents(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'thinking', 'Test memory')`)
@@ -163,7 +163,7 @@ func TestReadActiveContext_WithMemoryEvents(t *testing.T) {
 
 func TestReadActiveContext_WithDisplayModes(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'idle', 'Test display modes')`)
@@ -202,7 +202,7 @@ func TestReadActiveContext_WithDisplayModes(t *testing.T) {
 
 func TestReadActiveContext_HiddenEventsExcluded(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'idle', 'Test hidden')`)
@@ -233,7 +233,7 @@ func TestReadActiveContext_HiddenEventsExcluded(t *testing.T) {
 
 func TestReadActiveContext_HiddenUserTurnScopedToIteration(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration)
 		VALUES ('s1', 'agent', 'gpt-4o', 'planning', 'Answer the user', 7)`)
@@ -263,7 +263,7 @@ func TestReadActiveContext_HiddenUserTurnScopedToIteration(t *testing.T) {
 
 func TestReadActiveContext_WithTools(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'idle', 'Test tools')`)
@@ -313,7 +313,7 @@ func TestReadActiveContext_WithTools(t *testing.T) {
 
 func TestReadActiveContext_SystemPromptContainsRules(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'idle', 'Test rules')`)
@@ -343,7 +343,7 @@ func TestReadActiveContext_SystemPromptContainsRules(t *testing.T) {
 
 func TestReadActiveContext_ConstraintsInMarkdown(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	mustExec(t, database, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('s1', 'agent', 'gpt-4o', 'idle', 'Test constraints')`)

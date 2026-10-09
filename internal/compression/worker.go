@@ -178,7 +178,7 @@ func (s *openaiSummarizer) Summarize(ctx context.Context, systemPrompt, content 
 	if err != nil {
 		return "", fmt.Errorf("summarizer: http request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -722,7 +722,7 @@ func toInt64(v any) int64 {
 		return int64(val)
 	case []byte:
 		var i int64
-		fmt.Sscanf(string(val), "%d", &i)
+		_, _ = fmt.Sscanf(string(val), "%d", &i)
 		return i
 	default:
 		return 0

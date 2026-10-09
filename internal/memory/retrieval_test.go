@@ -274,12 +274,12 @@ func openRetrievalBenchDB(b *testing.B) (db.DB, func()) {
 		b.Fatalf("bench: create temp db: %v", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	ctx := context.Background()
 	conn, err := driver.Open(ctx, db.Config{URL: "sqlite://" + tmpPath})
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		b.Fatalf("bench: open sqlite: %v", err)
 	}
 	for _, stmt := range strings.Split(retrievalBenchSchema, ";") {
@@ -288,14 +288,14 @@ func openRetrievalBenchDB(b *testing.B) (db.DB, func()) {
 			continue
 		}
 		if err := conn.Exec(ctx, trimmed); err != nil {
-			conn.Close()
-			os.Remove(tmpPath)
+			_ = conn.Close()
+			_ = os.Remove(tmpPath)
 			b.Fatalf("bench: apply schema: %v", err)
 		}
 	}
 	cleanup := func() {
-		conn.Close()
-		os.Remove(tmpPath)
+		_ = conn.Close()
+		_ = os.Remove(tmpPath)
 	}
 	return conn, cleanup
 }

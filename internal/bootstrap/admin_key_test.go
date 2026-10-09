@@ -23,7 +23,7 @@ import (
 
 func TestEnsureFirstAdminKey_CreatesUsableHashedAdminKey(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	result, err := EnsureFirstAdminKey(context.Background(), database, 0)
 	if err != nil {
@@ -72,7 +72,7 @@ func TestEnsureFirstAdminKey_CreatesUsableHashedAdminKey(t *testing.T) {
 
 func TestEnsureFirstAdminKey_AuthenticatesProtectedEndpoint(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	result, err := EnsureFirstAdminKey(context.Background(), database, 0)
 	if err != nil {
@@ -93,7 +93,7 @@ func TestEnsureFirstAdminKey_AuthenticatesProtectedEndpoint(t *testing.T) {
 
 func TestEnsureFirstAdminKey_ConcurrentCallsCreateOneKey(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	const workers = 10
 	var wg sync.WaitGroup
@@ -259,7 +259,7 @@ func newMigratedTestDB(t *testing.T) db.DB {
 	}
 
 	if _, err := migrate.New(database).AutoMigrate(ctx); err != nil {
-		database.Close()
+		_ = database.Close()
 		t.Fatalf("migrate: %v", err)
 	}
 	return database
@@ -271,7 +271,7 @@ func newMigratedTestDB(t *testing.T) db.DB {
 
 func TestEnsureFirstAdminKey_WithTTL_SetsExpiresAt(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	ttl := 1 * time.Hour
 	result, err := EnsureFirstAdminKey(context.Background(), database, ttl)
@@ -316,7 +316,7 @@ func TestEnsureFirstAdminKey_WithTTL_SetsExpiresAt(t *testing.T) {
 
 func TestEnsureFirstAdminKey_WithZeroTTL_NoExpiry(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	result, err := EnsureFirstAdminKey(context.Background(), database, 0)
 	if err != nil {
@@ -358,7 +358,7 @@ func TestEnsureFirstAdminKey_DefaultTTL_Is90Days(t *testing.T) {
 
 func TestEnsureFirstAdminKey_ExpiredKeyRejected(t *testing.T) {
 	database := newMigratedTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Create key with 1 hour TTL
 	result, err := EnsureFirstAdminKey(context.Background(), database, 1*time.Hour)
@@ -483,38 +483,38 @@ func TestFormatResult_NoExpiry_ShowsDoesNotExpire(t *testing.T) {
 func TestGetBootstrapKeyTTL_EnvVarParsing(t *testing.T) {
 	// Save and restore env var
 	orig := os.Getenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
-	defer os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", orig)
+	defer func() { _ = os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", orig) }()
 
 	// Test: unset → default (2160h)
-	os.Unsetenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
+	_ = os.Unsetenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS")
 	got := GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("unset: expected %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)
 	}
 
 	// Test: valid value
-	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "48")
+	_ = os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "48")
 	got = GetBootstrapKeyTTL()
 	if got != 48*time.Hour {
 		t.Errorf("48: expected 48h, got %v", got)
 	}
 
 	// Test: 0 → returns 0 (no expiry)
-	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "0")
+	_ = os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "0")
 	got = GetBootstrapKeyTTL()
 	if got != 0 {
 		t.Errorf("0: expected 0, got %v", got)
 	}
 
 	// Test: invalid value → default
-	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "not-a-number")
+	_ = os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "not-a-number")
 	got = GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("invalid: expected default %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)
 	}
 
 	// Test: negative value → default
-	os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "-1")
+	_ = os.Setenv("CONSENSUS_BOOTSTRAP_KEY_TTL_HOURS", "-1")
 	got = GetBootstrapKeyTTL()
 	if got != DefaultBootstrapKeyTTLHours*time.Hour {
 		t.Errorf("negative: expected default %v, got %v", DefaultBootstrapKeyTTLHours*time.Hour, got)

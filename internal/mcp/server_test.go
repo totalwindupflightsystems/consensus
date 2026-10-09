@@ -80,59 +80,10 @@ func (m *sequentialMockDB) Backend() db.Backend { return db.BackendSQLite }
 // Helpers
 // ============================================================================
 
-func makeJSONRPC(method string, params any) []byte {
-	raw, _ := json.Marshal(params)
-	r := JSONRPCRequest{
-		JSONRPC: "2.0",
-		ID:      1,
-		Method:  method,
-		Params:  raw,
-	}
-	data, _ := json.Marshal(r)
-	return data
-}
-
-// makeInitializeRequest creates an initialize request with auth token.
-func makeInitializeRequest(auth string) []byte {
-	return makeJSONRPC("initialize", map[string]any{
-		"protocolVersion": "2024-11-05",
-		"capabilities":    map[string]any{},
-		"clientInfo": map[string]any{
-			"name":    "test-client",
-			"version": "1.0",
-		},
-		"_meta": map[string]any{
-			"authorization": auth,
-		},
-	})
-}
-
-func readJSONRPCResponse(t *testing.T, body string) map[string]any {
-	t.Helper()
-	var resp map[string]any
-	if err := json.Unmarshal([]byte(body), &resp); err != nil {
-		t.Fatalf("failed to parse JSON-RPC response: %v\nBody: %s", err, body)
-	}
-	return resp
-}
-
 func assertNoRPCError(t *testing.T, resp map[string]any) {
 	t.Helper()
 	if _, ok := resp["error"]; ok {
 		t.Fatalf("unexpected RPC error: %v", resp["error"])
-	}
-}
-
-func assertRPCError(t *testing.T, resp map[string]any, wantCode int) {
-	t.Helper()
-	errObj, ok := resp["error"]
-	if !ok {
-		t.Fatalf("expected RPC error, got success: %v", resp)
-	}
-	errMap := errObj.(map[string]any)
-	code := int(errMap["code"].(float64))
-	if code != wantCode {
-		t.Errorf("expected error code %d, got %d: %v", wantCode, code, errMap)
 	}
 }
 
@@ -770,37 +721,6 @@ func TestHandler_ReturnsMultiplexer(t *testing.T) {
 }
 
 // ============================================================================
-// Helpers
-// ============================================================================
-
-func makeInitializeWithoutAuth() []byte {
-	return makeJSONRPC("initialize", map[string]any{
-		"protocolVersion": "2024-11-05",
-		"capabilities":    map[string]any{},
-		"clientInfo": map[string]any{
-			"name":    "test-client",
-			"version": "1.0",
-		},
-	})
-}
-
-func extractSessionID(t *testing.T, sseBody string) string {
-	t.Helper()
-	lines := strings.Split(sseBody, "\n")
-	for i, line := range lines {
-		if strings.HasPrefix(line, "data: ") && strings.Contains(line, "sessionId=") {
-			_ = i
-			data := strings.TrimPrefix(line, "data: ")
-			if idx := strings.Index(data, "sessionId="); idx >= 0 {
-				return data[idx+10:]
-			}
-		}
-	}
-	t.Fatal("could not extract sessionId from SSE response")
-	return ""
-}
-
-// ============================================================================
 // writeError Tests
 // ============================================================================
 
@@ -962,7 +882,7 @@ func TestHandleMessage_NotJSONRPC2(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	if _, ok := resp["error"]; !ok {
 		t.Error("expected error for invalid jsonrpc version")
 	}

@@ -56,7 +56,7 @@ func getProjectCurrent(t *testing.T, base, path string) (int, projectBody) {
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read GET %s: %v", path, err)
@@ -265,7 +265,7 @@ func TestProjectCurrentServesDeclared200(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /project/current: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		data, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /project/current (header workspace): got %d, want 200. Body: %s", resp.StatusCode, data)
@@ -374,7 +374,7 @@ func TestProjectCurrentErrorArmsAnswerDeclaredCodes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("POST /project/current: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		data, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("POST /project/current: got %d, want 501 (only GET is declared; 405 is not). Body: %s", resp.StatusCode, data)

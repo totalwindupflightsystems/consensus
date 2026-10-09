@@ -228,7 +228,6 @@ type mcpSession struct {
 	id             string
 	eventCh        chan string   // SSE events to the client
 	done           chan struct{} // closed when client disconnects
-	stop           func()        // cancel function for cleanup
 	sessionKey     string        // API key for this MCP session (for scoping)
 	authScope      string        // admin, session, readonly — from API key validation
 	agentSessionID string        // if session-scoped, the session ID
@@ -402,7 +401,7 @@ func (s *Server) HandleMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var req JSONRPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -449,7 +448,7 @@ func (s *Server) HandleMessage(w http.ResponseWriter, r *http.Request) {
 		Result:  result,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // ============================================================================
@@ -593,7 +592,7 @@ func (s *Server) writeErrorStatus(w http.ResponseWriter, id any, httpStatus, cod
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // Handler returns an http.Handler that serves the full MCP HTTP surface:

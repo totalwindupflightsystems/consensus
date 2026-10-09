@@ -44,7 +44,7 @@ func postCommand(t *testing.T, base, path, body string) (int, http.Header, []byt
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read body: %v", err)
@@ -272,7 +272,7 @@ func TestSessionCommandNeighboursUntouched(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /session/s1/command: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("%s /session/s1/command: got %d, want 501 (stub-list residual)", method, resp.StatusCode)
 		}

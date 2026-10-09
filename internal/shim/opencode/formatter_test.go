@@ -140,7 +140,7 @@ func TestFormatterChiMount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /formatter via chi mount: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /formatter via chi mount: got %d, want 200 — /formatter must be registered in MountPatterns", resp.StatusCode)
 	}

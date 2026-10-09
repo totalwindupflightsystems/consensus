@@ -33,7 +33,7 @@ func TestOpenAPIYAMLEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.yaml: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -62,7 +62,7 @@ func TestOpenAPIJSONEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -119,7 +119,7 @@ func TestOpenAPISpecServedFromEmbeddedSpec(t *testing.T) {
 		t.Fatalf("failed to GET /openapi.yaml: %v", err)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 for /openapi.yaml from non-repo CWD, got %d", resp.StatusCode)
 	}
@@ -132,7 +132,7 @@ func TestOpenAPISpecServedFromEmbeddedSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 for /openapi.json from non-repo CWD, got %d", resp.StatusCode)
 	}
@@ -155,7 +155,7 @@ func TestDocAPISwaggerUIEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /doc/api: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -194,7 +194,7 @@ func TestBareDocNotServedByAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /doc: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 404 {
 		t.Fatalf("expected 404 for /doc on API-only server, got %d", resp.StatusCode)
@@ -210,7 +210,7 @@ func TestHealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /api/v1/health: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -241,7 +241,7 @@ func TestOpenAPICORSAccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.yaml: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	cors := resp.Header.Get("Access-Control-Allow-Origin")
 	if cors != "*" {
@@ -326,7 +326,7 @@ func TestOpenAPISpecIgnoresDecoyOnDisk(t *testing.T) {
 		t.Fatalf("failed to GET /openapi.yaml: %v", err)
 	}
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		t.Fatalf("failed to read /openapi.yaml body: %v", err)
 	}
@@ -342,7 +342,7 @@ func TestOpenAPISpecIgnoresDecoyOnDisk(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var served map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&served); err != nil {
 		t.Fatalf("failed to parse /openapi.json: %v", err)
@@ -403,7 +403,7 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var doc map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
 		t.Fatalf("failed to parse /openapi.json: %v", err)

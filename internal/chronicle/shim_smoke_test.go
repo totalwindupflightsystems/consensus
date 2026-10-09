@@ -33,7 +33,7 @@ func startServe(t *testing.T, tmpDir, dbPath string, port int) *exec.Cmd {
 	binPath := buildBin(t, tmpDir)
 	initCmd := exec.Command(binPath, "init", "--db-url", "sqlite://"+dbPath)
 	initCmd.Dir = tmpDir
-	initCmd.CombinedOutput()
+	_, _ = initCmd.CombinedOutput()
 
 	configYAML := fmt.Sprintf(`server:
   hostname: 127.0.0.1
@@ -47,7 +47,7 @@ llm:
 database:
   url: "sqlite://%s"
 `, port, os.Getenv("DEEPSEEK_API_KEY"), dbPath)
-	os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(configYAML), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "consensus.yaml"), []byte(configYAML), 0644)
 
 	ctx := t.Context()
 	cmd := exec.CommandContext(ctx, binPath, "serve",
@@ -72,7 +72,7 @@ func TestShimEndpoints(t *testing.T) {
 	port := 8194
 
 	serveCmd := startServe(t, tmpDir, dbPath, port)
-	defer serveCmd.Process.Kill()
+	defer func() { _ = serveCmd.Process.Kill() }()
 	time.Sleep(2 * time.Second)
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -125,7 +125,7 @@ func TestShimEndpoints(t *testing.T) {
 			continue
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		status := resp.StatusCode
 		if status >= c.minStatus && status <= c.maxStatus {
 			passed++
@@ -157,7 +157,7 @@ func TestShimHealthEndpoint(t *testing.T) {
 	port := 8195
 
 	serveCmd := startServe(t, tmpDir, dbPath, port)
-	defer serveCmd.Process.Kill()
+	defer func() { _ = serveCmd.Process.Kill() }()
 	time.Sleep(2 * time.Second)
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -167,7 +167,7 @@ func TestShimHealthEndpoint(t *testing.T) {
 	resp, _ := client.Get(baseURL + "/doc")
 	if resp != nil {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		t.Logf("/doc: %d, %d bytes", resp.StatusCode, len(body))
 	}
 
@@ -176,7 +176,7 @@ func TestShimHealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("/global/health: %v", err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	body2, _ := io.ReadAll(resp2.Body)
 	if resp2.StatusCode == 200 {
 		t.Logf("/global/health: 200 — %s", string(body2))

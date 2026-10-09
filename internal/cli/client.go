@@ -53,7 +53,7 @@ func (c *Client) VerifyIdentity() error {
 		// ("cannot connect to Consensus server at <url>..."). Pass it through.
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -79,7 +79,7 @@ func (c *Client) VerifyIdentity() error {
 		return fmt.Errorf(
 			"port %s is occupied by a non-Consensus service — the server at %s "+
 				"returned an unrecognized response. Use --server to specify the correct "+
-				"Consensus server URL, or --port to change the port when running 'consensus serve'.",
+				"Consensus server URL, or --port to change the port when running 'consensus serve'",
 			port, c.baseURL,
 		)
 	}
@@ -130,7 +130,7 @@ func (c *Client) patch(path string, body any) (*http.Response, error) {
 func (c *Client) delete(path string) (*http.Response, error) { return c.do("DELETE", path, nil) }
 
 func (c *Client) decodeBody(resp *http.Response, target any) error {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err

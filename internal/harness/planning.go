@@ -219,7 +219,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	}
 	defer func() {
 		if tx.IsActive() {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -321,7 +321,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		}
 
 		// Save monologue as audit entry
-		h.WriteAuditLog(ctx, &AuditEntry{
+		_ = h.WriteAuditLog(ctx, &AuditEntry{
 			SessionID:   sessionID,
 			Monologue:   plan.Monologue,
 			SQLExecuted: nil,
@@ -371,7 +371,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 							"error":  execErr.Error(),
 						})
 						failureRaw := json.RawMessage(failureResult)
-						h.updateStagingStatus(ctx, tx, entry.ID, BufferFailed, &failureRaw)
+						_ = h.updateStagingStatus(ctx, tx, entry.ID, BufferFailed, &failureRaw)
 						slog.Warn("planning: staged command failed", "turn", turn, "cmd_type", cmd.CmdType, "error", execErr)
 
 						// If the error breaks the transaction, rollback and fail
@@ -379,7 +379,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 							return h.handlePlanningError(ctx, tx, sessionID, execErr)
 						}
 					} else {
-						h.updateStagingResult(ctx, tx, entry.ID, result)
+						_ = h.updateStagingResult(ctx, tx, entry.ID, result)
 					}
 				}
 			}
@@ -388,7 +388,6 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			slog.Info("planning: commands staged", "turn", turn, "count", len(plan.StagedCommands), "executed", exec)
 
 		case ActionToolCall:
-			turnsWithWork++
 			slog.Info("planning: tool call requested", "turn", turn, "tools", len(plan.ToolRequests))
 			// Suspend FIRST, then persist the hand-off rows on a fresh
 			// connection. The tool_call_ref entries are the payload the
@@ -438,17 +437,16 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			slog.Info("planning: rolling back", "turn", turn, "rollback_count", rollbackCount)
 
 			if plan.EndIteration {
-				memoryStateChanges = nil
 				return h.handleRollbackAndEnd(ctx, tx, sessionID, turn, plan.MessageToUser)
 			}
 
 			// Re-open fresh transaction for retry
-			tx.Rollback()
+			_ = tx.Rollback()
 			tx, err = h.db.BeginTx(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("planning: re-open tx: %w", err)
 			}
-			tx.SetSessionContext(ctx, sessionID)
+			_ = tx.SetSessionContext(ctx, sessionID)
 			memoryStateChanges = nil // clear pending changes
 
 		case ActionRespond:
@@ -499,7 +497,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		}
 		finalMsg = result.ErrorInjected
 	} else {
-		tx.Rollback()
+		_ = tx.Rollback()
 		// BUG FIX: tx is rolled back, so we must update session status outside the transaction.
 		// Without this, the session remains stuck in "planning" forever.
 		if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
@@ -591,8 +589,8 @@ func (h *Harness) executeStagedEntry(ctx context.Context, tx db.Tx, entry *Stagi
 		}
 		if err := tx.Exec(ctx, sqlStr); err != nil {
 			// Roll back only this statement's effects; the tx stays usable.
-			tx.Exec(ctx, "ROLLBACK TO SAVEPOINT staged_exec")
-			tx.Exec(ctx, "RELEASE SAVEPOINT staged_exec")
+			_ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT staged_exec")
+			_ = tx.Exec(ctx, "RELEASE SAVEPOINT staged_exec")
 			return nil, fmt.Errorf("sql: %w", err)
 		}
 		if err := tx.Exec(ctx, "RELEASE SAVEPOINT staged_exec"); err != nil {
@@ -908,7 +906,7 @@ func (h *Harness) flushPendingUsage(ctx context.Context, sessionID string, pendi
 		}
 		defer func() {
 			if tx.IsActive() {
-				tx.Rollback()
+				_ = tx.Rollback()
 			}
 		}()
 		if err := tx.SetSessionContext(flushCtx, sessionID); err != nil {
@@ -952,12 +950,12 @@ func (h *Harness) flushPendingUsage(ctx context.Context, sessionID string, pendi
 
 func (h *Harness) handleRollbackAndEnd(ctx context.Context, tx db.Tx, sessionID string, turn int, messageToUser string) (*IterationResult, error) {
 	// Mark staging entries as rolled_back
-	tx.Exec(ctx, `
+	_ = tx.Exec(ctx, `
 		UPDATE staging_buffer SET status = 'rolled_back'
 		WHERE session_id = $1 AND status IN ('staged', 'executed')
 	`, sessionID)
 
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	return &IterationResult{
 		Status:     "success",
@@ -967,7 +965,7 @@ func (h *Harness) handleRollbackAndEnd(ctx context.Context, tx db.Tx, sessionID 
 
 func (h *Harness) handleMaxRollbacksV2(ctx context.Context, tx db.Tx, sessionID string, turn int) (*IterationResult, error) {
 	// Mark buffer as failed
-	tx.Exec(ctx, `
+	_ = tx.Exec(ctx, `
 		UPDATE staging_buffer SET status = 'failed'
 		WHERE session_id = $1 AND status IN ('staged', 'executed')
 	`, sessionID)
@@ -986,7 +984,7 @@ func (h *Harness) handleMaxRollbacksV2(ctx context.Context, tx db.Tx, sessionID 
 func (h *Harness) handlePlanningTimeout(ctx context.Context, tx db.Tx, sessionID string, turn int, err error) (*IterationResult, error) {
 	slog.Error("planning: timeout", "session_id", sessionID, "turn", turn)
 
-	tx.Exec(ctx, `
+	_ = tx.Exec(ctx, `
 		UPDATE staging_buffer SET status = 'failed'
 		WHERE session_id = $1 AND status IN ('staged', 'executed')
 	`, sessionID)
@@ -995,7 +993,7 @@ func (h *Harness) handlePlanningTimeout(ctx context.Context, tx db.Tx, sessionID
 		slog.Error("planning: failed to update session on timeout", "error", err)
 	}
 
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	return &IterationResult{
 		Status:        "error",
@@ -1021,7 +1019,7 @@ func (h *Harness) handleLLMPlanningError(ctx context.Context, tx db.Tx, sessionI
 	slog.Error("planning: LLM error", "session_id", sessionID, "error", err)
 
 	if tx.IsActive() {
-		tx.Rollback()
+		_ = tx.Rollback()
 	}
 
 	threshold := h.maxConsecutiveErrors()
@@ -1060,7 +1058,7 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 	slog.Error("planning: error", "error", planningErr)
 
 	if tx.IsActive() {
-		tx.Rollback()
+		_ = tx.Rollback()
 	}
 
 	// The failed transaction cannot persist its own diagnostics. Record the
@@ -1102,7 +1100,7 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 
 func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int) (*IterationResult, error) {
 	// Suspend the open transaction — transition to tool_exec
-	tx.Rollback() // Close the planning tx; tool execution will re-open a new one
+	_ = tx.Rollback() // Close the planning tx; tool execution will re-open a new one
 
 	if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'tool_exec' WHERE id = $1`, sessionID); err != nil {
 		return nil, err
@@ -1218,7 +1216,7 @@ func (h *Harness) formatPlanningSystemPromptV2(ic *IterationContext, buffer *Sta
 		if cols == "" {
 			cols = "(unknown)"
 		}
-		schemaBuf.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", name, cols, writable))
+		fmt.Fprintf(&schemaBuf, "| `%s` | %s | %s |\n", name, cols, writable)
 	}
 	schemaBuf.WriteString("\n")
 	schemaBuf.WriteString("**Key:** `memory_events.type` (NOT event_type) — valid values: 'header', 'text_block', 'tool_call', 'tool_result', 'thinking', 'system', 'inherited_pointer', 'user_message'. `memory_events.content` (NOT payload). Use ONLY the columns shown above.\n")

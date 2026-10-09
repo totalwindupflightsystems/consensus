@@ -19,7 +19,7 @@ import (
 func TestOpenAIClient_Non2xxAuthError_IsActionable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorized — invalid API key provided"))
+		_, _ = w.Write([]byte("Unauthorized — invalid API key provided"))
 	}))
 	defer server.Close()
 
@@ -53,7 +53,7 @@ func TestOpenAIClient_Non2xxAuthError_IsActionable(t *testing.T) {
 func TestOpenAIClient_Non2xxJSONError_SurfacesProviderMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":{"message":"Incorrect API key provided","type":"invalid_request_error","code":"invalid_api_key"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"Incorrect API key provided","type":"invalid_request_error","code":"invalid_api_key"}}`))
 	}))
 	defer server.Close()
 
@@ -81,7 +81,7 @@ func TestOpenAIClient_Non2xxJSONError_SurfacesProviderMessage(t *testing.T) {
 func TestAnthropicClient_Non2xxAuthError_IsActionable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}`))
+		_, _ = w.Write([]byte(`{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}`))
 	}))
 	defer server.Close()
 

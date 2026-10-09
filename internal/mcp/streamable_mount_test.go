@@ -115,7 +115,7 @@ func TestStreamableMount_InitializeAndToolsListOnBareMCP(t *testing.T) {
 		t.Fatalf("initialize: %v", err)
 	}
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 65536))
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	var initResp map[string]any
 	if err := json.Unmarshal(data, &initResp); err != nil {
 		t.Fatalf("initialize: invalid JSON (status %d): %q", resp.StatusCode, strings.TrimSpace(string(data)))
@@ -148,7 +148,7 @@ func TestStreamableMount_InitializeAndToolsListOnBareMCP(t *testing.T) {
 		t.Fatalf("tools/list: %v", err)
 	}
 	data2, _ := io.ReadAll(io.LimitReader(resp2.Body, 65536))
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 	var listResp map[string]any
 	if err := json.Unmarshal(data2, &listResp); err != nil {
 		t.Fatalf("tools/list: invalid JSON (status %d): %q", resp2.StatusCode, strings.TrimSpace(string(data2)))
@@ -246,7 +246,7 @@ func TestStreamableMount_UnauthenticatedToolsListIs401Class(t *testing.T) {
 				t.Fatalf("tools/list: %v", err)
 			}
 			data, _ := io.ReadAll(io.LimitReader(resp.Body, 65536))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			var out map[string]any
 			_ = json.Unmarshal(data, &out)
 			errObj, ok := out["error"].(map[string]any)
@@ -276,7 +276,7 @@ func TestStreamableMount_GETReturnsSSEStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /mcp: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /mcp: expected 200, got %d", resp.StatusCode)
 	}
@@ -312,7 +312,7 @@ func TestStreamableMount_LegacyMessageStillRegistered(t *testing.T) {
 		t.Fatalf("POST /mcp/message: %v", err)
 	}
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if strings.Contains(string(data), "page not found") {
 		t.Fatalf("POST /mcp/message fell through to the router (route lost): %q", strings.TrimSpace(string(data)))
 	}
@@ -334,7 +334,7 @@ func TestStreamableMount_ServedSpecMarksMCPImplemented(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /openapi.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var doc map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
 		t.Fatalf("decode /openapi.json: %v", err)

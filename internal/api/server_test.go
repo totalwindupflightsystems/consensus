@@ -220,22 +220,6 @@ func rateLimitKey(scope string, count int64, windowStart string) *callbackMock {
 	}
 }
 
-// rateLimitFreshKey returns a callbackMock that returns auth data but no rate limit data
-// (simulates a first request with no existing rate limit counter).
-func rateLimitFreshKey(scope string) *callbackMock {
-	return &callbackMock{
-		queryFn: func(ctx context.Context, query string, args ...any) ([]db.Row, error) {
-			if strings.Contains(query, "api_keys") {
-				return []db.Row{{"id": "key-1", "scope": scope, "session_id": nil}}, nil
-			}
-			if strings.Contains(query, "api_rate_limits") {
-				return []db.Row{}, nil // no existing counter
-			}
-			return nil, nil
-		},
-	}
-}
-
 func TestRateLimit_UnderLimit_Passes(t *testing.T) {
 	srv := NewServer(ServerConfig{Addr: ":0", DB: &mockAPIDB{
 		queryResults: []db.Row{

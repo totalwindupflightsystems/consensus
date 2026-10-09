@@ -21,17 +21,17 @@ func TestAC031_ReadSkillsMetadata_Basic(t *testing.T) {
 	defer th.close()
 
 	// Insert skills with metadata
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-ctx-1', 'data_analyzer', '{"description":"Analyze datasets","when_to_use":"When user has CSV data","version":"2.0"}', 'Run analysis queries', 1)
 	`)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-ctx-2', 'web_scraper', '{"description":"Scrape web pages","when_to_use":"When user asks for data extraction","version":"1.5"}', 'Use fetch tool', 1)
 	`)
 
 	// Read skills metadata via harness
-	skills, err := th.Harness.readSkillsMetadata(th.ctx)
+	skills, err := th.readSkillsMetadata(th.ctx)
 	if err != nil {
 		t.Fatalf("AC-031: readSkillsMetadata: %v", err)
 	}
@@ -82,16 +82,16 @@ func TestAC031_ReadSkillsMetadata_OnlyEnabled(t *testing.T) {
 	defer th.close()
 
 	// Insert one enabled and one disabled skill
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-en-1', 'enabled_skill', '{"description":"Active skill"}', 'do stuff', 1)
 	`)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-dis-1', 'disabled_skill', '{"description":"Inactive skill"}', 'secret stuff', 0)
 	`)
 
-	skills, err := th.Harness.readSkillsMetadata(th.ctx)
+	skills, err := th.readSkillsMetadata(th.ctx)
 	if err != nil {
 		t.Fatalf("AC-031: readSkillsMetadata: %v", err)
 	}
@@ -114,20 +114,20 @@ func TestAC031_ReadSkillsMetadata_AlphabeticalOrder(t *testing.T) {
 	defer th.close()
 
 	// Insert skills in non-alphabetical order
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-zb', 'zebra_skill', '{"description":"Last"}', 'z', 1)
 	`)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-al', 'alpha_skill', '{"description":"First"}', 'a', 1)
 	`)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-md', 'middle_skill', '{"description":"Middle"}', 'm', 1)
 	`)
 
-	skills, err := th.Harness.readSkillsMetadata(th.ctx)
+	skills, err := th.readSkillsMetadata(th.ctx)
 	if err != nil {
 		t.Fatalf("AC-031: readSkillsMetadata: %v", err)
 	}

@@ -152,7 +152,7 @@ func TestSSE_AdminKey_ConnectsAndStreams(t *testing.T) {
 	defer ts.Close()
 
 	resp := sseConnect(t, ts, srv.adminKey, "?session_id="+sessionID)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -190,7 +190,7 @@ func TestSSE_SessionKey_OwnSession_Streams(t *testing.T) {
 	defer ts.Close()
 
 	resp := sseConnect(t, ts, key, "?session_id="+sessionID)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

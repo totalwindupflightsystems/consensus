@@ -170,7 +170,7 @@ func TestSessionUnshareTruthfulArms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE /session/smissing/share: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("DELETE /session/smissing/share: got %d, want 404 (declared NotFoundError)", resp.StatusCode)
 	}

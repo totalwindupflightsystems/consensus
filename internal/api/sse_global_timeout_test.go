@@ -25,7 +25,7 @@ func TestSSE_GlobalStream_BoundedTerminates(t *testing.T) {
 	defer ts.Close()
 
 	resp := sseConnect(t, ts, srv.adminKey, "")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("global SSE connect: expected 200, got %d", resp.StatusCode)
@@ -74,7 +74,7 @@ func TestSSE_GlobalStream_EventsBeforeTimeoutStillDelivered(t *testing.T) {
 	defer ts.Close()
 
 	resp := sseConnect(t, ts, srv.adminKey, "")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	reader := bufio.NewReader(resp.Body)
 	if evtType, _ := readSSEEvent(t, reader); evtType != "connected" {

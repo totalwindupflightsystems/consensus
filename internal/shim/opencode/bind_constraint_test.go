@@ -49,7 +49,7 @@ func TestShimBindConstraint_InstanceSurfaceAnonymousOnLoopback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /instance/path: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /instance/path: expected 200 anonymous (SPEC-017 §3.10 protocol compatibility), got %d", resp.StatusCode)
 	}

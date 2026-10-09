@@ -83,7 +83,7 @@ func TestCreateTask_DefaultPriority(t *testing.T) {
 	}
 
 	var resp TaskResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.Priority != 5 {
 		t.Errorf("expected default priority 5, got %d", resp.Priority)
@@ -111,7 +111,7 @@ func TestCreateTask_WithPrerequisites(t *testing.T) {
 	}
 
 	var resp TaskResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if len(resp.PrerequisiteIDs) != 2 {
 		t.Errorf("expected 2 prerequisites, got %d", len(resp.PrerequisiteIDs))
@@ -292,7 +292,7 @@ func TestListTasks_WithStatusFilter(t *testing.T) {
 	}
 
 	var tasks []TaskResponse
-	json.NewDecoder(w.Body).Decode(&tasks)
+	_ = json.NewDecoder(w.Body).Decode(&tasks)
 
 	if len(tasks) != 1 {
 		t.Errorf("expected 1 pending task, got %d", len(tasks))
@@ -327,7 +327,7 @@ func TestListTasks_SessionScoped(t *testing.T) {
 	}
 
 	var tasks []TaskResponse
-	json.NewDecoder(w.Body).Decode(&tasks)
+	_ = json.NewDecoder(w.Body).Decode(&tasks)
 
 	if len(tasks) != 1 {
 		t.Errorf("expected 1 task, got %d", len(tasks))
@@ -541,7 +541,7 @@ func TestClaimTask_CrossSessionClaim(t *testing.T) {
 
 	// Verify the task is locked to sess-a
 	var resp TaskResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.LockedByAgent == nil || *resp.LockedByAgent != "sess-a" {
 		t.Errorf("expected locked_by 'sess-a', got %v", resp.LockedByAgent)
 	}

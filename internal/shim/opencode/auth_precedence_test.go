@@ -74,7 +74,7 @@ func TestFixedWorkspaceMutationAuthPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST /session: got %d, want 200", resp.StatusCode)
@@ -99,7 +99,7 @@ func TestFixedWorkspaceReadAuthPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /path: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /path: got %d, want 200", resp.StatusCode)
@@ -132,7 +132,7 @@ func TestFixedWorkspaceVCSReadAuthPrecedence(t *testing.T) {
 			t.Fatalf("GET %s: %v", path, err)
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		// The auth-precedence server has no workdir fixture; a non-git
 		// workspace returns 200 with the neutral shapes ({} and []).
 		if resp.StatusCode != http.StatusOK {
@@ -153,7 +153,7 @@ func TestFixedWorkspaceVCSReadAuthPrecedence(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("headerless GET %s: got %d, want 401", path, resp.StatusCode)
 		}
@@ -168,7 +168,7 @@ func TestFixedWorkspaceNoopMutationAuthPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /log: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST /log: got %d, want 200", resp.StatusCode)
@@ -197,7 +197,7 @@ func TestFixedWorkspaceRequestIDValidationPrecedesAuth(t *testing.T) {
 			if err != nil {
 				t.Fatalf("POST %s: %v", tt.path, err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Fatalf("POST %s: got %d, want 400", tt.path, resp.StatusCode)
 			}
@@ -226,7 +226,7 @@ func TestFixedWorkspaceMissingRequestReturnsTypedNotFound(t *testing.T) {
 			if err != nil {
 				t.Fatalf("POST %s: %v", tt.path, err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusNotFound {
 				t.Fatalf("POST %s: got %d, want 404", tt.path, resp.StatusCode)
 			}
@@ -268,7 +268,7 @@ func TestFixedWorkspaceAuthBypassIsRouteScoped(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s %s: %v", tt.method, tt.path, err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusUnauthorized {
 				t.Fatalf("%s %s: got %d, want 401", tt.method, tt.path, resp.StatusCode)
 			}

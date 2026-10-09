@@ -83,8 +83,8 @@ func TestDefaults(t *testing.T) {
 
 func TestLoadNoFileUsesDefaults(t *testing.T) {
 	// Ensure no config file is found.
-	os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSENSUS_CONFIG")
+	_ = os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer func() { _ = os.Unsetenv("CONSENSUS_CONFIG") }()
 
 	cfg, err := Load()
 	if err != nil {
@@ -97,10 +97,10 @@ func TestLoadNoFileUsesDefaults(t *testing.T) {
 }
 
 func TestEnvOverride(t *testing.T) {
-	os.Setenv("CONSENSUS_DB_URL", "postgres://override:5432/db")
-	os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSENSUS_DB_URL")
-	defer os.Unsetenv("CONSENSUS_CONFIG")
+	_ = os.Setenv("CONSENSUS_DB_URL", "postgres://override:5432/db")
+	_ = os.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
+	defer func() { _ = os.Unsetenv("CONSENSUS_DB_URL") }()
+	defer func() { _ = os.Unsetenv("CONSENSUS_CONFIG") }()
 
 	cfg, err := Load()
 	if err != nil {
@@ -562,8 +562,8 @@ func TestEnvOverrideDBURLHomeExpansion(t *testing.T) {
 	t.Setenv("HOME", "/tmp/cgap026-home")
 	t.Setenv("CONSENSUS_DB_URL", "sqlite://$HOME/custom/data.db")
 	t.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSENSUS_DB_URL")
-	defer os.Unsetenv("CONSENSUS_CONFIG")
+	defer func() { _ = os.Unsetenv("CONSENSUS_DB_URL") }()
+	defer func() { _ = os.Unsetenv("CONSENSUS_CONFIG") }()
 
 	cfg, err := Load()
 	if err != nil {
@@ -578,8 +578,8 @@ func TestEnvOverrideDBURLTildeExpansion(t *testing.T) {
 	t.Setenv("HOME", "/tmp/cgap026-home")
 	t.Setenv("CONSENSUS_DB_URL", "sqlite://~/tilde.db")
 	t.Setenv("CONSENSUS_CONFIG", "/nonexistent/path")
-	defer os.Unsetenv("CONSENSUS_DB_URL")
-	defer os.Unsetenv("CONSENSUS_CONFIG")
+	defer func() { _ = os.Unsetenv("CONSENSUS_DB_URL") }()
+	defer func() { _ = os.Unsetenv("CONSENSUS_CONFIG") }()
 
 	cfg, err := Load()
 	if err != nil {

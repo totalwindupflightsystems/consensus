@@ -43,7 +43,7 @@ func TestPassThroughForwardsChatCompletions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
@@ -83,7 +83,7 @@ func TestPassThroughBaseURLWithV1SuffixNoDoublePrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	if hit != 1 {
 		t.Fatalf("provider hits = %d, want 1", hit)
@@ -100,7 +100,8 @@ func TestPassThroughUnparsableBaseURLAnswers503(t *testing.T) {
 	// url.Parse is lenient; force the failure mode by hand-verifying only
 	// when Parse actually errors, otherwise skip (the handler already
 	// checked). This guards the contract, not Go's parser.
-	if _, err := url.Parse("ht tp://not a url"); err == nil {
+	badURL := "ht tp://not a url"
+	if _, err := url.Parse(badURL); err == nil { //nolint:staticcheck // SA1007: the malformed URL is deliberately the fixture under test
 		t.Skip("net/url accepts this input; unparsable-base branch not exercised")
 	}
 	srv := httptest.NewServer(h)
@@ -109,7 +110,7 @@ func TestPassThroughUnparsableBaseURLAnswers503(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503", resp.StatusCode)
 	}
@@ -126,7 +127,7 @@ func TestPassThroughEmptyBaseURLAnswers503WithReason(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503", resp.StatusCode)
 	}
@@ -162,7 +163,7 @@ func TestPassThroughDeadProviderAnswers502(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Errorf("status = %d, want 502", resp.StatusCode)
 	}

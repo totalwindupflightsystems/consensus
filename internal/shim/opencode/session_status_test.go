@@ -140,7 +140,7 @@ func TestSessionStatusMethodNotAllowed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /session/status: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("%s /session/status: got %d, want 404 (generic not-found switch)", method, resp.StatusCode)
 		}

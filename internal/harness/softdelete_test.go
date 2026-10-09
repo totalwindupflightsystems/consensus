@@ -12,7 +12,7 @@ import (
 // 'thinking' (deleted mid-iteration). A live thinking session is still found.
 func TestFindActiveSessionsExcludesSoftDeleted(t *testing.T) {
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	ctx := context.Background()
 
 	// findActiveSessions filters on heartbeat_at and deleted_at; the minimal

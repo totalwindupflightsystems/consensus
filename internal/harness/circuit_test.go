@@ -32,9 +32,9 @@ func setupCircuitTestDB(t *testing.T) (db.DB, func()) {
 	// DB. A fixed /tmp path opens pre-existing files readonly on clean machines
 	// (QA-CONSENSUS-14, events 449/455/523). t.TempDir() is unique per test run.
 	dbPath := filepath.Join(t.TempDir(), "circuit-test.db")
-	os.Remove(dbPath)
-	os.Remove(dbPath + "-wal")
-	os.Remove(dbPath + "-shm")
+	_ = os.Remove(dbPath)
+	_ = os.Remove(dbPath + "-wal")
+	_ = os.Remove(dbPath + "-shm")
 
 	database, err := driver.Open(ctx, db.Config{
 		URL: "sqlite://" + dbPath + "?_journal_mode=WAL&_time_format=sqlite",
@@ -77,7 +77,7 @@ func setupCircuitTestDB(t *testing.T) (db.DB, func()) {
 		)`,
 	} {
 		if err := database.Exec(ctx, stmt); err != nil {
-			database.Close()
+			_ = database.Close()
 			t.Fatalf("create table: %v", err)
 		}
 	}
@@ -90,7 +90,7 @@ func setupCircuitTestDB(t *testing.T) (db.DB, func()) {
 	_ = database.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal)
 		VALUES ('sess-circ-01', 'test-agent', 'test-model', 'idle', 'circuit breaker test')`)
 
-	cleanup := func() { database.Close() }
+	cleanup := func() { _ = database.Close() }
 	return database, cleanup
 }
 
@@ -519,6 +519,9 @@ func TestCircuitBreaker_Integration_TableExistsInMigration(t *testing.T) {
 
 	// Now trip the breaker (count >= threshold)
 	tripped, err = th.CheckCircuitBreaker(ctx, sessionID, BreakerBudget, 100, 100)
+	if err != nil {
+		t.Fatalf("CheckCircuitBreaker: %v", err)
+	}
 	if !tripped {
 		t.Error("budget breaker should trip at 100/100")
 	}
@@ -602,7 +605,7 @@ func TestConsecutiveLLMErrors_TripBreakerPausesSession(t *testing.T) {
 	}
 	defer th.close()
 
-	th.Harness.MaxConsecutiveErrors = 2
+	th.MaxConsecutiveErrors = 2
 
 	sessionID, err := th.createTestSession()
 	if err != nil {
@@ -632,7 +635,7 @@ func TestConsecutiveLLMErrors_TripBreakerPausesSession(t *testing.T) {
 
 	// Failure 1: below threshold — session returns to 'thinking' (retryable),
 	// counter persisted at 1, not tripped, NOT failed.
-	result, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	result, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg)
 	if err != nil {
 		t.Fatalf("run 1: unexpected Go error: %v", err)
 	}
@@ -655,7 +658,7 @@ func TestConsecutiveLLMErrors_TripBreakerPausesSession(t *testing.T) {
 
 	// Failure 2: threshold reached — breaker trips, session PAUSED (not
 	// failed), tripped_at persisted.
-	result, err = th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg)
+	result, err = th.RunInteractivePlanning(th.ctx, sessionID, cfg)
 	if err != nil {
 		t.Fatalf("run 2: unexpected Go error: %v", err)
 	}
@@ -685,7 +688,7 @@ func TestConsecutiveErrors_ResetOnSuccessfulCommit(t *testing.T) {
 	}
 	defer th.close()
 
-	th.Harness.MaxConsecutiveErrors = 3
+	th.MaxConsecutiveErrors = 3
 
 	sessionID, err := th.createTestSession()
 	if err != nil {
@@ -699,7 +702,7 @@ func TestConsecutiveErrors_ResetOnSuccessfulCommit(t *testing.T) {
 	if err := th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking' WHERE id = $1`, sessionID); err != nil {
 		t.Fatalf("set thinking: %v", err)
 	}
-	if _, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
+	if _, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
 		t.Fatalf("run 1: unexpected Go error: %v", err)
 	}
 	rows, _ := th.conn.Query(th.ctx,
@@ -710,7 +713,7 @@ func TestConsecutiveErrors_ResetOnSuccessfulCommit(t *testing.T) {
 	}
 
 	// Run 2: LLM succeeds → commit → counter reset to 0, session idle.
-	if _, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
+	if _, err := th.RunInteractivePlanning(th.ctx, sessionID, cfg); err != nil {
 		t.Fatalf("run 2: unexpected Go error: %v", err)
 	}
 	rows, _ = th.conn.Query(th.ctx,

@@ -24,17 +24,17 @@ func TestAC045_SkillsAPIEndpoints(t *testing.T) {
 	defer th.close()
 
 	// Insert skills into DB
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-api-1', 'excel_gen', '{"description":"Generate Excel","when_to_use":"User needs spreadsheet"}', 'Call gen_excel() with params', 1)
 	`)
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO skills_registry (id, name, metadata, instructions, enabled)
 		VALUES ('sk-api-2', 'pdf_parser', '{"description":"Parse PDF documents","when_to_use":"User uploads PDF"}', 'Use pdf_parse tool', 1)
 	`)
 
 	// Test readSkillsMetadata returns both skills
-	skills, err := th.Harness.readSkillsMetadata(th.ctx)
+	skills, err := th.readSkillsMetadata(th.ctx)
 	if err != nil {
 		t.Fatalf("AC-045: readSkillsMetadata: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestAC047_SessionListing(t *testing.T) {
 		{"s3-sesh-c", "agent-gamma", "paused", "Review code"},
 	}
 	for _, s := range sessions {
-		th.conn.Exec(th.ctx, `
+		_ = th.conn.Exec(th.ctx, `
 			INSERT INTO sessions (id, agent_name, model_id, status, goal)
 			VALUES ($1, $2, 'test-model', $3, $4)
 		`, s.id, s.name, s.status, s.goal)
@@ -204,7 +204,7 @@ func TestAC050_CLISessionManagement(t *testing.T) {
 	defer th.close()
 
 	// Create sessions representing CLI usage pattern
-	th.conn.Exec(th.ctx, `
+	_ = th.conn.Exec(th.ctx, `
 		INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration)
 		VALUES ('cli-sesh-1', 'cli-agent', 'test-model', 'thinking', 'CLI-initiated task', 0)
 	`)
@@ -224,7 +224,7 @@ func TestAC050_CLISessionManagement(t *testing.T) {
 	}
 
 	// Update session iteration (simulating CLI resume)
-	th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = 'cli-sesh-1'`)
+	_ = th.conn.Exec(th.ctx, `UPDATE sessions SET status = 'thinking', heartbeat_at = datetime('now') WHERE id = 'cli-sesh-1'`)
 
 	rows2, _ := th.conn.Query(th.ctx, `SELECT status FROM sessions WHERE id = 'cli-sesh-1'`)
 	if len(rows2) > 0 && toString(rows2[0]["status"]) != "thinking" {

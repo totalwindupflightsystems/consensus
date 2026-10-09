@@ -768,7 +768,7 @@ func (s *Store) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// For duplicate events, return 200 OK with existing event ID
 	if result == IngestDuplicate {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "duplicate",
 			"event_id": existingID,
 			"message":  "event already ingested",
@@ -777,7 +777,7 @@ func (s *Store) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte(`{"status":"accepted"}`))
+	_, _ = w.Write([]byte(`{"status":"accepted"}`))
 }
 
 // ServeHTTP implements http.Handler so the Store can be mounted directly into a ServeMux.
@@ -916,7 +916,7 @@ func toInt(v interface{}) int {
 		return int(val)
 	case string:
 		var i int
-		fmt.Sscanf(val, "%d", &i)
+		_, _ = fmt.Sscanf(val, "%d", &i)
 		return i
 	default:
 		return 0

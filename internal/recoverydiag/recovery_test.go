@@ -51,7 +51,7 @@ func TestReadQueriesDurableAndStrandedEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	statements := []string{
 		`CREATE TABLE memory_events (id INTEGER PRIMARY KEY, session_id TEXT, type TEXT)`,

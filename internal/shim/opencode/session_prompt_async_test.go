@@ -32,7 +32,7 @@ func postSessionPromptAsync(t *testing.T, base, path, body string) (int, http.He
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data := make([]byte, 0, 512)
 	buf := make([]byte, 512)
 	for {
@@ -258,7 +258,7 @@ func TestSessionPromptAsyncNeighboursUntouched(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /session/s1/prompt_async: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotImplemented {
 			t.Errorf("%s /session/s1/prompt_async: got %d, want 501 (stub-list residual)", method, resp.StatusCode)
 		}

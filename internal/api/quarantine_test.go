@@ -95,7 +95,7 @@ func setupQuarantineTest(t *testing.T) (db.DB, *quarantine.QuarantineService, *S
 		VALUES ('test-session', 'api_response', 'already rejected', 'hash3', 'rejected', '2099-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
 
 	cleanup := func() {
-		database.Close()
+		_ = database.Close()
 	}
 
 	return database, qs, srv, cleanup
@@ -133,7 +133,7 @@ func TestListQuarantineAll(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "GET", "/api/v1/quarantine", "")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 OK, got %d", resp.StatusCode)
@@ -158,7 +158,7 @@ func TestListQuarantinePending(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "GET", "/api/v1/quarantine?status=pending", "")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 OK, got %d", resp.StatusCode)
@@ -184,7 +184,7 @@ func TestApproveQuarantineAPI(t *testing.T) {
 
 	// Approve item with ID 1
 	resp := quarantineAuthRequest(t, srv, "POST", "/api/v1/quarantine/1/approve", `{"session_id": "test-session"}`)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 OK, got %d", resp.StatusCode)
@@ -218,7 +218,7 @@ func TestRejectQuarantineAPI(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "POST", "/api/v1/quarantine/2/reject", `{"reason": "Confirmed malicious payload"}`)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 OK, got %d", resp.StatusCode)
@@ -252,7 +252,7 @@ func TestRejectQuarantineWithoutReason(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "POST", "/api/v1/quarantine/1/reject", `{"reason": ""}`)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 OK for empty reason (uses default), got %d", resp.StatusCode)
@@ -265,7 +265,7 @@ func TestApproveNonexistentQuarantine(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "POST", "/api/v1/quarantine/999/approve", "{}")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400 for nonexistent item, got %d", resp.StatusCode)
@@ -278,7 +278,7 @@ func TestQuarantineInvalidID(t *testing.T) {
 	defer cleanup()
 
 	resp := quarantineAuthRequest(t, srv, "POST", "/api/v1/quarantine/abc/approve", "{}")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400 for invalid ID, got %d", resp.StatusCode)

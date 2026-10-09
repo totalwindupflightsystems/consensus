@@ -70,7 +70,7 @@ func setupTestDB(t *testing.T) (db.DB, func()) {
 	mustExec(t, database, ctx, `INSERT OR IGNORE INTO sessions (id, agent_name, status) VALUES ('test-session', 'test-agent', 'idle')`)
 
 	cleanup := func() {
-		database.Close()
+		_ = database.Close()
 	}
 
 	return database, cleanup

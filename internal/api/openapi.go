@@ -74,7 +74,7 @@ func (s *Server) handleOpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // handleOpenAPIJSON serves the JSON-equivalent OpenAPI spec.
@@ -98,7 +98,7 @@ func (s *Server) handleOpenAPIJSON(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to marshal OpenAPI spec to JSON")
 		return
 	}
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // handleSwaggerUI serves the interactive Swagger UI documentation page for
@@ -116,7 +116,7 @@ func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
 	}
 	html := strings.Replace(swaggerUITemplate, "{{SPEC_URL}}", specURL, 1)
 	html = strings.Replace(html, "{{SERVERS_URL}}", serversURL, 1)
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
 
 // swaggerUITemplate is the Swagger UI HTML page.

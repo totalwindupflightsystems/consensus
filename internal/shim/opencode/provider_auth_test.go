@@ -158,7 +158,7 @@ func TestProviderAuthMethodNotAllowed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s /provider/auth: %v", method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("%s /provider/auth: got %d, want 404 (generic not-found)", method, resp.StatusCode)
 		}

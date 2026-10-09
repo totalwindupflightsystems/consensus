@@ -35,7 +35,7 @@ func (s *Server) sessionBusyError(w http.ResponseWriter, r *http.Request, sessio
 		"sessionID": sessionID,
 		"message":   "session is mid-turn; the operation requires an idle session",
 	}); err == nil {
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 
