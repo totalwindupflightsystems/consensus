@@ -26,13 +26,13 @@
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 102,
-    "covered_operations": 70,
+    "covered_operations": 71,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 110,
+    "drift_declared_not_served": 109,
     "drift_by_class": {
       "NOT-SERVED": 102,
-      "OUTCOME-MISMATCH": 8
+      "OUTCOME-MISMATCH": 7
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -650,6 +650,16 @@
       "evidence": "server.go tuiControlResponse via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-133): accepts the unconstrained requestBody schema as one valid JSON value, returns 200 false because no TUI queue is attached, 400 BadRequest on malformed JSON or invalid directory/workspace selectors, 405 METHOD_NOT_ALLOWED on non-POST"
     },
     {
+      "path": "/tui/execute-command",
+      "method": "POST",
+      "operationId": "tui.executeCommand",
+      "tags": "tui",
+      "declared_responses": "200,400",
+      "family": "/tui/*",
+      "served_outcome": "200,400",
+      "evidence": "server.go tuiExecuteCommand via handleTUI (ROUTE-FIX-023, formerly SHIM-DRIFT-107): 200 false because no TUI is attached, 400 BadRequest on a schema-violating body (required non-empty command, additionalProperties false), 405 METHOD_NOT_ALLOWED on non-POST"
+    },
+    {
       "path": "/tui/open-help",
       "method": "POST",
       "operationId": "tui.openHelp",
@@ -737,7 +747,7 @@
       "declared_responses": "200,400",
       "family": "/vcs/*",
       "served_outcome": "200",
-      "evidence": "server.go handleVCSStatus \u2192 gitFileDiffs (ROUTE-FIX-033 / SHIM-DRIFT-144)"
+      "evidence": "server.go handleVCSStatus \u2192 gitFileDiffs (ROUTE-FIX-033 / SHIM-DRIFT-144): declared responses 200 File[], 400 BadRequest"
     }
   ],
   "narrowed_error_contract_only": [
@@ -809,7 +819,7 @@
       "declared_responses": "200,400,404",
       "family": "/tui/*",
       "served_outcome": "404",
-      "evidence": "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 (declared tui.showToast, served by the /tui/show-toast route above)",
+      "evidence": "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 and execute-command in ROUTE-FIX-023 (both declared, served above)",
       "detail": "router catch-all answers the declared 404 (no success path)",
       "id": "SHIM-NARROWED-006"
     }
@@ -2018,19 +2028,6 @@
       "id": "SHIM-DRIFT-106"
     },
     {
-      "path": "/tui/execute-command",
-      "method": "POST",
-      "operationId": "tui.executeCommand",
-      "tags": "tui",
-      "declared_responses": "200,400",
-      "family": "/tui/*",
-      "served_outcome": "501",
-      "evidence": "server.go:209 handleTUI",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-107"
-    },
-    {
       "path": "/tui/submit-prompt",
       "method": "POST",
       "operationId": "tui.submitPrompt",
@@ -2041,7 +2038,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-108"
+      "id": "SHIM-DRIFT-107"
     },
     {
       "path": "/vcs/apply",
@@ -2054,7 +2051,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-142)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-109"
+      "id": "SHIM-DRIFT-108"
     },
     {
       "path": "/vcs/diff/raw",
@@ -2067,7 +2064,7 @@
       "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-110"
+      "id": "SHIM-DRIFT-109"
     }
   ],
   "drift_served_not_declared": [],

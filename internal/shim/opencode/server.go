@@ -5083,6 +5083,34 @@ func (s *Server) tuiPublish(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, false)
 }
 
+// tuiExecuteCommand serves tui.executeCommand's declared contract (ROUTE-FIX-023,
+// SHIM-DRIFT-134): requestBody {command (required string), additionalProperties
+// false}, optional directory/workspace query selectors, a boolean 200 and a 400
+// BadRequest | InvalidRequestError arm. The shim has no attached TUI process to
+// execute a command in, so a valid request returns the declared boolean false
+// rather than claiming a command ran.
+func (s *Server) tuiExecuteCommand(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) {
+		return
+	}
+	var req struct {
+		Command *string `json:"command"`
+	}
+	if !decodeTUIJSONBody(w, r, &req,
+		"request body must be an object containing only command") {
+		return
+	}
+	if req.Command == nil || *req.Command == "" {
+		writeOpencodeBadRequest(w, r, "Payload", "required field command must be a non-empty string")
+		return
+	}
+	writeJSON(w, false)
+}
+
 // tuiShowToast serves tui.showToast's declared contract: requestBody
 // {title?, message (required), variant (required, info|success|warning|error),
 // duration? exclusiveMinimum 0}, additionalProperties false, a boolean 200
@@ -5177,6 +5205,9 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 		return
 	case "show-toast":
 		s.tuiShowToast(w, r)
+		return
+	case "execute-command":
+		s.tuiExecuteCommand(w, r)
 		return
 	}
 

@@ -1673,7 +1673,7 @@ func TestTUIShimOnlyActionsRemain501(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	for _, path := range []string{"/tui/submit-prompt", "/tui/execute-command"} {
+	for _, path := range []string{"/tui/submit-prompt"} {
 		status, _, body := doShimRequest(t, srv.URL, http.MethodPost, path)
 		if status != http.StatusNotImplemented {
 			t.Errorf("POST %s: got %d, want unchanged 501. Body: %s", path, status, body)
@@ -1684,6 +1684,46 @@ func TestTUIShimOnlyActionsRemain501(t *testing.T) {
 	// /tui/show-toast answers 405 METHOD_NOT_ALLOWED, not 501.
 	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/tui/show-toast")
 	requireTUIMethodNotAllowed(t, status, body)
+}
+
+// TestExecuteCommand serves tui.executeCommand's pinned contract
+// (specs/openapi/upstream/openapi-1.18.33.json /tui/execute-command): requestBody
+// {command (required string), additionalProperties false}; responses are a
+// boolean 200 and a 400 BadRequest | InvalidRequestError. No TUI process is
+// attached, so the truthful 200 body is false.
+func TestExecuteCommand(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	// Happy path: 200 with the declared boolean (false - no TUI attached).
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/execute-command", `{"command":"agent.list"}`)
+	requireTUIFalse(t, status, header, body)
+
+	// 400 arms: missing command, empty command, unknown property, wrong type,
+	// not an object, malformed JSON.
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"missing command", `{}`},
+		{"empty command", `{"command":""}`},
+		{"null command", `{"command":null}`},
+		{"unknown property", `{"command":"x","extra":true}`},
+		{"wrong command type", `{"command":42}`},
+		{"not an object", `["command"]`},
+		{"malformed json", `{"command":`},
+	} {
+		t.Run("400/"+tc.name, func(t *testing.T) {
+			status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/tui/execute-command", tc.body)
+			requireTUIBadRequest(t, status, body)
+		})
+	}
+
+	// 405 arm: a non-POST method answers METHOD_NOT_ALLOWED.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/tui/execute-command")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("GET /tui/execute-command: got %d, want 405. Body: %s", status, body)
+	}
 }
 
 // TestShowToast serves tui.showToast's pinned contract
