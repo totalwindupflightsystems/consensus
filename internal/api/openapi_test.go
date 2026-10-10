@@ -410,11 +410,11 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	}
 	servedPaths := specPaths(t, doc)
 
-	// Snapshot: 66 paths total = 28 native + 0 doc-serving + 38 non-native
-	// (36 MCP/shim + /webhooks/{source} per WEBHOOK-1 + /vcs/diff per
-	// DF-CONSENSUS-38).
-	if got := len(servedPaths); got != 66 {
-		t.Fatalf("served spec has %d paths, want 66 (28 native + 0 doc + 38 MCP/shim+webhooks)", got)
+	// Snapshot: 69 paths total = 31 native + 0 doc-serving + 38 non-native.
+	// DF-CONSENSUS-49 added the three tool-call visibility paths; the non-native
+	// set remains 36 MCP/shim + /webhooks/{source} + /vcs/diff.
+	if got := len(servedPaths); got != 69 {
+		t.Fatalf("served spec has %d paths, want 69 (31 native + 0 doc + 38 MCP/shim+webhooks)", got)
 	}
 	native, shim := 0, 0
 	for p := range servedPaths {
@@ -425,8 +425,8 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 		}
 	}
 	t.Logf("served spec path breakdown: %d native (/api/v1/*) + %d MCP/shim = %d", native, shim, native+shim)
-	if native != 28 {
-		t.Errorf("native (/api/v1/*) path count = %d, want 28 (corrected live-walk baseline; C-GAP-041 declared the 4 missing native paths)", native)
+	if native != 31 {
+		t.Errorf("native (/api/v1/*) path count = %d, want 31 (28-path baseline + three DF-CONSENSUS-49 tool-call visibility paths)", native)
 	}
 	if shim != 38 {
 		t.Errorf("MCP/shim path count = %d, want 38 (36 baseline + /webhooks/{source} 2026-09-26 + /vcs/diff DF-CONSENSUS-38)", shim)

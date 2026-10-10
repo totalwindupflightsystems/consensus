@@ -53,6 +53,15 @@ ToolName:
     type: string
   description: Name of the tool as registered in tools_registry.
 
+ToolRequestId:
+  name: requestId
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric ID of the tool request.
+
 ApiKeyId:
   name: keyId
   in: path
@@ -77,6 +86,14 @@ StatusFilter:
   schema:
     type: string
   description: Filter by comma-separated status values.
+
+ToolRequestStatusFilter:
+  name: status
+  in: query
+  schema:
+    type: string
+    enum: [pending, awaiting_approval, executing, completed, failed, timeout]
+  description: Filter tool requests by one exact lifecycle status.
 
 TypeFilter:
   name: type

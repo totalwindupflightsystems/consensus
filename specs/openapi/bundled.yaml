@@ -637,6 +637,90 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/tool-requests:
+    get:
+      tags:
+        - Tools
+      summary: List tool execution requests
+      operationId: listToolRequests
+      description: |
+        Lists up to 100 tool requests in oldest-first order. Admin and readonly
+        keys may inspect all sessions. A session key is restricted to its own
+        session. Completed and failed requests include their tool result.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionFilter'
+        - $ref: '#/components/parameters/ToolRequestStatusFilter'
+      responses:
+        '200':
+          description: Tool requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ToolRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/tool-requests/{requestId}:
+    get:
+      tags:
+        - Tools
+      summary: Get a tool execution request
+      operationId: getToolRequest
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ToolRequestId'
+      responses:
+        '200':
+          description: Tool request detail, including its result when available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/sessions/{sessionId}/tool-calls:
+    get:
+      tags:
+        - Tools
+      summary: List a session's tool-call lifecycle records
+      operationId: listSessionToolCalls
+      description: |
+        Merges executor-backed tool_requests rows with planning staging_buffer
+        rows whose cmd_type is tool_call_ref. Each item identifies its source and
+        lifecycle status. Results are ordered oldest first.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Merged session tool-call lifecycle records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionToolCall'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/skills:
     get:
       tags:
@@ -3133,6 +3217,139 @@ components:
         error:
           type: string
           description: Error message if is_error is true.
+    ToolResult:
+      type: object
+      required:
+        - id
+        - request_id
+        - output
+        - is_error
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: integer
+          format: int64
+        output:
+          type: string
+        is_error:
+          type: boolean
+        error_code:
+          type: string
+        exit_code:
+          type: integer
+        duration_ms:
+          type: integer
+          format: int64
+        token_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    ToolRequest:
+      type: object
+      required:
+        - id
+        - session_id
+        - iteration_id
+        - tool_name
+        - parameters
+        - status
+        - timeout_ms
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        iteration_id:
+          type: integer
+          format: int64
+        tool_name:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+            - pending
+            - awaiting_approval
+            - executing
+            - completed
+            - failed
+            - timeout
+        timeout_ms:
+          type: integer
+        approval_request_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        executed_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        result:
+          $ref: '#/components/schemas/ToolResult'
+    SessionToolCall:
+      type: object
+      required:
+        - source
+        - id
+        - session_id
+        - iteration
+        - tool_name
+        - status
+        - created_at
+      properties:
+        source:
+          type: string
+          enum:
+            - tool_request
+            - staging_buffer
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        iteration:
+          type: integer
+          format: int64
+        turn:
+          type: integer
+        seq:
+          type: integer
+        tool_name:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          description: Native lifecycle status from the row's source table.
+        description:
+          type: string
+        executed:
+          type: boolean
+        result:
+          description: ToolResult for executor rows, or parsed staging result for staging rows.
+        created_at:
+          type: string
+          format: date-time
+        executed_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
     Skill:
       type: object
       required:
@@ -3863,13 +4080,6 @@ components:
       schema:
         type: string
       description: Name of the tool as registered in tools_registry.
-    SkillName:
-      name: skillName
-      in: path
-      required: true
-      schema:
-        type: string
-      description: Name of the skill as registered in skills_registry.
     SessionFilter:
       name: session_id
       in: query
@@ -3877,6 +4087,34 @@ components:
         type: string
         format: uuid
       description: Filter by session ID.
+    ToolRequestStatusFilter:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum:
+          - pending
+          - awaiting_approval
+          - executing
+          - completed
+          - failed
+          - timeout
+      description: Filter tool requests by one exact lifecycle status.
+    ToolRequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Numeric ID of the tool request.
+    SkillName:
+      name: skillName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Name of the skill as registered in skills_registry.
     ApprovalId:
       name: approvalId
       in: path
