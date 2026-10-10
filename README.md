@@ -135,11 +135,42 @@ The repository is anonymously cloneable, so the source build is the working
 fresh-user path:
 
 **Requirements:** building requires the Go toolchain — go.mod targets
-`go 1.26.0` (toolchain `go1.26.5`); install Go from https://go.dev/dl/ if
-`go version` fails. Node.js and Bun are not required to build or run Consensus;
+`go 1.26.0` (toolchain `go1.26.5`). A bare Debian/Ubuntu agent (a fresh VPS,
+a bunker box) ships with no Go at all, and the distro `apt` package
+(`golang-go`) is years older than 1.26 — install the upstream toolchain
+first, then come back here. Node.js and Bun are not required to build or run Consensus;
 both are required only for the optional `make test-opencode-upstream` suite. Its
 runner does not enforce minimum versions (last verified with Node 22 and Bun
 1.4.2).
+
+#### Installing Go 1.26 on a bare Debian/Ubuntu agent
+
+The three steps — download the tarball, extract to `/usr/local`, add it to
+`PATH` — then verify:
+
+```bash
+# 1. Download (amd64; on arm64 use go1.26.5.linux-arm64.tar.gz)
+curl -fLO https://go.dev/dl/go1.26.5.linux-amd64.tar.gz
+
+# 2. Extract to /usr/local (remove any older tree first — tar will not
+#    overwrite a stale /usr/local/go cleanly)
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz
+
+# 3. Put the toolchain on PATH for future shells
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+source ~/.profile   # or log out and back in
+
+# 4. Verify — must print go1.26.x
+go version
+# → go version go1.26.5 linux/amd64
+```
+
+`go.mod` declares `go 1.26.0` with `toolchain go1.26.5`, so any 1.26.x local
+toolchain works: if yours is older than the pinned toolchain, the go command
+downloads the exact pinned one on first build. Without `sudo`, extract into
+your home directory instead (`mkdir -p ~/go-toolchain && tar -C ~/go-toolchain
+-xzf go1.26.5.linux-amd64.tar.gz` and put `~/go-toolchain/go/bin` on `PATH`).
 
 ```bash
 git clone https://github.com/totalwindupflightsystems/consensus.git
@@ -259,6 +290,39 @@ CONSENSUS_PORT=8095 ./bin/consensus serve
 ```
 
 Then verify: `curl http://localhost:8095/api/v1/health` → `{"status":"ok",...}`.
+
+#### Bunker environment: rootless Docker is already running — discover it, don't start it
+
+On bunker-managed agents (and any host where Docker runs rootless under your
+user), a `dockerd` is already up before your shell exists — the agent spawn
+brings it up. It holds the RootlessKit state directory
+`$XDG_RUNTIME_DIR/dockerd-rootless` (i.e. `/run/user/<uid>/dockerd-rootless`)
+and serves the Docker API on `/run/user/<uid>/docker.sock`.
+
+Do NOT run `systemctl --user start docker` there: a second daemon cannot take
+the RootlessKit lock and the unit hangs — `failed to lock ... another
+RootlessKit is running`. The command is not broken; the daemon it wants to
+start is already the one running.
+
+Discover the existing socket instead:
+
+```bash
+# 1. Environment first — the agent usually exports the answer
+echo "$DOCKER_HOST"
+# → unix:///run/user/1000/docker.sock (typical on a bunker agent)
+
+# 2. Probe the standard rootless socket paths for your uid
+ls -la /run/user/$(id -u)/docker.sock
+ls -la "$XDG_RUNTIME_DIR/dockerd-rootless" 2>/dev/null   # RootlessKit state
+
+# 3. Point the client at what you found (docker reads DOCKER_HOST, so if
+#    step 1 printed it you are already wired up)
+export DOCKER_HOST="unix:///run/user/$(id -u)/docker.sock"
+docker info --format '{{.ServerVersion}}'   # answers ⇒ socket is live
+```
+
+Then `docker login ghcr.io` and the Option 2 pull below work unchanged — the
+client is talking to the running rootless daemon through its socket.
 
 Three commands. You have a running agent harness with:
 - Append-only memory ledger

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/memory"
 )
 
 // ============================================================================
@@ -350,6 +351,20 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 
 	// Insert message into memory_events
 	// For SQLite, we need to generate sequential IDs (memory_events uses BIGSERIAL in Postgres, but in SQLite we use INTEGER PK)
+	// DF-CONSENSUS-9: a send racing the heartbeat-driven auto-resume re-send
+	// landed the same content twice. Drop a byte-identical re-send for the
+	// same session inside the dedupe window instead of storing it. The probe
+	// is advisory (TOCTOU by nature): it cannot catch two requests inserting
+	// in the same instant, only the seconds-apart race observed in the field.
+	// A dropped duplicate returns the same 200 shape, so a retrying client
+	// cannot distinguish it from the delivered original.
+	if memory.SkipDuplicateUserMessage(ctx, s.db, id, req.Content) {
+		writeJSON(w, map[string]any{
+			"status":  "message_received",
+			"session": id,
+		})
+		return
+	}
 	err = s.db.Exec(ctx,
 		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
 		 VALUES ('user_message', $1, $2, $3, $4)`,
@@ -478,6 +493,21 @@ func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.R
 	}
 	currentStatus := toString(row["status"])
 	currentIteration := toInt64(row["iteration"])
+
+	// DF-CONSENSUS-9: drop a byte-identical re-send for the same session
+	// inside the dedupe window. The idempotency-key path already replays the
+	// stored response when the SAME key retries; this covers a retry that
+	// arrives without the header (or with a new one). Advisory probe — see
+	// the non-idempotent path above for the TOCTOU caveat. A dropped
+	// duplicate returns the same 200 shape as the delivered original.
+	if memory.SkipDuplicateUserMessage(ctx, s.db, id, req.Content) {
+		writeJSON(w, map[string]any{
+			"status":     "message_received",
+			"session":    id,
+			"message_id": 0,
+		})
+		return
+	}
 
 	messageRow, err := tx.QueryRow(ctx,
 		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)

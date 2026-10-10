@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Install frictions (DF-CONSENSUS-9)** — README documents the Go 1.26
+  prerequisite with exact bare-Debian/Ubuntu tarball commands (and
+  `docs/quickstart-cross-platform.md` no longer recommends the outdated
+  `apt install golang-go`); a new "Bunker environment" section explains that
+  rootless dockerd is already running and how to discover its socket
+  (`DOCKER_HOST`, `/run/user/<uid>/docker.sock`) instead of deadlocking
+  `systemctl --user start docker` against the held RootlessKit lock; the
+  create-session model contract is documented as config-only runtime
+  selection (`model_id` is stored/echoed but does not switch execution;
+  there is no `model` field), pinned by tests.
+- **Duplicate `user_message` rows (DF-CONSENSUS-9)** — an identical re-send
+  to the same session within a 5-second window is dropped instead of
+  double-stored (send racing the heartbeat-driven auto-resume, or a client
+  retry without its `Idempotency-Key`). Wired into all three API-surface
+  message paths (send, idempotent send, `Service.SendMessage`); duplicates
+  return the same `200` shape as the original.
+
+---
+
 ## [0.1.0] — 2026-09-29
 
 First release of Consensus: a database-native cognitive architecture for AI

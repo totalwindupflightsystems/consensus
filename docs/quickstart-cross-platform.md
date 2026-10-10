@@ -19,7 +19,9 @@ This guide covers Consensus setup on **Linux**, **macOS**, and **Windows (WSL2)*
 Before you start:
 
 1. **API Key**: You need a [DeepSeek API key](https://platform.deepseek.com/api_keys) (or OpenRouter key)
-2. **Go 1.23+** for the recommended source build
+2. **Go 1.26+** for the recommended source build (the README's
+   "Installing Go 1.26 on a bare Debian/Ubuntu agent" section has the exact
+   commands; go.mod targets `go 1.26.0` / toolchain `go1.26.5`)
 3. **Git** and **~50 MB** for the binary + sources
 4. **Docker** is optional, but the GHCR image currently requires authenticated package access
 
@@ -158,21 +160,30 @@ xdg-open http://localhost:8090/chronicle/
 
 ## Installing Go (if needed)
 
-Install Go, then return to [Option 1](#option-1-build-from-the-public-repository-recommended)
+go.mod targets `go 1.26.0` (toolchain `go1.26.5`). Install Go, then return to
+[Option 1](#option-1-build-from-the-public-repository-recommended)
 for the clone, build, config-file init, and serve commands.
 
+> **Debian/Ubuntu: do not use `apt install golang-go`.** The distro package
+> is years older than 1.26 and the build will refuse it. Use the upstream
+> tarball instead (this is the same recipe as the README's "Installing Go
+> 1.26 on a bare Debian/Ubuntu agent" section):
+
 ```bash
-# Linux (Ubuntu/Debian)
-sudo apt install golang-go -y  # or: snap install go --classic
+# Linux (Debian/Ubuntu — upstream tarball; on arm64 swap amd64 → arm64)
+curl -fLO https://go.dev/dl/go1.26.5.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile && source ~/.profile
 
 # macOS
 brew install go
 
-# Windows (WSL2)
-sudo apt install golang-go -y
+# Windows (WSL2): same tarball steps as Debian/Ubuntu above
 ```
 
-Verify: `go version` should show Go 1.23 or later.
+Verify: `go version` should show Go 1.26.x (any 1.26.x works — an older one
+auto-downloads the pinned `go1.26.5` toolchain on first build).
 
 ---
 

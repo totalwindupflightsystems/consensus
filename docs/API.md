@@ -132,12 +132,17 @@ curl -X POST http://localhost:8090/api/v1/sessions \
 `model_id`, `context_budget`, `hitl_config`, and `project_id`. Returns `201`
 with the created session (id, status, model, created_at).
 
-> **Model selection:** per-session model selection is not yet honored by the
-> runtime. The JSON field `model` is not part of this request schema and is
-> silently ignored; although `model_id` can be stored on the session, the
-> harness client still executes with the model selected by server configuration
-> (`llm.default_model`) and the model registry. Configure the effective model
-> there instead of expecting a create-session field to switch it.
+> **Model selection (DF-CONSENSUS-9):** model selection is config-only at
+> runtime — this is deliberate behavior, not a gap. The create-session field
+> is `model_id` (there is no `model` field in the schema; an unknown JSON
+> field like `"model"` is dropped by the decoder and ignored). `model_id` is
+> **stored on the session and echoed in the response**, and it drives
+> registry lookups (pricing, context limits), but it does **not** switch what
+> executes: the harness runs every session with the model selected by server
+> configuration (`llm.default_model` in `consensus.yaml`) through one shared
+> LLM client. To change the executing model, set `llm.default_model` there
+> (or the `CONSENSUS_LLM_MODEL` environment variable) — per-session routing
+> does not exist yet, and a create-session field cannot switch it.
 
 ### `GET /api/v1/sessions` — list sessions
 
@@ -188,6 +193,15 @@ returns to `idle`; the durable assistant reply is then available in
 `last_message`, and token totals are exposed as `tokens_used_in` and
 `tokens_used_out`. The same reply is also listed as a `text_block` by
 `GET /api/v1/sessions/{id}/memory`.
+
+> **Duplicate suppression (DF-CONSENSUS-9):** an identical `content` re-sent
+> to the same session within 5 seconds of the previous one is dropped as a
+> duplicate — this covers the send racing the heartbeat-driven auto-resume,
+> and a client retry that lost its `Idempotency-Key` or never had one. The
+> duplicate returns the same `200` `message_received` shape as the original,
+> so a retrying client cannot distinguish suppression from delivery; only one
+> ledger row lands. A distinct message (different content) in the same window
+> is always stored.
 
 ---
 
