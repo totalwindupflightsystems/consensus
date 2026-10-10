@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
+	"github.com/wojons/consensus/internal/memory"
 	"github.com/wojons/consensus/internal/modelsync"
 )
 
@@ -417,6 +418,13 @@ func (svc *MessageService) SendMessage(ctx context.Context, input SendMessageInp
 	}
 
 	// Insert message into memory_events
+	// DF-CONSENSUS-9: the heartbeat auto-resume path re-sends through here
+	// and used to double-store the turn. Drop a byte-identical re-send for
+	// the same session inside the dedupe window (advisory probe, TOCTOU by
+	// nature — it catches the seconds-apart race, not same-instant inserts).
+	if memory.SkipDuplicateUserMessage(ctx, svc.db, input.SessionID, input.Content) {
+		return nil
+	}
 	err = svc.db.Exec(ctx,
 		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
 		 VALUES ('user_message', $1, $2, $3, $4)`,

@@ -1071,3 +1071,184 @@ func TestSendMessage_EmptyContent(t *testing.T) {
 
 // unused but kept for test utility
 var _ = bytes.Buffer{}
+
+// ============================================================================
+// Model field behavior — DF-CONSENSUS-9
+// ============================================================================
+
+// DF-CONSENSUS-9 pins the create-session model contract. The request schema
+// field is `model_id` (specs/openapi/components/schemas.yaml
+// #CreateSessionRequest); there is no `model` field, and unknown JSON fields
+// are dropped by the decoder — so `model` is ignored by design, not silently
+// misread. Per-session model selection is NOT honored by the runtime: the
+// harness executes every session with the server-configured model
+// (`llm.default_model` in consensus.yaml) via its single LLM client, while
+// `model_id` is stored on the session row and used for registry lookups
+// (pricing, context limits). Both behaviors are proven here so a future
+// runtime change surfaces as a test failure instead of a silent contract
+// drift.
+
+func TestCreateSession_ModelFieldIsNotASchemaField(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	// The brief's symptom: POST model:'deepseek-chat' "silently returns
+	// model:'default'". Prove the mechanism: `model` is not a schema field,
+	// the decoder drops it, and with no model_id either the service falls
+	// back to its registry/default selection — the documented (c) behavior.
+	body := `{"agent_name":"demo","goal":"Summarize the ledger.","model":"deepseek-chat"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp CreateSessionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	// The 'model' value must NOT appear as the session's model: it was never
+	// a field, so the server's own selection wins ('gpt-4o' here — the first
+	// enabled registry row seeded by newIntegrationServer; a bare
+	// "default" would prove the decoder failed open instead of closed).
+	if resp.ModelID != "gpt-4o" {
+		t.Errorf("model value must not leak into model_id: got %q, want registry-selected %q", resp.ModelID, "gpt-4o")
+	}
+}
+
+func TestCreateSession_ModelIDIsStoredNotExecuted(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	// model_id IS a schema field: it is stored on the session row and
+	// echoed in the response — but the executing model still comes from
+	// server configuration, because the harness dispatches through one
+	// LLM client for all sessions (internal/harness/executor.go:
+	// h.LLMClient.Call(ctx, ic.Messages) carries no per-session model).
+	body := `{"agent_name":"coder","goal":"Write tests","model_id":"gpt-4o"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp CreateSessionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.ModelID != "gpt-4o" {
+		t.Errorf("model_id must be stored and echoed: got %q", resp.ModelID)
+	}
+
+	ctx := context.Background()
+	rows, err := srv.conn.Query(ctx, `SELECT model_id FROM sessions WHERE id = $1`, resp.ID)
+	if err != nil || len(rows) == 0 {
+		t.Fatalf("read stored session: %v", err)
+	}
+	if stored := toString(rows[0]["model_id"]); stored != "gpt-4o" {
+		t.Errorf("stored model_id = %q, want gpt-4o", stored)
+	}
+}
+
+// ============================================================================
+// Duplicate user_message suppression — DF-CONSENSUS-9
+// ============================================================================
+
+func TestSendMessage_DuplicatesDedupedInWindow(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+		VALUES ('sess-dedupe', 'test', 'gpt-4o', 'idle', 'Goal', 0, datetime('now'), datetime('now'))`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	// First delivery stores one row and wakes the session to thinking.
+	first := postSessionMessage(t, srv.router, srv.adminKey, "sess-dedupe", "", "focus on international markets")
+	if first.Code != http.StatusOK {
+		t.Fatalf("first send: expected 200, got %d: %s", first.Code, first.Body.String())
+	}
+
+	// An identical re-send inside the dedupe window — the send vs
+	// heartbeat auto-resume race — must be dropped, not double-stored.
+	repeat := postSessionMessage(t, srv.router, srv.adminKey, "sess-dedupe", "", "focus on international markets")
+	if repeat.Code != http.StatusOK {
+		t.Fatalf("duplicate send: expected 200, got %d: %s", repeat.Code, repeat.Body.String())
+	}
+
+	rows, err := srv.conn.Query(ctx,
+		`SELECT content FROM memory_events WHERE session_id = 'sess-dedupe' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("read memory_events: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected exactly 1 user_message row after in-window duplicate, got %d", len(rows))
+	}
+
+	// The duplicate's 200 must carry the same status shape the original
+	// returned, so a retrying client cannot detect the suppression.
+	var dupResp map[string]any
+	if err := json.Unmarshal(repeat.Body.Bytes(), &dupResp); err != nil {
+		t.Fatalf("decode duplicate response: %v", err)
+	}
+	if dupResp["status"] != "message_received" {
+		t.Errorf("duplicate response status = %v, want message_received", dupResp["status"])
+	}
+
+	// Different content in the same window is a real new message and must
+	// still be stored.
+	second := postSessionMessage(t, srv.router, srv.adminKey, "sess-dedupe", "", "now try the EU market")
+	if second.Code != http.StatusOK {
+		t.Fatalf("second distinct send: expected 200, got %d: %s", second.Code, second.Body.String())
+	}
+	rows, err = srv.conn.Query(ctx,
+		`SELECT content FROM memory_events WHERE session_id = 'sess-dedupe' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("re-read memory_events: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("distinct content must be stored: expected 2 user_message rows, got %d", len(rows))
+	}
+}
+
+func TestSendMessage_IdempotentPathDuplicatesDedupedInWindow(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at)
+		VALUES ('sess-idem-dedupe', 'test', 'gpt-4o', 'idle', 'Goal', 0, datetime('now'), datetime('now'))`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	// Same content under two DIFFERENT idempotency keys: key-based replay
+	// cannot catch this (each key is new), the content-window probe must.
+	first := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-dedupe", "key-a", "resume the deploy")
+	if first.Code != http.StatusOK {
+		t.Fatalf("key-a send: expected 200, got %d: %s", first.Code, first.Body.String())
+	}
+	second := postSessionMessage(t, srv.router, srv.adminKey, "sess-idem-dedupe", "key-b", "resume the deploy")
+	if second.Code != http.StatusOK {
+		t.Fatalf("key-b send: expected 200, got %d: %s", second.Code, second.Body.String())
+	}
+
+	rows, err := srv.conn.Query(ctx,
+		`SELECT id FROM memory_events WHERE session_id = 'sess-idem-dedupe' AND type = 'user_message'`)
+	if err != nil {
+		t.Fatalf("read memory_events: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 user_message row for same content under different keys, got %d", len(rows))
+	}
+}
+
