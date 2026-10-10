@@ -121,6 +121,12 @@ paths:
     $ref: "./paths/tools.yaml#/tools"
   /api/v1/tools/{toolName}/execute:
     $ref: "./paths/tools.yaml#/execute"
+  /api/v1/tool-requests:
+    $ref: "./paths/tools.yaml#/toolRequests"
+  /api/v1/tool-requests/{requestId}:
+    $ref: "./paths/tools.yaml#/toolRequest"
+  /api/v1/sessions/{sessionId}/tool-calls:
+    $ref: "./paths/tools.yaml#/sessionToolCalls"
   /api/v1/skills:
     $ref: "./paths/skills.yaml#/skills"
   /api/v1/skills/{skillName}:

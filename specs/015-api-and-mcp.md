@@ -221,9 +221,23 @@ immediately.
 | Method | Path | Description | Scope |
 |---|---|---|---|
 | `GET` | `/api/v1/tools` | List available tools | session, admin, readonly |
+| `GET` | `/api/v1/tool-requests` | List tool execution requests (filters: `session_id`, `status`; oldest first; maximum 100) | session, admin, readonly |
+| `GET` | `/api/v1/tool-requests/:requestId` | Get one tool execution request, including its result when available | session, admin, readonly |
+| `GET` | `/api/v1/sessions/:id/tool-calls` | List the session's tool requests and planning `tool_call_ref` staging entries as one chronological view | session, admin, readonly |
 | `GET` | `/api/v1/skills` | List skill metadata | session, admin, readonly |
 | `GET` | `/api/v1/skills/:name` | Get full skill instructions | session, admin |
 | `POST` | `/api/v1/tools/:name/execute` | Execute an internal tool | session |
+
+Tool-request responses expose the executor lifecycle status verbatim:
+`pending`, `awaiting_approval`, `executing`, `completed`, `failed`, or
+`timeout`. A completed or failed request includes its `tool_results` record.
+Session-scoped keys may only read requests belonging to their own session;
+admin and readonly keys may read any session. The session tool-call view also
+includes `staging_buffer` rows whose `cmd_type` is `tool_call_ref`. Those rows
+carry `source: "staging_buffer"`, their staging lifecycle status, and a
+`tool_name` parsed from the JSON payload; executor-backed rows carry
+`source: "tool_request"`. The merged response is ordered by `created_at` and
+then source/id for deterministic polling.
 
 ### 3.5 Approvals (HITL)
 

@@ -112,6 +112,54 @@ type ExecuteToolResponse struct {
 	Error        string `json:"error,omitempty"`
 }
 
+// ToolResultResponse is the persisted result attached to a tool request.
+type ToolResultResponse struct {
+	ID         int64   `json:"id"`
+	RequestID  int64   `json:"request_id"`
+	Output     string  `json:"output"`
+	IsError    bool    `json:"is_error"`
+	ErrorCode  *string `json:"error_code,omitempty"`
+	ExitCode   *int    `json:"exit_code,omitempty"`
+	DurationMS *int64  `json:"duration_ms,omitempty"`
+	TokenCount *int    `json:"token_count,omitempty"`
+	CreatedAt  string  `json:"created_at"`
+}
+
+// ToolRequestResponse is the response body for tool-request list and detail reads.
+type ToolRequestResponse struct {
+	ID                int64               `json:"id"`
+	SessionID         string              `json:"session_id"`
+	IterationID       int64               `json:"iteration_id"`
+	ToolName          string              `json:"tool_name"`
+	Parameters        map[string]any      `json:"parameters"`
+	Status            string              `json:"status"`
+	TimeoutMS         int                 `json:"timeout_ms"`
+	ApprovalRequestID *string             `json:"approval_request_id,omitempty"`
+	CreatedAt         string              `json:"created_at"`
+	ExecutedAt        *string             `json:"executed_at,omitempty"`
+	CompletedAt       *string             `json:"completed_at,omitempty"`
+	Result            *ToolResultResponse `json:"result,omitempty"`
+}
+
+// SessionToolCallResponse is one entry in the merged per-session tool-call view.
+type SessionToolCallResponse struct {
+	Source      string         `json:"source"`
+	ID          int64          `json:"id"`
+	SessionID   string         `json:"session_id"`
+	Iteration   int64          `json:"iteration"`
+	Turn        *int           `json:"turn,omitempty"`
+	Seq         *int           `json:"seq,omitempty"`
+	ToolName    string         `json:"tool_name"`
+	Parameters  map[string]any `json:"parameters"`
+	Status      string         `json:"status"`
+	Description string         `json:"description,omitempty"`
+	Executed    bool           `json:"executed"`
+	Result      any            `json:"result,omitempty"`
+	CreatedAt   string         `json:"created_at"`
+	ExecutedAt  *string        `json:"executed_at,omitempty"`
+	CompletedAt *string        `json:"completed_at,omitempty"`
+}
+
 // ============================================================================
 // Config & Metrics Endpoint Types (SPEC-015 §3.6, §3.7)
 // ============================================================================

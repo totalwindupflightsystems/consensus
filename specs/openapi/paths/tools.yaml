@@ -28,6 +28,93 @@ tools:
       "500":
         $ref: "../components/responses.yaml#/InternalError"
 
+# GET /api/v1/tool-requests
+toolRequests:
+  get:
+    tags: [Tools]
+    summary: List tool execution requests
+    operationId: listToolRequests
+    description: |
+      Lists up to 100 tool requests in oldest-first order. Admin and readonly
+      keys may inspect all sessions. A session key is restricted to its own
+      session. Completed and failed requests include their tool result.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionFilter"
+      - $ref: "../components/parameters.yaml#/ToolRequestStatusFilter"
+    responses:
+      "200":
+        description: Tool requests.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/ToolRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/tool-requests/{requestId}
+toolRequest:
+  get:
+    tags: [Tools]
+    summary: Get a tool execution request
+    operationId: getToolRequest
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/ToolRequestId"
+    responses:
+      "200":
+        description: Tool request detail, including its result when available.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/ToolRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/NotFound"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+# GET /api/v1/sessions/{sessionId}/tool-calls
+sessionToolCalls:
+  get:
+    tags: [Tools]
+    summary: List a session's tool-call lifecycle records
+    operationId: listSessionToolCalls
+    description: |
+      Merges executor-backed tool_requests rows with planning staging_buffer
+      rows whose cmd_type is tool_call_ref. Each item identifies its source and
+      lifecycle status. Results are ordered oldest first.
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: "../components/parameters.yaml#/SessionId"
+    responses:
+      "200":
+        description: Merged session tool-call lifecycle records.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../components/schemas.yaml#/SessionToolCall"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
 # POST /api/v1/tools/{toolName}/execute
 execute:
   post:

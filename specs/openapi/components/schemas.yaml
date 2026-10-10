@@ -423,6 +423,114 @@ ExecuteToolResponse:
       type: string
       description: Error message if is_error is true.
 
+ToolResult:
+  type: object
+  required: [id, request_id, output, is_error, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    request_id:
+      type: integer
+      format: int64
+    output:
+      type: string
+    is_error:
+      type: boolean
+    error_code:
+      type: string
+    exit_code:
+      type: integer
+    duration_ms:
+      type: integer
+      format: int64
+    token_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+
+ToolRequest:
+  type: object
+  required: [id, session_id, iteration_id, tool_name, parameters, status, timeout_ms, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    session_id:
+      type: string
+      format: uuid
+    iteration_id:
+      type: integer
+      format: int64
+    tool_name:
+      type: string
+    parameters:
+      type: object
+      additionalProperties: true
+    status:
+      type: string
+      enum: [pending, awaiting_approval, executing, completed, failed, timeout]
+    timeout_ms:
+      type: integer
+    approval_request_id:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    executed_at:
+      type: string
+      format: date-time
+    completed_at:
+      type: string
+      format: date-time
+    result:
+      $ref: "#/ToolResult"
+
+SessionToolCall:
+  type: object
+  required: [source, id, session_id, iteration, tool_name, status, created_at]
+  properties:
+    source:
+      type: string
+      enum: [tool_request, staging_buffer]
+    id:
+      type: integer
+      format: int64
+    session_id:
+      type: string
+      format: uuid
+    iteration:
+      type: integer
+      format: int64
+    turn:
+      type: integer
+    seq:
+      type: integer
+    tool_name:
+      type: string
+    parameters:
+      type: object
+      additionalProperties: true
+    status:
+      type: string
+      description: Native lifecycle status from the row's source table.
+    description:
+      type: string
+    executed:
+      type: boolean
+    result:
+      description: ToolResult for executor rows, or parsed staging result for staging rows.
+    created_at:
+      type: string
+      format: date-time
+    executed_at:
+      type: string
+      format: date-time
+    completed_at:
+      type: string
+      format: date-time
+
 # ─── Approval Schemas (SPEC-015 §3.5) ───
 
 Approval:

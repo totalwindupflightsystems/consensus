@@ -178,6 +178,9 @@ func NewServer(cfg ServerConfig) *Server {
 
 		// Tools & Skills
 		r.Get("/api/v1/tools", s.handleListTools)
+		r.Get("/api/v1/tool-requests", s.handleListToolRequests)
+		r.Get("/api/v1/tool-requests/{requestID}", extractToolRequestID(s.handleGetToolRequest))
+		r.Get("/api/v1/sessions/{id}/tool-calls", extractSessionID(s.handleSessionToolCalls))
 		r.Get("/api/v1/skills", s.handleListSkills)
 		r.Get("/api/v1/skills/{skillName}", extractSkillName(s.handleGetSkill))
 		r.Post("/api/v1/tools/{toolName}/execute", extractToolName(s.handleExecuteTool))
@@ -261,6 +264,15 @@ func extractSkillName(h func(w http.ResponseWriter, r *http.Request, name string
 func extractToolName(h func(w http.ResponseWriter, r *http.Request, name string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h(w, r, chi.URLParam(r, "toolName"))
+	}
+}
+
+// toolRequestHandler is a handler that takes a numeric tool request ID as text.
+type toolRequestHandler func(w http.ResponseWriter, r *http.Request, requestID string)
+
+func extractToolRequestID(h toolRequestHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h(w, r, chi.URLParam(r, "requestID"))
 	}
 }
 
