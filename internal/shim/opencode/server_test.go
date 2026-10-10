@@ -2291,10 +2291,11 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 	// Bare GET /vcs and GET /vcs/diff are real fixed-workspace compatibility
 	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); GET
 	// /vcs/status is served per the declared contract since ROUTE-FIX-033
-	// (TestVCSStatusDeclaredContract). The remaining /vcs/* sub-paths stay 501
-	// stubs (SPEC-017 §3.9). The test server skips auth, so the stub — not
-	// 401 — answers.
-	for _, path := range []string{"/vcs/diff/raw", "/vcs/apply", "/vcs/"} {
+	// (TestVCSStatusDeclaredContract) and POST /vcs/apply since ROUTE-FIX-031
+	// (TestVCSApplyServesDeclaredContract). The remaining /vcs/* sub-path stays
+	// a 501 stub (SPEC-017 §3.9). The test server skips auth, so the stub —
+	// not 401 — answers.
+	for _, path := range []string{"/vcs/diff/raw", "/vcs/"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
@@ -2304,6 +2305,220 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 		if resp.StatusCode != 501 {
 			t.Errorf("GET %s: expected 501 stub, got %d: %s", path, resp.StatusCode, body)
 		}
+	}
+}
+
+// TestVCSApplyServesDeclaredContract drives the served POST /vcs/apply contract
+// (ROUTE-FIX-031, SHIM-DRIFT-142; specs/openapi/upstream/openapi-1.18.33.json
+// paths."/vcs/apply".post): requestBody {patch (required string)} with
+// additionalProperties false, optional directory/workspace query selectors, a
+// 200 object {applied (required boolean)} with additionalProperties false, and
+// a 400 anyOf VcsApplyError | InvalidRequestError arm. The Consensus shim has
+// no VCS write capability, so a schema-valid request answers the declared 200
+// with the truthful {"applied":false} — no patch was applied — on the
+// tuiPublish/tuiShowToast no-op precedent; a schema-violating payload answers
+// the declared 400 and non-POST answers the sibling 405 METHOD_NOT_ALLOWED
+// guard. Before this row every method on the path answered the /vcs/ subtree's
+// typed 501 (SHIM-DRIFT-142, class OUTCOME-MISMATCH "declared 200,400, served
+// 501").
+func TestVCSApplyServesDeclaredContract(t *testing.T) {
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	workspace := t.TempDir()
+
+	// ── declared 200: the object {applied}, exactly one property, value ──
+	// false because this shim applies no patch to any working tree.
+	t.Run("200/declared applied false", func(t *testing.T) {
+		for _, tc := range []struct{ name, path, body string }{
+			{"bare", "/vcs/apply", `{"patch":"diff --git a/f b/f\n--- a/f\n+++ b/f\n"}`},
+			{"valued selectors accepted", "/vcs/apply?directory=" + workspace + "&workspace=" + workspace, `{"patch":"x"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, tc.path, tc.body)
+				if status != http.StatusOK {
+					t.Fatalf("POST %s: got %d, want 200. Body: %s", tc.path, status, body)
+				}
+				if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+					t.Errorf("Content-Type = %q, want application/json", ct)
+				}
+				var got map[string]any
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("200 body is not the declared {applied} object: %v (%s)", err, body)
+				}
+				if len(got) != 1 {
+					t.Errorf("200 body has %d properties, want exactly the declared applied: %v", len(got), got)
+				}
+				applied, ok := got["applied"]
+				if !ok {
+					t.Fatalf("200 body omitted the required applied property: %s", body)
+				}
+				if applied != false {
+					t.Errorf("applied = %v, want false (this shim applies no patch)", applied)
+				}
+			})
+		}
+	})
+
+	// ── declared 400: payloads that violate the declared requestBody schema ──
+	t.Run("400/schema violation", func(t *testing.T) {
+		for _, tc := range []struct{ name, body, kind string }{
+			{"absent body", "", "Body"},
+			{"empty object", `{}`, "Payload"},
+			{"null patch", `{"patch":null}`, "Payload"},
+			{"empty patch", `{"patch":""}`, "Payload"},
+			{"wrong patch type", `{"patch":42}`, "Body"},
+			{"undeclared property", `{"patch":"x","extra":true}`, "Body"},
+			{"not an object", `["patch"]`, "Body"},
+			{"malformed json", `{"patch":`, "Body"},
+			{"trailing json", `{"patch":"a"}{"patch":"b"}`, "Body"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/vcs/apply", tc.body)
+				requireVCSApplyBadRequest(t, status, body, tc.kind)
+			})
+		}
+	})
+
+	// ── declared 400: a present-but-blank query selector ──
+	t.Run("400/blank selector", func(t *testing.T) {
+		for _, path := range []string{
+			"/vcs/apply?directory=",
+			"/vcs/apply?workspace=",
+			"/vcs/apply?workspace=%20%09",
+			"/vcs/apply?directory=" + workspace + "&workspace=",
+		} {
+			status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, path, `{"patch":"x"}`)
+			requireVCSApplyBadRequest(t, status, body, "Query")
+			if !strings.Contains(string(body), "directory") && !strings.Contains(string(body), "workspace") {
+				t.Errorf("POST %s: 400 body does not name the offending selector: %s", path, body)
+			}
+		}
+	})
+
+	// ── 405: non-POST is not a declared method for this operation ──
+	t.Run("405/non-POST", func(t *testing.T) {
+		for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+			status, _, body := doShimRequest(t, srv.URL, method, "/vcs/apply")
+			requireTUIMethodNotAllowed(t, status, body)
+		}
+	})
+
+	// ── neighbour: the sibling typed stub is untouched ──
+	t.Run("neighbour /vcs/diff/raw keeps its stub", func(t *testing.T) {
+		status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/vcs/diff/raw")
+		if status != http.StatusNotImplemented {
+			t.Errorf("GET /vcs/diff/raw: got %d, want the unchanged typed 501. Body: %s", status, body)
+		}
+	})
+}
+
+// requireVCSApplyBadRequest pins the vcs.apply 400 arm: HTTP 400 with the
+// shim's BadRequest NamedError envelope ({name, data:{kind, message}}) —
+// kind Body for a malformed/absent body, Payload for a value violating the
+// declared body schema, Query for a blank declared selector. The operation
+// declares 400 anyOf VcsApplyError | InvalidRequestError; the payload-decode
+// mapping onto the BadRequest envelope is the ROUTE-ADD-100 precedent
+// (handleProviderOAuthAuthorize).
+func requireVCSApplyBadRequest(t *testing.T, status int, body []byte, wantKind string) {
+	t.Helper()
+	if status != http.StatusBadRequest {
+		t.Fatalf("got %d, want 400. Body: %s", status, body)
+	}
+	var got struct {
+		Name string `json:"name"`
+		Data struct {
+			Kind    string `json:"kind"`
+			Message string `json:"message"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("400 body is not the BadRequest NamedError envelope: %v (%s)", err, body)
+	}
+	if got.Name != "BadRequest" {
+		t.Errorf("name = %q, want BadRequest", got.Name)
+	}
+	if got.Data.Kind != wantKind {
+		t.Errorf("data.kind = %q, want %q", got.Data.Kind, wantKind)
+	}
+	if got.Data.Message == "" {
+		t.Error("data.message is empty; the envelope must say what was wrong")
+	}
+}
+
+// TestVCSApplyChiMountMatchesProductionWiring is the BUG-009-shaped regression
+// for this route: through a parent chi router mounted with MountPatterns (the
+// shape cmd/consensus/main.go uses), POST /vcs/apply must reach the shim
+// handler and answer the declared contract there too — a chi 404 would mean the
+// mount lost the route.
+func TestVCSApplyChiMountMatchesProductionWiring(t *testing.T) {
+	shim := NewServer(&mockDB{}, "test-key", nil, nil)
+	shim.skipAuth = true
+	router := chi.NewRouter()
+	for _, pattern := range MountPatterns {
+		router.Handle(pattern, shim.Handler())
+	}
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/vcs/apply", `{"patch":"x"}`)
+	if status != http.StatusOK {
+		t.Fatalf("POST /vcs/apply via chi mount: got %d, want 200 — the route must be reachable through the /vcs/* MountPattern. Body: %s", status, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("chi-mounted POST /vcs/apply: Content-Type = %q, want application/json", ct)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("chi-mounted POST /vcs/apply body is not the declared {applied} object: %v (%s)", err, body)
+	}
+	if applied, ok := got["applied"]; !ok || applied != false {
+		t.Errorf("chi-mounted POST /vcs/apply body = %v, want applied:false", got)
+	}
+}
+
+// TestVCSApplyKeepsAPIKeyAuth pins the auth surface this route gained when it
+// left the 501 stub: ROUTE-FIX-031 removed the /vcs non-GET stub exemption for
+// exactly this path (isStubPath), exactly as ROUTE-FIX-006 did for
+// POST /project/git/init — a served operation takes api-key auth like every
+// other implemented route, and an authenticated call still answers the
+// declared 200. GET /vcs/apply was already authenticated before the change
+// (only non-GET carried the exemption), so the method guard is not newly
+// exposed.
+func TestVCSApplyKeepsAPIKeyAuth(t *testing.T) {
+	mdb := &mockDB{}
+	s := NewServer(mdb, "test-key", nil, nil)
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+
+	status, _, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/vcs/apply", `{"patch":"x"}`)
+	if status != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated POST /vcs/apply: got %d, want 401 (the stub exemption left this path). Body: %s", status, body)
+	}
+
+	// The api_keys lookup the shim's auth accepts (Bearer or Basic): one
+	// matching row is enough, the mock never inspects the token material.
+	mdb.queryResults = []db.Row{rowOf(map[string]any{"id": "k1", "scope": "admin", "session_id": nil})}
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/vcs/apply", strings.NewReader(`{"patch":"x"}`))
+	if err != nil {
+		t.Fatalf("build authenticated POST /vcs/apply: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer test-key")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("authenticated POST /vcs/apply: %v", err)
+	}
+	data, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("authenticated POST /vcs/apply: got %d, want 200. Body: %s", resp.StatusCode, data)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("authenticated POST /vcs/apply body is not JSON: %v (%s)", err, data)
+	}
+	if applied, ok := got["applied"]; !ok || applied != false {
+		t.Errorf("authenticated POST /vcs/apply body = %v, want applied:false", got)
 	}
 }
 
@@ -3550,13 +3765,16 @@ type notImplementedRoute struct {
 // ROUTED-404 row), which left this table likewise (projectCurrent).
 // ROUTE-FIX-007 served GET /project/{projectID}/directories (SHIM-DRIFT-101),
 // which left this table too. ROUTE-FIX-023 serves the six TUI operations that
-// formerly occupied SHIM-DRIFT-133 and SHIM-DRIFT-135..139.
+// formerly occupied SHIM-DRIFT-133 and SHIM-DRIFT-135..139. ROUTE-FIX-031
+// serves POST /vcs/apply (vcs.apply, the table's remaining STUB-501 row),
+// which left this table as well; the two drift ids below are the labels the
+// comparison artifact carries in THIS generation (they are positional and are
+// re-assigned when the comparison is regenerated).
 var notImplementedRoutes = []notImplementedRoute{
 	// ROUTED-404: route registered, handler answered 404 NOT_FOUND.
-	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
-	// STUB-501 (3): already 501, but the stub was silent/untyped.
-	{"SHIM-DRIFT-142", http.MethodPost, "/vcs/apply", "vcs.apply"},
-	{"SHIM-DRIFT-143", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
+	{"SHIM-DRIFT-097", http.MethodPost, "/pty", "pty.create"},
+	// STUB-501: already 501, but the stub was silent/untyped.
+	{"SHIM-DRIFT-108", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3597,10 +3815,12 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 4 = pty.create plus the three VCS typed stubs. ROUTE-FIX-023 moved the
-	// six pinned-upstream TUI operations to truthful 200/400 handlers.
-	if len(notImplementedRoutes) != 3 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 4 after ROUTE-FIX-023 serves six TUI operations; table has %d",
+	// 2 = pty.create plus the one remaining VCS typed stub (vcs.diff.raw).
+	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
+	// 200/400 handlers and ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply) to
+	// its declared 200/400 contract.
+	if len(notImplementedRoutes) != 2 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 after ROUTE-FIX-023 serves six TUI operations and ROUTE-FIX-031 serves vcs.apply; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3736,8 +3956,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 3 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 4 remaining SHIM-GAP-002 findings after ROUTE-FIX-023 serves six TUI operations", len(typed))
+	if len(typed) != 2 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 2 remaining SHIM-GAP-002 findings after ROUTE-FIX-023 serves six TUI operations and ROUTE-FIX-031 serves vcs.apply", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {
