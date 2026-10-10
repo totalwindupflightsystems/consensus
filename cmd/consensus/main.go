@@ -186,6 +186,14 @@ func runServer() {
 	}
 	go h.StartHeartbeatLoop(ctx)
 
+	// DF-CONSENSUS-48: the async ToolExecutor must run in production, not just
+	// in probes — without it, agent-issued tool_requests sit pending forever
+	// (SPEC-006 §Two-Phase Execution Phase 2). Polls tool_requests every 500ms
+	// and executes them with sandbox isolation (WI-005).
+	toolExecutor := harness.NewToolExecutor(database, harness.DefaultToolExecutorConfig())
+	toolExecutor.Start(ctx)
+	defer toolExecutor.Stop()
+
 	// PERF-CONSENSUS-11: loopback-only pprof debug listener for goroutine
 	// dumps / heap profiles on the serve binary. Address comes from
 	// server.pprof_addr (default 127.0.0.1:8095, empty disables). The
