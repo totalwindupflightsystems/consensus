@@ -1116,11 +1116,39 @@ tasks:
   created_at: '2026-10-06T15:33:43.307634+00:00'
   completed_at: '2026-10-06T15:34:33.635514+00:00'
 - id: QA-CONSENSUS-14
-  title: 'Fix clean-machine test failures: fixed /tmp paths in circuit_test and demo
-    TestMain'
+  title: Fix act CI simulation failures
   criteria:
-  - 'TZ-independent: internal/harness circuit tests use per-run unique temp DB paths
-    (no fixed /tmp path)'
-  - demo TestMain builds its binary into a per-run unique temp dir and cleans up
+  - All 8 workflow jobs pass under act local simulation (cross-compile linux/arm64
+    darwin windows GoReleaser GitReins-guard Docker-Build-Push)
   status: in_progress
-  created_at: '2026-10-09T19:46:03.699168+00:00'
+  created_at: '2026-10-10T02:10:20.688967+00:00'
+- id: int-ci-1
+  title: 'CI: survive Docker Hub outages (mirror-based image pulls + auth retry)'
+  criteria:
+  - Dockerfile FROM lines use a configurable ARG prefix defaulting to docker.io mirror-proof
+    base images and CI references resolve against it
+  - Postgres Integration and Docker Build & Push jobs reference images via the mirrored
+    path or retry and the workflow YAML is valid
+  status: complete
+  created_at: '2026-10-09T22:02:51.462487+00:00'
+  completed_at: '2026-10-09T22:15:31.735569+00:00'
+- id: review-consensus-5
+  title: Add verified retry/backoff for webhook routed-payload delivery
+  criteria:
+  - A failed deliverRoutedPayload attempt is retried with bounded exponential backoff
+    and the final failure state is persisted/observable (delivery attempts recorded,
+    not just a WARN log)
+  status: complete
+  created_at: '2026-10-09T22:27:21.508611+00:00'
+  completed_at: '2026-10-09T23:09:49.790513+00:00'
+- id: DF-CONSENSUS-9
+  title: Install docs frictions + model field + message dedupe
+  criteria:
+  - README Option 2 documents Go 1.26 prerequisite for bare Debian agents
+  - Bunker rootless docker socket discovery documented
+  - POST /api/v1/sessions with model field either honored, validated, or documented
+    as config-only
+  - Duplicate user_message rows deduped by (session_id, content, in-flight window)
+  status: complete
+  created_at: '2026-10-10T01:08:43.444110+00:00'
+  completed_at: '2026-10-10T01:50:33.582724+00:00'
