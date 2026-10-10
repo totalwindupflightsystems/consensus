@@ -83,16 +83,35 @@ jobs:
             sleep "$delay"
           done
 
-          docker run -d --name consensus-postgres \
-            -e POSTGRES_USER=consensus \
-            -e POSTGRES_PASSWORD=consensus \
-            -e POSTGRES_DB=consensus \
-            -p 5432:5432 \
-            --health-cmd="pg_isready -U consensus -d consensus" \
-            --health-interval=2s \
-            --health-timeout=5s \
-            --health-retries=10 \
-            "$image"
+          docker rm -f consensus-postgres >/dev/null 2>&1 || true
+
+          db_args=(
+            -e POSTGRES_USER=consensus
+            -e POSTGRES_PASSWORD=consensus
+            -e POSTGRES_DB=consensus
+            --health-cmd="pg_isready -U consensus -d consensus"
+            --health-interval=2s
+            --health-timeout=5s
+            --health-retries=10
+          )
+
+          # Hosted runners always take this branch: publish the database on the
+          # host port the test URL names.
+          if docker run -d --name consensus-postgres "${db_args[@]}" -p 5432:5432 "$image" >/dev/null; then
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable" >> "$GITHUB_ENV"
+          else
+            # The host port is taken — a machine-local PostgreSQL, which hosted
+            # runners do not have and which is what breaks local `act` runs
+            # ("failed to bind host port 0.0.0.0:5432/tcp: address already in
+            # use"). Publish on an ephemeral loopback port instead: same
+            # container, same test, no dependency on a host port being free.
+            echo "host port 5432 is unavailable - publishing the database on an ephemeral loopback port" >&2
+            docker rm -f consensus-postgres >/dev/null 2>&1 || true
+            docker run -d --name consensus-postgres "${db_args[@]}" -p 127.0.0.1::5432 "$image" >/dev/null
+            host_port=$(docker port consensus-postgres 5432/tcp | head -n1 | sed 's/.*://')
+            [ -n "$host_port" ] || { echo "could not determine the published postgres port" >&2; exit 1; }
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@127.0.0.1:${host_port}/consensus?sslmode=disable" >> "$GITHUB_ENV"
+          fi
 
           for attempt in {1..10}; do
             if docker exec consensus-postgres pg_isready -U consensus -d consensus; then
@@ -104,8 +123,9 @@ jobs:
           exit 1
 
       - name: Postgres full integration test
-        env:
-          CONSENSUS_TEST_POSTGRES_URL: postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable
+        # CONSENSUS_TEST_POSTGRES_URL is exported by the start step above (host
+        # port when free, an ephemeral loopback port when not) and is consumed
+        # through the Makefile's `$${CONSENSUS_TEST_POSTGRES_URL:-...}` default.
         run: make test-pg-full
 
   # ── GoReleaser Config Check ─────────────────────────────────────
@@ -132,7 +152,28 @@ jobs:
           go-version: "1.26"
 
       - name: Install GitReins
-        run: pip install gitreins
+        # Best-effort by design. The Tier-1 guard below is the repo's own shell
+        # script (.gitreins/pre-commit) and needs only Go, so the CLI is
+        # installed for parity with local use and must never decide this job's
+        # verdict. It goes into an isolated venv because the runner images we
+        # run on differ: act's default image is a Debian node image with no
+        # Python at all, and Ubuntu 24.04 (`ubuntu-latest` AND this repo's act
+        # image) marks its system Python externally managed (PEP 668) — there
+        # plain `pip install` refuses, and `--break-system-packages` still
+        # cannot replace Debian-owned dependencies
+        # (`ERROR: Cannot uninstall PyJWT 2.7.0, RECORD file not found`).
+        # Falls back to the plain commands, and a skip is not a failure.
+        continue-on-error: true
+        run: |
+          if command -v python3 >/dev/null 2>&1 && python3 -m venv "$RUNNER_TEMP/gitreins-venv" 2>/dev/null; then
+            "$RUNNER_TEMP/gitreins-venv/bin/pip" install --quiet gitreins
+            echo "$RUNNER_TEMP/gitreins-venv/bin" >> "$GITHUB_PATH"
+            echo "gitreins CLI installed into $RUNNER_TEMP/gitreins-venv"
+          elif command -v pip >/dev/null 2>&1; then
+            pip install gitreins
+          else
+            echo "::notice::no Python/pip on this runner image — skipping the GitReins CLI install (the Tier-1 guard below is a shell script and needs only Go)"
+          fi
 
       - name: Secrets scan
         run: |
@@ -188,6 +229,19 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Auth is gated, not assumed. Two cases must not attempt a registry login:
+    #   - act (the local simulator) sets ACT=true and synthesises a runtime
+    #     token that GHCR rejects ("denied: permission_denied: The token
+    #     provided does not match expected scopes") — and it does so AFTER a
+    #     full image build, which is what made this job unreadable locally.
+    #     Verified with a probe workflow: under act `env.ACT == 'true'` holds
+    #     and secrets.GITHUB_TOKEN is NON-empty, so gating on token presence
+    #     alone does not work — the gate must name ACT.
+    #   - a hosted runner without a token must skip auth rather than fail.
+    # Both are step-level checks: the `env` context (and runner env such as
+    # ACT) is available in a step `if`, but NOT when declaring job-level env.
+    env:
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -195,11 +249,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: ${{ env.ACT != 'true' && env.GHCR_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ env.GHCR_TOKEN }}
 
       - name: Docker meta
         id: meta
@@ -215,7 +270,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          push: ${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           build-args: |
             GO_IMAGE=public.ecr.aws/docker/library/golang:1.26-alpine
             ALPINE_IMAGE=public.ecr.aws/docker/library/alpine:3.21

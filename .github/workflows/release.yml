@@ -1,6 +1,16 @@
 # Tag-triggered release (RELEASE-CONSENSUS-1): building a v* tag runs
 # GoReleaser against the existing .goreleaser.yaml (build matrix, archives,
 # checksums, changelog) and attaches the assets to a GitHub Release.
+#
+# Local simulation (`act -W .github/workflows/release.yml`):
+#   act cannot publish — its push event arrives on the default branch (no v*
+#   ref, so the tag guard below has nothing to validate) and its synthesised
+#   token cannot write releases. Rather than failing on either, the two
+#   publish-only pieces are environment-gated: the tag guard runs on a real
+#   runner, and under act GoReleaser builds a SNAPSHOT of the same release
+#   matrix (same config, same binaries/archives/checksums, no upload), so the
+#   local run still exercises the real build instead of reporting green on a
+#   skipped job. Publishing is only ever exercised by a real `v*` tag push.
 name: Release
 
 on:
@@ -29,6 +39,10 @@ jobs:
           go-version: "1.26"
 
       - name: Validate tag
+        # Gated to real runners: the tag is what a `v*` push provides, and a
+        # local act push event is always the default branch, so there is no tag
+        # to validate there (the guard itself is unchanged on GitHub).
+        if: ${{ env.ACT != 'true' }}
         run: |
           case "${GITHUB_REF_NAME}" in
             v[0-9]*)
@@ -46,8 +60,11 @@ jobs:
           distribution: goreleaser
           version: "~> v2"
           # .goreleaser.yaml owns the build matrix, archives, checksums and
-          # changelog; --clean removes stale dist/ output first.
-          args: release --clean
+          # changelog; --clean removes stale dist/ output first. Under a local
+          # runner (act sets ACT=true) the same config is exercised as a
+          # snapshot build with no publish step, because there is no tag to
+          # release and no token that could upload.
+          args: ${{ env.ACT == 'true' && 'release --clean --snapshot --skip=publish' || 'release --clean' }}
           install-only: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

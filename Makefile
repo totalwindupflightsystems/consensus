@@ -146,11 +146,14 @@ test-pg:
 
 # Full Postgres integration test — applies all migrations, verifies tables/indexes/triggers,
 # exercises CRUD, FK constraints, and append-only enforcement.
-# Requires: docker compose up -d (postgres:16-alpine on port 5432)
+# Requires: docker compose up -d (postgres:16-alpine on port 5432) — unless the
+# caller exports CONSENSUS_TEST_POSTGRES_URL, which then wins. CI exports it:
+# it names the container it started on the host port that container got, so the
+# test no longer depends on host port 5432 being free.
 # axiom:trace work_item=WI-postgres-full-integration spec=specs/003-database.md plan=phase-1/task-1/step-1
 .PHONY: test-pg-full
 test-pg-full:
-	CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable \
+	CONSENSUS_TEST_POSTGRES_URL="$${CONSENSUS_TEST_POSTGRES_URL:-postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable}" \
 		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgresFullIntegration -v -count=1
 
 # --- Run built binary ---

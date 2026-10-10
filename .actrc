@@ -1,0 +1,55 @@
+# act (local GitHub Actions runner) configuration — repo-root `.actrc`.
+#
+# act reads this file automatically from the working directory, and it takes
+# precedence over a machine-local `~/.config/act/actrc`, so a plain
+#
+#     act -W .github/workflows/ci.yml
+#
+# reproduces hosted CI here without extra flags.
+#
+# WHY THIS FILE EXISTS
+# act's own default runner image is the bare Debian `node:22-bookworm`, which
+# ships no Python/pip, no `make`, no docker CLI and no populated tool cache.
+# GitHub's `ubuntu-latest` is Ubuntu 24.04, and every job in these workflows is
+# written for that platform, so on a Debian node image the jobs fail for
+# runner-image reasons that do not exist in hosted CI (`pip: command not
+# found`, missing build tools) — a "local CI is red" signal that says nothing
+# about the workflows. `catthehacker/ubuntu:act-latest` is the GitHub runner
+# image itself (it reports ImageOS=ubuntu24, the same base as `ubuntu-latest`)
+# and carries the Python/pip, make, file and docker CLI these jobs use.
+# Verified against the real thing: the hosted runs of every job in this
+# workflow are green at the same commit (gh run view <id> --json jobs).
+#
+# The tag is the rolling "current GitHub runner image" tag on purpose: the
+# point of this pin is fidelity to `ubuntu-latest`, not a frozen distro.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+# Keep the container platform explicit so runs are identical on arm64 hosts.
+--container-architecture linux/amd64
+#
+# Run one job at a time. act mounts a SINGLE shared `act-toolcache` volume at
+# /opt/hostedtoolcache for every job in a run, and `actions/setup-go` installs
+# the Go SDK into it. On a cold cache, parallel jobs race on the same
+# directory tree and corrupt it, and every matrix leg goes red for a reason
+# that cannot happen on GitHub Actions (each hosted job gets its own fresh
+# VM with a pre-populated tool cache):
+#
+#   File was unable to be removed Error: ENOTEMPTY: directory not empty,
+#   rmdir '/opt/hostedtoolcache/go/1.26.9/x64'   -> exitcode '1': failure
+#
+# Reproduced on purpose (2026-10-09) by clearing the tool cache and running
+# `act -j cross-build`: all 5 matrix legs failed; the same command against a
+# warm cache is green. Serial execution makes the simulation deterministic.
+# Once the cache is warm, parallelism can be restored from the command line
+# (`act --concurrent-jobs <n> ...` — CLI flags win over this file).
+--concurrent-jobs 1
+#
+# A machine-local service on a port a job binds must be stopped for the run.
+# The Postgres Integration job publishes 5432 on the host (`docker run -p
+# 5432:5432`) and act runs job containers with host networking, so a native
+# PostgreSQL on 5432 makes that job fail with
+#
+#   failed to bind host port 0.0.0.0:5432/tcp: address already in use
+#
+# i.e. a host-state red, not a workflow defect (hosted runners are clean).
+# Stop it before the run and start it again afterwards, or run on a box with
+# no local PostgreSQL.
