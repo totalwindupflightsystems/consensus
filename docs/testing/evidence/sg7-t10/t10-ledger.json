@@ -1,0 +1,96 @@
+{
+  "task": "SG-7 T10 — the fake 'baby' project end to end",
+  "spec": "docs/testing/quorum-q1-merged-verdicts.md §4 (SG-7 T10)",
+  "date": "2026-10-10",
+  "binary": "/tmp/consensus-sg7 (go build -o /tmp/consensus-sg7 ./cmd/consensus @ wt/sg7-t10)",
+  "run_dbs": {
+    "legA_task_create": "/tmp/sg7-runA/task-a.db (fresh init, never reused)",
+    "legB_goal_session": "/tmp/sg7-runB/goal-b.db (fresh init, never reused)"
+  },
+  "secrets_note": "DEEPSEEK_API_KEY read from env conventions (~/.hermes/.env, same value .env.example documents); every key value redacted as [REDACTED] in all artifacts.",
+  "task_create": {
+    "endpoint_actual": "POST /api/v1/sessions/{session_id}/tasks",
+    "endpoint_note": "A bare POST /api/v1/tasks does NOT exist. Routes: POST /api/v1/sessions/{id}/tasks (create), GET/PATCH /api/v1/tasks/{taskID} (by id). The 2026-09-24 sweep hit the session-create endpoint with a string body; source: internal/api/types.go CreateSessionRequest / CreateTaskRequest, internal/api/tasks.go handleCreateTask.",
+    "request_struct": {
+      "title": "string (required)",
+      "description": "string (optional)",
+      "priority": "int 1..10 (optional, default 5)",
+      "prerequisite_ids": "[]string (optional)"
+    },
+    "exact_body_sent": {"title": "Write the fake baby project artifact", "description": "Create /tmp/sg7-baby/artifact/hello.txt with a short greeting", "priority": 5, "prerequisite_ids": []},
+    "legacy_400_reproduction": {
+      "body": "\"my fake baby project task\" (string body)",
+      "status": 400,
+      "error": "malformed request body: json: cannot unmarshal string into Go value of type api.CreateSessionRequest"
+    },
+    "status": 201,
+    "response": {"id": "dee3a55c-3fa3-47f2-9446-ac3d176e29ca", "session_id": "1695746f-be30-45ce-b591-6b480592e2b9", "title": "Write the fake baby project artifact", "description": "Create /tmp/sg7-baby/artifact/hello.txt with a short greeting", "status": "pending", "priority": 5, "prerequisite_ids": [], "created_at": "2026-10-10T04:59:54Z"},
+    "first_run_cross_check": "Same documented body also returned 201 on the independent fresh DB /tmp/sg7-runA/task-a.db (task id 45367840-2fbe-48b6-b755-46e3ddf65c35, session ef6274d6-6ea8-4974-80eb-d8ba420ea56c)."
+  },
+  "session_round_trip": {
+    "session_id": "1695746f-be30-45ce-b591-6b480592e2b9",
+    "agent_name": "sg7-baby",
+    "goal": "Use the baby_write tool to create /tmp/sg7-baby/artifact/hello.txt ...",
+    "user_message": "Write the baby project file now with the baby_write tool ... Then confirm the sha256 the tool reported.",
+    "llm_turns": 3,
+    "llm_model": "deepseek-flash (api.deepseek.com, deepseek-v4-flash config id)",
+    "llm_turns_detail": [
+      "turn1: agent ISSUED tool request {tool_name: baby_write, parameters: {path, content}} (1820 prompt / 625 completion tok) — agent-initiated, persisted to staging_buffer tool_call_ref",
+      "turn2 (after tool result fed back): agent recorded confirmation + message_to_user (1830/632 tok)",
+      "turn3: final close-out text_block with the sha256 (2094/773 tok)"
+    ],
+    "final_status": "idle",
+    "billing_rows": [
+      {"model_id": "deepseek-flash", "category": "cognition", "prompt_tokens": 1820, "completion_tokens": 625, "cost_usd": 0.019385},
+      {"model_id": "deepseek-flash", "category": "cognition", "prompt_tokens": 1830, "completion_tokens": 632, "cost_usd": 0.018841},
+      {"model_id": "deepseek-flash", "category": "cognition", "prompt_tokens": 2094, "completion_tokens": 773, "cost_usd": 0.022408}
+    ],
+    "final_memory_event_excerpt": "text_block: Done — the Consensus baby project file is written. Path: /tmp/sg7-baby/artifact/hello.txt ... SHA-256: 85f12bd5108efeef6facdca4d35f51b593c0cdcf5712412c204b77d006f8c0de"
+  },
+  "artifact": {
+    "live_path": "/tmp/sg7-baby/artifact/hello.txt",
+    "evidence_copy": "docs/testing/evidence/sg7-t10/baby-project-artifact.txt",
+    "content": "Hello from the Consensus baby project!",
+    "bytes": 38,
+    "sha256": "85f12bd5108efeef6facdca4d35f51b593c0cdcf5712412c204b77d006f8c0de",
+    "sha256_source": "sha256sum of the artifact bytes; identical value inside the tool_results payload written by the production ToolExecutor"
+  },
+  "tool_results_excerpt": {
+    "sql": "SELECT output FROM tool_results WHERE id=3 -- /tmp/sg7-runB/goal-b.db",
+    "output": "{\"wrote\": \"/tmp/sg7-baby/artifact/hello.txt\", \"bytes\": 38, \"sha256\": \"85f12bd5108efeef6facdca4d35f51b593c0cdcf5712412c204b77d006f8c0de\"}",
+    "is_error": 0,
+    "written_by": "internal/harness ToolExecutorImpl.PollOnce (production code, run via /tmp/sg7-baby/t10-executor sidecar importing harness.NewToolExecutor)"
+  },
+  "tool_registration": {
+    "note": "tools_registry starts EMPTY on fresh install (docs/TOOLS.md 'On a fresh install'); probe registered one row, data-only:",
+    "row": {"name": "baby_write", "handler_type": "http_endpoint (initially subprocess; subprocess ignores agent parameters — see findings)", "handler_ref": "http://127.0.0.1:18099/write", "requires_approval": false}
+  },
+  "findings": [
+    {
+      "id": "T10-F1",
+      "severity": "high",
+      "claim": "cmd/consensus/main.go never starts the async ToolExecutor: harness.NewToolExecutor has zero production callers (only internal/harness tests). tool_requests rows would sit pending forever in a stock serve.",
+      "evidence": "grep -rn 'NewToolExecutor' --include='*.go' → only tool_executor.go (def) + tool_executor_test.go; serve log shows 'harness: heartbeat loop started' and no tool_executor start line."
+    },
+    {
+      "id": "T10-F2",
+      "severity": "high",
+      "claim": "Agent-issued tool requests from the LIVE interactive path never reach tool_requests: planning.ActionToolCall persists them to staging_buffer (cmd_type=tool_call_ref) and suspends the session in tool_exec, but nothing in-product drains tool_call_ref → tool_requests and nothing re-wakes the session with the result. Only the H3 shim implements the hand-off (stagedToolRequests/recordToolResultIntoStaging/FeedToolResult) for its own external clients. A goal session that requests a tool hangs in tool_exec until an external executor intervenes (session had to be re-woken manually; done via the shim's documented convention).",
+      "evidence": "runB server.log: 'planning: tool call requested turn=1 tools=1' at 23:33:32; session status tool_exec for 9+ minutes with zero tool_requests rows (executor poll log empty for that window); staging_buffer rows 1-2 carry the payloads."
+    },
+    {
+      "id": "T10-F3",
+      "severity": "medium",
+      "claim": "subprocess tools silently ignore agent parameters: executeSubprocessTool runs the fixed handler_ref argv with empty stdin; agent JSON parameters are never passed (executeHTTPEndpoint is the only parameter-carrying handler: {param} URL substitution + JSON body). A tool row registered as subprocess returns garbage for parameterized calls (probe row 1 output shows the empty-stdin error).",
+      "evidence": "internal/harness/tool_executor.go executeSubprocessTool — executable/args come only from splitToolCommand(handlerRef); tool_results id=1 vs id=2/3."
+    }
+  ],
+  "recompute": [
+    "go build -o /tmp/consensus-sg7 ./cmd/consensus",
+    "rm -rf /tmp/sg7-verify && mkdir -p /tmp/sg7-verify && /tmp/consensus-sg7 init --db-url sqlite:///tmp/sg7-verify/v.db   # fresh DB per run",
+    "CONSENSUS_PORT=18091 DEEPSEEK_API_KEY=... /tmp/consensus-sg7 serve --config <yaml pointing at the fresh db>",
+    "curl -X POST $BASE/api/v1/sessions -H 'Authorization: Bearer <admin>' -d '{\"agent_name\":\"x\",\"goal\":\"y\"}'   # 201",
+    "curl -X POST $BASE/api/v1/sessions/<sid>/tasks -H 'Authorization: Bearer <admin>' -d '{\"title\":\"t\",\"priority\":5,\"prerequisite_ids\":[]}'   # 201",
+    "sqlite3 <fresh.db> \"SELECT output FROM tool_results;\"   # sha256 85f12bd5... on the recorded run"
+  ]
+}
