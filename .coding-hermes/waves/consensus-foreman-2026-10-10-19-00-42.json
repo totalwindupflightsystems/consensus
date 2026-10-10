@@ -1,0 +1,7 @@
+{
+  "tick": "consensus-foreman-2026-10-10-19-00-42",
+  "mode": "serial-fallback",
+  "workers": [
+    {"task_id": "DF-CONSENSUS-49", "worktree": "/home/kara/worktrees/consensus-DF-CONSENSUS-49", "branch": "wt/DF-CONSENSUS-49", "brief": "/tmp/consensus-df49-brief.txt", "status": "dispatched"}
+  ]
+}
