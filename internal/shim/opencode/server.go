@@ -334,6 +334,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// per-file status route; served via the shared git status/diff
 	// translator with declared directory/workspace selector validation.
 	mux.HandleFunc("/vcs/status", s.handleVCSStatus)
+	// ROUTE-FIX-031 / SHIM-DRIFT-142: POST /vcs/apply is the declared
+	// vcs.apply operation (declared responses 200 {applied boolean}, 400
+	// VcsApplyError | InvalidRequestError); served per contract below
+	// instead of the /vcs/ subtree's typed 501. ServeMux resolves the
+	// longer pattern, so this exact registration wins over "/vcs/".
+	mux.HandleFunc("/vcs/apply", s.handleVCSApply)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
@@ -2072,7 +2078,9 @@ func projectTimeSeconds(v any) int64 {
 // isStubPath reports whether a path maps to an opencode-specific 501 stub
 // (SPEC-017 §3.9). These endpoints return NOT_IMPLEMENTED with zero data, so
 // auth is skipped for them — contract tests and unauthenticated clients get
-// 501, not 401.
+// 501, not 401. A sub-path that has since been served per contract leaves the
+// exemption (see the per-path exclusions below): its handler answers the
+// declared contract, so there is real behavior to protect.
 //
 // Auth skip policy (reconciles the two shim contract suites):
 //   - /instance/* is fully public but implemented (SPEC-017 §3.10) — the
@@ -2090,6 +2098,16 @@ func isStubPath(path, method string) bool {
 			// justified by "NOT_IMPLEMENTED with zero data, nothing to
 			// protect", which no longer holds for this sub-path.
 			if path == "/project/git/init" {
+				return false
+			}
+			// ROUTE-FIX-031: POST /vcs/apply is the declared vcs.apply
+			// operation, served per contract (handleVCSApply) instead of the
+			// typed 501, so it takes the same api-key auth as every other
+			// served route — including its own method guard, since GET
+			// /vcs/apply was already authenticated before this change
+			// (only non-GET was exempt). The remaining /vcs/* non-GET
+			// sub-paths keep the exemption.
+			if path == "/vcs/apply" {
 				return false
 			}
 			return true
@@ -2145,14 +2163,79 @@ func (s *Server) handleVCSStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, gitFileDiffs(r.Context(), dir))
 }
 
+// handleVCSApply serves POST /vcs/apply — upstream instance vcs.apply
+// (ROUTE-FIX-031, SHIM-DRIFT-142; declared responses: 200 object
+// {applied (required boolean)}, 400 VcsApplyError | InvalidRequestError). The
+// pinned document describes the operation as "Apply a raw patch to the current
+// working tree."
+//
+// The Consensus shim has no VCS write capability, so a request that satisfies
+// the declared schema answers the declared 200 with the truthful
+// {"applied": false} — no patch was applied — on the ROUTE-FIX-023/029
+// tuiPublish/tuiShowToast no-op precedent (those handlers answer the declared
+// body for an operation a detached shim cannot perform). The shim never
+// reports a patch it did not apply.
+//
+// Declared contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/vcs/apply".post): optional directory/workspace query selectors, a
+// requestBody {patch (required string)} with additionalProperties: false, a
+// 200 object {applied} with additionalProperties: false, and a 400 anyOf
+// VcsApplyError | InvalidRequestError arm. Served arms:
+//
+//   - a body that is absent, malformed, not an object, whose required `patch`
+//     field is missing or is not a non-empty string, or that carries an
+//     undeclared property answers the declared 400 with the shim's BadRequest
+//     NamedError envelope (decodeTUIJSONBody is the shim's shared
+//     single-JSON-object decoder — its DisallowUnknownFields is the declared
+//     additionalProperties: false). That payload-decode mapping is the one
+//     ROUTE-ADD-100 established for a declared
+//     anyOf[<domain error> | InvalidRequestError] 400
+//     (handleProviderOAuthAuthorize);
+//   - a present-but-blank directory/workspace selector answers the declared
+//     400 with the same envelope, kind Query (the instanceDispose blank-query
+//     convention). A VALUED selector is accepted as-is: this handler reads no
+//     workspace, so unlike the sibling GET /vcs/status — which really runs git
+//     status in the resolved directory — it does not gate on the path existing;
+//   - non-POST answers 405 METHOD_NOT_ALLOWED, the sibling POST-route method
+//     guard (writeOpencodeError). 405 is not in the declared response set, so
+//     it is never the answer to a well-formed POST.
+//
+// ch:trace row=ROUTE-FIX-031 spec=specs/openapi/upstream/openapi-1.18.33.json#vcs.apply test=internal/shim/opencode/server_test.go::TestVCSApplyServesDeclaredContract doc=docs/evidence/ROUTE-FIX-031-live-probe.md evidence=docs/evidence/ROUTE-FIX-031-live-probe.md witness=none:self-verified-in-worktree
+func (s *Server) handleVCSApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && len(values) > 0 && strings.TrimSpace(values[0]) == "" {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	var req struct {
+		Patch *string `json:"patch"`
+	}
+	if !decodeTUIJSONBody(w, r, &req,
+		"request body must be an object containing only patch") {
+		return
+	}
+	if req.Patch == nil || *req.Patch == "" {
+		writeOpencodeBadRequest(w, r, "Payload", "required field patch must be a non-empty string")
+		return
+	}
+	writeJSON(w, map[string]any{"applied": false})
+}
+
 // handleProjectVCSSStub returns 501 for /project and /vcs paths (opencode-specific).
 func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
-	// SHIM-GAP-002: the declared /vcs sub-operations answer the typed
-	// not-implemented envelope naming their operation id (SHIM-DRIFT-142..144)
-	// instead of the untyped stub body.
+	// SHIM-GAP-002: the declared /vcs sub-operations the shim does not translate
+	// answer the typed not-implemented envelope naming their operation id
+	// (SHIM-DRIFT-143; /vcs/apply left this table in ROUTE-FIX-031, /vcs/status
+	// in ROUTE-FIX-033) instead of the untyped stub body.
 	if op, ok := vcsDeclaredOps[r.URL.Path]; ok {
 		writeNotImplemented(w, r, op,
-			fmt.Sprintf("%s is not implemented: VCS writes and raw/whole-status views are opencode-specific; the shim serves GET /vcs (Vcs.Info) and GET /vcs/diff (FileDiff[]), or the native tool API", op))
+			fmt.Sprintf("%s is not implemented: raw/whole-status views are opencode-specific; the shim serves GET /vcs (Vcs.Info), GET /vcs/diff (FileDiff[]) and GET /vcs/status, or the native tool API", op))
 		return
 	}
 
@@ -2166,10 +2249,11 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 
 // vcsDeclaredOps maps the declared /vcs/* sub-paths the shim does not
 // translate to their upstream operation ids (SHIM-GAP-002). GET /vcs and
-// GET /vcs/diff are real compatibility routes (DF-CONSENSUS-38) and are not
-// in this table.
+// GET /vcs/diff are real compatibility routes (DF-CONSENSUS-38), GET
+// /vcs/status is served per contract (ROUTE-FIX-033) and POST /vcs/apply is
+// served per contract (ROUTE-FIX-031 / handleVCSApply) — none of them are in
+// this table.
 var vcsDeclaredOps = map[string]string{
-	"/vcs/apply":    "vcs.apply",
 	"/vcs/diff/raw": "vcs.diff.raw",
 }
 
