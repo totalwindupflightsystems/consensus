@@ -277,9 +277,30 @@ type openaiChatChoice struct {
 }
 
 type openaiChatUsage struct {
-	PromptTokens     int64 `json:"prompt_tokens"`
-	CompletionTokens int64 `json:"completion_tokens"`
-	TotalTokens      int64 `json:"total_tokens"`
+	PromptTokens             int64                      `json:"prompt_tokens"`
+	CompletionTokens         int64                      `json:"completion_tokens"`
+	TotalTokens              int64                      `json:"total_tokens"`
+	PromptTokensDetails      *openaiPromptTokensDetails `json:"prompt_tokens_details,omitempty"`
+	CacheCreationInputTokens int64                      `json:"cache_creation_input_tokens"`
+	PromptCacheMissTokens    int64                      `json:"prompt_cache_miss_tokens"`
+}
+
+type openaiPromptTokensDetails struct {
+	CachedTokens int64 `json:"cached_tokens"`
+}
+
+func (u openaiChatUsage) cacheReadTokens() int64 {
+	if u.PromptTokensDetails == nil {
+		return 0
+	}
+	return u.PromptTokensDetails.CachedTokens
+}
+
+func (u openaiChatUsage) cacheWriteTokens() int64 {
+	if u.CacheCreationInputTokens != 0 {
+		return u.CacheCreationInputTokens
+	}
+	return u.PromptCacheMissTokens
 }
 
 type openaiError struct {
@@ -469,6 +490,8 @@ func (c *openaiClient) sendToURL(ctx context.Context, reqBody openaiChatRequest,
 func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime time.Time) (*harness.LLMResponse, error) {
 	msg := chatResp.Choices[0].Message
 	elapsed := time.Since(startTime).Milliseconds()
+	cacheReadTokens := chatResp.Usage.cacheReadTokens()
+	cacheWriteTokens := chatResp.Usage.cacheWriteTokens()
 
 	resp := &harness.LLMResponse{
 		Content:          msg.Content,
@@ -478,6 +501,8 @@ func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime tim
 		Usage: harness.LLMUsage{
 			PromptTokens:     chatResp.Usage.PromptTokens,
 			CompletionTokens: chatResp.Usage.CompletionTokens,
+			CacheReadTokens:  cacheReadTokens,
+			CacheWriteTokens: cacheWriteTokens,
 			TotalTokens:      chatResp.Usage.TotalTokens,
 		},
 		DurationMs: elapsed,
@@ -520,6 +545,7 @@ func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime tim
 		"elapsed_ms", elapsed,
 		"prompt_tokens", chatResp.Usage.PromptTokens,
 		"completion_tokens", chatResp.Usage.CompletionTokens,
+		"cached_tokens", cacheReadTokens,
 		"reasoning_promoted", promoted,
 	)
 
