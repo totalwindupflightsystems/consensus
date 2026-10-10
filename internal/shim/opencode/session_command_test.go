@@ -195,33 +195,21 @@ func TestSessionCommandValidationArms(t *testing.T) {
 }
 
 // TestSessionCommandUnknownSession404 pins the declared 404 arm: a command
-// against a session that does not exist must answer 404 NOT_FOUND with the
-// sibling envelope — the pre-fix handler answered the untyped 501 stub
-// regardless of session existence.
+// against a session that does not exist must answer 404 with the upstream SDK
+// NamedError body (NotFoundError) — the pre-fix handler answered the untyped
+// 501 stub regardless of session existence, and the interim
+// {"error":{code,message}} envelope was not the shape the v2 SDK reads
+// (SHIM-SUITE33-001).
 func TestSessionCommandUnknownSession404(t *testing.T) {
 	s, srv, _ := newMessageResponseTestServer(t) // real store: no session "missing"
 	s.skipAuth = true
 
 	status, header, body := postCommand(t, srv.URL, "/session/missing/command",
 		`{"command":"explain","arguments":"x"}`)
-	if status != http.StatusNotFound {
-		t.Fatalf("POST /session/missing/command: got %d, want 404. Body: %s", status, body)
-	}
 	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
-	var got struct {
-		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("404 body is not JSON: %v (%s)", err, body)
-	}
-	if got.Error.Code != "NOT_FOUND" {
-		t.Errorf("error.code = %q, want NOT_FOUND", got.Error.Code)
-	}
+	assertNotFoundNamedError(t, "POST /session/missing/command", status, body)
 }
 
 // TestSessionCommandSendFailureAnswersDeclared400 pins the residual declared

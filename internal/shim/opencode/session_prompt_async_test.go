@@ -182,32 +182,18 @@ func TestSessionPromptAsyncValidationArms(t *testing.T) {
 }
 
 // TestSessionPromptAsyncUnknownSession404 pins the declared 404 arm: a prompt
-// against a session that does not exist must answer 404 NOT_FOUND with the
-// sibling envelope — the pre-fix handler answered the untyped 501 stub
-// regardless of session existence.
+// against a session that does not exist must answer 404 with the upstream SDK
+// NamedError body (NotFoundError) — the pre-fix handler answered the untyped
+// 501 stub regardless of session existence (SHIM-SUITE33-001).
 func TestSessionPromptAsyncUnknownSession404(t *testing.T) {
 	s, srv, _ := newSessionInitStoreTestServer(t) // real store: no session "missing"
 	s.skipAuth = true
 
 	status, header, body := postSessionPromptAsync(t, srv.URL, "/session/missing/prompt_async", promptAsyncBody)
-	if status != http.StatusNotFound {
-		t.Fatalf("POST /session/missing/prompt_async: got %d, want 404. Body: %s", status, body)
-	}
 	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
-	var got struct {
-		Error struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("404 body is not JSON: %v (%s)", err, body)
-	}
-	if got.Error.Code != "NOT_FOUND" {
-		t.Errorf("error.code = %q, want NOT_FOUND", got.Error.Code)
-	}
+	assertNotFoundNamedError(t, "POST /session/missing/prompt_async", status, body)
 }
 
 // TestSessionPromptAsyncDeclaredContractOnly asserts the served status set is

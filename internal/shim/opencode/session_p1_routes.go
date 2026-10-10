@@ -57,7 +57,7 @@ func (s *Server) p1ResolveSession(w http.ResponseWriter, r *http.Request, sessio
 	rows, err := s.db.QueryRow(r.Context(),
 		`SELECT id, status FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || rows == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return "", false
 	}
 	return toString(rows["status"]), true
@@ -168,7 +168,7 @@ func (s *Server) sessionRevert(w http.ResponseWriter, r *http.Request, sessionID
 		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 	writeJSON(w, s.translateSessionRow(row))
@@ -465,7 +465,7 @@ func (s *Server) sessionUnrevert(w http.ResponseWriter, r *http.Request, session
 		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 	writeJSON(w, s.translateSessionRow(row))

@@ -201,12 +201,23 @@ func TestSessionTodoErrorArmsAnswerDeclaredCodes(t *testing.T) {
 		if status != http.StatusNotFound {
 			t.Fatalf("GET /session/sesmissing/todo: got %d, want 404 (declared). Body: %s", status, body.raw)
 		}
-		env := decodeTodoEnvelope(t, body.raw)
-		if env.Error.Code != "NOT_FOUND" {
-			t.Errorf("error.code = %q, want NOT_FOUND", env.Error.Code)
+		// The declared 404 answers the upstream SDK NamedError shape
+		// (SHIM-SUITE33-001), not the retired {"error":{code,message}}
+		// envelope.
+		var named struct {
+			Name string `json:"name"`
+			Data struct {
+				Message string `json:"message"`
+			} `json:"data"`
 		}
-		if !strings.Contains(env.Error.Message, "session not found") {
-			t.Errorf("error.message = %q, want it to name the missing session", env.Error.Message)
+		if err := json.Unmarshal([]byte(body.raw), &named); err != nil {
+			t.Fatalf("GET /session/sesmissing/todo: 404 body is not JSON: %v (%s)", err, body.raw)
+		}
+		if named.Name != "NotFoundError" {
+			t.Errorf("body.name = %q, want NotFoundError (body %s)", named.Name, body.raw)
+		}
+		if !strings.Contains(named.Data.Message, "Session not found") {
+			t.Errorf("body.data.message = %q, want it to contain %q", named.Data.Message, "Session not found")
 		}
 	})
 
