@@ -38,7 +38,15 @@
 #
 # Reproduced on purpose (2026-10-09) by clearing the tool cache and running
 # `act -j cross-build`: all 5 matrix legs failed; the same command against a
-# warm cache is green. Serial execution makes the simulation deterministic.
+# warm cache is green.
+#
+# It is also what makes the COLD case safe: act starts the legs of a matrix job
+# as one batch (they ignore this limit), but the first non-matrix Go job
+# (Build & Test) now runs ALONE and warms the cache first, so every leg after it
+# reports "Found in cache" instead of downloading into the same directory at the
+# same time. Verified by clearing the tool cache again and running the whole
+# workflow with this file: exit 0, 10/10 jobs green.
+#
 # Once the cache is warm, parallelism can be restored from the command line
 # (`act --concurrent-jobs <n> ...` — CLI flags win over this file).
 --concurrent-jobs 1
