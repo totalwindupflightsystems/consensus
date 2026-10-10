@@ -1280,7 +1280,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request, sessionID st
 		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 	writeJSON(w, s.translateSessionRow(row))
@@ -1430,7 +1430,7 @@ func (s *Server) sessionCommand(w http.ResponseWriter, r *http.Request, sessionI
 	row, err := s.db.QueryRow(r.Context(),
 		`SELECT id FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 
@@ -5395,6 +5395,27 @@ func writeOpencodeError(w http.ResponseWriter, r *http.Request, status int, code
 	slog.Warn("opencode-shim: error", "method", r.Method, "path", r.URL.Path, "status", status, "code", code)
 }
 
+// writeOpencodeNamedError emits the upstream NamedError shape the v2 SDK's
+// throwOnError path consumes: {"name": <name>, "data": {"message": <message>}}.
+// The SDK extracts data.message into Error.message (and attaches status+body to
+// cause), so a 404 with this body surfaces the server's own sentence to the
+// user instead of "[object Object]" (upstream packages/opencode/test/server/
+// sdk-error-shape.test.ts, "404 with NamedError body..."). Unlike
+// writeOpencodeError's {"error":{code,message}} envelope — which no SDK client
+// path reads — this is the declared wire shape for the 404 NotFoundError arms.
+func writeOpencodeNamedError(w http.ResponseWriter, r *http.Request, status int, name, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	data, _ := json.Marshal(map[string]any{
+		"name": name,
+		"data": map[string]string{
+			"message": message,
+		},
+	})
+	_, _ = w.Write(data)
+	slog.Warn("opencode-shim: named error", "method", r.Method, "path", r.URL.Path, "status", status, "name", name)
+}
+
 // notImplementedResponse is the typed envelope every declared-but-untranslated
 // opencode operation answers with (SHIM-GAP-002).
 //
@@ -5605,7 +5626,7 @@ func (s *Server) sessionFork(w http.ResponseWriter, r *http.Request, sessionID s
 		`SELECT id, agent_name, model_id, status, goal, context_budget
 		 FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || src == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 
@@ -5749,7 +5770,7 @@ func (s *Server) sessionInit(w http.ResponseWriter, r *http.Request, sessionID s
 	row, err := s.db.QueryRow(r.Context(),
 		`SELECT id FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 
@@ -5819,7 +5840,7 @@ func (s *Server) sessionPromptAsync(w http.ResponseWriter, r *http.Request, sess
 	row, err := s.db.QueryRow(r.Context(),
 		`SELECT id FROM sessions WHERE id = $1`, sessionID)
 	if err != nil || row == nil {
-		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		writeOpencodeNamedError(w, r, http.StatusNotFound, "NotFoundError", "Session not found")
 		return
 	}
 

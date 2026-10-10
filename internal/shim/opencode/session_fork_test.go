@@ -214,16 +214,12 @@ func TestSessionForkContractArms(t *testing.T) {
 		t.Errorf("malformed fork body error code = %q, want INVALID_REQUEST", code)
 	}
 
-	// Unknown source session: the declared NotFoundError.
+	// Unknown source session: the declared NotFoundError, answered in the
+	// upstream SDK NamedError shape (SHIM-SUITE33-001).
 	_, srv2 := newTestServer(&mockDB{})
 	status, body = postFork(t, srv2.URL, "/session/ses_missing/fork", "")
 	srv2.Close()
-	if status != http.StatusNotFound {
-		t.Errorf("fork from an unknown session: got %d, want 404 (declared). Body: %v", status, body)
-	}
-	if code := errorCode(body); code != "NOT_FOUND" {
-		t.Errorf("unknown session error code = %q, want NOT_FOUND", code)
-	}
+	assertNotFoundNamedErrorBody(t, "POST /session/ses_missing/fork", status, body)
 }
 
 // TestSessionForkNeighboursUntouched guards the neighbours: non-POST on the

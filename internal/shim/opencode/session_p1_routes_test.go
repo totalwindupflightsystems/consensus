@@ -511,11 +511,7 @@ func TestSessionDeleteMessageTruthfulArms(t *testing.T) {
 	if status != http.StatusNotFound {
 		t.Fatalf("DELETE /session/smissing/message/msg-42: got %d, want 404 (declared NotFoundError). Body: %s", status, raw)
 	}
-	var env map[string]any
-	if err := json.Unmarshal(raw, &env); err != nil {
-		t.Fatalf("DELETE /session/smissing/message/msg-42 body not JSON: %v (%s)", err, raw)
-	}
-	assertP1Error(t, "DELETE /session/smissing/message/msg-42", "", status, env, "NOT_FOUND")
+	assertNotFoundNamedError(t, "DELETE /session/smissing/message/msg-42", status, raw)
 
 	// Mid-turn session -> declared 409 SessionBusyError.
 	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete, "/session/s2/message/msg-42")
@@ -636,10 +632,7 @@ func TestSessionPartUpdateTruthfulArms(t *testing.T) {
 	if err := json.Unmarshal(raw, &env); err != nil {
 		t.Fatalf("unknown-session body not JSON: %v (%s)", err, raw)
 	}
-	assertP1Error(t, "PATCH part.update (unknown session)", "", status, env, "NOT_FOUND")
-	if got := p1ErrorMessage(env); got != "session not found" {
-		t.Errorf("PATCH part.update (unknown session): message = %q, want the session resolution's own message (got the router catch-all?)", got)
-	}
+	assertNotFoundNamedError(t, "PATCH part.update (unknown session)", status, raw)
 
 	// Malformed body -> declared 400 (p1DecodeBody convention).
 	status, _, raw = doShimRequestBody(t, srv.URL, http.MethodPatch,
@@ -1089,10 +1082,7 @@ func TestSessionPartDeleteTruthfulArms(t *testing.T) {
 	if err := json.Unmarshal(raw, &env); err != nil {
 		t.Fatalf("unknown-session body not JSON: %v (%s)", err, raw)
 	}
-	assertP1Error(t, "DELETE part.delete (unknown session)", "", status, env, "NOT_FOUND")
-	if got := p1ErrorMessage(env); got != "session not found" {
-		t.Errorf("DELETE part.delete (unknown session): message = %q, want the session resolution's own message (got the router catch-all?)", got)
-	}
+	assertNotFoundNamedError(t, "DELETE part.delete (unknown session)", status, raw)
 
 	// Absent messageID (the path segment is empty) -> declared 400.
 	status, _, raw = doShimRequest(t, srv.URL, http.MethodDelete,
