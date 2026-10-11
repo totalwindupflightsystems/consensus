@@ -636,9 +636,9 @@ routes:
     evidence: "server.go handleVCSApply (ROUTE-FIX-031, formerly SHIM-DRIFT-142's 501-typed stub): declared responses 200 object {applied (required boolean)} additionalProperties false, 400 VcsApplyError | InvalidRequestError; requestBody {patch (required string)} additionalProperties false, optional directory/workspace selectors. The shim has no VCS write capability, so a schema-valid request answers the declared 200 with the truthful {\"applied\":false} (no patch applied — the tuiPublish/tuiShowToast no-op precedent), a schema-violating payload or a present-but-blank selector answers the declared 400 BadRequest envelope, non-POST answers 405 METHOD_NOT_ALLOWED, and the path took api-key auth when it left the isStubPath non-GET exemption"
   - path: /vcs/diff/raw
     method: GET
-    outcome: 501-typed
+    outcome: 200
     auth: api-key
-    evidence: "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)"
+    evidence: "server.go handleVCSDiffRaw (ROUTE-FIX-032 / SHIM-DRIFT-143): declared text/x-diff; charset=utf-8 raw unified patch for tracked staged/unstaged and untracked changes; blank or invalid directory/workspace selectors answer JSON 400 without path disclosure; clean/non-git workspaces answer an empty 200 diff; header-selected fixed-workspace reads use the compatibility auth exemption"
   - path: /vcs/status
     method: GET
     outcome: 200
