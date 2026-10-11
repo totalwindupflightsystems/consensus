@@ -340,6 +340,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// instead of the /vcs/ subtree's typed 501. ServeMux resolves the
 	// longer pattern, so this exact registration wins over "/vcs/".
 	mux.HandleFunc("/vcs/apply", s.handleVCSApply)
+	// ROUTE-FIX-032 / SHIM-DRIFT-143: GET /vcs/diff/raw serves the declared
+	// raw unified patch for the selected workspace. ServeMux resolves this
+	// exact registration before the /vcs/ subtree stub.
+	mux.HandleFunc("/vcs/diff/raw", s.handleVCSDiffRaw)
 	// DF-CONSENSUS-47: /project/{id} sub-paths answer the upstream typed
 	// ProjectNotFoundError (404) instead of the 501 stub — see §3.9.
 	mux.HandleFunc("/project/", s.handleProjectByID)
@@ -1946,6 +1950,11 @@ func isFixedWorkspaceCompatibilityRequest(r *http.Request) bool {
 		// and no credentials. Headerless requests still 401 (the endpoint
 		// smoke contract keeps its auth row for GET /vcs).
 		return true
+	case r.Method == http.MethodGet && r.URL.Path == "/vcs/diff/raw":
+		// ROUTE-FIX-032: raw diff is the same fixed-workspace read surface as
+		// /vcs and /vcs/diff, so header-selected requests are public for
+		// opencode compatibility while headerless requests retain auth.
+		return true
 	case r.Method == http.MethodPost && r.URL.Path == "/log":
 		return true
 	case r.Method == http.MethodPost && isRequestActionPath(r.URL.Path, "/permission/", "reply"):
@@ -2110,6 +2119,12 @@ func isStubPath(path, method string) bool {
 			if path == "/vcs/apply" {
 				return false
 			}
+			// ROUTE-FIX-032: GET /vcs/diff/raw is a served read operation,
+			// not a non-GET stub, so every method on its exact route reaches
+			// the handler's method guard and keeps the normal auth policy.
+			if path == "/vcs/diff/raw" {
+				return false
+			}
 			return true
 		}
 	}
@@ -2161,6 +2176,63 @@ func (s *Server) handleVCSStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, gitFileDiffs(r.Context(), dir))
+}
+
+// handleVCSDiffRaw serves GET /vcs/diff/raw — upstream vcs.diff.raw
+// (ROUTE-FIX-032, SHIM-DRIFT-143). The response is the raw unified patch for
+// all current tracked and untracked changes in the selected workspace. A clean
+// or non-git workspace is a valid empty text/x-diff response.
+func (s *Server) handleVCSDiffRaw(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	dir, invalidSelector := s.resolveVCSWorkspaceDir(r)
+	if invalidSelector != "" {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			fmt.Sprintf("%s selector must name an existing directory", invalidSelector))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/x-diff; charset=utf-8")
+	_, _ = io.WriteString(w, gitRawDiff(r.Context(), dir))
+}
+
+// resolveVCSWorkspaceDir validates the optional directory/workspace selectors
+// and applies the same precedence as the VCS status route: the
+// x-opencode-directory header, then directory, then workspace, then the
+// configured server workspace. It returns a selector label, rather than the
+// supplied path, on validation failure so filesystem paths are not disclosed.
+func (s *Server) resolveVCSWorkspaceDir(r *http.Request) (dir, invalidSelector string) {
+	for _, param := range []string{"directory", "workspace"} {
+		values, present := r.URL.Query()[param]
+		if !present || len(values) == 0 || strings.TrimSpace(values[0]) == "" {
+			if present {
+				return "", param
+			}
+			continue
+		}
+		value := strings.TrimSpace(values[0])
+		info, err := os.Stat(value)
+		if err != nil || !info.IsDir() {
+			return "", param
+		}
+	}
+
+	if headerDir := strings.TrimSpace(r.Header.Get("x-opencode-directory")); headerDir != "" {
+		info, err := os.Stat(headerDir)
+		if err != nil || !info.IsDir() {
+			return "", "x-opencode-directory"
+		}
+		return filepath.Clean(headerDir), ""
+	}
+	if value := strings.TrimSpace(r.URL.Query().Get("directory")); value != "" {
+		return filepath.Clean(value), ""
+	}
+	if value := strings.TrimSpace(r.URL.Query().Get("workspace")); value != "" {
+		return filepath.Clean(value), ""
+	}
+	return s.workspaceDir(), ""
 }
 
 // handleVCSApply serves POST /vcs/apply — upstream instance vcs.apply
@@ -2253,9 +2325,7 @@ func (s *Server) handleProjectVCSSStub(w http.ResponseWriter, r *http.Request) {
 // /vcs/status is served per contract (ROUTE-FIX-033) and POST /vcs/apply is
 // served per contract (ROUTE-FIX-031 / handleVCSApply) — none of them are in
 // this table.
-var vcsDeclaredOps = map[string]string{
-	"/vcs/diff/raw": "vcs.diff.raw",
-}
+var vcsDeclaredOps = map[string]string{}
 
 // projectDeclaredSubpaths maps the literal /project sub-paths the pinned
 // upstream document declares and the shim does not translate to their
@@ -3081,6 +3151,55 @@ func gitFileDiffs(ctx context.Context, dir string) []map[string]any {
 		diffs = append(diffs, entry)
 	}
 	return diffs
+}
+
+// gitRawDiff returns a unified patch for tracked changes plus untracked files.
+// `git diff HEAD` includes staged and unstaged tracked changes; untracked files
+// are appended with git's no-index diff without mutating the index. Git's
+// no-index command exits 1 for a real difference, so runGitRaw preserves its
+// stdout even when the command reports that expected status.
+func gitRawDiff(ctx context.Context, dir string) string {
+	tracked, err := runGitRaw(ctx, dir, "diff", "HEAD", "--binary", "--no-ext-diff", "--")
+	if err != nil {
+		staged, _ := runGitRaw(ctx, dir, "diff", "--cached", "--binary", "--no-ext-diff", "--")
+		unstaged, _ := runGitRaw(ctx, dir, "diff", "--binary", "--no-ext-diff", "--")
+		tracked = staged
+		if tracked != "" && unstaged != "" && !strings.HasSuffix(tracked, "\n") {
+			tracked += "\n"
+		}
+		tracked += unstaged
+	}
+
+	untracked, err := runGitRaw(ctx, dir, "ls-files", "--others", "--exclude-standard", "-z")
+	if err != nil {
+		return tracked
+	}
+	patch := tracked
+	for _, file := range strings.Split(untracked, "\x00") {
+		if file == "" {
+			continue
+		}
+		part, _ := runGitRaw(ctx, dir, "diff", "--no-index", "--binary", "--", "/dev/null", file)
+		if part == "" {
+			continue
+		}
+		if patch != "" && !strings.HasSuffix(patch, "\n") {
+			patch += "\n"
+		}
+		patch += part
+	}
+	return patch
+}
+
+// runGitRaw runs git -C dir <args...> and preserves stdout even when git
+// returns a non-zero status for a meaningful diff (notably --no-index).
+func runGitRaw(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = gitEnv()
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	return out.String(), err
 }
 
 // unquoteGitPath unquotes a git-quoted path (C-style escaping when the path

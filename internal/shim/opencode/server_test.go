@@ -2292,10 +2292,11 @@ func TestVCSStubEndpointsReturn501(t *testing.T) {
 	// routes since DF-CONSENSUS-38 (TestVCSReadCompatibilityEndpoints); GET
 	// /vcs/status is served per the declared contract since ROUTE-FIX-033
 	// (TestVCSStatusDeclaredContract) and POST /vcs/apply since ROUTE-FIX-031
-	// (TestVCSApplyServesDeclaredContract). The remaining /vcs/* sub-path stays
-	// a 501 stub (SPEC-017 §3.9). The test server skips auth, so the stub —
-	// not 401 — answers.
-	for _, path := range []string{"/vcs/diff/raw", "/vcs/"} {
+	// (TestVCSApplyServesDeclaredContract). GET /vcs/diff/raw is served per
+	// ROUTE-FIX-032 (TestVCSDiffRawDeclaredContract). The remaining /vcs/*
+	// sub-path stays a 501 stub (SPEC-017 §3.9). The test server skips auth,
+	// so the stub — not 401 — answers.
+	for _, path := range []string{"/vcs/"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
@@ -2404,11 +2405,14 @@ func TestVCSApplyServesDeclaredContract(t *testing.T) {
 		}
 	})
 
-	// ── neighbour: the sibling typed stub is untouched ──
-	t.Run("neighbour /vcs/diff/raw keeps its stub", func(t *testing.T) {
-		status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/vcs/diff/raw")
-		if status != http.StatusNotImplemented {
-			t.Errorf("GET /vcs/diff/raw: got %d, want the unchanged typed 501. Body: %s", status, body)
+	// ── neighbour: the former typed stub is now a served raw diff ──
+	t.Run("neighbour /vcs/diff/raw is served", func(t *testing.T) {
+		status, header, body := doShimRequest(t, srv.URL, http.MethodGet, "/vcs/diff/raw")
+		if status != http.StatusOK {
+			t.Errorf("GET /vcs/diff/raw: got %d, want 200. Body: %s", status, body)
+		}
+		if got := header.Get("Content-Type"); got != "text/x-diff; charset=utf-8" {
+			t.Errorf("GET /vcs/diff/raw Content-Type = %q, want text/x-diff; charset=utf-8", got)
 		}
 	})
 }
@@ -3764,17 +3768,11 @@ type notImplementedRoute struct {
 // GET /project/current (SHIM-DRIFT-099, the table's longest-standing
 // ROUTED-404 row), which left this table likewise (projectCurrent).
 // ROUTE-FIX-007 served GET /project/{projectID}/directories (SHIM-DRIFT-101),
-// which left this table too. ROUTE-FIX-023 serves the six TUI operations that
-// formerly occupied SHIM-DRIFT-133 and SHIM-DRIFT-135..139. ROUTE-FIX-031
-// serves POST /vcs/apply (vcs.apply, the table's remaining STUB-501 row),
-// which left this table as well; the two drift ids below are the labels the
-// comparison artifact carries in THIS generation (they are positional and are
-// re-assigned when the comparison is regenerated).
+// ROUTE-FIX-032 serves GET /vcs/diff/raw (vcs.diff.raw), which left this
+// table and is covered by TestVCSDiffRawDeclaredContract.
 var notImplementedRoutes = []notImplementedRoute{
 	// ROUTED-404: route registered, handler answered 404 NOT_FOUND.
 	{"SHIM-DRIFT-097", http.MethodPost, "/pty", "pty.create"},
-	// STUB-501: already 501, but the stub was silent/untyped.
-	{"SHIM-DRIFT-108", http.MethodGet, "/vcs/diff/raw", "vcs.diff.raw"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3815,12 +3813,13 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 2 = pty.create plus the one remaining VCS typed stub (vcs.diff.raw).
+	// 1 = pty.create; ROUTE-FIX-032 serves vcs.diff.raw per its declared
+	// 200/400 contract.
 	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
 	// 200/400 handlers and ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply) to
 	// its declared 200/400 contract.
-	if len(notImplementedRoutes) != 2 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 after ROUTE-FIX-023 serves six TUI operations and ROUTE-FIX-031 serves vcs.apply; table has %d",
+	if len(notImplementedRoutes) != 1 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 1 after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, and ROUTE-FIX-032 serves vcs.diff.raw; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -3956,8 +3955,8 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 			typed[key] = row.OperationID
 		}
 	}
-	if len(typed) != 2 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 2 remaining SHIM-GAP-002 findings after ROUTE-FIX-023 serves six TUI operations and ROUTE-FIX-031 serves vcs.apply", len(typed))
+	if len(typed) != 1 {
+		t.Errorf("artifact records %d operations with outcome 501-typed, want the 1 remaining SHIM-GAP-002 finding after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, and ROUTE-FIX-032 serves vcs.diff.raw", len(typed))
 	}
 
 	for _, route := range notImplementedRoutes {

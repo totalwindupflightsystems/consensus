@@ -26,13 +26,13 @@
     "declared_paths": 162,
     "declared_operations": 188,
     "served_route_entries": 102,
-    "covered_operations": 72,
+    "covered_operations": 73,
     "narrowed_error_contract_only": 6,
     "semantic_different": 2,
-    "drift_declared_not_served": 108,
+    "drift_declared_not_served": 107,
     "drift_by_class": {
       "NOT-SERVED": 102,
-      "OUTCOME-MISMATCH": 6
+      "OUTCOME-MISMATCH": 5
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -748,6 +748,16 @@
       "family": "/vcs/*",
       "served_outcome": "200",
       "evidence": "server.go:236 handleVCS"
+    },
+    {
+      "path": "/vcs/diff/raw",
+      "method": "GET",
+      "operationId": "vcs.diff.raw",
+      "tags": "instance",
+      "declared_responses": "200,400",
+      "family": "/vcs/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleVCSDiffRaw (ROUTE-FIX-032 / SHIM-DRIFT-143): declared text/x-diff; charset=utf-8 raw unified patch for tracked staged/unstaged and untracked changes; blank or invalid directory/workspace selectors answer JSON 400 without path disclosure; clean/non-git workspaces answer an empty 200 diff; header-selected fixed-workspace reads use the compatibility auth exemption"
     },
     {
       "path": "/vcs/status",
@@ -2049,19 +2059,6 @@
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
       "id": "SHIM-DRIFT-107"
-    },
-    {
-      "path": "/vcs/diff/raw",
-      "method": "GET",
-      "operationId": "vcs.diff.raw",
-      "tags": "instance",
-      "declared_responses": "200,400",
-      "family": "/vcs/*",
-      "served_outcome": "501-typed",
-      "evidence": "server.go handleProjectVCSSStub vcsDeclaredOps (SHIM-DRIFT-143)",
-      "class": "OUTCOME-MISMATCH",
-      "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-108"
     }
   ],
   "drift_served_not_declared": [],
