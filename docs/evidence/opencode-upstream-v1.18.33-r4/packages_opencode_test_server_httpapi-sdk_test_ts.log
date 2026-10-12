@@ -1,0 +1,26 @@
+bun test v1.3.14 (0d9b296a)
+
+test/server/httpapi-sdk.test.ts:
+(pass) HttpApi SDK > uses the generated SDK for global and control routes [571.41ms]
+(pass) HttpApi SDK > uses the generated SDK for safe instance routes [1532.20ms]
+(pass) HttpApi SDK > routes configured SDK directory and workspace for v2 location GETs [482.29ms]
+(pass) HttpApi SDK > matches generated SDK global and control behavior [235.43ms]
+(pass) HttpApi SDK > matches generated SDK global event stream [245.19ms]
+(pass) HttpApi SDK > matches generated SDK instance event stream [297.98ms]
+(pass) HttpApi SDK > matches generated SDK missing session errors [248.60ms]
+(pass) HttpApi SDK > formats missing session validation errors for -s [346.58ms]
+(pass) HttpApi SDK > uses generated SDK basic auth behavior [650.30ms]
+(pass) HttpApi SDK > matches generated SDK instance read routes [1027.62ms]
+(pass) HttpApi SDK > matches generated SDK session lifecycle routes [343.07ms]
+(pass) HttpApi SDK > matches generated SDK session message and part routes [295.66ms]
+(pass) HttpApi SDK > streams sync-backed part updates to /event subscribers [300.53ms]
+(pass) HttpApi SDK > matches generated SDK prompt no-reply routes [608.03ms]
+(pass) HttpApi SDK > matches generated SDK prompt streaming through fake LLM [1204.79ms]
+(pass) HttpApi SDK > includes project skills in REST API prompt context [1741.33ms]
+(pass) HttpApi SDK > matches generated SDK TUI validation and command routes [453.32ms]
+(pass) HttpApi SDK > matches generated SDK project git initialization [316.07ms]
+
+ 18 pass
+ 0 fail
+ 34 expect() calls
+Ran 18 tests across 1 file. [12.92s]

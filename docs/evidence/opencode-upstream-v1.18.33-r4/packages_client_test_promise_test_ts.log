@@ -1,0 +1,15 @@
+bun test v1.3.14 (0d9b296a)
+
+test/promise.test.ts:
+(pass) exposes every standard HTTP API group [0.28ms]
+(pass) sessions.get returns the wire projection [0.82ms]
+(pass) events.subscribe exposes the Promise event stream wire projection [2.34ms]
+(pass) events.subscribe terminates on malformed Promise SSE data [0.51ms]
+(pass) session methods use the public HTTP contract [1.57ms]
+(pass) middleware errors remain declared client errors [0.24ms]
+(pass) sessions.history decodes SessionNotFoundError [0.13ms]
+
+ 7 pass
+ 0 fail
+ 23 expect() calls
+Ran 7 tests across 1 file. [19.00ms]

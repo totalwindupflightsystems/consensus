@@ -1,0 +1,5959 @@
+{
+  "components": {
+    "parameters": {
+      "ApiKeyId": {
+        "description": "UUID of the API key.",
+        "in": "path",
+        "name": "keyId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ApprovalId": {
+        "description": "UUID of the approval request.",
+        "in": "path",
+        "name": "approvalId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "HemisphereFilter": {
+        "description": "Filter tools by hemisphere.",
+        "in": "query",
+        "name": "hemisphere",
+        "schema": {
+          "enum": [
+            "internal",
+            "external"
+          ],
+          "type": "string"
+        }
+      },
+      "Limit": {
+        "description": "Maximum number of results to return.",
+        "in": "query",
+        "name": "limit",
+        "schema": {
+          "default": 50,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "MemoryId": {
+        "description": "ID of the memory event.",
+        "in": "path",
+        "name": "memoryId",
+        "required": true,
+        "schema": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "QuarantineId": {
+        "description": "ID of the quarantined item.",
+        "in": "path",
+        "name": "qID",
+        "required": true,
+        "schema": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "SessionFilter": {
+        "description": "Filter by session ID.",
+        "in": "query",
+        "name": "session_id",
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "SessionId": {
+        "description": "UUID of the agent session.",
+        "in": "path",
+        "name": "sessionId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ShimMessageId": {
+        "description": "Message ID in opencode \"msg-{id}\" format.",
+        "in": "path",
+        "name": "messageId",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ShimPermissionId": {
+        "description": "ID of the approval request (permission).",
+        "in": "path",
+        "name": "permissionId",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ShimSessionId": {
+        "description": "UUID of the agent session.",
+        "in": "path",
+        "name": "sessionId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "SkillName": {
+        "description": "Name of the skill as registered in skills_registry.",
+        "in": "path",
+        "name": "skillName",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "StatusFilter": {
+        "description": "Filter by comma-separated status values.",
+        "in": "query",
+        "name": "status",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "TaskId": {
+        "description": "UUID of the task.",
+        "in": "path",
+        "name": "taskId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ToolName": {
+        "description": "Name of the tool as registered in tools_registry.",
+        "in": "path",
+        "name": "toolName",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ToolRequestId": {
+        "description": "Numeric ID of the tool request.",
+        "in": "path",
+        "name": "requestId",
+        "required": true,
+        "schema": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "ToolRequestStatusFilter": {
+        "description": "Filter tool requests by one exact lifecycle status.",
+        "in": "query",
+        "name": "status",
+        "schema": {
+          "enum": [
+            "pending",
+            "awaiting_approval",
+            "executing",
+            "completed",
+            "failed",
+            "timeout"
+          ],
+          "type": "string"
+        }
+      },
+      "TypeFilter": {
+        "description": "Filter memory events by type.",
+        "in": "query",
+        "name": "type",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Invalid request — malformed JSON or missing required fields."
+      },
+      "Conflict": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Resource in wrong state for this action."
+      },
+      "Forbidden": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "API key scope does not permit this action."
+      },
+      "InternalError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Unexpected server error."
+      },
+      "MethodNotAllowed": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/schema"
+                },
+                {
+                  "description": "Bare \"method not allowed\" text body (chi's default 405 writer).",
+                  "properties": {
+                    "error": {
+                      "description": "Error code (e.g. NOT_IMPLEMENTED for shim stubs).",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          }
+        },
+        "description": "HTTP method not supported on this path."
+      },
+      "NotFound": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Resource does not exist."
+      },
+      "NotImplemented": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Endpoint is a registered stub surface — not implemented."
+      },
+      "OpencodeBadRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "data": {
+                  "description": "Structured validation detail.",
+                  "properties": {
+                    "kind": {
+                      "description": "What failed validation — \"Payload\" (body) or \"Query\" (query parameter).",
+                      "type": "string"
+                    },
+                    "message": {
+                      "description": "Human-readable validation failure.",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "name": {
+                  "description": "NamedError tag; \"BadRequest\" for request-validation failures.",
+                  "enum": [
+                    "BadRequest"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "Opencode typed BadRequestError (NamedError envelope)."
+      },
+      "Unauthorized": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/schema"
+            }
+          }
+        },
+        "description": "Missing or invalid API key."
+      }
+    },
+    "schemas": {
+      "APIKeyEntry": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "key_prefix": {
+            "description": "Key prefix (first 8 chars).",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "admin",
+              "session",
+              "readonly",
+              "webhook"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key_prefix",
+          "scope",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ActiveContextItem": {
+        "properties": {
+          "display_mode": {
+            "enum": [
+              "full",
+              "compressed",
+              "hidden"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "iteration_created": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rendered_text": {
+            "description": "Text to display based on display_mode:\n- full → original content\n- compressed → summary_text\n- hidden → null\n",
+            "nullable": true,
+            "type": "string"
+          },
+          "type": {
+            "description": "Event type from memory_events.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "iteration_created",
+          "type",
+          "display_mode"
+        ],
+        "type": "object"
+      },
+      "Approval": {
+        "properties": {
+          "context": {
+            "description": "Approval context (agent monologue, previous actions, etc.)."
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "iteration": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "modified_sql": {
+            "description": "Modified SQL when decision is \"modified\".",
+            "nullable": true,
+            "type": "string"
+          },
+          "request_type": {
+            "enum": [
+              "tool_execution",
+              "destructive_action",
+              "budget_override",
+              "schema_change",
+              "sub_agent_spawn",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "review_notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewer_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "risk_level": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "modified"
+            ],
+            "type": "string"
+          },
+          "target_sql": {
+            "description": "SQL being requested for execution.",
+            "nullable": true,
+            "type": "string"
+          },
+          "target_tool": {
+            "description": "Tool being requested for execution.",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "iteration",
+          "request_type",
+          "description",
+          "risk_level",
+          "status",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ApprovalReviewRequest": {
+        "properties": {
+          "decision": {
+            "description": "Review decision.",
+            "enum": [
+              "approved",
+              "rejected",
+              "modified"
+            ],
+            "type": "string"
+          },
+          "modified_sql": {
+            "description": "Required when decision is \"modified\".",
+            "type": "string"
+          },
+          "notes": {
+            "description": "Optional review notes.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "type": "object"
+      },
+      "BillingEntry": {
+        "properties": {
+          "cache_read_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cache_write_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "category": {
+            "enum": [
+              "cognition",
+              "compression",
+              "embedding",
+              "tool_call"
+            ],
+            "type": "string"
+          },
+          "completion_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "iteration": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "model_id": {
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "iteration",
+          "model_id",
+          "category",
+          "prompt_tokens",
+          "completion_tokens",
+          "cost_usd",
+          "recorded_at"
+        ],
+        "type": "object"
+      },
+      "Config": {
+        "properties": {
+          "database": {
+            "additionalProperties": true,
+            "description": "Database configuration.",
+            "type": "object"
+          },
+          "harness": {
+            "additionalProperties": true,
+            "description": "Harness configuration.",
+            "type": "object"
+          },
+          "hitl": {
+            "additionalProperties": true,
+            "description": "HITL configuration.",
+            "type": "object"
+          },
+          "llm": {
+            "additionalProperties": true,
+            "description": "LLM configuration (model, provider, etc.).",
+            "type": "object"
+          },
+          "logging": {
+            "additionalProperties": true,
+            "description": "Logging configuration.",
+            "type": "object"
+          },
+          "system_settings": {
+            "additionalProperties": true,
+            "description": "Raw system_settings table values.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "CreateAPIKeyRequest": {
+        "properties": {
+          "expires_in": {
+            "description": "Seconds until expiration.",
+            "type": "integer"
+          },
+          "scope": {
+            "description": "Key scope.",
+            "enum": [
+              "admin",
+              "session",
+              "readonly",
+              "webhook"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "description": "Required for session-scoped keys.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "type": "object"
+      },
+      "CreateAPIKeyResponse": {
+        "properties": {
+          "api_key": {
+            "description": "The full API key. Store this — it is not recoverable.",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "key_prefix": {
+            "description": "First 8 characters for identification.",
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key_prefix",
+          "api_key",
+          "scope",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "CreateSessionRequest": {
+        "properties": {
+          "agent_name": {
+            "description": "Semantic name for the agent.",
+            "type": "string"
+          },
+          "budget_limit_cents": {
+            "default": 0,
+            "description": "Per-session cost cap in cents, enforced by the harness before each LLM call. 0 or absent = no limit.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "context_budget": {
+            "default": 128000,
+            "description": "Maximum token budget for the agent's context window.",
+            "type": "integer"
+          },
+          "goal": {
+            "description": "Task description injected into the system prompt.",
+            "type": "string"
+          },
+          "hitl_config": {
+            "additionalProperties": true,
+            "description": "Optional HITL configuration overrides.",
+            "type": "object"
+          },
+          "model_id": {
+            "description": "LLM model identifier. If omitted, uses the first enabled model from the registry.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_name",
+          "goal"
+        ],
+        "type": "object"
+      },
+      "CreateSessionResponse": {
+        "properties": {
+          "api_key": {
+            "description": "Session-scoped API key. Store this — it is not recoverable.",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "Creation timestamp.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "UUID of the created session.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "description": "Initial session status.",
+            "enum": [
+              "booting"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "api_key",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "CreateTaskRequest": {
+        "properties": {
+          "description": {
+            "description": "Detailed task description.",
+            "type": "string"
+          },
+          "prerequisite_ids": {
+            "description": "IDs of tasks that must be published before this one can be claimed.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "priority": {
+            "default": 5,
+            "description": "Priority (1 = lowest, 10 = highest).",
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short, descriptive task title.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "ExecuteToolRequest": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": true,
+            "description": "Tool-specific parameters matching the tool's parameter_schema.",
+            "type": "object"
+          },
+          "session_id": {
+            "description": "Session to execute within.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "type": "object"
+      },
+      "ExecuteToolResponse": {
+        "properties": {
+          "error": {
+            "description": "Error message if is_error is true.",
+            "type": "string"
+          },
+          "is_error": {
+            "description": "Whether the execution produced an error.",
+            "type": "boolean"
+          },
+          "result": {
+            "description": "Tool execution result."
+          },
+          "rows_affected": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tool_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_name",
+          "is_error"
+        ],
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "example": "healthy",
+            "type": "string"
+          },
+          "version": {
+            "example": "0.1.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "type": "object"
+      },
+      "InstanceInfo": {
+        "description": "A single Consensus shim instance (the server is a singleton).",
+        "properties": {
+          "createdAt": {
+            "description": "Server process start time.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Stable singleton instance id (derived from the workspace directory).",
+            "type": "string"
+          },
+          "path": {
+            "description": "Workspace directory the instance is rooted at.",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "Time of the last update to the instance list.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "InstancePathInfo": {
+        "description": "opencode PathInfo translation (SPEC-017 §3.10).",
+        "properties": {
+          "config": {
+            "description": "Consensus config file path.",
+            "type": "string"
+          },
+          "directory": {
+            "description": "Workspace directory.",
+            "type": "string"
+          },
+          "home": {
+            "description": "User home directory.",
+            "type": "string"
+          },
+          "state": {
+            "description": "Consensus state directory.",
+            "type": "string"
+          },
+          "worktree": {
+            "description": "Git worktree root of the workspace (falls back to directory).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "home",
+          "state",
+          "config",
+          "worktree",
+          "directory"
+        ],
+        "type": "object"
+      },
+      "IterationCommit": {
+        "properties": {
+          "active_pointers": {
+            "description": "IDs of memory events active in this iteration.",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "display_rules": {
+            "description": "Display rules for the iteration."
+          },
+          "iteration_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "llm_response": {
+            "description": "Structured LLM response from this iteration."
+          },
+          "rows_affected": {
+            "description": "Number of database rows affected.",
+            "type": "integer"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sql_executed": {
+            "description": "SQL statements executed in this iteration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "iteration_id",
+          "session_id",
+          "active_pointers",
+          "rows_affected",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "MCPJSONRPCResponse": {
+        "description": "Loose shape of a JSON-RPC 2.0 response as served by the MCP HTTP endpoints (MCP-DIRECT-001). Result and error are intentionally open — MCP results vary per method.\n",
+        "properties": {
+          "error": {
+            "description": "JSON-RPC error object (present on failure).",
+            "properties": {
+              "code": {
+                "description": "JSON-RPC error code (-32002 = unauthenticated MCP session).",
+                "type": "integer"
+              },
+              "data": {
+                "description": "Optional error detail."
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "id": {
+            "description": "Echo of the request id (null for parse errors)."
+          },
+          "jsonrpc": {
+            "enum": [
+              "2.0"
+            ],
+            "type": "string"
+          },
+          "result": {
+            "description": "Method result object (present on success)."
+          }
+        },
+        "type": "object"
+      },
+      "MemoryEvent": {
+        "properties": {
+          "content": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "display_mode": {
+            "default": "full",
+            "description": "Current rendering state.",
+            "enum": [
+              "full",
+              "compressed",
+              "hidden"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "iteration_created": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "summary_text": {
+            "description": "Compressed summary set by the compression worker.",
+            "nullable": true,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "header",
+              "text_block",
+              "tool_call",
+              "tool_result",
+              "thinking",
+              "system",
+              "inherited_pointer",
+              "user_message"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "type",
+          "iteration_created",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "MessageReceivedResponse": {
+        "properties": {
+          "message_id": {
+            "description": "ID of the created memory event. Present when Idempotency-Key was\nsupplied; retries return the original value.\n",
+            "format": "int64",
+            "type": "integer"
+          },
+          "session": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "example": "message_received",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "session"
+        ],
+        "type": "object"
+      },
+      "Metrics": {
+        "properties": {
+          "active_sessions": {
+            "description": "Number of sessions in active statuses.",
+            "type": "integer"
+          },
+          "pending_approvals": {
+            "description": "Number of pending approval requests.",
+            "type": "integer"
+          },
+          "pending_tasks": {
+            "description": "Number of pending tasks.",
+            "type": "integer"
+          },
+          "total_cost_usd": {
+            "description": "Total cumulative cost across all sessions.",
+            "format": "double",
+            "type": "number"
+          },
+          "total_sessions": {
+            "description": "Total number of sessions in the database.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_sessions",
+          "pending_tasks",
+          "pending_approvals",
+          "total_sessions"
+        ],
+        "type": "object"
+      },
+      "QuarantineApproveRequest": {
+        "properties": {
+          "session_id": {
+            "description": "Target session; omitted means the session recorded on the quarantine item.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "QuarantineDecisionResponse": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/QuarantineItem"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "example": "approved",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "item"
+        ],
+        "type": "object"
+      },
+      "QuarantineItem": {
+        "properties": {
+          "content_hash": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "promoted_memory_id": {
+            "description": "Memory event the content was promoted to on approval, when set.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "raw_content": {
+            "description": "Raw external content held in quarantine.",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "source_type": {
+            "example": "webhook",
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "validation_notes": {
+            "type": "string"
+          },
+          "validation_status": {
+            "description": "Quarantine status of the item (e.g. pending, approved, rejected).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "source_type",
+          "raw_content",
+          "content_hash",
+          "validation_status",
+          "expires_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "QuarantineListResponse": {
+        "properties": {
+          "count": {
+            "description": "Number of items returned.",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuarantineItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "type": "object"
+      },
+      "QuarantineRejectRequest": {
+        "properties": {
+          "reason": {
+            "description": "Why the content was rejected. Defaults to \"Rejected by operator\" server-side when empty.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RevokeAPIKeyResponse": {
+        "properties": {
+          "key_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "example": "revoked",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "key_id",
+          "revoked_at"
+        ],
+        "type": "object"
+      },
+      "SSEEvent": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "description": "JSON payload for the event; shape varies by event type."
+          },
+          "session_id": {
+            "description": "Session the event belongs to (empty on the global stream's own control events).",
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": {
+            "description": "Event name carried in the SSE \"event:\" field. Known values include\nconnected, session_update, task_update, approval_update, and\nquarantine_* event types published by the Cognitive Firewall.\n",
+            "example": "session_update",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "SendMessageRequest": {
+        "properties": {
+          "content": {
+            "description": "The message content.",
+            "type": "string"
+          },
+          "type": {
+            "default": "user_instruction",
+            "description": "Message type.",
+            "enum": [
+              "user_instruction",
+              "user_correction",
+              "system_override"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "Session": {
+        "properties": {
+          "agent_name": {
+            "type": "string"
+          },
+          "budget_limit_cents": {
+            "description": "Per-session cost cap in cents (0 = no limit).",
+            "format": "int64",
+            "type": "integer"
+          },
+          "completed_at": {
+            "description": "Timestamp when session completed or failed.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "context_budget": {
+            "description": "Token budget for the context window.",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "goal": {
+            "description": "The task goal.",
+            "nullable": true,
+            "type": "string"
+          },
+          "heartbeat_at": {
+            "description": "Last known-alive timestamp.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "iteration": {
+            "description": "Current iteration counter.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "model_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "description": "Parent session ID for sub-agents.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "description": "Current session state.",
+            "enum": [
+              "booting",
+              "idle",
+              "thinking",
+              "planning",
+              "tool_exec",
+              "executing",
+              "waiting_sub",
+              "paused",
+              "completed",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tokens_used_in": {
+            "description": "Accumulated input tokens used.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "tokens_used_out": {
+            "description": "Accumulated output tokens used.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "agent_name",
+          "model_id",
+          "status",
+          "context_budget",
+          "iteration",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "SessionBilling": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/BillingEntry"
+            },
+            "type": "array"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "total_completion_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total_cost_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "total_prompt_tokens": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "total_cost_usd",
+          "entries"
+        ],
+        "type": "object"
+      },
+      "SessionToolCall": {
+        "properties": {
+          "completed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "executed": {
+            "type": "boolean"
+          },
+          "executed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "iteration": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "result": {
+            "description": "ToolResult for executor rows, or parsed staging result for staging rows."
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "tool_request",
+              "staging_buffer"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "Native lifecycle status from the row's source table.",
+            "type": "string"
+          },
+          "tool_name": {
+            "type": "string"
+          },
+          "turn": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "id",
+          "session_id",
+          "iteration",
+          "tool_name",
+          "status",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ShimProject": {
+        "properties": {
+          "id": {
+            "description": "Project instance id (consensus-\u003chash\u003e).",
+            "type": "string"
+          },
+          "name": {
+            "description": "Workspace directory name.",
+            "type": "string"
+          },
+          "sandboxes": {
+            "description": "Attached sandbox ids (empty on the shim).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "time": {
+            "properties": {
+              "created": {
+                "description": "Creation time, unix milliseconds.",
+                "format": "int64",
+                "type": "integer"
+              },
+              "updated": {
+                "description": "Last update time, unix milliseconds.",
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created",
+              "updated"
+            ],
+            "type": "object"
+          },
+          "worktree": {
+            "description": "Absolute path of the singleton fixed workspace.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ShimSymbol": {
+        "properties": {
+          "kind": {
+            "description": "LSP symbol kind code.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "location": {
+            "additionalProperties": false,
+            "properties": {
+              "range": {
+                "properties": {
+                  "end": {
+                    "$ref": "#/components/schemas/ShimSymbolPosition"
+                  },
+                  "start": {
+                    "$ref": "#/components/schemas/ShimSymbolPosition"
+                  }
+                },
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "type": "object"
+              },
+              "uri": {
+                "description": "Document URI containing the symbol.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "uri",
+              "range"
+            ],
+            "type": "object"
+          },
+          "name": {
+            "description": "Symbol name (function, class, variable).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "location"
+        ],
+        "type": "object"
+      },
+      "ShimSymbolPosition": {
+        "additionalProperties": false,
+        "properties": {
+          "character": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "line": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "character"
+        ],
+        "type": "object"
+      },
+      "Skill": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "metadata": {
+            "description": "Lightweight skill metadata (~100 tokens)."
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "SkillDetail": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "instructions": {
+            "description": "Full skill instructions (can be thousands of tokens).",
+            "type": "string"
+          },
+          "linked_tool_ids": {
+            "description": "IDs of tools this skill depends on.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "metadata": {
+            "description": "Lightweight skill metadata."
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "instructions",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "Task": {
+        "properties": {
+          "claimed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "locked_by_agent": {
+            "description": "Session ID of the agent that currently holds the lock.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "parent_task_id": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "prerequisite_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "priority": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "result_memory_id": {
+            "description": "Pointer to the memory event containing this task's output.",
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "claimed",
+              "in_progress",
+              "reviewed",
+              "published",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "title",
+          "status",
+          "priority",
+          "prerequisite_ids",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "Tool": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "handler_type": {
+            "enum": [
+              "sql_function",
+              "http_endpoint",
+              "go_native",
+              "subprocess"
+            ],
+            "type": "string"
+          },
+          "hemisphere": {
+            "enum": [
+              "internal",
+              "external"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requires_approval": {
+            "description": "Whether human approval is required before executing this tool.",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "testing",
+              "deprecated",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "hemisphere",
+          "handler_type",
+          "status",
+          "enabled",
+          "requires_approval"
+        ],
+        "type": "object"
+      },
+      "ToolRequest": {
+        "properties": {
+          "approval_request_id": {
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "executed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "iteration_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ToolResult"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "awaiting_approval",
+              "executing",
+              "completed",
+              "failed",
+              "timeout"
+            ],
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer"
+          },
+          "tool_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "iteration_id",
+          "tool_name",
+          "parameters",
+          "status",
+          "timeout_ms",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ToolResult": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_ms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "is_error": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": "string"
+          },
+          "request_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "token_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "output",
+          "is_error",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "UpdateSessionRequest": {
+        "properties": {
+          "status": {
+            "description": "Action to perform:\n- pause — pauses the session (must be in active state)\n- resume — resumes a paused session\n- cancel — fails the session immediately\n",
+            "enum": [
+              "pause",
+              "resume",
+              "cancel"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "UpdateTaskRequest": {
+        "properties": {
+          "status": {
+            "description": "New status. Must be a valid transition from the current state.",
+            "enum": [
+              "claimed",
+              "in_progress",
+              "reviewed",
+              "published",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "VcsFileDiff": {
+        "description": "opencode Vcs.FileDiff translation — patch omitted (optional upstream).",
+        "properties": {
+          "additions": {
+            "description": "Added line count.",
+            "type": "integer"
+          },
+          "deletions": {
+            "description": "Deleted line count.",
+            "type": "integer"
+          },
+          "file": {
+            "description": "Changed file path relative to the workspace.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Change classification.",
+            "enum": [
+              "added",
+              "deleted",
+              "modified"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "additions",
+          "deletions"
+        ],
+        "type": "object"
+      },
+      "VcsInfo": {
+        "description": "opencode Vcs.Info translation — both fields optional.",
+        "properties": {
+          "branch": {
+            "description": "Current git branch (absent for non-git or detached workspaces).",
+            "type": "string"
+          },
+          "default_branch": {
+            "description": "Default branch from origin HEAD or init.defaultBranch.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "schema": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable error code.",
+                "example": "SESSION_NOT_FOUND",
+                "type": "string"
+              },
+              "details": {
+                "additionalProperties": true,
+                "description": "Optional error-specific details.",
+                "type": "object"
+              },
+              "message": {
+                "description": "Human-readable error message.",
+                "example": "Session with id 'abc-123' does not exist.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "schema-2": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/schema"
+          },
+          {
+            "description": "Bare \"method not allowed\" text body (chi's default 405 writer).",
+            "properties": {
+              "error": {
+                "description": "Error code (e.g. NOT_IMPLEMENTED for shim stubs).",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "schema-3": {
+        "properties": {
+          "detail": {
+            "description": "Why it is not implemented and what to use instead.",
+            "type": "string"
+          },
+          "error": {
+            "const": "not_implemented",
+            "type": "string"
+          },
+          "operation": {
+            "description": "Upstream operation id that is not implemented (e.g. vcs.apply).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "operation",
+          "detail"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "description": "API key prefixed with cs_ (e.g., cs_sk_a1b2c3d4...).\n\nKey types:\n- cs_ak_* : admin — full CRUD on all tables\n- cs_sk_* : session — CRUD within one session\n- cs_rk_* : readonly — SELECT on all tables\n- cs_wk_* : webhook — INSERT into external_events only\n",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "name": "Consensus",
+      "url": "https://github.com/totalwindupflightsystems/consensus"
+    },
+    "description": "Database-native cognitive architecture for AI agents.\n\nAll state lives in the database. The API writes to the same tables the agent reads from.\nThere is no separate API state — the database is the single source of truth.\n\n## Key Concepts\n\n- **Sessions** — Every agent instance is a session row. RLS isolation, billing, lifecycle.\n- **Memory Events** — Immutable append-only ledger. Display state managed via display_modes.\n- **Transactions** — Atomic cognition: every thought is a SQL transaction.\n- **Tools \u0026 Skills** — Progressive disclosure: metadata always visible, full instructions on demand.\n- **HITL Approvals** — Human-in-the-loop: pause for review before destructive actions.\n\n## Authentication\n\nNative API endpoints except `/api/v1/health` require a Bearer API key.\n`/webhooks/{source}` uses a per-registration HMAC-SHA256 signature instead:\n- `cs_ak_*` : admin — full CRUD\n- `cs_sk_*` : session — scoped to one session\n- `cs_rk_*` : readonly — SELECT only\n- `cs_wk_*` : webhook — event ingestion only\n\nKeys are SHA-256 hashed before storage. The full key is only returned at creation time.\n",
+    "title": "Consensus Agent Runtime",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/agent": {
+      "get": {
+        "description": "Returns the available agent types (default, researcher, coder,\nanalyst) as an array of {name, description}.\n",
+        "operationId": "shimListAgents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Agent type list."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List available agent types",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/api/v1/approvals": {
+      "get": {
+        "description": "Lists all pending approval requests, ordered by risk level (critical first).\nOptionally filter by session. Admin scope only.\n",
+        "operationId": "listApprovals",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Approval"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of pending approvals."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List pending approvals",
+        "tags": [
+          "Approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approvalId}": {
+      "get": {
+        "description": "Returns full details for a single approval request.",
+        "operationId": "getApproval",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApprovalId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            },
+            "description": "Approval details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get approval details",
+        "tags": [
+          "Approvals"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approvalId}/review": {
+      "post": {
+        "description": "Approve, reject, or modify a pending approval request.\n- approved: resumes the associated session from paused to idle\n- rejected: permanently rejects the request\n- modified: records the modified_sql and sets status to modified\n",
+        "operationId": "reviewApproval",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApprovalId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            },
+            "description": "Reviewed approval."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Review a pending approval",
+        "tags": [
+          "Approvals"
+        ]
+      }
+    },
+    "/api/v1/auth/keys": {
+      "get": {
+        "description": "Lists all API keys (prefix and scope only — no hashes or full keys).\nAdmin scope required.\n",
+        "operationId": "listAPIKeys",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/APIKeyEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of API keys (prefixes only)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List API keys",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "post": {
+        "description": "Creates a new API key with the specified scope. Returns the full key\nvalue — store it immediately, it is not recoverable.\nAdmin scope required.\n",
+        "operationId": "createAPIKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAPIKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAPIKeyResponse"
+                }
+              }
+            },
+            "description": "API key created."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a new API key",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/keys/{keyId}": {
+      "delete": {
+        "description": "Revokes an API key by setting its expiration to now.\nAdmin scope required.\n",
+        "operationId": "revokeAPIKey",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiKeyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeAPIKeyResponse"
+                }
+              }
+            },
+            "description": "Key revoked."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Revoke an API key",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/config": {
+      "get": {
+        "description": "Returns the current system configuration including LLM, HITL,\nharness, database, and logging settings. Admin scope required.\n",
+        "operationId": "getConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            },
+            "description": "System configuration."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "System configuration",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "description": "Opens a Server-Sent Events (text/event-stream) connection that delivers\nreal-time session, task, and quarantine events. Clients may pass\n?session_id to subscribe to a single session, or omit it to receive\nthe global stream. Requires a valid Bearer API key: a session-scoped\nkey (cs_sk_*) may only stream its own session — requests for the\nglobal stream or a foreign session are rejected 403 before any\nevent-stream header is written.\n\nThe global (no session_id) stream is bounded (~5 minutes): it ends\ncleanly with a terminal \"stream_timeout\" event so EventSource\nauto-reconnects. Per-session streams are not bounded.\n\nEvent payloads vary by type; see the SSEEvent schema for the common\nenvelope. The first event delivered is always a \"connected\" event.\n",
+        "operationId": "streamEvents",
+        "parameters": [
+          {
+            "description": "Subscribe to events for a single session. Omit for the global stream.",
+            "in": "query",
+            "name": "session_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SSEEvent"
+                }
+              }
+            },
+            "description": "A live Server-Sent Events stream. Content-Type is text/event-stream;\neach event carries an event name and a JSON data payload.\n"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Stream real-time events (Server-Sent Events)",
+        "tags": [
+          "Events"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "description": "Returns server health status. No authentication required.",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Server is healthy."
+          }
+        },
+        "security": [],
+        "summary": "Health check",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "description": "Returns system-wide metrics including active sessions, pending tasks,\npending approvals, total sessions, and cumulative cost.\nAdmin or readonly scope required.\n",
+        "operationId": "getMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            },
+            "description": "System metrics."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "System-wide metrics",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/api/v1/quarantine": {
+      "get": {
+        "description": "Lists content held by the Cognitive Firewall quarantine, optionally\nfiltered by status (e.g. pending). Admin scope. Returns the items with\ntheir count; a 503 is returned when the quarantine service is not\nconfigured on this server instance.\n",
+        "operationId": "listQuarantine",
+        "parameters": [
+          {
+            "description": "Filter quarantined items by status (e.g. pending).",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantineListResponse"
+                }
+              }
+            },
+            "description": "List of quarantined items."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "Quarantine service not configured on this instance."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List quarantined content",
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/v1/quarantine/{qID}/approve": {
+      "post": {
+        "description": "Approves a quarantined item, promoting it into agent memory.\nThe optional body may carry a session_id; when omitted, the session\nrecorded on the quarantine item is used. Admin scope.\n",
+        "operationId": "approveQuarantine",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/QuarantineId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuarantineApproveRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantineDecisionResponse"
+                }
+              }
+            },
+            "description": "Item approved and promoted."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "Quarantine service not configured on this instance."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Approve quarantined content",
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/v1/quarantine/{qID}/reject": {
+      "post": {
+        "description": "Rejects a quarantined item with a reason. When the body omits reason,\nthe server applies the default \"Rejected by operator\". Admin scope.\n",
+        "operationId": "rejectQuarantine",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/QuarantineId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuarantineRejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantineDecisionResponse"
+                }
+              }
+            },
+            "description": "Item rejected."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "Quarantine service not configured on this instance."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Reject quarantined content",
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "description": "Lists agent sessions with optional status filter.\nSession-scoped keys only see their own session.\nAdmin and readonly keys see all sessions.\n",
+        "operationId": "listSessions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StatusFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Session"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of sessions."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List sessions",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "post": {
+        "description": "Creates a new agent session and returns its ID, status, and a session-scoped API key.\nOnly admin-scoped API keys can create sessions.\n",
+        "operationId": "createSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSessionResponse"
+                }
+              }
+            },
+            "description": "Session created successfully."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a new agent session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}": {
+      "delete": {
+        "description": "Soft-deletes a session by setting it to failed with completed_at.\nOnly admin keys may delete sessions.\n",
+        "operationId": "deleteSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "example": "deleted",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Session deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Soft-delete a session",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "get": {
+        "description": "Returns full details for a single session.\nSession-scoped keys can only access their own session.\n",
+        "operationId": "getSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Session details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get session details",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "patch": {
+        "description": "Pause, resume, or cancel a session.\n- pause: transitions session from active state to paused\n- resume: transitions session from paused to idle\n- cancel: transitions session to failed and sets completed_at\n",
+        "operationId": "updateSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Updated session."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update session status",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/approvals": {
+      "get": {
+        "description": "Lists approval requests for a specific session.\nDefault filter: pending only. Use status=all for all statuses.\n",
+        "operationId": "listSessionApprovals",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "description": "Filter by status (pending, all).",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "default": "pending",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Approval"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of approvals for the session."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List approvals for a session",
+        "tags": [
+          "Approvals"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/billing": {
+      "get": {
+        "description": "Returns the complete billing breakdown for a session —\nper-iteration token usage and cost, plus totals.\n",
+        "operationId": "getSessionBilling",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionBilling"
+                }
+              }
+            },
+            "description": "Session billing details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Per-session cost breakdown",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/context": {
+      "get": {
+        "description": "Returns the active context view for a session — memory events rendered\naccording to their display_mode (full, compressed, or hidden).\nThis is what the harness formats into Markdown for the LLM.\n",
+        "operationId": "getActiveContext",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "description": "Maximum context items to return.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActiveContextItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Rendered active context items."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get active context (rendered)",
+        "tags": [
+          "Memory"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/iterations": {
+      "get": {
+        "description": "Lists iteration commits for a session — each commit records the active\nmemory pointers, display rules, LLM response, and SQL executed at that\npoint in time.\n",
+        "operationId": "listIterations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "description": "Maximum iterations to return.",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IterationCommit"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of iteration commits."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List iteration commits",
+        "tags": [
+          "Memory"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/memory": {
+      "get": {
+        "description": "Lists memory events for a session, ordered by ID descending (newest first).\nSupports type filtering and limit.\n",
+        "operationId": "listMemory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/TypeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryEvent"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of memory events."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List memory events",
+        "tags": [
+          "Memory"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/memory/{memoryId}": {
+      "get": {
+        "description": "Returns a single memory event by its ID.",
+        "operationId": "getMemoryEvent",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/MemoryId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryEvent"
+                }
+              }
+            },
+            "description": "Memory event details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a single memory event",
+        "tags": [
+          "Memory"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/message": {
+      "post": {
+        "description": "Sends a message to a running agent session. The message is inserted into\nmemory_events and the session is transitioned to 'thinking' if idle.\nIf the session is paused, the message is queued for the next iteration.\n",
+        "operationId": "sendMessage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "description": "Optional retry key scoped to this session. Reusing a key after a\nsuccessful request returns the original response without inserting a\nsecond memory event.\n",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageReceivedResponse"
+                }
+              }
+            },
+            "description": "Message received."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Send a message to an agent session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/tasks": {
+      "get": {
+        "description": "Lists tasks for a session, optionally filtered by status.",
+        "operationId": "listTasks",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          },
+          {
+            "$ref": "#/components/parameters/StatusFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of tasks."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List tasks for a session",
+        "tags": [
+          "Tasks"
+        ]
+      },
+      "post": {
+        "description": "Creates a new task in the given session's work queue.",
+        "operationId": "createTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Task created."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a task",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/tool-calls": {
+      "get": {
+        "description": "Merges executor-backed tool_requests rows with planning staging_buffer\nrows whose cmd_type is tool_call_ref. Each item identifies its source and\nlifecycle status. Results are ordered oldest first.\n",
+        "operationId": "listSessionToolCalls",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionToolCall"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Merged session tool-call lifecycle records."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List a session's tool-call lifecycle records",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "description": "Lists skill metadata only — lightweight summaries (~100 tokens each).\nThis is the \"progressive disclosure\" first layer. To get full\ninstructions, use GET /api/v1/skills/{skillName}.\n",
+        "operationId": "listSkills",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Skill"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of skills (metadata only)."
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List skill metadata (progressive disclosure)",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/skills/{skillName}": {
+      "get": {
+        "description": "Returns full skill details including the complete instructions text\n(which can be thousands of tokens). This is the second layer of\nprogressive disclosure — only call this when the skill is actually needed.\n",
+        "operationId": "getSkill",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SkillName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillDetail"
+                }
+              }
+            },
+            "description": "Full skill details."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get full skill instructions",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}": {
+      "get": {
+        "description": "Returns one task by ID, including its status, priority, lock holder\nand timestamps. Returns 404 when the task does not exist.\n",
+        "operationId": "getTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "The task."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a single task",
+        "tags": [
+          "Tasks"
+        ]
+      },
+      "patch": {
+        "description": "Updates the status of a task. Valid transitions:\n- pending → claimed, in_progress, failed, cancelled\n- claimed → in_progress, failed, cancelled\n- in_progress → reviewed, failed, cancelled\n- reviewed → published\n",
+        "operationId": "updateTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Updated task."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update task status",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/claim": {
+      "post": {
+        "description": "Claims a pending task by locking it to the requesting session.\nOnly one session can hold the lock at a time.\n",
+        "operationId": "claimTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Task claimed."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Claim a task",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/api/v1/tool-requests": {
+      "get": {
+        "description": "Lists up to 100 tool requests in oldest-first order. Admin and readonly\nkeys may inspect all sessions. A session key is restricted to its own\nsession. Completed and failed requests include their tool result.\n",
+        "operationId": "listToolRequests",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SessionFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ToolRequestStatusFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolRequest"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Tool requests."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List tool execution requests",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tool-requests/{requestId}": {
+      "get": {
+        "operationId": "getToolRequest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ToolRequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolRequest"
+                }
+              }
+            },
+            "description": "Tool request detail, including its result when available."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a tool execution request",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools": {
+      "get": {
+        "description": "Lists all tools in the registry. Supports filtering by status and hemisphere.\nTools are the executable capabilities — SQL functions, HTTP endpoints,\nGo handlers, and subprocesses.\n",
+        "operationId": "listTools",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StatusFilter"
+          },
+          {
+            "$ref": "#/components/parameters/HemisphereFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Tool"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of tools."
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List available tools",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/{toolName}/execute": {
+      "post": {
+        "description": "Executes an internal tool (sql_function or go_native) within a session,\nor enqueues an external tool (http_endpoint or subprocess) for async dispatch.\nThe tool must be enabled and in active status.\n",
+        "operationId": "executeTool",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ToolName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteToolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteToolResponse"
+                }
+              }
+            },
+            "description": "Tool execution result."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Execute a tool",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/auth/{authId}": {
+      "put": {
+        "description": "Upserts auth configuration for a provider or session. Each body key\nis stored as system_settings \"auth.\u003cauthId\u003e.\u003ckey\u003e\". Only PUT is\nsupported.\n",
+        "operationId": "shimUpdateAuth",
+        "parameters": [
+          {
+            "description": "Provider or session identifier.",
+            "in": "path",
+            "name": "authId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Auth config stored."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema-2"
+                }
+              }
+            },
+            "description": "Method not allowed — only PUT is supported."
+          }
+        },
+        "summary": "Update provider/session auth config",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/config": {
+      "get": {
+        "description": "Returns all system_settings under `settings` and an upstream-compatible\n`provider_default` map from provider IDs to their configured default\nmodel. The Consensus provider entry is derived from\n`settings[\"llm.default_model\"]` when configured; otherwise the map is\nempty.\n",
+        "operationId": "shimGetConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "provider_default": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Default model ID keyed by provider ID.",
+                      "example": {
+                        "consensus": "gpt-4o"
+                      },
+                      "type": "object"
+                    },
+                    "settings": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "settings",
+                    "provider_default"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Configuration map."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Read shim configuration",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "patch": {
+        "description": "Upserts system_settings from the JSON body. Returns\n{\"status\": \"updated\", \"keys\": N}.\n",
+        "operationId": "shimUpdateConfig",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "keys": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "example": "updated",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Update confirmation."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Update shim configuration",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/config/providers": {
+      "get": {
+        "description": "Lists the model_registry as {\"providers\": [...]} with id, tier,\nmax_context, cost_per_m_in, cost_per_m_out, enabled.\n",
+        "operationId": "shimListConfigProviders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "providers": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Provider list."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List model providers",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/doc": {
+      "get": {
+        "description": "Serves the machine-readable OpenAPI document for the opencode-compatible\nsurface. JSON is returned by default; Accept: application/yaml returns\nYAML. No authentication is required. The native REST API explorer lives\nat /doc/api instead.\n",
+        "operationId": "shimDoc",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Swagger UI HTML page."
+          }
+        },
+        "security": [],
+        "summary": "opencode shim OpenAPI document",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/event": {
+      "get": {
+        "description": "Standalone alias of /global/event — SSE event stream mapping\nConsensus memory events to opencode event types.\n",
+        "operationId": "shimEventStream",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE event stream (text/event-stream)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Standalone SSE event stream",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/experimental/tool": {
+      "get": {
+        "description": "Lists tools_registry entries (id, name, description, hemisphere,\nhandler_type, status, enabled, requires_approval).\n",
+        "operationId": "shimListTools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Tool list."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List tools",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/experimental/tool/ids": {
+      "get": {
+        "description": "Returns the tool names from tools_registry as a plain string array.\n",
+        "operationId": "shimListToolIDs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Tool name list."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List tool IDs",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/file/content": {
+      "get": {
+        "description": "Reads a file via the service layer. Requires ?path=. Returns\n{\"path\": \"...\", \"content\": \"...\", \"size\": N}.\n",
+        "operationId": "shimReadFile",
+        "parameters": [
+          {
+            "description": "Absolute or relative file path.",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "content": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "File content."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Read file content",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/file/status": {
+      "get": {
+        "description": "Returns the working tree git status (delegated to the service layer).\n",
+        "operationId": "shimFileStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Git status object."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Git status",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/find": {
+      "get": {
+        "description": "Glob-based file search. Requires ?pattern=. Returns\n{\"files\": [...], \"count\": N, \"pattern\": \"...\"}.\n",
+        "operationId": "shimFindFiles",
+        "parameters": [
+          {
+            "description": "Glob pattern (e.g. \"**/*.go\").",
+            "in": "query",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Matching files."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Find files by glob pattern",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/find/file": {
+      "get": {
+        "description": "File search under /find/file. Requires ?query=. Returns\n{\"files\": [...], \"count\": N, \"query\": \"...\"}.\n",
+        "operationId": "shimFindFilesSub",
+        "parameters": [
+          {
+            "description": "Search query (glob pattern).",
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Matching files."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Find files by query",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/find/symbol": {
+      "get": {
+        "description": "Searches workspace symbols (functions, classes, variables) named by\nthe required ?query= parameter. The optional directory/workspace\nselectors are validated (a present-but-blank value is a 400) but do\nnot narrow the result: the shim has no LSP integration, so there is\nno symbol producer and the truthful 200 body is the EMPTY list — an\narray, never null. Missing or blank ?query= answers the 400 arm with\nthe INVALID_REQUEST envelope.\n",
+        "operationId": "shimFindSymbolStub",
+        "parameters": [
+          {
+            "description": "Symbol name search text (functions, classes, variables).",
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional search scope; must not be blank when provided.",
+            "in": "query",
+            "name": "directory",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional search scope; must not be blank when provided.",
+            "in": "query",
+            "name": "workspace",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShimSymbol"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Matching symbols — the EMPTY list (no LSP producer; never fabricated)."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Find symbols",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/global/event": {
+      "get": {
+        "description": "SSE event stream mapping Consensus memory events to opencode event\ntypes (session.updated, permission.requested, message.created, ...).\nThe most recent ~50 stored events are replayed on connect, then live\nevents stream until the client disconnects. Optional ?session_id=\nscopes the stream to one session.\n",
+        "operationId": "shimGlobalEvent",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE event stream (text/event-stream)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Global SSE event stream",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/global/health": {
+      "get": {
+        "description": "Returns shim health status. No authentication required — the shim\nauth middleware skips this path.\n",
+        "operationId": "shimGlobalHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "healthy": {
+                      "example": true,
+                      "type": "boolean"
+                    },
+                    "version": {
+                      "example": "consensus-0.1.0",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "healthy",
+                    "version"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Shim is healthy."
+          }
+        },
+        "security": [],
+        "summary": "Shim health check",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/instance": {
+      "get": {
+        "description": "Singleton instance list: the Consensus server is one instance rooted\nat the workspace directory. Fully public — no auth required.\n",
+        "operationId": "shimInstanceList",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InstanceInfo"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Singleton instance list."
+          }
+        },
+        "summary": "List instances",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/instance/path": {
+      "get": {
+        "description": "opencode PathInfo translation: home, state, config, worktree and\ndirectory for the instance workspace. Fully public — no auth required.\n",
+        "operationId": "shimInstancePath",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstancePathInfo"
+                }
+              }
+            },
+            "description": "Instance path info."
+          }
+        },
+        "summary": "Get instance paths",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/instance/vcs": {
+      "get": {
+        "description": "opencode Vcs.Info translation: current branch and default branch of\nthe workspace git repository, read live. Non-git workspaces return {}\n— never an error. Fully public — no auth required.\n",
+        "operationId": "shimInstanceVCS",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VcsInfo"
+                }
+              }
+            },
+            "description": "VCS info (both fields optional; {} for non-git workspaces)."
+          }
+        },
+        "summary": "Get VCS info",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/instance/vcs/diff": {
+      "get": {
+        "description": "opencode Vcs.FileDiff translation: per-file additions, deletions and\nstatus for the workspace working tree. Clean or non-git workspaces\nreturn []. Fully public — no auth required.\n",
+        "operationId": "shimInstanceVCSDiff",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VcsFileDiff"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Per-file diff stats (possibly empty array)."
+          }
+        },
+        "summary": "Get VCS diff",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/lsp": {
+      "get": {
+        "description": "Returns LSP integration status — not yet available:\n{\"enabled\": false, \"status\": \"unavailable\", \"message\": \"...\"}.\n",
+        "operationId": "shimLSPStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "enabled": {
+                      "example": false,
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "LSP status."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "LSP status",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/mcp": {
+      "get": {
+        "description": "Opens the MCP server-initiated message stream (text/event-stream),\nsame handler as GET /mcp/sse. Part of the streamable-HTTP transport:\nclients POST JSON-RPC requests to POST /mcp and read server-initiated\nmessages here.\n",
+        "operationId": "mcpStreamableGet",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE stream of server-initiated MCP messages."
+          }
+        },
+        "summary": "MCP streamable-HTTP SSE stream",
+        "tags": [
+          "MCP"
+        ]
+      },
+      "post": {
+        "description": "Accepts a single JSON-RPC 2.0 MCP request and answers the JSON-RPC\nresponse (application/json). Initialize returns the session id in the\nMcp-Session-Id response header; follow-up calls carry it. Every method\nexcept initialize / notifications/initialized / ping requires a session\nthat completed authenticated initialize — unauthenticated calls answer\nHTTP 401 with a JSON-RPC error object (code -32002 Forbidden).\nLegacy transports remain available: GET /mcp/sse + POST\n/mcp/message?sessionId=...\n",
+        "operationId": "mcpStreamablePost",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPJSONRPCResponse"
+                }
+              }
+            },
+            "description": "JSON-RPC response (success or error payload).",
+            "headers": {
+              "Mcp-Session-Id": {
+                "description": "Session id for follow-up MCP calls (set by initialize).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted — the request was a notification (no response body). The answer is intentionally empty (zero bytes), not a JSON document.\n"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPJSONRPCResponse"
+                }
+              }
+            },
+            "description": "Malformed request (parse error or invalid JSON-RPC envelope)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MCPJSONRPCResponse"
+                }
+              }
+            },
+            "description": "Unauthenticated MCP session (unknown/expired Mcp-Session-Id, or a method called before an authenticated initialize). The body is a JSON-RPC error object (code -32002 Forbidden), matching the auth semantics documented in docs/INTEGRATION.md.\n"
+          },
+          "405": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Method not allowed (only GET and POST are served). Answered by chi's default 405 writer with a bare \"method not allowed\" text body."
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "MCP traffic is not served on this mount — bare deployments without the API-level MCP mount answer 501 NOT_IMPLEMENTED with the shim stub's NOT_IMPLEMENTED error envelope. Mount consensus serve to reach the real surface.\n"
+          }
+        },
+        "summary": "MCP streamable-HTTP JSON-RPC endpoint",
+        "tags": [
+          "MCP"
+        ]
+      }
+    },
+    "/permission": {
+      "get": {
+        "description": "Lists pending approval_requests as opencode permission events.\nOptional ?session_id= filter. Returns {\"permissions\": [...]},\nmax 20, ordered by risk level.\n",
+        "operationId": "shimListPermissions",
+        "parameters": [
+          {
+            "description": "Filter by session ID.",
+            "in": "query",
+            "name": "session_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "permissions": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Pending permissions."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List pending permissions",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/permission/{permissionId}": {
+      "get": {
+        "description": "Returns one pending approval request with its decision metadata.\n",
+        "operationId": "shimGetPermission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimPermissionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Permission details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get permission details",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/permission/{permissionId}/resolve": {
+      "post": {
+        "description": "Resolves a pending approval request. Body: {\"decision\":\n\"approved\"|\"rejected\"|\"modified\", \"reason\": \"...\"}. Emits a\npermission.resolved SSE event on success. Returns\n{\"id\", \"status\", \"resolved\": true, \"timestamp\"}.\n",
+        "operationId": "shimResolvePermission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimPermissionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "approved",
+                      "rejected",
+                      "modified"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Resolution confirmation."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Resolve a permission",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/project": {
+      "get": {
+        "description": "Serves the upstream project.list operation: an array of Project\nobjects translated from the runtime's `projects` table — id and name\nfrom the row, worktree from the server's configured workdir (the\nsingle-workspace translation /vcs and /session/{id}/diff use),\ntime {created, updated} from created_at (Unix seconds; numeric TEXT\ncells are parsed), sandboxes [] (the runtime provisions none). The\noptional ?directory=/?workspace= selectors are accepted but do not\nnarrow (one workspace, no per-project path columns). A store whose\nprojects table is absent answers [].\n",
+        "operationId": "shimProjectList",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sandboxes": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "time": {
+                        "properties": {
+                          "created": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "updated": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "created",
+                          "updated"
+                        ],
+                        "type": "object"
+                      },
+                      "worktree": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "worktree",
+                      "time",
+                      "sandboxes"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of projects."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "INVALID_REQUEST"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Store read failure (the declared error vocabulary for this operation)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List all projects",
+        "tags": [
+          "Opencode Shim"
+        ],
+        "x-undeclared-methods": "501 stub (SPEC-017 §3.9; 405 is not in the declared response set)"
+      }
+    },
+    "/project/{projectId}": {
+      "get": {
+        "description": "Resolves a project id. The id of the singleton fixed workspace (the\nvalue \"current\", or its instance id) answers 200 with the upstream\nProject object {id, name, sandboxes, time, worktree}. Every other id\nis unknown — the Consensus shim keeps no project registry — and\nanswers HTTP 404 with the upstream typed ProjectNotFoundError\nNamedError body, exactly {_tag, projectID, message} (DF-CONSENSUS-47;\nhttpapi-instance.test.ts \"returns typed not found bodies for missing\nprojects\").\n",
+        "operationId": "shimProjectItem",
+        "parameters": [
+          {
+            "description": "Project identifier, or \"current\" for the singleton workspace.",
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShimProject"
+                }
+              }
+            },
+            "description": "The singleton workspace's project (id resolves; today only \"current\" does)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "_tag": {
+                      "enum": [
+                        "ProjectNotFoundError"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "projectID": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "_tag",
+                    "projectID",
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Typed ProjectNotFoundError body (no project registry — unknown id)."
+          }
+        },
+        "summary": "Project item",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/provider": {
+      "get": {
+        "description": "Returns the default LLM provider: {\"provider\": \"consensus\",\n\"version\", \"model\", \"maxTokens\"}.\n",
+        "operationId": "shimGetProvider",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "maxTokens": {
+                      "type": "integer"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "example": "consensus",
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Provider info."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Get default provider info",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session": {
+      "get": {
+        "description": "Lists sessions newest first, max 50. Optional comma-separated\n?status= filter (e.g. ?status=idle,thinking).\n",
+        "operationId": "shimListSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Array of sessions in opencode format."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List sessions (opencode format)",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "post": {
+        "description": "Creates a Consensus session. Body fields: title (maps to the\nConsensus agent_name, defaults to \"opencode-agent\"), goal, model.\nThe response includes the generated api_key for the session.\n",
+        "operationId": "shimCreateSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created session with api_key."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Create a session",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session/{sessionId}": {
+      "delete": {
+        "description": "Marks the session failed with a completed_at timestamp (soft delete).\nReturns {\"status\": \"deleted\"}.\n",
+        "operationId": "shimDeleteSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "example": "deleted",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Deletion confirmation."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Delete a session",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "get": {
+        "description": "Returns one session in opencode format. opencode-specific subpaths\n(shell, command, share, summarize, revert) return 501 NOT_IMPLEMENTED;\nunknown subpaths return 404. prompt_async (POST) is served per its\nupstream contract (204/400/404), as are init and fork.\n",
+        "operationId": "shimGetSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Session details."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get session details",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "patch": {
+        "description": "Updates session properties (title, status, goal). opencode status\nvalues are mapped: pause/paused → paused, resume/resumed/idle → idle,\ncancel/cancelled → failed.\n",
+        "operationId": "shimUpdateSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Updated session (or {\"status\": \"updated\"})."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Update a session",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session/{sessionId}/abort": {
+      "post": {
+        "description": "Marks the session failed with a completed_at timestamp.\nReturns {\"status\": \"aborted\"}.\n",
+        "operationId": "shimAbortSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "example": "aborted",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Abort confirmation."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Abort a session",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session/{sessionId}/children": {
+      "get": {
+        "description": "Lists sessions whose parent_id is the given session, newest first,\nmax 50.\n",
+        "operationId": "shimListSessionChildren",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Array of child sessions."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List child sessions",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session/{sessionId}/message": {
+      "get": {
+        "description": "Lists the session's messages (memory events) in opencode format.\n",
+        "operationId": "shimListMessages",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Array of messages."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List session messages",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "post": {
+        "description": "Sends a user instruction. Body: {\"parts\": [{\"type\": \"text\", \"text\":\n\"...\"}]}. Wakes idle/booting sessions to \"thinking\" for harness\npickup. Returns an assistant acknowledgement message.\n",
+        "operationId": "shimSendMessage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "parts": {
+                    "items": {
+                      "properties": {
+                        "text": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "example": "text",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "parts"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Assistant acknowledgement message."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Send a message to a session",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/session/{sessionId}/message/{messageId}": {
+      "get": {
+        "description": "Returns one message by ID (opencode \"msg-{id}\" format).\n",
+        "operationId": "shimGetMessage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ShimSessionId"
+          },
+          {
+            "$ref": "#/components/parameters/ShimMessageId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Message with info and parts."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Get a single message",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/tui/{action}": {
+      "get": {
+        "description": "TUI action lookup. POST-only actions named without a body answer 405\nMETHOD_NOT_ALLOWED naming the POST contract; unknown actions answer\n404 NOT_FOUND (\"unknown TUI action\").\n",
+        "operationId": "shimTUIControlStub",
+        "parameters": [
+          {
+            "description": "TUI action name.",
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "enum": [
+                "append-prompt",
+                "submit-prompt",
+                "execute-command",
+                "show-toast"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        },
+        "summary": "TUI action status",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "post": {
+        "description": "Executes a TUI action against the shim's (absent) TUI process. Valid\nrequests answer the declared boolean 200 — false, truthfully: no TUI\nprocess is attached, so nothing was displayed. Malformed bodies\nanswer 400 with the opencode NamedError BadRequest envelope.\nsubmit-prompt and execute-command are not implemented in this shim\nand keep the 501 NOT_IMPLEMENTED answer (use opencode's built-in\nTUI).\n",
+        "operationId": "shimTUIAction",
+        "parameters": [
+          {
+            "description": "TUI action to execute.",
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "enum": [
+                "append-prompt",
+                "clear-prompt",
+                "control/response",
+                "open-help",
+                "open-models",
+                "open-sessions",
+                "open-themes",
+                "publish",
+                "show-toast",
+                "submit-prompt",
+                "execute-command"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "append-prompt": {
+                  "value": {
+                    "text": "hello"
+                  }
+                },
+                "show-toast": {
+                  "value": {
+                    "message": "build finished",
+                    "variant": "info"
+                  }
+                }
+              },
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Action accepted — boolean result (false: no TUI process attached)."
+          },
+          "400": {
+            "$ref": "#/components/responses/OpencodeBadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "501": {
+            "$ref": "#/components/responses/NotImplemented"
+          }
+        },
+        "summary": "Execute a TUI action",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/vcs": {
+      "get": {
+        "description": "opencode Vcs.Info translation for the workspace identified by the\nx-opencode-directory header: current branch and default branch, read\nlive. Non-git workspaces return {} — never an error. Requests without\nthe header require Consensus authentication (401).\n",
+        "operationId": "shimVCS",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VcsInfo"
+                }
+              }
+            },
+            "description": "VCS info (both fields optional; {} for non-git workspaces)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Get VCS info (fixed-workspace compatibility)",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/vcs/diff": {
+      "get": {
+        "description": "opencode Vcs.FileDiff translation for the workspace identified by the\nx-opencode-directory header: per-file additions, deletions and status\nfor the working tree. Untracked files are counted the upstream way\n(git diff --no-index --numstat — whole lines, including a final line\nwithout a trailing newline; binary files count 0). Clean or non-git\nworkspaces return []. Requests without the header require Consensus\nauthentication (401).\n",
+        "operationId": "shimVCSDiff",
+        "parameters": [
+          {
+            "description": "Diff mode; accepted for upstream compatibility.",
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "enum": [
+                "git",
+                "branch"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VcsFileDiff"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Per-file diff stats (possibly empty array)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Get VCS diff (fixed-workspace compatibility)",
+        "tags": [
+          "Opencode Shim"
+        ]
+      }
+    },
+    "/vcs/{vcsId}": {
+      "get": {
+        "description": "VCS sub-operations are opencode-specific. Declared operations the\nshim does not translate (vcs.apply, vcs.diff.raw) answer the typed\nnot_implemented envelope naming the operation; any other id answers\nthe standard NOT_IMPLEMENTED error envelope. Real reads live at\nGET /vcs (Vcs.Info) and GET /vcs/diff (FileDiff[]).\n",
+        "operationId": "shimVCSItemStub",
+        "parameters": [
+          {
+            "description": "VCS operation name or unknown sub-path id.",
+            "in": "path",
+            "name": "vcsId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/schema-3"
+                    },
+                    {
+                      "$ref": "#/components/schemas/schema"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Opencode-specific VCS operations are not implemented: declared operations (vcs.apply, vcs.diff.raw) answer the typed not_implemented envelope {error, operation, detail}; unknown ids answer the standard NOT_IMPLEMENTED error envelope.\n"
+          }
+        },
+        "summary": "VCS item (stub)",
+        "tags": [
+          "Opencode Shim"
+        ]
+      },
+      "x-not-implemented": true
+    },
+    "/webhooks/{source}": {
+      "post": {
+        "description": "Ingests the raw request body as an external event. The `{source}` value must\nmatch the name, source, or URL path of an enabled row in\n`webhook_registrations`. No Bearer API key is required; the server verifies\nan HMAC-SHA256 hex digest of the exact raw request body using the\nregistration secret.\n\nSupply the digest in `X-Hub-Signature-256`, `X-Signature-256`, or\n`X-Signature` (checked in that order). A leading `sha256=` is optional.\nA missing or invalid signature does not reject the request: the event is\nstored with `signature_valid=false` and `status=quarantined`, and a new\nevent still receives `202 Accepted`.\n",
+        "operationId": "ingestWebhook",
+        "parameters": [
+          {
+            "description": "Registered webhook source, name, or URL-path lookup value.",
+            "example": "docs-demo",
+            "in": "path",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Preferred HMAC-SHA256 hex signature; optional `sha256=` prefix.",
+            "example": "sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "in": "header",
+            "name": "X-Hub-Signature-256",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Fallback HMAC-SHA256 hex signature; optional `sha256=` prefix.",
+            "in": "header",
+            "name": "X-Signature-256",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Final fallback HMAC-SHA256 hex signature; optional `sha256=` prefix.",
+            "in": "header",
+            "name": "X-Signature",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Event type. Falls back to `X-GitHub-Event`, then `unknown`.",
+            "example": "ping",
+            "in": "header",
+            "name": "X-Event-Type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "External delivery identifier used for idempotent ingestion.",
+            "example": "delivery-001",
+            "in": "header",
+            "name": "X-Delivery-ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "event": "ping",
+                "message": "hello"
+              },
+              "schema": {}
+            },
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Raw payload bytes. Sign exactly the bytes sent on the wire.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "event_id": 42,
+                  "message": "event already ingested",
+                  "status": "duplicate"
+                },
+                "schema": {
+                  "properties": {
+                    "event_id": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "duplicate",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "event_id",
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Delivery ID was already ingested; returns the existing event ID when available."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "accepted"
+                },
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "const": "accepted",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "New event accepted, including a new event with an invalid signature."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "The matching webhook registration is disabled."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "No webhook registration matches the source."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "The request body exceeds the 1 MB limit."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "The source exceeded the webhook token-bucket rate limit."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/schema"
+                }
+              }
+            },
+            "description": "The request body could not be read or the event could not be stored."
+          }
+        },
+        "security": [],
+        "summary": "Ingest a signed webhook payload",
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Local development (SQLite or local Postgres)",
+      "url": "http://localhost:8090"
+    },
+    {
+      "description": "Remote deployment (any Postgres provider)",
+      "url": "https://{host}",
+      "variables": {
+        "host": {
+          "default": "localhost:8090"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "description": "Health check (no auth)",
+      "name": "System"
+    },
+    {
+      "description": "Agent session lifecycle",
+      "name": "Sessions"
+    },
+    {
+      "description": "Agent memory and context inspection",
+      "name": "Memory"
+    },
+    {
+      "description": "Task queue management",
+      "name": "Tasks"
+    },
+    {
+      "description": "Tool and skill registry",
+      "name": "Tools"
+    },
+    {
+      "description": "Human-in-the-loop approvals",
+      "name": "Approvals"
+    },
+    {
+      "description": "System metrics, billing, and configuration",
+      "name": "Metrics"
+    },
+    {
+      "description": "API key management",
+      "name": "Auth"
+    },
+    {
+      "description": "HMAC-authenticated external event ingestion",
+      "name": "Webhooks"
+    },
+    {
+      "description": "Real-time Server-Sent Events stream (DF-CONSENSUS-30)",
+      "name": "Events"
+    },
+    {
+      "description": "Cognitive Firewall quarantine management (SPEC-005)",
+      "name": "Quarantine"
+    },
+    {
+      "description": "Model Context Protocol surface (SPEC-015 §5, MCP-DIRECT-001) — the streamable-HTTP transport at /mcp (POST JSON-RPC + GET SSE stream), plus the legacy /mcp/sse and /mcp/message endpoints.\n",
+      "name": "MCP"
+    },
+    {
+      "description": "opencode protocol shim (SPEC-017) — translates the opencode server protocol into native Consensus calls. Mounted at the server root alongside the native /api/v1 REST API.\n",
+      "name": "Opencode Shim"
+    }
+  ]
+}

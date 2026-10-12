@@ -1,8 +1,57 @@
 {
+  "purpose": "Canonical SUITE PIN for the Consensus opencode shim: the upstream checkout our compatibility suite is executed against, the transport adaptation applied to it, and the pristine hash of every file the runner consumes. Consumed by scripts/test-opencode-upstream.sh (which refuses to run if any hash drifts) and pinned in code by internal/chronicle/opencode_upstream_runner_test.go. The PROTOCOL pin (which published OpenAPI document our declared surface is compared against) is a separate file, specs/openapi/opencode-pin.yaml; see docs/opencode-upstream-refresh-procedure.md for why there are two.",
+
   "repository": "https://github.com/anomalyco/opencode.git",
   "revision": "7945de208964a49300d7f770d1a71d078db9a4c4",
   "version": "1.18.33",
   "lock_sha256": "b68e7ece1128eb383663e55ffca4f9f08e451530cc09fc9cf84c489bf41bdc2a",
+  "refreshed_at": "2026-09-30",
+  "refreshed_by": "SHIM-SOURCE-002 (worker tick)",
+
+  "protocol_pin": "specs/openapi/opencode-pin.yaml",
+  "procedure": "docs/opencode-upstream-refresh-procedure.md",
+
+  "transport": {
+    "adapter.patch": "ac906416353261ce238a6bc9354c7a73151f52c9ac3006ecc143c93b4aa7f98c",
+    "preload.mjs": "6317fd87b98612d446eb02f1a69a011c63e0cddf4bb5ed36ea5bced495df8f49",
+    "preload.test.mjs": "789196eaf2614f1224c838626d92556815cf68ebf53fb8c847fe83ac9eb845eb",
+    "note": "The adapter is transport-only: it must not edit an upstream assertion or a test registration, and scripts/test-opencode-upstream.sh --self-test enforces that. The preload redirects loopback/test-host fetches to the shim under test; it deliberately does not redirect /v1/* (the suites' own LLM fixture transport)."
+  },
+
+  "document": {
+    "path": "packages/sdk/openapi.json",
+    "url": "https://raw.githubusercontent.com/sst/opencode/7945de208964a49300d7f770d1a71d078db9a4c4/packages/sdk/openapi.json",
+    "in_repo_copy": "specs/openapi/upstream/openapi-1.18.33.json",
+    "git_blob_sha1": "e66d140505585ab0bab62640360eb08f249f35c0",
+    "sha256": "00502bd13e9c86f3ca9e765e99a57e06fa9f434ca16f2a714766d1444f8d37f3",
+    "size_bytes": 1061286,
+    "path_count": 162,
+    "operation_count": 188,
+    "schema_count": 472,
+    "surface_listing": [
+      "specs/openapi/upstream/openapi-1.18.33.surface.json",
+      "specs/openapi/upstream/openapi-1.18.33.surface.txt"
+    ]
+  },
+
+  "comparison": {
+    "served_surface": "specs/openapi/upstream/consensus-shim-served-surface.yaml",
+    "route_level_script": "scripts/compare-opencode-declared-served.py",
+    "route_level_result": "specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json",
+    "document_level_script": "scripts/opencode-surface-document-diff.py",
+    "surface_diff_report": "docs/evidence/opencode-upstream-v1.18.33/surface-diff-report.md",
+    "evidence_dir_pattern": "docs/evidence/opencode-upstream-v<version>[-rN]/"
+  },
+
+  "consistency": {
+    "enforced_by": [
+      "scripts/test-opencode-upstream.sh --self-test (runner constants vs this file; adapter may not touch upstream assertions)",
+      "scripts/test-opencode-upstream.sh (every hash above is verified against a pristine checkout BEFORE the adapter is applied)",
+      "internal/chronicle/opencode_upstream_runner_test.go (revision, version, lock hash, per-suite path/sha256/transport)"
+    ],
+    "note": "This file records the pin the suite is executed against; a change here without a matching change in the runner constants and the Go test is a red build by design."
+  },
+
   "suites": [
     {
       "path": "packages/opencode/test/server/httpapi-instance.test.ts",
