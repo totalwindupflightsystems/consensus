@@ -2669,6 +2669,10 @@ func makeGitRepo(t *testing.T) string {
 	run("init", "-b", "main")
 	run("config", "user.email", "test@example.com")
 	run("config", "user.name", "Test")
+	// Git commit may launch `git maintenance run --auto --detach`, whose
+	// background child can still be writing .git while testing.TempDir removes
+	// the fixture. Disable auto-maintenance so fixture teardown is synchronous.
+	run("config", "maintenance.auto", "false")
 	// origin/HEAD does not exist in a fresh local repo; set the
 	// init.defaultBranch fallback so default_branch resolves to "main".
 	run("config", "init.defaultBranch", "main")
@@ -2687,6 +2691,19 @@ func makeGitRepo(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return dir
+}
+
+func TestMakeGitRepoDisablesDetachedMaintenance(t *testing.T) {
+	repo := makeGitRepo(t)
+	cmd := exec.Command("git", "-C", repo, "config", "--bool", "--get", "maintenance.auto")
+	cmd.Env = gitEnv()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("read maintenance.auto: %v\n%s", err, out)
+	}
+	if got := strings.TrimSpace(string(out)); got != "false" {
+		t.Fatalf("maintenance.auto = %q, want false", got)
+	}
 }
 
 func TestInstanceEndpoint_GET(t *testing.T) {
