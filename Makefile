@@ -73,7 +73,7 @@ docker:
 .OPENAPI_SPEC := specs/openapi/openapi.yaml
 .OPENAPI_BUNDLED := specs/openapi/bundled.yaml
 
-.PHONY: bundle-spec lint-spec contract-test
+.PHONY: bundle-spec lint-spec check-spec-parity contract-test
 
 # Bundle split OpenAPI files into single output file (SPEC-018 §5.1)
 bundle-spec:
@@ -96,6 +96,18 @@ lint-spec:
 	else \
 		echo "redocly not available. Install: npm install -g @redocly/cli"; \
 	fi
+
+# Declared-vs-served OpenAPI path parity (specs/024 §A.3, SHIM-SOURCE-003).
+# axiom:trace work_item=SHIM-SOURCE-003 spec=specs/024-shim-support-matrix.md impl=Makefile test=internal/api/openapi_parity_test.go
+# Builds a scratch binary from this tree, serves it on a free loopback port
+# with a throwaway SQLite DB (GET /openapi.json needs no API key), then compares
+# the AUTHORED split spec (specs/openapi/openapi.yaml + paths/*.yaml) against the
+# served document AND the runtime route table, per path+method. Exits non-zero
+# naming every drifted path (MISSING / EXTRA / ORPHAN / UNANSWERED) and records
+# the commit it ran at; x-not-implemented path items are exempt by contract.
+# The same check runs in-process as `go test -run TestSpecParityGuard ./internal/api/`.
+check-spec-parity:
+	@bash scripts/check-spec-parity.sh
 
 # Run contract tests against a running server (SPEC-018 §6)
 # Requires: consensus server running, API key in CONSENSUS_API_KEY env var

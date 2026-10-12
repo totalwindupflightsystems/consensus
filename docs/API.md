@@ -105,6 +105,23 @@ The served contract is always the copy embedded in the binary. After running
 curl http://localhost:8090/openapi.json | jq '.paths | keys'
 ```
 
+**Parity guard.** Because the served document is the bundle embedded in the
+binary, a spec edit that was never re-bundled, or a route that shipped
+unregistered, is invisible to anyone reading `bundled.yaml`. `make
+check-spec-parity` closes that gap: it builds a scratch binary from the working
+tree, serves it on a free loopback port with a throwaway SQLite database (`GET
+/openapi.json` needs no API key), and compares the *authored* split spec
+(`specs/openapi/openapi.yaml` plus the `paths/*.yaml` items it references)
+against the *served* document and the runtime route table, per path+method. It
+exits non-zero naming every drifted operation — `MISSING` (declared, not
+served), `EXTRA` (served, not declared), `ORPHAN` (a path item no `openapi.yaml`
+ref reaches) or `UNANSWERED` (declared, but the router answers 404/405) — and it
+records the commit it ran at. Path items marked `x-not-implemented: true` are
+deliberately declared-but-unserved and are exempt. The same comparison runs
+in-process as `go test -run TestSpecParityGuard ./internal/api/`, which is what
+makes an unspecced route or an un-re-bundled edit fail the suite instead of the
+next manual refresh (specs/024 §A.3, SHIM-SOURCE-003).
+
 **Authoritative path count: 61** (36 opencode shim + 24 native `/api/v1` +
 1 HMAC-authenticated webhook path), including the four `/instance` routes
 (`/instance`, `/instance/path`, `/instance/vcs`, `/instance/vcs/diff`) from
