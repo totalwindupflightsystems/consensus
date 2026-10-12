@@ -428,7 +428,8 @@ opencode attach http://localhost:8090
 
 ### 3.9 Shim Endpoint Exclusions
 
-These opencode endpoints relate to opencode's own internal LLM calling and aren't needed — Consensus handles LLM interaction through its native harness (SPEC-008). The shim returns `501 Not Implemented` for these:
+These opencode operations require opencode-owned process/UI state or duplicate
+Consensus's native harness. The shim returns `501 Not Implemented` for these:
 
 | Endpoint | Why Skip |
 |---|---|
@@ -441,6 +442,7 @@ These opencode endpoints relate to opencode's own internal LLM calling and aren'
 | `POST /session/:id/fork` | Consensus has iteration rollback via iteration_commits |
 | `POST /session/:id/revert` | Consensus has its own undo via transaction rollback |
 | `GET /vcs/status`, `POST /vcs/apply` | Remaining VCS sub-operations are opencode-specific; the read routes below are translated, and patch application is a truthful no-op |
+| `POST /pty` (`pty.create`) | Consensus exposes no raw pseudo-terminal lifecycle or PTY registry; shell commands run through its authenticated native tool system, so returning a `Pty` object would fabricate a spawned process |
 
 These return `501 Not Implemented` or are mapped to Consensus equivalents where sensible.
 
@@ -450,7 +452,7 @@ These return `501 Not Implemented` or are mapped to Consensus equivalents where 
 {"error":"not_implemented","operation":"<upstream operationId>","detail":"<what is missing, and which supported surface to use instead>"}
 ```
 
-served by a single helper (`writeNotImplemented`, `internal/shim/opencode/server.go`). A registered route must never answer `404` for a declared operation, and a `501` must never be bodyless: the client has to be able to tell "this shim does not implement that operation" from "no such route". The envelope covers the declared TUI control operations (`tui.clearPrompt`, `tui.control.next`, `tui.control.response`, `tui.openHelp`, `tui.openModels`, `tui.openSessions`, `tui.openThemes`, `tui.publish`); the declared session operation `session.unshare` (`DELETE /session/{sessionID}/share`); the reserved project operations `project.current` (`GET /project/current`), `project.initGit` (`POST /project/git/init`) and `project.directories` (`GET /project/{projectID}/directories`); and the remaining `/vcs` sub-operations `vcs.apply`, `vcs.status`. It does not restyle the older untyped `501` bodies (the remaining `/session` sub-operations, the shim-only TUI actions) and does not alter the typed `404` contract for `/project/{projectID}` below. `GET /project/current` (ROUTE-FIX-005) and `POST /project/git/init` (ROUTE-FIX-006) have since left the envelope for the served routes below.
+served by a single helper (`writeNotImplemented`, `internal/shim/opencode/server.go`). A registered route must never answer `404` for a declared operation, and a `501` must never be bodyless: the client has to be able to tell "this shim does not implement that operation" from "no such route". The envelope covers the intentionally narrowed `pty.create` operation (`POST /pty`); the declared TUI control operations (`tui.clearPrompt`, `tui.control.next`, `tui.control.response`, `tui.openHelp`, `tui.openModels`, `tui.openSessions`, `tui.openThemes`, `tui.publish`); the declared session operation `session.unshare` (`DELETE /session/{sessionID}/share`); the reserved project operations `project.current` (`GET /project/current`), `project.initGit` (`POST /project/git/init`) and `project.directories` (`GET /project/{projectID}/directories`); and the remaining `/vcs` sub-operations `vcs.apply`, `vcs.status`. It does not restyle the older untyped `501` bodies (the remaining `/session` sub-operations, the shim-only TUI actions) and does not alter the typed `404` contract for `/project/{projectID}` below. `GET /project/current` (ROUTE-FIX-005) and `POST /project/git/init` (ROUTE-FIX-006) have since left the envelope for the served routes below. The route-level comparator records `pty.create` under `intentional_narrowing`, not `covered`: this is explicit contract coverage for an unsupported operation, never a claim that the declared `200` success is implemented.
 
 **Served session operations that left this envelope:** `GET /session/status` (`session.status`, ROUTE-FIX-008) and `GET /session/{sessionID}/diff` (`session.diff`, ROUTE-FIX-010) are served for real and are no longer typed `501`s. `GET /session/{sessionID}/diff` answers the declared `200` `SnapshotFileDiff[]` — the workspace's file changes, i.e. the same translation as `GET /vcs/diff` (resolved by `x-opencode-directory`, then the operation's declared `?directory=` selector, then the configured workdir) — and the declared `400` for an unknown session or an invalid/unknown `?messageID=` (declared pattern `^msg`). Consensus keeps no per-message workspace snapshot, so `?messageID=` is validated and resolved against the session's message store but does not narrow the returned set; the operation never answers `501`, and a non-GET request on the sub-path keeps the untyped `501` stub.
 

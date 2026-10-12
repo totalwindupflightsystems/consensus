@@ -12,6 +12,8 @@ Emits a machine-readable comparison plus markdown tables (one row per drift):
   <out>/appendix-drift-declared.md   declared operations the shim does not serve
   <out>/appendix-drift-served.md     served operations the document does not declare
   <out>/appendix-narrowed.md         error-contract-only (success code unreachable)
+  <out>/appendix-intentional-narrowing.md
+                                     explicitly unsupported operations (typed 501)
   <out>/appendix-semantic.md         same path+method, different operation
   <out>/appendix-covered.md          declared operations served as declared
   <out>/family-summary.md            drift counts per path family
@@ -33,6 +35,12 @@ NOT drift: they are the shim's own declared extension surface (SHIM-GAP-005)
 and land in shim_extensions / appendix-shim-extensions.md instead. An
 x-shim-extension row without a rationale aborts the comparison — an
 unexplained extension must not silently pass as accounted divergence.
+
+A declared operation may be classified as an intentional narrowing only when
+the served-surface row carries x-shim-intentional-narrowing: true, a non-empty
+narrowing-rationale, and outcome 501-typed. This records an explicit exclusion
+without pretending that the shim serves the upstream success contract or
+leaving the routed operation in undeclared drift.
 """
 import json
 import re
@@ -134,7 +142,7 @@ def main():
     declared_norm_paths = {norm(p) for p in declared}
     declared_keys = {(norm(p), m) for p, ms in declared.items() for m in ms}
 
-    covered, drift, narrowed, semantic = [], [], [], []
+    covered, drift, narrowed, intentional_narrowing, semantic = [], [], [], [], []
     extensions = []  # SHIM-GAP-005: served routes declared as shim extensions
     for path, methods in sorted(declared.items()):
         np = norm(path)
@@ -150,6 +158,28 @@ def main():
             s = served_by_key.get((np, method))
             if s is not None:
                 row.update({"served_outcome": str(s["outcome"]), "evidence": s["evidence"]})
+                if s.get("x-shim-intentional-narrowing") is True:
+                    rationale = str(s.get("narrowing-rationale") or "").strip()
+                    if not rationale:
+                        raise SystemExit(
+                            "served-surface route %s %s sets "
+                            "x-shim-intentional-narrowing: true without a "
+                            "narrowing-rationale — refusing to hide an "
+                            "unexplained contract narrowing"
+                            % (method, path))
+                    if str(s["outcome"]) != "501-typed":
+                        raise SystemExit(
+                            "served-surface route %s %s marks an intentional "
+                            "narrowing with outcome %s; only the typed 501 "
+                            "not_implemented envelope is accepted"
+                            % (method, path, s["outcome"]))
+                    row["rationale"] = rationale
+                    row["detail"] = (
+                        "explicitly unsupported by the Consensus shim; "
+                        "answers typed 501 instead of fabricating the declared success"
+                    )
+                    intentional_narrowing.append(row)
+                    continue
                 if (path, method) in SEMANTIC_DIFFERENT:
                     row["class"] = "SEMANTIC-DIFFERENT"
                     row["detail"] = SEMANTIC_DIFFERENT[(path, method)]
@@ -243,6 +273,8 @@ def main():
         r["id"] = "SHIM-EXT-%03d" % i
     for i, r in enumerate(narrowed, 1):
         r["id"] = "SHIM-NARROWED-%03d" % i
+    for i, r in enumerate(intentional_narrowing, 1):
+        r["id"] = "SHIM-NARROWED-U%03d" % i
     for i, r in enumerate(semantic, 1):
         r["id"] = "SHIM-SEMANTIC-%03d" % i
 
@@ -252,6 +284,7 @@ def main():
         "served_route_entries": len(served_doc["routes"]),
         "covered_operations": len(covered),
         "narrowed_error_contract_only": len(narrowed),
+        "intentional_narrowing": len(intentional_narrowing),
         "semantic_different": len(semantic),
         "drift_declared_not_served": len(drift),
         "drift_by_class": dict(Counter(d["class"] for d in drift)),
@@ -269,6 +302,7 @@ def main():
         "counts": counts,
         "covered": covered,
         "narrowed_error_contract_only": narrowed,
+        "intentional_narrowing": intentional_narrowing,
         "semantic_different": semantic,
         "drift_declared_not_served": drift,
         "drift_served_not_declared": served_only,
@@ -288,6 +322,10 @@ def main():
     (out / "appendix-narrowed.md").write_text(md_table(narrowed, [
         "id", "path", "method", "operationId", "declared_responses",
         "served_outcome", "detail"]))
+    (out / "appendix-intentional-narrowing.md").write_text(md_table(
+        intentional_narrowing, [
+            "id", "path", "method", "operationId", "declared_responses",
+            "served_outcome", "detail", "rationale"]))
     (out / "appendix-semantic.md").write_text(md_table(semantic, [
         "id", "path", "method", "operationId", "declared_responses",
         "served_outcome", "detail"]))

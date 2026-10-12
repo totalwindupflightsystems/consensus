@@ -246,6 +246,7 @@ mandatory in a refresh:
 The route-level comparison emits, with an id on every row:
 `appendix-drift-declared.md` (declared, not served), `appendix-drift-served.md` (served,
 not declared), `appendix-narrowed.md` (declared success unreachable),
+`appendix-intentional-narrowing.md` (spec-owned exclusions answered by typed `501`),
 `appendix-semantic.md` (same path+method, different operation),
 `appendix-covered.md`, `appendix-shim-extensions.md`, `family-summary.md`.
 
@@ -253,6 +254,12 @@ A served route that upstream does not declare is *drift* unless the served-surfa
 declares it as an intentional extension (`x-shim-extension: true` **plus** an
 `extension-rationale`). The comparison **aborts** on an extension without a rationale —
 an unexplained extension must never pass as accounted divergence.
+
+A declared operation may be intentionally narrowed only when its served row sets
+`x-shim-intentional-narrowing: true`, supplies a non-empty
+`narrowing-rationale`, and reports `outcome: 501-typed`. The comparison aborts
+otherwise. These rows are accounted separately from both full upstream coverage
+and drift; the marker does not turn an unsupported operation into a fake success.
 
 ### 7.2 Live-probe the ambiguous rows
 
