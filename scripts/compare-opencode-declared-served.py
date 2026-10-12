@@ -71,7 +71,6 @@ DEFAULT_SERVED = REPO / "specs/openapi/upstream/consensus-shim-served-surface.ya
 # error-contract-only here until ROUTE-FIX-036 gives part.delete its own
 # handler.
 ERROR_CONTRACT_ONLY = {
-    ("/project/{projectID}", "PATCH"),
     ("/permission/{requestID}/reply", "POST"),
     ("/question/{requestID}/reply", "POST"),
     ("/question/{requestID}/reject", "POST"),

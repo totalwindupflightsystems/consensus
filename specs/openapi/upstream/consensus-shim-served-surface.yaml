@@ -457,9 +457,9 @@ routes:
     evidence: "server.go handleProjectByID sub current && GET → projectCurrent (ROUTE-FIX-005, formerly SHIM-DRIFT-099): declared responses 200 Project, 400 BadRequest. The runtime keeps exactly one workspace per instance (the singleton convention of /instance and /path), so the declared Project is derived from that real workspace directory: id <- instanceID(dir) (the GET /instance singleton id), worktree <- gitWorktree(dir) (git toplevel, else the directory — the /path convention), name <- the workspace base name, vcs <- \"git\" only when git rev-parse --is-inside-work-tree succeeds (optional enum [\"git\"], absent otherwise), commands <- the workspace consensus.json \"commands\" object when present (optional, never synthesized), time <- {created, updated} from the schema_versions ledger (earliest/latest applied_at as epoch millis, the ProjectTime unit), sandboxes <- [] (required key; the runtime spawns no sandboxes), icon omitted (optional). Served arms: a present-but-blank declared query selector (directory, workspace) answers 400 INVALID_REQUEST — the operation declares no requestBody, so the selectors are what keep the declared 400 reachable (the sessionTodo / sync.steal precedent); an unreadable schema_versions ledger answers the declared 400 (the operation declares no 5xx), never a fabricated timestamp. Non-GET on the sub-path keeps the typed 501 (405 is not in the declared set); the bare /project/{projectID} typed 404 and the git/init + directories typed 501s are untouched"
   - path: /project/{projectID}
     method: PATCH
-    outcome: 404-typed
+    outcome: 200
     auth: stub-skip-non-GET
-    evidence: "server.go:234 handleProjectByID (server.go:1197); typed ProjectNotFoundError"
+    evidence: "server.go handleProjectByID -> projectUpdate: resolvable singleton workspace ids persist declared name/icon/commands metadata to consensus.json and return deriveProject; malformed bodies/selectors answer 400, unknown ids retain typed ProjectNotFoundError 404"
   - path: /project/{projectID}
     method: GET
     outcome: 404-typed

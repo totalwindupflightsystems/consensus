@@ -2392,9 +2392,20 @@ func (s *Server) handleProjectByID(w http.ResponseWriter, r *http.Request) {
 			s.projectCurrent(w, r)
 			return
 		}
+		if r.Method == http.MethodPatch {
+			s.projectUpdate(w, r, s.requestWorkspaceDir(r))
+			return
+		}
 		writeNotImplemented(w, r, "project.current",
 			"project.current is declared as a GET operation; the shim translates GET only")
 		return
+	}
+	if r.Method == http.MethodPatch {
+		dir := s.requestWorkspaceDir(r)
+		if projectID == instanceID(dir) {
+			s.projectUpdate(w, r, dir)
+			return
+		}
 	}
 	if projectID == "git/init" {
 		if r.Method == http.MethodPost {
@@ -2545,6 +2556,14 @@ func (s *Server) deriveProject(ctx context.Context, dir string) (map[string]any,
 		// Required key; the runtime spawns no sandboxes.
 		"sandboxes": []any{},
 	}
+	if metadata := readWorkspaceMetadata(dir); metadata != nil {
+		if name, ok := metadata["name"].(string); ok && strings.TrimSpace(name) != "" {
+			project["name"] = name
+		}
+		if icon, ok := metadata["icon"]; ok {
+			project["icon"] = icon
+		}
+	}
 	if inside, err := runGit(ctx, dir, "rev-parse", "--is-inside-work-tree"); err == nil && inside == "true" {
 		project["vcs"] = "git"
 	}
@@ -2652,6 +2671,124 @@ func (s *Server) projectCurrent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, project)
+}
+
+// projectUpdate serves the declared project.update operation against the
+// singleton workspace represented by this shim. It persists only fields the
+// upstream request declares, preserving unrelated consensus.json metadata.
+func (s *Server) projectUpdate(w http.ResponseWriter, r *http.Request, dir string) {
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && (len(values) == 0 || strings.TrimSpace(values[0]) == "") {
+			writeOpencodeBadRequest(w, r, "Query", fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	var raw map[string]json.RawMessage
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err := dec.Decode(&raw); err != nil || raw == nil {
+		writeOpencodeBadRequest(w, r, "Body", "request body must be a JSON object")
+		return
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON value")
+		return
+	}
+	for field := range raw {
+		if field != "name" && field != "icon" && field != "commands" {
+			writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("unknown field %q", field))
+			return
+		}
+	}
+	configPath := filepath.Join(dir, "consensus.json")
+	config := map[string]any{}
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(configPath); err == nil {
+		mode = info.Mode().Perm()
+		data, readErr := os.ReadFile(configPath)
+		if readErr != nil || (len(data) > 0 && json.Unmarshal(data, &config) != nil) {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "could not read consensus.json")
+			return
+		}
+	} else if !os.IsNotExist(err) {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "could not inspect consensus.json: "+err.Error())
+		return
+	}
+	for _, field := range []string{"name", "icon", "commands"} {
+		value, present := raw[field]
+		if !present {
+			continue
+		}
+		if field == "name" {
+			var name string
+			if err := json.Unmarshal(value, &name); err != nil || strings.TrimSpace(name) == "" {
+				writeOpencodeBadRequest(w, r, "Body", `field "name" must be a non-empty string`)
+				return
+			}
+			config[field] = name
+			continue
+		}
+		var object map[string]any
+		if err := json.Unmarshal(value, &object); err != nil || object == nil {
+			writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("field %q must be an object", field))
+			return
+		}
+		for key, item := range object {
+			allowed := field == "icon" && (key == "url" || key == "override" || key == "color")
+			if field == "commands" {
+				allowed = key == "start"
+			}
+			if !allowed {
+				writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("unknown %s field %q", field, key))
+				return
+			}
+			if _, ok := item.(string); !ok {
+				writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("%s field %q must be a string", field, key))
+				return
+			}
+		}
+		config[field] = object
+	}
+	if len(raw) == 0 {
+		writeOpencodeBadRequest(w, r, "Body", "request body must contain at least one declared field")
+		return
+	}
+	if err := os.WriteFile(configPath, mustJSON(config), mode); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "could not persist project metadata: "+err.Error())
+		return
+	}
+	project, err := s.deriveProject(r.Context(), dir)
+	if err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "could not read the project timestamps: "+err.Error())
+		return
+	}
+	if icon, ok := config["icon"]; ok {
+		project["icon"] = icon
+	}
+	if commands, ok := config["commands"]; ok {
+		project["commands"] = commands
+	}
+	if name, ok := config["name"]; ok {
+		project["name"] = name
+	}
+	writeJSON(w, project)
+}
+
+func mustJSON(value any) []byte {
+	data, _ := json.Marshal(value)
+	return data
+}
+
+func readWorkspaceMetadata(dir string) map[string]any {
+	raw, err := os.ReadFile(filepath.Join(dir, "consensus.json"))
+	if err != nil {
+		return nil
+	}
+	var metadata map[string]any
+	if json.Unmarshal(raw, &metadata) != nil {
+		return nil
+	}
+	return metadata
 }
 
 // readWorkspaceCommands reads the workspace's consensus.json "commands" object
