@@ -539,5 +539,5 @@ make smoke          # or: timeout 60 go test -run Smoke ./demo/
 
 - [HTTP API Reference](API.md)
 - [Quickstart (cross-platform)](quickstart-cross-platform.md)
-- [MCP + API spec](specs/015-api-and-mcp.md) (SPEC-015, §5 = MCP)
-- [OpenAPI contract](specs/018-openapi-contract.md)
+- [MCP + API spec](../specs/015-api-and-mcp.md) (SPEC-015, §5 = MCP)
+- [OpenAPI contract](../specs/018-openapi-contract.md)
