@@ -641,3 +641,4 @@
 {"id":563,"type":"close","task_id":"SHIM-SOURCE-003","reason":"committed b1604a2, gitreins verdict PASS","tick":"consensus-foreman-2026-10-12-04-44-36"}
 {"id":564,"type":"close","task_id":"QA-CONSENSUS-14","reason":"verified via act: cross-build, goreleaser-check, gitreins-guard, docker all succeed. Fix was commit 5f19820.","tick":"consensus-foreman-2026-10-12-04-44-36"}
 {"id":"EV-DOC16-CLOSE","ts":"2026-10-12T06:15:00Z","tick":"consensus-foreman-2026-10-12-06-02-56","event":"task_closed","task":"DOC-16","commit":"64f46a6","note":"judge PASS, BROKEN_LINKS 0, pushed parity 0"}
+{"id":565,"type":null,"task_id":"TEST-CONSENSUS-001","reason":null,"tick":null,"timestamp":"2026-10-12T08:59:59.590331+00:00","event_type":"task_completed","actor":"foreman","detail":"{\"status\":\"complete\"}"}
