@@ -1,0 +1,4 @@
+command=timeout 90 go test -json -count=1 -run Smoke ./demo/
+exit_code=0
+top_level_tests_observed=2
+mocked_llm_calls=1

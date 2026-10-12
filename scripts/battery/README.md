@@ -30,6 +30,10 @@ the class that let `C-GAP-032-ALPHA` be closed with zero upstream tests executed
   from the artifacts and pins each to a sha256. An empty run dir is VOID.
 - **`redproof.sh`** — the deliverable of SG-1. Runs every guard against deliberately bad input and
   a positive control, asserting **both** the exit code **and** the guard's own verdict voice.
+- **`t0_sweep.sh`** — the SG-8 T0 build/unit remeasurement. Captures the exact HEAD, format/build/
+  vet/fresh-binary results, one env-clean uncached full Go suite with observable package and test
+  counts, and the keyless smoke's real mock-call count. A dirty tree, format drift, stale DB, or
+  unsupported manifest cell is reported rather than normalized into GREEN.
 - **`t4_sweep.sh`** — the T4 sweep driver (SG-6). Runs ONE real conversation against a scratch
   server (build → boot → create → message → settle → audit) and prints `audited_targets` before
   the verdict; FAILs on a non-idle session or zero tokens/cost. `CONTROL_MODE=mock|badkey` are the
@@ -39,6 +43,7 @@ the class that let `C-GAP-032-ALPHA` be closed with zero upstream tests executed
 
 ```bash
 bash scripts/battery/redproof.sh                     # prove the guards can fail
+bash scripts/battery/t0_sweep.sh                     # SG-8 T0; writes docs/testing/evidence/sg8-t0
 bash scripts/battery/guard_void.sh  <results.json>   # VOID any tier with 0 observables
 bash scripts/battery/zero_target.sh <n> "<label>"    # VOID a zero-audit step
 bash scripts/battery/defect_gate.sh .coding-hermes/board/tasks.jsonl ids.txt

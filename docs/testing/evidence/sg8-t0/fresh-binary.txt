@@ -1,0 +1,4 @@
+root_binary_before=true
+root_binary_after=false
+make_fresh_exit_code=0
+version_exit_code=0

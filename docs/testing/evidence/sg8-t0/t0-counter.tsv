@@ -1,0 +1,2 @@
+# tier	counter_name	what a nonzero value proves
+T0	packages_ok	go build/vet + unit packages that compiled and passed

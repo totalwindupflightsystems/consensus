@@ -1,0 +1,33 @@
+{"Time":"2026-10-12T02:53:38.335561104-05:00","Action":"start","Package":"github.com/wojons/consensus/demo"}
+{"Time":"2026-10-12T02:53:38.935991967-05:00","Action":"run","Package":"github.com/wojons/consensus/demo","Test":"TestSmokePortReservationsAreIndependent"}
+{"Time":"2026-10-12T02:53:38.936045096-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokePortReservationsAreIndependent","Output":"=== RUN   TestSmokePortReservationsAreIndependent\n"}
+{"Time":"2026-10-12T02:53:38.936238574-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokePortReservationsAreIndependent","Output":"--- PASS: TestSmokePortReservationsAreIndependent (0.00s)\n"}
+{"Time":"2026-10-12T02:53:38.936245026-05:00","Action":"pass","Package":"github.com/wojons/consensus/demo","Test":"TestSmokePortReservationsAreIndependent","Elapsed":0}
+{"Time":"2026-10-12T02:53:38.936253892-05:00","Action":"run","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless"}
+{"Time":"2026-10-12T02:53:38.936258351-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"=== RUN   TestSmokeKeyless\n"}
+{"Time":"2026-10-12T02:53:38.936262809-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"\n"}
+{"Time":"2026-10-12T02:53:38.93626901-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"╔══════════════════════════════════════════════════════════════╗\n"}
+{"Time":"2026-10-12T02:53:38.936276344-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"║     CONSENSUS — Keyless Smoke Test (mocked LLM)             ║\n"}
+{"Time":"2026-10-12T02:53:38.936281013-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"╚══════════════════════════════════════════════════════════════╝\n"}
+{"Time":"2026-10-12T02:53:38.936288336-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"\n"}
+{"Time":"2026-10-12T02:53:39.546061093-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#1)\n"}
+{"Time":"2026-10-12T02:53:39.94023264-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: server up (health OK)\n"}
+{"Time":"2026-10-12T02:53:39.958338338-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: session created\n"}
+{"Time":"2026-10-12T02:53:39.970607435-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: session woken — waiting for heartbeat + mocked LLM calls...\n"}
+{"Time":"2026-10-12T02:53:39.977015415-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#2)\n"}
+{"Time":"2026-10-12T02:53:39.978196162-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#3)\n"}
+{"Time":"2026-10-12T02:53:39.979703905-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#4)\n"}
+{"Time":"2026-10-12T02:53:39.980302824-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#5)\n"}
+{"Time":"2026-10-12T02:53:39.980778816-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#6)\n"}
+{"Time":"2026-10-12T02:53:39.981290494-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#7)\n"}
+{"Time":"2026-10-12T02:53:39.981723095-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#8)\n"}
+{"Time":"2026-10-12T02:53:39.982285717-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#9)\n"}
+{"Time":"2026-10-12T02:53:39.982688503-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#10)\n"}
+{"Time":"2026-10-12T02:53:39.98302669-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: LLM request received by mock (#11)\n"}
+{"Time":"2026-10-12T02:53:40.009008437-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: session reached status \"idle\" after 1 mocked LLM call(s)\n"}
+{"Time":"2026-10-12T02:53:40.009039004-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"smoke: PASS — keyless end-to-end harness loop works\n"}
+{"Time":"2026-10-12T02:53:40.011521592-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Output":"--- PASS: TestSmokeKeyless (1.08s)\n"}
+{"Time":"2026-10-12T02:53:40.011546448-05:00","Action":"pass","Package":"github.com/wojons/consensus/demo","Test":"TestSmokeKeyless","Elapsed":1.08}
+{"Time":"2026-10-12T02:53:40.011554994-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Output":"PASS\n"}
+{"Time":"2026-10-12T02:53:40.012249891-05:00","Action":"output","Package":"github.com/wojons/consensus/demo","Output":"ok  \tgithub.com/wojons/consensus/demo\t1.677s\n"}
+{"Time":"2026-10-12T02:53:40.012259239-05:00","Action":"pass","Package":"github.com/wojons/consensus/demo","Elapsed":1.677}

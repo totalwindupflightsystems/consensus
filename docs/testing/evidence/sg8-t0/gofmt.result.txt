@@ -1,0 +1,3 @@
+command=gofmt -l <all tracked Go files>
+exit_code=0
+drift_files=1

@@ -1,0 +1,10 @@
+{"Time":"2026-10-12T02:53:40.494165602-05:00","Action":"start","Package":"github.com/wojons/consensus/internal/harness"}
+{"Time":"2026-10-12T02:53:40.494302466-05:00","Action":"start","Package":"github.com/wojons/consensus/internal/api"}
+{"Time":"2026-10-12T02:53:40.497753699-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/harness","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-12T02:53:40.497787581-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/harness","Output":"PASS\n"}
+{"Time":"2026-10-12T02:53:40.4980461-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/harness","Output":"ok  \tgithub.com/wojons/consensus/internal/harness\t0.004s [no tests to run]\n"}
+{"Time":"2026-10-12T02:53:40.498064424-05:00","Action":"pass","Package":"github.com/wojons/consensus/internal/harness","Elapsed":0.004}
+{"Time":"2026-10-12T02:53:40.498383676-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/api","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-12T02:53:40.498416436-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-12T02:53:40.499064136-05:00","Action":"output","Package":"github.com/wojons/consensus/internal/api","Output":"ok  \tgithub.com/wojons/consensus/internal/api\t0.005s [no tests to run]\n"}
+{"Time":"2026-10-12T02:53:40.49907713-05:00","Action":"pass","Package":"github.com/wojons/consensus/internal/api","Elapsed":0.005}

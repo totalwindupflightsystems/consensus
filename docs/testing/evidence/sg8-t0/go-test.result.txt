@@ -1,0 +1,13 @@
+command=env -i HOME=$HOME PATH=$PATH TMPDIR=<scratch> CGO_ENABLED=0 timeout 600 go test -json -count=1 ./...
+exit_code=0
+json_stream_parse_exit_code=0
+packages_with_tests_passed=36
+packages_no_test_files=4
+packages_failed=0
+test_events_passed=2217
+test_events_failed=0
+test_events_skipped=37
+top_level_tests_passed=1793
+top_level_tests_failed=0
+top_level_tests_skipped=37
+top_level_tests_observed=1830

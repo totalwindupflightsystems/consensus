@@ -1,0 +1,2 @@
+command=git merge-base --is-ancestor ad8afd8 HEAD
+exit_code=0

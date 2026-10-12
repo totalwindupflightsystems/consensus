@@ -1,0 +1,3 @@
+command=ps -C consensus -o pid=,ppid=,stat=,args=
+2866259 2866130 Sl   /tmp/readme-consensus-bin/consensus serve
+note=the listed /tmp/readme-consensus-bin process pre-existed this sweep; t0_sweep started no persistent server

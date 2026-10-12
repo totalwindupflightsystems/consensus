@@ -1,0 +1,4 @@
+command=stat -c %n... dev.db
+dev.db regular file 471040 bytes mode=644 mtime=2026-08-31 00:01:07.457809065 -0500
+command=git check-ignore -v dev.db
+.gitignore:40:dev.db*	dev.db

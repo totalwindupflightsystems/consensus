@@ -1,0 +1,4 @@
+TIER   COUNTER                    OBSERVABLES  VERDICT
+T0     packages_ok                40           ok
+
+guard_void: ok — all 1 tiers report at least one observable.

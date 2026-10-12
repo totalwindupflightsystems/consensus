@@ -1,0 +1,8 @@
+default_command=gitreins guard
+default_exit_code=2
+default_verdict=DEGRADED PASS (not green evidence)
+default_reason=no Go files staged; build/lint/tests skipped
+full_command=gitreins guard --full
+full_exit_code=0
+full_verdict=PASS
+full_observed=secrets, static analysis, Go build, Go lint, and Go tests executed

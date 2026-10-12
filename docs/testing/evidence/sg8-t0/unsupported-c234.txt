@@ -1,0 +1,3 @@
+command=test -e scripts/probe-tvf.go
+exit_code=1
+observed=missing

@@ -1,0 +1,4 @@
+command=go test -json -count=1 -run TestToolRegistry ./internal/harness/ ./internal/api/
+exit_code=0
+test_events_observed=0
+verdict=VOID

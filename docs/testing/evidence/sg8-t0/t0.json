@@ -1,0 +1,102 @@
+{
+  "schema": "consensus-sg8-t0-v1",
+  "tier": "T0",
+  "head": "5a28bf0403552c8434eb54b8715f60399ea624a2",
+  "origin_master": "5a28bf0403552c8434eb54b8715f60399ea624a2",
+  "target_sha": "5a28bf0403552c8434eb54b8715f60399ea624a2",
+  "verdict": "FAIL",
+  "core_build_unit_verdict": "FAIL",
+  "counters": {
+    "packages_targeted": 40,
+    "packages_ok": 40,
+    "packages_failed": 0,
+    "top_level_tests_observed": 1830,
+    "test_events_observed": 2254,
+    "test_events_passed": 2217,
+    "test_events_failed": 0,
+    "test_events_skipped": 37,
+    "smoke_mock_calls": 1,
+    "packages_with_tests_passed": 36,
+    "packages_no_test_files": 4,
+    "top_level_tests_passed": 1793,
+    "top_level_tests_failed": 0,
+    "top_level_tests_skipped": 37
+  },
+  "cells": [
+    {
+      "id": "provenance-clean-tree",
+      "verdict": "FAIL",
+      "dirty_paths": [
+        " M .gitreins/tasks.yaml",
+        "?? .vfs/graph/.symbols_cache.json",
+        "?? scripts/battery/t0_sweep.sh"
+      ]
+    },
+    {
+      "id": "gofmt",
+      "verdict": "FAIL"
+    },
+    {
+      "id": "build-all",
+      "verdict": "PASS"
+    },
+    {
+      "id": "fresh-binary",
+      "verdict": "PASS"
+    },
+    {
+      "id": "vet-all",
+      "verdict": "PASS"
+    },
+    {
+      "id": "env-clean-full-suite",
+      "verdict": "PASS"
+    },
+    {
+      "id": "keyless-smoke",
+      "verdict": "PASS"
+    },
+    {
+      "id": "pool-fix-ancestor",
+      "verdict": "PASS"
+    },
+    {
+      "id": "fresh-db",
+      "verdict": "FAIL"
+    },
+    {
+      "id": "tool-registry-selector",
+      "verdict": "VOID",
+      "test_events_observed": 0
+    },
+    {
+      "id": "gitreins-guard",
+      "verdict": "FAIL",
+      "exit_code": 2,
+      "observed": "DEGRADED PASS; no Go files staged, so build/lint/tests skipped"
+    },
+    {
+      "id": "gitreins-guard-full",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "observed": "whole-tree secrets, static analysis, Go build, Go lint, and Go tests executed"
+    }
+  ],
+  "unexecuted": [
+    {
+      "manifest_ids": [
+        "C-063",
+        "C-128",
+        "C-190",
+        "C-233"
+      ],
+      "reason": "duplicate short-suite variants were not rerun after the stronger env-clean full suite; no verdict assigned"
+    },
+    {
+      "manifest_ids": [
+        "C-234"
+      ],
+      "reason": "scripts/probe-tvf.go does not exist at this HEAD; manifest command unsupported; no substitute fabricated"
+    }
+  ]
+}

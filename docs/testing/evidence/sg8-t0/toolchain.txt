@@ -1,0 +1,3 @@
+go_version=go version go1.26.5 linux/amd64
+test_timeout_seconds=600
+smoke_timeout_seconds=90
