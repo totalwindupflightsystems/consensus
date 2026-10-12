@@ -814,7 +814,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-002"
+      "id": "SHIM-NARROWED-003"
     },
     {
       "path": "/question/{requestID}/reply",
@@ -826,7 +826,7 @@
       "served_outcome": "404-typed",
       "evidence": "server.go:183 handleQuestionByID; typed QuestionNotFoundError server.go:1286",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-003"
+      "id": "SHIM-NARROWED-004"
     },
     {
       "path": "/session/{sessionID}/message/{messageID}/part/{partID}",
@@ -838,7 +838,7 @@
       "served_outcome": "404",
       "evidence": "server.go handleSessionByID sub message/<id> && DELETE still matches the longer part sub-path (ROUTE-FIX-035's case is a message/ prefix match), so DELETE /session/{id}/message/{msgID}/part/{partID} reaches sessionDeleteMessage with messageID 'msg-<id>/part/<id>', which never resolves and answers the declared 404 NOT_FOUND. The declared part.delete 200 (boolean 'Successfully deleted part') is unreachable \u2014 the row stays error-contract-only in the comparison artifact (scripts/compare-opencode-declared-served.py ERROR_CONTRACT_ONLY) exactly as it was before this route entry existed; a dedicated part.delete handler (with ^prt validation and a truthful answer) is ROUTE-FIX-036's scope, not this change's",
       "detail": "shim answers the declared 404 but never the declared success code",
-      "id": "SHIM-NARROWED-004"
+      "id": "SHIM-NARROWED-005"
     },
     {
       "path": "/tui/select-session",
@@ -850,7 +850,7 @@
       "served_outcome": "404",
       "evidence": "server.go:2242-2256; show-toast left the stub list in ROUTE-FIX-029 and execute-command in ROUTE-FIX-023 (both declared, served above)",
       "detail": "router catch-all answers the declared 404 (no success path)",
-      "id": "SHIM-NARROWED-005"
+      "id": "SHIM-NARROWED-006"
     }
   ],
   "intentional_narrowing": [

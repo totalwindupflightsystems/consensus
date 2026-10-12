@@ -270,8 +270,15 @@ def main():
         r["id"] = "SHIM-DRIFT-S%03d" % i
     for i, r in enumerate(extensions, 1):
         r["id"] = "SHIM-EXT-%03d" % i
-    for i, r in enumerate(narrowed, 1):
-        r["id"] = "SHIM-NARROWED-%03d" % i
+    stable_narrowed_ids = {
+        ("/permission/{requestID}/reply", "POST"): "SHIM-NARROWED-001",
+        ("/question/{requestID}/reject", "POST"): "SHIM-NARROWED-003",
+        ("/question/{requestID}/reply", "POST"): "SHIM-NARROWED-004",
+        ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"): "SHIM-NARROWED-005",
+        ("/tui/select-session", "POST"): "SHIM-NARROWED-006",
+    }
+    for r in narrowed:
+        r["id"] = stable_narrowed_ids.get((r.get("path"), r.get("method")), "SHIM-NARROWED-UNKNOWN")
     for i, r in enumerate(intentional_narrowing, 1):
         r["id"] = "SHIM-NARROWED-U%03d" % i
     for i, r in enumerate(semantic, 1):
