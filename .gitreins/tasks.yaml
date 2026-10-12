@@ -1152,3 +1152,41 @@ tasks:
   status: complete
   created_at: '2026-10-10T01:08:43.444110+00:00'
   completed_at: '2026-10-10T01:50:33.582724+00:00'
+- id: shim-suite33-001
+  title: session.get 404 must answer upstream NamedError body
+  criteria:
+  - GET /session/{missingID} answers HTTP 404 with body matching upstream NamedError
+    shape {name:'NotFoundError',data:{message containing 'Session not found'}} (exact
+    capital S)
+  - the shim's own {error:{code,message}} envelope no longer appears on session-not-found
+    404s
+  status: complete
+  created_at: '2026-10-10T03:19:30.949890+00:00'
+  completed_at: '2026-10-10T03:26:56.117337+00:00'
+- id: cost-cache-001
+  title: Wire OpenAI prompt-cache tokens into usage/billing (COST-CACHE-001)
+  criteria:
+  - internal/llm/openai_client.go parses prompt_tokens_details.cached_tokens (and
+    cache_creation tokens if present) from OpenAI-compatible responses into harness.LLMUsage.CacheReadTokens/CacheWriteTokens
+    so RecordBilling receives real cache token counts; unit test with a cached-tokens
+    fixture proves the mapping
+  status: complete
+  created_at: '2026-10-10T03:36:24.770665+00:00'
+  completed_at: '2026-10-10T03:40:40.180754+00:00'
+- id: DF-CONSENSUS-48
+  title: Start async ToolExecutor in serve wiring
+  criteria:
+  - grep -rn 'NewToolExecutor' --include='*.go' shows at least one production caller
+    outside tests and t10probe (i.e. in cmd/consensus or internal wiring)
+  status: complete
+  created_at: '2026-10-10T05:17:59.617996+00:00'
+  completed_at: '2026-10-10T05:19:59.743662+00:00'
+- id: route-fix-031
+  title: Serve POST /vcs/apply per contract (ROUTE-FIX-031)
+  criteria:
+  - POST /vcs/apply answers the declared contract (200 happy path, 400 schema violation,
+    405 non-POST); declared-vs-served artifact flips vcs.apply to covered; sibling
+    501-assert tests updated; go build/vet/test green
+  status: complete
+  created_at: '2026-10-10T06:53:55.152755+00:00'
+  completed_at: '2026-10-10T06:53:55.782053+00:00'
