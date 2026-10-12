@@ -1,14 +1,16 @@
 package opencode
 
-// Tests for the bare /pty mount (ROUTE-ADD-102, ROUTE-FIX-010):
+// Tests for the bare /pty mount (ROUTE-ADD-102, ROUTE-ADD-103,
+// ROUTE-FIX-010):
 //
 //	GET  /pty → upstream pty.list (SHIM-DRIFT-105): 200 with the Pty array —
 //	     always empty, the shim keeps no pseudo-terminal registry — and the
 //	     declared 400 arm for a directory/workspace selector naming a path
 //	     that does not exist.
-//	POST /pty → upstream pty.create (SHIM-DRIFT-106): the typed
-//	     not_implemented envelope (SHIM-GAP-002 rule: a declared operation
-//	     must never be answered with a bodyless 501 or a lying 404).
+//	POST /pty → upstream pty.create (source item SHIM-DRIFT-106): the
+//	     intentional narrowing declared by SPEC-017 §3.9, answered with the
+//	     typed not_implemented envelope (SHIM-GAP-002 rule: a declared
+//	     operation must never be answered with a bodyless 501 or a lying 404).
 //
 // Neighbour guards pin that the mount does not claim the /pty/* sub-paths
 // (pty.shells, pty.get/remove/update stay NOT-SERVED), that non-GET/POST
@@ -105,10 +107,11 @@ func TestPtyListSelector(t *testing.T) {
 	}
 }
 
-// TestPtyCreateNotImplemented pins the POST arm (pty.create, SHIM-DRIFT-106):
-// the typed not_implemented envelope naming the operation — never a bare 501
-// and never a 404 from the newly registered route.
-func TestPtyCreateNotImplemented(t *testing.T) {
+// TestPtyCreateIntentionalNarrowing pins the POST arm (pty.create,
+// ROUTE-ADD-103 / source item SHIM-DRIFT-106): the typed not_implemented
+// envelope naming the operation — never a fabricated Pty, a bare 501, or a 404
+// from the registered route.
+func TestPtyCreateIntentionalNarrowing(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
@@ -134,6 +137,63 @@ func TestPtyCreateNotImplemented(t *testing.T) {
 	}
 	if detail, _ := got["detail"].(string); strings.TrimSpace(detail) == "" {
 		t.Error("detail must name what is missing; got empty")
+	}
+}
+
+// TestPtyCreateIntentionalNarrowingArtifact ties the runtime contract to the
+// generated declared-vs-served artifact. The route must leave drift, but it
+// must not enter full upstream coverage: typed 501 is recorded in the explicit
+// intentional_narrowing bucket with the spec-owned rationale.
+func TestPtyCreateIntentionalNarrowingArtifact(t *testing.T) {
+	artifact := filepath.Join("..", "..", "..", "specs", "openapi", "upstream",
+		"opencode-declared-vs-served-1.18.33.json")
+	raw, err := os.ReadFile(artifact)
+	if os.IsNotExist(err) {
+		t.Skipf("declared-vs-served artifact not present at %s", artifact)
+	}
+	if err != nil {
+		t.Fatalf("read %s: %v", artifact, err)
+	}
+
+	type row struct {
+		Path          string `json:"path"`
+		Method        string `json:"method"`
+		OperationID   string `json:"operationId"`
+		ServedOutcome string `json:"served_outcome"`
+		Rationale     string `json:"rationale"`
+	}
+	var doc struct {
+		Drift                []row `json:"drift_declared_not_served"`
+		IntentionalNarrowing []row `json:"intentional_narrowing"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("decode %s: %v", artifact, err)
+	}
+
+	for _, got := range doc.Drift {
+		if got.Path == "/pty" && got.Method == http.MethodPost {
+			t.Fatalf("POST /pty remains drift instead of explicit intentional narrowing: %+v", got)
+		}
+	}
+
+	var matches []row
+	for _, got := range doc.IntentionalNarrowing {
+		if got.Path == "/pty" && got.Method == http.MethodPost {
+			matches = append(matches, got)
+		}
+	}
+	if len(matches) != 1 {
+		t.Fatalf("intentional_narrowing POST /pty rows = %d, want exactly 1", len(matches))
+	}
+	got := matches[0]
+	if got.OperationID != "pty.create" {
+		t.Errorf("operationId = %q, want pty.create", got.OperationID)
+	}
+	if got.ServedOutcome != "501-typed" {
+		t.Errorf("served_outcome = %q, want 501-typed", got.ServedOutcome)
+	}
+	if strings.TrimSpace(got.Rationale) == "" {
+		t.Error("narrowing rationale is empty")
 	}
 }
 
@@ -173,27 +233,31 @@ func TestPtySubPathsUntouched(t *testing.T) {
 }
 
 // TestPtyAuthStillRequired pins the auth policy: /pty is not a stub path and
-// carries no compatibility exemption, so an unauthenticated request answers
-// 401 UNAUTHENTICATED exactly like the neighbouring api-key routes.
+// carries no compatibility exemption, so unauthenticated GET and POST requests
+// answer 401 UNAUTHENTICATED exactly like the neighbouring api-key routes.
 func TestPtyAuthStillRequired(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
 	srv := httptest.NewServer(s.Handler())
 	defer srv.Close()
 
-	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/pty")
-	if status != http.StatusUnauthorized {
-		t.Fatalf("GET /pty unauthenticated: got %d, want 401. Body: %s", status, body)
-	}
-	var got struct {
-		Error struct {
-			Code string `json:"code"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("401 body is not JSON: %v (%s)", err, body)
-	}
-	if got.Error.Code != "UNAUTHENTICATED" {
-		t.Errorf("error.code = %q, want UNAUTHENTICATED", got.Error.Code)
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			status, _, body := doShimRequest(t, srv.URL, method, "/pty")
+			if status != http.StatusUnauthorized {
+				t.Fatalf("%s /pty unauthenticated: got %d, want 401. Body: %s", method, status, body)
+			}
+			var got struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatalf("401 body is not JSON: %v (%s)", err, body)
+			}
+			if got.Error.Code != "UNAUTHENTICATED" {
+				t.Errorf("error.code = %q, want UNAUTHENTICATED", got.Error.Code)
+			}
+		})
 	}
 }
 

@@ -287,9 +287,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/permission", s.handlePermissions)
 	mux.HandleFunc("/permission/", s.handlePermissionByID)
 
-	// PTY (ROUTE-ADD-102 / ROUTE-FIX-010): bare /pty serves the upstream
-	// pty.list (GET, 200) and answers pty.create (POST) with the typed
-	// not-implemented envelope. /pty/* sub-paths stay unregistered.
+	// PTY (ROUTE-ADD-102 / ROUTE-ADD-103 / ROUTE-FIX-010): bare /pty serves the
+	// upstream pty.list (GET, 200) and answers the intentionally narrowed
+	// pty.create (POST) with the typed not-implemented envelope. /pty/* sub-paths
+	// stay unregistered.
 	mux.HandleFunc("/pty", s.handlePty)
 
 	// TUI control (shim-only, passthrough)
@@ -4960,12 +4961,16 @@ var tuiDeclaredOps = map[string]string{}
 //	     directory, the shim answers the declared 400 arm with the sibling
 //	     writeOpencodeError INVALID_REQUEST envelope instead of silently
 //	     serving a different workspace's (empty) list.
-//	POST /pty — upstream pty.create (SHIM-DRIFT-106): creating terminals is
-//	     opencode-specific (SPEC-017 §3.9 exclusion list); the typed
-//	     not_implemented envelope names the operation. It must stay typed and
-//	     never 404: registering the bare path means POST reaches this handler
-//	     rather than net/http's default, and a bodyless 501 or a 404 would
-//	     reintroduce the dishonesty SHIM-GAP-002 removed.
+//	POST /pty — upstream pty.create (ROUTE-ADD-103, source item
+//	     SHIM-DRIFT-106): creating terminals is intentionally unsupported
+//	     (SPEC-017 §3.9). Consensus exposes no raw PTY lifecycle or process
+//	     registry, so a declared 200 Pty body would fabricate a spawned process.
+//	     The typed not_implemented envelope names the operation. It must stay
+//	     typed and never 404: registering the bare path means POST reaches this
+//	     handler rather than net/http's default, and a bodyless 501 or a 404
+//	     would reintroduce the dishonesty SHIM-GAP-002 removed. The declared-
+//	     vs-served artifact records this as an explicit intentional narrowing,
+//	     not as full upstream success coverage.
 //
 // Non-GET/POST methods answer the sibling METHOD_NOT_ALLOWED envelope.
 // /pty/* sub-paths (pty.shells, pty.get/remove/update, connect) are NOT

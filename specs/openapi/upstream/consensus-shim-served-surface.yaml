@@ -44,6 +44,12 @@
 # (shim_extensions / appendix-shim-extensions.md), not drift — the honest
 # alternative to editing the pinned upstream surface. Every x-shim-extension
 # row MUST carry a rationale; the comparison aborts on one without it.
+#
+# Intentional narrowing declaration: a declared upstream operation that the
+# shim deliberately excludes may set `x-shim-intentional-narrowing: true` only
+# with outcome `501-typed` and a non-empty `narrowing-rationale`. The comparator
+# records it as accounted contract coverage separate from both full upstream
+# coverage and drift; it never treats the typed 501 as the declared success.
 
 meta:
   derived_from: internal/shim/opencode/server.go
@@ -313,7 +319,9 @@ routes:
     method: POST
     outcome: 501-typed
     auth: api-key
-    evidence: "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-102 typed SHIM-DRIFT-106)"
+    x-shim-intentional-narrowing: true
+    narrowing-rationale: "Consensus deliberately exposes no raw PTY lifecycle or process registry: its native shell tool runs inside an authenticated agent session. Returning a fabricated Pty object would falsely claim that a terminal was spawned."
+    evidence: "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-103 resolves source item SHIM-DRIFT-106 as an explicit intentional narrowing)"
 
   # ── Tools ──
   - path: /experimental/tool

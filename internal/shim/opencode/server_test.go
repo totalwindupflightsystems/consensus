@@ -3740,13 +3740,11 @@ func TestHandleGlobalEvent_SSE_WithFlusher(t *testing.T) {
 // bare 501 with an unrelated error body (3 STUB-501) — a client could not tell
 // "no such opencode operation" from "this shim does not implement it".
 //
-// driftID is the per-item id carried by
-// specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json. Those ids
-// are positional (re-assigned by enumeration order when the comparison is
-// regenerated), so the test below pins the semantically stable key —
-// method + path shape + declared operationId — and only uses the id as a label.
+// sourceID is the historical board/source item id. Generated artifact ids are
+// positional, so the test below pins the semantically stable method + path
+// shape + declared operationId key and uses sourceID only as a failure label.
 type notImplementedRoute struct {
-	driftID   string
+	sourceID  string
 	method    string
 	path      string // concrete request path; placeholders filled with the ids below
 	operation string // upstream operationId the envelope must name
@@ -3764,15 +3762,18 @@ type notImplementedRoute struct {
 // SHIM-DRIFT-106 (POST /pty): registering the bare
 // /pty mount means pty.create reaches the handler, where the typed
 // not-implemented envelope answers it — previously NOT-SERVED (net/http
-// default 404), a class the table could not see. ROUTE-FIX-005 served
+// default 404), a class the table could not see. ROUTE-ADD-103 then made that
+// unsupported contract explicit in SPEC-017 and the artifact's
+// intentional_narrowing bucket instead of leaving the typed 501 as outcome
+// drift. ROUTE-FIX-005 served
 // GET /project/current (SHIM-DRIFT-099, the table's longest-standing
 // ROUTED-404 row), which left this table likewise (projectCurrent).
 // ROUTE-FIX-007 served GET /project/{projectID}/directories (SHIM-DRIFT-101),
 // ROUTE-FIX-032 serves GET /vcs/diff/raw (vcs.diff.raw), which left this
 // table and is covered by TestVCSDiffRawDeclaredContract.
 var notImplementedRoutes = []notImplementedRoute{
-	// ROUTED-404: route registered, handler answered 404 NOT_FOUND.
-	{"SHIM-DRIFT-097", http.MethodPost, "/pty", "pty.create"},
+	// Intentional narrowing: the route is registered and answers typed 501.
+	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3824,17 +3825,17 @@ func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, route := range notImplementedRoutes {
-		if seen[route.driftID] {
-			t.Fatalf("duplicate drift id %s in notImplementedRoutes", route.driftID)
+		if seen[route.sourceID] {
+			t.Fatalf("duplicate source id %s in notImplementedRoutes", route.sourceID)
 		}
-		seen[route.driftID] = true
+		seen[route.sourceID] = true
 	}
 
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
 	for _, route := range notImplementedRoutes {
-		t.Run(route.driftID+" "+route.method+" "+route.path, func(t *testing.T) {
+		t.Run(route.sourceID+" "+route.method+" "+route.path, func(t *testing.T) {
 			status, header, body := doShimRequest(t, srv.URL, route.method, route.path)
 
 			if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
@@ -3903,14 +3904,13 @@ func TestNotImplementedEnvelopeIsNotBlanket501(t *testing.T) {
 	}
 }
 
-// TestNotImplementedTableMatchesDriftArtifact ties the table to the committed
-// declared-vs-served comparison (specs/024 §A.3): the SHIM-GAP-002 set and the
-// artifact must agree one-to-one, the artifact must record each of them as
-// answered by the typed envelope (outcome 501-typed), and the dishonest drift
-// classes the row exists to remove — ROUTED-404, METHOD-MISSING, STUB-501 —
-// must be empty. Matching is on the semantically stable key (method + path
-// shape) because the artifact's SHIM-DRIFT-NNN ids are positional.
-func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
+// TestNotImplementedTableMatchesDeclaredSurfaceArtifact ties the table to the
+// committed declared-vs-served comparison (specs/024 §A): the SHIM-GAP-002 set
+// and the artifact must agree one-to-one, each unsupported operation must be in
+// intentional_narrowing with outcome 501-typed and a rationale, and no typed
+// 501 may remain ordinary drift. Matching uses the semantically stable method +
+// path shape + operationId key because generated ids are positional.
+func TestNotImplementedTableMatchesDeclaredSurfaceArtifact(t *testing.T) {
 	artifact := filepath.Join("..", "..", "..", "specs", "openapi", "upstream",
 		"opencode-declared-vs-served-1.18.33.json")
 	raw, err := os.ReadFile(artifact)
@@ -3921,15 +3921,18 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 		t.Fatalf("read %s: %v", artifact, err)
 	}
 
+	type artifactRoute struct {
+		ID            string `json:"id"`
+		Class         string `json:"class"`
+		Method        string `json:"method"`
+		Path          string `json:"path"`
+		OperationID   string `json:"operationId"`
+		ServedOutcome string `json:"served_outcome"`
+		Rationale     string `json:"rationale"`
+	}
 	var doc struct {
-		Drift []struct {
-			ID            string `json:"id"`
-			Class         string `json:"class"`
-			Method        string `json:"method"`
-			Path          string `json:"path"`
-			OperationID   string `json:"operationId"`
-			ServedOutcome string `json:"served_outcome"`
-		} `json:"drift_declared_not_served"`
+		Drift                []artifactRoute `json:"drift_declared_not_served"`
+		IntentionalNarrowing []artifactRoute `json:"intentional_narrowing"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("decode %s: %v", artifact, err)
@@ -3940,42 +3943,51 @@ func TestNotImplementedTableMatchesDriftArtifact(t *testing.T) {
 
 	// The classes SHIM-GAP-002 exists to empty: a handler that answers 404 from
 	// inside a registered route, a registered path missing the declared method,
-	// and an untyped 501 stub.
+	// and an untyped 501 stub. A typed 501 must be explicitly narrowed rather
+	// than left as an OUTCOME-MISMATCH drift row.
 	dishonest := map[string]bool{"ROUTED-404": true, "METHOD-MISSING": true, "STUB-501": true}
-	byKey := map[string]int{}
-	typed := map[string]string{} // shape+method -> operationId
-	for i, row := range doc.Drift {
-		key := shimRouteShape(row.Path) + " " + row.Method
-		byKey[key] = i
+	for _, row := range doc.Drift {
 		if dishonest[row.Class] {
 			t.Errorf("artifact still classifies %s %s as %s (id %s) — SHIM-GAP-002 must empty that class",
 				row.Method, row.Path, row.Class, row.ID)
 		}
 		if row.ServedOutcome == "501-typed" {
-			typed[key] = row.OperationID
+			t.Errorf("artifact leaves %s %s (%s) as ordinary drift; typed 501 requires an explicit intentional narrowing",
+				row.Method, row.Path, row.OperationID)
 		}
 	}
-	if len(typed) != 1 {
-		t.Errorf("artifact records %d operations with outcome 501-typed, want the 1 remaining SHIM-GAP-002 finding after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, and ROUTE-FIX-032 serves vcs.diff.raw", len(typed))
+
+	if len(doc.IntentionalNarrowing) != len(notImplementedRoutes) {
+		t.Fatalf("artifact records %d intentional narrowing rows, want %d declared unsupported operations",
+			len(doc.IntentionalNarrowing), len(notImplementedRoutes))
+	}
+	narrowed := map[string]artifactRoute{}
+	for _, row := range doc.IntentionalNarrowing {
+		key := shimRouteShape(row.Path) + " " + row.Method
+		if row.ServedOutcome != "501-typed" {
+			t.Errorf("intentional narrowing %s has outcome %q, want 501-typed", key, row.ServedOutcome)
+		}
+		if strings.TrimSpace(row.Rationale) == "" {
+			t.Errorf("intentional narrowing %s has no rationale", key)
+		}
+		narrowed[key] = row
 	}
 
 	for _, route := range notImplementedRoutes {
 		key := shimRouteShape(route.path) + " " + route.method
-		i, ok := byKey[key]
+		row, ok := narrowed[key]
 		if !ok {
-			t.Errorf("%s: %s %s is not a drift row in the artifact", route.driftID, route.method, route.path)
+			t.Errorf("%s: %s %s is not an intentional_narrowing row in the artifact",
+				route.sourceID, route.method, route.path)
 			continue
 		}
-		if row := doc.Drift[i]; row.OperationID != route.operation {
-			t.Errorf("%s: artifact operationId is %q, table claims %q", route.driftID, row.OperationID, route.operation)
+		if row.OperationID != route.operation {
+			t.Errorf("%s: artifact operationId is %q, table claims %q",
+				route.sourceID, row.OperationID, route.operation)
 		}
-		if _, ok := typed[key]; !ok {
-			t.Errorf("%s: artifact served_outcome for %s %s is %q, want 501-typed",
-				route.driftID, route.method, route.path, doc.Drift[i].ServedOutcome)
-		}
-		delete(typed, key)
+		delete(narrowed, key)
 	}
-	for key, op := range typed {
-		t.Errorf("artifact records %s as 501-typed (%s) but notImplementedRoutes does not cover it", key, op)
+	for key, row := range narrowed {
+		t.Errorf("artifact records untested intentional narrowing %s (%s)", key, row.OperationID)
 	}
 }

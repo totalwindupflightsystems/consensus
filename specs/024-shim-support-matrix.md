@@ -40,6 +40,16 @@ would be a separate decision (see `REVIEW-CONSENSUS-9` for the cross-vendor/inte
 4. The upstream compatibility suite is re-run and its number re-measured at the new pin.
    The number is only meaningful with its pin attached.
 
+**Intentional narrowing is explicit coverage, not upstream parity.** A declared
+operation may remain unsupported only when the owning protocol spec names the
+exclusion, the served-surface row sets `x-shim-intentional-narrowing: true` with
+a non-empty `narrowing-rationale`, and the runtime answers the typed `501`
+`not_implemented` envelope. The route comparator records these rows under
+`intentional_narrowing`, separate from both `covered` and drift. It rejects a
+missing rationale or any outcome other than `501-typed`, so a `404`, bare `501`,
+or fabricated success cannot be hidden as an intentional narrowing. `POST /pty`
+(`pty.create`) is the first such row; SPEC-017 §3.9 owns its exclusion.
+
 ---
 
 ## B. Provider-facing: the DeepSeek harness API
