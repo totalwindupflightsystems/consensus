@@ -435,3 +435,23 @@ sh scripts/test-opencode-upstream.sh --base-url http://127.0.0.1:18242 \
 Route-level output stays canonical at
 `specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json` (reproduced byte-identical
 in §5).
+
+## 10. ROUTE-ADD-104 follow-up — `GET /pty/shells`
+
+The route-level comparison was rerun after ROUTE-ADD-104 added the declared
+`pty.shells` operation. The implementation discovers executable regular files
+listed by the host's `/etc/shells` (with conventional fallbacks), validates the
+optional directory/workspace selectors, and keeps the standard API-key auth.
+It does not fabricate a PTY session registry.
+
+The stable declared operation key `/pty/shells` + `GET` + `pty.shells` moved from
+`drift_declared_not_served` to `covered`; the canonical route artifact uses the
+repository's positional `SHIM-DRIFT-NNN` ids for the remaining drift rows.
+The comparator's fresh output was cross-checked against the targeted artifact
+flip by stable path/method/operation rows:
+
+```text
+{"declared_paths":162,"declared_operations":188,"served_route_entries":103,"covered_operations":74,"narrowed_error_contract_only":6,"intentional_narrowing":1,"semantic_different":2,"drift_declared_not_served":105,"drift_by_class":{"NOT-SERVED":101,"OUTCOME-MISMATCH":4},"drift_served_not_declared":0,"served_drift_by_class":{},"shim_extension_operations":17}
+```
+
+Live HTTP evidence is recorded in `docs/evidence/ROUTE-ADD-104-live-probe.md`.

@@ -287,10 +287,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/permission", s.handlePermissions)
 	mux.HandleFunc("/permission/", s.handlePermissionByID)
 
-	// PTY (ROUTE-ADD-102 / ROUTE-ADD-103 / ROUTE-FIX-010): bare /pty serves the
-	// upstream pty.list (GET, 200) and answers the intentionally narrowed
-	// pty.create (POST) with the typed not-implemented envelope. /pty/* sub-paths
-	// stay unregistered.
+	// PTY (ROUTE-ADD-102 / ROUTE-ADD-103 / ROUTE-ADD-104 / ROUTE-FIX-010):
+	// bare /pty serves pty.list and the intentionally narrowed pty.create;
+	// /pty/shells serves the host's discoverable shell executables. Other
+	// /pty/* sub-paths stay unregistered.
+	mux.HandleFunc("/pty/shells", s.handlePtyShells)
 	mux.HandleFunc("/pty", s.handlePty)
 
 	// TUI control (shim-only, passthrough)
@@ -403,7 +404,7 @@ var MountPatterns = []string{
 	"/file", "/file/*",
 	"/event",
 	"/permission", "/permission/*",
-	"/pty",
+	"/pty", "/pty/*",
 	"/tui/*",
 	"/lsp", "/lsp/*",
 	"/doc", "/doc/*",
@@ -4972,11 +4973,12 @@ var tuiDeclaredOps = map[string]string{}
 //	     vs-served artifact records this as an explicit intentional narrowing,
 //	     not as full upstream success coverage.
 //
-// Non-GET/POST methods answer the sibling METHOD_NOT_ALLOWED envelope.
-// /pty/* sub-paths (pty.shells, pty.get/remove/update, connect) are NOT
-// registered and stay NOT-SERVED (net/http default 404) — only the bare
-// mount is claimed. Auth is untouched: /pty is not a stub path and carries
-// no fixed-workspace exemption, so it keeps the standard api-key policy.
+// Non-GET/POST methods on the bare route answer the sibling
+// METHOD_NOT_ALLOWED envelope. /pty/{ptyID} sub-paths (pty.get/remove/update,
+// connect) remain NOT-SERVED (net/http default 404); /pty/shells is the one
+// declared child route registered separately above. Auth is untouched: PTY
+// routes are not stub paths and carry no fixed-workspace exemption, so they
+// keep the standard api-key policy.
 func (s *Server) handlePty(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

@@ -310,6 +310,11 @@ routes:
     evidence: "server.go:193 handleSkill (ROUTE-ADD-111, formerly SHIM-DRIFT-125)"
 
   # ── PTY ──
+  - path: /pty/shells
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handlePtyShells (ROUTE-ADD-104, formerly SHIM-DRIFT-107): host-backed discovery from /etc/shells, with only executable regular files returned; declared directory/workspace selectors answer 400 INVALID_REQUEST"
   - path: /pty
     method: GET
     outcome: 200

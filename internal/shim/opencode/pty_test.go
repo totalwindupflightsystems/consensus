@@ -1,7 +1,7 @@
 package opencode
 
-// Tests for the bare /pty mount (ROUTE-ADD-102, ROUTE-ADD-103,
-// ROUTE-FIX-010):
+// Tests for the bare /pty mount and its shell discovery child route
+// (ROUTE-ADD-102, ROUTE-ADD-103, ROUTE-ADD-104, ROUTE-FIX-010):
 //
 //	GET  /pty → upstream pty.list (SHIM-DRIFT-105): 200 with the Pty array —
 //	     always empty, the shim keeps no pseudo-terminal registry — and the
@@ -11,11 +11,13 @@ package opencode
 //	     intentional narrowing declared by SPEC-017 §3.9, answered with the
 //	     typed not_implemented envelope (SHIM-GAP-002 rule: a declared
 //	     operation must never be answered with a bodyless 501 or a lying 404).
+//	GET  /pty/shells → upstream pty.shells (source item SHIM-DRIFT-107):
+//	     host-backed shell discovery with declared 200 and 400 arms. Its
+//	     focused regression battery lives in pty_shells_test.go.
 //
-// Neighbour guards pin that the mount does not claim the /pty/* sub-paths
-// (pty.shells, pty.get/remove/update stay NOT-SERVED), that non-GET/POST
-// methods answer 405, and that /pty keeps Consensus auth (no stub-path
-// exemption, no fixed-workspace exemption).
+// Neighbour guards pin that the remaining /pty/{ptyID} sub-paths stay
+// untouched, that non-GET/POST methods answer 405, and that /pty keeps
+// Consensus auth (no stub-path exemption, no fixed-workspace exemption).
 
 import (
 	"encoding/json"
@@ -211,16 +213,15 @@ func TestPtyMethodNotAllowed(t *testing.T) {
 	}
 }
 
-// TestPtySubPathsUntouched guards the neighbours: only the bare /pty mount is
-// registered — /pty/shells (pty.shells), /pty/{ptyID} (pty.get/remove/update)
-// and every other sub-path stay NOT-SERVED (net/http default 404, artifact
-// rows SHIM-DRIFT-107..110 untouched).
+// TestPtySubPathsUntouched guards the neighbours: /pty/{ptyID}
+// (pty.get/remove/update), connect, and every other unregistered sub-path stay
+// NOT-SERVED (net/http default 404, artifact rows SHIM-DRIFT-108..111). The
+// separately declared /pty/shells operation is covered by pty_shells_test.go.
 func TestPtySubPathsUntouched(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/pty/shells"},
 		{http.MethodGet, "/pty/pty_1"},
 		{http.MethodDelete, "/pty/pty_1"},
 		{http.MethodGet, "/pty/pty_1/connect"},
