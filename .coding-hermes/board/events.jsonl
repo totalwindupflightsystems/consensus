@@ -650,3 +650,6 @@
 {"id":571,"timestamp":"2026-10-12T15:35:02Z","event_type":"task_created","task_id":"CI-CONSENSUS-001","actor":"foreman","detail":"{\"id\":\"CI-CONSENSUS-001\",\"status\":\"pending\"}"}
 {"id":572,"timestamp":"2026-10-12T15:35:59Z","event_type":"task_updated","task_id":"SHIM-SUPPORT-001","actor":"foreman","detail":"{\"status\":\"pending\"}"}
 {"id":573,"timestamp":"2026-10-12T15:59:17Z","event_type":"task_completed","task_id":"CI-CONSENSUS-001","actor":"foreman","detail":"{\"status\":\"complete\"}"}
+{"id":574,"timestamp":"2026-10-12T16:24:39Z","event_type":"task_updated","task_id":"ROUTE-ADD-063","actor":"foreman","detail":"{\"status\":\"in_progress\"}"}
+{"id":575,"timestamp":"2026-10-12T16:24:39Z","event_type":"task_dispatched","task_id":"ROUTE-ADD-063","actor":"foreman","detail":"{\"tick\":\"consensus-foreman-2026-10-12-16-13-50\",\"model\":\"gpt-5.6-sol\",\"provider\":\"openai-codex\",\"mode\":\"serial\",\"premise\":\"GET /command absent from mux and SHIM-DRIFT-060 NOT-SERVED at HEAD fbb2b36\"}"}
+{"timestamp": "2026-10-13T06:35:00Z", "event_type": "task_completed", "task_id": "ROUTE-ADD-063", "actor": "foreman", "detail": "{\"commit\":\"d25d2c6\",\"worker_commit\":\"eaba0b8\",\"guard\":\"PASS\",\"judge\":\"tier2 PASS\",\"ci\":\"pending exact HEAD\",\"tick\":\"consensus-foreman-2026-10-13-06-08-21\"}"}

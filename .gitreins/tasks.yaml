@@ -1206,3 +1206,61 @@ tasks:
   status: complete
   created_at: '2026-10-12T04:46:28.653238+00:00'
   completed_at: '2026-10-12T05:08:15.562347+00:00'
+- id: test-consensus-001
+  title: Execute next Consensus full-test-plan subgoal
+  criteria:
+  - Execute the next uncompleted SG-8 remeasurement from docs/testing/quorum-q1-merged-verdicts.md
+    on the current checkout without rerunning already-proven SG-6/SG-7 work.
+  - Produce a committed evidence artifact with nonzero executed-test counts and raw
+    recomputable results; do not claim green for unexecuted or unsupported tiers.
+  - Keep the implementation/report scoped to TEST-CONSENSUS-001, preserve secret hygiene,
+    run the repository-required gates, and commit the deliverable.
+  status: complete
+  created_at: '2026-10-12T07:46:07.065695+00:00'
+  completed_at: '2026-10-12T08:30:46.045570+00:00'
+- id: route-add-103
+  title: Serve POST /pty per declared pty.create contract
+  criteria:
+  - POST /pty returns the typed not_implemented envelope for the current truthful
+    unsupported implementation, never net/http 404
+  - The route covers the declared 200 and 400 response arms or records the contract
+    narrowing in the source artifact and tests
+  - A scratch/live probe and declared-vs-served artifact show SHIM-DRIFT-106 covered,
+    with focused tests green
+  status: in_progress
+  created_at: '2026-10-12T09:10:48.567578+00:00'
+- id: route-fix-034
+  title: Serve PATCH /project/{projectID} per contract
+  criteria:
+  - PATCH /project/{projectID} returns declared 200 for a resolvable project update
+    and declared 400/404 errors, has focused regression and live probe coverage, and
+    SHIM-NARROWED-002 is covered in regenerated declared-vs-served artifacts.
+  status: in_progress
+  created_at: '2026-10-12T14:42:49.608429+00:00'
+- id: ci-consensus-001
+  title: Investigate TestInstanceVCSDiffEndpoint cleanup failure
+  criteria:
+  - Reproduce the exact-head CI failure from run 38268878976 in internal/shim/opencode
+    TestInstanceVCSDiffEndpoint_GET; identify whether the TempDir cleanup directory-not-empty
+    failure is caused by a real leaked process or test-environment flake; if code/test-owned,
+    implement the smallest fix with regression coverage; if infrastructure-only, document
+    the proof and leave the board row explicitly open with evidence.
+  status: complete
+  created_at: '2026-10-12T15:35:59.605394+00:00'
+  completed_at: '2026-10-12T15:49:18.374480+00:00'
+- id: route-add-063
+  title: Serve GET /command per declared command.list contract
+  criteria:
+  - GET /command is registered and no longer falls through to default 404; declared
+    200 and 400 response arms are covered by tests/live probe; declared-vs-served
+    artifact marks SHIM-DRIFT-060 covered
+  status: in_progress
+  created_at: '2026-10-12T16:22:33.087140+00:00'
+- id: ROUTE-ADD-063
+  title: Serve GET /command shim route
+  criteria:
+  - Shim serves GET /command (200 happy path, 400 bad request, 405 non-GET); tests
+    cover declared responses; SHIM-DRIFT-060 flips to covered in regenerated comparison
+  status: complete
+  created_at: '2026-10-13T06:10:15.342962+00:00'
+  completed_at: '2026-10-13T06:21:47.486334+00:00'
