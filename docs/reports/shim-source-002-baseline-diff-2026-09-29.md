@@ -889,4 +889,47 @@ itself, not only in prose:
 * **Class stay**: the comparison classes are unchanged (`side` remains
   PATH-ABSENT ×16 + METHOD-ABSENT ×1 — upstream v1.18.33 still declares
   neither the paths nor the GET method); only the decision record was added.
+## Addendum — SHIM-GAP-006 (2026-10-13): the two `/mcp` semantic divergences decided — our semantics kept, declared
+
+§4 F4 flagged `/mcp` GET+POST as the same path+method serving a different operation
+from upstream's document (rows `SHIM-SEMANTIC-001`, `SHIM-SEMANTIC-002`). Both rows are
+now DECIDED, not just flagged:
+
+**Decision: keep the MCP protocol delegation; do NOT adopt `mcp.status` / `mcp.add`.**
+The upstream operations are MCP *management* calls (list server statuses; dynamically
+add a server). Consensus serves `/mcp` as the MCP **streamable-HTTP transport itself**
+(MCP-DIRECT-001): `GET /mcp` is the server-initiated SSE stream (same handler as
+`GET /mcp/sse`), `POST /mcp` is the JSON-RPC endpoint with `Mcp-Session-Id` sessions and
+the initialize-handshake auth (401 + JSON-RPC `-32002` for unauthenticated non-handshake
+methods). A non-MCP-shaped request (no JSON content-type on POST, no SSE accept on GET)
+still answers the shim's 501 NOT_IMPLEMENTED stub — unchanged from the baseline.
+
+**Reason (why not adopt):** the collision is protocol-vs-management; the two semantics
+are mutually exclusive on one path. Adopting `mcp.status`/`mcp.add` would break every
+MCP client connecting via streamable-HTTP — the transport REVIEW-CONSENSUS-11 explicitly
+routes flaky SSE clients to — while the management capability is already covered where
+it belongs: the `/mcp/{name}/auth|connect|disconnect` family (translated, ROUTE-ADD-093..098)
+and the `/config` surface (`mcp.<name>` keys, the same store the management family
+resolves). Changing the handlers would also invalidate the served contract already
+documented in `specs/openapi/paths/shim.yaml` (the `mcp:` block's 200/202/400/401/405/501
+responses).
+
+**Predictability (criterion 2):** the served document already describes the actual
+behavior — a client generated from the Consensus bundle (`specs/openapi/bundled.yaml`)
+predicts the streamable-HTTP semantics from `paths/shim.yaml`. What a client generated
+from the UPSTREAM document cannot do is call `mcp.status`/`mcp.add` here; that limit is
+now written where a reader will look:
+`specs/015-api-and-mcp.md` §5.4.1 (full rationale + REVIEW-CONSENSUS-11 consistency
+note) and `specs/018-openapi-contract.md` §3 (shim paths block comment,
+SHIM-GAP-006). `scripts/compare-opencode-declared-served.py` keeps classifying both
+rows `SEMANTIC-DIFFERENT` (`SHIM-SEMANTIC-001/002`) — the artifact rows stay as the
+machine-checkable record of the divergence; no handler or test changes were made
+(specs + docs only).
+
+**Coordination with REVIEW-CONSENSUS-11:** that row (MCP SSE transport loses sessions on
+stream drop; docs should route flaky clients to streamable-HTTP) is NOT implemented here.
+The two decisions are consistent: this addendum keeps `POST /mcp` = the streamable-HTTP
+JSON-RPC surface that REVIEW-CONSENSUS-11's guidance points flaky clients at, and
+specifies that SSE (`GET /mcp/sse`, `GET /mcp`) remains the session-lossy legacy path
+until that row lands.
 

@@ -549,6 +549,38 @@ Authentication is required for **both** transports (SSE and stdio): the client m
 | stdio | Go MCP server, for local CLI integration |
 | streamable-HTTP | Go handler mounted at `/mcp` (POST JSON-RPC; GET serves the SSE stream; sessions addressed by the `Mcp-Session-Id` response header — MCP-DIRECT-001) |
 
+#### 5.4.1 `/mcp` divergence from the upstream opencode contract (SHIM-GAP-006)
+
+The upstream opencode document (pinned at `specs/openapi/upstream/openapi-1.18.33.json`)
+declares two *management* operations on `/mcp`: `mcp.status` (GET — "Get the status
+of all MCP servers") and `mcp.add` (POST — "Dynamically add a new MCP server").
+Consensus **deliberately does not adopt those semantics**; on this runtime `GET /mcp`
+and `POST /mcp` are the MCP **streamable-HTTP protocol endpoint itself** (MCP-DIRECT-001):
+
+* `GET /mcp` serves the server-initiated SSE stream (same handler as `GET /mcp/sse`).
+* `POST /mcp` accepts JSON-RPC 2.0 MCP requests (initialize, tools/list, tools/call, …)
+  and answers the JSON-RPC response, with sessions addressed by the `Mcp-Session-Id`
+  response header. Authentication happens inside the initialize handshake (§5.3);
+  unauthenticated non-handshake calls answer HTTP 401 with a JSON-RPC error object
+  (code -32002). A non-MCP-shaped request (no JSON body on POST, no SSE accept on GET)
+  answers the shim's 501 NOT_IMPLEMENTED stub.
+
+**Reason for keeping our semantics:** the path collision is between a *management API*
+(upstream: configure MCP servers) and the *protocol transport* (Consensus: speak MCP).
+The two are mutually exclusive on one path; adopting `mcp.status`/`mcp.add` would break
+every MCP client that connects via streamable-HTTP (a supported transport since
+MCP-DIRECT-001), while the upstream management capability is covered instead by the
+`/mcp/{name}/auth|connect|disconnect` family (which IS translated), and MCP server
+configuration is managed through the `/config` surface (`mcp.<name>` keys). A client can
+predict the behavior from the served document (`specs/openapi/paths/shim.yaml`, `mcp:`
+block), which describes the streamable-HTTP semantics — not from the upstream document.
+
+**Consistency with REVIEW-CONSENSUS-11:** that finding (MCP SSE transport loses sessions
+on stream drop) routes flaky clients to this streamable-HTTP surface. Because `POST /mcp`
+is that surface, this divergence is required for REVIEW-CONSENSUS-11's guidance to be
+actionable — the two decisions are aligned, and REVIEW-CONSENSUS-11 itself is implemented
+elsewhere.
+
 ### 5.4 MCP Resource Templates
 
 Resources allow MCP clients to read agent state without needing specific tools:
