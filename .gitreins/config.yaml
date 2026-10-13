@@ -45,6 +45,11 @@ pipeline:
       run: go test -short -count=1 ./...
       timeout: 600
       on_fail: continue
+    - id: spec_parity
+      type: script
+      run: make check-spec-parity
+      timeout: 180
+      on_fail: block
   - id: tier2
     type: ai_eval
     true:
