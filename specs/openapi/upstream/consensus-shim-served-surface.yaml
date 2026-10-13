@@ -346,6 +346,11 @@ routes:
     evidence: "server.go:196 handleToolIDs"
 
   # ── File / find ──
+  - path: /api/fs/find
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "fs_find.go handleFSFind (ROUTE-ADD-010, formerly SHIM-DRIFT-006): recursive workspace-relative fuzzy search returns declared LocationInfo + FileSystemEntry[]; required query, type enum, positive limit, and deepObject location selectors are validated with declared InvalidRequestError 400; unauthenticated requests answer declared UnauthorizedError 401"
   - path: /find
     method: GET
     outcome: 200

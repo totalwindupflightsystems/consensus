@@ -25,14 +25,14 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 105,
-    "covered_operations": 77,
+    "served_route_entries": 106,
+    "covered_operations": 78,
     "narrowed_error_contract_only": 5,
     "intentional_narrowing": 1,
     "semantic_different": 2,
-    "drift_declared_not_served": 103,
+    "drift_declared_not_served": 102,
     "drift_by_class": {
-      "NOT-SERVED": 99,
+      "NOT-SERVED": 98,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -49,6 +49,16 @@
       "family": "/agent",
       "served_outcome": "200",
       "evidence": "server.go:192 handleAgent"
+    },
+    {
+      "path": "/api/fs/find",
+      "method": "GET",
+      "operationId": "v2.fs.find",
+      "tags": "filesystem",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "fs_find.go handleFSFind (ROUTE-ADD-010, formerly SHIM-DRIFT-006): recursive workspace-relative fuzzy search returns declared LocationInfo + FileSystemEntry[]; required query, type enum, positive limit, and deepObject location selectors are validated with declared InvalidRequestError 400; unauthenticated requests answer declared UnauthorizedError 401"
     },
     {
       "path": "/auth/{providerID}",
@@ -971,17 +981,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-005"
-    },
-    {
-      "path": "/api/fs/find",
-      "method": "GET",
-      "operationId": "v2.fs.find",
-      "tags": "filesystem",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/api/fs/list",

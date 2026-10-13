@@ -275,6 +275,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/experimental/tool", s.handleTools)
 	mux.HandleFunc("/experimental/tool/ids", s.handleToolIDs)
 
+	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
+	// recursive filesystem search. Keep the registration exact so sibling v2
+	// filesystem operations remain unclaimed until their own contract rows land.
+	mux.HandleFunc("/api/fs/find", s.handleFSFind)
+
 	// File endpoints (stubs via tool execution API)
 	mux.HandleFunc("/find", s.handleFind)
 	mux.HandleFunc("/find/", s.handleFindSub)
@@ -406,6 +411,7 @@ var MountPatterns = []string{
 	"/skill", "/skill/*",
 	"/formatter", "/formatter/*",
 	"/experimental/*",
+	"/api/fs/find",
 	"/find", "/find/*",
 	"/file", "/file/*",
 	"/event",
@@ -471,6 +477,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		_, ok := s.validateAuth(r)
 		if !ok {
+			if r.URL.Path == "/api/fs/find" {
+				writeV2Unauthorized(w, "invalid credentials")
+				return
+			}
 			writeOpencodeError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "invalid credentials")
 			return
 		}
