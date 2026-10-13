@@ -844,3 +844,49 @@ was answered "recorded as intentional" on the served-surface side:
   (17 rows, 2026-09-29); the live state is the regenerated
   `specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`.
 
+---
+
+## Addendum — SHIM-GAP-005 re-verification (2026-10-13): per-entry decisions + mechanical reconciliation at HEAD `6292301`
+
+The 2026-10-07 addendum declared the 17 served-not-declared rows as intentional
+shim extensions; this re-verification pass (worktree `wt/SHIM-GAP-005`) adds the
+per-entry decision record and re-proves the SHIM-SOURCE-003 mechanical
+reconciliation against the current HEAD, so the question "declared, or removed
+with proof, or justified as intentional?" is answered per row in the artifact
+itself, not only in prose:
+
+* **Per-entry decisions** (`specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`,
+  `shim_extensions[]`): each of the 17 rows now carries `decision` +
+  `decision_reason`.
+  - **9 `declared`** — present in the shipped spec bundle
+    (`specs/openapi/openapi.yaml` → `paths/shim.yaml`, embedded in
+    `specs/openapi/bundled.yaml` served at `/openapi.json` and `/doc`):
+    `/doc` GET, `/permission/{id}` GET, `/permission/{id}/resolve` POST,
+    `/project/{projectID}` GET, `/vcs/{id}` GET (x-not-implemented),
+    `/instance` GET, `/instance/path` GET, `/instance/vcs` GET,
+    `/instance/vcs/diff` GET.
+  - **8 `justified-intentional`** — the known-but-untranslated 501 stubs
+    (`/instance/vcs/status`, `/instance/vcs/diff/raw`, `/instance/vcs/apply`
+    POST, `/instance/command`, `/instance/agent`, `/instance/skill`,
+    `/instance/lsp`, `/instance/formatter`): deliberately NOT declared in the
+    shipped document (a declared-but-unserved 501 path item would invert the
+    contract), justified on the served-surface row via
+    `x-shim-extension: true` + `extension-rationale` and recorded as
+    intentional extension surface. None of the 17 was vestigial — every route
+    serves real (or deliberately stubbed) behavior read from its Go handler,
+    so no route was removed and there is no removal proof to file.
+* **Mechanical reconciliation (SHIM-SOURCE-003)** at HEAD `6292301`:
+  `python3 scripts/compare-opencode-declared-served.py` reproduces the
+  committed artifact (fresh run == committed file, byte-identical modulo the
+  decision annotations above) with `drift_served_not_declared: 0` — zero
+  PATH-ABSENT/METHOD-ABSENT S-entries remain — and
+  `shim_extension_operations: 17`. The comparator aborts on any
+  `x-shim-extension` row lacking a rationale, so this cannot go stale
+  silently. The bash wrapper `scripts/check-spec-parity.sh` (scratch server +
+  `scripts/spec-parity-check.py` document/runtime comparison) exits 0 at this
+  HEAD: MISSING/EXTRA/ORPHAN/UNANSWERED all empty.
+* **Gate**: `go test -count=1 -short ./...` exit 0 at this HEAD.
+* **Class stay**: the comparison classes are unchanged (`side` remains
+  PATH-ABSENT ×16 + METHOD-ABSENT ×1 — upstream v1.18.33 still declares
+  neither the paths nor the GET method); only the decision record was added.
+

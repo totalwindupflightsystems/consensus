@@ -2055,7 +2055,9 @@
       "evidence": "server.go:186 handleDoc; serves the CONSENSUS bundle (specs/openapi/bundled.yaml), not the upstream document; empty bundle answers 404 NOT_FOUND, spec parse failure 500 INTERNAL_ERROR",
       "family": "/doc",
       "rationale": "shim-side doc surface: serves the Consensus API contract (the embedded bundle, JSON default or Accept: application/yaml) at the path upstream clients probe for a machine-readable document; upstream v1.18.33 declares no /doc operation",
-      "id": "SHIM-EXT-001"
+      "id": "SHIM-EXT-001",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/doc (shimDoc) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/permission/{id}",
@@ -2066,7 +2068,9 @@
       "evidence": "server.go handlePermissionByID sub \"\" && GET \u2192 getPermission (server.go:4559): 200 with the approval row (id, session_id, type, risk_level, description, sql_preview, status, decision_reason, created_at, resolved_at), 404 NOT_FOUND for an unknown id or a failed lookup",
       "family": "/permission/*",
       "rationale": "shim-side HITL detail read (SPEC-017 \u00a73.7): returns the Consensus approval_requests row keyed by id; the upstream document declares only the list (GET /permission) and reply verbs",
-      "id": "SHIM-EXT-002"
+      "id": "SHIM-EXT-002",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/permissionItem (shimGetPermission) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/permission/{id}/resolve",
@@ -2077,7 +2081,9 @@
       "evidence": "server.go resolvePermission (server.go:4611): 200 {id, status, resolved: true, timestamp} after the approval_requests UPDATE; 400 INVALID_REQUEST for a malformed body or a decision outside the three values; 404 NOT_FOUND for an unknown id or a row no longer pending; 500 INTERNAL_ERROR on a failed write; emits the approval_resolved SSE event",
       "family": "/permission/*",
       "rationale": "shim-side HITL verb (SPEC-017 \u00a73.7): resolves a pending Consensus approval (decision approved|rejected|modified + reason); the upstream document declares reply, not resolve",
-      "id": "SHIM-EXT-003"
+      "id": "SHIM-EXT-003",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/permissionResolve (shimResolvePermission) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/project/{projectID}",
@@ -2088,7 +2094,9 @@
       "evidence": "server.go handleProjectByID fallthrough (server.go:2208): any {projectID} that is not current/git/init/<id>/directories answers the typed ProjectNotFoundError 404 (_tag/projectID/message, DF-CONSENSUS-47); GET keeps auth so unauthenticated is 401 (isStubPath server.go:2084)",
       "family": "/project/*",
       "rationale": "upstream declares PATCH only on this path (project.update); the shim answers GET with the same typed ProjectNotFoundError 404 the PATCH arm serves, because Consensus keeps no project registry to resolve an id against",
-      "id": "SHIM-EXT-004"
+      "id": "SHIM-EXT-004",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/projectItem get (shimProjectItem) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/vcs/{id}",
@@ -2099,7 +2107,9 @@
       "evidence": "server.go:237 handleProjectVCSSStub; GET keeps auth so unauthenticated is 401 (isStubPath server.go:2084)",
       "family": "/vcs/*",
       "rationale": "shim-side stub keep-alive for the /vcs/ subtree catch-all: an unregistered /vcs/{id} sub-path answers the untyped NOT_IMPLEMENTED stub so clients get an explicit not-implemented instead of a 404; upstream declares no /vcs/{id} operation (its declared /vcs/* sub-paths are served or typed per SHIM-GAP-002)",
-      "id": "SHIM-EXT-005"
+      "id": "SHIM-EXT-005",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/vcsItem (shimVCSItemStub, x-not-implemented) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/instance",
@@ -2110,7 +2120,9 @@
       "evidence": "server.go:238 handleInstance; authMiddleware /instance* public (server.go:390); 200 with the one-element [{id, path, createdAt, updatedAt}] list; non-GET answers 405 METHOD_NOT_ALLOWED",
       "family": "/instance",
       "rationale": "shim-side instance enumeration (SPEC-017 \u00a73.10): the singleton instance list upstream clients probe unauthenticated; upstream v1.18.33 declares no /instance operation",
-      "id": "SHIM-EXT-006"
+      "id": "SHIM-EXT-006",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/instance (shimInstanceList) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/instance/path",
@@ -2121,7 +2133,9 @@
       "evidence": "server.go handleInstanceSub sub path && GET \u2192 instancePath (server.go:1351, 2702)",
       "family": "/instance/*",
       "rationale": "shim-side fixed-workspace read (SPEC-017 \u00a73.10): opencode PathInfo {home, state, config, worktree, directory} for the singleton workspace; upstream v1.18.33 declares no /instance/path operation",
-      "id": "SHIM-EXT-007"
+      "id": "SHIM-EXT-007",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/instancePath (shimInstancePath) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/instance/vcs",
@@ -2132,7 +2146,9 @@
       "evidence": "server.go handleInstanceSub sub vcs && GET \u2192 instanceVCS (server.go:1353, 2726); never errors \u2014 a non-git workspace answers {}",
       "family": "/instance/*",
       "rationale": "shim-side VCS read (SPEC-017 \u00a73.10, DF-CONSENSUS-38): opencode Vcs.Info {branch?, default_branch?} for the workspace (x-opencode-directory header first); upstream v1.18.33 declares no /instance/vcs operation",
-      "id": "SHIM-EXT-008"
+      "id": "SHIM-EXT-008",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/instanceVCS (shimInstanceVCS) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/instance/vcs/diff",
@@ -2143,7 +2159,9 @@
       "evidence": "server.go handleInstanceSub sub vcs/diff && GET \u2192 instanceVCSDiff (server.go:1355, 2752); a clean or non-git workspace answers []",
       "family": "/instance/*",
       "rationale": "shim-side VCS read (SPEC-017 \u00a73.10, DF-CONSENSUS-38): opencode Array(Vcs.FileDiff) [{file, additions, deletions, status?}] for the workspace; upstream v1.18.33 declares no /instance/vcs/diff operation",
-      "id": "SHIM-EXT-009"
+      "id": "SHIM-EXT-009",
+      "decision": "declared",
+      "decision_reason": "Declared in the shipped spec bundle: specs/openapi/openapi.yaml maps this path+method to paths/shim.yaml#/instanceVCSDiff (shimInstanceVCSDiff) (embedded in specs/openapi/bundled.yaml served at /openapi.json and /doc); SHIM-SOURCE-003 mechanical reconciliation passes it."
     },
     {
       "path": "/instance/vcs/status",
@@ -2154,7 +2172,9 @@
       "evidence": "instanceKnownSubpaths server.go:1333",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (per-file VCS status list) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/status operation",
-      "id": "SHIM-EXT-010"
+      "id": "SHIM-EXT-010",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceVCSStatus \u2014 handler 501 stub (instanceKnownSubpaths, internal/shim/opencode/server.go); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale on the served-surface row instead of a declared-but-unserved spec entry."
     },
     {
       "path": "/instance/vcs/diff/raw",
@@ -2165,7 +2185,9 @@
       "evidence": "instanceKnownSubpaths server.go:1334",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (raw unified diff text) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/diff/raw operation",
-      "id": "SHIM-EXT-011"
+      "id": "SHIM-EXT-011",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceVCSDiffRaw \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/vcs/apply",
@@ -2176,7 +2198,9 @@
       "evidence": "instanceKnownSubpaths server.go:1335",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (apply a patch) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/vcs/apply operation",
-      "id": "SHIM-EXT-012"
+      "id": "SHIM-EXT-012",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceVCSApply \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/command",
@@ -2187,7 +2211,9 @@
       "evidence": "instanceKnownSubpaths server.go:1336",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode slash commands) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/command operation",
-      "id": "SHIM-EXT-013"
+      "id": "SHIM-EXT-013",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceCommand \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/agent",
@@ -2198,7 +2224,9 @@
       "evidence": "instanceKnownSubpaths server.go:1337",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode agent registry) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/agent operation",
-      "id": "SHIM-EXT-014"
+      "id": "SHIM-EXT-014",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceAgent \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/skill",
@@ -2209,7 +2237,9 @@
       "evidence": "instanceKnownSubpaths server.go:1338",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (opencode skill registry) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/skill operation",
-      "id": "SHIM-EXT-015"
+      "id": "SHIM-EXT-015",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceSkill \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/lsp",
@@ -2220,7 +2250,9 @@
       "evidence": "instanceKnownSubpaths server.go:1339",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (LSP server status) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/lsp operation",
-      "id": "SHIM-EXT-016"
+      "id": "SHIM-EXT-016",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceLSP \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     },
     {
       "path": "/instance/formatter",
@@ -2231,7 +2263,9 @@
       "evidence": "instanceKnownSubpaths server.go:1340",
       "family": "/instance/*",
       "rationale": "shim-side 501 stub: the sub-path is known opencode protocol surface (formatter status) but is not translated, so it answers the untyped NOT_IMPLEMENTED stub instead of a 404; upstream v1.18.33 declares no /instance/formatter operation",
-      "id": "SHIM-EXT-017"
+      "id": "SHIM-EXT-017",
+      "decision": "justified-intentional",
+      "decision_reason": "instanceFormatter \u2014 handler 501 stub (instanceKnownSubpaths); deliberately not in the shipped document: known upstream surface the shim does not translate, recorded as intentional extension with rationale."
     }
   ]
 }
