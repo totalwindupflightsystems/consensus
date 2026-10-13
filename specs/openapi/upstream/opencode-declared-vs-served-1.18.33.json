@@ -25,14 +25,14 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 109,
-    "covered_operations": 81,
+    "served_route_entries": 115,
+    "covered_operations": 87,
     "narrowed_error_contract_only": 5,
     "intentional_narrowing": 1,
     "semantic_different": 2,
-    "drift_declared_not_served": 99,
+    "drift_declared_not_served": 93,
     "drift_by_class": {
-      "NOT-SERVED": 95,
+      "NOT-SERVED": 89,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -279,6 +279,66 @@
       "family": "/lsp",
       "served_outcome": "200",
       "evidence": "server.go:212 handleLSP (status: unavailable)"
+    },
+    {
+      "path": "/mcp/{name}/auth",
+      "method": "DELETE",
+      "operationId": "mcp.auth.remove",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleMCPAuthRemove (ROUTE-ADD-093, formerly SHIM-DRIFT-092): resolves the MCP server from the settings store (mcp.<name> keys) and removes its stored OAuth rows; an unresolved name answers the typed McpServerNotFoundError. Every other /mcp/* shape and every other method on this path answers http.NotFound (the unchanged net/http default), so the sibling rows stayed NOT-SERVED until their own rows served them. RESTORED (the row, not the route): it was dropped from the routes section while the refresh_note kept crediting ROUTE-ADD-093, when the ROUTE-ADD-100 branch was merged (3bbac29) \u2014 the handler, its /mcp/{name}/auth MountPatterns registration and its tests are present at HEAD, so the artifact was reporting a served operation as not served, and ROUTE-ADD-094..098's registration of the same path turned that into a false METHOD-MISSING instead"
+    },
+    {
+      "path": "/mcp/{name}/auth",
+      "method": "POST",
+      "operationId": "mcp.auth.start",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "400",
+      "evidence": "server.go handleMCPAuthStart (ROUTE-ADD-094, formerly SHIM-DRIFT-085): resolves {name} from the settings store under the mcp.<name> key convention (handleMCPAuthRemove ROUTE-ADD-093) and answers the declared 400 McpUnsupportedOAuthError {\"error\":...} \u2014 this runtime implements no MCP OAuth flow and can mint neither authorizationUrl nor oauthState, so the declared 200 (both fields required, additionalProperties:false) is unreachable and a minted pair would be a lie the caller hands to a browser. Malformed input answers the operation's second declared 400 shape InvalidRequestError (blank/whitespace-only name, present-but-blank directory/workspace), an unreadable settings store answers 400 InvalidRequestError rather than an undeclared 5xx, an unknown name answers the declared typed 404 McpServerNotFoundError, and a wrong method or out-of-family shape keeps the net/http default 404"
+    },
+    {
+      "path": "/mcp/{name}/auth/authenticate",
+      "method": "POST",
+      "operationId": "mcp.auth.authenticate",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "400",
+      "evidence": "server.go handleMCPAuthAuthenticate (ROUTE-ADD-095, formerly SHIM-DRIFT-086): same resolution and arms as mcp.auth.start (identical declared 200/400/404 set) \u2014 the declared 200 MCPStatus is the live status of that server's MCP connection and the shim runs no MCP client and tracks no connection, so every MCPStatus member would be invented (even needs_auth asserts a state never observed); the operation's declared 400 set carries McpUnsupportedOAuthError for exactly this cannot-run-the-flow case, which is the arm a resolved server gets. Malformed input -> InvalidRequestError, unreadable store -> InvalidRequestError, unknown name -> typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
+    },
+    {
+      "path": "/mcp/{name}/auth/callback",
+      "method": "POST",
+      "operationId": "mcp.auth.callback",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "400",
+      "evidence": "server.go handleMCPAuthCallback (ROUTE-ADD-096, formerly SHIM-DRIFT-087): validates the declared requestBody strictly first (a single JSON object carrying the required string code, additionalProperties:false, so an absent body, a non-object, a non-string code, an undeclared field or a trailing second value are refused; the schema puts no minLength on code, so an empty string is schema-valid) and then answers the declared 400 InvalidRequestError for a resolved server: this runtime parks no OAuth flow, so there is nothing to exchange the code against (the operation's 400 set carries no McpUnsupportedOAuthError, so the second declared shape is used) \u2014 the declared 200 MCPStatus is unreachable for the same missing-runner reason as mcp.auth.authenticate. Malformed input -> InvalidRequestError before the store is read, unreadable store -> InvalidRequestError, unknown name -> typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
+    },
+    {
+      "path": "/mcp/{name}/connect",
+      "method": "POST",
+      "operationId": "mcp.connect",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleMCPConnect (ROUTE-ADD-097, formerly SHIM-DRIFT-088): resolves {name} from the settings store and answers the declared 200 boolean with the truthful false \u2014 the shim serves MCP, holds no MCP client connection and connected nothing, so the declared literal true would claim a live connection no code in this runtime holds (the handleSyncStart / tuiShowToast / provider.oauth.callback convention). Malformed input answers the declared 400 BadRequestError {name:BadRequest,data:{message,kind}} (kind Params for a whitespace-only name, Query for a present-but-blank directory/workspace), an unreadable settings store answers the same declared 400 shape with kind omitted (the operation declares no 5xx), an unknown name answers the declared typed 404 McpServerNotFoundError, and a wrong method / out-of-family shape keeps the net/http default 404"
+    },
+    {
+      "path": "/mcp/{name}/disconnect",
+      "method": "POST",
+      "operationId": "mcp.disconnect",
+      "tags": "mcp",
+      "declared_responses": "200,400,404",
+      "family": "/mcp/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleMCPDisconnect (ROUTE-ADD-098, formerly SHIM-DRIFT-089): same resolution and arms as mcp.connect \u2014 the shim holds no MCP client connection, so this call disconnected nothing and the declared 200 boolean reports the truthful false rather than claiming a teardown no code performed. Malformed input -> declared 400 BadRequestError (kind Params / Query), unreadable store -> declared 400 BadRequestError, unknown name -> declared typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
     },
     {
       "path": "/path",
@@ -1873,72 +1933,6 @@
       "id": "SHIM-DRIFT-083"
     },
     {
-      "path": "/mcp/{name}/auth",
-      "method": "DELETE",
-      "operationId": "mcp.auth.remove",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-084"
-    },
-    {
-      "path": "/mcp/{name}/auth",
-      "method": "POST",
-      "operationId": "mcp.auth.start",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-085"
-    },
-    {
-      "path": "/mcp/{name}/auth/authenticate",
-      "method": "POST",
-      "operationId": "mcp.auth.authenticate",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-086"
-    },
-    {
-      "path": "/mcp/{name}/auth/callback",
-      "method": "POST",
-      "operationId": "mcp.auth.callback",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-087"
-    },
-    {
-      "path": "/mcp/{name}/connect",
-      "method": "POST",
-      "operationId": "mcp.connect",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-088"
-    },
-    {
-      "path": "/mcp/{name}/disconnect",
-      "method": "POST",
-      "operationId": "mcp.disconnect",
-      "tags": "mcp",
-      "declared_responses": "200,400,404",
-      "family": "/mcp/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-089"
-    },
-    {
       "path": "/provider/{providerID}/oauth/authorize",
       "method": "POST",
       "operationId": "provider.oauth.authorize",
@@ -1947,7 +1941,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-090"
+      "id": "SHIM-DRIFT-084"
     },
     {
       "path": "/pty/{ptyID}",
@@ -1958,7 +1952,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-091"
+      "id": "SHIM-DRIFT-085"
     },
     {
       "path": "/pty/{ptyID}",
@@ -1969,7 +1963,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-092"
+      "id": "SHIM-DRIFT-086"
     },
     {
       "path": "/pty/{ptyID}",
@@ -1980,7 +1974,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-093"
+      "id": "SHIM-DRIFT-087"
     },
     {
       "path": "/pty/{ptyID}/connect",
@@ -1991,7 +1985,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-094"
+      "id": "SHIM-DRIFT-088"
     },
     {
       "path": "/pty/{ptyID}/connect-token",
@@ -2002,7 +1996,7 @@
       "family": "/pty/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-095"
+      "id": "SHIM-DRIFT-089"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2015,7 +2009,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-096"
+      "id": "SHIM-DRIFT-090"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2028,7 +2022,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-097"
+      "id": "SHIM-DRIFT-091"
     },
     {
       "path": "/sync/steal",
@@ -2039,7 +2033,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-098"
+      "id": "SHIM-DRIFT-092"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2052,7 +2046,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-099"
+      "id": "SHIM-DRIFT-093"
     }
   ],
   "drift_served_not_declared": [],

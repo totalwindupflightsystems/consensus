@@ -312,16 +312,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 
 	// MCP management
 	mux.HandleFunc("/mcp", s.handleMCPEndpoint)
-	// ROUTE-ADD-093 / SHIM-DRIFT-092: the /mcp/{name}/auth path was never
-	// registered, so DELETE /mcp/{name}/auth fell through to net/http's
-	// default 404 ("the shim has no such operation" was indistinguishable
-	// from "this shim does not implement it"). Serve the upstream
-	// mcp.auth.remove operation; every other /mcp/* shape — the rest of the
-	// declared family (auth.start, auth/authenticate, auth/callback,
-	// connect, disconnect) and every wrong method on the auth path — keeps
-	// the byte-identical pre-change answer (http.NotFound, see handleMCPSub),
-	// so the sibling artifact rows stay NOT-SERVED until their own rows serve
-	// them. This is a shape check, never a /mcp/* catch-all.
+	// ROUTE-ADD-093 / SHIM-DRIFT-092 and ROUTE-ADD-094..098 / SHIM-DRIFT-085..089:
+	// the /mcp/{name}/auth path was never registered, so its declared
+	// operations fell through to net/http's default 404 ("the shim has no such
+	// operation" was indistinguishable from "this shim does not implement
+	// it"). Serve the upstream mcp family: mcp.auth.remove (DELETE
+	// /mcp/{name}/auth), mcp.auth.start (POST /mcp/{name}/auth),
+	// mcp.auth.authenticate, mcp.auth.callback, mcp.connect and mcp.disconnect.
+	// Every other /mcp/* shape — a wrong method on a served path and every
+	// shape outside the declared family — keeps the byte-identical pre-change
+	// answer (http.NotFound, see handleMCPSub). This is a shape check, never a
+	// /mcp/* catch-all.
 	mux.HandleFunc("/mcp/", s.handleMCPSub)
 
 	// Auth management (SPEC-017 §3.2)
@@ -420,12 +421,17 @@ var MountPatterns = []string{
 	"/tui/*",
 	"/lsp", "/lsp/*",
 	"/doc", "/doc/*",
-	// ROUTE-ADD-093: the exact declared param shape for mcp.auth.remove. The
-	// native MCP server owns /mcp/* in the combined deployment (main.go mounts
-	// it before the shim's patterns); chi prefers this deeper param route over
-	// that catch-all, so only the auth sub-path is claimed from the native
-	// mount — /mcp/sse and /mcp/message still reach the MCP server.
+	// ROUTE-ADD-093 / ROUTE-ADD-094..098: the exact declared param shapes for
+	// the mcp management family. The native MCP server owns /mcp/* in the
+	// combined deployment (main.go mounts it before the shim's patterns); chi
+	// prefers these deeper param routes over that catch-all, so only the
+	// declared management sub-paths are claimed from the native mount —
+	// /mcp/sse and /mcp/message still reach the MCP server.
 	"/mcp/{name}/auth",
+	"/mcp/{name}/auth/authenticate",
+	"/mcp/{name}/auth/callback",
+	"/mcp/{name}/connect",
+	"/mcp/{name}/disconnect",
 	"/auth/*",
 	"/project", "/project/*",
 	"/vcs", "/vcs/*",
@@ -4593,43 +4599,76 @@ func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
 		"MCP management via opencode shim is not implemented; use /mcp/sse directly")
 }
 
-// handleMCPSub serves the /mcp/* sub-paths. Only the upstream mcp.auth.remove
-// operation — DELETE /mcp/{name}/auth (ROUTE-ADD-093, SHIM-DRIFT-092, declared
-// responses: 200 {success:true}, 400 BadRequestError, 404
-// McpServerNotFoundError) — is served. Every other /mcp/* shape answers
-// http.NotFound, the same 404 body net/http's default handler produced before
-// this route existed, so the sibling rows of the declared family
-// (mcp.auth.start, auth/authenticate, auth/callback, connect, disconnect) keep
-// the NOT-SERVED observation they are pinned to in the declared-vs-served
-// artifact, and a non-DELETE request on this path keeps its pre-change answer
-// byte-for-byte (405 is not part of this operation's declared set — the same
-// choice handleProviderAuth made for its undeclared methods, ROUTE-ADD-099).
+// handleMCPSub serves the /mcp/* sub-paths. Six operations of the declared mcp
+// family are served here, dispatched on the parsed (sub-path shape, method)
+// pair:
+//
+//	DELETE /mcp/{name}/auth              mcp.auth.remove       (ROUTE-ADD-093)
+//	POST   /mcp/{name}/auth              mcp.auth.start        (ROUTE-ADD-094)
+//	POST   /mcp/{name}/auth/authenticate mcp.auth.authenticate (ROUTE-ADD-095)
+//	POST   /mcp/{name}/auth/callback     mcp.auth.callback     (ROUTE-ADD-096)
+//	POST   /mcp/{name}/connect           mcp.connect           (ROUTE-ADD-097)
+//	POST   /mcp/{name}/disconnect        mcp.disconnect        (ROUTE-ADD-098)
+//
+// Every other /mcp/* shape — a wrong method on a served shape and every shape
+// outside the declared family — answers http.NotFound: the same 404 body
+// net/http's default handler produced before this route existed, so an
+// undeclared method keeps its pre-change answer byte-for-byte (405 is not part
+// of any of these operations' declared response sets — the same choice
+// handleProviderAuth made for its undeclared methods, ROUTE-ADD-099). This
+// stays a shape check, never a /mcp/* catch-all.
 func (s *Server) handleMCPSub(w http.ResponseWriter, r *http.Request) {
 	name, sub, ok := parseMCPSubPath(r.URL.Path)
-	if !ok || sub != "auth" {
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	if r.Method != http.MethodDelete {
-		http.NotFound(w, r)
+	if r.Method == http.MethodPost {
+		switch sub {
+		case "auth":
+			s.handleMCPAuthStart(w, r, name)
+			return
+		case "auth/authenticate":
+			s.handleMCPAuthAuthenticate(w, r, name)
+			return
+		case "auth/callback":
+			s.handleMCPAuthCallback(w, r, name)
+			return
+		case "connect":
+			s.handleMCPConnect(w, r, name)
+			return
+		case "disconnect":
+			s.handleMCPDisconnect(w, r, name)
+			return
+		}
+	} else if sub == "auth" && r.Method == http.MethodDelete {
+		s.handleMCPAuthRemove(w, r, name)
 		return
 	}
-	s.handleMCPAuthRemove(w, r, name)
+	http.NotFound(w, r)
 }
 
-// parseMCPSubPath splits /mcp/{name}/{sub}. ok is true only for exactly that
-// shape: a non-empty name and one non-empty trailing segment (so
-// /mcp/{name}/auth/callback and /mcp/{name} are not this operation).
+// parseMCPSubPath splits /mcp/{name}/{sub}. ok is true only for the declared
+// shapes: a non-empty name and one or two non-empty trailing segments (so
+// /mcp/{name} is not one of these operations, /mcp/{name}/auth/callback/extra
+// is not either, and the deeper two-segment sub-path — auth/authenticate,
+// auth/callback — is what ROUTE-ADD-095/096 add to the family). The returned
+// sub is the joined trailing path, so a caller dispatches on the full shape.
 func parseMCPSubPath(path string) (name, sub string, ok bool) {
 	rest, found := strings.CutPrefix(path, "/mcp/")
 	if !found {
 		return "", "", false
 	}
 	parts := strings.Split(rest, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if len(parts) < 2 || len(parts) > 3 {
 		return "", "", false
 	}
-	return parts[0], parts[1], true
+	for _, part := range parts {
+		if part == "" {
+			return "", "", false
+		}
+	}
+	return parts[0], strings.Join(parts[1:], "/"), true
 }
 
 // handleMCPAuthRemove serves DELETE /mcp/{name}/auth — upstream
@@ -4700,6 +4739,392 @@ func (s *Server) handleMCPAuthRemove(w http.ResponseWriter, r *http.Request, nam
 		return
 	}
 	writeJSON(w, map[string]any{"success": true})
+}
+
+// ---------------------------------------------------------------------------
+// MCP management: OAuth lifecycle and connection (ROUTE-ADD-094..098,
+// SHIM-DRIFT-085..089)
+// ---------------------------------------------------------------------------
+//
+// The shim keeps no MCP server registry of its own: it exposes Consensus AS an
+// MCP server (the bare /mcp mount) and holds no MCP client, no OAuth flow
+// engine and no connection tracker for the servers a client configures under
+// the upstream config's mcp: {"<name>": ...} block. It does own a settings
+// store — the one GET/PATCH /config reads and writes — so a server NAME is
+// resolved exactly the way handleMCPAuthRemove established (ROUTE-ADD-093): a
+// "mcp.<name>" key or any key under "mcp.<name>.". A name with no stored entry
+// names no MCP server the shim knows and answers the declared typed
+// McpServerNotFoundError 404.
+//
+// Five declared operations answer from that one resolution, each in the shape
+// its own contract declares, and none of them invents a success the runtime did
+// not perform:
+//
+//   - mcp.auth.start and mcp.auth.authenticate need a live OAuth flow: start
+//     must answer a real {authorizationUrl, oauthState} pair (both required,
+//     additionalProperties: false) and authenticate opens a browser and waits
+//     for the callback. The shim mints no authorization URL and opens no
+//     browser, so their declared 200 is unreachable — a fabricated pair would
+//     be a lie the caller then hands to a browser. Both answer their declared
+//     400 McpUnsupportedOAuthError {"error": ...}: the document's own shape for
+//     "OAuth is not supported here".
+//   - mcp.auth.callback exchanges an authorization code against the flow the
+//     matching start/authenticate call parked. The shim parks no flow, so there
+//     is nothing to exchange a code against: it refuses with the declared 400
+//     InvalidRequestError {"_tag", "message"} — the second declared 400 shape of
+//     that operation, whose 400 set carries no McpUnsupportedOAuthError.
+//   - mcp.connect and mcp.disconnect answer the DECLARED 200 boolean with the
+//     truthful false: the shim holds no MCP client connection, so no connect
+//     and no disconnect was performed (false = "this call did not do it"), the
+//     sibling handleSyncStart / tuiShowToast / provider.oauth.callback
+//     convention. Never the declared literal true.
+//
+// The declared request surface is validated strictly before any of that: a
+// present-but-blank declared query selector (directory, workspace), a
+// whitespace-only {name}, and mcp.auth.callback's request body (a single JSON
+// object carrying the required string `code` with no undeclared field — its
+// schema is additionalProperties: false) are all refused. A settings store that
+// cannot be read answers the declared 400 arm rather than an undeclared 5xx:
+// none of these operations declares a 5xx.
+//
+// A wrong method or an out-of-family shape never reaches these handlers —
+// handleMCPSub answers http.NotFound, keeping the pre-change answer
+// byte-for-byte.
+
+// resolveMCPServerName reports whether name names an MCP server the shim knows.
+// The entry is resolved from the settings store under the flat translation of
+// the upstream config's mcp: {"<name>": ...} block — a key "mcp.<name>" or any
+// key under "mcp.<name>." — the convention handleMCPAuthRemove established
+// (ROUTE-ADD-093). The second return is a store read failure, which every
+// caller maps onto its operation's declared 400 arm (never an undeclared 5xx).
+func (s *Server) resolveMCPServerName(ctx context.Context, name string) (bool, error) {
+	// Escape LIKE metacharacters so a name containing %, _ or \ resolves only
+	// its own rows — the same treatment handleMCPAuthRemove gives a name.
+	pattern := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(name)
+	rows, err := s.db.Query(ctx,
+		`SELECT key FROM system_settings WHERE key = $1 OR key LIKE $2 ESCAPE '\'`,
+		"mcp."+name, "mcp."+pattern+".%")
+	if err != nil {
+		return false, err
+	}
+	return len(rows) > 0, nil
+}
+
+// mcpNotFoundBody answers the declared typed 404 arm shared by the whole
+// family: McpServerNotFoundError {_tag, name, message} (additionalProperties:
+// false), never a bare 404.
+func mcpNotFoundBody(w http.ResponseWriter, name string) {
+	writeOpencodeNotFoundError(w, "McpServerNotFoundError", "name", name,
+		"MCP server not found: "+name)
+}
+
+// writeMCPUnsupportedOAuthError answers the declared 400 McpUnsupportedOAuthError
+// shape ({"error": <message>}, additionalProperties: false) — the shape
+// mcp.auth.start and mcp.auth.authenticate declare for "OAuth is not supported
+// here", which is this runtime's truthful class for both: no MCP OAuth flow
+// exists in the shim.
+func writeMCPUnsupportedOAuthError(w http.ResponseWriter, r *http.Request, message string) {
+	writeJSONStatus(w, http.StatusBadRequest, map[string]any{"error": message})
+	slog.Warn("opencode-shim: mcp oauth unsupported", "method", r.Method, "path", r.URL.Path)
+}
+
+// writeOpencodeInvalidRequestError answers the declared 400 InvalidRequestError
+// shape ({"_tag": "InvalidRequestError", "message": ...}, additionalProperties:
+// false — the optional kind/field members are omitted where a refusal is not
+// attributable to one named field). It is the second declared 400 shape of the
+// MCP auth operations, and the shape the sibling handleProviderOAuthAuthorize /
+// handleProviderOAuthCallback store-failure arms already emit.
+func writeOpencodeInvalidRequestError(w http.ResponseWriter, message string) {
+	writeJSONStatus(w, http.StatusBadRequest, map[string]any{
+		"_tag":    "InvalidRequestError",
+		"message": message,
+	})
+}
+
+// writeMCPBadRequestError answers the declared 400 BadRequestError shape
+// ({"name":"BadRequest","data":{"message":...,"kind":...}}) — the only declared
+// 400 shape of mcp.connect and mcp.disconnect. kind names the request part at
+// fault (Params for the path-parameter {name}, Query for a blank declared
+// selector) and is omitted for a refusal that is not attributable to a request
+// part (a settings-store read failure); the declared schema marks kind optional.
+func writeMCPBadRequestError(w http.ResponseWriter, r *http.Request, kind, message string) {
+	data := map[string]any{"message": message}
+	if kind != "" {
+		data["kind"] = kind
+	}
+	writeJSONStatus(w, http.StatusBadRequest, map[string]any{
+		"name": "BadRequest",
+		"data": data,
+	})
+	slog.Warn("opencode-shim: mcp bad request", "method", r.Method, "path", r.URL.Path, "kind", kind)
+}
+
+// blankMCPQueryParam returns the name of the first declared query selector
+// (directory, workspace) that is present with a blank value, or "" when none
+// is — the handleSkill/handleSyncStart convention every fixed-workspace shim
+// operation follows (the declared 400 arm of an operation that declares no
+// requestBody would otherwise be unreachable).
+func blankMCPQueryParam(r *http.Request) string {
+	for _, param := range []string{"directory", "workspace"} {
+		if v, present := r.URL.Query()[param]; present && (len(v) == 0 || strings.TrimSpace(v[0]) == "") {
+			return param
+		}
+	}
+	return ""
+}
+
+// handleMCPAuthStart serves POST /mcp/{name}/auth — upstream mcp.auth.start
+// (ROUTE-ADD-094, SHIM-DRIFT-085, declared responses: 200 {authorizationUrl,
+// oauthState}, 400 McpUnsupportedOAuthError | InvalidRequestError, 404
+// McpServerNotFoundError), "Start OAuth authentication flow for a Model Context
+// Protocol (MCP) server."
+//
+// The declared 200 schema requires BOTH authorizationUrl and oauthState as
+// strings with additionalProperties: false, and the declared 400 carries
+// McpUnsupportedOAuthError — the document's own shape for "this server's OAuth
+// is not supported". A flow this runtime cannot run cannot produce either
+// string, so a server the shim resolves answers the declared 400
+// McpUnsupportedOAuthError: there is no MCP OAuth flow here. Never a 200 with
+// an invented URL, never an undeclared 5xx.
+//
+// Arms: a whitespace-only {name} or a present-but-blank declared query selector
+// answers 400 InvalidRequestError (the operation's second declared 400 shape —
+// malformed input is never reported as "OAuth unsupported"); an unreadable
+// settings store answers 400 InvalidRequestError rather than an undeclared 500;
+// a name with no stored MCP entry answers the typed 404 McpServerNotFoundError;
+// otherwise the declared 400 McpUnsupportedOAuthError. A non-POST method never
+// reaches this handler (handleMCPSub keeps the pre-change 404).
+func (s *Server) handleMCPAuthStart(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeOpencodeInvalidRequestError(w, "MCP server name is required")
+		return
+	}
+	if blank := blankMCPQueryParam(r); blank != "" {
+		writeOpencodeInvalidRequestError(w, fmt.Sprintf("query parameter %q must not be blank", blank))
+		return
+	}
+	known, err := s.resolveMCPServerName(r.Context(), name)
+	if err != nil {
+		writeOpencodeInvalidRequestError(w, "failed to read MCP server settings")
+		return
+	}
+	if !known {
+		mcpNotFoundBody(w, name)
+		return
+	}
+	writeMCPUnsupportedOAuthError(w, r, fmt.Sprintf(
+		"MCP OAuth is not supported for server %q: this runtime implements no MCP OAuth flow and cannot mint an authorization URL", name))
+}
+
+// handleMCPAuthAuthenticate serves POST /mcp/{name}/auth/authenticate — upstream
+// mcp.auth.authenticate (ROUTE-ADD-095, SHIM-DRIFT-086, declared responses: 200
+// MCPStatus, 400 McpUnsupportedOAuthError | InvalidRequestError, 404
+// McpServerNotFoundError), "Start OAuth flow and wait for callback (opens
+// browser)."
+//
+// The declared 200 is an MCPStatus — the live status of that server's MCP
+// connection (connected / disabled / failed / needs_auth /
+// needs_client_registration). The shim runs no MCP client and tracks no server
+// connection, so it cannot report one: every MCPStatus member would be invented
+// (even needs_auth asserts a state this runtime never observed), and the
+// operation's own declared 400 set carries McpUnsupportedOAuthError for exactly
+// the "cannot run the flow" case this operation is in — it cannot start a flow
+// nor open a browser. A resolved server therefore answers the declared 400
+// McpUnsupportedOAuthError. Never a fabricated status, never an undeclared 5xx.
+//
+// Arms are identical to handleMCPAuthStart (the same declared 200/400/404 set):
+// whitespace-only name / blank declared selector → 400 InvalidRequestError;
+// unreadable store → 400 InvalidRequestError; unknown name → typed 404
+// McpServerNotFoundError; otherwise 400 McpUnsupportedOAuthError.
+func (s *Server) handleMCPAuthAuthenticate(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeOpencodeInvalidRequestError(w, "MCP server name is required")
+		return
+	}
+	if blank := blankMCPQueryParam(r); blank != "" {
+		writeOpencodeInvalidRequestError(w, fmt.Sprintf("query parameter %q must not be blank", blank))
+		return
+	}
+	known, err := s.resolveMCPServerName(r.Context(), name)
+	if err != nil {
+		writeOpencodeInvalidRequestError(w, "failed to read MCP server settings")
+		return
+	}
+	if !known {
+		mcpNotFoundBody(w, name)
+		return
+	}
+	writeMCPUnsupportedOAuthError(w, r, fmt.Sprintf(
+		"MCP OAuth is not supported for server %q: this runtime implements no MCP OAuth flow, opens no browser and tracks no connection status", name))
+}
+
+// handleMCPAuthCallback serves POST /mcp/{name}/auth/callback — upstream
+// mcp.auth.callback (ROUTE-ADD-096, SHIM-DRIFT-087, declared responses: 200
+// MCPStatus, 400 BadRequest | InvalidRequestError, 404
+// McpServerNotFoundError), "Complete OAuth authentication for a Model Context
+// Protocol (MCP) server using the authorization code."
+//
+// The declared 200 is an MCPStatus the shim cannot report (see
+// handleMCPAuthAuthenticate) and the exchange itself needs the OAuth flow the
+// matching start/authenticate call parked — which this runtime never parks. A
+// well-formed callback for a resolved server therefore answers the declared 400
+// InvalidRequestError naming the real reason: no flow is pending, so the code
+// has nothing to be exchanged against. (Its 400 set carries no
+// McpUnsupportedOAuthError, so the second declared shape is the one used.)
+//
+// The declared request body is validated first: a single JSON object with the
+// required string `code` and no undeclared field (additionalProperties: false),
+// absent/empty bodies included (the document does not mark requestBody
+// required, but `code` is the operation's only declared field and it is
+// required, so an absent body cannot complete anything — the
+// parseProviderOAuthCallbackBody direction). The declared schema puts no
+// minLength/pattern on `code`, so an empty string is schema-valid and takes the
+// same no-pending-flow answer as any other well-formed code.
+//
+// Remaining arms: whitespace-only name / blank declared selector → 400
+// InvalidRequestError; unreadable store → 400 InvalidRequestError (never an
+// undeclared 5xx); unknown name → typed 404 McpServerNotFoundError; non-POST
+// never reaches this handler (handleMCPSub keeps the pre-change 404).
+func (s *Server) handleMCPAuthCallback(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeOpencodeInvalidRequestError(w, "MCP server name is required")
+		return
+	}
+	if blank := blankMCPQueryParam(r); blank != "" {
+		writeOpencodeInvalidRequestError(w, fmt.Sprintf("query parameter %q must not be blank", blank))
+		return
+	}
+	if reason := parseMCPAuthCallbackBodyRejection(r); reason != "" {
+		writeOpencodeInvalidRequestError(w, reason)
+		return
+	}
+	known, err := s.resolveMCPServerName(r.Context(), name)
+	if err != nil {
+		writeOpencodeInvalidRequestError(w, "failed to read MCP server settings")
+		return
+	}
+	if !known {
+		mcpNotFoundBody(w, name)
+		return
+	}
+	writeOpencodeInvalidRequestError(w, fmt.Sprintf(
+		"no MCP OAuth flow is pending for server %q, so the authorization code cannot be exchanged", name))
+}
+
+// parseMCPAuthCallbackBodyRejection validates mcp.auth.callback's declared
+// request body — a single JSON object carrying the required string `code` with
+// no undeclared field (the pinned schema is additionalProperties: false) — and
+// returns a human-readable refusal reason, or "" when the body is well-formed.
+// It mirrors parseProviderOAuthCallbackBody, including the trailing-second-value
+// rejection the sibling handleSyncSteal applies.
+func parseMCPAuthCallbackBodyRejection(r *http.Request) string {
+	if r.Body == nil || r.ContentLength == 0 {
+		return `request body must carry the authorization "code"`
+	}
+	dec := json.NewDecoder(r.Body)
+	var raw any
+	if err := dec.Decode(&raw); err != nil {
+		return "malformed request body: " + err.Error()
+	}
+	if err := dec.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return "request body must contain exactly one JSON value"
+	}
+	body, ok := raw.(map[string]any)
+	if !ok {
+		return "request body must be a JSON object carrying the authorization code"
+	}
+	for key := range body {
+		if key != "code" {
+			return fmt.Sprintf("request body carries undeclared field %q", key)
+		}
+	}
+	value, present := body["code"]
+	if !present {
+		return `request body is missing the required "code" field`
+	}
+	if _, ok := value.(string); !ok {
+		return `"code" must be a string`
+	}
+	return ""
+}
+
+// handleMCPConnect serves POST /mcp/{name}/connect — upstream mcp.connect
+// (ROUTE-ADD-097, SHIM-DRIFT-088, declared responses: 200 boolean "MCP server
+// connected successfully", 400 BadRequestError, 404 McpServerNotFoundError),
+// "Connect an MCP server."
+//
+// The shim keeps no MCP client connection (it serves MCP, it does not
+// consume it), so no connection was established by this call and the declared
+// boolean is answered as the truthful false — the sibling handleSyncStart
+// convention ("no sync was started" -> false), never the declared literal true.
+// A fabricated true would claim a live connection that no code in this runtime
+// holds.
+//
+// Arms: a whitespace-only {name} → 400 BadRequestError (name the request part:
+// the path parameter); a present-but-blank declared query selector → 400
+// BadRequestError kind Query; an unreadable settings store → 400
+// BadRequestError (the operation declares no 5xx and no other 400 shape);
+// an unknown name → typed 404 McpServerNotFoundError; otherwise 200 false.
+// Non-POST never reaches this handler (handleMCPSub keeps the pre-change 404).
+func (s *Server) handleMCPConnect(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeMCPBadRequestError(w, r, "Params", "MCP server name is required")
+		return
+	}
+	if blank := blankMCPQueryParam(r); blank != "" {
+		writeMCPBadRequestError(w, r, "Query", fmt.Sprintf("query parameter %q must not be blank", blank))
+		return
+	}
+	known, err := s.resolveMCPServerName(r.Context(), name)
+	if err != nil {
+		writeMCPBadRequestError(w, r, "", "failed to read MCP server settings")
+		return
+	}
+	if !known {
+		mcpNotFoundBody(w, name)
+		return
+	}
+	// No MCP client connection was established: the declared boolean reports
+	// false rather than a fabricated true.
+	writeJSON(w, false)
+}
+
+// handleMCPDisconnect serves POST /mcp/{name}/disconnect — upstream
+// mcp.disconnect (ROUTE-ADD-098, SHIM-DRIFT-089, declared responses: 200
+// boolean "MCP server disconnected successfully", 400 BadRequestError, 404
+// McpServerNotFoundError), "Disconnect an MCP server."
+//
+// The shim holds no MCP client connection, so this call disconnected nothing
+// and the declared boolean reports the truthful false — never the declared
+// literal true, which would claim a teardown that no code in this runtime
+// performed (the handleMCPConnect / handleSyncStart convention).
+//
+// Arms are identical to handleMCPConnect: whitespace-only name → 400
+// BadRequestError kind Params; blank declared selector → 400 BadRequestError
+// kind Query; unreadable store → 400 BadRequestError; unknown name → typed 404
+// McpServerNotFoundError; otherwise 200 false. Non-POST never reaches this
+// handler (handleMCPSub keeps the pre-change 404).
+func (s *Server) handleMCPDisconnect(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		writeMCPBadRequestError(w, r, "Params", "MCP server name is required")
+		return
+	}
+	if blank := blankMCPQueryParam(r); blank != "" {
+		writeMCPBadRequestError(w, r, "Query", fmt.Sprintf("query parameter %q must not be blank", blank))
+		return
+	}
+	known, err := s.resolveMCPServerName(r.Context(), name)
+	if err != nil {
+		writeMCPBadRequestError(w, r, "", "failed to read MCP server settings")
+		return
+	}
+	if !known {
+		mcpNotFoundBody(w, name)
+		return
+	}
+	// Nothing was connected by this shim, so nothing was disconnected: the
+	// declared boolean reports false rather than a fabricated true.
+	writeJSON(w, false)
 }
 
 // ============================================================================

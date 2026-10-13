@@ -195,16 +195,17 @@ func TestMCPAuthRemoveDeleteFailureIsInternalError(t *testing.T) {
 }
 
 // TestMCPAuthRemoveMethodGuardKeepsDefault404 pins the non-DELETE behaviour:
-// 405 is not part of mcp.auth.remove's declared set, and the sibling
-// POST /mcp/{name}/auth row (mcp.auth.start, SHIM-DRIFT-093 / ROUTE-ADD-094) is
-// still unserved, so any other method on this path must keep the pre-change
-// answer byte-for-byte — the net/http default 404 — the same choice
-// handleProviderAuth (ROUTE-ADD-099) made for its undeclared methods.
+// 405 is not part of mcp.auth.remove's declared set, so every method on this
+// path that no sibling operation declares must keep the pre-change answer
+// byte-for-byte — the net/http default 404 — the same choice handleProviderAuth
+// (ROUTE-ADD-099) made for its undeclared methods. POST is excluded from this
+// list because ROUTE-ADD-094 now serves it (mcp.auth.start, see
+// mcp_name_ops_test.go); GET/PUT/PATCH remain undeclared on the path.
 func TestMCPAuthRemoveMethodGuardKeepsDefault404(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch} {
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodPatch} {
 		status, _, body := doShimRequest(t, srv.URL, method, "/mcp/demo/auth")
 		if status != http.StatusNotFound {
 			t.Errorf("%s /mcp/demo/auth: got %d, want 404 (405 is not in the declared set). Body: %s", method, status, body)
@@ -216,22 +217,23 @@ func TestMCPAuthRemoveMethodGuardKeepsDefault404(t *testing.T) {
 }
 
 // TestMCPAuthRemoveFamilyNeighboursUntouched is the non-vacuity control: the
-// route serves the declared auth shape and nothing else. The rest of the
-// declared /mcp/* family (connect, disconnect, auth/authenticate,
-// auth/callback) and a bare /mcp/{name} keep the net/http default 404 they
-// answered before this route existed, and the MCP-DIRECT-001 delegation on the
-// bare /mcp mount is untouched.
+// route serves the six declared /mcp/* shapes (mcp.auth.remove,
+// mcp.auth.start, mcp.auth.authenticate, mcp.auth.callback, mcp.connect,
+// mcp.disconnect — ROUTE-ADD-093 and ROUTE-ADD-094..098) and nothing else.
+// Shapes outside that family — a bare /mcp/{name}, an unknown sub-path and a
+// sub-path one segment too deep — keep the net/http default 404 they answered
+// before these routes existed, and the MCP-DIRECT-001 delegation on the bare
+// /mcp mount is untouched.
 func TestMCPAuthRemoveFamilyNeighboursUntouched(t *testing.T) {
 	s, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodPost, "/mcp/demo/connect"},
-		{http.MethodPost, "/mcp/demo/disconnect"},
-		{http.MethodPost, "/mcp/demo/auth/authenticate"},
-		{http.MethodPost, "/mcp/demo/auth/callback"},
 		{http.MethodDelete, "/mcp/demo"},
 		{http.MethodDelete, "/mcp/demo/auth/deeper"},
+		{http.MethodDelete, "/mcp/demo/auth/callback/extra"},
+		{http.MethodPost, "/mcp/demo/unknown"},
+		{http.MethodPost, "/mcp/demo"},
 	} {
 		status, _, body := doShimRequest(t, srv.URL, tc.method, tc.path)
 		if status != http.StatusNotFound {
