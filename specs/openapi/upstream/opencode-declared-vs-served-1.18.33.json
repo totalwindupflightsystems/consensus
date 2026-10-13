@@ -25,14 +25,14 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 106,
-    "covered_operations": 78,
+    "served_route_entries": 108,
+    "covered_operations": 80,
     "narrowed_error_contract_only": 5,
     "intentional_narrowing": 1,
     "semantic_different": 2,
-    "drift_declared_not_served": 102,
+    "drift_declared_not_served": 100,
     "drift_by_class": {
-      "NOT-SERVED": 98,
+      "NOT-SERVED": 96,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -199,6 +199,26 @@
       "family": "/find/*",
       "served_outcome": "200",
       "evidence": "server.go handleFindSub symbol && GET \u2192 findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank \u2192 400 INVALID_REQUEST), present-but-blank directory/workspace \u2192 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list \u2014 the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
+    },
+    {
+      "path": "/global/config",
+      "method": "GET",
+      "operationId": "global.config.get",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig GET arm (ROUTE-ADD-089, formerly SHIM-DRIFT-087; exact-path registration server.go:182, handler server.go:3610, both declared operations served by one handler): answers the declared 200 with the empty Config document {} \u2014 the runtime keeps no opencode global-config store (Consensus settings are a different surface, served by the shim's own /config route), so the empty document is the truthful payload \u2014 as a JSON object, never null and never the pre-fix net/http default 404; undeclared methods on the exact path answer 405 METHOD_NOT_ALLOWED"
+    },
+    {
+      "path": "/global/config",
+      "method": "PATCH",
+      "operationId": "global.config.update",
+      "tags": "global",
+      "declared_responses": "200,400",
+      "family": "/global/*",
+      "served_outcome": "200",
+      "evidence": "server.go handleGlobalConfig PATCH arm (ROUTE-ADD-090, formerly SHIM-DRIFT-088; same exact-path registration server.go:182): validates the optional Config body against the pinned schema, which sets additionalProperties:false, and answers the declared 200 with the resulting Config document \u2014 the accepted patch applied to the empty current config; malformed, non-object and undeclared-key bodies answer the declared 400 INVALID_REQUEST; an absent body is well-formed (the document does not mark requestBody required) and answers 200"
     },
     {
       "path": "/global/event",
@@ -1830,28 +1850,6 @@
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
       "id": "SHIM-DRIFT-083"
-    },
-    {
-      "path": "/global/config",
-      "method": "GET",
-      "operationId": "global.config.get",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-084"
-    },
-    {
-      "path": "/global/config",
-      "method": "PATCH",
-      "operationId": "global.config.update",
-      "tags": "global",
-      "declared_responses": "200,400",
-      "family": "/global/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-085"
     },
     {
       "path": "/global/dispose",

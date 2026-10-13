@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -217,14 +218,61 @@ func TestGlobalConfigChiMount(t *testing.T) {
 	}
 }
 
-// TestGlobalConfigDeclaredKeysMatchPinnedSchema ties globalConfigDeclaredKeys —
-// the key surface the 400 arm enforces — to the pinned upstream document
+// TestGlobalConfigAnswersDeclaredList answers upstream global.config.get
+// (ROUTE-ADD-089, formerly SHIM-DRIFT-087, declared responses: 200 Config,
+// 400): GET /global/config must answer a status code the pinned upstream
+// document declares for that operation — 200 carrying a Config document, since
+// the runtime keeps no opencode global-config store and the empty object is the
+// truthful payload (never null, never the pre-fix net/http default 404).
+//
+// The declared status list is READ from the pinned document rather than
+// hardcoded: a pin bump that drops 200 from the declared set fails here instead
+// of silently agreeing with a literal copied from the same assumption. The body
+// schema the 200 must satisfy is pinned the same way by
+// TestGlobalConfigDeclaredKeysMatchPinnedSchema below.
+func TestGlobalConfigAnswersDeclaredList(t *testing.T) {
+	declared := declaredResponsesFor(t, "/global/config", http.MethodGet)
+	want := http.StatusOK
+	declaredOK := false
+	for _, code := range declared {
+		if code == want {
+			declaredOK = true
+		}
+	}
+	if !declaredOK {
+		t.Fatalf("pinned document declares %v for GET /global/config, want %d among them", declared, want)
+	}
+
+	_, srv := newTestServer(&mockDB{})
+	defer srv.Close()
+
+	status, header, body := doShimRequest(t, srv.URL, http.MethodGet, "/global/config")
+	if status != want {
+		t.Fatalf("GET /global/config: got %d, want the declared %d (declared set: %v). Body: %s",
+			status, want, declared, body)
+	}
+	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("GET /global/config: Content-Type = %q, want application/json", ct)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(body, &cfg); err != nil {
+		t.Fatalf("GET /global/config body must be a Config document, got %q: %v", body, err)
+	}
+	if cfg == nil {
+		t.Errorf("GET /global/config body = %s, want an object (never null)", body)
+	}
+	if len(cfg) != 0 {
+		t.Errorf("GET /global/config = %v, want {} (the shim keeps no opencode global-config store)", cfg)
+	}
+}
+
+// loadPinnedUpstreamDocument reads the pinned upstream opencode document
 // (specs/openapi/upstream/openapi-1.18.33.json, pinned by
-// specs/openapi/opencode-pin.yaml). A hand-maintained key list is exactly the
-// kind of table that goes stale silently, so it is asserted one-to-one against
-// the contract this route answers, and the additionalProperties:false premise
-// the 400 arm rests on is asserted too.
-func TestGlobalConfigDeclaredKeysMatchPinnedSchema(t *testing.T) {
+// specs/openapi/opencode-pin.yaml) and returns its bytes plus the path read.
+// Tests that assert a route against the upstream contract read the document
+// itself rather than a copy of its numbers.
+func loadPinnedUpstreamDocument(t *testing.T) ([]byte, string) {
+	t.Helper()
 	doc := filepath.Join("..", "..", "..", "specs", "openapi", "upstream", "openapi-1.18.33.json")
 	raw, err := os.ReadFile(doc)
 	if os.IsNotExist(err) {
@@ -233,6 +281,58 @@ func TestGlobalConfigDeclaredKeysMatchPinnedSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", doc, err)
 	}
+	return raw, doc
+}
+
+// declaredResponsesFor returns the numeric status codes the pinned upstream
+// document declares for one operation (path + method). Non-numeric response
+// keys ("default") are not status codes and are skipped; a path or operation
+// the document does not declare is a fatal test error, never a silent empty
+// list, so a renamed route cannot pass as "nothing declared".
+func declaredResponsesFor(t *testing.T, path, method string) []int {
+	t.Helper()
+	raw, doc := loadPinnedUpstreamDocument(t)
+
+	var parsed struct {
+		Paths map[string]map[string]struct {
+			Responses map[string]any `json:"responses"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("decode %s: %v", doc, err)
+	}
+	ops, ok := parsed.Paths[path]
+	if !ok {
+		t.Fatalf("%s declares no path %q", doc, path)
+	}
+	op, ok := ops[strings.ToLower(method)]
+	if !ok {
+		t.Fatalf("%s declares no %s %s operation", doc, method, path)
+	}
+	if len(op.Responses) == 0 {
+		t.Fatalf("%s declares no responses for %s %s", doc, method, path)
+	}
+	codes := make([]int, 0, len(op.Responses))
+	for code := range op.Responses {
+		n, err := strconv.Atoi(code)
+		if err != nil {
+			continue
+		}
+		codes = append(codes, n)
+	}
+	sort.Ints(codes)
+	return codes
+}
+
+// TestGlobalConfigDeclaredKeysMatchPinnedSchema ties globalConfigDeclaredKeys —
+// the key surface the 400 arm enforces — to the pinned upstream document
+// (specs/openapi/upstream/openapi-1.18.33.json, pinned by
+// specs/openapi/opencode-pin.yaml). A hand-maintained key list is exactly the
+// kind of table that goes stale silently, so it is asserted one-to-one against
+// the contract this route answers, and the additionalProperties:false premise
+// the 400 arm rests on is asserted too.
+func TestGlobalConfigDeclaredKeysMatchPinnedSchema(t *testing.T) {
+	raw, doc := loadPinnedUpstreamDocument(t)
 
 	var parsed struct {
 		Components struct {

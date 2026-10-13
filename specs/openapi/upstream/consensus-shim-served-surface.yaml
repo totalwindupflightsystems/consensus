@@ -71,6 +71,16 @@ routes:
     outcome: 200-sse
     auth: api-key
     evidence: "server.go:174 handleGlobalEvent"
+  - path: /global/config
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleGlobalConfig GET arm (ROUTE-ADD-089, formerly SHIM-DRIFT-087; exact-path registration server.go:182, handler server.go:3610, both declared operations served by one handler): answers the declared 200 with the empty Config document {} — the runtime keeps no opencode global-config store (Consensus settings are a different surface, served by the shim's own /config route), so the empty document is the truthful payload — as a JSON object, never null and never the pre-fix net/http default 404; undeclared methods on the exact path answer 405 METHOD_NOT_ALLOWED"
+  - path: /global/config
+    method: PATCH
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleGlobalConfig PATCH arm (ROUTE-ADD-090, formerly SHIM-DRIFT-088; same exact-path registration server.go:182): validates the optional Config body against the pinned schema, which sets additionalProperties:false, and answers the declared 200 with the resulting Config document — the accepted patch applied to the empty current config; malformed, non-object and undeclared-key bodies answer the declared 400 INVALID_REQUEST; an absent body is well-formed (the document does not mark requestBody required) and answers 200"
   - path: /event
     method: GET
     outcome: 200-sse
