@@ -15,6 +15,12 @@
 #
 # outcome vocabulary:
 #   200 / 201         handled and answered
+#   400               handled; the operation's DECLARED error arm is the answer
+#                     — for malformed input, or for a well-formed request whose
+#                     declared success this runtime cannot truthfully produce
+#                     (e.g. an MCP OAuth flow it does not implement). Never an
+#                     undeclared 5xx, never a fabricated declared success
+#                     (ROUTE-ADD-094/095/096)
 #   200-sse           handled, text/event-stream
 #   200-mcp-delegate  delegated to the real MCP handler when the request looks
 #                     like an MCP client (POST + JSON content-type, or
@@ -461,6 +467,42 @@ routes:
     outcome: 200-mcp-delegate
     auth: api-key
     evidence: "server.go:215 handleMCPEndpoint"
+
+  # ── MCP management (ROUTE-ADD-093..098, formerly SHIM-DRIFT-084..089) ──
+  # The six declared operations of the mcp management family. handleMCPSub
+  # dispatches on the parsed (sub-path shape, method) pair; a wrong method or an
+  # out-of-family shape answers http.NotFound, the byte-identical pre-change
+  # answer (405 is not in any of these operations' declared response sets).
+  - path: /mcp/{name}/auth
+    method: DELETE
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleMCPAuthRemove (ROUTE-ADD-093, formerly SHIM-DRIFT-092): resolves the MCP server from the settings store (mcp.<name> keys) and removes its stored OAuth rows; an unresolved name answers the typed McpServerNotFoundError. Every other /mcp/* shape and every other method on this path answers http.NotFound (the unchanged net/http default), so the sibling rows stayed NOT-SERVED until their own rows served them. RESTORED (the row, not the route): it was dropped from the routes section while the refresh_note kept crediting ROUTE-ADD-093, when the ROUTE-ADD-100 branch was merged (3bbac29) — the handler, its /mcp/{name}/auth MountPatterns registration and its tests are present at HEAD, so the artifact was reporting a served operation as not served, and ROUTE-ADD-094..098's registration of the same path turned that into a false METHOD-MISSING instead"
+  - path: /mcp/{name}/auth
+    method: POST
+    outcome: 400
+    auth: api-key
+    evidence: "server.go handleMCPAuthStart (ROUTE-ADD-094, formerly SHIM-DRIFT-085): resolves {name} from the settings store under the mcp.<name> key convention (handleMCPAuthRemove ROUTE-ADD-093) and answers the declared 400 McpUnsupportedOAuthError {\"error\":...} — this runtime implements no MCP OAuth flow and can mint neither authorizationUrl nor oauthState, so the declared 200 (both fields required, additionalProperties:false) is unreachable and a minted pair would be a lie the caller hands to a browser. Malformed input answers the operation's second declared 400 shape InvalidRequestError (blank/whitespace-only name, present-but-blank directory/workspace), an unreadable settings store answers 400 InvalidRequestError rather than an undeclared 5xx, an unknown name answers the declared typed 404 McpServerNotFoundError, and a wrong method or out-of-family shape keeps the net/http default 404"
+  - path: /mcp/{name}/auth/authenticate
+    method: POST
+    outcome: 400
+    auth: api-key
+    evidence: "server.go handleMCPAuthAuthenticate (ROUTE-ADD-095, formerly SHIM-DRIFT-086): same resolution and arms as mcp.auth.start (identical declared 200/400/404 set) — the declared 200 MCPStatus is the live status of that server's MCP connection and the shim runs no MCP client and tracks no connection, so every MCPStatus member would be invented (even needs_auth asserts a state never observed); the operation's declared 400 set carries McpUnsupportedOAuthError for exactly this cannot-run-the-flow case, which is the arm a resolved server gets. Malformed input -> InvalidRequestError, unreadable store -> InvalidRequestError, unknown name -> typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
+  - path: /mcp/{name}/auth/callback
+    method: POST
+    outcome: 400
+    auth: api-key
+    evidence: "server.go handleMCPAuthCallback (ROUTE-ADD-096, formerly SHIM-DRIFT-087): validates the declared requestBody strictly first (a single JSON object carrying the required string code, additionalProperties:false, so an absent body, a non-object, a non-string code, an undeclared field or a trailing second value are refused; the schema puts no minLength on code, so an empty string is schema-valid) and then answers the declared 400 InvalidRequestError for a resolved server: this runtime parks no OAuth flow, so there is nothing to exchange the code against (the operation's 400 set carries no McpUnsupportedOAuthError, so the second declared shape is used) — the declared 200 MCPStatus is unreachable for the same missing-runner reason as mcp.auth.authenticate. Malformed input -> InvalidRequestError before the store is read, unreadable store -> InvalidRequestError, unknown name -> typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
+  - path: /mcp/{name}/connect
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleMCPConnect (ROUTE-ADD-097, formerly SHIM-DRIFT-088): resolves {name} from the settings store and answers the declared 200 boolean with the truthful false — the shim serves MCP, holds no MCP client connection and connected nothing, so the declared literal true would claim a live connection no code in this runtime holds (the handleSyncStart / tuiShowToast / provider.oauth.callback convention). Malformed input answers the declared 400 BadRequestError {name:BadRequest,data:{message,kind}} (kind Params for a whitespace-only name, Query for a present-but-blank directory/workspace), an unreadable settings store answers the same declared 400 shape with kind omitted (the operation declares no 5xx), an unknown name answers the declared typed 404 McpServerNotFoundError, and a wrong method / out-of-family shape keeps the net/http default 404"
+  - path: /mcp/{name}/disconnect
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleMCPDisconnect (ROUTE-ADD-098, formerly SHIM-DRIFT-089): same resolution and arms as mcp.connect — the shim holds no MCP client connection, so this call disconnected nothing and the declared 200 boolean reports the truthful false rather than claiming a teardown no code performed. Malformed input -> declared 400 BadRequestError (kind Params / Query), unreadable store -> declared 400 BadRequestError, unknown name -> declared typed 404 McpServerNotFoundError, wrong method / out-of-family shape -> unchanged net/http default 404"
 
   # ── Auth management ──
   - path: /auth/{authId}
