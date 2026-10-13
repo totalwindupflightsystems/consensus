@@ -81,6 +81,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go handleGlobalConfig PATCH arm (ROUTE-ADD-090, formerly SHIM-DRIFT-088; same exact-path registration server.go:182): validates the optional Config body against the pinned schema, which sets additionalProperties:false, and answers the declared 200 with the resulting Config document — the accepted patch applied to the empty current config; malformed, non-object and undeclared-key bodies answer the declared 400 INVALID_REQUEST; an absent body is well-formed (the document does not mark requestBody required) and answers 200"
+  - path: /global/dispose
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "server.go:188 handleGlobalDispose (ROUTE-ADD-091, formerly SHIM-DRIFT-089): answers the declared 200 with the truthful boolean true — upstream 'disposes all OpenCode instances, releasing all resources', but the shim keeps no per-instance registry (opencode sessions map onto Consensus rows owned by the API service), so dispose is an idempotent no-op honored as success. The operation declares no parameters and no request body, so there is no input to reject against the declared 400 arm (the sibling handleAuthDelete boolean convention). Non-POST answers 405 METHOD_NOT_ALLOWED"
   - path: /event
     method: GET
     outcome: 200-sse
