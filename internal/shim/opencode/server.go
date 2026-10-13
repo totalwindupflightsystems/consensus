@@ -257,6 +257,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// default 404 (no catch-all).
 	mux.HandleFunc("/provider/{providerID}/oauth/callback", s.handleProviderOAuthCallback)
 	mux.HandleFunc("/agent", s.handleAgent)
+	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
+	// previously fell through to net/http's default 404. Serve the declared
+	// command.list operation without changing the separate /instance/command
+	// extension stub.
+	mux.HandleFunc("/command", s.handleCommandList)
 	mux.HandleFunc("/skill", s.handleSkill)
 	// ROUTE-ADD-088 / SHIM-DRIFT-086: the exact /formatter path was never
 	// registered, so GET /formatter fell through to net/http's default 404
@@ -397,6 +402,7 @@ var MountPatterns = []string{
 	"/config", "/config/*",
 	"/provider", "/provider/*",
 	"/agent", "/agent/*",
+	"/command", "/command/*",
 	"/skill", "/skill/*",
 	"/formatter", "/formatter/*",
 	"/experimental/*",
@@ -4122,6 +4128,30 @@ func parseProviderOAuthCallbackBody(r *http.Request) (int64, string, bool) {
 		}
 	}
 	return int64(index), "", true
+}
+
+// handleCommandList serves GET /command — upstream command.list
+// (ROUTE-ADD-063, source item SHIM-DRIFT-060, declared responses: 200
+// Command[], 400 BadRequest). Command entries require name, template and hints;
+// Consensus keeps no opencode slash-command registry, so the truthful payload
+// is an empty array rather than fabricated commands. Valued directory/workspace
+// selectors are well-formed and filter nothing; present-but-blank selectors
+// answer the declared 400. Non-GET methods follow the sibling 405 convention.
+//
+// ch:trace row=ROUTE-ADD-063 spec=specs/openapi/upstream/openapi-1.18.33.json#command.list test=internal/shim/opencode/command_list_test.go evidence=specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json witness=none:unattended-worker-session
+func (s *Server) handleCommandList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && (len(values) == 0 || strings.TrimSpace(values[0]) == "") {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, []map[string]any{})
 }
 
 // handleSkill serves GET /skill — upstream app.skills (ROUTE-ADD-111,

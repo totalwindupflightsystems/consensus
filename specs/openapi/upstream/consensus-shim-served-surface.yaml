@@ -303,6 +303,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:192 handleAgent"
+  - path: /command
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleCommandList (ROUTE-ADD-063, source item SHIM-DRIFT-060): truthful empty Command[] because Consensus keeps no opencode slash-command registry; blank directory/workspace selectors answer declared BadRequestError 400 (name BadRequest, data.kind Query), non-GET answers 405 METHOD_NOT_ALLOWED"
   - path: /skill
     method: GET
     outcome: 200
