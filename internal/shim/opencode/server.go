@@ -299,9 +299,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 
 	// PTY (ROUTE-ADD-102 / ROUTE-ADD-103 / ROUTE-ADD-104 / ROUTE-FIX-010):
 	// bare /pty serves pty.list and the intentionally narrowed pty.create;
-	// /pty/shells serves the host's discoverable shell executables. Other
-	// /pty/* sub-paths stay unregistered.
+	// /pty/shells serves the host's discoverable shell executables.
+	// ROUTE-ADD-105..109 serve the declared /pty/{ptyID} operation family:
+	// GET/PUT/DELETE pty.get/pty.update/pty.remove on the one-segment path and
+	// GET pty.connect / POST pty.connectToken on its two declared children.
+	// Each pattern pins the declared shape (one pty-id segment, optional
+	// literal suffix), never a /pty/* catch-all, so any other sub-path keeps
+	// the net/http default 404 it is classified with.
 	mux.HandleFunc("/pty/shells", s.handlePtyShells)
+	mux.HandleFunc("/pty/{ptyID}", s.handlePtyByID)
+	mux.HandleFunc("/pty/{ptyID}/connect", s.handlePtyConnect)
+	mux.HandleFunc("/pty/{ptyID}/connect-token", s.handlePtyConnectToken)
 	mux.HandleFunc("/pty", s.handlePty)
 
 	// TUI control (shim-only, passthrough)
@@ -5576,11 +5584,12 @@ var tuiDeclaredOps = map[string]string{}
 //	     not as full upstream success coverage.
 //
 // Non-GET/POST methods on the bare route answer the sibling
-// METHOD_NOT_ALLOWED envelope. /pty/{ptyID} sub-paths (pty.get/remove/update,
-// connect) remain NOT-SERVED (net/http default 404); /pty/shells is the one
-// declared child route registered separately above. Auth is untouched: PTY
-// routes are not stub paths and carry no fixed-workspace exemption, so they
-// keep the standard api-key policy.
+// METHOD_NOT_ALLOWED envelope. The /pty/{ptyID} sub-path family (pty.get,
+// pty.update, pty.remove, pty.connect, pty.connectToken) is served by
+// handlePtyByID / handlePtyConnect / handlePtyConnectToken (ROUTE-ADD-105..109,
+// see pty_routes.go); /pty/shells is the other declared child route registered
+// separately above. Auth is untouched: PTY routes are not stub paths and carry
+// no fixed-workspace exemption, so they keep the standard api-key policy.
 func (s *Server) handlePty(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

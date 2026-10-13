@@ -353,6 +353,31 @@ routes:
     x-shim-intentional-narrowing: true
     narrowing-rationale: "Consensus deliberately exposes no raw PTY lifecycle or process registry: its native shell tool runs inside an authenticated agent session. Returning a fabricated Pty object would falsely claim that a terminal was spawned."
     evidence: "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-103 resolves source item SHIM-DRIFT-106 as an explicit intentional narrowing)"
+  - path: /pty/{ptyID}
+    method: GET
+    outcome: 404-typed
+    auth: api-key
+    evidence: "server.go handlePtyByID → ptyGet (pty_routes.go; ROUTE-ADD-106, source item SHIM-DRIFT-092 in this artifact / SHIM-DRIFT-109 in the 2026-09-29 baseline report): declared responses 200 Pty, 400 BadRequestError, 404 PtyNotFoundError. Served arms: an ill-shaped ptyID (declared path pattern ^pty) answers the declared 400 BadRequestError with kind Params; a present-but-blank or non-directory directory/workspace selector answers the declared 400 with kind Query (the sibling ptyList/pty.shells rule); every well-formed ptyID answers the declared 404 typed PtyNotFoundError {_tag, ptyID, message} because the runtime keeps no pty registry and spawns no pseudo-terminal (ROUTE-ADD-102's truthfully empty pty.list). The declared 200 Pty is NOT served and never fabricated, and the operation declares no 403 so an existing foreign directory selector is not a refusal — the declared 404 is the answer"
+  - path: /pty/{ptyID}
+    method: PUT
+    outcome: 404-typed
+    auth: api-key
+    evidence: "server.go handlePtyByID → ptyUpdate (pty_routes.go; ROUTE-ADD-107, source item SHIM-DRIFT-093 in this artifact / SHIM-DRIFT-110 in the 2026-09-29 baseline report): declared responses 200 Pty, 400 BadRequest | InvalidRequestError, 404 PtyNotFoundError. Served arms: the declared requestBody {title?: string, size?: {rows*: integer > 0, cols*: integer > 0}} additionalProperties: false is validated strictly BEFORE the lookup — a non-object/unparseable body, an undeclared key, a trailing second value, a non-string title, a size that is not an object/missing rows or cols/carrying an undeclared key/not greater than 0 all answer the declared 400 (the anyOf admits the emitted BadRequestError shape); an absent or empty body is well-formed (the document marks no required member) and an ill-shaped ptyID or malformed selector answers 400 kind Params/Query; every accepted body answers the declared 404 typed PtyNotFoundError, never an echoed 200 Pty claiming the requested title/size was applied (there is no PTY to update)"
+  - path: /pty/{ptyID}
+    method: DELETE
+    outcome: 404-typed
+    auth: api-key
+    evidence: "server.go handlePtyByID → ptyRemove (pty_routes.go; ROUTE-ADD-105, source item SHIM-DRIFT-091 in this artifact / SHIM-DRIFT-108 in the 2026-09-29 baseline report): declared responses 200 boolean 'Session removed', 400 BadRequestError, 404 PtyNotFoundError. Served arms: ill-shaped ptyID 400 kind Params, blank/non-directory selector 400 kind Query, and every well-formed ptyID the declared 404 typed PtyNotFoundError. The declared 200 boolean is NOT served and never fabricated: no PTY this runtime could have created exists, so a boolean could only report a removal of a terminal that never existed (the sessionUnshare no-active-share precedent, ROUTE-FIX-015). The operation declares no requestBody, so a body is neither read nor required"
+  - path: /pty/{ptyID}/connect
+    method: GET
+    outcome: 404-typed
+    auth: api-key
+    evidence: "server.go handlePtyConnect (pty_routes.go; ROUTE-ADD-108, source item SHIM-DRIFT-094 in this artifact / SHIM-DRIFT-111 in the 2026-09-29 baseline report; the ROUTE-ADD-108 board row cited SHIM-DRIFT-104, which is this path in the baseline): declared responses 200 boolean 'Connected session', 403 Forbidden, 404 NotFoundError. Served arms: the declared 404 NotFoundError NamedError shape {name, data{message}} for every ptyID — the operation declares NO 400 arm, so an ill-shaped ptyID is answered 404, never an undeclared 400; the declared 403 with the exact schema {_tag: 'Forbidden'} (additionalProperties false, so the body carries that one field) for a directory/workspace selector that is blank, names no existing directory, or names an existing directory this instance does not serve — the shim serves exactly one workspace and can never open a terminal outside it, and 403 is the only declared code that expresses that refusal. The declared 200 boolean is NOT served and never fabricated: the shim opens no PTY WebSocket and connects no session"
+  - path: /pty/{ptyID}/connect-token
+    method: POST
+    outcome: 404-typed
+    auth: api-key
+    evidence: "server.go handlePtyConnectToken (pty_routes.go; ROUTE-ADD-109, source item SHIM-DRIFT-095 in this artifact / SHIM-DRIFT-112 in the 2026-09-29 baseline report): declared responses 200 PtyTicketConnectToken {ticket, expires_in}, 400 BadRequestError, 403 PtyForbiddenError, 404 PtyNotFoundError. Served arms: ill-shaped ptyID (declared pattern ^pty) 400 kind Params; a blank or non-directory directory/workspace selector 400 kind Query; an existing directory this instance does not serve answers the declared 403 {_tag: 'PtyForbiddenError', message}; every well-formed ptyID answers the declared 404 typed PtyNotFoundError. The declared 200 is a short-lived single-use credential the shim never mints, so it is NOT served and never fabricated. The operation declares no requestBody, so no body is read"
 
   # ── Tools ──
   - path: /experimental/tool
