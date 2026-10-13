@@ -1,0 +1,14 @@
+{
+  "tick": "consensus-foreman-2026-10-13-08-55-31",
+  "project": "consensus",
+  "budget": 9,
+  "workers_used": 5,
+  "tasks": [
+    {"id": "DOC-14", "worktree": "/home/kara/worktrees/consensus-DOC-14", "branch": "wt/DOC-14"},
+    {"id": "DOC-15", "worktree": "/home/kara/worktrees/consensus-DOC-15", "branch": "wt/DOC-15"},
+    {"id": "DOC-17", "worktree": "/home/kara/worktrees/consensus-DOC-17", "branch": "wt/DOC-17"},
+    {"id": "DOC-18", "worktree": "/home/kara/worktrees/consensus-DOC-18", "branch": "wt/DOC-18"},
+    {"id": "README-5", "worktree": "/home/kara/worktrees/consensus-README-5", "branch": "wt/README-5"}
+  ],
+  "note": "5 mutually independent P4 doc tasks; DOC-19 re-eval deliberately deferred (depends on all five). All targets are docs-only: acceptance is a grep/parity check, no build risk."
+}
