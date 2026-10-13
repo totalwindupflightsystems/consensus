@@ -275,6 +275,100 @@ curl -X POST http://localhost:8090/api/v1/tools/query/execute \
   -d '{"query":"SELECT * FROM sessions LIMIT 5"}'
 ```
 
+### Tool execution request inspection
+
+These read-only endpoints expose queued executor requests, their latest persisted
+results, and the combined per-session lifecycle view used by integrators.
+All require an API key. `admin` and `readonly` keys may inspect any session; a
+`session` key is restricted to its bound session. Send the key as
+`Authorization: Bearer $CONSENSUS_API_KEY` (or `X-Api-Key` for clients that
+cannot set an Authorization header).
+
+#### `GET /api/v1/tool-requests` — list executor requests
+
+Returns a JSON array containing at most 100 requests, ordered oldest first by
+`created_at` and then `id`. Both query parameters are optional and may be
+combined:
+
+| Query parameter | Type | Meaning |
+|---|---|---|
+| `session_id` | UUID string | Return requests for one session. A session-scoped key is always restricted to its bound session; asking for another session returns `403`. |
+| `status` | string | Exact lifecycle status: `pending`, `awaiting_approval`, `executing`, `completed`, `failed`, or `timeout`. |
+
+```bash
+curl "http://localhost:8090/api/v1/tool-requests?session_id=<session-uuid>&status=completed" \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY"
+```
+
+A list item uses the `ToolRequest` schema described below. Completed and failed
+requests include the latest persisted `result`; fields that have not been set
+are omitted.
+
+Errors: `401 UNAUTHENTICATED` for a missing, invalid, or expired key; `403
+FORBIDDEN` when a session key requests another session; `429 RATE_LIMITED` when
+the key exceeds its request budget; and `500 INTERNAL_ERROR` when the database
+query fails.
+
+#### `GET /api/v1/tool-requests/{requestID}` — get one executor request
+
+`requestID` is the positive integer ID of a tool request. The response is one
+`ToolRequest` object, including its latest result when one exists.
+
+```bash
+curl http://localhost:8090/api/v1/tool-requests/<request-id> \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY"
+```
+
+Errors: `401 UNAUTHENTICATED`; `403 FORBIDDEN` when a session key requests a
+request owned by another session; `404 NOT_FOUND` when `requestID` is not a
+positive integer or no request has that ID; `429 RATE_LIMITED`; and `500
+INTERNAL_ERROR` for an internal read failure.
+
+`ToolRequest` response fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | integer | Tool-request ID. |
+| `session_id` | UUID string | Owning session. |
+| `iteration_id` | integer | Session iteration that issued the request. |
+| `tool_name` | string | Registered tool name. |
+| `parameters` | object | Parsed tool-specific parameters. |
+| `status` | string | One of the six lifecycle statuses listed above. |
+| `timeout_ms` | integer | Execution timeout in milliseconds. |
+| `approval_request_id` | string | Optional approval request reference. |
+| `created_at` | date-time string | Request creation time. |
+| `executed_at` | date-time string | Optional execution start time. |
+| `completed_at` | date-time string | Optional completion time. |
+| `result` | object | Optional latest `ToolResult`. |
+
+A `ToolResult` contains required `id`, `request_id`, `output`, `is_error`, and
+`created_at` fields, plus optional `error_code`, `exit_code`, `duration_ms`, and
+`token_count` fields.
+
+#### `GET /api/v1/sessions/{id}/tool-calls` — inspect a session lifecycle
+
+Returns up to 100 entries in oldest-first order, merging executor-backed
+`tool_requests` rows with planning-buffer `tool_call_ref` rows. There are no
+query parameters. The `source` field distinguishes `tool_request` from
+`staging_buffer`; `status` is the native lifecycle status from that source.
+
+```bash
+curl http://localhost:8090/api/v1/sessions/<session-uuid>/tool-calls \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY"
+```
+
+Each `SessionToolCall` object contains required `source`, `id`, `session_id`,
+`iteration`, `tool_name`, `parameters`, `status`, `executed`, and `created_at`
+fields. Optional fields are `turn`, `seq`, `description`, `result`,
+`executed_at`, and `completed_at`. For `tool_request` entries, `result` is the
+`ToolResult` shape above; for `staging_buffer` entries, it is the parsed staging
+result and may have any JSON shape.
+
+Errors: `400 INVALID_UUID` for a UUID-length malformed session ID; `401
+UNAUTHENTICATED`; `403 FORBIDDEN` when a session key requests another session;
+`429 RATE_LIMITED`; and `500 INTERNAL_ERROR` when either backing query fails.
+An authorized session ID with no matching rows returns `200` with `[]`.
+
 ---
 
 ## Approvals
