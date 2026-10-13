@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -3563,20 +3564,118 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
 			return
 		}
-		ctx := r.Context()
-		for k, v := range req {
-			val := toString(v)
-			_ = s.db.Exec(ctx,
-				`INSERT INTO system_settings (key, value) VALUES ($1, $2)
-				 ON CONFLICT (key) DO UPDATE SET value = $2`,
-				k, val,
-			)
+		settings, err := flattenedConfigSettings(req)
+		if err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+			return
 		}
-		writeJSON(w, map[string]any{"status": "updated", "keys": len(req)})
+		if err := s.persistConfigSettings(r.Context(), settings); err != nil {
+			writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update config")
+			return
+		}
+		writeJSON(w, map[string]any{"status": "updated", "keys": len(settings)})
 		return
 	default:
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET or PATCH")
 	}
+}
+
+type configSetting struct {
+	key   string
+	value string
+}
+
+// flattenedConfigSettings translates opencode's documented
+// {"mcp":{"<name>":{...}}} Config shape into the flat settings rows used by
+// the /mcp/{name}/* resolver. Existing dotted keys remain valid. MCP config
+// objects are stored as JSON so GET /config can return a readable value that
+// can be PATCHed back without losing the server definition.
+func flattenedConfigSettings(patch map[string]any) ([]configSetting, error) {
+	flattened := make(map[string]any, len(patch))
+	for key, value := range patch {
+		if key != "mcp" {
+			flattened[key] = value
+		}
+	}
+
+	if value, ok := patch["mcp"]; ok {
+		servers, ok := value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("config key %q must be an object keyed by MCP server name", "mcp")
+		}
+		for name, server := range servers {
+			// An explicitly supplied dotted key wins over its block-form twin.
+			key := "mcp." + name
+			if _, exists := flattened[key]; !exists {
+				flattened[key] = server
+			}
+		}
+	}
+
+	keys := make([]string, 0, len(flattened))
+	for key := range flattened {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	settings := make([]configSetting, 0, len(keys))
+	for _, key := range keys {
+		value := flattened[key]
+		encoded := toString(value)
+		if strings.HasPrefix(key, "mcp.") {
+			switch value.(type) {
+			case string, []byte:
+			default:
+				data, err := json.Marshal(value)
+				if err != nil {
+					return nil, fmt.Errorf("encode config key %q: %w", key, err)
+				}
+				encoded = string(data)
+			}
+		}
+		settings = append(settings, configSetting{key: key, value: encoded})
+	}
+	return settings, nil
+}
+
+func (s *Server) persistConfigSettings(ctx context.Context, settings []configSetting) error {
+	for _, setting := range settings {
+		if err := s.db.Exec(ctx,
+			`INSERT INTO system_settings (key, value) VALUES ($1, $2)
+			 ON CONFLICT (key) DO UPDATE SET value = $2`,
+			setting.key, setting.value,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// globalMCPConfig reconstructs the documented block form from the flattened
+// rows written by PATCH /config and PATCH /global/config. Legacy field-level
+// rows (for example mcp.demo.type) are ignored because their scalar values are
+// not complete MCP server config objects.
+func (s *Server) globalMCPConfig(ctx context.Context) (map[string]any, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT key, value FROM system_settings WHERE key LIKE $1 ORDER BY key`,
+		"mcp.%")
+	if err != nil {
+		return nil, err
+	}
+	servers := make(map[string]any)
+	for _, row := range rows {
+		key := toString(row["key"])
+		name := strings.TrimPrefix(key, "mcp.")
+		if name == "" || name == key {
+			continue
+		}
+		var config map[string]any
+		if err := json.Unmarshal([]byte(toString(row["value"])), &config); err != nil || config == nil {
+			continue
+		}
+		servers[name] = config
+	}
+	return servers, nil
 }
 
 // handleGlobalConfig serves the upstream /global/config surface — GET
@@ -3596,21 +3695,17 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 // 404/405), and a 501 would leave a declared operation unserved for no reason
 // when the shim can answer it truthfully.
 //
-// The runtime keeps no opencode global-config store — Consensus configuration
-// lives in system_settings and is served, as a different surface, by the
-// shim's own /config route — so:
+// Consensus configuration lives in system_settings. Most global Config fields
+// remain response-only because the runtime has no matching opencode store, but
+// MCP servers are a shared surface: the /mcp/{name}/* route family resolves
+// them from flat mcp.<name> settings rows. Therefore:
 //
-//	GET   answers the current global config as the empty Config document {}
-//	      (never null: the document declares an object). The payload is not
-//	      derived from system_settings because those keys are Consensus
-//	      settings, not opencode Config properties.
-//	PATCH validates the optional Config body against the declared surface and
-//	      answers 200 with the resulting Config document (the accepted patch
-//	      applied to the empty current config = the patch itself). It is NOT
-//	      persisted: there is no store to persist it to, and inventing one
-//	      would fabricate state the runtime does not have. Same honesty shape
-//	      as the sibling stub routes (e.g. /skill answers the declared empty
-//	      array).
+//	GET   reconstructs the documented {"mcp":{"<name>": ...}} block from
+//	      complete flat MCP server rows and otherwise answers {} (never null).
+//	PATCH validates the optional Config body, flattens each server in a
+//	      top-level mcp block into one mcp.<name> settings row, and returns the
+//	      accepted Config document in its original block form. Non-MCP fields
+//	      remain response-only.
 //
 // The declared 400 arm answers the sibling writeOpencodeError INVALID_REQUEST
 // envelope for malformed input: a body that is not JSON, that is not a JSON
@@ -3624,8 +3719,16 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		// The shim's global config is empty: it keeps no opencode Config store.
-		writeJSON(w, map[string]any{})
+		mcp, err := s.globalMCPConfig(r.Context())
+		if err != nil {
+			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to read MCP config")
+			return
+		}
+		config := make(map[string]any)
+		if len(mcp) > 0 {
+			config["mcp"] = mcp
+		}
+		writeJSON(w, config)
 		return
 	case http.MethodPatch:
 		var patch map[string]any
@@ -3650,8 +3753,19 @@ func (s *Server) handleGlobalConfig(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		// The current global config is empty, so the resulting config IS the
-		// accepted patch — a Config document (never null, never an envelope).
+		if mcp, ok := patch["mcp"]; ok {
+			settings, err := flattenedConfigSettings(map[string]any{"mcp": mcp})
+			if err != nil {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+				return
+			}
+			if err := s.persistConfigSettings(r.Context(), settings); err != nil {
+				writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "failed to update MCP config")
+				return
+			}
+		}
+		// The resulting response keeps the documented block form even though its
+		// MCP servers are persisted as flat mcp.<name> settings rows.
 		writeJSON(w, patch)
 		return
 	default:

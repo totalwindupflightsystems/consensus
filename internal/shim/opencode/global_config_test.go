@@ -18,7 +18,7 @@ import (
 // (SHIM-DRIFT-087, declared responses 200 Config, 400) and
 // global.config.update (ROUTE-ADD-090, SHIM-DRIFT-088, declared responses
 // 200 Config, 400): GET /global/config must return 200 with a Config
-// document — the shim keeps no opencode global-config store, so the truthful
+// document — a fresh shim has no persisted MCP server rows, so the truthful
 // payload is the empty object (never null, never a 404) — and PATCH must
 // answer 200 with the resulting Config document instead of the pre-fix
 // net/http default 404.
@@ -41,7 +41,7 @@ func TestGlobalConfigGetAnswersEmptyConfig(t *testing.T) {
 		t.Errorf("GET /global/config body = %s, want an object (never null)", body)
 	}
 	if len(cfg) != 0 {
-		t.Errorf("GET /global/config = %v, want {} (the shim keeps no opencode global-config store)", cfg)
+		t.Errorf("GET /global/config = %v, want {} for a fresh settings store", cfg)
 	}
 }
 
@@ -221,9 +221,9 @@ func TestGlobalConfigChiMount(t *testing.T) {
 // TestGlobalConfigAnswersDeclaredList answers upstream global.config.get
 // (ROUTE-ADD-089, formerly SHIM-DRIFT-087, declared responses: 200 Config,
 // 400): GET /global/config must answer a status code the pinned upstream
-// document declares for that operation — 200 carrying a Config document, since
-// the runtime keeps no opencode global-config store and the empty object is the
-// truthful payload (never null, never the pre-fix net/http default 404).
+// document declares for that operation — 200 carrying a Config document. A
+// fresh settings store has no MCP rows, so the empty object is the truthful
+// payload (never null, never the pre-fix net/http default 404).
 //
 // The declared status list is READ from the pinned document rather than
 // hardcoded: a pin bump that drops 200 from the declared set fails here instead
@@ -262,7 +262,7 @@ func TestGlobalConfigAnswersDeclaredList(t *testing.T) {
 		t.Errorf("GET /global/config body = %s, want an object (never null)", body)
 	}
 	if len(cfg) != 0 {
-		t.Errorf("GET /global/config = %v, want {} (the shim keeps no opencode global-config store)", cfg)
+		t.Errorf("GET /global/config = %v, want {} for a fresh settings store", cfg)
 	}
 }
 
