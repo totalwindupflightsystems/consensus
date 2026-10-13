@@ -150,6 +150,21 @@ paths:
   # (root openapi.yaml references ./paths/shim.yaml for /global/*, /session/*,
   # /config, /find, /file/*, /permission*, /tui/*, /lsp, /mcp, /event,
   # /project*, /vcs*, /instance* — see shim.yaml for the full surface)
+  #
+  # SHIM-GAP-006 — declared semantic divergence on /mcp: the upstream opencode
+  # document (specs/openapi/upstream/openapi-1.18.33.json) declares mcp.status
+  # (GET /mcp) and mcp.add (POST /mcp) as MCP *management* operations. Consensus
+  # keeps its MCP *protocol* delegation on both methods (streamable-HTTP
+  # transport, MCP-DIRECT-001) and declares the divergence instead of adopting
+  # upstream's semantics. The served document paths/shim.yaml (mcp: block)
+  # describes the real streamable-HTTP behavior — responses 200/202/400/401/405/
+  # 501 — so a client generated from OUR bundle can predict the endpoint. A
+  # client generated from the UPSTREAM document cannot call mcp.status/mcp.add
+  # against this runtime; the reason and the full decision record live in
+  # specs/015-api-and-mcp.md §5.4.1 and
+  # docs/reports/shim-source-002-baseline-diff-2026-09-29.md (SHIM-GAP-006
+  # addendum). scripts/compare-opencode-declared-served.py classifies these two
+  # rows as SEMANTIC-DIFFERENT (SHIM-SEMANTIC-001/002).
 
   # OpenAI/Anthropic compat endpoints (/v1/chat/completions, /v1/models,
   # /v1/messages, /v1/messages/count_tokens) — PLANNED / NOT IMPLEMENTED.
