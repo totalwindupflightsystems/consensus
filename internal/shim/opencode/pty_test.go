@@ -15,9 +15,11 @@ package opencode
 //	     host-backed shell discovery with declared 200 and 400 arms. Its
 //	     focused regression battery lives in pty_shells_test.go.
 //
-// Neighbour guards pin that the remaining /pty/{ptyID} sub-paths stay
-// untouched, that non-GET/POST methods answer 405, and that /pty keeps
-// Consensus auth (no stub-path exemption, no fixed-workspace exemption).
+// Neighbour guards pin that the remaining /pty/{ptyID} sub-paths are served by
+// ROUTE-ADD-105..109 with their declared typed 404 envelopes (never the
+// net/http default), that non-GET/POST methods answer 405, and that /pty keeps
+// Consensus auth (no stub-path exemption, no fixed-workspace exemption). The
+// operation-level arms for the family live in pty_routes_test.go.
 
 import (
 	"encoding/json"
@@ -213,22 +215,46 @@ func TestPtyMethodNotAllowed(t *testing.T) {
 	}
 }
 
-// TestPtySubPathsUntouched guards the neighbours: /pty/{ptyID}
-// (pty.get/remove/update), connect, and every other unregistered sub-path stay
-// NOT-SERVED (net/http default 404, artifact rows SHIM-DRIFT-108..111). The
-// separately declared /pty/shells operation is covered by pty_shells_test.go.
-func TestPtySubPathsUntouched(t *testing.T) {
+// TestPtySubPathsServedTypedNotFound replaces the former
+// "sub-paths stay NOT-SERVED" guard: ROUTE-ADD-105..109 registered the
+// /pty/{ptyID} family, so GET/DELETE /pty/pty_1 and GET /pty/pty_1/connect are
+// routed now and answer their declared 404 with a TYPED envelope — the status
+// is still 404, but it is the operation's declared answer rather than the
+// net/http default, and the body is no longer "404 page not found". The
+// operation-level arms live in pty_routes_test.go; this neighbour guard only
+// pins that registering the family did not make these paths answer anything
+// outside the declared 404. The separately declared /pty/shells operation is
+// covered by pty_shells_test.go.
+func TestPtySubPathsServedTypedNotFound(t *testing.T) {
 	_, srv := newTestServer(&mockDB{})
 	defer srv.Close()
 
-	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/pty/pty_1"},
-		{http.MethodDelete, "/pty/pty_1"},
-		{http.MethodGet, "/pty/pty_1/connect"},
+	for _, tc := range []struct{ method, path, wantTag string }{
+		{http.MethodGet, "/pty/pty_1", "PtyNotFoundError"},
+		{http.MethodDelete, "/pty/pty_1", "PtyNotFoundError"},
+		{http.MethodGet, "/pty/pty_1/connect", "NotFoundError"},
 	} {
 		status, _, body := doShimRequest(t, srv.URL, tc.method, tc.path)
 		if status != http.StatusNotFound {
-			t.Errorf("%s %s: got %d, want 404 (sub-path must stay NOT-SERVED). Body: %s", tc.method, tc.path, status, body)
+			t.Errorf("%s %s: got %d, want the declared 404. Body: %s", tc.method, tc.path, status, body)
+			continue
+		}
+		var got map[string]any
+		if err := json.Unmarshal(body, &got); err != nil {
+			t.Errorf("%s %s: 404 body is not JSON: %v (%s)", tc.method, tc.path, err, body)
+			continue
+		}
+		if _, isDefault := got["error"]; isDefault {
+			t.Errorf("%s %s: body carries the shim error envelope, want the typed declared shape: %s", tc.method, tc.path, body)
+		}
+		if tc.wantTag == "NotFoundError" {
+			if got["name"] != "NotFoundError" {
+				t.Errorf("%s %s: 404 body name = %v, want NotFoundError", tc.method, tc.path, got["name"])
+			}
+			continue
+		}
+		if got["_tag"] != tc.wantTag {
+			t.Errorf("%s %s: 404 body _tag = %v, want %s", tc.method, tc.path, got["_tag"], tc.wantTag)
 		}
 	}
 }
