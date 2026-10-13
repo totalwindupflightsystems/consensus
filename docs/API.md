@@ -230,6 +230,7 @@ returns to `idle`; the durable assistant reply is then available in
 | `GET /api/v1/sessions/{id}/memory/{memoryID}` | Fetch one memory event |
 | `GET /api/v1/sessions/{id}/context` | Active context view (live SQL view) |
 | `GET /api/v1/sessions/{id}/iterations` | Iteration history |
+| `GET /api/v1/sessions/{id}/tool-calls` | Merged tool-call lifecycle history |
 | `GET /api/v1/sessions/{id}/tasks` | Tasks spawned by the session |
 | `POST /api/v1/sessions/{id}/tasks` | Create a task |
 | `GET /api/v1/sessions/{id}/approvals` | Pending/reviewed approvals |
@@ -238,6 +239,68 @@ returns to `idle`; the durable assistant reply is then available in
 ```bash
 curl http://localhost:8090/api/v1/sessions/<session-uuid>/billing \
   -H "Authorization: Bearer cs_ak_your_secret_key"
+```
+
+### `GET /api/v1/sessions/{id}/tool-calls` — list tool-call history
+
+Returns the session's merged tool-call lifecycle history. This view combines
+executor-backed `tool_requests` records with planning-stage `staging_buffer`
+records whose command type is `tool_call_ref`; other staging commands are not
+included.
+
+**Authorization.** `admin` and `readonly` keys may read any session. A
+`session`-scoped key may read only the session to which the key is bound; using
+it with another session ID returns `403 FORBIDDEN`.
+
+**Parameters.** `id` is the required session UUID path parameter. The endpoint
+accepts no query parameters and does not expose pagination controls.
+
+A successful request returns `200` with a JSON array. The merged result is
+ordered oldest first (by `created_at`, then source and ID for ties) and limited
+to 100 entries. An empty array is valid when the session has no tool calls.
+Every item includes `source` (`tool_request` or `staging_buffer`), `id`,
+`session_id`, `iteration`, `tool_name`, `parameters`, the source table's native
+`status`, `executed`, and `created_at`. Planning-stage items may also include
+`turn`, `seq`, and `description`. Timestamp fields and `result` are included
+when available; `result` is a persisted tool-result object for `tool_request`
+items and the parsed staging result for `staging_buffer` items.
+
+```json
+[
+  {
+    "source": "tool_request",
+    "id": 401,
+    "session_id": "4d1db8f7-3634-4e9e-a613-a07b6df4a587",
+    "iteration": 9,
+    "tool_name": "fetch_url",
+    "parameters": {"url": "https://example.com"},
+    "status": "completed",
+    "executed": true,
+    "result": {
+      "id": 402,
+      "request_id": 401,
+      "output": "ok",
+      "is_error": false,
+      "created_at": "2026-10-10T10:02:03Z"
+    },
+    "created_at": "2026-10-10T10:02:01Z",
+    "executed_at": "2026-10-10T10:02:02Z",
+    "completed_at": "2026-10-10T10:02:03Z"
+  }
+]
+```
+
+Errors use the standard JSON envelope:
+
+| Status | Code | Meaning |
+|---|---|---|
+| `401` | `UNAUTHENTICATED` | API key is missing, invalid, or expired |
+| `403` | `FORBIDDEN` | A session-scoped key requested another session |
+| `500` | `INTERNAL_ERROR` | The server could not read either tool-call source |
+
+```bash
+curl http://localhost:8090/api/v1/sessions/<session-uuid>/tool-calls \
+  -H "Authorization: Bearer $CONSENSUS_API_KEY"
 ```
 
 ---
