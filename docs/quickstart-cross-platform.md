@@ -252,10 +252,36 @@ Once Consensus is running:
 |----------|----------|---------|-------|
 | `DEEPSEEK_API_KEY` | Yes | — | Starts with `sk-`. Get from platform.deepseek.com |
 | `OPENROUTER_API_KEY` | No | — | Alternative: use OpenRouter instead of DeepSeek direct |
+| `LM_STUDIO_BASE_URL` | No | unset (fallback disabled) | Optional OpenAI-compatible LM Studio fallback; see [LM Studio fallback routing](#lm-studio-fallback-routing) |
 | `CONSENSUS_PORT` | No | `8090` | Change if port 8090 is occupied |
 | `CONSENSUS_DB_URL` | No | `sqlite://...` | PostgreSQL: `postgres://user:pass@host/db?sslmode=require` |
 | `CONSENSUS_API_KEY` | No | — | Protect your API with an auth key |
 | `CONSENSUS_AUTO_SYNC` | No | — | Auto-refresh model registry (e.g., `24h`) |
+
+### LM Studio fallback routing
+
+`LM_STUDIO_BASE_URL` configures a secondary, OpenAI-compatible endpoint for
+LLM calls. It does not override the primary provider or endpoint:
+`CONSENSUS_LLM_PROVIDER` still selects the primary client, while the primary
+base URL follows `CONSENSUS_LLM_BASE_URL` → `OPENROUTER_BASE_URL` →
+`llm.base_url` in `consensus.yaml` → the selected provider's default. The LM
+Studio URL is independent of that precedence chain and is used only after a
+retryable network or HTTP 5xx failure exhausts the initial primary request and
+three retries. Non-retryable failures, such as authentication errors, return
+immediately without using the fallback.
+
+Point the variable at LM Studio's OpenAI-compatible `/v1` base URL; Consensus
+appends `/chat/completions`:
+
+```bash
+export LM_STUDIO_BASE_URL="http://localhost:1234/v1"
+./bin/consensus serve --config consensus.yaml
+```
+
+The configured primary model name is also sent to LM Studio, so the local
+server must expose a compatible model identifier. When the variable is unset
+or empty, fallback is disabled: primary routing is unchanged and Consensus
+returns the exhausted primary-provider error.
 
 ---
 
