@@ -372,6 +372,7 @@ no expiry).
 | `ANTHROPIC_API_KEY` | — | Anthropic API key when the `anthropic` provider is selected |
 | `CONSENSUS_LLM_BASE_URL` | `https://api.deepseek.com/v1` | Override LLM API endpoint |
 | `OPENROUTER_BASE_URL` | — | Fallback LLM API endpoint override for OpenRouter |
+| `LM_STUDIO_BASE_URL` | unset (fallback disabled) | Optional LM Studio fallback after primary retries; see [LM Studio fallback routing](docs/quickstart-cross-platform.md#lm-studio-fallback-routing) for precedence and an example |
 | `CONSENSUS_LLM_PROVIDER` | `openai` | Override the LLM provider |
 | `CONSENSUS_LLM_MODEL` | provider-specific | Override the default LLM model |
 | `CONSENSUS_API_KEY` | — | Protect the API with an auth key |
