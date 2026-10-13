@@ -266,7 +266,7 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push
+      - name: Build and push (retry on transient registry rate limits)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -278,3 +278,30 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # public.ecr.aws intermittently answers 429 "Data limit exceeded" on
+      # base-image manifests (see INT-CI-002 / INT-CI-006). Retry the whole
+      # build up to 3 extra times with backoff before giving up.
+      - name: Retry build on transient registry errors
+        if: ${{ failure() }}
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 3
+          retry_on: error
+          timeout_seconds: 900
+          retry_wait_seconds: 60
+          warning_on_retry: true
+          command: |
+            set -e
+            TAGS=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ')
+            PUSH_FLAG=""
+            if [ "${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}" = "true" ]; then
+              PUSH_FLAG="--push"
+            fi
+            docker buildx build \
+              --build-arg GO_IMAGE=public.ecr.aws/docker/library/golang:1.26-alpine \
+              --build-arg ALPINE_IMAGE=public.ecr.aws/docker/library/alpine:3.21 \
+              $TAGS $PUSH_FLAG \
+              --cache-from type=gha \
+              --cache-to type=gha,mode=max \
+              .
