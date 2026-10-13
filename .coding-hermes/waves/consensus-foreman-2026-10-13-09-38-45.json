@@ -1,0 +1,11 @@
+{
+  "tick": "consensus-foreman-2026-10-13-09-38-45",
+  "project": "consensus",
+  "budget": 9,
+  "workers_used": 2,
+  "tasks": [
+    {"id": "ROUTE-ADD-094", "family": "/mcp/* auth/connect (094-098)", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-094", "branch": "wt/ROUTE-ADD-094", "base_sha": "a13c6c5"},
+    {"id": "ROUTE-ADD-105", "family": "/pty/{ptyID} (105-109)", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-105", "branch": "wt/ROUTE-ADD-105", "base_sha": "a13c6c5"}
+  ],
+  "note": "2 workers, one per route family. Within-family rows share the handler registration region in internal/shim/opencode/server.go (handleMCPSub / pty subtree), so they are NOT mutually independent; the two families touch disjoint handler regions and spec surface rows, so family-level parallelism is the honest maximal wave. Each worker serves all 5 routes of its family per declared contracts, updates the served-surface rows, and regenerates declared-vs-served."
+}
