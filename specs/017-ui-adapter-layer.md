@@ -217,6 +217,8 @@ opencode TUI displays the response
 | `PATCH` | `/config` | `PATCH /api/v1/config` |
 | `GET` | `/config/providers` | `GET /api/v1/config/providers` |
 
+`PATCH /config` accepts both the documented MCP block form (`{"mcp":{"<name>":{...}}}`) and the legacy dotted form (`{"mcp.<name>":{...}}`). The shim stores one JSON-valued `system_settings` row per server under `mcp.<name>` because the `/mcp/{name}/*` operations resolve that flat namespace. `GET /config` exposes those flat rows under `settings`; `GET /global/config` reconstructs the documented `mcp` block, so either PATCH surface round-trips without making a registered server invisible to MCP operations.
+
 **Provider:**
 
 | Method | Shim Path | Native API Call |
