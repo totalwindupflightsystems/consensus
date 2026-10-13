@@ -361,6 +361,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go handleFindSub symbol && GET → findSymbols (ROUTE-FIX-002, formerly SHIM-DRIFT-085): ?query= required (missing/blank → 400 INVALID_REQUEST), present-but-blank directory/workspace → 400 (sibling handleFileList convention), declared optional selectors accepted-not-narrowing (singleton-instance convention); the truthful 200 body is the EMPTY list — the shim has no LSP integration (handleLSP reports enabled:false unconditionally), so there is no symbol producer and entries would be fabricated (the question.list ROUTE-ADD-110 precedent); undeclared methods on the sub-path keep a typed 501 (405 is not in the declared response set, session.diff ROUTE-FIX-010 convention)"
+  - path: /file
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleFileList (ROUTE-ADD-087, formerly SHIM-DRIFT-083): real os.ReadDir listing of ?path= with all five declared required FileNode fields (name, path, absolute, type, ignored=false); empty directory answers []; missing/blank path → 400 INVALID_REQUEST, unlistable path → 400 (sibling handleFileContent convention); undeclared methods on the exact path keep a typed 501"
   - path: /file/content
     method: GET
     outcome: 200
