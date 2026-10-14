@@ -371,6 +371,7 @@ def main():
         ("/mcp/{name}/auth/callback", "POST"): "SHIM-NARROWED-019",
         ("/session/{sessionID}/share", "POST"): "SHIM-NARROWED-020",
         ("/session/{sessionID}/share", "DELETE"): "SHIM-NARROWED-021",
+        ("/api/event", "GET"): "SHIM-NARROWED-100",
     }
     for i, r in enumerate(narrowed):
         rid = stable_narrowed_ids.get((r.get("path"), r.get("method")))

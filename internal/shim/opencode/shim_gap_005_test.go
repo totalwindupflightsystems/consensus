@@ -431,7 +431,11 @@ func shimGap005Requests() map[string]shimGap005Request {
 		"session.unshare":       {http.MethodDelete, "/session/s_gap5/share", ""},
 		// ROUTE-ADD-008: the well-formed arm — the declared body {label} plus
 		// a single-segment id — answers the declared 400, never the declared 204.
-		"v2.credential.update":  {http.MethodPatch, "/api/credential/cred_gap5", `{"label":"gap5"}`},
+		"v2.credential.update": {http.MethodPatch, "/api/credential/cred_gap5", `{"label":"gap5"}`},
+
+		// ROUTE-ADD-009: no declared parameters and no requestBody, so an
+		// empty GET is every declared input the operation accepts.
+		"v2.event.subscribe": {http.MethodGet, "/api/event", ""},
 	}
 }
 

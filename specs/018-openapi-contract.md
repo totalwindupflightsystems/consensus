@@ -779,7 +779,29 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/api_credential_update.go:77 credentialUpdate`; refusal `internal/shim/opencode/api_credential_update.go:131 writeV2InvalidRequest` (the well-formed arm — every malformed arm is also a writeV2InvalidRequest call inside credentialUpdate); dispatcher `internal/shim/opencode/api_credential.go handleApiCredential`
 - widening requires: a credential store (a credentials table the OAuth surfaces actually write, with labels the declared shape can express).
 
-`counts` at this revision: `narrowed_error_contract_only: 15`, **`narrowed_unexplained: 0`**,
+#### SHIM-NARROWED-100 — v2.event.subscribe (`GET /api/event`)
+- declared: 200 "Event stream" (SSE of `V2Event`), 400, 401
+- served: 400 `InvalidRequestError` naming the reason, for every well-formed
+  subscribe (the operation declares no parameters and no requestBody, so there
+  is no narrower input arm); 401 `UnauthorizedError` unauthenticated (the v2
+  envelope via the exact-path `v2EnvelopeRoutePaths` entry); 405 for undeclared
+  methods
+- rationale: the declared 200 is an SSE stream of `V2Event` — a discriminated
+  union whose members carry a required id matching `^evt_`, a required
+  `data.info: Message` (for the message.* members) and a required `durable`
+  aggregate envelope (`{aggregateID, seq, version}`). The runtime's only real
+  event stream is the one backing the v1 `/event` route (`handleGlobalEvent`),
+  and it emits v1-shaped events (`message.created`, `tool.started`,
+  `permission.requested`, ...) with none of those members; `internal/db` keeps
+  no v2 session-event store that could back the declared frames truthfully.
+  Re-emitting the v1 frames under the v2 route would present an undeclared
+  payload shape as the declared contract, so the shim never fabricates the 200.
+  (ROUTE-FIX-037 precedent; ROUTE-ADD-009.)
+- evidence: `internal/shim/opencode/api_event_subscribe.go:41 handleApiEventSubscribe`; refusal `internal/shim/opencode/api_event_subscribe.go:47 writeV2InvalidRequest`
+- widening requires: a real v2 session-event store (a design change with its
+  own row, not a contract detail).
+
+`counts` at this revision: `narrowed_error_contract_only: 16`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
 
