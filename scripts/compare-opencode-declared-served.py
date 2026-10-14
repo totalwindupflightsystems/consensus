@@ -41,6 +41,19 @@ the served-surface row carries x-shim-intentional-narrowing: true, a non-empty
 narrowing-rationale, and outcome 501-typed. This records an explicit exclusion
 without pretending that the shim serves the upstream success contract or
 leaving the routed operation in undeclared drift.
+
+ERROR-CONTRACT NARROWING (SHIM-GAP-004). A second, separate narrowing class:
+an operation that answers a DECLARED error code but can never answer the
+declared success code (its served row's outcome is a declared non-2xx code
+while the declared set contains a 2xx). This is detected, not hand-listed: the
+comparison derives the class from the declared response set and the served
+outcome, so a newly-narrowed route cannot hide inside `covered` just because
+the status it answers happens to be IN the declared set. The detection is
+fail-closed: such a row MUST carry x-shim-error-contract-narrowing: true plus a
+non-empty narrowing-rationale, otherwise the comparison aborts naming the row.
+`counts.narrowed_unexplained` is the number of narrowed rows without a
+rationale and is 0 by construction — an unexplained narrowing cannot be
+produced by this script.
 """
 import json
 import re
@@ -54,28 +67,17 @@ REPO = Path(__file__).resolve().parent.parent
 DEFAULT_SURFACE = REPO / "specs/openapi/upstream/openapi-1.18.33.surface.json"
 DEFAULT_SERVED = REPO / "specs/openapi/upstream/consensus-shim-served-surface.yaml"
 
-# Operations where the shim answers the declared ERROR code but never the
-# declared SUCCESS code (Consensus has no project/question/permission registry).
-#
-# ROUTE-FIX-035 REMOVED ("/session/{sessionID}/message/{messageID}", "DELETE")
-# from this set when session.deleteMessage started serving its declared 200.
-# ROUTE-FIX-037 registers the sibling PATCH route on the message-part path
-# (part.update, served/covered) and therefore has to record the path's DELETE
-# explicitly: without an entry the served-path set would absorb the path and
-# part.delete would be reclassified METHOD-MISSING ("path is routed and serves
-# other methods") even though DELETE on the sub-path is answered — the
-# message-DELETE case matches the longer "message/..." prefix, hands
-# sessionDeleteMessage a garbled "msg-<id>/part/<id>" id that never resolves,
-# and answers the declared 404 NOT_FOUND. The declared 200 boolean
-# ("Successfully deleted part") is still unreachable, so the row stays
-# error-contract-only here until ROUTE-FIX-036 gives part.delete its own
-# handler.
-ERROR_CONTRACT_ONLY = {
-    ("/permission/{requestID}/reply", "POST"),
-    ("/question/{requestID}/reply", "POST"),
-    ("/question/{requestID}/reject", "POST"),
-    ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"),
-}
+# Error-contract-only operations are DETECTED from the declared response set and
+# the served outcome (a declared non-2xx code answered while the declared set
+# contains a 2xx), never hand-listed — a hand list is exactly what let a
+# narrowing hide inside `covered`. Each detected row must carry
+# x-shim-error-contract-narrowing: true plus a non-empty narrowing-rationale in
+# the served-surface file, or the comparison aborts (see ERROR-CONTRACT
+# NARROWING in the module docstring). SHIM-GAP-004 widened permission.reply
+# (POST /permission/{requestID}/reply) and tui.selectSession
+# (POST /tui/select-session) to their full declared contracts, and recorded the
+# remaining 14 rows as explicit narrowings with reasons.
+NARROWING_FLAG = "x-shim-error-contract-narrowing"
 # Same path+method in both surfaces, different operation (checked against the
 # upstream document's own summary/description for those operations).
 SEMANTIC_DIFFERENT = {
@@ -105,6 +107,22 @@ def family(path: str) -> str:
     if segs[0] == "experimental":
         return "/experimental/*"
     return "/" + segs[0] + ("/*" if len(segs) > 1 else "")
+
+
+def is_error_contract_narrowing(outcome, declared_codes) -> bool:
+    """A declared operation whose served row answers a DECLARED non-2xx code
+    while the declared set contains a 2xx: the declared success is unreachable.
+
+    Detected, never hand-listed (SHIM-GAP-004): the served-surface row's outcome
+    is the code the handler answers, so a row that can only answer an error can
+    no longer be scored `covered` just because that error is IN the declared
+    set. A row whose outcome is a 2xx (even a summary like "200" for an
+    operation with several arms) is never flagged.
+    """
+    sc = served_code(outcome)
+    return (sc in declared_codes
+            and not sc.startswith("2")
+            and any(c.startswith("2") for c in declared_codes))
 
 
 def md_table(rows, cols):
@@ -184,13 +202,38 @@ def main():
                     row["detail"] = SEMANTIC_DIFFERENT[(path, method)]
                     semantic.append(row)
                     continue
-                if served_code(s["outcome"]) in declared_codes:
-                    if (path, method) in ERROR_CONTRACT_ONLY:
-                        row["detail"] = ("shim answers the declared %s but never the "
-                                         "declared success code" % served_code(s["outcome"]))
-                        narrowed.append(row)
-                    else:
-                        covered.append(row)
+                flagged = is_error_contract_narrowing(s["outcome"], declared_codes)
+                if s.get(NARROWING_FLAG) is True and not flagged:
+                    raise SystemExit(
+                        "served-surface route %s %s sets %s: true but the "
+                        "runtime answers the declared success code (%s) — the "
+                        "marker would understate the served contract; remove it"
+                        % (method, path, NARROWING_FLAG, s["outcome"]))
+                if flagged:
+                    # Fail closed: an error-contract narrowing must record WHY.
+                    # This is what makes counts.narrowed_unexplained 0 by
+                    # construction instead of by hand-maintenance.
+                    rationale = str(s.get("narrowing-rationale") or "").strip()
+                    if s.get(NARROWING_FLAG) is not True or not rationale:
+                        raise SystemExit(
+                            "served-surface route %s %s answers declared %s "
+                            "but can never answer the declared success code "
+                            "(%s) without recording the narrowing: add "
+                            "%s: true plus a non-empty narrowing-rationale to "
+                            "its served-surface row, or serve the declared "
+                            "contract"
+                            % (method, path, served_code(s["outcome"]),
+                               ",".join(c for c in declared_codes if c.startswith("2")),
+                               NARROWING_FLAG))
+                    row["rationale"] = rationale
+                    row["detail"] = (
+                        "shim answers the declared %s but never the declared "
+                        "success code %s"
+                        % (served_code(s["outcome"]),
+                           "/".join(c for c in declared_codes if c.startswith("2"))))
+                    narrowed.append(row)
+                elif served_code(s["outcome"]) in declared_codes:
+                    covered.append(row)
                 else:
                     row["class"] = "OUTCOME-MISMATCH"
                     row["detail"] = "declared %s, served %s" % (
@@ -219,8 +262,25 @@ def main():
                     row["served_outcome"] = str(outcome)
                     row["evidence"] = rule["evidence"]
                     if code in declared_codes:
+                        if any(c.startswith("2") for c in declared_codes):
+                            # SHIM-GAP-004 fail-closed: a router catch-all that
+                            # answers a declared error code while the operation
+                            # declares a 2xx leaves the declared success
+                            # unreachable, and a prefix rule cannot record a
+                            # rationale — so it must not be classified silently.
+                            raise SystemExit(
+                                "router catch-all answers the declared %s for "
+                                "%s %s but the operation also declares a "
+                                "success code (%s) and no served-surface route "
+                                "row records the narrowing; register a served "
+                                "route (with %s: true plus a "
+                                "narrowing-rationale if the declared contract "
+                                "is unreachable) or serve the declared contract"
+                                % (code, method, path,
+                                   ",".join(c for c in declared_codes if c.startswith("2")),
+                                   NARROWING_FLAG))
                         row["detail"] = ("router catch-all answers the declared %s "
-                                         "(no success path)" % code)
+                                         "(the operation declares no success code)" % code)
                         narrowed.append(row)
                         continue
                     if code == "501":
@@ -260,6 +320,19 @@ def main():
                     "without an extension-rationale — refusing to classify an "
                     "unexplained extension as declared divergence"
                     % (row["method"], row["path"]))
+            # SHIM-GAP-005 recorded a per-entry decision for every extension
+            # (declared in the shipped spec bundle, or justified-intentional).
+            # It is carried on the served-surface row so a regeneration
+            # reproduces the artifact instead of dropping the decision.
+            decision = str(r.get("extension-decision") or "").strip()
+            if not decision:
+                raise SystemExit(
+                    "served-surface route %s %s sets x-shim-extension: true "
+                    "without an extension-decision — record whether the route "
+                    "is declared in the shipped spec bundle or justified as an "
+                    "intentional extension" % (row["method"], row["path"]))
+            row["decision"] = decision
+            row["decision_reason"] = str(r.get("extension-decision-reason") or "").strip()
             extensions.append(row)
         else:
             served_only.append(row)
@@ -270,19 +343,56 @@ def main():
         r["id"] = "SHIM-DRIFT-S%03d" % i
     for i, r in enumerate(extensions, 1):
         r["id"] = "SHIM-EXT-%03d" % i
+    # Stable ids for the error-contract narrowings. SHIM-NARROWED-001..011 are
+    # the positional ids of the 2026-09-29 baseline report
+    # (docs/reports/shim-source-002-baseline-diff-2026-09-29.md); the ones still
+    # in the class keep their baseline id, and the rows SHIM-GAP-004 surfaced
+    # (the /pty/{ptyID} family, the three mcp.auth.* operations and the two
+    # /session/{id}/share operations, all of which the comparison previously
+    # scored `covered`) take SHIM-NARROWED-012..021 in this fixed order.
+    # Baseline ids that LEFT the class: 001 permission.reply and 011
+    # tui.selectSession (widened to their full declared contracts by
+    # SHIM-GAP-004); 002 project.update, 005 session.deleteMessage, 008
+    # permission.respond, 009 session.todo, 010 session.unrevert (widened
+    # earlier by the ROUTE-FIX wave).
     stable_narrowed_ids = {
-        ("/permission/{requestID}/reply", "POST"): "SHIM-NARROWED-001",
         ("/question/{requestID}/reject", "POST"): "SHIM-NARROWED-003",
         ("/question/{requestID}/reply", "POST"): "SHIM-NARROWED-004",
-        ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"): "SHIM-NARROWED-005",
-        ("/tui/select-session", "POST"): "SHIM-NARROWED-006",
+        ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"): "SHIM-NARROWED-006",
+        ("/session/{sessionID}/message/{messageID}/part/{partID}", "PATCH"): "SHIM-NARROWED-007",
+        ("/pty/{ptyID}", "GET"): "SHIM-NARROWED-012",
+        ("/pty/{ptyID}", "PUT"): "SHIM-NARROWED-013",
+        ("/pty/{ptyID}", "DELETE"): "SHIM-NARROWED-014",
+        ("/pty/{ptyID}/connect", "GET"): "SHIM-NARROWED-015",
+        ("/pty/{ptyID}/connect-token", "POST"): "SHIM-NARROWED-016",
+        ("/mcp/{name}/auth", "POST"): "SHIM-NARROWED-017",
+        ("/mcp/{name}/auth/authenticate", "POST"): "SHIM-NARROWED-018",
+        ("/mcp/{name}/auth/callback", "POST"): "SHIM-NARROWED-019",
+        ("/session/{sessionID}/share", "POST"): "SHIM-NARROWED-020",
+        ("/session/{sessionID}/share", "DELETE"): "SHIM-NARROWED-021",
     }
-    for r in narrowed:
-        r["id"] = stable_narrowed_ids.get((r.get("path"), r.get("method")), "SHIM-NARROWED-UNKNOWN")
+    for i, r in enumerate(narrowed):
+        rid = stable_narrowed_ids.get((r.get("path"), r.get("method")))
+        if rid is None:
+            rid = "SHIM-NARROWED-%03d" % (100 + i)
+            print("note: %s %s has no stable narrowing id; using %s — add it to "
+                  "stable_narrowed_ids in this script"
+                  % (r.get("method"), r.get("path"), rid), file=sys.stderr)
+        r["id"] = rid
     for i, r in enumerate(intentional_narrowing, 1):
         r["id"] = "SHIM-NARROWED-U%03d" % i
     for i, r in enumerate(semantic, 1):
         r["id"] = "SHIM-SEMANTIC-%03d" % i
+
+    # SHIM-GAP-004: a narrowed row without a recorded rationale is an UNEXPLAINED
+    # narrowing. The classification above already aborts on one; this count is
+    # computed from the rows themselves so the artifact states the number the
+    # acceptance criterion asks for instead of implying it.
+    narrowed_unexplained = sum(1 for r in narrowed if not str(r.get("rationale") or "").strip())
+    if narrowed_unexplained:
+        raise SystemExit("%d narrowed row(s) carry no rationale — refusing to "
+                         "emit an artifact with unexplained narrowings"
+                         % narrowed_unexplained)
 
     counts = {
         "declared_paths": len(declared),
@@ -290,6 +400,8 @@ def main():
         "served_route_entries": len(served_doc["routes"]),
         "covered_operations": len(covered),
         "narrowed_error_contract_only": len(narrowed),
+        # 0 = every narrowing above records WHY (SHIM-GAP-004 acceptance).
+        "narrowed_unexplained": narrowed_unexplained,
         "intentional_narrowing": len(intentional_narrowing),
         "semantic_different": len(semantic),
         "drift_declared_not_served": len(drift),
@@ -322,12 +434,15 @@ def main():
         "id", "path", "method", "outcome", "auth", "side", "evidence"]))
     # SHIM-GAP-005: the extension rows, one per accounted served-only operation.
     (out / "appendix-shim-extensions.md").write_text(md_table(extensions, [
-        "id", "path", "method", "outcome", "auth", "side", "rationale"]))
+        "id", "path", "method", "outcome", "auth", "side", "decision",
+        "decision_reason", "rationale"]))
     (out / "appendix-covered.md").write_text(md_table(covered, [
         "path", "method", "operationId", "declared_responses", "served_outcome"]))
+    # SHIM-GAP-004: one row per error-contract narrowing, each with the reason it
+    # is narrowed (counts.narrowed_unexplained is 0 by construction).
     (out / "appendix-narrowed.md").write_text(md_table(narrowed, [
         "id", "path", "method", "operationId", "declared_responses",
-        "served_outcome", "detail"]))
+        "served_outcome", "detail", "rationale"]))
     (out / "appendix-intentional-narrowing.md").write_text(md_table(
         intentional_narrowing, [
             "id", "path", "method", "operationId", "declared_responses",

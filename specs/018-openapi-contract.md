@@ -574,3 +574,117 @@ HTTP handler regardless of database backend.
 1. **PostgREST integration**: Should the Consensus spec reference PostgREST's auto-generated endpoints (for standard CRUD) or fully replace them?
 2. **Spec-first vs code-first**: Should the OpenAPI spec be hand-maintained (spec-first) or auto-generated from code annotations (code-first)? This spec assumes spec-first.
 3. **gRPC/protobuf**: Will there ever be a need for a binary protocol, or is HTTP+JSON+SSE sufficient?
+
+---
+
+## 12. Declared vs Served: Narrowing Decisions
+
+An operation the shim *answers* can still be one a client cannot *use*. SPEC-024
+§A.3 (SHIM-SOURCE-001) requires the declared surface and the served surface to be
+compared mechanically after every refresh (declared == served, per path); this
+section is the in-repo record of every place the served surface is deliberately
+NARROWER than the declared one, so the narrowing is visible to a client reading
+the contract instead of only to someone reading `server.go`.
+
+### 12.1 The two narrowing classes
+
+| Class | Served outcome | Served-surface marker | Comparator class |
+|---|---|---|---|
+| Intentional narrowing | typed `501` `not_implemented` (the operation is not translated at all) | `x-shim-intentional-narrowing: true` + `narrowing-rationale` | `intentional_narrowing` |
+| **Error-contract narrowing** | a declared ERROR code (the operation is answered, but its declared success code is unreachable — e.g. `404` from `POST /permission/{requestID}/reply` while upstream declares `200,400,404`) | `x-shim-error-contract-narrowing: true` + `narrowing-rationale` | `narrowed_error_contract_only` |
+
+Widening to the declared contract is always preferred; a narrowing is the honest
+fallback when the runtime state the declared success describes does not exist.
+**Neither class may be silent.** The comparator
+(`scripts/compare-opencode-declared-served.py`) DETECTS the error-contract class
+from the declared response set and the served outcome — never from a hand list,
+so a newly-narrowed route cannot hide inside `covered` merely because the error it
+answers is in the declared set — and **aborts** when a detected narrowing carries
+no rationale. (An operation whose declared set contains NO success code is not an
+error-contract narrowing at all — answering a declared error code is then the
+whole declared contract.)
+
+`counts.narrowed_unexplained` in
+`specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json` is the number of
+narrowed rows WITHOUT a recorded rationale. It is `0` by construction: a
+regeneration that would produce a non-zero value exits non-zero instead of writing
+the artifact. The count is also asserted by
+`internal/shim/opencode/shim_gap_004_test.go::TestDeclaredVsServedAccountsForEveryNarrowing`,
+together with the rule that every one of the 11 findings below is either fully
+covered or carries a non-empty rationale.
+
+### 12.2 The 11 findings (SHIM-GAP-004) and their disposition
+
+At the pinned refresh (upstream v1.18.33, `openapi-1.18.33.surface.json`) the
+2026-09-29 triage report (`docs/reports/shim-source-002-baseline-diff-2026-09-29.md`)
+carried `SHIM-NARROWED-001…011` — operations the shim answered with only the error
+half of the contract. Each one is now either WIDENED to every declared response
+code or RECORDED here with the reason. Six were widened by the earlier ROUTE-FIX
+wave this row inherits; SHIM-GAP-004 widened the two that were still fixable with
+the state the runtime already owns and recorded the rest.
+
+| # | operationId | path + method | declared | disposition | reason / evidence |
+|---|---|---|---|---|---|
+| 001 | `permission.reply` | `POST /permission/{requestID}/reply` | 200,400,404 | **WIDENED** | The runtime already owned the state and the write path: the declared body `{reply*: once\|always\|reject, message?}` (`additionalProperties: false`) is validated (400 Body/Payload), an unknown or no-longer-pending id answers the declared typed `PermissionNotFoundError` (404), and a pending row is resolved through the REAL `approval_requests` write path — the same mapping `permission.respond`/`resolvePermission` use — answering the declared boolean `200 true` plus the `approval_resolved` SSE event. `permissionReply`, `internal/shim/opencode/server.go`. |
+| 002 | `project.update` | `PATCH /project/{projectID}` | 200,400,404 | **WIDENED** (ROUTE-FIX-034) | Resolvable singleton-workspace ids persist declared `name`/`icon`/`commands` metadata and return the derived Project; malformed bodies/selectors answer 400, unknown ids the typed `ProjectNotFoundError` 404. |
+| 003 | `question.reject` | `POST /question/{requestID}/reject` | 200,400,404 | **RECORDED** | No question producer exists (see 004). The declared 400 for an ill-shaped `requestID` (pattern `^que`) and the declared 404 `QuestionNotFoundError` are served; the operation declares no requestBody, so no body is read or required. |
+| 004 | `question.reply` | `POST /question/{requestID}/reply` | 200,400,404 | **RECORDED** (400 arm widened) | No question producer exists in this runtime: upstream's `QuestionRequest` (required id `^que`, `sessionID`, `questions[]` of `QuestionInfo`) has no counterpart — the human-input surface is `approval_requests` (SPEC-014), `GET /question` answers the declared EMPTY list rather than inventing entries, and nothing in the shim or the native API writes a question row. No `^que` id can exist, so the declared 200 boolean would assert that a question was answered when none exists. The declared 400 (ill-shaped id, and now the declared `{answers*: QuestionAnswer[]}` requestBody) and the 404 are served. |
+| 005 | `session.deleteMessage` | `DELETE /session/{sessionID}/message/{messageID}` | 200,400,404,409 | **WIDENED** (ROUTE-FIX-035) | All four declared codes reachable: 400 (blank/ill-shaped `messageID`), 404 (unknown session or message), 409 `SessionBusyError` (mid-turn session), and the declared boolean 200 — truthfully `false` for a known message, because `memory_events` is append-only (SPEC-002 §2.1; triggers in migrations 017/018) so no delete engine exists. |
+| 006 | `part.delete` | `DELETE /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | **RECORDED** | No part store: parts are SYNTHESIZED on read by `getMessageByID` from `memory_events.content` as one id-less text part, so no part carries the declared `^prt` id and the declared 200 boolean would report deleting something that cannot be addressed. ROUTE-FIX-036 gave the operation its own handler so the declared 400 (blank/ill-shaped `messageID ^msg` / `partID ^prt`) and the declared 404 are served. |
+| 007 | `part.update` | `PATCH /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | **RECORDED** | Same missing part store. Unlike `session.deleteMessage` (whose declared 200 is a boolean that can truthfully report `false`) this operation declares a Part OBJECT the runtime cannot produce, so the declared 404 `NotFoundError` is the answer for every well-formed `partID` and the declared 400 arms are served. Previously scored `covered` because the comparison only asked whether the served status was IN the declared set — that is the invisibility this section removes. |
+| 008 | `permission.respond` | `POST /session/{sessionID}/permissions/{permissionID}` | 200,400,404 | **WIDENED** (ROUTE-FIX-038) | Declared body validated, unknown/foreign/non-pending permission answers the declared 404, a resolved permission the declared boolean `true` plus the SSE event. |
+| 009 | `session.todo` | `GET /session/{sessionID}/todo` | 200,400,404 | **WIDENED** (ROUTE-FIX-039) | Unknown session 404; known session answers the declared `Todo[]` as the truthful EMPTY list (no per-session todo store exists). The declared 400 has no client-controllable input: the only parameter is the path `sessionID`, and the optional `directory`/`workspace` selectors are accepted and ignored under the singleton-workspace convention. |
+| 010 | `session.unrevert` | `POST /session/{sessionID}/unrevert` | 200,400,404,409 | **WIDENED** (ROUTE-FIX-040) | Unknown session 404, mid-turn session the declared 409 `SessionBusyError`, idle session the declared 200 with the Session AS IT STANDS (no revert engine exists; nothing is claimed to have been restored). |
+| 011 | `tui.selectSession` | `POST /tui/select-session` | 200,400,404 | **WIDENED** | The bare `/tui/` catch-all answered the declared 404 for every request. The declared body `{sessionID*}` (`additionalProperties: false`) is now validated strictly (400 Body/Payload), an unknown session answers the declared 404 `NotFoundError`, and a session that EXISTS answers the declared boolean 200 `false` — the shim attaches no opencode TUI process, so nothing was navigated (the `tui.showToast`/`tui.executeCommand` truthful-false precedent). `tuiSelectSession`, `internal/shim/opencode/server.go`. |
+
+Two further notes on 009/010 and the widened rows: their declared 400 arms are
+served where a client can actually violate the schema; where the declared set
+lists codes the operation's declared inputs cannot reach, that is stated above
+rather than papered over with a fabricated arm.
+
+### 12.3 Every recorded error-contract narrowing at this refresh
+
+The comparator's detection (not a hand list) surfaced rows that were previously
+scored `covered` while the declared success was unreachable. All of them are now
+recorded with a reason on their served-surface row and carried in
+`narrowed_error_contract_only` of the artifact:
+
+| id | operationId | path + method | declared | why the declared success is unreachable |
+|---|---|---|---|---|
+| SHIM-NARROWED-003 | `question.reject` | `POST /question/{requestID}/reject` | 200,400,404 | no question producer (see §12.2 row 003) |
+| SHIM-NARROWED-004 | `question.reply` | `POST /question/{requestID}/reply` | 200,400,404 | no question producer (see §12.2 row 004) |
+| SHIM-NARROWED-006 | `part.delete` | `DELETE /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | no part store, parts synthesized id-less, append-only ledger (row 006) |
+| SHIM-NARROWED-007 | `part.update` | `PATCH /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | same, and the declared 200 is an object the runtime cannot produce (row 007) |
+| SHIM-NARROWED-012 | `pty.get` | `GET /pty/{ptyID}` | 200,400,404 | no PTY registry: `pty.list` is truthfully empty and `pty.create` is the declared intentional narrowing, so no `^pty` id can exist |
+| SHIM-NARROWED-013 | `pty.update` | `PUT /pty/{ptyID}` | 200,400,404 | same: there is no PTY whose title/size could be applied |
+| SHIM-NARROWED-014 | `pty.remove` | `DELETE /pty/{ptyID}` | 200,400,404 | same: the declared 200 boolean would report removing a terminal that never existed |
+| SHIM-NARROWED-015 | `pty.connect` | `GET /pty/{ptyID}/connect` | 200,403,404 | the shim opens no PTY WebSocket and connects no session; the declared 403 `{_tag: Forbidden}` is served for a selector outside the single served workspace (the operation declares no 400) |
+| SHIM-NARROWED-016 | `pty.connectToken` | `POST /pty/{ptyID}/connect-token` | 200,400,403,404 | the declared 200 is a short-lived single-use credential the shim never mints |
+| SHIM-NARROWED-017 | `mcp.auth.start` | `POST /mcp/{name}/auth` | 200,400,404 | no MCP OAuth flow: neither `authorizationUrl` nor `oauthState` can be minted truthfully |
+| SHIM-NARROWED-018 | `mcp.auth.authenticate` | `POST /mcp/{name}/auth/authenticate` | 200,400,404 | the declared 200 `MCPStatus` is live connection state; the shim runs no MCP client and tracks no connection |
+| SHIM-NARROWED-019 | `mcp.auth.callback` | `POST /mcp/{name}/auth/callback` | 200,400,404 | the shim parks no OAuth flow, so there is nothing to exchange `code` against |
+| SHIM-NARROWED-020 | `session.share` | `POST /session/{sessionID}/share` | 200,400,404,500 | Consensus publishes no sessions (export is native, SPEC-015), so no share URL can be produced |
+| SHIM-NARROWED-021 | `session.unshare` | `DELETE /session/{sessionID}/share` | 200,400,404,500 | the runtime keeps no share concept, so no session has an active share to remove |
+
+`counts`: `narrowed_error_contract_only: 14`, **`narrowed_unexplained: 0`**,
+`intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
+(the `/mcp` protocol delegation, SPEC-024 §A).
+
+Making parts addressable (`part.delete`/`part.update`) or building a PTY/MCP-OAuth
+runner would convert those rows to full coverage; each is a design change with its
+own row, not a contract detail. Until then this table is the contract.
+
+### 12.4 Reproducing and checking this section
+
+```bash
+python3 scripts/compare-opencode-declared-served.py \
+  specs/openapi/upstream/openapi-1.18.33.surface.json \
+  specs/openapi/upstream/consensus-shim-served-surface.yaml \
+  /tmp/opencode-declared-vs-served
+diff <(jq -S . /tmp/opencode-declared-vs-served/declared-vs-served.json) \
+     specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json   # no output = reproducible
+```
+The comparator exits non-zero (naming the row) when a detected error-contract
+narrowing has no rationale, and also when a row claims the marker while the
+runtime answers the declared success — so this section cannot drift away from the
+code silently.

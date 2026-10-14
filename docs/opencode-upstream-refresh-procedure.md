@@ -252,7 +252,9 @@ not declared), `appendix-narrowed.md` (declared success unreachable),
 
 A served route that upstream does not declare is *drift* unless the served-surface file
 declares it as an intentional extension (`x-shim-extension: true` **plus** an
-`extension-rationale`). The comparison **aborts** on an extension without a rationale —
+`extension-rationale` **plus** an `extension-decision` recording whether the route is
+declared in the shipped spec bundle or justified as an intentional extension). The
+comparison **aborts** on an extension missing any of them —
 an unexplained extension must never pass as accounted divergence.
 
 A declared operation may be intentionally narrowed only when its served row sets
@@ -260,6 +262,21 @@ A declared operation may be intentionally narrowed only when its served row sets
 `narrowing-rationale`, and reports `outcome: 501-typed`. The comparison aborts
 otherwise. These rows are accounted separately from both full upstream coverage
 and drift; the marker does not turn an unsupported operation into a fake success.
+
+A second class (SHIM-GAP-004) is a declared operation the shim ANSWERS but never
+with its declared success: its served outcome is a declared error code while the
+document also declares a success code the runtime cannot produce. The comparison
+DETECTS that class from the declared response set and the served outcome (it is
+not a hand list, so such a row cannot hide inside `covered` merely because the
+error it answers is in the declared set), requires
+`x-shim-error-contract-narrowing: true` plus a non-empty `narrowing-rationale`
+naming why the declared success is unreachable and which declared arms are
+served, records it under `narrowed_error_contract_only`, and aborts on a
+detected narrowing without a rationale. `counts.narrowed_unexplained` is `0` by
+construction. SPEC-018 §12 is the per-row record and the decision table; a
+client that can only ever receive an error cannot use the feature, so widening
+is the preferred outcome (`permission.reply` and `tui.selectSession` were
+widened to their full declared contracts).
 
 ### 7.2 Live-probe the ambiguous rows
 
