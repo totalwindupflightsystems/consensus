@@ -3692,16 +3692,37 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			writeOpencodeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to read config")
 			return
 		}
+		// DF-CONSENSUS-54: a setting is stored as the TEXT of its row, so a
+		// JSON-valued row (the mcp.<name> server rows PATCH /config writes)
+		// reached a client as a JSON *string* — settings["mcp.websearch"] was
+		// text a client had to re-parse, and a row written before
+		// DF-CONSENSUS-53 flattened MCP blocks reached it as raw Go %v text
+		// ("map[websearch:map[type:remote url:...]]"). Emit every row as the
+		// JSON value it actually is: objects stay objects, plain text stays a
+		// string. The store format is unchanged — this is a read-side decode.
+		values := make(map[string]string, len(rows))
 		settings := make(map[string]any, len(rows))
 		for _, row := range rows {
-			settings[toString(row["key"])] = toString(row["value"])
+			key := toString(row["key"])
+			value := toString(row["value"])
+			values[key] = value
+			settings[key] = configSettingValue(value)
+		}
+
+		// The documented Config document carries MCP servers in an "mcp" block;
+		// the flat mcp.<name> rows are that block. Expose the reconstructed
+		// block alongside the flat rows (SPEC-017) so settings.mcp.<name>.url is
+		// readable as JSON too. It is derived per response and never persisted:
+		// the store keeps only the flat rows the /mcp/{name}/* resolver reads.
+		if mcp := mcpServersFromSettings(rows); len(mcp) > 0 {
+			settings["mcp"] = mcp
 		}
 
 		// OpenCode v1.18.29 attach reads provider_default before rendering the
 		// TUI. Keep the mapping present even when no default is configured, and
 		// derive Consensus's entry from the same setting returned above.
 		providerDefaults := make(map[string]string)
-		if defaultModel := toString(settings["llm.default_model"]); defaultModel != "" {
+		if defaultModel := values["llm.default_model"]; defaultModel != "" {
 			providerDefaults["consensus"] = defaultModel
 		}
 		writeJSON(w, map[string]any{
@@ -3814,11 +3835,21 @@ func (s *Server) globalMCPConfig(ctx context.Context) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	return mcpServersFromSettings(rows), nil
+}
+
+// mcpServersFromSettings reconstructs the documented {"mcp":{"<name>":...}}
+// block (SPEC-017) from the flat mcp.<name> system_settings rows that
+// PATCH /config and PATCH /global/config persist. A row counts as a server
+// definition only when its value is a JSON object: a legacy field-level row
+// (mcp.<name>.<field>) carries a scalar, and a value written before
+// DF-CONSENSUS-53 flattened MCP blocks is raw Go %v text — neither is a server
+// definition, so neither is guessed into one.
+func mcpServersFromSettings(rows []db.Row) map[string]any {
 	servers := make(map[string]any)
 	for _, row := range rows {
-		key := toString(row["key"])
-		name := strings.TrimPrefix(key, "mcp.")
-		if name == "" || name == key {
+		name, ok := strings.CutPrefix(toString(row["key"]), "mcp.")
+		if !ok || name == "" {
 			continue
 		}
 		var config map[string]any
@@ -3827,7 +3858,26 @@ func (s *Server) globalMCPConfig(ctx context.Context) (map[string]any, error) {
 		}
 		servers[name] = config
 	}
-	return servers, nil
+	return servers
+}
+
+// configSettingValue renders one system_settings row value as the JSON value a
+// client can use (DF-CONSENSUS-54). The store keeps every setting as TEXT, so a
+// row whose text is a JSON object or array (the mcp.<name> server rows) is
+// emitted as that native JSON — objects stay objects — while every other row
+// keeps its raw text. A scalar setting such as "5" or "gpt-4o" is a string, not
+// a JSON number or a JSON string literal, and text that is not JSON at all (the
+// legacy raw Go %v rows) is returned unchanged rather than guessed at.
+func configSettingValue(value string) any {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || (trimmed[0] != '{' && trimmed[0] != '[') {
+		return value
+	}
+	var decoded any
+	if err := json.Unmarshal([]byte(trimmed), &decoded); err != nil {
+		return value
+	}
+	return decoded
 }
 
 // handleGlobalConfig serves the upstream /global/config surface — GET

@@ -70,10 +70,13 @@ func TestMCPConfigPatchFlattensServerBlocks(t *testing.T) {
 				if err := json.Unmarshal(body, &got); err != nil {
 					t.Fatalf("decode GET /config: %v (%s)", err, body)
 				}
-				if _, exists := got.Settings["mcp"]; exists {
-					t.Errorf("GET /config retained literal mcp setting: %v", got.Settings)
-				}
-				assertMCPConfigSetting(t, got.Settings["mcp.websearch"], serverConfig)
+				// The flatten contract this case exists for is asserted on the
+				// STORE below (exactly one mcp.websearch row, no literal mcp
+				// row). Since DF-CONSENSUS-54 the response additionally carries
+				// the DERIVED mcp block and emits the flat row as native JSON,
+				// so assert both here instead of the pre-54 response text.
+				assertMCPConfigObject(t, got.Settings["mcp"], map[string]any{"websearch": serverConfig})
+				assertMCPConfigObject(t, got.Settings["mcp.websearch"], serverConfig)
 				return got.Settings
 			},
 		},
@@ -92,7 +95,7 @@ func TestMCPConfigPatchFlattensServerBlocks(t *testing.T) {
 				if err := json.Unmarshal(body, &got); err != nil {
 					t.Fatalf("decode GET /config: %v (%s)", err, body)
 				}
-				assertMCPConfigSetting(t, got.Settings["mcp.websearch"], serverConfig)
+				assertMCPConfigObject(t, got.Settings["mcp.websearch"], serverConfig)
 				return got.Settings
 			},
 		},
@@ -183,6 +186,29 @@ func assertMCPNameOperationsResolve(t *testing.T, baseURL, name string) {
 	}
 }
 
+// assertMCPConfigObject asserts a GET /config setting is the native JSON object
+// a client can read directly (DF-CONSENSUS-54). Before that fix the response
+// carried the raw TEXT of the row, so a client had to parse it a second time
+// (and a pre-DF-CONSENSUS-53 row arrived as Go %v text, which no client can
+// parse at all).
+func assertMCPConfigObject(t *testing.T, got any, want map[string]any) {
+	t.Helper()
+
+	if text, isText := got.(string); isText {
+		t.Fatalf("GET /config setting = %q (a string), want a native JSON object (DF-CONSENSUS-54)", text)
+	}
+	decoded, ok := got.(map[string]any)
+	if !ok {
+		t.Fatalf("GET /config setting = %#v, want a native JSON object", got)
+	}
+	if !reflect.DeepEqual(decoded, want) {
+		t.Errorf("GET /config setting = %#v, want %#v", decoded, want)
+	}
+}
+
+// assertMCPConfigSetting asserts a STORED system_settings value is the JSON text
+// of the server definition. The store format is deliberately unchanged by
+// DF-CONSENSUS-54 — only the read side decodes it.
 func assertMCPConfigSetting(t *testing.T, got any, want map[string]any) {
 	t.Helper()
 

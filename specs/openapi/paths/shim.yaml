@@ -381,8 +381,18 @@ config:
               properties:
                 settings:
                   type: object
-                  additionalProperties:
-                    type: string
+                  description: |
+                    Every system_settings row, keyed as stored. A row whose text
+                    is JSON (the `mcp.<name>` server rows PATCH /config writes)
+                    is emitted as that native JSON value — objects stay objects —
+                    so `settings["mcp.websearch"].url` is readable without a
+                    second parse; every other row keeps its text, so a scalar
+                    setting is a string, not a number or a JSON string literal.
+                    When at least one `mcp.<name>` server row exists, the derived
+                    `mcp` block ({'mcp': {'<name>': {...}}}) is included as well,
+                    so the documented block path `settings.mcp.<name>` resolves;
+                    it is derived per response and never persisted as a row.
+                  additionalProperties: true
                 provider_default:
                   type: object
                   description: Default model ID keyed by provider ID.
