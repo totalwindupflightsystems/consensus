@@ -3791,6 +3791,12 @@ type notImplementedRoute struct {
 var notImplementedRoutes = []notImplementedRoute{
 	// Intentional narrowing: the route is registered and answers typed 501.
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
+	// ROUTE-ADD-007 registered the /api/credential/{credentialID} subtree for
+	// the declared DELETE (v2.credential.remove, covered); the declared
+	// sibling PATCH (v2.credential.update) reaches the same handler, where
+	// the typed not-implemented envelope answers it — previously the path was
+	// un-routed entirely (NOT-SERVED for both methods).
+	{"SHIM-DRIFT-002", http.MethodPatch, "/api/credential/{credentialID}", "v2.credential.update"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -3831,13 +3837,14 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 1 = pty.create; ROUTE-FIX-032 serves vcs.diff.raw per its declared
+	// 2 = pty.create + v2.credential.update; ROUTE-FIX-032 serves vcs.diff.raw per its declared
 	// 200/400 contract.
 	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
 	// 200/400 handlers and ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply) to
-	// its declared 200/400 contract.
-	if len(notImplementedRoutes) != 1 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 1 after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, and ROUTE-FIX-032 serves vcs.diff.raw; table has %d",
+	// its declared 200/400 contract. ROUTE-ADD-007 adds v2.credential.update
+	// (the declared sibling of the newly covered v2.credential.remove).
+	if len(notImplementedRoutes) != 2 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, ROUTE-FIX-032 serves vcs.diff.raw, and ROUTE-ADD-007 registers v2.credential.update; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}

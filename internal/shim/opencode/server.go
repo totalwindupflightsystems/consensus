@@ -292,6 +292,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
+	// ROUTE-ADD-007 / SHIM-DRIFT-001: the declared DELETE
+	// /api/credential/{credentialID} (v2.credential.remove) previously fell
+	// through to net/http's default 404. The declared path carries a path
+	// parameter, so the route entry is a SUBTREE match and the handler
+	// dispatches by method (the handlePtyByID shape): DELETE answers the
+	// declared contract; every other method answers 405, and the declared
+	// sibling PATCH (v2.credential.update, its own NOT-SERVED contract row)
+	// keeps the pre-change default 404.
+	mux.HandleFunc("/api/credential/", s.handleApiCredentialRemove)
 	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
 	// previously fell through to net/http's default 404. Serve the declared
 	// command.list operation without changing the separate /instance/command
@@ -488,6 +497,10 @@ var MountPatterns = []string{
 	"/api/permission/request",
 	"/api/permission/saved",
 	"/api/question/request",
+	// ROUTE-ADD-007 / SHIM-DRIFT-001: the declared DELETE
+	// /api/credential/{credentialID} path shape (the handler dispatches by
+	// method; the sibling PATCH stays net/http default 404 per its own row).
+	"/api/credential/{credentialID}",
 	"/api/fs/find",
 	// ROUTE-ADD-011 / SHIM-DRIFT-007 + SHIM-DRIFT-008: the exact v2.fs.list
 	// path and the v2.fs.read subtree so a parent chi mount reaches the shim
@@ -571,6 +584,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			// subtree; both keep api-key auth like every other implemented
 			// route and are not in isFixedWorkspaceCompatibilityRequest).
 			if isV2EnvelopeRoutePath(r.URL.Path) ||
+				strings.HasPrefix(r.URL.Path, "/api/credential/") ||
 				r.URL.Path == "/api/fs/list" || strings.HasPrefix(r.URL.Path, fsReadRoutePrefix) {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
