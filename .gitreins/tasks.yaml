@@ -990,13 +990,6 @@ tasks:
     happy path + documented errors; declared-vs-served SHIM-DRIFT-086 flips to covered
   status: in_progress
   created_at: '2026-10-01T02:17:45.508000+00:00'
-- id: ROUTE-ADD-089
-  title: Serve GET /global/config per contract
-  criteria:
-  - shim serves GET /global/config with declared responses 200,400; live probe asserts
-    happy path + documented errors; declared-vs-served SHIM-DRIFT-087 flips to covered
-  status: in_progress
-  created_at: '2026-10-01T02:17:45.950706+00:00'
 - id: ROUTE-ADD-090
   title: Serve PATCH /global/config per contract
   criteria:
@@ -1264,3 +1257,44 @@ tasks:
   status: complete
   created_at: '2026-10-13T06:10:15.342962+00:00'
   completed_at: '2026-10-13T06:21:47.486334+00:00'
+- id: DOC-14
+  title: Document tool execution request inspection endpoints
+  criteria:
+  - docs/API.md documents GET /api/v1/tool-requests, /api/v1/tool-requests/{id}, /api/v1/sessions/{id}/tool-calls
+    with params, response, errors, curl examples; route parity grep vs internal/api/server.go
+    shows 0 missing
+  status: complete
+  created_at: '2026-10-13T09:06:58.128446+00:00'
+  completed_at: '2026-10-13T09:06:58.541182+00:00'
+- id: DEPLOY-CONSENSUS-1
+  title: Rebuild and redeploy the live dexdat-consensus artifact
+  criteria:
+  - the running container image is rebuilt from master HEAD
+  - deployed commit equals master HEAD (or named ancestor)
+  - after redeploy, one real session end-to-end proves the Postgres drift repair is
+    IN the artifact (no SQLSTATE 42703)
+  - the proof is a real session with planning reads, not a quiet log
+  status: complete
+  created_at: '2026-10-14T01:35:20.169915+00:00'
+  completed_at: '2026-10-14T02:04:29.467357+00:00'
+- id: SHIM-SUPPORT-001
+  title: Always support the DeepSeek harness API structure
+  criteria:
+  - "a conformance matrix test exercises every item in specs/024 \xA7B against the\
+    \ provider"
+  - each matrix cell has an explicit state (supported / not-supported-with-a-row /
+    not-applicable)
+  - the matrix is re-run when provider docs change, with the doc date recorded
+  status: complete
+  created_at: '2026-10-14T01:35:20.473401+00:00'
+  completed_at: '2026-10-14T01:57:34.479068+00:00'
+- id: SHIM-GAP-004
+  title: Widen the 11 narrowed error-contract-only operations to the declared contract
+  criteria:
+  - each of the 11 findings either serves every declared response code or records
+    the narrowing explicitly in specs/018 with a reason
+  - the comparison artifact reflects the decision
+  - the count of unexplained narrowings is 0
+  status: complete
+  created_at: '2026-10-14T01:35:20.773188+00:00'
+  completed_at: '2026-10-14T02:07:06.456373+00:00'

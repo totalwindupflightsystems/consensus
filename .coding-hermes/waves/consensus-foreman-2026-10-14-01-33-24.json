@@ -1,0 +1,39 @@
+{
+  "tick_id": "consensus-foreman-2026-10-14-01-33-24",
+  "project": "consensus",
+  "base_sha": "52bc660",
+  "tasks": [
+    {
+      "id": "DEPLOY-CONSENSUS-1",
+      "title": "Rebuild and redeploy the live dexdat-consensus artifact",
+      "priority": "P2",
+      "worktree": "/home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1",
+      "branch": "wt/DEPLOY-CONSENSUS-1",
+      "worker_model": "deepseek-v4-flash",
+      "worker_provider": "deepseek-foreman",
+      "status": "dispatched"
+    },
+    {
+      "id": "SHIM-SUPPORT-001",
+      "title": "Always support the DeepSeek harness API structure",
+      "priority": "P2",
+      "worktree": "/home/kara/worktrees/consensus-SHIM-SUPPORT-001",
+      "branch": "wt/SHIM-SUPPORT-001",
+      "worker_model": "deepseek-v4-flash",
+      "worker_provider": "deepseek-foreman",
+      "status": "dispatched"
+    },
+    {
+      "id": "SHIM-GAP-004",
+      "title": "Widen the 11 narrowed error-contract-only operations to the declared contract",
+      "priority": "P2",
+      "worktree": "/home/kara/worktrees/consensus-SHIM-GAP-004",
+      "branch": "wt/SHIM-GAP-004",
+      "worker_model": "deepseek-v4-flash",
+      "worker_provider": "deepseek-foreman",
+      "status": "dispatched"
+    }
+  ],
+  "created_at": "2026-10-14T01:33:24-05:00",
+  "status": "in_progress"
+}
