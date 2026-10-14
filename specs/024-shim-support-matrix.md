@@ -221,6 +221,7 @@ call). A cell claims only the evidence it has.
 | B2-RESPONSES-EFFORT | §B2 | Responses effort dial via reasoning.effort (the spelling the live surface honours and echoes) | responses | supported | — |
 | B2-RESPONSES-OUTPUT-CONFIG | §B2 | Responses effort spelling recorded in this spec as output_config.effort | responses | not-supported | SHIM-SUPPORT-008 — provider ignores output_config; the spec's spelling for this format must be reconciled |
 | B2-DEFAULT | §B2 | Documented defaults: thinking enabled, effort high; unconfigured client sends no dial | all | supported | measured: an unconfigured request still comes back with reasoning |
+| B2-MAX-TOKENS | §B2 | max_tokens bounds: documented range 1–393216 refused client-side; unset legal (provider defaults 8K / 64K / 128K) | all | supported | bounds verified in the API reference 2026-10-13 |
 | B2-EFFORT-MAP | §B2 | Documented effort mapping (minimal→low … ultra→max) | all | supported | — |
 | B2-UNKNOWN-EFFORT | §B2 | A value outside the effort vocabulary is refused, never silently dropped | all | supported | — |
 | B2-COT-TRANSPORT | §B2 | Chain-of-thought returned as reasoning_content next to content | openai | supported | — |
@@ -247,7 +248,7 @@ call). A cell claims only the evidence it has.
 | B4-RESPONSES-CACHE | §B4 | Responses cache accounting (usage.input_tokens_details.cached_tokens) | responses | supported | — |
 <!-- SHIM-MATRIX-END -->
 
-Totals at 2026-10-13: **33 supported, 5 not-supported, 1 not-applicable (39 cells)**. The
+Totals at 2026-10-13: **34 supported, 5 not-supported, 1 not-applicable (40 cells)**. The
 five not-supported cells rest on four rows — `SHIM-SUPPORT-005` (Responses wiring),
 `SHIM-SUPPORT-006` (beta surface), `SHIM-SUPPORT-007` (Anthropic off-switch divergence),
 `SHIM-SUPPORT-008` (Responses effort-spelling divergence) — all filed from this row's report

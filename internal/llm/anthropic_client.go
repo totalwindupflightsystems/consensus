@@ -260,6 +260,9 @@ func (c *anthropicClient) CallWithOptions(ctx context.Context, messages []harnes
 	if err != nil {
 		return nil, err
 	}
+	if err := ValidateMaxTokens(c.maxTokens); err != nil {
+		return nil, err
+	}
 	if err := ValidateToolDefinitions(opts.Tools); err != nil {
 		return nil, err
 	}

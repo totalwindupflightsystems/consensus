@@ -585,7 +585,7 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 			}
 		}
 		if !sawThinking {
-			t.Skip("provider behaviour changed: effort=none no longer returns thinking — re-derive this cell")
+			t.Fatalf("provider behaviour changed: effort \"none\" no longer returns thinking — re-derive this cell (§E) against the recorded exchange instead of trusting the old measurement")
 		}
 		assertUnsupported(t, "B2-ANTHROPIC-TOGGLE-EFFECT", "none")
 	},
@@ -679,6 +679,40 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 		}
 		if defaultReasoningEffort != "high" {
 			t.Fatalf("documented default effort = %q, want high", defaultReasoningEffort)
+		}
+	},
+
+	"B2-MAX-TOKENS": func(t *testing.T, fx *shimFixture) {
+		if err := ValidateMaxTokens(0); err != nil {
+			t.Fatalf("unset max_tokens refused: %v", err)
+		}
+		if err := ValidateMaxTokens(1); err != nil {
+			t.Fatalf("lower bound refused: %v", err)
+		}
+		if err := ValidateMaxTokens(maxTokensCeiling); err != nil {
+			t.Fatalf("documented ceiling refused: %v", err)
+		}
+		for _, bad := range []int{-1, maxTokensCeiling + 1} {
+			if err := ValidateMaxTokens(bad); err == nil {
+				t.Fatalf("max_tokens %d accepted despite the documented range", bad)
+			} else if !strings.Contains(err.Error(), "max_tokens") {
+				t.Fatalf("refusal did not name max_tokens: %v", err)
+			}
+		}
+		// A violating configuration must fail closed at construction...
+		if _, err := NewClient(&Config{Provider: ProviderOpenAI, Model: "deepseek-flash",
+			MaxTokens: maxTokensCeiling + 1}); err == nil {
+			t.Fatal("NewClient accepted an out-of-range max_tokens")
+		}
+		// ...and a call must refuse it before any request is sent.
+		ex := fx.must(t, "openai", "thinking_disabled_inert_params")
+		srv, captured := replay(t, ex)
+		client := openaiTestClient(t, srv.URL, &Config{MaxTokens: maxTokensCeiling + 1})
+		if _, err := client.Call(context.Background(), requestMessages(t, ex.Request)); err == nil {
+			t.Fatal("call proceeded with an out-of-range max_tokens")
+		}
+		if len(*captured) != 0 {
+			t.Fatal("a request was sent despite the local refusal")
 		}
 	},
 

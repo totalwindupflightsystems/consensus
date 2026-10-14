@@ -236,6 +236,14 @@ func ShimSupportMatrix() ShimMatrix {
 				Note:     "measured: a request that configures nothing still comes back with reasoning, i.e. thinking is on by default",
 			},
 			{
+				ID: "B2-MAX-TOKENS", Section: "§B2", Format: "all",
+				Item:     "max_tokens bounds: the documented range (1–393216) is refused client-side when violated, while unset stays legal (provider defaults 8K non-thinking / 64K thinking / 128K at effort max)",
+				State:    CellSupported,
+				Evidence: []string{EvidenceDoc, EvidenceUnit},
+				Doc:      "api/create-chat-completion",
+				Note:     "bounds verified in the API reference on 2026-10-13; a violating value is refused before the request is sent",
+			},
+			{
 				ID: "B2-EFFORT-MAP", Section: "§B2", Format: "all",
 				Item:     "Documented effort mapping (minimal→low, low→low, medium→high, high→high, xhigh→high, max→max, ultra→max)",
 				State:    CellSupported,

@@ -250,6 +250,25 @@ func ValidateToolChoice(choice string, thinking *bool) error {
 // (spec 024 §B3; verified in the API reference on 2026-10-13).
 const maxToolNameLen = 128
 
+// maxTokensCeiling is the provider's documented upper bound on max_tokens
+// (spec 024 §B2; verified in the API reference on 2026-10-13). Zero means "not
+// configured" and is legal: the provider then applies its own default (8K
+// non-thinking, 64K thinking, 128K at effort max).
+const maxTokensCeiling = 393216
+
+// ValidateMaxTokens refuses an output-token limit the provider will reject, so
+// the mistake surfaces as a named error instead of a provider 400 that costs a
+// round trip.
+func ValidateMaxTokens(maxTokens int) error {
+	if maxTokens == 0 {
+		return nil
+	}
+	if maxTokens < 1 || maxTokens > maxTokensCeiling {
+		return fmt.Errorf("llm: max_tokens %d is outside the provider's documented range 1–%d (leave it unset for the provider default)", maxTokens, maxTokensCeiling)
+	}
+	return nil
+}
+
 // ValidateToolDefinitions checks the provider's documented tool constraints —
 // the name charset, the name-length cap and name uniqueness — so a rejected
 // request fails here with the offending tool named. The provider documents that
@@ -514,6 +533,9 @@ func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.M
 
 	// Request shapes the provider refuses with HTTP 400 are refused HERE, with
 	// the rule named, instead of costing a round trip (spec 024 §B2/§B3).
+	if err := ValidateMaxTokens(c.maxTokens); err != nil {
+		return nil, err
+	}
 	if err := ValidateToolDefinitions(opts.Tools); err != nil {
 		return nil, err
 	}

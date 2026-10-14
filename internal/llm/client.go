@@ -145,6 +145,9 @@ func (c *Config) Validate() error {
 	if c.Model == "" {
 		return fmt.Errorf("llm: model is required")
 	}
+	if err := ValidateMaxTokens(c.MaxTokens); err != nil {
+		return err
+	}
 	return nil
 }
 
