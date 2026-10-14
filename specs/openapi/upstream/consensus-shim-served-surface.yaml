@@ -391,6 +391,12 @@ routes:
     auth: api-key
     evidence: "api_integration_ra015.go handleApiIntegrationRA015 (ROUTE-ADD-015, formerly SHIM-DRIFT-002): serves the declared empty-body 204 cancel as a truthful idempotent no-op — the runtime keeps no integration-attempt store, so nothing is fabricated; declared 400 for malformed inputs, declared 401 via the one-segment v2 envelope match (ROUTE-ADD-016 merge resolution)."
 
+  - path: /api/integration/attempt/{attemptID}/complete
+    method: POST
+    outcome: 204
+    auth: api-key
+    evidence: "api_integration_ra017.go handleApiIntegrationRA017 (ROUTE-ADD-017, formerly SHIM-DRIFT-004): serves v2.integration.attempt.complete on the exact parameterized path; the required additionalProperties:false body accepts only optional string code, the shared deepObject location selector is validated, malformed input answers the declared InvalidRequestError 400, unauthenticated requests answer the declared UnauthorizedError 401, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. The runtime keeps no integration-attempt or integration-credential store and advertises no OAuth integration-attempt producer, so a well-formed completion is an idempotent no-op with the declared empty 204; no attempt or credential row is fabricated."
+
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location
     method: GET
