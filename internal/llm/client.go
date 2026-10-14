@@ -99,6 +99,12 @@ type Config struct {
 	// refused by Call, never silently dropped.
 	ReasoningEffort string `json:"reasoning_effort,omitempty" yaml:"reasoning_effort,omitempty"`
 
+	// TopP is the requested nucleus-sampling value. The provider only honours it
+	// in thinking mode and clamps it to ≥0.95; in non-thinking mode the value is
+	// fixed at 1.0 and a caller's value is ignored (spec 024 §B2). The client
+	// applies those semantics and omits the field when it cannot take effect.
+	TopP *float64 `json:"top_p,omitempty" yaml:"top_p,omitempty"`
+
 	// Tools declares provider-native tools for every request (spec 024 §B3).
 	// A non-empty list turns the CoT round-trip ON: every prior turn's
 	// reasoning_content is re-sent. Normally set per request via
