@@ -127,7 +127,10 @@ func TestApiIntegrationRA015MethodAndMountWiring(t *testing.T) {
 		t.Fatalf("chi-mounted DELETE: got %d, want 204. Body: %s", status, body)
 	}
 
-	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch} {
+	// ROUTE-ADD-015+016 merged tree: GET on this path serves the declared
+	// v2.integration.attempt.status (handleApiIntegrationRA016) — see the
+	// sibling ra016 test; only methods outside {GET, DELETE} stay 405.
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch} {
 		status, _, body := doShimRequest(t, srv.URL, method,
 			"/api/integration/attempt/attempt-wired")
 		if status != http.StatusMethodNotAllowed {

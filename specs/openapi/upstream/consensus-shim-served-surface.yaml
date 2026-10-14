@@ -380,6 +380,16 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "api_integration_list.go handleApiIntegrationList (ROUTE-ADD-014, formerly SHIM-DRIFT-001): serves the declared v2.integration.list 200 {location: LocationInfo, data: IntegrationInfo[]} with an empty (never null) data array because this runtime keeps NO integration registry — no migration creates an integration or connection store, and provider-auth routes retain no IntegrationInfo row with the required id, name, methods (OAuth/key/environment descriptors), and connections, so emitting one would invent both an integration identity and authentication state; the real selected workspace supplies location via the shared apiV2LocationSelector; malformed deepObject location selectors answer the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 through server.go v2EnvelopeRoutePaths; undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope; exact path only, never an /api/* catch-all"
+  - path: /api/integration/attempt/{attemptID}
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "api_integration_ra016.go handleApiIntegrationRA016 (ROUTE-ADD-016, formerly SHIM-DRIFT-003): exact-path registration serves v2.integration.attempt.status with the real selected LocationInfo and an empty, non-null data array because the runtime keeps no OAuth integration-attempt store; no pending/complete/failed attempt, status, or required timestamps are fabricated. The shared deepObject location selector and a blank attemptID answer the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 via the exact one-segment v2 envelope match; undeclared methods answer the sibling METHOD_NOT_ALLOWED 405 envelope."
+  - path: /api/integration/attempt/{attemptID}
+    method: DELETE
+    outcome: 204
+    auth: api-key
+    evidence: "api_integration_ra015.go handleApiIntegrationRA015 (ROUTE-ADD-015, formerly SHIM-DRIFT-002): serves the declared empty-body 204 cancel as a truthful idempotent no-op — the runtime keeps no integration-attempt store, so nothing is fabricated; declared 400 for malformed inputs, declared 401 via the one-segment v2 envelope match (ROUTE-ADD-016 merge resolution)."
 
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location

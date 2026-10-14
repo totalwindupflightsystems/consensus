@@ -287,6 +287,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// to net/http's default 404. Register the exact pattern; never an /api/*
 	// catch-all, so unrelated v2 operations keep their current classification.
 	mux.HandleFunc("/api/integration", s.handleApiIntegrationList)
+	// ROUTE-ADD-016 / SHIM-DRIFT-003: the declared
+	// v2.integration.attempt.status operation (GET
+	// /api/integration/attempt/{attemptID}) had no shim route, so it fell
+	// through to net/http's default 404. Registration is the merged
+	// method-dispatch entry near ROUTE-ADD-015 (below) — one exact pattern,
+	// no /api/* or /api/integration/* catch-all.
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -305,13 +311,16 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
-	// ROUTE-ADD-015 / SHIM-DRIFT-002: serve the declared DELETE
-	// /api/integration/attempt/{attemptID} (v2.integration.attempt.cancel),
-	// which previously fell through to net/http's default 404. This exact
-	// parameter pattern claims only the declared path shape — never an /api/*
-	// catch-all. The handler enforces DELETE and leaves the sibling GET status
-	// operation as METHOD_NOT_ALLOWED until its own contract row lands.
-	mux.HandleFunc("/api/integration/attempt/{attemptID}", s.handleApiIntegrationRA015)
+	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
+	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
+	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
+	// ROUTE-ADD-016), DELETE cancel -> handleApiIntegrationRA015
+	// (v2.integration.attempt.cancel, ROUTE-ADD-015). A method dispatcher
+	// precedes the handlers so undeclared methods keep the METHOD_NOT_ALLOWED
+	// envelope. The original per-row registrations conflicted in net/http
+	// (identical patterns panic at mux registration) — the wave tick that
+	// merged both rows resolves to this one-entry dispatcher.
+	mux.HandleFunc("/api/integration/attempt/{attemptID}", s.handleApiIntegrationAttempt)
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential.update
 	// operation (PATCH /api/credential/{credentialID}) had no shim route at
 	// all, so the request fell through to net/http's default 404 — the drift
@@ -513,6 +522,9 @@ var MountPatterns = []string{
 	// ROUTE-ADD-014 / SHIM-DRIFT-001: exact /api/integration
 	// (v2.integration.list), never an /api/* catch-all.
 	"/api/integration",
+	// ROUTE-ADD-016 / SHIM-DRIFT-003: exact parameter path for
+	// v2.integration.attempt.status; no integration subtree catch-all.
+	"/api/integration/attempt/{attemptID}",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -635,9 +647,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 // UnauthorizedError body ({_tag: "UnauthorizedError", message}) rather than the
 // shim's own UNAUTHENTICATED envelope. ROUTE-ADD-005 registered the first of
 // them (/api/agent) and /api/fs/find (ROUTE-ADD-010) carries the v2 spelling
-// too; ROUTE-ADD-021 added the seven declared v2 read-only list operations.
-// Membership is exact-path, so an unregistered /api/* sub-path keeps the shim's
-// own envelope.
+// too; ROUTE-ADD-021 added the seven declared v2 read-only list operations and
+// ROUTE-ADD-016 added the one-segment /api/integration/attempt/{attemptID}
+// shape. Membership is exact-path or exact parameter-shape, so an unregistered
+// /api/* sub-path keeps the shim's own envelope.
 var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/agent":              {},
 	"/api/command":            {},
@@ -664,15 +677,15 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 // operations whose 401 body is the v2 UnauthorizedError envelope. Membership is
 // exact-path by default. Parameter routes are admitted only when the concrete
 // path has the declared shape: the credential family uses its existing prefix
-// rule, while ROUTE-ADD-015 accepts exactly one non-empty attemptID segment.
-// Deeper, unregistered /api/* paths keep the shim's own envelope.
+// rule, while the integration-attempt path accepts exactly one non-empty
+// attemptID segment. Deeper, unregistered /api/* paths keep the shim's own
+// envelope.
 func isV2EnvelopeRoutePath(path string) bool {
 	if strings.HasPrefix(path, "/api/credential/") {
 		return true
 	}
-	const integrationAttemptPrefix = "/api/integration/attempt/"
-	if attemptID := strings.TrimPrefix(path, integrationAttemptPrefix); attemptID != path && attemptID != "" && !strings.Contains(attemptID, "/") {
-		return true
+	if attemptID, ok := strings.CutPrefix(path, "/api/integration/attempt/"); ok {
+		return attemptID != "" && !strings.Contains(attemptID, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
