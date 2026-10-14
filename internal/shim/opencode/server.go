@@ -274,6 +274,24 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// 404. Serve it for real; /global/health (global.health) is a separate
 	// declared operation with its own body and is untouched.
 	mux.HandleFunc("/api/health", s.handleApiHealth)
+
+	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
+	// declared v2 read-only list operations (v2.location.get, v2.model.list,
+	// v2.reference.list, v2.skill.list, v2.permission.request.list,
+	// v2.permission.saved.list, v2.question.request.list) had no shim route at
+	// all, so each request fell through to net/http's default 404 — the drift
+	// artifact's NOT-SERVED class, indistinguishable from "no such opencode
+	// operation". Each declared path gets its own EXACT pattern (see
+	// api_v2_lists.go), never an /api/* catch-all, so sibling /api/* operations
+	// keep the net/http default 404 they are classified with until their own
+	// contract rows land.
+	mux.HandleFunc("/api/location", s.handleApiLocation)
+	mux.HandleFunc("/api/model", s.handleApiModelList)
+	mux.HandleFunc("/api/reference", s.handleApiReferenceList)
+	mux.HandleFunc("/api/skill", s.handleApiSkillList)
+	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
+	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
+	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
 	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
 	// previously fell through to net/http's default 404. Serve the declared
 	// command.list operation without changing the separate /instance/command
@@ -457,6 +475,19 @@ var MountPatterns = []string{
 	// operations served alongside it.
 	"/api/command",
 	"/api/health",
+
+	// ROUTE-ADD-021: the seven declared v2 read-only list operations
+	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
+	// v2.permission.request.list, v2.permission.saved.list,
+	// v2.question.request.list) — exact paths, so a parent chi mount reaches
+	// each shim route and no /api/* catch-all is introduced.
+	"/api/location",
+	"/api/model",
+	"/api/reference",
+	"/api/skill",
+	"/api/permission/request",
+	"/api/permission/saved",
+	"/api/question/request",
 	"/api/fs/find",
 	// ROUTE-ADD-011 / SHIM-DRIFT-007 + SHIM-DRIFT-008: the exact v2.fs.list
 	// path and the v2.fs.read subtree so a parent chi mount reaches the shim
@@ -539,8 +570,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			// ROUTE-ADD-011 added the v2.fs.list path and the v2.fs.read
 			// subtree; both keep api-key auth like every other implemented
 			// route and are not in isFixedWorkspaceCompatibilityRequest).
-			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" ||
-				r.URL.Path == "/api/command" || r.URL.Path == "/api/health" ||
+			if isV2EnvelopeRoutePath(r.URL.Path) ||
 				r.URL.Path == "/api/fs/list" || strings.HasPrefix(r.URL.Path, fsReadRoutePrefix) {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
@@ -551,6 +581,35 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// v2EnvelopeRoutePaths are the /api/* paths whose declared 401 arm is the v2
+// UnauthorizedError body ({_tag: "UnauthorizedError", message}) rather than the
+// shim's own UNAUTHENTICATED envelope. ROUTE-ADD-005 registered the first of
+// them (/api/agent) and /api/fs/find (ROUTE-ADD-010) carries the v2 spelling
+// too; ROUTE-ADD-021 added the seven declared v2 read-only list operations.
+// Membership is exact-path, so an unregistered /api/* sub-path keeps the shim's
+// own envelope.
+var v2EnvelopeRoutePaths = map[string]struct{}{
+	"/api/agent":              {},
+	"/api/command":            {},
+	"/api/health":             {},
+	"/api/fs/find":            {},
+	"/api/fs/list":            {},
+	"/api/location":           {},
+	"/api/model":              {},
+	"/api/reference":          {},
+	"/api/skill":              {},
+	"/api/permission/request": {},
+	"/api/permission/saved":   {},
+	"/api/question/request":   {},
+}
+
+// isV2EnvelopeRoutePath reports whether path is one of the declared /api/*
+// operations whose 401 body is the v2 UnauthorizedError envelope.
+func isV2EnvelopeRoutePath(path string) bool {
+	_, ok := v2EnvelopeRoutePaths[path]
+	return ok
 }
 
 func (s *Server) validateAuth(r *http.Request) (string, bool) {

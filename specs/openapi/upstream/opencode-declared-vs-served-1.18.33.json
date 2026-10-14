@@ -20,20 +20,20 @@
     "derived_on": "2026-10-07",
     "upstream_pin": "7945de208964a49300d7f770d1a71d078db9a4c4 (v1.18.33)",
     "comparison_artifact": "docs/reports/shim-source-002-baseline-diff-2026-09-29.md",
-    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose \u2014 SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current \u2014 SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit \u2014 SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; ; SHIM-GAP-005 declared the 17 formerly served-not-declared rows as intentional shim extensions (x-shim-extension: true + extension-rationale on each route): /doc (S001), /permission/{id} GET (S002), /permission/{id}/resolve POST (S003), /project/{projectID} GET (S004, METHOD-ABSENT beside the declared PATCH), /vcs/{id} GET (S005), /instance GET + /instance/path GET + /instance/vcs GET + /instance/vcs/diff GET (S006..009) and the eight known-but-untranslated 501 stubs /instance/vcs/status, /instance/vcs/diff/raw, /instance/vcs/apply, /instance/command, /instance/agent, /instance/skill, /instance/lsp, /instance/formatter (S010..017); the comparison classifies these as shim_extensions (appendix-shim-extensions.md, count shim_extension_operations), leaving drift_served_not_declared at 0; SHIM-GAP-005 also restored four served-surface outcomes rotted to 200 in the ROUTE-FIX-020 window (/pty POST, /vcs/apply POST, /vcs/diff/raw GET, /vcs/status GET are all 501-typed per their handlers, and the /find/ prefix rule stub_outcome is 501) that a fresh comparison run had silently re-scored covered; regenerate with scripts/compare-opencode-declared-served.py; ROUTE-FIX-029 moved POST /tui/show-toast (tui.showToast, SHIM-DRIFT-108) from OUTCOME-MISMATCH untyped-501 drift to covered: the handler validates the declared requestBody schema (required non-empty message, required variant in the info|success|warning|error enum, duration exclusiveMinimum 0, additionalProperties false) and answers the declared 200 with the truthful boolean false (this shim has no attached TUI process, so no toast is shown); ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply, SHIM-DRIFT-142) from OUTCOME-MISMATCH untyped-501 drift to covered: handleVCSApply validates the declared requestBody schema (required non-empty patch, additionalProperties false so undeclared properties are refused), answers the declared 200 with the truthful object {applied: false} (this shim has no VCS write capability, so no patch is applied), answers the declared 400 BadRequest envelope for a payload violating the schema and for a present-but-blank directory/workspace selector, answers 405 METHOD_NOT_ALLOWED on non-POST, and left the isStubPath non-GET stub exemption so the served path takes api-key auth like every other implemented route; SHIM-GAP-004 resolved the last error-contract-only operations in the 2026-09-29 SHIM-NARROWED-001..011 set: POST /permission/{requestID}/reply (permission.reply, SHIM-NARROWED-001) now serves its FULL declared contract \u2014 the declared body {reply*: once|always|reject, message?} additionalProperties false is validated (400 Body/Payload), an unknown or no-longer-pending id answers the declared 404 typed PermissionNotFoundError, and a pending row is resolved through the REAL approval_requests write path (the sessionPermissionRespond mapping) answering the declared boolean 200 true plus the approval_resolved SSE event \u2014 and POST /tui/select-session (tui.selectSession, SHIM-NARROWED-011) now serves its full contract too (400 for a body violating {sessionID*}, 404 NotFoundError for a session this instance does not hold, 200 false for a session that exists because no TUI process is attached, the tui.showToast precedent); question.reply gained the declared 400 arm for its declared requestBody while its declared 200 stays unreachable. The comparison no longer hand-lists this class: it DETECTS an error-contract narrowing from the declared response set and the served outcome and ABORTS unless the served-surface row carries x-shim-error-contract-narrowing: true with a non-empty narrowing-rationale, which surfaced TEN further rows that were scored `covered` while answering only the error half of their contract (the five /pty/{ptyID} operations, mcp.auth.start/authenticate/callback, session.share and session.unshare) plus part.update; all 14 are now recorded with reasons, counts.narrowed_unexplained = 0, and the artifact carries their rationales in narrowed_error_contract_only + appendix-narrowed.md"
+    "refresh_note": "SHIM-GAP-002 registered the 17 findings SHIM-DRIFT-099..144 as explicit routes with outcome 501-typed; ROUTE-FIX-008 moved GET /session/status (SHIM-DRIFT-114), ROUTE-FIX-009 moved POST /session/{id}/command (SHIM-DRIFT-115), ROUTE-FIX-010 moved GET /session/{id}/diff (SHIM-DRIFT-116), ROUTE-ADD-099 moved GET /provider/auth (SHIM-DRIFT-102), ROUTE-ADD-110 moved GET /question (SHIM-DRIFT-113), ROUTE-ADD-111 moved GET /skill (SHIM-DRIFT-125), ROUTE-ADD-112 moved POST /sync/history (SHIM-DRIFT-126), ROUTE-ADD-092 moved POST /global/upgrade (SHIM-DRIFT-090), ROUTE-ADD-093 moved DELETE /mcp/{name}/auth (SHIM-DRIFT-092), ROUTE-ADD-100 moved POST /provider/{providerID}/oauth/authorize (SHIM-DRIFT-103) and ROUTE-ADD-113 moved POST /sync/replay (SHIM-DRIFT-127) to covered; ROUTE-ADD-102 registered bare /pty \u2014 GET (pty.list, SHIM-DRIFT-105) now covered, POST (pty.create, SHIM-DRIFT-106) now typed 501; ROUTE-ADD-114 moved POST /sync/start (SHIM-DRIFT-119 here; SHIM-DRIFT-128 in the 2026-09-29 baseline report) to covered; ROUTE-FIX-014..018 moved POST /session/{id}/revert (SHIM-DRIFT-120), DELETE /session/{id}/share (SHIM-DRIFT-121), POST /session/{id}/share (SHIM-DRIFT-122), POST /session/{id}/shell (SHIM-DRIFT-123) and POST /session/{id}/summarize (SHIM-DRIFT-124) to covered; ROUTE-FIX-035 moved DELETE /session/{id}/message/{messageID} (SHIM-NARROWED-005, the row's source item) to covered; ROUTE-FIX-037 moved PATCH /session/{id}/message/{messageID}/part/{partID} (part.update \u2014 SHIM-NARROWED-006 in this artifact's positional ids, SHIM-NARROWED-007 in the 2026-09-29 baseline report) to covered and registered its sibling DELETE (part.delete) as served-404/error-contract-only, leaving that row narrowed for ROUTE-FIX-036; ROUTE-FIX-038/039/040 moved POST /session/{id}/permissions/{permissionID} (permission.respond \u2014 SHIM-NARROWED-008 in this artifact's positional ids, SHIM-NARROWED-006 in the 2026-09-29 baseline report), GET /session/{id}/todo (session.todo \u2014 SHIM-NARROWED-009/-007) and POST /session/{id}/unrevert (session.unrevert \u2014 SHIM-NARROWED-010/-008) to covered; ROUTE-FIX-003 moved POST /instance/dispose (instance.dispose \u2014 SHIM-DRIFT-091) to covered; ROUTE-FIX-004 moved GET /project (project.list, SHIM-DRIFT-098) to covered; ROUTE-FIX-005 moved GET /project/current (project.current \u2014 SHIM-DRIFT-099) to covered: the handler derives the declared Project from the instance's single real workspace (id <- instanceID, worktree <- gitWorktree, name <- base name, vcs <- the literal git marker only inside a git repo, commands <- consensus.json when present, time <- schema_versions applied_at bounds in epoch millis, sandboxes <- []), answers the declared 400 for a present-but-blank declared query selector and for an unreadable migration ledger, and keeps the typed 501 for non-GET; ROUTE-FIX-006 moved POST /project/git/init (project.initGit \u2014 SHIM-DRIFT-100) to covered: the handler performs the real git init on the instance's single workspace (runGit, GIT_* env stripped; idempotent no-op on an already-initialized workspace), derives the declared Project with the shared deriveProject translation, answers the declared BadRequestError for a present-but-blank declared query selector and 400 INVALID_REQUEST for a failed init or an unreadable migration ledger, and keeps the typed 501 for non-POST; ROUTE-ADD-101 moved POST /provider/{providerID}/oauth/callback (SHIM-DRIFT-098 in this artifact \u2014 the board row cited SHIM-DRIFT-104, which is /pty/{ptyID}/connect) to covered: the handler refuses a body that violates the declared schema (required `method` a non-negative integer, optional `code` a string, additionalProperties: false so undeclared fields are refused), validates the method index against the stored-auth registry, and answers the declared 200 with the truthful boolean false (this shim parks no OAuth flow, so there is nothing to process); a bad payload/provider/index answers 400 ProviderAuthError and an unreadable store 400 InvalidRequestError; ; SHIM-GAP-005 declared the 17 formerly served-not-declared rows as intentional shim extensions (x-shim-extension: true + extension-rationale on each route): /doc (S001), /permission/{id} GET (S002), /permission/{id}/resolve POST (S003), /project/{projectID} GET (S004, METHOD-ABSENT beside the declared PATCH), /vcs/{id} GET (S005), /instance GET + /instance/path GET + /instance/vcs GET + /instance/vcs/diff GET (S006..009) and the eight known-but-untranslated 501 stubs /instance/vcs/status, /instance/vcs/diff/raw, /instance/vcs/apply, /instance/command, /instance/agent, /instance/skill, /instance/lsp, /instance/formatter (S010..017); the comparison classifies these as shim_extensions (appendix-shim-extensions.md, count shim_extension_operations), leaving drift_served_not_declared at 0; SHIM-GAP-005 also restored four served-surface outcomes rotted to 200 in the ROUTE-FIX-020 window (/pty POST, /vcs/apply POST, /vcs/diff/raw GET, /vcs/status GET are all 501-typed per their handlers, and the /find/ prefix rule stub_outcome is 501) that a fresh comparison run had silently re-scored covered; regenerate with scripts/compare-opencode-declared-served.py; ROUTE-FIX-029 moved POST /tui/show-toast (tui.showToast, SHIM-DRIFT-108) from OUTCOME-MISMATCH untyped-501 drift to covered: the handler validates the declared requestBody schema (required non-empty message, required variant in the info|success|warning|error enum, duration exclusiveMinimum 0, additionalProperties false) and answers the declared 200 with the truthful boolean false (this shim has no attached TUI process, so no toast is shown); ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply, SHIM-DRIFT-142) from OUTCOME-MISMATCH untyped-501 drift to covered: handleVCSApply validates the declared requestBody schema (required non-empty patch, additionalProperties false so undeclared properties are refused), answers the declared 200 with the truthful object {applied: false} (this shim has no VCS write capability, so no patch is applied), answers the declared 400 BadRequest envelope for a payload violating the schema and for a present-but-blank directory/workspace selector, answers 405 METHOD_NOT_ALLOWED on non-POST, and left the isStubPath non-GET stub exemption so the served path takes api-key auth like every other implemented route; SHIM-GAP-004 resolved the last error-contract-only operations in the 2026-09-29 SHIM-NARROWED-001..011 set: POST /permission/{requestID}/reply (permission.reply, SHIM-NARROWED-001) now serves its FULL declared contract \u2014 the declared body {reply*: once|always|reject, message?} additionalProperties false is validated (400 Body/Payload), an unknown or no-longer-pending id answers the declared 404 typed PermissionNotFoundError, and a pending row is resolved through the REAL approval_requests write path (the sessionPermissionRespond mapping) answering the declared boolean 200 true plus the approval_resolved SSE event \u2014 and POST /tui/select-session (tui.selectSession, SHIM-NARROWED-011) now serves its full contract too (400 for a body violating {sessionID*}, 404 NotFoundError for a session this instance does not hold, 200 false for a session that exists because no TUI process is attached, the tui.showToast precedent); question.reply gained the declared 400 arm for its declared requestBody while its declared 200 stays unreachable. The comparison no longer hand-lists this class: it DETECTS an error-contract narrowing from the declared response set and the served outcome and ABORTS unless the served-surface row carries x-shim-error-contract-narrowing: true with a non-empty narrowing-rationale, which surfaced TEN further rows that were scored `covered` while answering only the error half of their contract (the five /pty/{ptyID} operations, mcp.auth.start/authenticate/callback, session.share and session.unshare) plus part.update; all 14 are now recorded with reasons, counts.narrowed_unexplained = 0, and the artifact carries their rationales in narrowed_error_contract_only + appendix-narrowed.md; ROUTE-ADD-021 moved the seven declared v2 read-only list operations from NOT-SERVED to covered \u2014 GET /api/location (v2.location.get, SHIM-DRIFT-016), GET /api/model (v2.model.list, SHIM-DRIFT-017), GET /api/reference (v2.reference.list, SHIM-DRIFT-031), GET /api/skill (v2.skill.list, SHIM-DRIFT-057), GET /api/permission/request (v2.permission.request.list, SHIM-DRIFT-018), GET /api/permission/saved (v2.permission.saved.list, SHIM-DRIFT-019) and GET /api/question/request (v2.question.request.list, SHIM-DRIFT-030): each exact path had no shim route at all (net/http default 404) and now answers its declared 200 \u2014 /api/location derives the real selected workspace (requestWorkspaceDir + instanceID), /api/skill serves the real skills_registry rows, /api/model READS the real model_registry catalog (an unreadable catalog answers the declared 503 ServiceUnavailableError, service 'model_registry') and answers an empty data array because no registry row holds the ModelV2Info members the pinned schema requires, and /api/reference, /api/permission/request, /api/permission/saved and /api/question/request answer the declared empty collection where no store exists or where a real store's row cannot be truthfully reshaped; all seven keep the declared InvalidRequestError 400 for malformed selectors, the declared UnauthorizedError 401 via the exact-path v2EnvelopeRoutePaths list in server.go, and the sibling METHOD_NOT_ALLOWED 405 for undeclared methods (drift_declared_not_served 87 -> 80)"
   },
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 126,
-    "covered_operations": 88,
+    "served_route_entries": 133,
+    "covered_operations": 95,
     "narrowed_error_contract_only": 14,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 1,
     "semantic_different": 2,
-    "drift_declared_not_served": 83,
+    "drift_declared_not_served": 76,
     "drift_by_class": {
-      "NOT-SERVED": 79,
+      "NOT-SERVED": 72,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -110,6 +110,76 @@
       "family": "/api/*  (v2 surface)",
       "served_outcome": "200",
       "evidence": "api_health.go handleApiHealth (ROUTE-ADD-006, formerly SHIM-DRIFT-008): serves the declared v2.health.get 200 {healthy: true} \u2014 the declared object's only permitted value (enum [true], additionalProperties: false) and the truthful process-readiness answer of a server that is running and routing the request; no `version` member is emitted because this schema, unlike the sibling global.health route's, does not declare one; the operation declares no parameters and no request body, so there is no input to reject against the declared 400 arm; unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/health branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/location",
+      "method": "GET",
+      "operationId": "v2.location.get",
+      "tags": "opencode HttpApi",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiLocation (ROUTE-ADD-021, formerly SHIM-DRIFT-016): serves the declared v2.location.get 200 LocationInfo (directory, project{id,directory}, optional ^wrk workspaceID) derived from the REAL selected workspace \u2014 requestWorkspaceDir (x-opencode-directory / configured workdir) overridden by location[directory], project.id = instanceID(directory) \u2014 the same derivation /path, /instance, project.current and handleApiAgentList use; deepObject location selectors validated with the declared InvalidRequestError 400 (blank value, unknown field, unreadable/non-directory path, non-^wrk workspace); unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/model",
+      "method": "GET",
+      "operationId": "v2.model.list",
+      "tags": "models",
+      "declared_responses": "200,400,401,503",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiModelList (ROUTE-ADD-021, formerly SHIM-DRIFT-017): serves the declared v2.model.list 200 {location: LocationInfo, data: ModelV2Info[]} with an empty (never null) data array \u2014 the handler READS this runtime's real model catalog (model_registry, the table /config/providers and /provider serve) and an unreadable catalog answers the declared 503 ServiceUnavailableError with service 'model_registry', while a readable one cannot produce a row: no model_registry entry holds the seven ModelV2Info members the pinned schema requires (api descriptor, request config, variants, time.released, cost cache pricing, limit.output, upstream status) and the instance's configured LLM (system_settings llm.provider/llm.default_model) is a single model, not a catalog, so serving one would fabricate it (the handleQuestionList reshape-refusal precedent); location[directory]/location[workspace] validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/permission/request",
+      "method": "GET",
+      "operationId": "v2.permission.request.list",
+      "tags": "permissions",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiPermissionRequestList (ROUTE-ADD-021, formerly SHIM-DRIFT-018): serves the declared v2.permission.request.list 200 {location: LocationInfo, data: PermissionV2Request[]} with an empty (never null) array \u2014 the handler READS the runtime's real human-input store approval_requests (migrations/008_hitl_tables.sql, SPEC-014) and an unreadable store answers the declared InvalidRequestError 400, but no approval row can be truthfully reshaped into PermissionV2Request: its declared id must match ^per (approval ids are UUIDs), its sessionID must match ^ses (approval session ids are native session UUIDs), and its action/resources vocabulary has no counterpart (an approval carries request_type/risk_level/target_tool/target_sql), so emitting a row would fabricate the identifier a client answers with; deepObject location selectors validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/permission/saved",
+      "method": "GET",
+      "operationId": "v2.permission.saved.list",
+      "tags": "permissions",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiPermissionSavedList (ROUTE-ADD-021, formerly SHIM-DRIFT-019): serves the declared v2.permission.saved.list 200 {data: PermissionSavedInfo[]} with an empty (never null) array because this runtime keeps NO saved-permission (reusable allow/deny rule) store \u2014 the migration set (001..026) has no such table and permission.reply records an 'always' answer as the resolved approval's review_notes on the approval_requests row (server.go permissionReply), not as a reusable rule, so PermissionSavedInfo {id, projectID, action, resource} has no source; this is the one operation in the family with no deepObject location selector \u2014 it declares a plain-string projectID query parameter, whose present-but-blank value answers the declared InvalidRequestError 400 (the sibling present-but-blank selector rule); unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/question/request",
+      "method": "GET",
+      "operationId": "v2.question.request.list",
+      "tags": "session questions",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiQuestionRequestList (ROUTE-ADD-021, formerly SHIM-DRIFT-030): serves the declared v2.question.request.list 200 {location: LocationInfo, data: QuestionV2Info[]} with an empty (never null) array \u2014 the v2 spelling of the surface handleQuestionList serves at /question (question.list, ROUTE-ADD-110): the runtime keeps no question producer (QuestionV2Info requires id ^que, sessionID ^ses and a questions[] array of {question, header, options[]}), its human-input surface is approval_requests (request_type/risk_level, SPEC-014) which cannot be truthfully reshaped into that shape, and the handler reads the same pending-approval store (an unreadable store answers the declared InvalidRequestError 400); deepObject location selectors validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/reference",
+      "method": "GET",
+      "operationId": "v2.reference.list",
+      "tags": "reference",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiReferenceList (ROUTE-ADD-021, formerly SHIM-DRIFT-031): serves the declared v2.reference.list 200 {location: LocationInfo, data: ReferenceInfo[]} with an empty (never null) array because this runtime keeps NO reference store \u2014 no reference table exists in the migration set (001..026) and the ConfigV2 document's own reference/references blocks are response-only in the shim (server.go globalConfigDeclaredKeys; GET /global/config answers {} for them), so no ReferenceInfo {name, path, source{type: local|git, path|repository}} can be produced without inventing one; deepObject location selectors validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+    },
+    {
+      "path": "/api/skill",
+      "method": "GET",
+      "operationId": "v2.skill.list",
+      "tags": "skills",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_v2_lists.go handleApiSkillList (ROUTE-ADD-021, formerly SHIM-DRIFT-057): serves the declared v2.skill.list 200 {location: LocationInfo, data: SkillV2Info[]} from the runtime's REAL skill store skills_registry (migration 001 \u00a74.5, SQLite mirror 011) \u2014 the same table internal/harness/prompt.go readSkillsMetadata and the native GET /api/v1/skills read; name <- skills_registry.name, content <- skills_registry.instructions, location <- 'skills_registry/<name>' (the store that really holds the bundle; the runtime keeps no filesystem skill directory to name), description <- metadata.description when present, slash omitted (the runtime binds no slash command), rows filtered to enabled = true (the readSkillsMetadata filter, since the declared schema cannot express a disabled skill); an unreadable store answers the declared InvalidRequestError 400 (the handleQuestionList convention); deepObject location selectors validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
     },
     {
       "path": "/auth/{providerID}",
@@ -1261,50 +1331,6 @@
       "id": "SHIM-DRIFT-010"
     },
     {
-      "path": "/api/location",
-      "method": "GET",
-      "operationId": "v2.location.get",
-      "tags": "opencode HttpApi",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
-    },
-    {
-      "path": "/api/model",
-      "method": "GET",
-      "operationId": "v2.model.list",
-      "tags": "models",
-      "declared_responses": "200,400,401,503",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
-    },
-    {
-      "path": "/api/permission/request",
-      "method": "GET",
-      "operationId": "v2.permission.request.list",
-      "tags": "permissions",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
-    },
-    {
-      "path": "/api/permission/saved",
-      "method": "GET",
-      "operationId": "v2.permission.saved.list",
-      "tags": "permissions",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
-    },
-    {
       "path": "/api/permission/saved/{id}",
       "method": "DELETE",
       "operationId": "v2.permission.saved.remove",
@@ -1313,7 +1339,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/api/provider",
@@ -1324,7 +1350,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/api/provider/{providerID}",
@@ -1335,7 +1361,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/api/pty",
@@ -1346,7 +1372,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/api/pty",
@@ -1357,7 +1383,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-019"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -1368,7 +1394,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-020"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -1379,7 +1405,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-021"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/api/pty/{ptyID}",
@@ -1390,7 +1416,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-022"
+      "id": "SHIM-DRIFT-018"
     },
     {
       "path": "/api/pty/{ptyID}/connect",
@@ -1401,7 +1427,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-023"
+      "id": "SHIM-DRIFT-019"
     },
     {
       "path": "/api/pty/{ptyID}/connect-token",
@@ -1412,29 +1438,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-024"
-    },
-    {
-      "path": "/api/question/request",
-      "method": "GET",
-      "operationId": "v2.question.request.list",
-      "tags": "session questions",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-025"
-    },
-    {
-      "path": "/api/reference",
-      "method": "GET",
-      "operationId": "v2.reference.list",
-      "tags": "reference",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-026"
+      "id": "SHIM-DRIFT-020"
     },
     {
       "path": "/api/session",
@@ -1445,7 +1449,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-027"
+      "id": "SHIM-DRIFT-021"
     },
     {
       "path": "/api/session",
@@ -1456,7 +1460,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-028"
+      "id": "SHIM-DRIFT-022"
     },
     {
       "path": "/api/session/active",
@@ -1467,7 +1471,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-029"
+      "id": "SHIM-DRIFT-023"
     },
     {
       "path": "/api/session/{sessionID}",
@@ -1478,7 +1482,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-030"
+      "id": "SHIM-DRIFT-024"
     },
     {
       "path": "/api/session/{sessionID}/agent",
@@ -1489,7 +1493,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-031"
+      "id": "SHIM-DRIFT-025"
     },
     {
       "path": "/api/session/{sessionID}/compact",
@@ -1500,7 +1504,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-032"
+      "id": "SHIM-DRIFT-026"
     },
     {
       "path": "/api/session/{sessionID}/context",
@@ -1511,7 +1515,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-033"
+      "id": "SHIM-DRIFT-027"
     },
     {
       "path": "/api/session/{sessionID}/event",
@@ -1522,7 +1526,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-034"
+      "id": "SHIM-DRIFT-028"
     },
     {
       "path": "/api/session/{sessionID}/history",
@@ -1533,7 +1537,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-035"
+      "id": "SHIM-DRIFT-029"
     },
     {
       "path": "/api/session/{sessionID}/interrupt",
@@ -1544,7 +1548,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-036"
+      "id": "SHIM-DRIFT-030"
     },
     {
       "path": "/api/session/{sessionID}/message",
@@ -1555,7 +1559,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-037"
+      "id": "SHIM-DRIFT-031"
     },
     {
       "path": "/api/session/{sessionID}/message/{messageID}",
@@ -1566,7 +1570,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-038"
+      "id": "SHIM-DRIFT-032"
     },
     {
       "path": "/api/session/{sessionID}/model",
@@ -1577,7 +1581,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-039"
+      "id": "SHIM-DRIFT-033"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1588,7 +1592,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-040"
+      "id": "SHIM-DRIFT-034"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1599,7 +1603,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-041"
+      "id": "SHIM-DRIFT-035"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}",
@@ -1610,7 +1614,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-042"
+      "id": "SHIM-DRIFT-036"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}/reply",
@@ -1621,7 +1625,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-043"
+      "id": "SHIM-DRIFT-037"
     },
     {
       "path": "/api/session/{sessionID}/prompt",
@@ -1632,7 +1636,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-044"
+      "id": "SHIM-DRIFT-038"
     },
     {
       "path": "/api/session/{sessionID}/question",
@@ -1643,7 +1647,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-045"
+      "id": "SHIM-DRIFT-039"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reject",
@@ -1654,7 +1658,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-046"
+      "id": "SHIM-DRIFT-040"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reply",
@@ -1665,7 +1669,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-047"
+      "id": "SHIM-DRIFT-041"
     },
     {
       "path": "/api/session/{sessionID}/revert/clear",
@@ -1676,7 +1680,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-048"
+      "id": "SHIM-DRIFT-042"
     },
     {
       "path": "/api/session/{sessionID}/revert/commit",
@@ -1687,7 +1691,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-049"
+      "id": "SHIM-DRIFT-043"
     },
     {
       "path": "/api/session/{sessionID}/revert/stage",
@@ -1698,7 +1702,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-050"
+      "id": "SHIM-DRIFT-044"
     },
     {
       "path": "/api/session/{sessionID}/wait",
@@ -1709,18 +1713,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-051"
-    },
-    {
-      "path": "/api/skill",
-      "method": "GET",
-      "operationId": "v2.skill.list",
-      "tags": "skills",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-052"
+      "id": "SHIM-DRIFT-045"
     },
     {
       "path": "/auth/{providerID}",
@@ -1733,7 +1726,7 @@
       "evidence": "server.go:1094 (only PUT is supported)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 405",
-      "id": "SHIM-DRIFT-053"
+      "id": "SHIM-DRIFT-046"
     },
     {
       "path": "/experimental/capabilities",
@@ -1744,7 +1737,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-054"
+      "id": "SHIM-DRIFT-047"
     },
     {
       "path": "/experimental/console",
@@ -1755,7 +1748,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-055"
+      "id": "SHIM-DRIFT-048"
     },
     {
       "path": "/experimental/console/orgs",
@@ -1766,7 +1759,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-056"
+      "id": "SHIM-DRIFT-049"
     },
     {
       "path": "/experimental/console/switch",
@@ -1777,7 +1770,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-057"
+      "id": "SHIM-DRIFT-050"
     },
     {
       "path": "/experimental/control-plane/move-session",
@@ -1788,7 +1781,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-058"
+      "id": "SHIM-DRIFT-051"
     },
     {
       "path": "/experimental/project/{projectID}/copy",
@@ -1799,7 +1792,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-059"
+      "id": "SHIM-DRIFT-052"
     },
     {
       "path": "/experimental/project/{projectID}/copy",
@@ -1810,7 +1803,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-060"
+      "id": "SHIM-DRIFT-053"
     },
     {
       "path": "/experimental/project/{projectID}/copy/generate-name",
@@ -1821,7 +1814,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-061"
+      "id": "SHIM-DRIFT-054"
     },
     {
       "path": "/experimental/project/{projectID}/copy/refresh",
@@ -1832,7 +1825,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-062"
+      "id": "SHIM-DRIFT-055"
     },
     {
       "path": "/experimental/resource",
@@ -1843,7 +1836,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-063"
+      "id": "SHIM-DRIFT-056"
     },
     {
       "path": "/experimental/session",
@@ -1854,7 +1847,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-064"
+      "id": "SHIM-DRIFT-057"
     },
     {
       "path": "/experimental/session/{sessionID}/background",
@@ -1865,7 +1858,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-065"
+      "id": "SHIM-DRIFT-058"
     },
     {
       "path": "/experimental/workspace",
@@ -1876,7 +1869,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-066"
+      "id": "SHIM-DRIFT-059"
     },
     {
       "path": "/experimental/workspace",
@@ -1887,7 +1880,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-067"
+      "id": "SHIM-DRIFT-060"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1898,7 +1891,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-068"
+      "id": "SHIM-DRIFT-061"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1909,7 +1902,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-069"
+      "id": "SHIM-DRIFT-062"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1920,7 +1913,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-070"
+      "id": "SHIM-DRIFT-063"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1931,7 +1924,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-071"
+      "id": "SHIM-DRIFT-064"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1942,7 +1935,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-072"
+      "id": "SHIM-DRIFT-065"
     },
     {
       "path": "/experimental/worktree",
@@ -1953,7 +1946,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-073"
+      "id": "SHIM-DRIFT-066"
     },
     {
       "path": "/experimental/worktree",
@@ -1964,7 +1957,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-074"
+      "id": "SHIM-DRIFT-067"
     },
     {
       "path": "/experimental/worktree",
@@ -1975,7 +1968,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-075"
+      "id": "SHIM-DRIFT-068"
     },
     {
       "path": "/experimental/worktree/reset",
@@ -1986,7 +1979,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-076"
+      "id": "SHIM-DRIFT-069"
     },
     {
       "path": "/formatter",
@@ -1997,7 +1990,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-077"
+      "id": "SHIM-DRIFT-070"
     },
     {
       "path": "/global/upgrade",
@@ -2008,7 +2001,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-078"
+      "id": "SHIM-DRIFT-071"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -2019,7 +2012,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-079"
+      "id": "SHIM-DRIFT-072"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2032,7 +2025,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-080"
+      "id": "SHIM-DRIFT-073"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2045,7 +2038,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-081"
+      "id": "SHIM-DRIFT-074"
     },
     {
       "path": "/sync/steal",
@@ -2056,7 +2049,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-082"
+      "id": "SHIM-DRIFT-075"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2069,7 +2062,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-083"
+      "id": "SHIM-DRIFT-076"
     }
   ],
   "drift_served_not_declared": [],
