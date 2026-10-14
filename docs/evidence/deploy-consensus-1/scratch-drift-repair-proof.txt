@@ -1,0 +1,85 @@
+DEPLOY-CONSENSUS-1 — the Postgres budget-column drift repair, exercised with the
+DEPLOYED artifact on a scratch database (never the live dexdat DB).
+
+The live database was already repaired, so on it the repair is a no-op and proves
+nothing. This drill creates the drift instead, on throwaway databases inside the
+project's postgres container, and compares the deployed artifact against an
+artifact built from the pin that precedes the fix.
+
+Artifacts compared
+  deployed : dexdat-core-consensus:latest            (upstream 52bc660, stamp 52bc66087b9e…)
+  pre-fix  : dc1-prefix:latest                       (built 2026-10-13T20:58:29 with
+             docker build --build-arg UPSTREAM_SHA=576dc076c9c3db113c8fd66edea50345583b6205
+                          -f consensus-sidecar/Dockerfile.quickstart .)
+
+Drill (each arm: boot the image against a scratch DB, then read the schema)
+  A   fresh scratch DB              + deployed artifact
+  B   A's DB with sessions.budget_limit_cents DROPPED while schema_versions still
+      records 022 — the exact drift QA-CONSENSUS-18 describes — + deployed artifact rebooted
+  C   fresh scratch DB              + pre-fix artifact
+  C2  C's DB with the column dropped, v22 recorded + pre-fix artifact rebooted
+
+Result
+  arm  DB state                     artifact    sessions.budget_limit_cents after boot
+  A    fresh                        deployed    1   present
+  B    drifted (v22 recorded)       deployed    1   RE-ADDED — the repair fired
+  C    fresh                        pre-fix     0   MISSING — the drift is created
+  C2   drifted (v22 recorded)       pre-fix     0   not healed
+
+SQLSTATE 42703 counts in those container logs: 0 / 0 / 0 / 0. The only WARN in
+each is an unrelated 42501 ("permission denied for table hitl_configuration") on
+the scratch database, which the live stack's bootstrap normally owns.
+
+Why the arms differ, read from the pinned sources
+  - pre-fix 576dc07: internal/migrate/migrate.go has no repairBudgetLimitCents and
+    runs a goose-formatted migration's Up AND Down sections in one call, so a
+    fresh DB records v22 with the column already dropped (arm C: 0).
+  - deployed 52bc660: migrationUpSQL() sends only the Up section, and
+    AutoMigrate() calls repairBudgetLimitCents() — which re-adds the column when a
+    DB records v22 without it (arms A and B: 1). Because v22 is already recorded,
+    migration 022 is skipped on those boots, so the repair is the only writer that
+    could have restored the column in arm B.
+
+Reproduce (scratch only; the live stack is not touched):
+  docker exec dexdat-core-postgres-1 psql -U dexdat -c 'CREATE DATABASE dc1_scratch'
+  docker run --detach --name dc1-scratch-a --network dexdat-core_default \
+    -e DATABASE_URL=postgres://dexdat:devsecret@postgres:5432/dc1_scratch \
+    -e POSTGRES_HOST=postgres -e ADMIN_KEY=dev-admin-key dexdat-core-consensus:latest
+  docker exec dexdat-core-postgres-1 psql -U dexdat -d dc1_scratch \
+    -c 'ALTER TABLE sessions DROP COLUMN budget_limit_cents'
+  # restart the same container, then:
+  docker exec dexdat-core-postgres-1 psql -U dexdat -d dc1_scratch -At -c \
+    "select count(*) from information_schema.columns where table_name='sessions' and column_name='budget_limit_cents'"   # -> 1
+
+Raw harness output (both runs), verbatim:
+
+network=dexdat-core_default
+--- A. fresh scratch DB + DEPLOYED image (dexdat-core-consensus:latest)
+sessions.budget_limit_cents present : 1
+schema_versions v22 recorded        : 22
+sqlstate 42703 in container log     : 0
+container log lines                 : 16
+log tail:
+    time=2026-10-14T02:00:24.761Z level=WARN msg="dexdat sidecar: failed to initialize HITL defaults" error="postgres: exec: ERROR: permission denied for table hitl_configuration (SQLSTATE 42501)"
+    time=2026-10-14T02:00:24.761Z level=INFO msg="dexdat sidecar: postgres LISTEN/NOTIFY event bridge started"
+    time=2026-10-14T02:00:24.762Z level=INFO msg="dexdat sidecar: started" opencode_addr=:8080 mcp_addr=:8081 backend=postgres
+
+--- B. drift introduced: sessions.budget_limit_cents dropped, v22 still recorded
+    column present now : 0
+--- B. drifted scratch DB + DEPLOYED image rebooted (dexdat-core-consensus:latest)
+sessions.budget_limit_cents present : 1
+schema_versions v22 recorded        : 22
+sqlstate 42703 in container log     : 0
+
+--- C. fresh scratch DB + PRE-FIX image (dc1-prefix:latest)
+sessions.budget_limit_cents present : 0
+schema_versions v22 recorded        : 22
+sqlstate 42703 in container log     : 0
+
+--- C2. drifted scratch DB + PRE-FIX image rebooted (dc1-prefix:latest)
+budget_limit_cents_present|0        (psql -At -F '|')
+schema_versions_v22|22
+42703 in pre-fix container log: 0
+
+Cleanup verified after the drill: no dc1-* containers, no dc1_* databases,
+live container dexdat-core-consensus-1 healthy, GET /api/v1/health → 200.

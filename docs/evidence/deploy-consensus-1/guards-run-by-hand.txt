@@ -1,0 +1,32 @@
+check-spec-parity: building scratch binary at commit 52bc66087b9e0fdf9d850c966e4e3b92ac274e12
+check-spec-parity: starting scratch server on 127.0.0.1:34979 (sqlite, no API key needed)
+spec-parity: commit=52bc66087b9e0fdf9d850c966e4e3b92ac274e12 (working tree dirty: 19 paths)
+spec-parity: declared=69 paths / 82 ops from /home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1/specs/openapi/openapi.yaml
+spec-parity: served=69 paths / 82 ops from http://127.0.0.1:34979/openapi.json
+spec-parity: declared x-not-implemented path items=1 (/vcs/{vcsId}) — excluded from MISSING/UNANSWERED
+spec-parity: runtime 81 ops probed, 0 unanswered, 1 exempt
+spec-parity: PASS — declared == served at commit 52bc66087b9e0fdf9d850c966e4e3b92ac274e12 (69 paths / 82 ops)
+check-spec-parity: OK — declared surface matches the served surface of the built server (commit 52bc66087b9e0fdf9d850c966e4e3b92ac274e12)
+spec-parity exit=0
+fatal: cannot force update the branch 'master' used by worktree at '/var/tmp/hermes-scratch/deploy-artifact-selfproof.WoVAXn/repo'
+=== check-deployed-artifact.sh self-proof (DEPLOY-CONSENSUS-1) ===
+gate : /home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1/scripts/check-deployed-artifact.sh
+repo : /var/tmp/hermes-scratch/deploy-artifact-selfproof.WoVAXn/repo   A=960613a60 B=8fdaf3293 C=1bd657f5e
+
+PASS  green: identity+master+repair (ref fallback) rc=0 verdict=GREEN
+PASS  red: drift, master ahead (policy equal)      rc=1 verdict=RED
+PASS  green: same drift accepted (policy ancestor) rc=0 verdict=GREEN
+PASS  red: live stamp != recorded deployment       rc=1 verdict=RED
+PASS  red: artifact carries no revision stamp      rc=1 verdict=RED
+PASS  green: in-image file stamp fallback          rc=0 verdict=GREEN
+PASS  red: repair absent from deployed binary      rc=1 verdict=RED
+PASS  red: deployed revision unknown to repo       rc=1 verdict=RED
+PASS  red: diverged from master (not ancestor)     rc=1 verdict=RED
+PASS  red: no recorded deployment file             rc=1 verdict=RED
+PASS  void: container absent                       rc=2 verdict=VOID
+PASS  void: docker daemon unreachable              rc=2 verdict=VOID
+PASS  void: master unresolvable                    rc=2 verdict=VOID
+PASS  green: --json machine-readable verdict       rc=0 verdict=GREEN
+
+self-proof: 14 passed, 0 failed
+selfproof exit=0

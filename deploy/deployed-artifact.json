@@ -24,6 +24,13 @@
     "sentinel": "add budget_limit_cents",
     "note": "internal/migrate/migrate.go repairBudgetLimitCents(); absent at the pre-2026-09-27 pin 576dc07, present at ae076ea and 52bc660"
   },
+  "verification": {
+    "gate": "GREEN (scripts/check-deployed-artifact.sh, exit 0): stamp == recorded == master, repair present in the deployed binary",
+    "gate_on_pre_bump_artifact": "RED (exit 1): the pre-bump image carries no revision stamp",
+    "self_proof": "scripts/battery/deploy_artifact_check_selfproof.sh — 14 arms passed, 0 failed",
+    "live_session": "03642880-6401-40a1-8366-e04bdf3dd2f0 planned on the redeployed artifact (iteration 3, message in memory_events); 0 x SQLSTATE 42703 across the container lifetime, 230 log lines of traffic in the session window",
+    "scratch_drift_drill": "deployed artifact re-added sessions.budget_limit_cents on a drifted scratch DB (column dropped, v22 recorded); the pre-fix pin 576dc07 did not; the pre-fix pin also reproduced the original drift on a FRESH DB"
+  },
   "evidence": {
     "check": "scripts/check-deployed-artifact.sh",
     "selfproof": "scripts/battery/deploy_artifact_check_selfproof.sh",

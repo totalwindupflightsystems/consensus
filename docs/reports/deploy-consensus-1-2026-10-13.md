@@ -209,12 +209,29 @@ Three independent lines of evidence, strongest first:
 3. **Exercised live without drift errors** — §4: the session planning path ran,
    and the INSERT/SELECT that name the repaired column executed with zero 42703.
 
-Honest scope of the claim: the repair is proven *present* (binary + source
-provenance) and *non-conflicting* live (planning plus named-column reads with zero
-42703). It was **not** exercised in its healing direction on this host, because the
-live DB has already been repaired and the repair is a no-op on a healthy schema —
-`repairBudgetLimitCents()` would have to be run against a deliberately drifted
-scratch database to watch it re-add the column, which this tick did not do (§6).
+Honest scope of the claim, and what makes it more than a sticker: the sentinel is
+proven to *discriminate* (absent at the pre-fix pin), and the repair is proven to
+*act* — it was exercised on a deliberately drifted scratch database, with an
+artifact built from the pre-fix pin as the RED control
+(`docs/evidence/deploy-consensus-1/scratch-drift-repair-proof.txt`):
+
+```
+arm  DB state (scratch DBs, live DB untouched)   artifact                       column after boot
+A    fresh                                       deployed 52bc660               1  present
+B    fresh, then column DROPPED (v22 recorded)   deployed 52bc660               1  RE-ADDED (repair fired)
+C    fresh                                       pre-fix 576dc07                0  MISSING (the drift)
+C2   fresh, then column DROPPED (v22 recorded)   pre-fix 576dc07                0  not healed
+SQLSTATE 42703 in those container logs: 0 / 0 / 0 / 0
+```
+
+Same drill, same scratch schema, opposite outcomes — the difference is the code
+under test. Because `schema_versions` already records version 022 on arms B and
+C2, migration 022 is skipped on those boots, so the only writer that can restore
+the column is `repairBudgetLimitCents()`: the deployed artifact restores it, the
+pre-fix artifact does not. Arm C additionally reproduces the original defect class
+end to end (a *fresh* database records v22 with the column already dropped).
+Scratch containers and databases were removed afterwards and the live stack was
+re-checked healthy (200).
 
 The other half of "the artifact is the new code" — that the redeploy changed
 behaviour, not just labels:
@@ -234,10 +251,10 @@ live probes on the redeployed artifact (8380)
 
 ## 6. What this tick did NOT prove (limits, stated plainly)
 
-* The repair's **healing** direction on a drifted schema (see §5) — needs a
-  scratch DB with `sessions.budget_limit_cents` dropped, then a boot of the
-  deployed image, plus the same boot of a pre-fix-pin image as the RED control.
-  Filed here as the recommended follow-up; the gate does not cover it.
+* The repair's **healing** direction is proven on a scratch database, not on the
+  live one (§5): the live DB was already repaired, so there the repair is a no-op
+  by construction. The scratch drill — plus the pre-fix artifact as RED control —
+  is what separates "the code is present" from "the code does what it claims".
 * The shim's synchronous `POST /session/{id}` returns
   `504 RESPONSE_TIMEOUT` while the harness keeps planning asynchronously
   (pre-existing shim behaviour, unchanged by this deploy; same before and after).
@@ -257,7 +274,8 @@ live probes on the redeployed artifact (8380)
   repo's `AGENTS.md` sanctions for docs-only changes, and the applicable checks
   were run by hand instead: `go build ./...` and `go vet ./...` green,
   `scripts/battery/deploy_artifact_check_selfproof.sh` 14/14, and
-  `make check-spec-parity` (recorded in the evidence). The dexdat-core side is
+  `make check-spec-parity` (**PASS** — declared 69 paths / 82 ops == served;
+  output in the evidence bundle). The dexdat-core side is
   the same family: its guard short-circuited on a Dockerfile-only change
   (`No supported source files found`), so its Python suite never ran — that
   change also touches no source file in the suite.
@@ -307,6 +325,7 @@ mapping bug, not drift.
 | `db-column.txt` | `sessions.budget_limit_cents` in the live schema |
 | `artifact-log-window.txt` | filtered artifact log for the session window + the 42703/42883 counts |
 | `binary-sentinels.txt` | drift-repair sentinel in the deployed binary; 42703 lifetime count; old/new route-token diff |
+| `scratch-drift-repair-proof.txt` | the repair exercised on dropped-column scratch DBs: deployed re-adds the column, pre-fix pin does not |
 | `live-route-probes.txt` | routes served by the redeployed artifact |
 
 Reproduce:
