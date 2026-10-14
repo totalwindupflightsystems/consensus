@@ -1,0 +1,15 @@
+{
+  "tick": "consensus-foreman-2026-10-14-06-11-59",
+  "wave_budget": 5,
+  "workers": 3,
+  "base": "origin/main@95d58ec",
+  "tasks": [
+    {"id": "ROUTE-ADD-006", "worktree": "~/worktrees/consensus-ROUTE-ADD-006", "branch": "wt/ROUTE-ADD-006", "brief": "/tmp/consensus-1014-0611/brief-ROUTE-ADD-006.txt", "scope": "GET /api/command (v2.command.list)"},
+    {"id": "ROUTE-ADD-011", "worktree": "~/worktrees/consensus-ROUTE-ADD-011", "branch": "wt/ROUTE-ADD-011", "brief": "/tmp/consensus-1014-0611/brief-ROUTE-ADD-011.txt", "scope": "GET /api/fs/list + GET /api/fs/read/* (v2.fs.list, v2.fs.read)"},
+    {"id": "ROUTE-ADD-021", "worktree": "~/worktrees/consensus-ROUTE-ADD-021", "branch": "wt/ROUTE-ADD-021", "brief": "/tmp/consensus-1014-0611/brief-ROUTE-ADD-021.txt", "scope": "GET /api/location, /api/model, /api/reference, /api/skill, /api/permission/request, /api/permission/saved, /api/question/request"}
+  ],
+  "independence": "disjoint route sets, disjoint handler files, one worker per git worktree; only shared files are server.go (mux lines) + served-surface.yaml + artifact json — merge order 006 -> 011 -> 021 with per-merge conflict resolution",
+  "dispatched_at": "2026-10-14T06:3x-05:00",
+  "model": "deepseek-v4-flash@deepseek-foreman",
+  "stale_rows_note": "canonical tasks.jsonl carried 81 stale pending ROUTE-ADD rows; ground truth = compare-opencode-declared-served.py run this tick (83 NOT-SERVED operations). Picked 3 independent families."
+}

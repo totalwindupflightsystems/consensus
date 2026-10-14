@@ -1306,5 +1306,6 @@ tasks:
     unauthenticated -> 401 (same as /api/fs/find); MountPatterns includes /api/agent;
     test TestApiAgentListServesDeclared200 pins 2 agents (build + primary), no fabricated
     third
-  status: in_progress
+  status: complete
   created_at: '2026-10-14T05:16:47.019525+00:00'
+  completed_at: '2026-10-14T05:26:45.063913+00:00'
