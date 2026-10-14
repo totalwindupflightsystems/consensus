@@ -25,7 +25,7 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 137,
+    "served_route_entries": 138,
     "covered_operations": 97,
     "narrowed_error_contract_only": 16,
     "narrowed_unexplained": 0,
@@ -33,8 +33,8 @@
     "semantic_different": 2,
     "drift_declared_not_served": 72,
     "drift_by_class": {
-      "NOT-SERVED": 68,
-      "OUTCOME-MISMATCH": 4
+      "NOT-SERVED": 67,
+      "OUTCOME-MISMATCH": 5
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -122,14 +122,14 @@
       "evidence": "api_health.go handleApiHealth (ROUTE-ADD-006, formerly SHIM-DRIFT-008): serves the declared v2.health.get 200 {healthy: true} \u2014 the declared object's only permitted value (enum [true], additionalProperties: false) and the truthful process-readiness answer of a server that is running and routing the request; no `version` member is emitted because this schema, unlike the sibling global.health route's, does not declare one; the operation declares no parameters and no request body, so there is no input to reject against the declared 400 arm; unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/health branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
     },
     {
-      "path": "/api/integration",
-      "method": "GET",
-      "operationId": "v2.integration.list",
+      "path": "/api/integration/attempt/{attemptID}",
+      "method": "DELETE",
+      "operationId": "v2.integration.attempt.cancel",
       "tags": "integrations",
-      "declared_responses": "200,400,401",
+      "declared_responses": "204,400,401",
       "family": "/api/*  (v2 surface)",
-      "served_outcome": "200",
-      "evidence": "api_integration_list.go handleApiIntegrationList (ROUTE-ADD-014, formerly SHIM-DRIFT-001): serves the declared v2.integration.list 200 {location: LocationInfo, data: IntegrationInfo[]} with an empty (never null) data array because this runtime keeps NO integration registry \u2014 no migration creates an integration or connection store, and provider-auth routes retain no IntegrationInfo row with the required id, name, methods (OAuth/key/environment descriptors), and connections, so emitting one would invent both an integration identity and authentication state; the real selected workspace supplies location via the shared apiV2LocationSelector; malformed deepObject location selectors answer the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 through server.go v2EnvelopeRoutePaths; undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope; exact path only, never an /api/* catch-all"
+      "served_outcome": "204",
+      "evidence": "api_integration_ra015.go handleApiIntegrationRA015 (ROUTE-ADD-015, formerly SHIM-DRIFT-002): serves v2.integration.attempt.cancel with the declared empty-body 204 after validating the declared plain-string attemptID and optional deepObject location selector; malformed selectors answer the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 through the /api/* auth wall; non-DELETE methods on the exact path answer the sibling METHOD_NOT_ALLOWED 405 envelope. TRUTHFUL no-op: the Consensus runtime keeps no integration OAuth-attempt store or resources addressable by this upstream attemptID, so cancellation is idempotent and fabricates neither a stored attempt nor a deletion claim; the sibling GET v2.integration.attempt.status remains unserved and answers 405 because this exact path is now registered for DELETE. Live evidence: docs/evidence/ROUTE-ADD-015-live-probe.md"
     },
     {
       "path": "/api/location",
@@ -1267,11 +1267,11 @@
   ],
   "drift_declared_not_served": [
     {
-      "path": "/api/integration/attempt/{attemptID}",
-      "method": "DELETE",
-      "operationId": "v2.integration.attempt.cancel",
+      "path": "/api/integration",
+      "method": "GET",
+      "operationId": "v2.integration.list",
       "tags": "integrations",
-      "declared_responses": "204,400,401",
+      "declared_responses": "200,400,401",
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
@@ -1284,8 +1284,10 @@
       "tags": "integrations",
       "declared_responses": "200,400,401",
       "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
+      "served_outcome": "405",
+      "evidence": "ROUTE-ADD-015 registers this exact parameter path for sibling DELETE v2.integration.attempt.cancel; api_integration_ra015.go handleApiIntegrationRA015 rejects GET with the sibling METHOD_NOT_ALLOWED envelope because v2.integration.attempt.status is outside this row and no runtime integration-attempt store exists from which to fabricate its declared status object. This row records the actually routed GET outcome so the served-surface artifact does not hide it as an implicit METHOD-MISSING class; it remains ordinary OUTCOME-MISMATCH drift until its own contract row lands.",
+      "class": "OUTCOME-MISMATCH",
+      "detail": "declared 200,400,401, served 405",
       "id": "SHIM-DRIFT-002"
     },
     {

@@ -305,6 +305,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
+	// ROUTE-ADD-015 / SHIM-DRIFT-002: serve the declared DELETE
+	// /api/integration/attempt/{attemptID} (v2.integration.attempt.cancel),
+	// which previously fell through to net/http's default 404. This exact
+	// parameter pattern claims only the declared path shape — never an /api/*
+	// catch-all. The handler enforces DELETE and leaves the sibling GET status
+	// operation as METHOD_NOT_ALLOWED until its own contract row lands.
+	mux.HandleFunc("/api/integration/attempt/{attemptID}", s.handleApiIntegrationRA015)
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential.update
 	// operation (PATCH /api/credential/{credentialID}) had no shim route at
 	// all, so the request fell through to net/http's default 404 — the drift
@@ -519,6 +526,9 @@ var MountPatterns = []string{
 	"/api/permission/request",
 	"/api/permission/saved",
 	"/api/question/request",
+	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
+	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
+	"/api/integration/attempt/{attemptID}",
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the /api/credential/{credentialID}
 	// family so a parent chi mount reaches the shim handler (v2.credential.update
 	// is served here; v2.credential.remove is ROUTE-ADD-007's sibling scope).
@@ -652,12 +662,16 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*
 // operations whose 401 body is the v2 UnauthorizedError envelope. Membership is
-// exact-path by default; the one prefix-routed entry ("/api/credential/",
-// ROUTE-ADD-008) matches with strings.HasPrefix, so every declared shape of
-// that family (/api/credential/{credentialID}) gets the v2 envelope while an
-// unregistered /api/* sub-path still keeps the shim's own envelope.
+// exact-path by default. Parameter routes are admitted only when the concrete
+// path has the declared shape: the credential family uses its existing prefix
+// rule, while ROUTE-ADD-015 accepts exactly one non-empty attemptID segment.
+// Deeper, unregistered /api/* paths keep the shim's own envelope.
 func isV2EnvelopeRoutePath(path string) bool {
 	if strings.HasPrefix(path, "/api/credential/") {
+		return true
+	}
+	const integrationAttemptPrefix = "/api/integration/attempt/"
+	if attemptID := strings.TrimPrefix(path, integrationAttemptPrefix); attemptID != path && attemptID != "" && !strings.Contains(attemptID, "/") {
 		return true
 	}
 	_, ok := v2EnvelopeRoutePaths[path]

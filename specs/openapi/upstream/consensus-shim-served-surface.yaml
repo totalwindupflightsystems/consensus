@@ -417,6 +417,20 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "api_v2_lists.go handleApiQuestionRequestList (ROUTE-ADD-021, formerly SHIM-DRIFT-030): serves the declared v2.question.request.list 200 {location: LocationInfo, data: QuestionV2Info[]} with an empty (never null) array — the v2 spelling of the surface handleQuestionList serves at /question (question.list, ROUTE-ADD-110): the runtime keeps no question producer (QuestionV2Info requires id ^que, sessionID ^ses and a questions[] array of {question, header, options[]}), its human-input surface is approval_requests (request_type/risk_level, SPEC-014) which cannot be truthfully reshaped into that shape, and the handler reads the same pending-approval store (an unreadable store answers the declared InvalidRequestError 400); deepObject location selectors validated with the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 (server.go v2EnvelopeRoutePaths); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+
+  # ── v2 integration attempt cancel (ROUTE-ADD-015) ──
+  - path: /api/integration/attempt/{attemptID}
+    method: DELETE
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_integration_ra015.go handleApiIntegrationRA015 (ROUTE-ADD-015, formerly SHIM-DRIFT-002): serves v2.integration.attempt.cancel with the declared empty-body 204 after validating the declared plain-string attemptID and optional deepObject location selector; malformed selectors answer the declared InvalidRequestError 400; unauthenticated requests answer the declared UnauthorizedError 401 through the /api/* auth wall; non-DELETE methods on the exact path answer the sibling METHOD_NOT_ALLOWED 405 envelope. TRUTHFUL no-op: the Consensus runtime keeps no integration OAuth-attempt store or resources addressable by this upstream attemptID, so cancellation is idempotent and fabricates neither a stored attempt nor a deletion claim; the sibling GET v2.integration.attempt.status remains unserved and answers 405 because this exact path is now registered for DELETE. Live evidence: docs/evidence/ROUTE-ADD-015-live-probe.md"
+  - path: /api/integration/attempt/{attemptID}
+    method: GET
+    outcome: 405
+    auth: api-key
+    evidence: "ROUTE-ADD-015 registers this exact parameter path for sibling DELETE v2.integration.attempt.cancel; api_integration_ra015.go handleApiIntegrationRA015 rejects GET with the sibling METHOD_NOT_ALLOWED envelope because v2.integration.attempt.status is outside this row and no runtime integration-attempt store exists from which to fabricate its declared status object. This row records the actually routed GET outcome so the served-surface artifact does not hide it as an implicit METHOD-MISSING class; it remains ordinary OUTCOME-MISMATCH drift until its own contract row lands."
+
   # ── v2 credential family (ROUTE-ADD-008 / ROUTE-ADD-007) ──
   - path: /api/credential/{credentialID}
     method: PATCH
