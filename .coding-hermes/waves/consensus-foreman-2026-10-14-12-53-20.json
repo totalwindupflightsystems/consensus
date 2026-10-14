@@ -1,0 +1,12 @@
+{
+  "scheduler_tick": "consensus-foreman-2026-10-14-12-53-20",
+  "created": "2026-10-14",
+  "base": "origin/main",
+  "base_sha": "e5132d9",
+  "tasks": [
+    {"id": "ROUTE-ADD-007", "board_id": "ROUTE-ADD-007", "gitreins_id": "route-add-007", "branch": "wt/ROUTE-ADD-007", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-007", "model": "glm-5.3-flash", "provider": "xkiro", "source_item": "SHIM-DRIFT-001", "status": "dispatched"},
+    {"id": "ROUTE-ADD-008", "board_id": "ROUTE-ADD-008", "gitreins_id": "route-add-008", "branch": "wt/ROUTE-ADD-008", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-008", "model": "glm-5.3-flash", "provider": "xkiro", "source_item": "SHIM-DRIFT-002", "status": "dispatched"},
+    {"id": "ROUTE-ADD-009", "board_id": "ROUTE-ADD-009", "gitreins_id": "route-add-009", "branch": "wt/ROUTE-ADD-009", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-009", "model": "glm-5.3-flash", "provider": "xkiro", "source_item": "SHIM-DRIFT-003", "status": "dispatched"}
+  ],
+  "independence_note": "No depends_on edges between the three rows (all gate only on SHIM-GAP-003, status complete). Each touches a disjoint handler file pair + one server.go mux line; merge order 007/008 -> 009, conflicts resolved serially."
+}
