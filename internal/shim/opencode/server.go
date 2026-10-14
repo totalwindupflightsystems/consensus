@@ -282,6 +282,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the declared SSE 200 is never fabricated). The v1 /event compatibility
 	// route below is untouched (different surface, v1 spelling).
 	mux.HandleFunc("/api/event", s.handleApiEventSubscribe)
+	// ROUTE-ADD-017 / SHIM-DRIFT-004: the declared
+	// v2.integration.attempt.complete operation (POST
+	// /api/integration/attempt/{attemptID}/complete) had no shim route, so
+	// net/http answered the default 404. Register the exact parameterized path;
+	// this is not an /api/integration/* catch-all.
+	mux.HandleFunc("/api/integration/attempt/{attemptID}/complete", s.handleApiIntegrationRA017)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -498,6 +504,9 @@ var MountPatterns = []string{
 	// ROUTE-ADD-009 / SHIM-DRIFT-003: the exact /api/event path
 	// (v2.event.subscribe) so a parent chi mount reaches the shim route.
 	"/api/event",
+	// ROUTE-ADD-017 / SHIM-DRIFT-004: exact parameterized path for
+	// v2.integration.attempt.complete; no /api/integration/* catch-all.
+	"/api/integration/attempt/{attemptID}/complete",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -649,6 +658,9 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 // unregistered /api/* sub-path still keeps the shim's own envelope.
 func isV2EnvelopeRoutePath(path string) bool {
 	if strings.HasPrefix(path, "/api/credential/") {
+		return true
+	}
+	if isApiIntegrationCompletePath(path) {
 		return true
 	}
 	_, ok := v2EnvelopeRoutePaths[path]

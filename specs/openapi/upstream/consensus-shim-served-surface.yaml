@@ -375,6 +375,12 @@ routes:
     narrowing-rationale: "ROUTE-ADD-009 / SHIM-DRIFT-003. The declared 200 is an SSE stream of V2Event — a discriminated union whose members carry a required id matching ^evt_, a required data.info: Message (for the message.* members) and a required durable aggregate envelope ({aggregateID, seq, version}). The runtime's only real event stream is the one backing the v1 /event route (handleGlobalEvent), and it emits v1-shaped events (message.created, tool.started, permission.requested, ...) with none of those members; internal/db keeps no v2 session-event store that could back the declared frames truthfully. Re-emitting the v1 frames under the v2 route would present an undeclared payload shape as the declared contract, so the shim answers the DECLARED 400 InvalidRequestError for every well-formed subscribe (the operation declares no parameters and no requestBody, so there is no narrower input arm) and never fabricates the 200. The 401 arm stays the v2 UnauthorizedError envelope via the exact-path v2EnvelopeRoutePaths entry. Making the v2 event surface real is a design change with its own row, not a contract detail. ROUTE-FIX-037 precedent."
     evidence: "api_event_subscribe.go handleApiEventSubscribe (ROUTE-ADD-009, formerly SHIM-DRIFT-003): exact-path registration next to the other /api/* v2 routes; 405 METHOD_NOT_ALLOWED for undeclared methods; unauthenticated requests answer the declared UnauthorizedError 401 (middleware v2EnvelopeRoutePaths branch); no streaming headers are ever written before the auth wall (wave-recovery law consensus-2026-09-26-00-13-38)"
 
+  - path: /api/integration/attempt/{attemptID}/complete
+    method: POST
+    outcome: 204
+    auth: api-key
+    evidence: "api_integration_ra017.go handleApiIntegrationRA017 (ROUTE-ADD-017, formerly SHIM-DRIFT-004): serves v2.integration.attempt.complete on the exact parameterized path; the required additionalProperties:false body accepts only optional string code, the shared deepObject location selector is validated, malformed input answers the declared InvalidRequestError 400, unauthenticated requests answer the declared UnauthorizedError 401, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. The runtime keeps no integration-attempt or integration-credential store and advertises no OAuth integration-attempt producer, so a well-formed completion is an idempotent no-op with the declared empty 204; no attempt or credential row is fabricated."
+
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location
     method: GET
