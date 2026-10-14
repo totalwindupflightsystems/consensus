@@ -1,0 +1,1403 @@
+{
+  "recorded": {
+    "provider": "api.deepseek.com",
+    "base_url": "https://api.deepseek.com",
+    "recorded_at_first": "2026-10-13T20:40:13-05:00",
+    "recorded_at_last": "2026-10-13T20:42:55-05:00",
+    "provider_docs_retrieved_at": "2026-10-13",
+    "provenance": "VERBATIM live exchanges. Every request body below was POSTed to the provider at the stated URL on recorded_at, exactly as written, and each response is the provider's own bytes (no hand-editing). Failures are recorded too (http_status 400 rows are provider refusals, kept because they are the evidence for the refusal rules). No credential material is stored: auth is described, never serialized. Cells whose evidence is 'doc' are NOT backed by a call here and say so.",
+    "key_material_stored": false
+  },
+  "openai": {
+    "thinking_disabled_inert_params": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with the single word: ok"
+          }
+        ],
+        "max_tokens": 16,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "low",
+        "temperature": 0.7,
+        "top_p": 0.5,
+        "presence_penalty": 0.3,
+        "frequency_penalty": 0.3,
+        "stream": false
+      },
+      "response": {
+        "id": "5fb2707b-58d9-4b44-8c93-a64e4279e801",
+        "object": "chat.completion",
+        "created": 1791942003,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ok"
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 1,
+          "total_tokens": 12,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 11
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "thinking_tools_auto": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "How's the weather tomorrow?"
+          }
+        ],
+        "max_tokens": 16,
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "low",
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_date",
+              "description": "Get the current date",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "stream": false
+      },
+      "response": {
+        "id": "9a620a7d-6f3d-4cc7-aed5-0afb83776eb6",
+        "object": "chat.completion",
+        "created": 1791942004,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "reasoning_content": "The user asks about weather tomorrow. I have a tool get_date but no weather"
+            },
+            "logprobs": null,
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 277,
+          "completion_tokens": 16,
+          "total_tokens": 293,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 16
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 277
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "tool_choice_required_thinking_400": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 400,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "How's the weather tomorrow?"
+          }
+        ],
+        "max_tokens": 16,
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "low",
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_date",
+              "description": "Get the current date",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        ],
+        "tool_choice": "required",
+        "stream": false
+      },
+      "response": {
+        "error": {
+          "message": "Thinking mode does not support this tool_choice (request_id: 697cfb3e-cbf6-48f7-82df-1a472b2987c7)",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": "invalid_request_error"
+        }
+      }
+    },
+    "cache_turn1": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a terse agent. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. "
+          },
+          {
+            "role": "user",
+            "content": "Reply with the single word: ok"
+          }
+        ],
+        "max_tokens": 1,
+        "thinking": {
+          "type": "disabled"
+        },
+        "stream": false
+      },
+      "response": {
+        "id": "b89615ae-21bc-475d-8683-ba5b487f6d29",
+        "object": "chat.completion",
+        "created": 1791942011,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ok"
+            },
+            "logprobs": null,
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 260,
+          "completion_tokens": 1,
+          "total_tokens": 261,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 260
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "cache_turn2": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a terse agent. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. context line for cache accounting. "
+          },
+          {
+            "role": "user",
+            "content": "Reply with the single word: ok"
+          }
+        ],
+        "max_tokens": 1,
+        "thinking": {
+          "type": "disabled"
+        },
+        "stream": false
+      },
+      "response": {
+        "id": "7a715076-a42c-4773-8de7-f9579fcdca68",
+        "object": "chat.completion",
+        "created": 1791942012,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ok"
+            },
+            "logprobs": null,
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 260,
+          "completion_tokens": 1,
+          "total_tokens": 261,
+          "prompt_tokens_details": {
+            "cached_tokens": 126
+          },
+          "prompt_cache_hit_tokens": 126,
+          "prompt_cache_miss_tokens": 134
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "reasoning_effort_none": {
+      "url": "https://api.deepseek.com/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with the single word: ok"
+          }
+        ],
+        "max_tokens": 16,
+        "reasoning_effort": "none",
+        "stream": false
+      },
+      "response": {
+        "id": "0011ae84-80e4-4f5a-9295-608ac1e9e688",
+        "object": "chat.completion",
+        "created": 1791942047,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "ok"
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 1,
+          "total_tokens": 12,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 11
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    }
+  },
+  "anthropic": {
+    "messages_minimal_thinking_default": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 16,
+        "system": "You are a terse agent.",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with the single word: ok"
+          }
+        ]
+      },
+      "response": {
+        "id": "46961009-e1ae-4c40-93b7-17fce3044d91",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "The user wants a single word: ok. I should reply with exactly that.",
+            "signature": "46961009-e1ae-4c40-93b7-17fce3044d91"
+          }
+        ],
+        "stop_reason": "max_tokens",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 44,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 16,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "mid_system_tools_missing_thinking_400": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 400,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 32,
+        "system": [
+          {
+            "type": "text",
+            "text": "You are a terse agent."
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "output_config": {
+          "effort": "low"
+        },
+        "top_p": 0.5,
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "auto"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "How's the weather tomorrow?"
+          },
+          {
+            "role": "system",
+            "content": "Tool results follow."
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "toolu_x1",
+                "name": "get_date",
+                "input": {}
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "toolu_x1",
+                "content": "2026-10-13"
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "error": {
+          "message": "The `content[].thinking` in the thinking mode must be passed back to the API. (request_id: 1e1c32e0-e999-4234-8066-7700d8660fc3)",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": "invalid_request_error"
+        }
+      }
+    },
+    "two_turn_no_tools_plain_assistant": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 32,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "assistant",
+            "content": "Hello"
+          },
+          {
+            "role": "user",
+            "content": "Say ok"
+          }
+        ]
+      },
+      "response": {
+        "id": "6103500d-8905-4df0-b0a5-170b5720f462",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer user says \"Say ok\". We need comply likely just \"ok\". But need consider maybe they want exactly ok. We can output \"ok\".",
+            "signature": "6103500d-8905-4df0-b0a5-170b5720f462"
+          }
+        ],
+        "stop_reason": "max_tokens",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 38,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 32,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "two_turn_effort_none_still_thinks": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 32,
+        "reasoning": {
+          "effort": "none"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "assistant",
+            "content": "Hello"
+          },
+          {
+            "role": "user",
+            "content": "Say ok"
+          }
+        ]
+      },
+      "response": {
+        "id": "277ef4a5-a675-441d-9443-482082ca1120",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer. User says \"Say ok\". We should say ok. Need maybe just \"ok\". Ensure no extra. ",
+            "signature": "277ef4a5-a675-441d-9443-482082ca1120"
+          },
+          {
+            "type": "text",
+            "text": "ok"
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 38,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 28,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "tools_thinking_echo": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "reasoning": {
+          "effort": "low"
+        },
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "I should call get_date.",
+                "signature": "sig-probe-1"
+              },
+              {
+                "type": "tool_use",
+                "id": "toolu_probe_1",
+                "name": "get_date",
+                "input": {}
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "toolu_probe_1",
+                "content": "2026-10-13"
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "id": "4e79bd8c-2b3c-43c1-85d1-b42949ebd2c5",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "4e79bd8c-2b3c-43c1-85d1-b42949ebd2c5"
+          },
+          {
+            "type": "text",
+            "text": "Today's date is **October 13, 2026**."
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 323,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 14,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "mid_conversation_system": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 32,
+        "reasoning": {
+          "effort": "none"
+        },
+        "system": [
+          {
+            "type": "text",
+            "text": "You are terse."
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "system",
+            "content": "Answer in one word."
+          },
+          {
+            "role": "user",
+            "content": "Say ok"
+          }
+        ]
+      },
+      "response": {
+        "id": "41561e98-7e6b-4f15-827c-5938ad342999",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer in one word per system reminder. User says \"Hi\" and \"Say ok\". Need answer likely \"ok\". One word.",
+            "signature": "41561e98-7e6b-4f15-827c-5938ad342999"
+          },
+          {
+            "type": "text",
+            "text": "ok"
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 56,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 31,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "mid_toolcall_missing_thinking_400": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 400,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "reasoning": {
+          "effort": "none"
+        },
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "toolu_probe_2",
+                "name": "get_date",
+                "input": {}
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "toolu_probe_2",
+                "content": "2026-10-13"
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "error": {
+          "message": "The `content[].thinking` in the thinking mode must be passed back to the API. (request_id: 05a1cd39-b65a-4821-850e-92eac2dcaca2)",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": "invalid_request_error"
+        }
+      }
+    },
+    "tools_tooluse_thinking_echo": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "reasoning": {
+          "effort": "none"
+        },
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "I should call get_date.",
+                "signature": "sig-probe-1"
+              },
+              {
+                "type": "tool_use",
+                "id": "toolu_p3",
+                "name": "get_date",
+                "input": {}
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "toolu_p3",
+                "content": "2026-10-13"
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "id": "c2028c25-a876-480d-8234-086fbd34269d",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "c2028c25-a876-480d-8234-086fbd34269d"
+          },
+          {
+            "type": "text",
+            "text": "Today's date is **October 13, 2026**."
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 195,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 128,
+          "output_tokens": 14,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "tools_plain_assistant": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "reasoning": {
+          "effort": "none"
+        },
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "assistant",
+            "content": "Hello"
+          },
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          }
+        ]
+      },
+      "response": {
+        "id": "1131df21-ab68-4c89-8f2d-69851b37fd25",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "The user is asking for today's date. I should use the get_date function.",
+            "signature": "1131df21-ab68-4c89-8f2d-69851b37fd25"
+          },
+          {
+            "type": "tool_use",
+            "id": "call_00_cLee0wAjNuJUxmigHNOO5280",
+            "name": "get_date",
+            "input": {}
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 156,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 128,
+          "output_tokens": 39,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "thinking_on_with_text": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 300,
+        "messages": [
+          {
+            "role": "user",
+            "content": "In two sentences, why is the sky blue?"
+          }
+        ]
+      },
+      "response": {
+        "id": "e3fed049-5f97-419f-9097-848e3ca8a074",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer in two sentences. Need explain Rayleigh scattering. Must be two sentences. User asks \"In two sentences, why is the sky blue?\" Need comply exactly two sentences. We can mention sunlight enters atmosphere, shorter blue wavelengths scattered more by air molecules than longer red, so blue reaches eyes from all directions. Also maybe why not violet: eyes less sensitive and some absorption. Two sentences. Ensure two sentences. Final. ",
+            "signature": "e3fed049-5f97-419f-9097-848e3ca8a074"
+          },
+          {
+            "type": "text",
+            "text": "Sunlight is scattered by tiny air molecules, and shorter blue wavelengths are scattered much more strongly than longer red wavelengths. This scattered blue light reaches our eyes from all parts of the sky, while most red and yellow light passes through or is seen near the sun."
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 40,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 139,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "output_config_effort": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "output_config": {
+          "effort": "low"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "Say ok."
+          }
+        ]
+      },
+      "response": {
+        "id": "bb577abf-679f-435c-94e5-b6407096e718",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer user. User says \"Say ok.\" Need comply. Just \"ok\". Ensure no extra.",
+            "signature": "bb577abf-679f-435c-94e5-b6407096e718"
+          },
+          {
+            "type": "text",
+            "text": "ok"
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 33,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 24,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "no_tools_thinking_echo": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Greeting back.",
+                "signature": "sig-p4-1"
+              },
+              {
+                "type": "text",
+                "text": "Hello"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Say ok."
+          }
+        ]
+      },
+      "response": {
+        "id": "cebfe793-003e-4a84-9428-5be2778f907e",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "We need answer user. User said \"Hi\" then \"Say ok.\" We need comply? We should say ok. Simple. Need final maybe \"ok\". Ensure no extra. ",
+            "signature": "cebfe793-003e-4a84-9428-5be2778f907e"
+          },
+          {
+            "type": "text",
+            "text": "ok"
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 39,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 39,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "tool_choice_any_thinking_on": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "any"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          }
+        ]
+      },
+      "response": {
+        "id": "985a8f9e-266a-4da9-a917-95acd9d27e81",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "The user asks for today's date. I should call get_date.",
+            "signature": "985a8f9e-266a-4da9-a917-95acd9d27e81"
+          },
+          {
+            "type": "tool_use",
+            "id": "call_00_p4VQPrH2mCFEAykQyXDJ3287",
+            "name": "get_date",
+            "input": {}
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 149,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 128,
+          "output_tokens": 36,
+          "service_tier": "standard"
+        }
+      }
+    },
+    "tool_choice_any_effort_none": {
+      "url": "https://api.deepseek.com/anthropic/v1/messages",
+      "auth": "x-api-key",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "max_tokens": 48,
+        "tools": [
+          {
+            "name": "get_date",
+            "description": "Get the current date",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ],
+        "reasoning": {
+          "effort": "none"
+        },
+        "tool_choice": {
+          "type": "any"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is today's date?"
+          }
+        ]
+      },
+      "response": {
+        "id": "d5dd5527-8024-415d-ae09-6c04ecc080bd",
+        "type": "message",
+        "role": "assistant",
+        "model": "deepseek-flash",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "The user wants to know today's date. I have a tool for that.",
+            "signature": "d5dd5527-8024-415d-ae09-6c04ecc080bd"
+          },
+          {
+            "type": "tool_use",
+            "id": "call_00_CdsPYQ4gSu5TdNzR8iF52825",
+            "name": "get_date",
+            "input": {}
+          }
+        ],
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 149,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 128,
+          "output_tokens": 38,
+          "service_tier": "standard"
+        }
+      }
+    }
+  },
+  "responses": {
+    "minimal": {
+      "url": "https://api.deepseek.com/responses",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "input": "Reply with the single word: ok",
+        "max_output_tokens": 16
+      },
+      "response": {
+        "id": "4acf3b1f-d162-4c1b-b644-d52a3b4c0947",
+        "object": "response",
+        "created_at": 1791942007,
+        "status": "incomplete",
+        "background": false,
+        "completed_at": 1791942008,
+        "content_filters": null,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": {
+          "reason": "max_output_tokens"
+        },
+        "instructions": null,
+        "max_output_tokens": 16,
+        "max_tool_calls": null,
+        "model": "deepseek-flash",
+        "moderation": null,
+        "output": [
+          {
+            "type": "reasoning",
+            "id": "7df041dd-4132-478c-8e7e-bb6543491b69",
+            "status": "incomplete",
+            "content": [
+              {
+                "type": "reasoning_text",
+                "text": "The user wants a single word response: \"ok\". That's it."
+              }
+            ],
+            "summary": [],
+            "encrypted_content": "4acf3b1f-d162-4c1b-b644-d52a3b4c0947-0"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": null,
+        "reasoning": {
+          "effort": null,
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "text"
+          },
+          "verbosity": null
+        },
+        "tool_choice": "auto",
+        "tools": [],
+        "top_logprobs": 0,
+        "top_p": 1.0,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 37,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 16,
+          "output_tokens_details": {
+            "reasoning_tokens": 15
+          },
+          "total_tokens": 53
+        },
+        "user": null,
+        "metadata": {}
+      }
+    },
+    "effort_both_spellings": {
+      "url": "https://api.deepseek.com/responses",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "input": "Reply with the single word: ok",
+        "max_output_tokens": 32,
+        "reasoning": {
+          "effort": "max"
+        },
+        "output_config": {
+          "effort": "low"
+        }
+      },
+      "response": {
+        "id": "bad86a02-1de7-4029-9cba-937f19affcc3",
+        "object": "response",
+        "created_at": 1791942048,
+        "status": "completed",
+        "background": false,
+        "completed_at": 1791942048,
+        "content_filters": null,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": null,
+        "max_output_tokens": 32,
+        "max_tool_calls": null,
+        "model": "deepseek-flash",
+        "moderation": null,
+        "output": [
+          {
+            "type": "reasoning",
+            "id": "aab0eaf6-7bd3-4762-a53f-a5f5a48c3e26",
+            "status": "completed",
+            "content": [
+              {
+                "type": "reasoning_text",
+                "text": "The user wants me to reply with the single word \"ok\". This is a simple request."
+              }
+            ],
+            "summary": [],
+            "encrypted_content": "bad86a02-1de7-4029-9cba-937f19affcc3-0"
+          },
+          {
+            "type": "message",
+            "id": "ae58069c-6d41-4deb-b1d2-50d54fffc79f",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "ok"
+              }
+            ],
+            "phase": "final_answer",
+            "role": "assistant"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": null,
+        "reasoning": {
+          "effort": "max",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "text"
+          },
+          "verbosity": null
+        },
+        "tool_choice": "auto",
+        "tools": [],
+        "top_logprobs": 0,
+        "top_p": 1.0,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 37,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 21,
+          "output_tokens_details": {
+            "reasoning_tokens": 19
+          },
+          "total_tokens": 58
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  },
+  "beta": {
+    "prefix_completion": {
+      "url": "https://api.deepseek.com/beta/chat/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Write the first line of a Python file."
+          },
+          {
+            "role": "assistant",
+            "content": "import ",
+            "prefix": true
+          }
+        ],
+        "max_tokens": 8,
+        "stream": false
+      },
+      "response": {
+        "id": "2efd4316-39c8-4a43-a158-6558de5704e1",
+        "object": "chat.completion",
+        "created": 1791942008,
+        "model": "deepseek-flash",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "reasoning_content": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 42,
+          "completion_tokens": 0,
+          "total_tokens": 42,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 42
+        },
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+      }
+    },
+    "fim_completion": {
+      "url": "https://api.deepseek.com/beta/completions",
+      "auth": "bearer",
+      "http_status": 200,
+      "request": {
+        "model": "deepseek-flash",
+        "prompt": "def add(a, b):\n    c = a + b\n",
+        "suffix": "    return c\n",
+        "max_tokens": 16
+      },
+      "response": {
+        "id": "e02f5955-c38c-4936-a338-2862c1da97a3",
+        "choices": [
+          {
+            "text": "    print(c)",
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "created": 1791942009,
+        "model": "deepseek-flash",
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669",
+        "object": "text_completion",
+        "usage": {
+          "prompt_tokens": 21,
+          "completion_tokens": 4,
+          "total_tokens": 25,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 21
+        }
+      }
+    }
+  }
+}

@@ -92,6 +92,14 @@ type Message struct {
 	// and without tools it must not be sent at all.
 	ReasoningContent string `json:"reasoning_content,omitempty"`
 
+	// ReasoningSignature is the provider's opaque signature for
+	// ReasoningContent. The Anthropic-format surface (§B1) requires a prior
+	// assistant turn's thinking block to be echoed back VERBATIM — text and
+	// signature — or the request is refused with HTTP 400; the OpenAI-format
+	// surface has no such field and leaves this empty. It is part of the turn,
+	// never a caller's invention.
+	ReasoningSignature string `json:"reasoning_signature,omitempty"`
+
 	// ToolCalls are the provider-native tool invocations this assistant turn
 	// requested (spec 024 §B3). They must be echoed back together with the
 	// matching role:"tool" results for the provider to accept a tool-bearing
@@ -315,6 +323,12 @@ type LLMResponse struct {
 	// turn (see iteration_commits.llm_response) and re-sent when the request
 	// carries tools. Empty when the provider ran without thinking mode.
 	ReasoningContent string `json:"reasoning_content,omitempty"`
+
+	// ReasoningSignature is the provider's opaque signature for
+	// ReasoningContent (Anthropic-format surface only, spec 024 §B1/§B2). It is
+	// persisted with the turn and echoed back with the thinking block; a caller
+	// must never synthesize one.
+	ReasoningSignature string `json:"reasoning_signature,omitempty"`
 
 	// ToolCalls are the provider-native tool invocations this turn requested.
 	ToolCalls []ToolCall `json:"tool_calls,omitempty"`

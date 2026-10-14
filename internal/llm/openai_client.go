@@ -46,6 +46,7 @@ type openaiClient struct {
 	// Thinking-mode defaults (spec 024 §B2), resolved once at construction.
 	thinking          *bool
 	reasoningEffort   string
+	topP              *float64
 	tools             []ToolDefinition
 	toolChoice        string
 	allowReasoningFbk bool
@@ -79,6 +80,7 @@ func NewOpenAIClient(cfg *Config) harness.LLMClient {
 		fallbackBaseURL:   os.Getenv("LM_STUDIO_BASE_URL"),
 		thinking:          cfg.Thinking,
 		reasoningEffort:   cfg.ReasoningEffort,
+		topP:              cfg.TopP,
 		tools:             cfg.Tools,
 		toolChoice:        cfg.ToolChoice,
 		allowReasoningFbk: cfg.AllowReasoningFallback == nil || *cfg.AllowReasoningFallback,
@@ -100,6 +102,10 @@ type ToolFunctionDef struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
+
+	// Strict asks the provider to enforce the function's JSON schema (Beta).
+	// It is carried through verbatim when set.
+	Strict bool `json:"strict,omitempty"`
 }
 
 // RequestOptions carries the per-request surface that the LLMClient interface
@@ -123,11 +129,30 @@ type RequestOptions struct {
 	// ultra); it is mapped onto the provider dial. Empty defers to the client
 	// Config.
 	ReasoningEffort string
+
+	// TopP is the requested nucleus-sampling value, subject to the documented
+	// semantics (spec 024 §B2): thinking mode only, clamped to ≥0.95; ignored
+	// entirely in non-thinking mode. nil defers to the client Config.
+	TopP *float64
 }
 
+// ============================================================================
+// DeepSeek surface semantics (spec 024 §B2/§B3)
+//
+// These helpers encode provider facts that are silent when ignored: the effort
+// vocabulary is mapped rather than passed through, the parameters the provider
+// accepts but does not honour are named, and the request shapes the provider
+// refuses (HTTP 400) are refused locally with a readable error instead of
+// costing a round trip.
+// ============================================================================
+
 // effortDial maps the documented effort vocabulary onto the dial the provider
-// accepts (spec 024 §B2 effort mapping).
+// accepts (spec 024 §B2 effort mapping). `none` is the documented off value on
+// the OpenAI spelling of the dial: the provider answers a request carrying
+// reasoning_effort "none" with a turn that has no reasoning content (measured
+// 2026-10-13, openai.reasoning_effort_none).
 var effortDial = map[string]string{
+	"none":    "none",
 	"minimal": "low",
 	"low":     "low",
 	"medium":  "high",
@@ -136,6 +161,12 @@ var effortDial = map[string]string{
 	"max":     "max",
 	"ultra":   "max",
 }
+
+// defaultReasoningEffort is the provider's documented default when no effort is
+// configured (spec 024 §B2: "Default: thinking enabled, effort high"). It is
+// never sent unless a caller asks for it — an unconfigured client leaves the
+// dial to the provider and says so.
+const defaultReasoningEffort = "high"
 
 // MapReasoningEffort maps an effort name onto the provider dial.
 // An empty name means "not configured" (returns ""); an unrecognised name is an
@@ -148,28 +179,158 @@ func MapReasoningEffort(effort string) (string, error) {
 	}
 	dial, ok := effortDial[name]
 	if !ok {
-		return "", fmt.Errorf("llm: unknown reasoning effort %q (valid: minimal, low, medium, high, xhigh, max, ultra)", effort)
+		return "", fmt.Errorf("llm: unknown reasoning effort %q (valid: none, minimal, low, medium, high, xhigh, max, ultra)", effort)
 	}
 	return dial, nil
+}
+
+// InertThinkingParams names the request parameters the provider documents as
+// accepted-but-without-effect while thinking mode is on (spec 024 §B2:
+// temperature, presence_penalty, frequency_penalty). They are returned rather
+// than silently logged so a caller — or the conformance matrix — can see the
+// set the provider ignores. Nil thinking means "not configured", and the
+// provider's default is thinking ON, so the parameters are inert there too.
+func InertThinkingParams(thinking *bool) []string {
+	if thinking != nil && !*thinking {
+		return nil
+	}
+	return []string{"temperature", "presence_penalty", "frequency_penalty"}
+}
+
+// ResolveTopP applies the documented top_p semantics (spec 024 §B2) and reports
+// whether the value goes on the wire at all.
+//
+//   - thinking mode: the effective range is 0.95–1.0 and anything below 0.95 is
+//     treated as 0.95, so the value is clamped (and reported as sent).
+//   - non-thinking mode (explicitly disabled): the provider fixes top_p at 1.0
+//     and ignores the caller's value, so nothing is sent — sending a value there
+//     would be tuning a knob that does not exist.
+//   - unconfigured (>0 was never asked for): nothing is sent.
+//
+// The provider clamps silently, which is exactly why the clamp happens here
+// where it is visible in the outgoing body.
+func ResolveTopP(requested float64, thinking *bool) (float64, bool) {
+	if requested <= 0 {
+		return 0, false
+	}
+	if thinking != nil && !*thinking {
+		return 0, false
+	}
+	if requested < 0.95 {
+		return 0.95, true
+	}
+	if requested > 1.0 {
+		return 1.0, true
+	}
+	return requested, true
+}
+
+// ValidateToolChoice refuses the tool_choice values the provider rejects while
+// thinking mode is on. Measured 2026-10-13 (see
+// testdata/shim-support-exchanges.json, openai.tool_choice_required_thinking_400):
+// `required` and named-tool choices answer HTTP 400 with a message naming
+// thinking mode, so the refusal is raised here, before the request is sent.
+// Per the provider docs, disable thinking mode first to use them.
+func ValidateToolChoice(choice string, thinking *bool) error {
+	c := strings.TrimSpace(choice)
+	if c == "" || thinking != nil && !*thinking {
+		return nil
+	}
+	switch c {
+	case "none", "auto":
+		return nil
+	case "required":
+		return fmt.Errorf("llm: tool_choice %q is not supported in thinking mode (provider answers HTTP 400); disable thinking first", c)
+	default:
+		return fmt.Errorf("llm: named tool_choice %q is not supported in thinking mode (provider answers HTTP 400); disable thinking first", c)
+	}
+}
+
+// maxToolNameLen is the provider's documented cap on a function name
+// (spec 024 §B3; verified in the API reference on 2026-10-13).
+const maxToolNameLen = 128
+
+// maxTokensCeiling is the provider's documented upper bound on max_tokens
+// (spec 024 §B2; verified in the API reference on 2026-10-13). Zero means "not
+// configured" and is legal: the provider then applies its own default (8K
+// non-thinking, 64K thinking, 128K at effort max).
+const maxTokensCeiling = 393216
+
+// ValidateMaxTokens refuses an output-token limit the provider will reject, so
+// the mistake surfaces as a named error instead of a provider 400 that costs a
+// round trip.
+func ValidateMaxTokens(maxTokens int) error {
+	if maxTokens == 0 {
+		return nil
+	}
+	if maxTokens < 1 || maxTokens > maxTokensCeiling {
+		return fmt.Errorf("llm: max_tokens %d is outside the provider's documented range 1–%d (leave it unset for the provider default)", maxTokens, maxTokensCeiling)
+	}
+	return nil
+}
+
+// ValidateToolDefinitions checks the provider's documented tool constraints —
+// the name charset, the name-length cap and name uniqueness — so a rejected
+// request fails here with the offending tool named. The provider documents that
+// tool names are unique and that a name is limited to a-z, A-Z, 0-9, `_` and `-`.
+func ValidateToolDefinitions(tools []ToolDefinition) error {
+	seen := make(map[string]struct{}, len(tools))
+	for i, t := range tools {
+		name := t.Function.Name
+		if name == "" {
+			return fmt.Errorf("llm: tools[%d] has no function name", i)
+		}
+		if len(name) > maxToolNameLen {
+			return fmt.Errorf("llm: tools[%d] name %q is %d characters, over the %d-character limit", i, name, len(name), maxToolNameLen)
+		}
+		for _, r := range name {
+			ok := r == '_' || r == '-' ||
+				(r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+			if !ok {
+				return fmt.Errorf("llm: tools[%d] name %q contains %q; allowed characters are a-z, A-Z, 0-9, underscore and dash", i, name, r)
+			}
+		}
+		if _, dup := seen[name]; dup {
+			return fmt.Errorf("llm: tools[%d] name %q is declared more than once (tool names must be unique)", i, name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
+// mergeRequestOptions merges per-request options over a client's configured
+// defaults. It is the single resolver both format clients use, so one
+// RequestOptions value means the same thing on every surface (spec 024 §B2).
+func mergeRequestOptions(base, opts RequestOptions) RequestOptions {
+	if opts.Thinking == nil {
+		opts.Thinking = base.Thinking
+	}
+	if strings.TrimSpace(opts.ReasoningEffort) == "" {
+		opts.ReasoningEffort = base.ReasoningEffort
+	}
+	if len(opts.Tools) == 0 {
+		opts.Tools = base.Tools
+	}
+	if opts.ToolChoice == "" {
+		opts.ToolChoice = base.ToolChoice
+	}
+	if opts.TopP == nil {
+		opts.TopP = base.TopP
+	}
+	return opts
 }
 
 // resolveOptions merges per-request options over the client's configured
 // defaults. Thinking mode is never inherited silently from the provider: what
 // comes back from here is exactly what goes on the wire.
 func (c *openaiClient) resolveOptions(opts RequestOptions) RequestOptions {
-	if opts.Thinking == nil {
-		opts.Thinking = c.thinking
-	}
-	if strings.TrimSpace(opts.ReasoningEffort) == "" {
-		opts.ReasoningEffort = c.reasoningEffort
-	}
-	if len(opts.Tools) == 0 {
-		opts.Tools = c.tools
-	}
-	if opts.ToolChoice == "" {
-		opts.ToolChoice = c.toolChoice
-	}
-	return opts
+	return mergeRequestOptions(RequestOptions{
+		Thinking:        c.thinking,
+		ReasoningEffort: c.reasoningEffort,
+		Tools:           c.tools,
+		ToolChoice:      c.toolChoice,
+		TopP:            c.topP,
+	}, opts)
 }
 
 // thinkingPayload renders the thinking toggle for the wire, or nil when the
@@ -182,6 +343,19 @@ func thinkingPayload(thinking *bool) *openaiThinking {
 		return &openaiThinking{Type: "enabled"}
 	}
 	return &openaiThinking{Type: "disabled"}
+}
+
+// topPPayload renders the resolved top_p for the wire, or nil when the value
+// does not apply (spec 024 §B2 — see ResolveTopP for the semantics).
+func topPPayload(requested *float64, thinking *bool) *float64 {
+	if requested == nil {
+		return nil
+	}
+	v, send := ResolveTopP(*requested, thinking)
+	if !send {
+		return nil
+	}
+	return &v
 }
 
 // effortPayload returns the effort dial to send: an explicit thinking-off
@@ -203,6 +377,7 @@ type openaiChatRequest struct {
 	Messages       []openaiChatMessage `json:"messages"`
 	MaxTokens      int                 `json:"max_tokens,omitempty"`
 	Temperature    float64             `json:"temperature,omitempty"`
+	TopP           *float64            `json:"top_p,omitempty"`
 	ResponseFormat *openaiResponseFmt  `json:"response_format,omitempty"`
 	Stream         bool                `json:"stream"`
 
@@ -227,6 +402,7 @@ type openaiToolFunc struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
+	Strict      bool            `json:"strict,omitempty"`
 }
 
 type openaiThinking struct {
@@ -282,6 +458,7 @@ type openaiChatUsage struct {
 	TotalTokens              int64                      `json:"total_tokens"`
 	PromptTokensDetails      *openaiPromptTokensDetails `json:"prompt_tokens_details,omitempty"`
 	CacheCreationInputTokens int64                      `json:"cache_creation_input_tokens"`
+	PromptCacheHitTokens     int64                      `json:"prompt_cache_hit_tokens"`
 	PromptCacheMissTokens    int64                      `json:"prompt_cache_miss_tokens"`
 }
 
@@ -289,7 +466,16 @@ type openaiPromptTokensDetails struct {
 	CachedTokens int64 `json:"cached_tokens"`
 }
 
+// cacheReadTokens is the number of prompt tokens served from the provider's
+// context cache. The provider reports it twice — as
+// usage.prompt_cache_hit_tokens and as usage.prompt_tokens_details.cached_tokens
+// (documented as the same number) — so the dedicated field wins when present and
+// the nested one is the fallback for OpenAI-compatible gateways that only send
+// the OpenAI shape. Measured 2026-10-13: both carried 126 on a cache hit.
 func (u openaiChatUsage) cacheReadTokens() int64 {
+	if u.PromptCacheHitTokens != 0 {
+		return u.PromptCacheHitTokens
+	}
 	if u.PromptTokensDetails == nil {
 		return 0
 	}
@@ -345,6 +531,26 @@ func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.M
 		return nil, err
 	}
 
+	// Request shapes the provider refuses with HTTP 400 are refused HERE, with
+	// the rule named, instead of costing a round trip (spec 024 §B2/§B3).
+	if err := ValidateMaxTokens(c.maxTokens); err != nil {
+		return nil, err
+	}
+	if err := ValidateToolDefinitions(opts.Tools); err != nil {
+		return nil, err
+	}
+	if err := ValidateToolChoice(opts.ToolChoice, opts.Thinking); err != nil {
+		return nil, err
+	}
+
+	// The provider accepts these in thinking mode with no effect at all
+	// (spec 024 §B2). Naming them keeps a silent no-op visible so nobody
+	// believes they tuned a knob that does not exist.
+	if inert := InertThinkingParams(opts.Thinking); len(inert) > 0 && c.temperature != 0 {
+		slog.Debug("llm: parameters accepted but inert in thinking mode",
+			"params", inert, "model", c.model)
+	}
+
 	// Build request payload. Skip response_format for local providers (LM Studio,
 	// Ollama) that don't support structured output constraints on all models.
 	respFmt, err := c.buildResponseFormat()
@@ -359,6 +565,7 @@ func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.M
 		Messages:        toOpenAIMessages(messages, len(opts.Tools) > 0),
 		MaxTokens:       c.maxTokens,
 		Temperature:     c.temperature,
+		TopP:            topPPayload(opts.TopP, opts.Thinking),
 		ResponseFormat:  respFmt,
 		Stream:          false,
 		Tools:           toOpenAITools(opts.Tools),
@@ -715,6 +922,7 @@ func toOpenAITools(tools []ToolDefinition) []openaiTool {
 				Name:        t.Function.Name,
 				Description: t.Function.Description,
 				Parameters:  t.Function.Parameters,
+				Strict:      t.Function.Strict,
 			},
 		}
 	}

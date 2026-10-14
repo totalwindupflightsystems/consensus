@@ -559,8 +559,9 @@ func (h *Harness) LoadMemoryEvent(ctx context.Context, sessionID string, memoryI
 // conversation continues with tools.
 type llmTurnSnapshot struct {
 	AgentOutput
-	ReasoningContent string     `json:"reasoning_content,omitempty"`
-	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+	ReasoningContent   string     `json:"reasoning_content,omitempty"`
+	ReasoningSignature string     `json:"reasoning_signature,omitempty"`
+	ToolCalls          []ToolCall `json:"tool_calls,omitempty"`
 }
 
 // marshalTurnSnapshot renders one turn for the iteration snapshot. A nil output
@@ -572,6 +573,7 @@ func marshalTurnSnapshot(output *AgentOutput, resp *LLMResponse) []byte {
 	snap := llmTurnSnapshot{AgentOutput: *output}
 	if resp != nil {
 		snap.ReasoningContent = resp.ReasoningContent
+		snap.ReasoningSignature = resp.ReasoningSignature
 		snap.ToolCalls = resp.ToolCalls
 	}
 	b, err := json.Marshal(snap)
