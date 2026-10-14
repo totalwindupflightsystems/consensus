@@ -549,8 +549,17 @@ func TestPtyFamilyNeighboursUntouched(t *testing.T) {
 
 // TestPtyFamilyServedSurfaceArtifact ties the runtime contract to the
 // regenerated declared-vs-served artifact: the five /pty/{ptyID} operations
-// must be COVERED (a declared response code served, with the 404 the handlers
-// answer) and must no longer appear as drift. The comparison keys on
+// must be ACCOUNTED — no longer drift (that was ROUTE-ADD-105..109's point: the
+// declared error vocabulary is served, not an untyped stub) — and, since
+// SHIM-GAP-004, recorded as ERROR-CONTRACT NARROWINGS rather than `covered`.
+//
+// The earlier version of this test asserted `covered`, which only asked whether
+// the served status was IN the declared set. It was: the handlers answer the
+// declared 404 (and 400/403). But the declared 200 is unreachable — the runtime
+// keeps no PTY registry and spawns no pseudo-terminal — so scoring the row
+// `covered` hid the fact that a client can never receive the declared success.
+// The assertion strength is unchanged: the family must not be drift, and each
+// row must carry a recorded rationale. The comparison keys on
 // path+method+operationId because the generated ids are positional and a
 // regeneration renumbers them.
 func TestPtyFamilyServedSurfaceArtifact(t *testing.T) {
@@ -569,6 +578,7 @@ func TestPtyFamilyServedSurfaceArtifact(t *testing.T) {
 		Method        string `json:"method"`
 		OperationID   string `json:"operationId"`
 		ServedOutcome string `json:"served_outcome"`
+		Rationale     string `json:"rationale"`
 	}
 	var doc struct {
 		Covered  []row `json:"covered"`
@@ -591,19 +601,23 @@ func TestPtyFamilyServedSurfaceArtifact(t *testing.T) {
 		key(row{Path: "/pty/{ptyID}/connect", Method: "GET", OperationID: "pty.connect"}):             false,
 		key(row{Path: "/pty/{ptyID}/connect-token", Method: "POST", OperationID: "pty.connectToken"}): false,
 	}
-	for _, r := range doc.Covered {
+	for _, r := range doc.Narrowed {
 		k := key(r)
 		if _, ok := want[k]; !ok {
 			continue
 		}
 		if !strings.HasPrefix(r.ServedOutcome, "404") {
-			t.Errorf("covered %s: served_outcome = %q, want the declared 404 the handlers answer", k, r.ServedOutcome)
+			t.Errorf("narrowed %s: served_outcome = %q, want the declared 404 the handlers answer", k, r.ServedOutcome)
+		}
+		if strings.TrimSpace(r.Rationale) == "" {
+			t.Errorf("narrowed %s carries no rationale — an unexplained narrowing", k)
 		}
 		want[k] = true
 	}
 	for k, found := range want {
 		if !found {
-			t.Errorf("%s is not a covered row in %s — the /pty/{ptyID} family must flip from drift to covered", k, artifact)
+			t.Errorf("%s is not a recorded error-contract narrowing in %s — the /pty/{ptyID} family must be accounted for, not drift",
+				k, artifact)
 		}
 	}
 	for _, r := range doc.Drift {
@@ -611,9 +625,10 @@ func TestPtyFamilyServedSurfaceArtifact(t *testing.T) {
 			t.Errorf("%s is still classified as drift in %s", key(r), artifact)
 		}
 	}
-	for _, r := range doc.Narrowed {
+	for _, r := range doc.Covered {
 		if _, ok := want[key(r)]; ok {
-			t.Errorf("%s is classified error-contract-only in %s; its served outcome is a declared 404", key(r), artifact)
+			t.Errorf("covered %s in %s claims the declared contract is served; its declared 200 is unreachable, so it must be recorded as a narrowing",
+				key(r), artifact)
 		}
 	}
 }

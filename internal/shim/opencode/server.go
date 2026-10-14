@@ -2965,6 +2965,32 @@ func (s *Server) handleQuestionList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, []any{})
 }
 
+// handleQuestionByID serves POST /question/{requestID}/reply (question.reply)
+// and POST /question/{requestID}/reject (question.reject). Both operations
+// declare responses 200 boolean, 400 BadRequest | InvalidRequestError and 404
+// QuestionNotFoundError.
+//
+// SHIM-GAP-004 recorded the remaining narrowing explicitly. The runtime keeps
+// no question producer: upstream's QuestionRequest (required id pattern ^que,
+// sessionID, questions[] of QuestionInfo) has no counterpart here — the
+// runtime's human-input surface is approval_requests (request_type /
+// risk_level, SPEC-014), which cannot be truthfully reshaped into a
+// QuestionRequest (no header/options, no ^que ids, and handleQuestionList
+// answers the declared empty list rather than inventing entries). Nothing in
+// the shim or the native API writes a question row, so no ^que request id can
+// ever exist and the declared 200 boolean ("Question answered/rejected
+// successfully") is unreachable — a fabricated true would assert that a
+// question was answered when no question exists. The declared 404 typed
+// QuestionNotFoundError is therefore the truthful answer for every well-formed
+// requestID, and the declared 400 arms are served for what a client controls:
+// an ill-shaped requestID (declared pattern ^que) and, for question.reply, a
+// body that violates its declared schema. The recorded narrowing lives in
+// specs/018-openapi-contract.md §12 and on the /question/{requestID}/reply and
+// /question/{requestID}/reject rows of
+// specs/openapi/upstream/consensus-shim-served-surface.yaml
+// (x-shim-error-contract-narrowing + narrowing-rationale), so the comparison
+// artifact counts it as a RECORDED narrowing instead of silently treating the
+// error half as full coverage.
 func (s *Server) handleQuestionByID(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/question/")
 	parts := strings.Split(path, "/")
@@ -2976,6 +3002,24 @@ func (s *Server) handleQuestionByID(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(requestID, "que") {
 		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "invalid question request id")
 		return
+	}
+	if parts[1] == "reply" {
+		// question.reply is the only one of the pair that declares a
+		// requestBody: {answers*: QuestionAnswer[]}, additionalProperties
+		// false, where QuestionAnswer is an array of selected-label strings.
+		// question.reject declares no requestBody, so a body is neither read
+		// nor required there.
+		var req struct {
+			Answers *[][]string `json:"answers"`
+		}
+		if !decodeDeclaredJSONObject(w, r, &req, "request body must be an object containing only answers") {
+			return
+		}
+		if req.Answers == nil {
+			writeOpencodeBadRequest(w, r, "Payload",
+				"required field answers must be an array of arrays of strings")
+			return
+		}
 	}
 	writeUpstreamRequestNotFound(w, "QuestionNotFoundError", requestID, "Question request not found: "+requestID)
 }
@@ -5547,11 +5591,7 @@ func (s *Server) handlePermissionByID(w http.ResponseWriter, r *http.Request) {
 	case sub == "resolve" && r.Method == http.MethodPost:
 		s.resolvePermission(w, r, permID)
 	case sub == "reply" && r.Method == http.MethodPost:
-		if !strings.HasPrefix(permID, "per") {
-			writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "invalid permission request id")
-			return
-		}
-		writeUpstreamRequestNotFound(w, "PermissionNotFoundError", permID, "Permission request not found: "+permID)
+		s.permissionReply(w, r, permID)
 	default:
 		writeOpencodeError(w, r, http.StatusNotFound, "NOT_FOUND", "unknown permission action")
 	}
@@ -5659,6 +5699,135 @@ func (s *Server) resolvePermission(w http.ResponseWriter, r *http.Request, permI
 		"resolved":  true,
 		"timestamp": now,
 	})
+}
+
+// permissionReply serves POST /permission/{requestID}/reply — upstream
+// permission.reply (SHIM-GAP-004; declared responses: 200 boolean "Permission
+// processed successfully", 400 BadRequest | InvalidRequestError, 404
+// PermissionNotFoundError).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/permission/{requestID}/reply".post): requestID is a path parameter
+// with declared pattern ^per; the requestBody is {reply*: "once" | "always" |
+// "reject", message?: string} with additionalProperties: false — reply is
+// REQUIRED; the declared 200 body is a plain boolean.
+//
+// Before SHIM-GAP-004 this operation served ONLY the declared 404 (a typed
+// PermissionNotFoundError for every well-formed id), so the declared 200 and
+// 400 were unreachable from outside: a client that can only ever receive an
+// error cannot use the feature, and the narrowing was invisible to the
+// declared-vs-served comparison (which saw a declared code being answered). The
+// runtime already owned the state and the write path — POST /permission/{id}/resolve
+// (ROUTE-FIX-045) resolves the same approval_requests rows — so the declared
+// verb now resolves the REAL row through the same mapping.
+//
+// Validation order: an ill-shaped requestID (declared pattern ^per) answers the
+// declared 400; a body that is not exactly one JSON object carrying only the
+// declared fields answers the declared 400; a missing/empty/non-enum reply
+// answers the declared 400; an unknown id, or a row that is no longer pending,
+// answers the declared 404 (the resolvePermission convention — this operation
+// declares no 409). The declared enum maps onto the REAL approval_requests
+// columns exactly as sessionPermissionRespond does (reject -> 'rejected';
+// once/always -> 'approved' with the grant scope in review_notes — there is no
+// decision_reason column), the optional declared `message` is the reviewer's
+// note, a resolved row emits the same approval_resolved SSE event the sibling
+// handlers emit, and only a row that was actually resolved answers the declared
+// boolean true — never a no-op success. The operation declares no 5xx, so a
+// failed store write answers the declared 400 InvalidRequestError naming the
+// failure rather than an undeclared 500 (the mcp.auth.* convention).
+func (s *Server) permissionReply(w http.ResponseWriter, r *http.Request, permID string) {
+	if !strings.HasPrefix(permID, "per") {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"requestID must match the declared pattern ^per")
+		return
+	}
+	var req struct {
+		Reply   *string `json:"reply"`
+		Message *string `json:"message"`
+	}
+	if !decodeDeclaredJSONObject(w, r, &req, "request body must be an object containing only reply, message") {
+		return
+	}
+	switch {
+	case req.Reply == nil || *req.Reply == "":
+		writeOpencodeBadRequest(w, r, "Payload",
+			`required field "reply" must be one of "once", "always", "reject"`)
+		return
+	case *req.Reply != "once" && *req.Reply != "always" && *req.Reply != "reject":
+		writeOpencodeBadRequest(w, r, "Payload",
+			`field "reply" must be one of "once", "always", "reject"`)
+		return
+	}
+
+	ctx := r.Context()
+	row, err := s.db.QueryRow(ctx,
+		`SELECT session_id, status FROM approval_requests WHERE id = $1`, permID)
+	if err != nil || row == nil {
+		writeUpstreamRequestNotFound(w, "PermissionNotFoundError", permID,
+			"Permission request not found: "+permID)
+		return
+	}
+	if toString(row["status"]) != "pending" {
+		writeUpstreamRequestNotFound(w, "PermissionNotFoundError", permID,
+			"Permission request is no longer pending: "+permID)
+		return
+	}
+
+	decision := "approved"
+	note := "granted (always)"
+	switch *req.Reply {
+	case "reject":
+		decision = "rejected"
+		note = "denied by permission.reply"
+	case "once":
+		note = "granted once"
+	}
+	if req.Message != nil && strings.TrimSpace(*req.Message) != "" {
+		note += " — " + *req.Message
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := s.db.Exec(ctx,
+		`UPDATE approval_requests
+		 SET status = $1, review_notes = $2, reviewed_at = $3, reviewer_id = 'opencode-shim'
+		 WHERE id = $4 AND status = 'pending'`,
+		decision, note, now, permID,
+	); err != nil {
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"failed to resolve permission: "+err.Error())
+		return
+	}
+
+	// The same SSE event the sibling resolve handlers emit (HARDEN-SHIM-01).
+	s.emitShimEventForSession(toString(row["session_id"]), "approval_resolved", map[string]any{
+		"approval_id": permID,
+		"status":      decision,
+	})
+
+	// The permission WAS resolved: the declared boolean reports the truthful
+	// true.
+	writeJSON(w, true)
+}
+
+// decodeDeclaredJSONObject decodes a declared requestBody whose schema sets
+// additionalProperties: false: exactly one JSON object, only the declared
+// fields, one JSON value. message is the caller's BadRequest text; kind "Body"
+// is the upstream BadRequest payload used for malformed/non-object JSON
+// (writeOpencodeBadRequest documents the Body/Payload split). decodeTUIJSONBody
+// is the TUI-side name for this same decoder.
+func decodeDeclaredJSONObject(w http.ResponseWriter, r *http.Request, dst any, message string) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		writeOpencodeBadRequest(w, r, "Body", message)
+		return false
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON value")
+		return false
+	}
+	return true
 }
 
 // ============================================================================
@@ -5824,20 +5993,11 @@ func validateTUISelectors(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // decodeTUIJSONBody decodes exactly one JSON value and emits the upstream
-// BadRequest envelope on malformed or trailing input.
+// BadRequest envelope on malformed or trailing input. It is the TUI-side name
+// for decodeDeclaredJSONObject (SHIM-GAP-004), which every declared
+// additionalProperties:false requestBody uses.
 func decodeTUIJSONBody(w http.ResponseWriter, r *http.Request, dst any, message string) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
-		writeOpencodeBadRequest(w, r, "Body", message)
-		return false
-	}
-	var trailing any
-	if err := dec.Decode(&trailing); err != io.EOF {
-		writeOpencodeBadRequest(w, r, "Body", "request body must contain exactly one JSON value")
-		return false
-	}
-	return true
+	return decodeDeclaredJSONObject(w, r, dst, message)
 }
 
 // rejectUndeclaredTUIBody enforces the four open-* operations' lack of a
@@ -6087,6 +6247,53 @@ func (s *Server) tuiShowToast(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, false)
 }
 
+// tuiSelectSession serves tui.selectSession's declared contract (SHIM-GAP-004;
+// declared responses: 200 boolean "Session selected successfully", 400
+// BadRequest | InvalidRequestError, 404 NotFoundError).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/tui/select-session".post): the requestBody is {sessionID*: string},
+// additionalProperties: false; the declared 200 body is a plain boolean.
+//
+// Before SHIM-GAP-004 the bare /tui/ catch-all answered the declared 404 for
+// every request, so the declared 200 and 400 were unreachable from outside. The
+// operation now follows the same shape as its siblings tui.showToast and
+// tui.executeCommand (ROUTE-FIX-029/-023): the declared requestBody is validated
+// strictly — a non-object/unparseable body, an undeclared field or a trailing
+// second value answers the declared 400 BadRequest, and so do a missing, blank
+// or empty sessionID. An unknown session answers the declared 404 NotFoundError
+// (p1ResolveSession's NamedError). A session that EXISTS answers the declared
+// boolean false: this shim attaches no opencode TUI process, so nothing was
+// navigated — the truthful false, never a claim that a TUI moved. The declared
+// ^ses path claim is deliberately NOT enforced on sessionID: this runtime issues
+// the session ids it accepts (sessions.id — the same ids GET /session and POST
+// /session return, which are not ^ses-prefixed), so refusing them would make the
+// operation unreachable for every id this server hands out. The declared 200,
+// 400 and 404 are all reachable; nothing is fabricated.
+func (s *Server) tuiSelectSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	if !validateTUISelectors(w, r) {
+		return
+	}
+	var req struct {
+		SessionID *string `json:"sessionID"`
+	}
+	if !decodeDeclaredJSONObject(w, r, &req, "request body must be an object containing only sessionID") {
+		return
+	}
+	if req.SessionID == nil || strings.TrimSpace(*req.SessionID) == "" {
+		writeOpencodeBadRequest(w, r, "Payload", "required field sessionID must be a non-empty string")
+		return
+	}
+	if _, ok := s.p1ResolveSession(w, r, *req.SessionID); !ok {
+		return // the declared 404 NotFoundError, already written
+	}
+	writeJSON(w, false)
+}
+
 func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 	sub := strings.TrimPrefix(r.URL.Path, "/tui/")
 
@@ -6136,6 +6343,9 @@ func (s *Server) handleTUI(w http.ResponseWriter, r *http.Request) {
 		return
 	case "show-toast":
 		s.tuiShowToast(w, r)
+		return
+	case "select-session":
+		s.tuiSelectSession(w, r)
 		return
 	case "execute-command":
 		s.tuiExecuteCommand(w, r)

@@ -50,6 +50,23 @@ missing rationale or any outcome other than `501-typed`, so a `404`, bare `501`,
 or fabricated success cannot be hidden as an intentional narrowing. `POST /pty`
 (`pty.create`) is the first such row; SPEC-017 §3.9 owns its exclusion.
 
+**The second class is an operation that IS answered — with an error.** A declared
+operation the shim routes and answers, but never with its declared SUCCESS code
+(its served outcome is a declared error code while the document also declares a
+success code the runtime cannot produce), sets
+`x-shim-error-contract-narrowing: true` with a non-empty `narrowing-rationale`
+naming why the declared success is unreachable and which declared arms ARE served.
+The comparator DETECTS this class from the declared response set and the served
+outcome — it is not a hand list, so such a row can no longer be scored `covered`
+merely because the error it answers is in the declared set — records it under
+`narrowed_error_contract_only` (with the rationale), and ABORTS on a detected
+narrowing without one. `counts.narrowed_unexplained` is therefore `0` by
+construction; SPEC-018 §12 is the per-row record and the table of decisions. A
+client that can only ever receive an error from an endpoint cannot use the
+feature, so widening is always the preferred outcome (SHIM-GAP-004 widened
+`permission.reply` and `tui.selectSession`); the narrowing is the honest fallback
+when the state the declared success describes does not exist.
+
 ---
 
 ## B. Provider-facing: the DeepSeek harness API
