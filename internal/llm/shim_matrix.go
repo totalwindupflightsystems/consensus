@@ -72,6 +72,19 @@ type ShimCell struct {
 	Note string
 }
 
+// ShimBehaviorScenario is one executable, fixture-driven behavior row within
+// the broader capability matrix. It records not just whether a capability is
+// supported, but the exact request shape and response handling the named test
+// proves. The focused table exists because a supported cell plus a helper-level
+// assertion is not sufficient evidence for a cross-layer behavior claim.
+type ShimBehaviorScenario struct {
+	ID                       string
+	Fixture                  string
+	ExpectedRequestShape     string
+	ExpectedResponseHandling string
+	Test                     string
+}
+
 // ShimMatrix is the whole matrix plus the provenance that keeps it honest.
 type ShimMatrix struct {
 	// DocDate is the date the provider docs were read for this revision of the
@@ -83,7 +96,11 @@ type ShimMatrix struct {
 	RecordedFixture string
 	// RefreshCommand re-runs the matrix and its spec-parity check.
 	RefreshCommand string
-	Cells          []ShimCell
+	// BehaviorScenarios is the focused SHIM-SUPPORT-002 request/response
+	// conformance table. The test run prints it verbatim after executing the
+	// named tests against recorded fixtures and httptest transports.
+	BehaviorScenarios []ShimBehaviorScenario
+	Cells             []ShimCell
 }
 
 // ShimDocDate is the date the provider documentation was read for this matrix.
@@ -107,7 +124,44 @@ func ShimSupportMatrix() ShimMatrix {
 		DocDate:         ShimDocDate,
 		ProviderDocs:    shimProviderDocs,
 		RecordedFixture: "testdata/shim-support-exchanges.json",
-		RefreshCommand:  `go test ./internal/llm -run 'TestShimSupportMatrix|TestShimMatrixSpecParity' -v`,
+		RefreshCommand:  `go test ./internal/llm ./internal/harness -run 'TestShimSupportMatrix|TestShimMatrixSpecParity|TestDeepSeekConformanceMatrix' -v`,
+		BehaviorScenarios: []ShimBehaviorScenario{
+			{
+				ID:                       "TURN-PERSIST",
+				Fixture:                  "testdata/thinking-cot-turns.json#tools_absent.turn1.response",
+				ExpectedRequestShape:     "recorded DeepSeek turn enters one real harness iteration",
+				ExpectedResponseHandling: "reasoning_content and AgentOutput fields coexist in the same iteration_commits.llm_response row",
+				Test:                     "TestDeepSeekConformanceMatrix_PersistsReasoningContentWithTurn",
+			},
+			{
+				ID:                       "TOOLS-RESEND",
+				Fixture:                  "testdata/thinking-cot-turns.json#tools_present.turn2",
+				ExpectedRequestShape:     "tools present; every previous assistant reasoning_content is emitted verbatim",
+				ExpectedResponseHandling: "recorded continuation response is parsed after the captured request is inspected",
+				Test:                     "TestDeepSeekConformanceMatrix_ResendsAllReasoningOnlyWithTools/tools_present_resends_every_prior_reasoning_turn",
+			},
+			{
+				ID:                       "NO-TOOLS-OMIT",
+				Fixture:                  "testdata/thinking-cot-turns.json#tools_present.turn2.response",
+				ExpectedRequestShape:     "tools absent; no message carries reasoning_content",
+				ExpectedResponseHandling: "the same recorded continuation response is parsed without changing the omission rule",
+				Test:                     "TestDeepSeekConformanceMatrix_ResendsAllReasoningOnlyWithTools/tools_absent_omits_every_prior_reasoning_turn",
+			},
+			{
+				ID:                       "THINKING-PER-REQUEST",
+				Fixture:                  "testdata/thinking-cot-turns.json#tools_absent.turn1.response",
+				ExpectedRequestShape:     "successive requests explicitly emit enabled+low, disabled+no-effort, enabled+max",
+				ExpectedResponseHandling: "each recorded response is handled under the options of its own request, not provider defaults",
+				Test:                     "TestDeepSeekConformanceMatrix_ThinkingControlIsExplicitPerRequest",
+			},
+			{
+				ID:                       "FALLBACK-LAST-RESORT",
+				Fixture:                  "testdata/thinking-cot-turns.json#tools_present.turn1.response",
+				ExpectedRequestShape:     "recorded response has empty content and non-empty reasoning_content",
+				ExpectedResponseHandling: "promotion is WARN-logged and flagged; non-empty content bypasses it; disabling it preserves CoT without promotion",
+				Test:                     "TestDeepSeekConformanceMatrix_ReasoningFallbackIsLoggedFlaggedAndLastResort",
+			},
+		},
 		Cells: []ShimCell{
 			// ---- §B1 formats -------------------------------------------------
 			{

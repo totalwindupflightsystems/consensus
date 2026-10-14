@@ -265,6 +265,26 @@ call). A cell claims only the evidence it has.
 | B4-RESPONSES-CACHE | §B4 | Responses cache accounting (usage.input_tokens_details.cached_tokens) | responses | supported | — |
 <!-- SHIM-MATRIX-END -->
 
+SHIM-SUPPORT-002 adds a focused behavioral matrix inside the executable
+`ShimSupportMatrix`. These rows close the evidence gap between “the struct has a
+field” and “the real request/persistence path behaves correctly.” The tests
+replay `internal/llm/testdata/thinking-cot-turns.json` through `httptest`; the
+persistence row additionally runs a complete harness iteration against a
+temporary SQLite database and reads `iteration_commits.llm_response` back.
+No matrix test calls a live provider.
+
+| Scenario | Recorded fixture | Expected request shape | Expected response handling | Executable test |
+|---|---|---|---|---|
+| TURN-PERSIST | `tools_absent.turn1.response` | recorded DeepSeek turn enters one real harness iteration | `reasoning_content` and `AgentOutput` fields coexist in the same persisted row | `TestDeepSeekConformanceMatrix_PersistsReasoningContentWithTurn` |
+| TOOLS-RESEND | `tools_present.turn2` | tools present; every previous assistant `reasoning_content` is emitted verbatim | recorded continuation response is replayed after request capture | `TestDeepSeekConformanceMatrix_ResendsAllReasoningOnlyWithTools/tools_present_resends_every_prior_reasoning_turn` |
+| NO-TOOLS-OMIT | `tools_present.turn2.response` | tools absent; no message carries `reasoning_content` | same recorded response; omission remains the only changed condition | `TestDeepSeekConformanceMatrix_ResendsAllReasoningOnlyWithTools/tools_absent_omits_every_prior_reasoning_turn` |
+| THINKING-PER-REQUEST | `tools_absent.turn1.response` | successive requests emit enabled+low, disabled+no-effort, enabled+max | each response is handled under that request's explicit options | `TestDeepSeekConformanceMatrix_ThinkingControlIsExplicitPerRequest` |
+| FALLBACK-LAST-RESORT | `tools_present.turn1.response` | recorded response has empty `content` and non-empty `reasoning_content` | promotion is WARN-logged and flagged; non-empty content bypasses it; disabling it preserves CoT without promotion | `TestDeepSeekConformanceMatrix_ReasoningFallbackIsLoggedFlaggedAndLastResort` |
+
+`TestDeepSeekConformanceMatrix_ProducesVerifiableScenarioTable` prints this
+scenario → request shape → response handling table in every verbose matrix run
+and fails if any row is blank, duplicated, or missing.
+
 Totals at 2026-10-13: **34 supported, 5 not-supported, 1 not-applicable (40 cells)**. The
 five not-supported cells rest on four rows — `SHIM-SUPPORT-005` (Responses wiring),
 `SHIM-SUPPORT-006` (beta surface), `SHIM-SUPPORT-007` (Anthropic off-switch divergence),
@@ -302,7 +322,7 @@ not a memory:
 4. **Re-run the matrix** (from the repository root):
 
    ```
-   go test ./internal/llm -run 'TestShimSupportMatrix|TestShimMatrixSpecParity' -v
+   go test ./internal/llm ./internal/harness -run 'TestShimSupportMatrix|TestShimMatrixSpecParity|TestDeepSeekConformanceMatrix' -v
    ```
 
    This runs every cell, prints the state table with its evidence and the rows still to be
