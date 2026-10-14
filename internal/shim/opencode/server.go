@@ -258,6 +258,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// default 404 (no catch-all).
 	mux.HandleFunc("/provider/{providerID}/oauth/callback", s.handleProviderOAuthCallback)
 	mux.HandleFunc("/agent", s.handleAgent)
+	// ROUTE-ADD-005 / SHIM-DRIFT-001: the declared v2.agent.list operation
+	// (GET /api/agent) had no shim route at all, so the request fell through
+	// to net/http's default 404. Serve it for real; the /agent compatibility
+	// route above is untouched (different surface, v1 spelling).
+	mux.HandleFunc("/api/agent", s.handleApiAgentList)
 	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
 	// previously fell through to net/http's default 404. Serve the declared
 	// command.list operation without changing the separate /instance/command
@@ -421,6 +426,9 @@ var MountPatterns = []string{
 	"/skill", "/skill/*",
 	"/formatter", "/formatter/*",
 	"/experimental/*",
+	// ROUTE-ADD-005 / SHIM-DRIFT-001: exact /api/agent (v2.agent.list) so a
+	// parent chi mount reaches the shim route.
+	"/api/agent",
 	"/api/fs/find",
 	"/find", "/find/*",
 	"/file", "/file/*",
@@ -492,7 +500,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		_, ok := s.validateAuth(r)
 		if !ok {
-			if r.URL.Path == "/api/fs/find" {
+			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
 			}

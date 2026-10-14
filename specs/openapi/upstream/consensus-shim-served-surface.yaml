@@ -351,6 +351,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:192 handleAgent"
+  - path: /api/agent
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "api_agent_list.go handleApiAgentList (ROUTE-ADD-005, formerly SHIM-DRIFT-001): serves the declared v2.agent.list 200 {location: LocationInfo, data: AgentV2Info[]} from the real selected workspace (requestWorkspaceDir + instanceID, the handleFSFind convention) and the runtime's truthful two-agent registry; deepObject location selectors validated with the declared InvalidRequestError 400 (blank value, unknown field, unwritable directory, non-^wrk workspace); unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/agent branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
   - path: /command
     method: GET
     outcome: 200

@@ -25,15 +25,15 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 121,
-    "covered_operations": 83,
+    "served_route_entries": 122,
+    "covered_operations": 84,
     "narrowed_error_contract_only": 14,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 1,
     "semantic_different": 2,
-    "drift_declared_not_served": 88,
+    "drift_declared_not_served": 87,
     "drift_by_class": {
-      "NOT-SERVED": 84,
+      "NOT-SERVED": 83,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -50,6 +50,16 @@
       "family": "/agent",
       "served_outcome": "200",
       "evidence": "server.go:192 handleAgent"
+    },
+    {
+      "path": "/api/agent",
+      "method": "GET",
+      "operationId": "v2.agent.list",
+      "tags": "opencode HttpApi",
+      "declared_responses": "200,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "200",
+      "evidence": "api_agent_list.go handleApiAgentList (ROUTE-ADD-005, formerly SHIM-DRIFT-001): serves the declared v2.agent.list 200 {location: LocationInfo, data: AgentV2Info[]} from the real selected workspace (requestWorkspaceDir + instanceID, the handleFSFind convention) and the runtime's truthful two-agent registry; deepObject location selectors validated with the declared InvalidRequestError 400 (blank value, unknown field, unwritable directory, non-^wrk workspace); unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/agent branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
     },
     {
       "path": "/api/fs/find",
@@ -1100,17 +1110,6 @@
     }
   ],
   "drift_declared_not_served": [
-    {
-      "path": "/api/agent",
-      "method": "GET",
-      "operationId": "v2.agent.list",
-      "tags": "opencode HttpApi",
-      "declared_responses": "200,400,401",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-001"
-    },
     {
       "path": "/api/command",
       "method": "GET",

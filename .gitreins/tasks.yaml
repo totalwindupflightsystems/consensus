@@ -1298,3 +1298,13 @@ tasks:
   status: complete
   created_at: '2026-10-14T01:35:20.773188+00:00'
   completed_at: '2026-10-14T02:07:06.456373+00:00'
+- id: ROUTE-ADD-005
+  title: Shim /api/agent serves declared v2.agent.list (was 404)
+  criteria:
+  - GET /api/agent returns 200 with location + data[AgentV2Info]; location[directory]/location[workspace]
+    validated per v2 SDK deepObject spelling; blank/invalid -> 400 InvalidRequestError;
+    unauthenticated -> 401 (same as /api/fs/find); MountPatterns includes /api/agent;
+    test TestApiAgentListServesDeclared200 pins 2 agents (build + primary), no fabricated
+    third
+  status: in_progress
+  created_at: '2026-10-14T05:16:47.019525+00:00'
