@@ -1,0 +1,10 @@
+42703 count over the WHOLE container lifetime (docker logs dexdat-core-consensus-1 | grep -c 42703):
+0
+
+route-token diff, pre-bump vs post-bump binary:
+  /pty/shells    old=0 new=1
+  fs/find        old=0 new=1
+  /vcs/diff/raw  old=1 new=1
+
+deployed-binary drift-repair sentinel (grep -acF 'add budget_limit_cents'):
+1

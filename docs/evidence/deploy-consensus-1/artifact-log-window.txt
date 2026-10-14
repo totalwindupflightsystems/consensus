@@ -1,0 +1,30 @@
+# artifact log window (filtered) — container dexdat-core-consensus-1
+
+5:time=2026-10-14T01:47:35.346Z level=INFO msg="harness: found active session" session_id=03642880-6401-40a1-8366-e04bdf3dd2f0
+7:time=2026-10-14T01:47:35.346Z level=INFO msg="planning: starting interactive session" session_id=5e7ea379-de5b-40d8-afef-7ad22e779f1c max_turns=10 timeout=3m0s
+8:time=2026-10-14T01:47:35.346Z level=INFO msg="planning: starting interactive session" session_id=13789010-00d1-45c8-94b6-403791f1088f max_turns=10 timeout=3m0s
+9:time=2026-10-14T01:47:35.346Z level=INFO msg="planning: starting interactive session" session_id=d1f48fa2-b23c-44a7-9f0a-29e06eae46e2 max_turns=10 timeout=3m0s
+10:time=2026-10-14T01:47:35.346Z level=INFO msg="planning: starting interactive session" session_id=2b568307-102f-4c57-a7b3-550c494752e3 max_turns=10 timeout=3m0s
+11:time=2026-10-14T01:47:35.346Z level=INFO msg="planning: starting interactive session" session_id=03642880-6401-40a1-8366-e04bdf3dd2f0 max_turns=10 timeout=3m0s
+21:time=2026-10-14T01:47:40.345Z level=INFO msg="planning: starting interactive session" session_id=5e7ea379-de5b-40d8-afef-7ad22e779f1c max_turns=10 timeout=3m0s
+22:time=2026-10-14T01:47:40.345Z level=INFO msg="planning: starting interactive session" session_id=13789010-00d1-45c8-94b6-403791f1088f max_turns=10 timeout=3m0s
+23:time=2026-10-14T01:47:40.346Z level=INFO msg="planning: starting interactive session" session_id=d1f48fa2-b23c-44a7-9f0a-29e06eae46e2 max_turns=10 timeout=3m0s
+24:time=2026-10-14T01:47:40.346Z level=INFO msg="planning: starting interactive session" session_id=2b568307-102f-4c57-a7b3-550c494752e3 max_turns=10 timeout=3m0s
+33:time=2026-10-14T01:47:45.346Z level=INFO msg="planning: starting interactive session" session_id=13789010-00d1-45c8-94b6-403791f1088f max_turns=10 timeout=3m0s
+34:time=2026-10-14T01:47:45.346Z level=INFO msg="planning: starting interactive session" session_id=5e7ea379-de5b-40d8-afef-7ad22e779f1c max_turns=10 timeout=3m0s
+35:time=2026-10-14T01:47:45.346Z level=INFO msg="planning: starting interactive session" session_id=d1f48fa2-b23c-44a7-9f0a-29e06eae46e2 max_turns=10 timeout=3m0s
+36:time=2026-10-14T01:47:45.346Z level=INFO msg="planning: starting interactive session" session_id=2b568307-102f-4c57-a7b3-550c494752e3 max_turns=10 timeout=3m0s
+45:time=2026-10-14T01:47:50.346Z level=INFO msg="planning: starting interactive session" session_id=d1f48fa2-b23c-44a7-9f0a-29e06eae46e2 max_turns=10 timeout=3m0s
+46:time=2026-10-14T01:47:50.346Z level=INFO msg="planning: starting interactive session" session_id=13789010-00d1-45c8-94b6-403791f1088f max_turns=10 timeout=3m0s
+47:time=2026-10-14T01:47:50.346Z level=INFO msg="planning: starting interactive session" session_id=2b568307-102f-4c57-a7b3-550c494752e3 max_turns=10 timeout=3m0s
+48:time=2026-10-14T01:47:50.346Z level=INFO msg="planning: starting interactive session" session_id=5e7ea379-de5b-40d8-afef-7ad22e779f1c max_turns=10 timeout=3m0s
+57:time=2026-10-14T01:47:55.346Z level=INFO msg="planning: starting interactive session" session_id=5e7ea379-de5b-40d8-afef-7ad22e779f1c max_turns=10 timeout=3m0s
+58:time=2026-10-14T01:47:55.347Z level=INFO msg="planning: starting interactive session" session_id=13789010-00d1-45c8-94b6-403791f1088f max_turns=10 timeout=3m0s
+
+# counts
+container_image=sha256:e8ec957ceea7cc627e63fa7a05892968d988466f025edb50b034fca2487882a5 started=2026-10-14T01:45:50.064351203Z status=running
+image_created=2026-10-13T20:44:30.367365821-05:00 revision_label=52bc66087b9e0fdf9d850c966e4e3b92ac274e12
+in_image_stamp=52bc66087b9e0fdf9d850c966e4e3b92ac274e12
+log_lines_in_window=230
+sqlstate_42703_count=0
+undefined_column_count=3

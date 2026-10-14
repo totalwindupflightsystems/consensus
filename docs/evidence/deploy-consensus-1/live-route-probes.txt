@@ -1,0 +1,6 @@
+live route probes on the redeployed artifact (8380):
+  /command         noauth=401 auth=200
+  /pty/shells      noauth=401 auth=200
+  /api/fs/find     noauth=401 auth=400
+  /vcs/diff/raw    noauth=401 auth=200
+  /project         noauth=401 auth=200

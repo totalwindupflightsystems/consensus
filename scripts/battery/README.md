@@ -29,7 +29,12 @@ the class that let `C-GAP-032-ALPHA` be closed with zero upstream tests executed
 - **`rederive.sh <run-dir>`** — C-230. Third-party re-derivation: recomputes the headline numbers
   from the artifacts and pins each to a sha256. An empty run dir is VOID.
 - **`redproof.sh`** — the deliverable of SG-1. Runs every guard against deliberately bad input and
-  a positive control, asserting **both** the exit code **and** the guard's own verdict voice.
+  a positive control, asserting **both** the exit code and the guard's own verdict voice.
+- **`deploy_artifact_check_selfproof.sh`** — drives `scripts/check-deployed-artifact.sh`
+  (DEPLOY-CONSENSUS-1: the live dexdat-consensus artifact must be the recorded deployment, match
+  master and carry the Postgres drift repair) through a stubbed `docker` and a throwaway git repo:
+  14 arms over the 0 GREEN / 1 RED / 2 VOID contract, including the drift, unstamped-artifact,
+  missing-repair and divergence arms the gate exists to catch.
 - **`t0_sweep.sh`** — the SG-8 T0 build/unit remeasurement. Captures the exact HEAD, format/build/
   vet/fresh-binary results, one env-clean uncached full Go suite with observable package and test
   counts, and the keyless smoke's real mock-call count. A dirty tree, format drift, stale DB, or

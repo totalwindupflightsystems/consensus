@@ -1,0 +1,7 @@
+{
+  "id": "cfc5d518-24a1-4fab-9b37-bd6b7dfbb8a5",
+  "status": "booting",
+  "model": "deepseek-v4-flash",
+  "budget_limit_cents": 1234,
+  "created_at": "2026-10-14T01:50:08.220784634Z"
+}

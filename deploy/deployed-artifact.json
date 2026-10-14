@@ -1,0 +1,32 @@
+{
+  "artifact": "dexdat-consensus sidecar container (live, docker compose project dexdat-core)",
+  "container": "dexdat-core-consensus-1",
+  "image": "dexdat-core-consensus:latest",
+  "image_id": "sha256:e8ec957ceea7cc627e63fa7a05892968d988466f025edb50b034fca2487882a5",
+  "image_created": "2026-10-13T20:44:30.367365821-05:00",
+  "upstream_repo": "https://github.com/totalwindupflightsystems/consensus",
+  "upstream_commit": "52bc66087b9e0fdf9d850c966e4e3b92ac274e12",
+  "upstream_commit_short": "52bc660",
+  "policy": "equal",
+  "deployed_at": "2026-10-14T01:45:50Z",
+  "deployed_by": "coding-hermes worker, board row DEPLOY-CONSENSUS-1",
+  "built_by": "dexdat-core@fde0394 consensus-sidecar/Dockerfile.quickstart (ARG UPSTREAM_SHA)",
+  "previous": {
+    "upstream_commit": "ae076ea3a21251b6fcdd7e61fec8a45a4008bed2",
+    "upstream_commit_short": "ae076ea",
+    "image_id": "sha256:ce01fc15cc4cf3d4fafc14e076b7084793bd1e96102eda5687aa58037841ce9a",
+    "image_created": "2026-10-13T05:27:05-05:00",
+    "note": "pre-bump artifact: carried no revision stamp; 74 commits behind 52bc660"
+  },
+  "drift_repair": {
+    "commit": "7df0a3272962b30ef84c8aaa96d353397f866b4c",
+    "present_in_deployed_binary": true,
+    "sentinel": "add budget_limit_cents",
+    "note": "internal/migrate/migrate.go repairBudgetLimitCents(); absent at the pre-2026-09-27 pin 576dc07, present at ae076ea and 52bc660"
+  },
+  "evidence": {
+    "check": "scripts/check-deployed-artifact.sh",
+    "selfproof": "scripts/battery/deploy_artifact_check_selfproof.sh",
+    "report": "docs/reports/deploy-consensus-1-2026-10-13.md"
+  }
+}

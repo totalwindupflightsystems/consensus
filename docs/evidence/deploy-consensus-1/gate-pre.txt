@@ -1,0 +1,11 @@
+=== dexdat-consensus deployed-artifact check (DEPLOY-CONSENSUS-1) ===
+repo                  : /home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1
+container             : dc1-precheck (state: created)
+image                 : sha256:ce01fc15cc4cf3d4fafc14e076b7084793bd1e96102eda5687aa58037841ce9a (created 2026-10-13T05:27:05.879684598-05:00)
+deployed stamp        : <none>  [source: none]
+recorded deployment   : 52bc66087b9e0fdf9d850c966e4e3b92ac274e12  (/home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1/deploy/deployed-artifact.json)
+master                : <unresolved>  (policy: equal)
+commits behind master : n/a
+drift repair in image : present
+verdict               : RED
+reason                : artifact carries no revision stamp (image 'sha256:ce01fc15cc4cf3d4fafc14e076b7084793bd1e96102eda5687aa58037841ce9a' has no org.opencontainers.image.revision label and no /usr/local/share/consensus-upstream-sha) — deployment unrecorded

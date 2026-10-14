@@ -1,0 +1,10 @@
+=== dexdat-consensus deployed-artifact check (DEPLOY-CONSENSUS-1) ===
+repo                  : /home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1
+container             : dexdat-core-consensus-1 (state: running)
+image                 : sha256:e8ec957ceea7cc627e63fa7a05892968d988466f025edb50b034fca2487882a5 (created 2026-10-13T20:44:30.367365821-05:00)
+deployed stamp        : 52bc66087b9e0fdf9d850c966e4e3b92ac274e12  [source: image-label:org.opencontainers.image.revision]
+recorded deployment   : 52bc66087b9e0fdf9d850c966e4e3b92ac274e12  (/home/kara/worktrees/consensus-DEPLOY-CONSENSUS-1/deploy/deployed-artifact.json)
+master                : 52bc66087b9e0fdf9d850c966e4e3b92ac274e12  (policy: equal)
+commits behind master : 0
+drift repair in image : present
+verdict               : GREEN
