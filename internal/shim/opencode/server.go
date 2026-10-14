@@ -282,6 +282,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the declared SSE 200 is never fabricated). The v1 /event compatibility
 	// route below is untouched (different surface, v1 spelling).
 	mux.HandleFunc("/api/event", s.handleApiEventSubscribe)
+	// ROUTE-ADD-018 / SHIM-DRIFT-005: the declared
+	// GET /api/integration/{integrationID} operation (v2.integration.get) had
+	// no shim route, so net/http answered its default 404. Register the exact
+	// one-segment path shape; never an /api/* or /api/integration/* catch-all.
+	mux.HandleFunc("/api/integration/{integrationID}", s.handleApiIntegrationRA018)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -498,6 +503,8 @@ var MountPatterns = []string{
 	// ROUTE-ADD-009 / SHIM-DRIFT-003: the exact /api/event path
 	// (v2.event.subscribe) so a parent chi mount reaches the shim route.
 	"/api/event",
+	// ROUTE-ADD-018 / SHIM-DRIFT-005: exact one-segment integration path.
+	"/api/integration/{integrationID}",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -633,6 +640,8 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/permission/request": {},
 	"/api/permission/saved":   {},
 	"/api/question/request":   {},
+	// ROUTE-ADD-018 / SHIM-DRIFT-005 uses a path parameter, so
+	// isV2EnvelopeRoutePath recognizes its exact one-segment shape below.
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential family —
 	// both operations carry the same v2 UnauthorizedError 401 arm. The entry
 	// is checked with strings.HasPrefix for this prefix-routed family (the
@@ -648,6 +657,9 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 // that family (/api/credential/{credentialID}) gets the v2 envelope while an
 // unregistered /api/* sub-path still keeps the shim's own envelope.
 func isV2EnvelopeRoutePath(path string) bool {
+	if rest, ok := strings.CutPrefix(path, "/api/integration/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
+	}
 	if strings.HasPrefix(path, "/api/credential/") {
 		return true
 	}
