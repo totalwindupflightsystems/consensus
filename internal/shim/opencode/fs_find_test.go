@@ -304,10 +304,13 @@ func TestFSFindMethodAndMountWiring(t *testing.T) {
 
 	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/api/fs/find?query=beta")
 	if status != http.StatusOK {
-		t.Fatalf("chi-mounted GET /api/fs/find: got %d, want 200. Body: %s", status, body)
+		t.Fatalf("chi-mounted GET /api/fs/find?query=beta: got %d, want 200. Body: %s", status, body)
 	}
-	status, _, _ = doShimRequest(t, srv.URL, http.MethodGet, "/api/fs/list?path=.")
-	if status != http.StatusNotFound {
-		t.Errorf("GET /api/fs/list: got %d, want 404 (unclaimed sibling route)", status)
+	// ROUTE-ADD-011 claimed the sibling v2 filesystem routes, so /api/fs/list
+	// is served through the production mount instead of the 404 it answered
+	// while it was unclaimed.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/api/fs/list")
+	if status != http.StatusOK {
+		t.Errorf("GET /api/fs/list: got %d, want 200 (ROUTE-ADD-011 serves the sibling). Body: %s", status, body)
 	}
 }

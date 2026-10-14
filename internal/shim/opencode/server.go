@@ -285,6 +285,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// recursive filesystem search. Keep the registration exact so sibling v2
 	// filesystem operations remain unclaimed until their own contract rows land.
 	mux.HandleFunc("/api/fs/find", s.handleFSFind)
+	// ROUTE-ADD-011 / SHIM-DRIFT-007 + SHIM-DRIFT-008: the remaining declared
+	// v2 filesystem operations — v2.fs.list (GET /api/fs/list, exact path) and
+	// v2.fs.read (GET /api/fs/read/*, the file to serve follows the prefix) —
+	// had no shim route at all, so net/http answered the default 404 (the
+	// artifact's NOT-SERVED class). Both are served from the real host
+	// filesystem. The registrations stay exact: the /api/* sibling v2 surface
+	// remains unclaimed until its own contract rows land.
+	mux.HandleFunc("/api/fs/list", s.handleFSList)
+	mux.HandleFunc(fsReadRoutePrefix, s.handleFSRead)
 
 	// File endpoints (stubs via tool execution API)
 	mux.HandleFunc("/find", s.handleFind)
@@ -393,7 +402,10 @@ func (s *Server) SetMCPHandler(h http.Handler) {
 
 // Handler returns the http.Handler for mounting under a parent server.
 func (s *Server) Handler() http.Handler {
-	return s.corsMiddleware(s.authMiddleware(s.mux))
+	// dispatchWithV2FSTraversalGuard (fs_list_read.go) sits between the auth
+	// wall and the ServeMux so the declared v2.fs.read traversal arm is
+	// reachable — see its doc comment.
+	return s.corsMiddleware(s.authMiddleware(http.HandlerFunc(s.dispatchWithV2FSTraversalGuard)))
 }
 
 // MountPatterns lists the chi router patterns required to expose the shim
@@ -430,6 +442,11 @@ var MountPatterns = []string{
 	// parent chi mount reaches the shim route.
 	"/api/agent",
 	"/api/fs/find",
+	// ROUTE-ADD-011 / SHIM-DRIFT-007 + SHIM-DRIFT-008: the exact v2.fs.list
+	// path and the v2.fs.read subtree so a parent chi mount reaches the shim
+	// handlers (a missing pattern 404s exactly as it would in production).
+	"/api/fs/list",
+	"/api/fs/read/*",
 	"/find", "/find/*",
 	"/file", "/file/*",
 	"/event",
@@ -500,7 +517,14 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		_, ok := s.validateAuth(r)
 		if !ok {
-			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" {
+			// The v2 (/api/*) operations declare UnauthorizedError, so their
+			// rejection carries the declared envelope rather than the shim's
+			// own {"error":{code,message}} shape. ROUTE-ADD-011 added the
+			// v2.fs.list path and the v2.fs.read subtree to this set; both
+			// keep api-key auth like every other implemented route (they are
+			// not in isFixedWorkspaceCompatibilityRequest).
+			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" ||
+				r.URL.Path == "/api/fs/list" || strings.HasPrefix(r.URL.Path, fsReadRoutePrefix) {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
 			}
