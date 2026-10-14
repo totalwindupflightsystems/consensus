@@ -263,6 +263,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// to net/http's default 404. Serve it for real; the /agent compatibility
 	// route above is untouched (different surface, v1 spelling).
 	mux.HandleFunc("/api/agent", s.handleApiAgentList)
+	// ROUTE-ADD-006 / SHIM-DRIFT-002: the declared v2.command.list operation
+	// (GET /api/command) likewise had no shim route, so it fell through to
+	// net/http's default 404. Serve it for real; the v1 compatibility route
+	// above (/command, upstream command.list) is untouched — different
+	// surface, v1 spelling.
+	mux.HandleFunc("/api/command", s.handleApiCommandList)
+	// ROUTE-ADD-006 / SHIM-DRIFT-008: the declared v2.health.get operation
+	// (GET /api/health) had the same gap — no shim route, net/http's default
+	// 404. Serve it for real; /global/health (global.health) is a separate
+	// declared operation with its own body and is untouched.
+	mux.HandleFunc("/api/health", s.handleApiHealth)
 	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
 	// previously fell through to net/http's default 404. Serve the declared
 	// command.list operation without changing the separate /instance/command
@@ -429,6 +440,11 @@ var MountPatterns = []string{
 	// ROUTE-ADD-005 / SHIM-DRIFT-001: exact /api/agent (v2.agent.list) so a
 	// parent chi mount reaches the shim route.
 	"/api/agent",
+	// ROUTE-ADD-006 / SHIM-DRIFT-002 and /api/health (v2.health.get,
+	// SHIM-DRIFT-008): the same exact-pattern wiring for the two declared v2
+	// operations served alongside it.
+	"/api/command",
+	"/api/health",
 	"/api/fs/find",
 	"/find", "/find/*",
 	"/file", "/file/*",
@@ -500,7 +516,11 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		_, ok := s.validateAuth(r)
 		if !ok {
-			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" {
+			// The v2 (v2.*) surface declares a 401 UnauthorizedError arm for
+			// every operation, so these routes answer the typed v2 envelope
+			// instead of the v1 UNAUTHENTICATED body (ROUTE-ADD-005/-006).
+			if r.URL.Path == "/api/agent" || r.URL.Path == "/api/fs/find" ||
+				r.URL.Path == "/api/command" || r.URL.Path == "/api/health" {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
 			}
