@@ -27,9 +27,9 @@
     "declared_operations": 188,
     "served_route_entries": 135,
     "covered_operations": 96,
-    "narrowed_error_contract_only": 14,
+    "narrowed_error_contract_only": 15,
     "narrowed_unexplained": 0,
-    "intentional_narrowing": 2,
+    "intentional_narrowing": 1,
     "semantic_different": 2,
     "drift_declared_not_served": 74,
     "drift_by_class": {
@@ -79,7 +79,7 @@
       "declared_responses": "204,400,401",
       "family": "/api/*  (v2 surface)",
       "served_outcome": "204",
-      "evidence": "api_credential_remove.go handleApiCredentialRemove (ROUTE-ADD-007, formerly SHIM-DRIFT-001 in the 2026-10-07 baseline artifact; exact registration server.go routes(), handler dispatches by method inside the subtree entry because the declared path carries a path parameter \u2014 the handlePtyByID shape): answers the declared 204 'Credential removed' with an empty body for every non-empty single-segment credentialID. TRUTHFUL no-op: the runtime keeps NO v2 credential store (internal/db has no credentials table and no migration creates one), so the removal is an idempotent removal of nothing \u2014 never a fabricated 'stored credential was deleted'; the declared 400 InvalidRequestError arm is unreachable because the pinned document declares credentialID as a plain required string with NO pattern and the operation declares NO requestBody, so there is no declared malformed input to reject (unlike the ^pty/^msg param families) \u2014 inventing a constraint would fabricate one the document does not state. Unauthenticated requests answer the declared UnauthorizedError 401 (server.go authMiddleware /api/credential/ prefix branch \u2014 the exact-path v2EnvelopeRoutePaths map cannot express a path parameter); the other_methods_outcome is method-missing for GET/POST/PUT (the sibling METHOD_NOT_ALLOWED 405 envelope), while the declared sibling PATCH (v2.credential.update) answers its own typed 501 row below; undeclared sub-paths and the bare /api/credential/ path keep the net/http default 404"
+      "evidence": "api_credential.go credentialRemove (ROUTE-ADD-007, formerly SHIM-DRIFT-001 in the 2026-10-07 baseline artifact; one subtree registration server.go routes() mux.HandleFunc('/api/credential/', s.handleApiCredential), the merged wave dispatcher: handleApiCredential dispatches DELETE here and PATCH to credentialUpdate (api_credential_update.go) \u2014 the handlePtyByID shape): answers the declared 204 'Credential removed' with an empty body for every non-empty single-segment credentialID. TRUTHFUL no-op: the runtime keeps NO v2 credential store (internal/db has no credentials table and no migration creates one), so the removal is an idempotent removal of nothing \u2014 never a fabricated 'stored credential was deleted'; the declared 400 InvalidRequestError arm is unreachable because the pinned document declares credentialID as a plain required string with NO pattern and the operation declares NO requestBody, so there is no declared malformed input to reject (unlike the ^pty/^msg param families) \u2014 inventing a constraint would fabricate one the document does not state. Unauthenticated requests answer the declared UnauthorizedError 401 (server.go authMiddleware /api/credential/ prefix branch \u2014 the exact-path v2EnvelopeRoutePaths map cannot express a path parameter); the other_methods_outcome is method-missing for GET/POST/PUT (the sibling METHOD_NOT_ALLOWED 405 envelope), while the declared sibling PATCH (v2.credential.update) answers its own 400 narrowing row below; undeclared sub-paths and the bare /api/credential/ path keep the net/http default 404"
     },
     {
       "path": "/api/fs/find",
@@ -1004,6 +1004,19 @@
   ],
   "narrowed_error_contract_only": [
     {
+      "path": "/api/credential/{credentialID}",
+      "method": "PATCH",
+      "operationId": "v2.credential.update",
+      "tags": "opencode HttpApi",
+      "declared_responses": "204,400,401",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "400",
+      "evidence": "api_credential_update.go credentialUpdate (dispatched by the merged api_credential.go handleApiCredential; ROUTE-ADD-008, source item SHIM-DRIFT-002): declared responses 204 <No Content>, 400 InvalidRequestError, 401 UnauthorizedError. Served arms: blank credentialID 400 kind Path (the pinned document declares NO ^-style pattern for credentialID \u2014 plain type: string \u2014 so blank is the only ill-formed shape the contract itself defines); a body violating the declared schema (not JSON, not an object, missing/non-string `label`, an undeclared key) 400 kind Body; a malformed location selector (unknown location field, present-but-blank value, unreadable/non-directory location[directory], non-^wrk location[workspace]) 400 kind Query via the shared apiV2LocationSelector; and every well-formed request the declared 400 InvalidRequestError naming the credential and the missing credential store \u2014 never a fabricated 204. The declared 401 is the auth wall (v2EnvelopeRoutePaths prefix entry). Non-DELETE/PATCH answers 405 METHOD_NOT_ALLOWED; DELETE on this path is v2.credential.remove, served by the same merged dispatcher as ROUTE-ADD-007's declared 204 no-op (its own row below)",
+      "rationale": "The runtime keeps NO credential store: no credentials table exists in the migration set (001..026), api_keys (the auth material the shim does hold) is never exposed through this declared path, and the provider OAuth surface (provider.auth, provider.{providerID}/oauth/callback) stores nothing a caller could relabel \u2014 so the declared 204 'label updated' would echo an update that never happened. This is the ROUTE-FIX-037 part.update precedent (declared 404 for every well-formed partID \u2014 never fabricate a 200) applied to the v2 credential family. Served: the declared 400 InvalidRequestError for every well-formed request (naming the credentialID and the missing store), plus the declared 400 for the malformed input arms (blank credentialID kind Path, a body violating the declared {label*: string} additionalProperties:false schema kind Body, a malformed deepObject location selector kind Query), and the declared 401 via the /api/* auth wall's v2 envelope.",
+      "detail": "shim answers the declared 400 but never the declared success code 204",
+      "id": "SHIM-NARROWED-022"
+    },
+    {
       "path": "/mcp/{name}/auth",
       "method": "POST",
       "operationId": "mcp.auth.start",
@@ -1188,19 +1201,6 @@
   ],
   "intentional_narrowing": [
     {
-      "path": "/api/credential/{credentialID}",
-      "method": "PATCH",
-      "operationId": "v2.credential.update",
-      "tags": "opencode HttpApi",
-      "declared_responses": "204,400,401",
-      "family": "/api/*  (v2 surface)",
-      "served_outcome": "501-typed",
-      "evidence": "api_credential_remove.go handleApiCredentialRemove PATCH arm, writeNotImplemented v2.credential.update (ROUTE-ADD-007 resolves source item SHIM-DRIFT-002 as an explicit intentional narrowing)",
-      "rationale": "The same missing v2 credential store as the sibling DELETE on this path: the runtime keeps no credentials table (no migration creates one), so a declared 204 'credential updated' would fabricate a write that never happened. The typed not_implemented envelope answers it (the pty.create precedent, SHIM-GAP-002) instead of a bare 405 from a registered route.",
-      "detail": "explicitly unsupported by the Consensus shim; answers typed 501 instead of fabricating the declared success",
-      "id": "SHIM-NARROWED-U001"
-    },
-    {
       "path": "/pty",
       "method": "POST",
       "operationId": "pty.create",
@@ -1211,7 +1211,7 @@
       "evidence": "server.go handlePty POST arm, writeNotImplemented pty.create (ROUTE-ADD-103 resolves source item SHIM-DRIFT-106 as an explicit intentional narrowing)",
       "rationale": "Consensus deliberately exposes no raw PTY lifecycle or process registry: its native shell tool runs inside an authenticated agent session. Returning a fabricated Pty object would falsely claim that a terminal was spawned.",
       "detail": "explicitly unsupported by the Consensus shim; answers typed 501 instead of fabricating the declared success",
-      "id": "SHIM-NARROWED-U002"
+      "id": "SHIM-NARROWED-U001"
     }
   ],
   "semantic_different": [

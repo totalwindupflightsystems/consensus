@@ -292,15 +292,18 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
-	// ROUTE-ADD-007 / SHIM-DRIFT-001: the declared DELETE
-	// /api/credential/{credentialID} (v2.credential.remove) previously fell
-	// through to net/http's default 404. The declared path carries a path
-	// parameter, so the route entry is a SUBTREE match and the handler
-	// dispatches by method (the handlePtyByID shape): DELETE answers the
-	// declared contract; every other method answers 405, and the declared
-	// sibling PATCH (v2.credential.update, its own NOT-SERVED contract row)
-	// keeps the pre-change default 404.
-	mux.HandleFunc("/api/credential/", s.handleApiCredentialRemove)
+	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential.update
+	// operation (PATCH /api/credential/{credentialID}) had no shim route at
+	// all, so the request fell through to net/http's default 404 — the drift
+	// artifact's NOT-SERVED class, indistinguishable from "no such opencode
+	// operation". The prefix-style pattern registers the path family once (the
+	// one-dispatch-entry-per-path-family convention) while the handler serves
+	// ONLY the declared PATCH; DELETE on this path is v2.credential.remove,
+	// ROUTE-ADD-007's scope on a sibling branch, and until its merge lands it
+	// keeps the honest 405 METHOD_NOT_ALLOWED. Any other /api/credential/*
+	// shape is refused inside the handler (a registered prefix must not become
+	// an /api/* catch-all).
+	mux.HandleFunc("/api/credential/", s.handleApiCredential)
 	// ROUTE-ADD-063 / source item SHIM-DRIFT-060: the exact /command path
 	// previously fell through to net/http's default 404. Serve the declared
 	// command.list operation without changing the separate /instance/command
@@ -497,10 +500,13 @@ var MountPatterns = []string{
 	"/api/permission/request",
 	"/api/permission/saved",
 	"/api/question/request",
-	// ROUTE-ADD-007 / SHIM-DRIFT-001: the declared DELETE
-	// /api/credential/{credentialID} path shape (the handler dispatches by
-	// method; the sibling PATCH stays net/http default 404 per its own row).
-	"/api/credential/{credentialID}",
+	// ROUTE-ADD-008 / SHIM-DRIFT-002: the /api/credential/{credentialID}
+	// family so a parent chi mount reaches the shim handler (v2.credential.update
+	// is served here; v2.credential.remove is ROUTE-ADD-007's sibling scope).
+	// The /* form is required: chi v5 matches a trailing-slash pattern ONLY
+	// literally, so "/api/credential/" would 404 every /api/credential/{id}
+	// request before the shim sees it (BUG-009).
+	"/api/credential/*",
 	"/api/fs/find",
 	// ROUTE-ADD-011 / SHIM-DRIFT-007 + SHIM-DRIFT-008: the exact v2.fs.list
 	// path and the v2.fs.read subtree so a parent chi mount reaches the shim
@@ -584,7 +590,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			// subtree; both keep api-key auth like every other implemented
 			// route and are not in isFixedWorkspaceCompatibilityRequest).
 			if isV2EnvelopeRoutePath(r.URL.Path) ||
-				strings.HasPrefix(r.URL.Path, "/api/credential/") ||
 				r.URL.Path == "/api/fs/list" || strings.HasPrefix(r.URL.Path, fsReadRoutePrefix) {
 				writeV2Unauthorized(w, "invalid credentials")
 				return
@@ -617,11 +622,23 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/permission/request": {},
 	"/api/permission/saved":   {},
 	"/api/question/request":   {},
+	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential family —
+	// both operations carry the same v2 UnauthorizedError 401 arm. The entry
+	// is checked with strings.HasPrefix for this prefix-routed family (the
+	// exact-path map membership is the default; see isV2EnvelopeRoutePath).
+	"/api/credential/":        {},
 }
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*
-// operations whose 401 body is the v2 UnauthorizedError envelope.
+// operations whose 401 body is the v2 UnauthorizedError envelope. Membership is
+// exact-path by default; the one prefix-routed entry ("/api/credential/",
+// ROUTE-ADD-008) matches with strings.HasPrefix, so every declared shape of
+// that family (/api/credential/{credentialID}) gets the v2 envelope while an
+// unregistered /api/* sub-path still keeps the shim's own envelope.
 func isV2EnvelopeRoutePath(path string) bool {
+	if strings.HasPrefix(path, "/api/credential/") {
+		return true
+	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
 }

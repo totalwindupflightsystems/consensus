@@ -78,7 +78,7 @@ func TestApiCredentialRemoveMethodAndMountWiring(t *testing.T) {
 
 	mounted := false
 	for _, pattern := range MountPatterns {
-		if pattern == "/api/credential/{credentialID}" {
+		if pattern == "/api/credential/*" {
 			mounted = true
 		}
 	}
@@ -118,14 +118,13 @@ func TestApiCredentialRemoveMethodAndMountWiring(t *testing.T) {
 	}
 
 	// The declared sibling PATCH operation (v2.credential.update,
-	// SHIM-DRIFT-002) is deliberately unsupported: it answers the typed
-	// not_implemented envelope (the pty.create precedent, SHIM-GAP-002) —
-	// never a bare 405/404, which is what the artifact-consistency guard
-	// below enforces — and its served-surface row records it as an explicit
-	// intentional narrowing.
+	// SHIM-DRIFT-002) is served by ROUTE-ADD-008 (merged on this tree) as the
+	// honest 400 narrowing — every well-formed PATCH answers the declared 400
+	// InvalidRequestError naming the missing credential store, never a
+	// fabricated 204 (the ROUTE-FIX-037 precedent).
 	status, _, _ = doShimRequest(t, srv.URL, http.MethodPatch, "/api/credential/crd_wired")
-	if status != http.StatusNotImplemented {
-		t.Errorf("PATCH /api/credential/crd_wired (declared v2.credential.update): got %d, want 501 typed not_implemented (its own contract row is an explicit intentional narrowing)", status)
+	if status != http.StatusBadRequest {
+		t.Errorf("PATCH /api/credential/crd_wired (declared v2.credential.update): got %d, want 400 (ROUTE-ADD-008 honest narrowing: no credential store to update)", status)
 	}
 
 	// Undeclared sub-paths and the bare path keep the net/http default 404 —

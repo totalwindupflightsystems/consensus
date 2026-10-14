@@ -772,7 +772,14 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/session_p1_routes.go:195 sessionUnshare`; refusal `internal/shim/opencode/session_p1_routes.go:201 writeOpencodeError`
 - widening requires: the same session-publishing pipeline as SHIM-NARROWED-020.
 
-`counts` at this revision: `narrowed_error_contract_only: 14`, **`narrowed_unexplained: 0`**,
+#### SHIM-NARROWED-022 — v2.credential.update (`PATCH /api/credential/{credentialID}`)
+- declared: 204 <No Content>, 400, 401
+- served: 400 `InvalidRequestError` for every well-formed request (naming the credentialID and the missing store); 400 for a blank credentialID, a body violating the declared `{label*: string}` additionalProperties:false schema, or a malformed deepObject location selector; 401 via the /api/* auth wall's v2 envelope
+- rationale: the runtime keeps NO credential store — no credentials table exists in the migration set (001..026), `api_keys` (the auth material the shim does hold) is never exposed through this declared path, and the provider OAuth surface (provider.auth, provider.{providerID}/oauth/callback) stores nothing a caller could relabel — so the declared 204 would echo a label update that never happened. This is the ROUTE-FIX-037 part.update precedent applied to the v2 credential family (ROUTE-ADD-008).
+- evidence: `internal/shim/opencode/api_credential_update.go:77 credentialUpdate`; refusal `internal/shim/opencode/api_credential_update.go:131 writeV2InvalidRequest` (the well-formed arm — every malformed arm is also a writeV2InvalidRequest call inside credentialUpdate); dispatcher `internal/shim/opencode/api_credential.go handleApiCredential`
+- widening requires: a credential store (a credentials table the OAuth surfaces actually write, with labels the declared shape can express).
+
+`counts` at this revision: `narrowed_error_contract_only: 15`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
 

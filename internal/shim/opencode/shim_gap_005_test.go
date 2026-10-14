@@ -429,6 +429,9 @@ func shimGap005Requests() map[string]shimGap005Request {
 		"part.update":           {http.MethodPatch, "/session/s_gap5/message/msg-42/part/prt_gap5", `{"type":"text","text":"gap5"}`},
 		"session.share":         {http.MethodPost, "/session/s_gap5/share", ""},
 		"session.unshare":       {http.MethodDelete, "/session/s_gap5/share", ""},
+		// ROUTE-ADD-008: the well-formed arm — the declared body {label} plus
+		// a single-segment id — answers the declared 400, never the declared 204.
+		"v2.credential.update":  {http.MethodPatch, "/api/credential/cred_gap5", `{"label":"gap5"}`},
 	}
 }
 

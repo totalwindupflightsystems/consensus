@@ -356,6 +356,7 @@ def main():
     # permission.respond, 009 session.todo, 010 session.unrevert (widened
     # earlier by the ROUTE-FIX wave).
     stable_narrowed_ids = {
+        ("/api/credential/{credentialID}", "PATCH"): "SHIM-NARROWED-022",
         ("/question/{requestID}/reject", "POST"): "SHIM-NARROWED-003",
         ("/question/{requestID}/reply", "POST"): "SHIM-NARROWED-004",
         ("/session/{sessionID}/message/{messageID}/part/{partID}", "DELETE"): "SHIM-NARROWED-006",
