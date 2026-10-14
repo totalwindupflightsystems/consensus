@@ -356,6 +356,16 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "api_agent_list.go handleApiAgentList (ROUTE-ADD-005, formerly SHIM-DRIFT-001): serves the declared v2.agent.list 200 {location: LocationInfo, data: AgentV2Info[]} from the real selected workspace (requestWorkspaceDir + instanceID, the handleFSFind convention) and the runtime's truthful two-agent registry; deepObject location selectors validated with the declared InvalidRequestError 400 (blank value, unknown field, unwritable directory, non-^wrk workspace); unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/agent branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+  - path: /api/command
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "api_command_list.go handleApiCommandList (ROUTE-ADD-006, formerly SHIM-DRIFT-002): serves the declared v2.command.list 200 {location: LocationInfo, data: CommandV2Info[]} from the real selected workspace (requestWorkspaceDir + instanceID, the handleFSFind convention) with a TRUTHFUL EMPTY data array — the runtime keeps no v2 command registry (internal/db has no commands store and no migration creates one), so no CommandV2Info entry is invented, exactly the v1 /command (command.list) and question.list empty-list precedents; deepObject location selectors validated with the declared InvalidRequestError 400 (blank value, unknown field, unreadable or non-directory location[directory], non-^wrk workspace); unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/command branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
+  - path: /api/health
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "api_health.go handleApiHealth (ROUTE-ADD-006, formerly SHIM-DRIFT-008): serves the declared v2.health.get 200 {healthy: true} — the declared object's only permitted value (enum [true], additionalProperties: false) and the truthful process-readiness answer of a server that is running and routing the request; no `version` member is emitted because this schema, unlike the sibling global.health route's, does not declare one; the operation declares no parameters and no request body, so there is no input to reject against the declared 400 arm; unauthenticated requests answer the declared UnauthorizedError 401 (middleware /api/health branch); undeclared methods keep the sibling METHOD_NOT_ALLOWED envelope"
   - path: /command
     method: GET
     outcome: 200
