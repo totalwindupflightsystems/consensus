@@ -1,0 +1,49 @@
+{
+  "tick": "consensus-foreman-2026-10-14-17-13-08",
+  "wave_budget": 5,
+  "base": "origin/main@c280196",
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-014",
+      "worktree": "~/worktrees/consensus-ROUTE-ADD-014",
+      "branch": "wt/ROUTE-ADD-014",
+      "drift_item": "SHIM-DRIFT-001",
+      "route": "GET /api/integration",
+      "status": "merged"
+    },
+    {
+      "id": "ROUTE-ADD-015",
+      "worktree": "~/worktrees/consensus-ROUTE-ADD-015",
+      "branch": "wt/ROUTE-ADD-015",
+      "drift_item": "SHIM-DRIFT-002",
+      "route": "DELETE /api/integration/attempt/{attemptID}",
+      "status": "merged"
+    },
+    {
+      "id": "ROUTE-ADD-016",
+      "worktree": "~/worktrees/consensus-ROUTE-ADD-016",
+      "branch": "wt/ROUTE-ADD-016",
+      "drift_item": "SHIM-DRIFT-003",
+      "route": "GET /api/integration/attempt/{attemptID}",
+      "status": "merged"
+    },
+    {
+      "id": "ROUTE-ADD-017",
+      "worktree": "~/worktrees/consensus-ROUTE-ADD-017",
+      "branch": "wt/ROUTE-ADD-017",
+      "drift_item": "SHIM-DRIFT-004",
+      "route": "POST /api/integration/attempt/{attemptID}/complete",
+      "status": "merged"
+    },
+    {
+      "id": "ROUTE-ADD-018",
+      "worktree": "~/worktrees/consensus-ROUTE-ADD-018",
+      "branch": "wt/ROUTE-ADD-018",
+      "drift_item": "SHIM-DRIFT-005",
+      "route": "GET /api/integration/{integrationID}",
+      "status": "merged"
+    }
+  ],
+  "closed": "2026-10-14T18:25:00-05:00",
+  "evidence_commit": "3e7bef4"
+}
