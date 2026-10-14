@@ -282,6 +282,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the declared SSE 200 is never fabricated). The v1 /event compatibility
 	// route below is untouched (different surface, v1 spelling).
 	mux.HandleFunc("/api/event", s.handleApiEventSubscribe)
+	// ROUTE-ADD-016 / SHIM-DRIFT-003: the declared
+	// v2.integration.attempt.status operation (GET
+	// /api/integration/attempt/{attemptID}) had no shim route, so it fell
+	// through to net/http's default 404. Register the exact declared shape;
+	// no /api/* or /api/integration/* catch-all is introduced.
+	mux.HandleFunc("/api/integration/attempt/{attemptID}", s.handleApiIntegrationRA016)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -498,6 +504,9 @@ var MountPatterns = []string{
 	// ROUTE-ADD-009 / SHIM-DRIFT-003: the exact /api/event path
 	// (v2.event.subscribe) so a parent chi mount reaches the shim route.
 	"/api/event",
+	// ROUTE-ADD-016 / SHIM-DRIFT-003: exact parameter path for
+	// v2.integration.attempt.status; no integration subtree catch-all.
+	"/api/integration/attempt/{attemptID}",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -617,9 +626,10 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 // UnauthorizedError body ({_tag: "UnauthorizedError", message}) rather than the
 // shim's own UNAUTHENTICATED envelope. ROUTE-ADD-005 registered the first of
 // them (/api/agent) and /api/fs/find (ROUTE-ADD-010) carries the v2 spelling
-// too; ROUTE-ADD-021 added the seven declared v2 read-only list operations.
-// Membership is exact-path, so an unregistered /api/* sub-path keeps the shim's
-// own envelope.
+// too; ROUTE-ADD-021 added the seven declared v2 read-only list operations and
+// ROUTE-ADD-016 added the one-segment /api/integration/attempt/{attemptID}
+// shape. Membership is exact-path or exact parameter-shape, so an unregistered
+// /api/* sub-path keeps the shim's own envelope.
 var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/agent":              {},
 	"/api/command":            {},
@@ -643,13 +653,16 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*
 // operations whose 401 body is the v2 UnauthorizedError envelope. Membership is
-// exact-path by default; the one prefix-routed entry ("/api/credential/",
-// ROUTE-ADD-008) matches with strings.HasPrefix, so every declared shape of
-// that family (/api/credential/{credentialID}) gets the v2 envelope while an
-// unregistered /api/* sub-path still keeps the shim's own envelope.
+// exact-path by default; the prefix-routed credential family and the exact
+// one-segment integration-attempt shape are checked explicitly, so every
+// declared parameterized path gets the v2 envelope while an unregistered
+// /api/* sub-path still keeps the shim's own envelope.
 func isV2EnvelopeRoutePath(path string) bool {
 	if strings.HasPrefix(path, "/api/credential/") {
 		return true
+	}
+	if attemptID, ok := strings.CutPrefix(path, "/api/integration/attempt/"); ok {
+		return attemptID != "" && !strings.Contains(attemptID, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
