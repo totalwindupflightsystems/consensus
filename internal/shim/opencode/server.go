@@ -274,6 +274,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// 404. Serve it for real; /global/health (global.health) is a separate
 	// declared operation with its own body and is untouched.
 	mux.HandleFunc("/api/health", s.handleApiHealth)
+	// ROUTE-ADD-009 / SHIM-DRIFT-003: the declared v2.event.subscribe operation
+	// (GET /api/event) had no shim route at all, so the request fell through to
+	// net/http's default 404. Register it for real — the handler answers the
+	// declared 400 for every well-formed subscribe (honest narrowing, see
+	// api_event_subscribe.go: the runtime keeps no v2 session-event store, so
+	// the declared SSE 200 is never fabricated). The v1 /event compatibility
+	// route below is untouched (different surface, v1 spelling).
+	mux.HandleFunc("/api/event", s.handleApiEventSubscribe)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -475,6 +483,9 @@ var MountPatterns = []string{
 	// operations served alongside it.
 	"/api/command",
 	"/api/health",
+	// ROUTE-ADD-009 / SHIM-DRIFT-003: the exact /api/event path
+	// (v2.event.subscribe) so a parent chi mount reaches the shim route.
+	"/api/event",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -603,6 +614,7 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/permission/request": {},
 	"/api/permission/saved":   {},
 	"/api/question/request":   {},
+	"/api/event":              {},
 }
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*

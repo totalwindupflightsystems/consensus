@@ -429,6 +429,9 @@ func shimGap005Requests() map[string]shimGap005Request {
 		"part.update":           {http.MethodPatch, "/session/s_gap5/message/msg-42/part/prt_gap5", `{"type":"text","text":"gap5"}`},
 		"session.share":         {http.MethodPost, "/session/s_gap5/share", ""},
 		"session.unshare":       {http.MethodDelete, "/session/s_gap5/share", ""},
+		// ROUTE-ADD-009: no declared parameters and no requestBody, so an
+		// empty GET is every declared input the operation accepts.
+		"v2.event.subscribe": {http.MethodGet, "/api/event", ""},
 	}
 }
 
