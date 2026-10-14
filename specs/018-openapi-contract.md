@@ -642,37 +642,151 @@ served where a client can actually violate the schema; where the declared set
 lists codes the operation's declared inputs cannot reach, that is stated above
 rather than papered over with a fabricated arm.
 
-### 12.3 Every recorded error-contract narrowing at this refresh
+### 12.3 The recorded error-contract narrowings, with code evidence
 
-The comparator's detection (not a hand list) surfaced rows that were previously
-scored `covered` while the declared success was unreachable. All of them are now
-recorded with a reason on their served-surface row and carried in
-`narrowed_error_contract_only` of the artifact:
+The comparator's detection (not a hand list) surfaces the rows whose served
+answer is a declared ERROR code while the declared response set also carries a
+success code. At the pinned refresh (upstream v1.18.33) there are **14**. Each
+one is recorded here with:
 
-| id | operationId | path + method | declared | why the declared success is unreachable |
-|---|---|---|---|---|
-| SHIM-NARROWED-003 | `question.reject` | `POST /question/{requestID}/reject` | 200,400,404 | no question producer (see §12.2 row 003) |
-| SHIM-NARROWED-004 | `question.reply` | `POST /question/{requestID}/reply` | 200,400,404 | no question producer (see §12.2 row 004) |
-| SHIM-NARROWED-006 | `part.delete` | `DELETE /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | no part store, parts synthesized id-less, append-only ledger (row 006) |
-| SHIM-NARROWED-007 | `part.update` | `PATCH /session/{sessionID}/message/{messageID}/part/{partID}` | 200,400,404 | same, and the declared 200 is an object the runtime cannot produce (row 007) |
-| SHIM-NARROWED-012 | `pty.get` | `GET /pty/{ptyID}` | 200,400,404 | no PTY registry: `pty.list` is truthfully empty and `pty.create` is the declared intentional narrowing, so no `^pty` id can exist |
-| SHIM-NARROWED-013 | `pty.update` | `PUT /pty/{ptyID}` | 200,400,404 | same: there is no PTY whose title/size could be applied |
-| SHIM-NARROWED-014 | `pty.remove` | `DELETE /pty/{ptyID}` | 200,400,404 | same: the declared 200 boolean would report removing a terminal that never existed |
-| SHIM-NARROWED-015 | `pty.connect` | `GET /pty/{ptyID}/connect` | 200,403,404 | the shim opens no PTY WebSocket and connects no session; the declared 403 `{_tag: Forbidden}` is served for a selector outside the single served workspace (the operation declares no 400) |
-| SHIM-NARROWED-016 | `pty.connectToken` | `POST /pty/{ptyID}/connect-token` | 200,400,403,404 | the declared 200 is a short-lived single-use credential the shim never mints |
-| SHIM-NARROWED-017 | `mcp.auth.start` | `POST /mcp/{name}/auth` | 200,400,404 | no MCP OAuth flow: neither `authorizationUrl` nor `oauthState` can be minted truthfully |
-| SHIM-NARROWED-018 | `mcp.auth.authenticate` | `POST /mcp/{name}/auth/authenticate` | 200,400,404 | the declared 200 `MCPStatus` is live connection state; the shim runs no MCP client and tracks no connection |
-| SHIM-NARROWED-019 | `mcp.auth.callback` | `POST /mcp/{name}/auth/callback` | 200,400,404 | the shim parks no OAuth flow, so there is nothing to exchange `code` against |
-| SHIM-NARROWED-020 | `session.share` | `POST /session/{sessionID}/share` | 200,400,404,500 | Consensus publishes no sessions (export is native, SPEC-015), so no share URL can be produced |
-| SHIM-NARROWED-021 | `session.unshare` | `DELETE /session/{sessionID}/share` | 200,400,404,500 | the runtime keeps no share concept, so no session has an active share to remove |
+- the **rationale** — why the declared success is unreachable for ANY input;
+- the **code evidence** (`file:line symbol`) — the handler that answers the row
+  and the exact statement that refuses the declared success, so the claim can be
+  checked instead of believed;
+- the **widening requirement** — what would have to be BUILT for the declared
+  success to be answerable truthfully.
 
-`counts`: `narrowed_error_contract_only: 14`, **`narrowed_unexplained: 0`**,
+SHIM-GAP-004 recorded the reasons in prose; this row (SHIM-GAP-005 — the second
+board row under that id; the earlier one declared the 17 shim extensions) re-derived
+every row against the code at `main`, filed the evidence above, and pinned the
+whole ledger with `internal/shim/opencode/shim_gap_005_test.go`, which fails when
+a detected narrowing is missing from this section, when a citation no longer
+resolves to a real file and symbol, or when a narrowed operation answers its
+declared success at runtime.
+
+**Widening was probed for all 14 before recording** (that is the order this
+section requires): for every row the declared success is an object, a boolean or
+a credential whose truth depends on state the runtime does not own — a PTY
+registry, an MCP OAuth client, a question producer, an addressable part store, a
+session-publishing pipeline. None of the 14 is widenable by a contract detail;
+each names the engine it needs. Where the runtime DOES own the state, the row was
+widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSession`,
+`permission.respond`, `session.deleteMessage`, `session.todo`, `session.unrevert`,
+`project.update`).
+
+#### SHIM-NARROWED-003 — question.reject (`POST /question/{requestID}/reject`)
+- declared: 200 boolean ("Question rejected successfully"), 400, 404
+- served: 404 typed `QuestionNotFoundError` for every well-formed requestID; 400 for an ill-shaped id (declared pattern `^que`)
+- rationale: no question producer exists in this runtime — nothing writes a question row, so no `^que` id can name one and the declared boolean 200 could only ever assert that a question was rejected when none exists.
+- evidence: `internal/shim/opencode/server.go:2994 handleQuestionByID`; refusal `internal/shim/opencode/server.go:3024 writeUpstreamRequestNotFound`
+- widening requires: a question producer (upstream `QuestionRequest`: `^que` id, sessionID, questions[]) — the runtime's human-input surface is `approval_requests` (SPEC-014), a design change with its own row.
+
+#### SHIM-NARROWED-004 — question.reply (`POST /question/{requestID}/reply`)
+- declared: 200 boolean ("Question answered successfully"), 400, 404
+- served: 404 typed `QuestionNotFoundError`; 400 for an ill-shaped id AND for a body violating the declared `{answers*: QuestionAnswer[]}` schema (the 400 arm widened by SHIM-GAP-004)
+- rationale: same missing question producer as SHIM-NARROWED-003; `GET /question` answers the declared empty list rather than inventing entries, so the declared boolean 200 has nothing to report.
+- evidence: `internal/shim/opencode/server.go:2994 handleQuestionByID`; refusal `internal/shim/opencode/server.go:3024 writeUpstreamRequestNotFound`
+- widening requires: the same question producer.
+
+#### SHIM-NARROWED-006 — part.delete (`DELETE /session/{sessionID}/message/{messageID}/part/{partID}`)
+- declared: 200 boolean ("Successfully deleted part"), 400, 404
+- served: 404 `NotFoundError` for every well-formed partID; 400 for a blank/ill-shaped messageID (`^msg`) or partID (`^prt`)
+- rationale: the runtime keeps no part store and no part id is addressable — parts are SYNTHESIZED id-less on read — so no `^prt` value names a part that could be deleted, and `memory_events` is append-only (SPEC-002 §2.1; trigger migrations 017/018).
+- evidence: `internal/shim/opencode/session_p1_routes.go:793 sessionPartDelete`; refusal `internal/shim/opencode/session_p1_routes.go:835 writeOpencodeError`; the id-less synthesis `internal/shim/opencode/server.go:1901` (in `getMessageByID`, declared `internal/shim/opencode/server.go:1864`)
+- widening requires: an addressable part store — stable `prt` ids over the synthesized parts plus the part routes that list/get them.
+
+#### SHIM-NARROWED-007 — part.update (`PATCH /session/{sessionID}/message/{messageID}/part/{partID}`)
+- declared: 200 Part ("Successfully updated part"), 400, 404
+- served: 404 `NotFoundError` for every well-formed partID; 400 for ill-shaped path parameters and for a body that is not a Part object
+- rationale: same missing part store, and unlike a boolean the declared 200 is a Part OBJECT — echoing the synthesized part unchanged would assert an update that was never applied.
+- evidence: `internal/shim/opencode/session_p1_routes.go:691 sessionPartUpdate`; refusal `internal/shim/opencode/session_p1_routes.go:751 writeOpencodeError`
+- widening requires: the addressable part store AND a part-editing engine.
+
+#### SHIM-NARROWED-012 — pty.get (`GET /pty/{ptyID}`)
+- declared: 200 Pty, 400, 404
+- served: 404 typed `PtyNotFoundError` for every well-formed ptyID; 400 for an ill-shaped id or a blank/non-directory selector
+- rationale: the runtime keeps no PTY registry and spawns no pseudo-terminal (`pty.list` answers the truthful empty array, `pty.create` is the declared intentional narrowing), so no ptyID names a terminal and the declared `Pty` object cannot be produced without asserting one that does not exist.
+- evidence: `internal/shim/opencode/pty_routes.go:214 ptyGet`; refusal `internal/shim/opencode/pty_routes.go:224 writeOpencodeNotFoundError`
+- widening requires: a PTY registry + runner in the runtime (create/get/update/remove over real sessions).
+
+#### SHIM-NARROWED-013 — pty.update (`PUT /pty/{ptyID}`)
+- declared: 200 Pty, 400, 404
+- served: 404 typed `PtyNotFoundError`; 400 for the same inputs plus a body violating the declared `{title?, size?{rows*,cols*}}` schema
+- rationale: no PTY exists whose title/size could be applied, so the declared 200 Pty would report an update that did not happen.
+- evidence: `internal/shim/opencode/pty_routes.go:245 ptyUpdate`; refusal `internal/shim/opencode/pty_routes.go:258 writeOpencodeNotFoundError`
+- widening requires: the PTY registry + runner.
+
+#### SHIM-NARROWED-014 — pty.remove (`DELETE /pty/{ptyID}`)
+- declared: 200 boolean ("Session removed"), 400, 404
+- served: 404 typed `PtyNotFoundError`; 400 for an ill-shaped id or a blank/non-directory selector
+- rationale: the declared boolean is only meaningful for a terminal that exists; the runtime can create none (`pty.create` is the intentional narrowing), so the boolean could only report a removal that never happened.
+- evidence: `internal/shim/opencode/pty_routes.go:330 ptyRemove`; refusal `internal/shim/opencode/pty_routes.go:340 writeOpencodeNotFoundError`
+- widening requires: the PTY registry + runner.
+
+#### SHIM-NARROWED-015 — pty.connect (`GET /pty/{ptyID}/connect`)
+- declared: 200 boolean ("Connected session"), 403, 404
+- served: 404 `NotFoundError` (NamedError shape) for a well-formed ptyID; the declared 403 `{_tag:"Forbidden"}` for a selector outside the single served workspace (this operation declares no 400, so a refusal is reported with the declared 403)
+- rationale: the shim opens no PTY WebSocket and connects no terminal — there is nothing to connect to and nothing to report as connected.
+- evidence: `internal/shim/opencode/pty_routes.go:356 handlePtyConnect`; refusal `internal/shim/opencode/pty_routes.go:366 writeOpencodeNamedError`
+- widening requires: the PTY registry plus a WebSocket/attach surface.
+
+#### SHIM-NARROWED-016 — pty.connectToken (`POST /pty/{ptyID}/connect-token`)
+- declared: 200 `PtyTicketConnectToken` `{ticket, expires_in}`, 400, 403, 404
+- served: 404 typed `PtyNotFoundError`; 400 for input violating the declared patterns/selectors; the declared 403 `PtyForbiddenError` for an existing foreign workspace
+- rationale: the declared 200 is a short-lived single-use CREDENTIAL; the shim mints none (no ticket store, no terminal to attach to), and a minted ticket would be a fabricated credential.
+- evidence: `internal/shim/opencode/pty_routes.go:393 handlePtyConnectToken`; refusal `internal/shim/opencode/pty_routes.go:419 writeOpencodeNotFoundError`
+- widening requires: a ticket mint/store bound to a real PTY attach surface.
+
+#### SHIM-NARROWED-017 — mcp.auth.start (`POST /mcp/{name}/auth`)
+- declared: 200 `{authorizationUrl*, oauthState*}`, 400, 404
+- served: 400 `McpUnsupportedOAuthError` for a server the settings store resolves; 400 `InvalidRequestError` for malformed input or an unreadable store; typed 404 `McpServerNotFoundError` for an unknown name
+- rationale: the declared 200 requires BOTH strings and the runtime implements no MCP OAuth flow — a minted URL/state pair would be a lie the caller hands to a browser.
+- evidence: `internal/shim/opencode/server.go:5063 handleMCPAuthStart`; refusal `internal/shim/opencode/server.go:5081 writeMCPUnsupportedOAuthError`
+- widening requires: an MCP OAuth client (dynamic client registration + authorization-URL construction).
+
+#### SHIM-NARROWED-018 — mcp.auth.authenticate (`POST /mcp/{name}/auth/authenticate`)
+- declared: 200 `MCPStatus`, 400, 404
+- served: same arms as SHIM-NARROWED-017 (400 `McpUnsupportedOAuthError` for a resolved server)
+- rationale: the declared 200 is LIVE connection state (connected / needs_auth / …); the shim runs no MCP client and tracks no connection, so every `MCPStatus` value would be invented.
+- evidence: `internal/shim/opencode/server.go:5105 handleMCPAuthAuthenticate`; refusal `internal/shim/opencode/server.go:5123 writeMCPUnsupportedOAuthError`
+- widening requires: an MCP client that tracks per-server connection status (plus the OAuth flow).
+
+#### SHIM-NARROWED-019 — mcp.auth.callback (`POST /mcp/{name}/auth/callback`)
+- declared: 200 `MCPStatus`, 400, 404
+- served: 400 `InvalidRequestError` naming the real reason for a well-formed `{code*}` body; 400 for a body violating the declared schema; typed 404 for an unknown name
+- rationale: the exchange needs the OAuth flow the matching start/authenticate call would have parked, and this runtime parks none — so there is nothing to exchange `code` against, and no connection status to report.
+- evidence: `internal/shim/opencode/server.go:5154 handleMCPAuthCallback`; refusal `internal/shim/opencode/server.go:5176 writeOpencodeInvalidRequestError`
+- widening requires: a parked OAuth flow (state + PKCE) and a token exchange.
+
+#### SHIM-NARROWED-020 — session.share (`POST /session/{sessionID}/share`)
+- declared: 200 Session carrying `share {url}`, 400, 404, 500
+- served: 400 `INVALID_REQUEST` naming the limitation for a known session; 404 for an unknown session
+- rationale: the declared 200 asserts the session IS shared with a URL; Consensus publishes nothing (export is native, SPEC-015) and a fabricated URL is forbidden, so no input can truthfully reach the declared success.
+- evidence: `internal/shim/opencode/session_p1_routes.go:226 sessionShare`; refusal `internal/shim/opencode/session_p1_routes.go:230 writeOpencodeError`
+- widening requires: a session-publishing pipeline with real share ids and URLs.
+
+#### SHIM-NARROWED-021 — session.unshare (`DELETE /session/{sessionID}/share`)
+- declared: 200 Session, 400, 404, 500
+- served: 404 `NotFoundError` naming the reason for a known session; 404 for an unknown session
+- rationale: with no share concept there is no active share to remove, and the declared 200 would assert that a share was removed that never existed. (`session.unrevert` can answer its declared 200 as the session *as it stands* because that operation's post-condition is a state the runtime already holds; here the post-condition is the ABSENCE of a share the runtime never models — and the sibling `session.share` always answers 400, so a 200 "successfully unshared" would report a transition the shim cannot perform in either direction.)
+- evidence: `internal/shim/opencode/session_p1_routes.go:195 sessionUnshare`; refusal `internal/shim/opencode/session_p1_routes.go:201 writeOpencodeError`
+- widening requires: the same session-publishing pipeline as SHIM-NARROWED-020.
+
+`counts` at this revision: `narrowed_error_contract_only: 14`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
 
-Making parts addressable (`part.delete`/`part.update`) or building a PTY/MCP-OAuth
-runner would convert those rows to full coverage; each is a design change with its
-own row, not a contract detail. Until then this table is the contract.
+**On the "6 narrowed operations" figure.** A stale snapshot of the comparator's
+counts is pasted into
+`docs/evidence/opencode-upstream-v1.18.33/surface-diff-report.md` §10 (the
+ROUTE-ADD-104 follow-up), where `narrowed_error_contract_only` reads `6`. That is
+a pre-SHIM-GAP-004 count: the detection rule was loosened in SHIM-GAP-004 (it now
+derives the error-contract class from the declared response set and the served
+outcome instead of a hand list), which surfaced the remaining rows, and the
+artifact has read `14` since. The artifact is the authority; that snapshot is
+superseded and is annotated as such in place. A task brief that cites "6
+remaining narrowed operations" is citing the superseded snapshot, not a live
+count — re-derive with §12.4 before acting on it.
 
 ### 12.4 Reproducing and checking this section
 
@@ -681,10 +795,27 @@ python3 scripts/compare-opencode-declared-served.py \
   specs/openapi/upstream/openapi-1.18.33.surface.json \
   specs/openapi/upstream/consensus-shim-served-surface.yaml \
   /tmp/opencode-declared-vs-served
-diff <(jq -S . /tmp/opencode-declared-vs-served/declared-vs-served.json) \
+# byte-identical (the script's own output order is the artifact's order):
+diff /tmp/opencode-declared-vs-served/declared-vs-served.json \
      specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json   # no output = reproducible
+# and the same comparison canonically, if either side has been re-formatted:
+diff <(jq -S . /tmp/opencode-declared-vs-served/declared-vs-served.json) \
+     <(jq -S . specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json)
 ```
+Both sides of the second diff must be canonicalised: the committed artifact is
+the script's own insertion-ordered output, so a one-sided `jq -S .` reports the
+key ordering alone as a difference and the check can never pass. The first
+(byte) diff is the strong one — it is what SHIM-GAP-005 verified at this
+revision (empty output).
 The comparator exits non-zero (naming the row) when a detected error-contract
 narrowing has no rationale, and also when a row claims the marker while the
 runtime answers the declared success — so this section cannot drift away from the
 code silently.
+
+The §12.3 ledger itself is checked from the Go side — census against the
+artifact, every `file:line symbol` citation resolved, and every narrowed
+operation driven live to prove it never answers its declared success:
+
+```bash
+go test ./internal/shim/opencode -run 'TestShimGap005' -count=1 -v
+```

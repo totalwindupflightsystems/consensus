@@ -454,4 +454,19 @@ flip by stable path/method/operation rows:
 {"declared_paths":162,"declared_operations":188,"served_route_entries":103,"covered_operations":74,"narrowed_error_contract_only":6,"intentional_narrowing":1,"semantic_different":2,"drift_declared_not_served":105,"drift_by_class":{"NOT-SERVED":101,"OUTCOME-MISMATCH":4},"drift_served_not_declared":0,"served_drift_by_class":{},"shim_extension_operations":17}
 ```
 
+> **SUPERSEDED — annotated by SHIM-GAP-005 (2026-10-14), numbers not rewritten.**
+> The counts in the block above are the pre-SHIM-GAP-004 snapshot of the
+> comparator's output (this report's own capture, kept as evidence of that run).
+> `narrowed_error_contract_only` reads `6` here only because the detection rule
+> at that revision still relied on a hand-maintained list of error-contract
+> rows; SHIM-GAP-004 replaced it with a rule derived from the declared response
+> set and the served outcome, which surfaced the remaining rows. The
+> authoritative, regenerated artifact is
+> `specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json`
+> (`narrowed_error_contract_only: 14`, `narrowed_unexplained: 0`,
+> `covered_operations: 83`, `served_route_entries: 121`); re-derive it with the
+> command in `specs/018-openapi-contract.md` §12.4 rather than citing the block
+> above as a live count. The narrowing ledger itself lives in
+> `specs/018-openapi-contract.md` §12.3.
+
 Live HTTP evidence is recorded in `docs/evidence/ROUTE-ADD-104-live-probe.md`.
