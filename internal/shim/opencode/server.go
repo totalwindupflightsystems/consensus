@@ -282,6 +282,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// the declared SSE 200 is never fabricated). The v1 /event compatibility
 	// route below is untouched (different surface, v1 spelling).
 	mux.HandleFunc("/api/event", s.handleApiEventSubscribe)
+	// ROUTE-ADD-014 / SHIM-DRIFT-001: the declared v2.integration.list
+	// operation (GET /api/integration) had no shim route, so it fell through
+	// to net/http's default 404. Register the exact pattern; never an /api/*
+	// catch-all, so unrelated v2 operations keep their current classification.
+	mux.HandleFunc("/api/integration", s.handleApiIntegrationList)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -498,6 +503,9 @@ var MountPatterns = []string{
 	// ROUTE-ADD-009 / SHIM-DRIFT-003: the exact /api/event path
 	// (v2.event.subscribe) so a parent chi mount reaches the shim route.
 	"/api/event",
+	// ROUTE-ADD-014 / SHIM-DRIFT-001: exact /api/integration
+	// (v2.integration.list), never an /api/* catch-all.
+	"/api/integration",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -626,6 +634,7 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/health":             {},
 	"/api/fs/find":            {},
 	"/api/fs/list":            {},
+	"/api/integration":        {},
 	"/api/location":           {},
 	"/api/model":              {},
 	"/api/reference":          {},
