@@ -172,7 +172,11 @@ func TestApiIntegrationAttemptStatusMountWiring(t *testing.T) {
 	if status != http.StatusOK {
 		t.Errorf("chi-mounted GET: got %d, want 200. Body: %s", status, body)
 	}
-	for _, path := range []string{"/api/integration/attempt", apiIntegrationAttemptStatusPath + "/extra", "/api/integration/bogus"} {
+	// ROUTE-ADD-018 merged tree: one-segment /api/integration/{id} is now a
+	// declared op (v2.integration.get), so "/api/integration/attempt" (attempt
+	// as the integrationID) serves 200 too. Only unregistered two-segment
+	// paths must stay un-served.
+	for _, path := range []string{apiIntegrationAttemptStatusPath + "/extra", "/api/integration/bogus/extra"} {
 		status, _, _ := doShimRequest(t, srv.URL, http.MethodGet, path)
 		if status == http.StatusOK {
 			t.Errorf("GET %s: got 200, want 404 — registration must remain exact", path)

@@ -163,8 +163,10 @@ func TestApiIntegrationListMethodAndMountWiring(t *testing.T) {
 	if !isV2EnvelopeRoutePath("/api/integration") {
 		t.Error("/api/integration is not listed in v2EnvelopeRoutePaths — its declared 401 must use UnauthorizedError")
 	}
-	if isV2EnvelopeRoutePath("/api/integration/bogus") {
-		t.Error("/api/integration/bogus is treated as a v2-envelope route; membership must be exact-path")
+	// ROUTE-ADD-018 merged tree: a one-segment path IS the declared
+	// /api/integration/{integrationID}; probe a two-segment undeclared path instead.
+	if isV2EnvelopeRoutePath("/api/integration/bogus/extra") {
+		t.Error("/api/integration/bogus/extra is treated as a v2-envelope route; membership must be declared-shape only")
 	}
 
 	r := chi.NewRouter()
@@ -178,9 +180,9 @@ func TestApiIntegrationListMethodAndMountWiring(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("chi-mounted GET /api/integration: got %d, want 200. Body: %s", status, body)
 	}
-	status, _, _ = doShimRequest(t, srv.URL, http.MethodGet, "/api/integration/bogus")
+	status, _, _ = doShimRequest(t, srv.URL, http.MethodGet, "/api/integration/bogus/extra")
 	if status != http.StatusNotFound {
-		t.Errorf("GET /api/integration/bogus: got %d, want 404 (exact path, no /api/* catch-all)", status)
+		t.Errorf("GET /api/integration/bogus/extra: got %d, want 404 (exact path, no /api/* catch-all)", status)
 	}
 }
 

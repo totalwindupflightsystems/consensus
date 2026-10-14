@@ -299,6 +299,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// net/http answered the default 404. Register the exact parameterized path;
 	// this is not an /api/integration/* catch-all.
 	mux.HandleFunc("/api/integration/attempt/{attemptID}/complete", s.handleApiIntegrationRA017)
+	// ROUTE-ADD-018 / SHIM-DRIFT-005: the declared
+	// GET /api/integration/{integrationID} operation (v2.integration.get) had
+	// no shim route, so net/http answered its default 404. Register the exact
+	// one-segment path shape; never an /api/* or /api/integration/* catch-all.
+	mux.HandleFunc("/api/integration/{integrationID}", s.handleApiIntegrationRA018)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -534,6 +539,8 @@ var MountPatterns = []string{
 	// ROUTE-ADD-017 / SHIM-DRIFT-004: exact parameterized path for
 	// v2.integration.attempt.complete; no /api/integration/* catch-all.
 	"/api/integration/attempt/{attemptID}/complete",
+	// ROUTE-ADD-018 / SHIM-DRIFT-005: exact one-segment integration path.
+	"/api/integration/{integrationID}",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -674,6 +681,8 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/permission/request": {},
 	"/api/permission/saved":   {},
 	"/api/question/request":   {},
+	// ROUTE-ADD-018 / SHIM-DRIFT-005 uses a path parameter, so
+	// isV2EnvelopeRoutePath recognizes its exact one-segment shape below.
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential family —
 	// both operations carry the same v2 UnauthorizedError 401 arm. The entry
 	// is checked with strings.HasPrefix for this prefix-routed family (the
@@ -701,6 +710,13 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// one-segment containment check would reject it first.
 	if attemptID, ok := strings.CutPrefix(path, "/api/integration/attempt/"); ok {
 		return attemptID != "" && !strings.Contains(attemptID, "/")
+	}
+	// ROUTE-ADD-018: the exact one-segment integration path
+	// (/api/integration/{integrationID}) shares the one-segment shape with the
+	// attempt family; both are declared v2 operations, while deeper
+	// /api/integration/* sub-paths keep the shim's own envelope.
+	if rest, ok := strings.CutPrefix(path, "/api/integration/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok

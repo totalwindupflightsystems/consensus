@@ -397,6 +397,12 @@ routes:
     auth: api-key
     evidence: "api_integration_ra017.go handleApiIntegrationRA017 (ROUTE-ADD-017, formerly SHIM-DRIFT-004): serves v2.integration.attempt.complete on the exact parameterized path; the required additionalProperties:false body accepts only optional string code, the shared deepObject location selector is validated, malformed input answers the declared InvalidRequestError 400, unauthenticated requests answer the declared UnauthorizedError 401, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. The runtime keeps no integration-attempt or integration-credential store and advertises no OAuth integration-attempt producer, so a well-formed completion is an idempotent no-op with the declared empty 204; no attempt or credential row is fabricated."
 
+  - path: /api/integration/{integrationID}
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "api_integration_ra018.go handleApiIntegrationRA018 (ROUTE-ADD-018, formerly SHIM-DRIFT-005): serves v2.integration.get on the exact one-segment path shape; the runtime keeps no integration registry, so no IntegrationInfo row (id, name, methods, connections) is fabricated and the handler answers the truthful declared payload documented in its own evidence note; malformed integrationID answers the declared InvalidRequestError 400, unauthenticated requests answer the declared UnauthorizedError 401, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405 (ROUTE-ADD-018 wave merge)."
+
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location
     method: GET

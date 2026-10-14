@@ -201,7 +201,7 @@ func TestApiIntegrationCompleteMethodAndMountWiring(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/integration/attempt/attempt-123/complete/extra",
-		"/api/integration/bogus",
+		"/api/integration/bogus/extra",
 	} {
 		status, _, _ := doShimRequestBody(t, srv.URL, http.MethodPost, path, `{}`)
 		if status != http.StatusNotFound {
