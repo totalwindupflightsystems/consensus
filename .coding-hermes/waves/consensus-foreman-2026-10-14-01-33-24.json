@@ -35,5 +35,12 @@
     }
   ],
   "created_at": "2026-10-14T01:33:24-05:00",
-  "status": "in_progress"
+  "status": "finished",
+  "finished_at": "2026-10-14T02:55:00-05:00",
+  "recovery": {
+    "tick": "consensus-foreman-2026-10-14-02-17-06",
+    "result": "all 3 branches recovered: DEPLOY-CONSENSUS-1 already merged; SHIM-SUPPORT-001 + SHIM-GAP-004 rebased onto main (stale base 52bc660), gates green, merged serially (b842ab4, 64a507c), tier1 PASS / tier2 PASS COMPLETE",
+    "worktrees_removed": true,
+    "branches_deleted": true
+  }
 }
