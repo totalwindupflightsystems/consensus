@@ -365,11 +365,19 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		hash := sha256Hash(key)
 
 		ctx := r.Context()
-		rows, err := s.db.Query(ctx,
+		rows, err := s.admindb.Query(ctx,
 			`SELECT id, scope, session_id FROM api_keys WHERE key_prefix = $1 AND key_hash = $2 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
 			prefix, hash,
 		)
-		if err != nil || len(rows) == 0 {
+		if err != nil {
+			// Operational error (e.g. permission denied), not an invalid key —
+			// do NOT mask it as 401 (PG-AUTH-001: agent_role has no SELECT on
+			// api_keys; the lookup must run through the owner/admin pool).
+			slog.Error("api: auth key lookup failed", "err", err)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL", "key lookup failed")
+			return
+		}
+		if len(rows) == 0 {
 			writeError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "invalid or expired API key")
 			return
 		}
@@ -457,13 +465,16 @@ func (s *Server) scopeRateLimit(scope string) int {
 func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string) bool {
 	limit := s.scopeRateLimit(scope)
 
-	rows, err := s.db.Query(ctx, `SELECT requests_count, window_start FROM api_rate_limits WHERE key_prefix = $1`, prefix)
+	// Rate-limit accounting runs through the admin/owner pool too: agent_role
+	// has no SELECT/UPDATE on api_rate_limits, so pool queries 42501 here and
+	// every request would silently skip (or fail) accounting (PG-AUTH-001).
+	rows, err := s.admindb.Query(ctx, `SELECT requests_count, window_start FROM api_rate_limits WHERE key_prefix = $1`, prefix)
 	if err != nil {
 		return true
 	}
 
 	if len(rows) == 0 {
-		_ = s.db.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, CURRENT_TIMESTAMP)`, prefix)
+		_ = s.admindb.Exec(ctx, `INSERT INTO api_rate_limits (key_prefix, requests_count, window_start) VALUES ($1, 1, CURRENT_TIMESTAMP)`, prefix)
 		return true
 	}
 
@@ -476,7 +487,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 	}
 
 	if time.Since(t) > time.Minute {
-		_ = s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = CURRENT_TIMESTAMP WHERE key_prefix = $1`, prefix)
+		_ = s.admindb.Exec(ctx, `UPDATE api_rate_limits SET requests_count = 1, window_start = CURRENT_TIMESTAMP WHERE key_prefix = $1`, prefix)
 		return true
 	}
 
@@ -484,7 +495,7 @@ func (s *Server) checkRateLimit(ctx context.Context, prefix string, scope string
 		return false
 	}
 
-	_ = s.db.Exec(ctx, `UPDATE api_rate_limits SET requests_count = requests_count + 1 WHERE key_prefix = $1`, prefix)
+	_ = s.admindb.Exec(ctx, `UPDATE api_rate_limits SET requests_count = requests_count + 1 WHERE key_prefix = $1`, prefix)
 	return true
 }
 

@@ -259,7 +259,7 @@ func TestRateLimit_OverLimit_Returns429(t *testing.T) {
 		},
 	}
 	origDB := srv.db
-	srv.db = customMock
+	srv.admindb = customMock // rate-limit reads go through admindb (PG-AUTH-001)
 	defer func() { srv.db = origDB }()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
