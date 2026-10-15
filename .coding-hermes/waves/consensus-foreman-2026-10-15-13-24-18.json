@@ -1,0 +1,23 @@
+{
+  "tick": "consensus-foreman-2026-10-15-13-24-18",
+  "wave_budget": 2,
+  "base": "origin/main@951448d",
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-019",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-019",
+      "branch": "wt/ROUTE-ADD-019",
+      "drift_item": "SHIM-DRIFT-015",
+      "route": "POST /api/integration/{integrationID}/connect/key",
+      "status": "dispatched"
+    },
+    {
+      "id": "ROUTE-ADD-020",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-020",
+      "branch": "wt/ROUTE-ADD-020",
+      "drift_item": "SHIM-DRIFT-016",
+      "route": "POST /api/integration/{integrationID}/connect/oauth",
+      "status": "dispatched"
+    }
+  ]
+}
