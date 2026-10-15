@@ -1251,4 +1251,3 @@ func TestSendMessage_IdempotentPathDuplicatesDedupedInWindow(t *testing.T) {
 		t.Fatalf("expected 1 user_message row for same content under different keys, got %d", len(rows))
 	}
 }
-
