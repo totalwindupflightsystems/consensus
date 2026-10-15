@@ -307,6 +307,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// ROUTE-ADD-019 / formerly SHIM-DRIFT-015: exact declared POST route for
 	// v2.integration.connect.key; no /api/integration/* catch-all.
 	mux.HandleFunc("/api/integration/{integrationID}/connect/key", s.handleApiIntegrationConnectKey)
+	// ROUTE-ADD-020: serve the declared v2.integration.connect.oauth POST on
+	// its exact path. This does not claim sibling /api/integration/* routes.
+	mux.HandleFunc("/api/integration/{integrationID}/connect/oauth", s.handleApiIntegrationConnectOauth)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -546,6 +549,8 @@ var MountPatterns = []string{
 	"/api/integration/{integrationID}",
 	// ROUTE-ADD-019 / formerly SHIM-DRIFT-015: exact connect-with-key path.
 	"/api/integration/{integrationID}/connect/key",
+	// ROUTE-ADD-020: exact v2.integration.connect.oauth path.
+	"/api/integration/{integrationID}/connect/oauth",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -708,6 +713,9 @@ func isV2EnvelopeRoutePath(path string) bool {
 		return true
 	}
 	if isApiIntegrationConnectKeyPath(path) {
+		return true
+	}
+	if isApiIntegrationConnectOauthPath(path) {
 		return true
 	}
 	if isApiIntegrationCompletePath(path) {

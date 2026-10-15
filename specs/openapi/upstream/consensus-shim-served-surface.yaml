@@ -408,6 +408,12 @@ routes:
     auth: api-key
     evidence: "api_integration_connect_key.go handleApiIntegrationConnectKey (ROUTE-ADD-019, source item formerly cited as SHIM-DRIFT-015): serves v2.integration.connect.key through the exact mux.HandleFunc and MountPatterns route, never an /api/integration/* catch-all. The required additionalProperties:false body accepts a non-blank string key and optional string label, the shared apiV2LocationSelector validates the optional deepObject location selector, malformed integrationID/body/location input answers the declared InvalidRequestError 400 through writeV2InvalidRequest, unauthenticated requests answer the declared UnauthorizedError 401 through isV2EnvelopeRoutePath, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. Consensus keeps no integration registry and no credential-connect runtime, so a well-formed request truthfully answers the declared empty 204 as an accepted idempotent no-op: the key is never retained, no IntegrationAttempt or credential row is created, and integrationID is not echoed as a fabricated object; the data-bearing success belongs to v2.integration.connect.oauth, not this operation."
 
+  - path: /api/integration/{integrationID}/connect/oauth
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "api_integration_connect_oauth.go handleApiIntegrationConnectOauth (ROUTE-ADD-020, source item SHIM-DRIFT-016): serves v2.integration.connect.oauth on the exact parameterized path; the required additionalProperties:false body validates non-blank methodID, present object<string,string> inputs (including an empty object), and optional string label, while the shared deepObject location selector and blank integrationID answer the declared InvalidRequestError 400. Unauthenticated requests answer the declared UnauthorizedError 401 and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. Consensus keeps no integration registry, OAuth provider runtime, or IntegrationAttempt store, so the truthful declared 200 uses the real selected LocationInfo and an IntegrationAttempt-shaped data object with every required property empty or zero; it never invents an attempt ID, authorization URL, instructions, mode, or timestamps and never echoes request values as created attempt state."
+
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location
     method: GET
