@@ -1,0 +1,10 @@
+{
+  "tick": "consensus-foreman-2026-10-15-15-35-00",
+  "budget": 3,
+  "tasks": [
+    {"task_id": "ROUTE-ADD-022", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-022", "branch": "wt/ROUTE-ADD-022"},
+    {"task_id": "ROUTE-ADD-024", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-024", "branch": "wt/ROUTE-ADD-024"},
+    {"task_id": "ROUTE-ADD-025", "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-025", "branch": "wt/ROUTE-ADD-025"}
+  ],
+  "dispatched_at": "2026-10-15T16:10:00-05:00"
+}
