@@ -304,6 +304,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// no shim route, so net/http answered its default 404. Register the exact
 	// one-segment path shape; never an /api/* or /api/integration/* catch-all.
 	mux.HandleFunc("/api/integration/{integrationID}", s.handleApiIntegrationRA018)
+	// ROUTE-ADD-020: serve the declared v2.integration.connect.oauth POST on
+	// its exact path. This does not claim sibling /api/integration/* routes.
+	mux.HandleFunc("/api/integration/{integrationID}/connect/oauth", s.handleApiIntegrationConnectOauth)
 
 	// ROUTE-ADD-021 / source items SHIM-DRIFT-016/017/018/019/030/031/057: the
 	// declared v2 read-only list operations (v2.location.get, v2.model.list,
@@ -541,6 +544,8 @@ var MountPatterns = []string{
 	"/api/integration/attempt/{attemptID}/complete",
 	// ROUTE-ADD-018 / SHIM-DRIFT-005: exact one-segment integration path.
 	"/api/integration/{integrationID}",
+	// ROUTE-ADD-020: exact v2.integration.connect.oauth path.
+	"/api/integration/{integrationID}/connect/oauth",
 
 	// ROUTE-ADD-021: the seven declared v2 read-only list operations
 	// (v2.location.get, v2.model.list, v2.reference.list, v2.skill.list,
@@ -700,6 +705,9 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 // envelope.
 func isV2EnvelopeRoutePath(path string) bool {
 	if strings.HasPrefix(path, "/api/credential/") {
+		return true
+	}
+	if isApiIntegrationConnectOauthPath(path) {
 		return true
 	}
 	if isApiIntegrationCompletePath(path) {

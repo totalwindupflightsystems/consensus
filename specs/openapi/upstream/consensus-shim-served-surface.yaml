@@ -403,6 +403,12 @@ routes:
     auth: api-key
     evidence: "api_integration_ra018.go handleApiIntegrationRA018 (ROUTE-ADD-018, formerly SHIM-DRIFT-005): serves v2.integration.get on the exact one-segment path shape; the runtime keeps no integration registry, so no IntegrationInfo row (id, name, methods, connections) is fabricated and the handler answers the truthful declared payload documented in its own evidence note; malformed integrationID answers the declared InvalidRequestError 400, unauthenticated requests answer the declared UnauthorizedError 401, and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405 (ROUTE-ADD-018 wave merge)."
 
+  - path: /api/integration/{integrationID}/connect/oauth
+    method: POST
+    outcome: 200
+    auth: api-key
+    evidence: "api_integration_connect_oauth.go handleApiIntegrationConnectOauth (ROUTE-ADD-020, source item SHIM-DRIFT-016): serves v2.integration.connect.oauth on the exact parameterized path; the required additionalProperties:false body validates non-blank methodID, present object<string,string> inputs (including an empty object), and optional string label, while the shared deepObject location selector and blank integrationID answer the declared InvalidRequestError 400. Unauthenticated requests answer the declared UnauthorizedError 401 and undeclared methods answer the sibling METHOD_NOT_ALLOWED 405. Consensus keeps no integration registry, OAuth provider runtime, or IntegrationAttempt store, so the truthful declared 200 uses the real selected LocationInfo and an IntegrationAttempt-shaped data object with every required property empty or zero; it never invents an attempt ID, authorization URL, instructions, mode, or timestamps and never echoes request values as created attempt state."
+
   # ── v2 read-only list surface (ROUTE-ADD-021) ──
   - path: /api/location
     method: GET
