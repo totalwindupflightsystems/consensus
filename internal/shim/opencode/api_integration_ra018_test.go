@@ -144,9 +144,16 @@ func TestApiIntegrationRA018MethodAndMountWiring(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("chi-mounted GET /api/integration/github: got %d, want 200. Body: %s", status, body)
 	}
-	status, _, _ = doShimRequest(t, srv.URL, http.MethodGet, "/api/integration/github/connect/key")
-	if status != http.StatusNotFound {
-		t.Errorf("GET deeper sibling path: got %d, want 404 (exact mount, no /api/integration/* catch-all)", status)
+	// ROUTE-ADD-019 now registers this exact deeper sibling path for POST;
+	// GET therefore reaches that operation's method guard instead of the old
+	// net/http default 404. This remains exact-route wiring, not a subtree
+	// catch-all.
+	status, _, body = doShimRequest(t, srv.URL, http.MethodGet, "/api/integration/github/connect/key")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("GET connect/key sibling path: got %d, want 405 after ROUTE-ADD-019 registration", status)
+	}
+	if !strings.Contains(string(body), "METHOD_NOT_ALLOWED") {
+		t.Errorf("GET connect/key sibling path body %s does not carry METHOD_NOT_ALLOWED", body)
 	}
 }
 
