@@ -328,6 +328,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
+	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
+	// had no shim route at all, so the request fell through to net/http's
+	// default 404. Register the exact path for real; never an /api/* or
+	// /api/provider/* catch-all, so the v1 /provider compatibility route above
+	// (provider.list, a different declared operation) is untouched and the
+	// sibling declared /api/provider/{providerID} (v2.provider.get) keeps the
+	// default 404 it is classified with until its own contract row lands.
+	mux.HandleFunc("/api/provider", s.handleApiProviderList)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -564,6 +572,9 @@ var MountPatterns = []string{
 	"/api/permission/request",
 	"/api/permission/saved",
 	"/api/question/request",
+	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
+	// /api/provider/* catch-all.
+	"/api/provider",
 	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
 	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
 	"/api/integration/attempt/{attemptID}",
@@ -691,6 +702,12 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/permission/request": {},
 	"/api/permission/saved":   {},
 	"/api/question/request":   {},
+	// ROUTE-ADD-026: the declared v2.provider.list path takes the v2
+	// UnauthorizedError 401 envelope (this operation declares it); membership
+	// stays exact-path, so /api/provider/{providerID} (v2.provider.get) and any
+	// other /api/provider/* sub-path keep the shim's own 401 body until their
+	// own rows land.
+	"/api/provider": {},
 	// ROUTE-ADD-018 / SHIM-DRIFT-005 uses a path parameter, so
 	// isV2EnvelopeRoutePath recognizes its exact one-segment shape below.
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential family —
