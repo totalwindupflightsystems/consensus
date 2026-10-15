@@ -327,6 +327,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/api/skill", s.handleApiSkillList)
 	mux.HandleFunc("/api/permission/request", s.handleApiPermissionRequestList)
 	mux.HandleFunc("/api/permission/saved", s.handleApiPermissionSavedList)
+	// ROUTE-ADD-025 / SHIM-DRIFT-001: the declared v2.permission.saved.remove
+	// operation (DELETE /api/permission/saved/{id}) had no shim route, so the
+	// request fell through to net/http's default 404. Register the exact
+	// one-segment path shape for real; never an /api/permission/* catch-all,
+	// so the sibling list route above and any deeper unregistered sub-path
+	// keep the answers they are classified with.
+	mux.HandleFunc("/api/permission/saved/{id}", s.handleApiPermissionSavedRemove)
 	mux.HandleFunc("/api/question/request", s.handleApiQuestionRequestList)
 	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
 	// had no shim route at all, so the request fell through to net/http's
@@ -571,6 +578,10 @@ var MountPatterns = []string{
 	"/api/skill",
 	"/api/permission/request",
 	"/api/permission/saved",
+	// ROUTE-ADD-025 / SHIM-DRIFT-001: exact declared parameter path for
+	// v2.permission.saved.remove so a parent chi mount reaches the shim route;
+	// no /api/permission/* catch-all is introduced.
+	"/api/permission/saved/{id}",
 	"/api/question/request",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
@@ -749,6 +760,15 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// attempt family; both are declared v2 operations, while deeper
 	// /api/integration/* sub-paths keep the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/api/integration/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
+	}
+	// ROUTE-ADD-025 / SHIM-DRIFT-001: the declared v2.permission.saved.remove
+	// path (DELETE /api/permission/saved/{id}) carries the same v2
+	// UnauthorizedError 401 arm as its sibling list operation, which the exact
+	// map above already covers for the bare path. The one-segment rule admits
+	// only the concrete parameter shape, so a blank or deeper
+	// /api/permission/saved/* path keeps the shim's own envelope.
+	if rest, ok := strings.CutPrefix(path, "/api/permission/saved/"); ok {
 		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
