@@ -1,0 +1,40 @@
+{
+  "tick_id": "consensus-foreman-2026-10-15-14-18-46",
+  "budget": 4,
+  "dispatched_at": "2026-10-15T14:18:46-05:00",
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-022",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-022",
+      "branch": "wt/ROUTE-ADD-022",
+      "brief": "/tmp/brief-ROUTE-ADD-022.txt"
+    },
+    {
+      "id": "ROUTE-ADD-023",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-023",
+      "branch": "wt/ROUTE-ADD-023",
+      "brief": "/tmp/brief-ROUTE-ADD-023.txt"
+    },
+    {
+      "id": "ROUTE-ADD-026",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-026",
+      "branch": "wt/ROUTE-ADD-026",
+      "brief": "/tmp/brief-ROUTE-ADD-026.txt"
+    },
+    {
+      "id": "ROUTE-ADD-035",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-035",
+      "branch": "wt/ROUTE-ADD-035",
+      "brief": "/tmp/brief-ROUTE-ADD-035.txt"
+    }
+  ],
+  "status": "recovered",
+  "finished_at": "2026-10-15T15:40:00-05:00",
+  "recovery_tick": "consensus-foreman-2026-10-15-14-58-14",
+  "outcome": {
+    "ROUTE-ADD-022": "merged 39a5b0b (prior tick)",
+    "ROUTE-ADD-023": "rebased, merged 7df2818",
+    "ROUTE-ADD-026": "rebased, merged eeba3db",
+    "ROUTE-ADD-035": "rebased, merged 00e308e"
+  }
+}
