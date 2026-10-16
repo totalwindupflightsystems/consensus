@@ -1,0 +1,20 @@
+{
+  "tick": "consensus-foreman-2026-10-16-15-45-07",
+  "created_at": "2026-10-16T10:54:30-05:00",
+  "budget": 1,
+  "workers": [
+    {
+      "task_id": "PG-SEQ-42501",
+      "board_row": "PG-SEQ-42501",
+      "gitreins_task": "pg-seq-42501",
+      "worktree": "/home/kara/worktrees/consensus-PG-SEQ-42501",
+      "branch": "wt/PG-SEQ-42501",
+      "brief": "/tmp/20261016-154507-pg-seq-brief.txt",
+      "model": "glm-5.3-flash",
+      "provider": "ocg",
+      "lane_probe": "xkiro exhausted (agent.log fallback chain to ocg verified 2026-10-16T10:50); ocg direct probe LANE_OK with no fallback lines (session 20261016_105125_cc25b7)",
+      "status": "dispatched"
+    }
+  ],
+  "notes": "Wave of 1 (WAVE_BUDGET=1; only one independent P1 actionable — RELEASE-CONSENSUS-3 is owner-gated, PG-LLM-42501/APPROV-GATE-001 need design decisions). Serial serial-path composition rules were checked: no depends_on edges among P1s; picking highest-value P1 with precise fix direction."
+}
