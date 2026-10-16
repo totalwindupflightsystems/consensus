@@ -12,8 +12,11 @@ description: >-
   auth) and DOGFOOD-107 (H3 example port hardcode) are FIXED — do not
   treat them as open. v2.9 adds the 2026-09-26 evening run: opencode-shim
   attach status (TUI crash, run-mode invisibility), webhook ingestion recipe,
-  and the --config flag landmine.
-version: 2.9.0
+  and the --config flag landmine. v2.10 adds the 2026-10-16 run: provider
+  contract findings (model alias, thinking default), the SSE terminal-event
+  gap, native JSON config, the new /api/* families, and the crash-recovery
+  drill recipe.
+version: 2.10.0
 category: software-development
 ---
 
@@ -360,3 +363,46 @@ pool-starvation bug survives restart (durable ledger) and heartbeat
 auto-resume re-enters the wedging path immediately — the instance stays
 bricked across restarts. Recovery from THAT state requires deleting the
 session row (or the scratch DB) before restart.
+
+## Provider contracts + SSE + crash recovery 2026-10-16 (build 4c171c7)
+
+- **Model alias**: the shipped config pins `deepseek-v4-flash`; the provider
+  accepts it (legacy alias) and bills/serves it as `deepseek-flash`. Do not
+  "fix" configs to `deepseek-flash` preemptively — both ids work; verify with
+  `GET https://api.deepseek.com/v1/models` on your key.
+- **Thinking mode**: default ON. A tiny `max_tokens` returns empty `content`
+  with populated `reasoning_content` — that is the provider contract, not a
+  client bug. There is NO REST knob (session create has no thinking/temperature
+  field); sampling params are resolved client-side per spec 024 §B2.
+- **SSE gap (DF-CONSENSUS-56, open)**: `GET /api/v1/events` publishes
+  turn-START (`thinking`) but never terminal transitions (`idle`, `paused`).
+  Poll `GET /api/v1/sessions/{id}` for completion instead of waiting on the
+  stream. A client that waits for a terminal SSE event hangs forever.
+- **Shim sync turns**: `POST /session/{id}/message` (typed parts envelope)
+  returns the FINISHED reply in the POST response (~3-5s) — convenient for
+  scripts; the native path (`/api/v1/sessions/{id}/message`) is async
+  (`message_received` ack, then poll).
+- **GET /config is native JSON now** (DF-54 fixed): `settings.mcp` round-trips
+  through jq. `PATCH /config {"mcp":{name:...}}` flattens into `mcp.<name>`
+  settings (DF-53 fixed).
+- **New /api/* families** (ROUTE-ADD wave): `/api/agent`, `/api/command`,
+  `/api/health`, `/api/model`, `/api/skill`, `/api/reference`, `/api/provider`,
+  `/api/integration*`, `/api/fs/list`, `/api/credential` (PATCH needs `label`).
+  `GET /api/event` (v2) intentionally 501s with a typed error — use the v1
+  stream. Truthful empty lists (200 `data:[]`) are the declared contract for
+  unknown ids on some routes — check `specs/openapi/upstream/…declared-vs-served`
+  before filing a "missing 404" finding.
+- **Crash recovery drill** (worked): kill -9 the serve process, restart with
+  the SAME config, health 200 in ~3s, all sessions/memory/billing/admin keys
+  intact. Two restart traps: (1) the config interpolates `${DEEPSEEK_API_KEY}`
+  from the restart shell's env — restart WITHOUT it and the server boots fine
+  but the first turn burns 3 LLM 401s and pauses the session (fix:
+  `PATCH /api/v1/sessions/{id} {"status":"resume"}` after restarting with the
+  key exported); (2) a second instance on one host collides on the fixed pprof
+  `127.0.0.1:8095` (silent WARN, debug listener lost) — set
+  `server.pprof_addr` per instance.
+- **Install numbers** (fresh bunker box, go1.26.5 preinstalled): clone 1s,
+  build 86s, init 2s, serve+health ~3s. Check `git log origin/master..HEAD`
+  before comparing behavior across checkouts — origin can lag local master
+  (DF-CONSENSUS-57).
+
