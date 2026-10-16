@@ -1,0 +1,21 @@
+{
+  "scheduler_tick_id": "consensus-foreman-2026-10-16-12-58-22",
+  "created_at": "2026-10-16T13:20:00-05:00",
+  "budget": 1,
+  "mode": "serial-fallback (only one independent actionable task after premise probes)",
+  "tasks": [
+    {
+      "task_id": "REVIEW-CONSENSUS-3",
+      "worktree": "/home/kara/worktrees/consensus-REVIEW-CONSENSUS-3",
+      "branch": "wt/REVIEW-CONSENSUS-3",
+      "base": "origin/main",
+      "base_sha": "cb161ba",
+      "model": "deepseek-v4-flash",
+      "provider": "deepseek"
+    }
+  ],
+  "status": "merged-and-closed",
+  "content_commit": "0f1f5d5938cc837c770c739940ca8c39fc0b618e",
+  "merge_commit": "55991b80c9e693ad9cfc0ac1e87d93d24c7b5569",
+  "verdict": "worker STATUS partial: F2+F3 fixed, real Postgres numbers measured; residuals filed as PG-LLM-42501/PG-SEQ-42501/PG-HARNESS-22P02/PG-POOL-SAT; gitreins tier1 PASS + tier2 async job-1ee77591cb584834b16a3931c2cf175f"
+}
