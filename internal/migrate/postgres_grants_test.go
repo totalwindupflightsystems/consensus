@@ -44,6 +44,10 @@ import (
 // (agent_role) the privileges its own SQL needs.
 const grantMigrationVersion = 28
 
+// seqGrantMigrationVersion is the migration that grants agent_role USAGE on
+// the sequences its BIGSERIAL-backed INSERTs draw from (PG-SEQ-42501).
+const seqGrantMigrationVersion = 30
+
 // poolPrivileges is the enumerated (table -> verbs) set derived from a census of
 // the SQL in internal/** + cmd/** (non-test) that runs on a non-admin handle.
 // It is the contract migration 028 must satisfy — keep the two in sync.
@@ -53,7 +57,7 @@ var poolPrivileges = map[string][]string{
 	"webhook_registrations": {"SELECT", "INSERT", "UPDATE", "DELETE"},
 	"routing_rules":         {"SELECT"},
 	// 008 — HITL interrupt state.
-	"approval_requests": {"SELECT", "INSERT", "UPDATE"},
+	"approval_requests":  {"SELECT", "INSERT", "UPDATE"},
 	"hitl_configuration": {"SELECT", "INSERT", "DELETE"},
 	"notification_log":   {"INSERT"},
 	// 002 — shim session map + API keys.
@@ -392,3 +396,168 @@ func TestPostgresAgentRolePoolTablePrivileges(t *testing.T) {
 		}
 	}
 }
+
+// TestGrantMigrationCoversSequenceUsage is the backend-agnostic half of the
+// PG-SEQ-42501 regression: it runs without Postgres and asserts that migration
+// 030 grants USAGE + SELECT to agent_role on ALL sequences in schema public —
+// the catalog-wide shape that keeps future BIGSERIAL-backed migrations from
+// silently reintroducing "permission denied for sequence ..." (SQLSTATE 42501)
+// on pool INSERTs.
+func TestGrantMigrationCoversSequenceUsage(t *testing.T) {
+	runner := &Runner{}
+	if err := runner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations failed: %v", err)
+	}
+
+	var sql string
+	for _, m := range runner.migrations {
+		if m.Version == seqGrantMigrationVersion {
+			sql = m.SQL
+			break
+		}
+	}
+	if sql == "" {
+		t.Fatalf("migration %d (grant sequence usage to agent_role) is not embedded — "+
+			"pool INSERTs drawing from BIGSERIALs keep hitting SQLSTATE 42501", seqGrantMigrationVersion)
+	}
+
+	// A single catalog-wide statement, matching 028's shape for tables: grant
+	// on ALL sequences in the schema rather than an enumerated list.
+	var sawGrant bool
+	for _, line := range strings.Split(sql, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		upper := strings.ToUpper(trimmed)
+		if strings.HasPrefix(upper, "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA PUBLIC TO AGENT_ROLE") {
+			sawGrant = true
+		}
+	}
+	if !sawGrant {
+		t.Fatalf("migration %d does not grant USAGE, SELECT on ALL SEQUENCES IN SCHEMA public "+
+			"to agent_role — sequences stay unprivileged and pool INSERTs 42501", seqGrantMigrationVersion)
+	}
+}
+
+// TestPostgresAgentRolePoolSequencePrivileges is the live half of the
+// PG-SEQ-42501 regression: with all migrations applied, EVERY sequence in
+// schema public must hold USAGE for agent_role (derived from the catalog, not
+// a hardcoded list), and the reported failure — an INSERT INTO memory_events
+// through a connection running as agent_role — must succeed.
+//
+// Gated by CONSENSUS_TEST_POSTGRES_URL. On SQLite (or without the env var) it
+// skips — the backend-agnostic structural test above still runs.
+func TestPostgresAgentRolePoolSequencePrivileges(t *testing.T) {
+	pgURL := os.Getenv("CONSENSUS_TEST_POSTGRES_URL")
+	if pgURL == "" {
+		t.Skip("CONSENSUS_TEST_POSTGRES_URL not set; skipping live Postgres sequence-grant regression test")
+	}
+
+	ctx := context.Background()
+	database, err := driver.Open(ctx, db.Config{URL: pgURL})
+	if err != nil {
+		t.Fatalf("failed to connect to Postgres: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	if database.Backend() != db.BackendPostgres {
+		t.Fatalf("CONSENSUS_TEST_POSTGRES_URL names backend %s, want postgres", database.Backend())
+	}
+
+	// Migrations run as the table owner (GRANT requires ownership).
+	adminDB := database
+	if pgdb, ok := database.(*pgpostgres.DB); ok {
+		adminDB = pgdb.AdminDB()
+	}
+	if err := grantAgentRoleSchemaPrivs(ctx, pgURL); err != nil {
+		t.Logf("skip agent_role schema grant (%v) — assuming fresh DB", err)
+	}
+	runner := New(adminDB)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Post-migration pool, so the SET ROLE hook engages (mirrors the table-
+	// privilege test above: the pre-migration pool's first connection predates
+	// CREATE ROLE agent_role).
+	poolDB, err := driver.Open(ctx, db.Config{URL: pgURL})
+	if err != nil {
+		t.Fatalf("failed to open post-migration pool: %v", err)
+	}
+	defer func() { _ = poolDB.Close() }()
+	if who := pgCurrentUser(t, poolDB); who != "agent_role" {
+		t.Fatalf("pool runs as %q, want agent_role — SET ROLE hook did not engage, "+
+			"so this test would prove nothing", who)
+	}
+
+	// (1) Census: has_sequence_privilege('agent_role', <seq>, 'USAGE') must be
+	// true for EVERY sequence in schema public — derived from the catalog.
+	rows, err := adminDB.Query(ctx, `
+		SELECT sequence_name, has_sequence_privilege('agent_role', sequence_name, 'USAGE') AS ok
+		FROM information_schema.sequences
+		WHERE sequence_schema = 'public'
+		ORDER BY sequence_name ASC
+	`)
+	if err != nil {
+		t.Fatalf("sequence census query: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("no sequences in schema public — census is hollow")
+	}
+	unprivileged := 0
+	for _, row := range rows {
+		name, _ := row["sequence_name"].(string)
+		ok, _ := row["ok"].(bool)
+		if !ok {
+			unprivileged++
+			t.Errorf("agent_role lacks USAGE on sequence %s — pool INSERTs drawing from it raise SQLSTATE 42501", name)
+		}
+	}
+	if unprivileged == 0 {
+		t.Logf("✓ agent_role holds USAGE on all %d sequences in schema public", len(rows))
+	}
+
+	// (2) The reported failure, end to end: INSERT INTO memory_events through
+	// the agent_role pool (memory_events has SELECT, INSERT granted in 001; the
+	// id BIGSERIAL is the sequence the reported 42501 names). The app's own RLS
+	// pattern is a transaction + SetSessionContext (SET LOCAL GUC) — the probe
+	// runs inside one and ROLLS BACK, so it leaves zero residue (agent_role has
+	// no DELETE on the append-only ledger, by design).
+	tx, err := poolDB.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("begin probe tx: %v", err)
+	}
+	if err := tx.SetSessionContext(ctx, probeSeqSessionID); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("set RLS session context: %v", err)
+	}
+	if err := tx.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status)
+		VALUES ($1, 'pg-seq-42501-probe', 'deepseek-v4-flash', 'booting')`, probeSeqSessionID); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("seed probe session: %v", err)
+	}
+	var memoryID int64
+	if row, err := tx.QueryRow(ctx, `
+		INSERT INTO memory_events (type, content, session_id, iteration_created)
+		VALUES ('system', 'PG-SEQ-42501 sequence-usage probe', $1, 0)
+		RETURNING id
+	`, probeSeqSessionID); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("INSERT INTO memory_events via agent_role pool (the reported 42501): %v", err)
+	} else if v, ok := row["id"].(int64); !ok || v <= 0 {
+		_ = tx.Rollback()
+		t.Fatalf("INSERT returned id=%v, want int64 > 0", row["id"])
+	} else {
+		memoryID = v
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("rollback probe tx: %v", err)
+	}
+	t.Logf("✓ INSERT INTO memory_events via agent_role pool succeeded (id=%d, memory_events_id_seq drew correctly, rolled back)", memoryID)
+}
+
+// probeSeqSessionID is the isolated RLS session used by
+// TestPostgresAgentRolePoolSequencePrivileges. The probe transaction is rolled
+// back, so no residue survives either way.
+const probeSeqSessionID = "00000000-0000-0000-0000-000000004251"
