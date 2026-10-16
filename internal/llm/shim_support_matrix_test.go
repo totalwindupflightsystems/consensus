@@ -952,6 +952,18 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 		if in := InertThinkingParams(&off); len(in) != 0 {
 			t.Fatalf("parameters are not inert with thinking off: %v", in)
 		}
+		// The documented set is the universe; the per-request resolution reports
+		// the subset this request actually asked for, which is what is dropped
+		// from the body and named at WARN (spec 024 §B2).
+		res := ResolveSamplingParams(SamplingParams{
+			Temperature: 0.7, PresencePenalty: 0.3, FrequencyPenalty: 0.3,
+		}, &on)
+		if strings.Join(res.Dropped, ",") != strings.Join(got, ",") {
+			t.Fatalf("dropped = %v, want the documented set %v", res.Dropped, got)
+		}
+		if res.Temperature != nil || res.PresencePenalty != nil || res.FrequencyPenalty != nil {
+			t.Fatalf("a thinking-mode resolution must not carry wire values: %+v", res)
+		}
 	},
 
 	"B2-TOP-P": func(t *testing.T, fx *shimFixture) {
@@ -966,7 +978,9 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 			{0.5, boolPtr(true), 0.95, true},
 			{0.98, boolPtr(true), 0.98, true},
 			{1.5, boolPtr(true), 1.0, true},
-			{0.5, boolPtr(false), 0, false},
+			// Non-thinking mode: the provider fixes top_p at 1.0 and ignores the
+			// caller's number, so the EFFECTIVE value is what goes on the wire.
+			{0.5, boolPtr(false), 1.0, true},
 		}
 		for _, tc := range cases {
 			got, send := ResolveTopP(tc.requested, tc.thinking)
@@ -989,8 +1003,9 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 		off := false
 		body = callOpenAI(t, openaiTestClient(t, "", nil), requestMessages(t, ex.Request),
 			RequestOptions{TopP: &half, Thinking: &off}, ex)
-		if _, present := body["top_p"]; present {
-			t.Fatalf("top_p sent in non-thinking mode: %s", mustJSON(t, body))
+		if got := body["top_p"]; got != 1.0 {
+			t.Fatalf("top_p on the wire = %v, want the fixed 1.0 in non-thinking mode (the caller's 0.5 is not sent): %s",
+				got, mustJSON(t, body))
 		}
 	},
 

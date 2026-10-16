@@ -49,10 +49,15 @@ type anthropicClient struct {
 	fallbackBaseURL string        // LM Studio fallback URL (empty = disabled)
 
 	// Thinking-mode + tool defaults (spec 024 §B2/§B3), resolved once at
-	// construction and overridable per request.
+	// construction and overridable per request. presencePenalty /
+	// frequencyPenalty are the configured defaults for the two parameters the
+	// provider ignores while it reasons; ResolveSamplingParams decides what
+	// reaches the body.
 	thinking          *bool
 	reasoningEffort   string
 	topP              *float64
+	presencePenalty   float64
+	frequencyPenalty  float64
 	tools             []ToolDefinition
 	toolChoice        string
 	allowReasoningFbk bool
@@ -79,6 +84,8 @@ func NewAnthropicClient(cfg *Config) harness.LLMClient {
 		thinking:          cfg.Thinking,
 		reasoningEffort:   cfg.ReasoningEffort,
 		topP:              cfg.TopP,
+		presencePenalty:   cfg.PresencePenalty,
+		frequencyPenalty:  cfg.FrequencyPenalty,
 		tools:             cfg.Tools,
 		toolChoice:        cfg.ToolChoice,
 		allowReasoningFbk: cfg.AllowReasoningFallback == nil || *cfg.AllowReasoningFallback,
@@ -100,10 +107,17 @@ var _ harness.LLMClient = (*anthropicClient)(nil)
 // (name/description/input_schema) and tool_choice uses the Anthropic vocabulary
 // (none|auto|any|tool).
 type anthropicMessageRequest struct {
-	Model        string                  `json:"model"`
-	MaxTokens    int                     `json:"max_tokens"`
-	Temperature  float64                 `json:"temperature,omitempty"`
-	TopP         *float64                `json:"top_p,omitempty"`
+	Model       string   `json:"model"`
+	MaxTokens   int      `json:"max_tokens"`
+	Temperature float64  `json:"temperature,omitempty"`
+	TopP        *float64 `json:"top_p,omitempty"`
+
+	// Accepted-but-inert while thinking mode is on (spec 024 §B2), so they are
+	// present ONLY for a request that disabled thinking — ResolveSamplingParams
+	// decides, exactly as on the OpenAI-format surface.
+	PresencePenalty  *float64 `json:"presence_penalty,omitempty"`
+	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty"`
+
 	System       []anthropicSystemBlock  `json:"system,omitempty"`
 	Messages     []anthropicMessage      `json:"messages"`
 	Reasoning    *anthropicReasoning     `json:"reasoning,omitempty"`
@@ -247,11 +261,14 @@ func (c *anthropicClient) CallWithOptions(ctx context.Context, messages []harnes
 	startTime := time.Now()
 
 	opts = mergeRequestOptions(RequestOptions{
-		Tools:           c.tools,
-		ToolChoice:      c.toolChoice,
-		Thinking:        c.thinking,
-		ReasoningEffort: c.reasoningEffort,
-		TopP:            c.topP,
+		Tools:            c.tools,
+		ToolChoice:       c.toolChoice,
+		Thinking:         c.thinking,
+		ReasoningEffort:  c.reasoningEffort,
+		TopP:             c.topP,
+		Temperature:      c.temperature,
+		PresencePenalty:  c.presencePenalty,
+		FrequencyPenalty: c.frequencyPenalty,
 	}, opts)
 
 	// The effort vocabulary is mapped, never passed through, and an
@@ -328,22 +345,29 @@ func (c *anthropicClient) buildRequest(messages []harness.Message, opts RequestO
 		}
 	}
 
-	if inert := InertThinkingParams(opts.Thinking); len(inert) > 0 && c.temperature != 0 {
-		slog.Debug("llm: parameters accepted but inert in thinking mode",
-			"params", inert, "model", c.model, "format", "anthropic-messages")
-	}
+	// The same thinking-mode sampling contract as the OpenAI-format surface: the
+	// parameters the provider ignores are dropped from the body and named at WARN
+	// (spec 024 §B2 — the semantics are per thinking mode, not per format).
+	sampling := ResolveSamplingParams(SamplingParams{
+		Temperature:      opts.Temperature,
+		PresencePenalty:  opts.PresencePenalty,
+		FrequencyPenalty: opts.FrequencyPenalty,
+	}, opts.Thinking)
+	logDroppedSamplingParams(sampling.Dropped, c.model, "anthropic-messages")
 
 	return anthropicMessageRequest{
-		Model:        c.model,
-		MaxTokens:    c.maxTokens,
-		Temperature:  c.temperature,
-		TopP:         topP,
-		System:       systemBlocks,
-		Messages:     convMessages,
-		Reasoning:    anthropicReasoningPayload(dial, opts.Thinking),
-		OutputConfig: anthropicOutputConfigPayload(dial, opts.Thinking),
-		Tools:        toAnthropicTools(opts.Tools),
-		ToolChoice:   toAnthropicToolChoice(opts.ToolChoice),
+		Model:            c.model,
+		MaxTokens:        c.maxTokens,
+		Temperature:      wireFloat(sampling.Temperature),
+		TopP:             topP,
+		PresencePenalty:  sampling.PresencePenalty,
+		FrequencyPenalty: sampling.FrequencyPenalty,
+		System:           systemBlocks,
+		Messages:         convMessages,
+		Reasoning:        anthropicReasoningPayload(dial, opts.Thinking),
+		OutputConfig:     anthropicOutputConfigPayload(dial, opts.Thinking),
+		Tools:            toAnthropicTools(opts.Tools),
+		ToolChoice:       toAnthropicToolChoice(opts.ToolChoice),
 	}
 }
 
@@ -542,17 +566,27 @@ func (c *anthropicClient) anthropicFallbackToOpenAI(ctx context.Context, message
 	if err != nil {
 		return nil, err
 	}
+	// The sampling contract follows the thinking mode on THIS path too: the
+	// fallback speaks the OpenAI format, but the rule is per thinking mode, so
+	// the ignored parameters stay out of the fallback body as well.
+	sampling := ResolveSamplingParams(SamplingParams{
+		Temperature:      opts.Temperature,
+		PresencePenalty:  opts.PresencePenalty,
+		FrequencyPenalty: opts.FrequencyPenalty,
+	}, opts.Thinking)
 	reqBody := openaiChatRequest{
-		Model:           c.model,
-		Messages:        toOpenAIMessages(messages, len(opts.Tools) > 0),
-		MaxTokens:       c.maxTokens,
-		Temperature:     c.temperature,
-		TopP:            topPPayload(opts.TopP, opts.Thinking),
-		Stream:          false,
-		Tools:           toOpenAITools(opts.Tools),
-		ToolChoice:      opts.ToolChoice,
-		Thinking:        thinkingPayload(opts.Thinking),
-		ReasoningEffort: effortPayload(dial, opts.Thinking),
+		Model:            c.model,
+		Messages:         toOpenAIMessages(messages, len(opts.Tools) > 0),
+		MaxTokens:        c.maxTokens,
+		Temperature:      wireFloat(sampling.Temperature),
+		TopP:             topPPayload(opts.TopP, opts.Thinking),
+		PresencePenalty:  sampling.PresencePenalty,
+		FrequencyPenalty: sampling.FrequencyPenalty,
+		Stream:           false,
+		Tools:            toOpenAITools(opts.Tools),
+		ToolChoice:       opts.ToolChoice,
+		Thinking:         thinkingPayload(opts.Thinking),
+		ReasoningEffort:  effortPayload(dial, opts.Thinking),
 	}
 
 	url := c.fallbackBaseURL + "/chat/completions"
