@@ -582,3 +582,136 @@ func TestPostgresRepairCircuitBreakersOldShape(t *testing.T) {
 		t.Errorf("expected current_count=4 after conflict update, got %d", got)
 	}
 }
+
+// TestPostgresRLSNonTransactionalPoolQuery is the PG-RLS-42704 regression
+// test: RLS policies that read current_setting('consensus.session_id') used
+// to raise SQLSTATE 42704 on pool connections where the GUC was never set
+// (the harness sets it with SET LOCAL only inside transactions). Migration
+// 027 recreates every affected policy with missing_ok=true, so a
+// non-transactional query over an RLS-protected table via the plain pool
+// must succeed — the policy predicate evaluates to NULL (no rows visible)
+// instead of erroring.
+//
+// Gated by CONSENSUS_TEST_POSTGRES_URL.
+func TestPostgresRLSNonTransactionalPoolQuery(t *testing.T) {
+	pgURL := os.Getenv("CONSENSUS_TEST_POSTGRES_URL")
+	if pgURL == "" {
+		t.Skip("CONSENSUS_TEST_POSTGRES_URL not set; skipping Postgres RLS regression test")
+	}
+
+	ctx := context.Background()
+	database, err := driver.Open(ctx, db.Config{URL: pgURL})
+	if err != nil {
+		t.Fatalf("failed to connect to Postgres: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	adminDB := database
+	if pgdb, ok := database.(*pgpostgres.DB); ok {
+		adminDB = pgdb.AdminDB()
+	}
+	if err := grantAgentRoleSchemaPrivs(ctx, pgURL); err != nil {
+		t.Logf("skip agent_role schema grant (%v) — assuming fresh DB", err)
+	}
+
+	runner := New(adminDB)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Verify the 027 policies actually carry the missing_ok form (guards
+	// against a later migration silently reverting the shape). 001 is
+	// historical and immutable; the LIVE policies come from 027.
+	var migration027 *Migration
+	for i := range runner.migrations {
+		if runner.migrations[i].Version == 27 {
+			migration027 = &runner.migrations[i]
+			break
+		}
+	}
+	if migration027 == nil {
+		t.Fatal("migration 027 is not loaded for Postgres")
+	}
+	// Strip SQL comment lines before pattern checks — the migration header
+	// prose mentions the broken form.
+	var body027 []string
+	for _, line := range strings.Split(migration027.SQL, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "--") {
+			body027 = append(body027, line)
+		}
+	}
+	body027SQL := strings.Join(body027, "\n")
+	if strings.Count(body027SQL, "current_setting('consensus.session_id', true)") == 0 {
+		t.Error("migration 027 must recreate policies with current_setting missing_ok=true")
+	}
+	if strings.Count(body027SQL, "current_setting('consensus.session_id')::UUID") > 0 {
+		t.Error("migration 027 contains a policy without missing_ok (would raise 42704)")
+	}
+
+	// Seed a session via the admin pool (owner, bypasses RLS).
+	const sessionID = "00000000-0000-0000-0000-0000000000c7"
+	if err := adminDB.Exec(ctx,
+		`INSERT INTO model_registry (model_id, tier, max_context, cost_per_m_in, cost_per_m_out, enabled)
+		 VALUES ('rls-regression-model', 1, 8192, 1.0, 2.0, true)
+		 ON CONFLICT (model_id) DO NOTHING`); err != nil {
+		t.Fatalf("seed model_registry: %v", err)
+	}
+	if err := adminDB.Exec(ctx,
+		`INSERT INTO sessions (id, agent_name, model_id, status)
+		 VALUES ($1, 'rls-agent', 'rls-regression-model', 'idle')
+		 ON CONFLICT (id) DO NOTHING`, sessionID); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	// THE regression: a NON-transactional query over an RLS-protected table
+	// via the plain pool (AfterConnect ran SET ROLE agent_role; the session
+	// GUC is never set on this connection). Pre-027 this raised
+	// SQLSTATE 42704 every poll cycle; post-027 the policy predicate is
+	// NULL → 0 rows, no error.
+	//
+	// This mirrors the harness task-claim path (executor.go UPDATE tasks on
+	// the pool) — tools_registry/tool_requests are covered by the same
+	// policy shape in 027.
+	rows, err := database.Query(ctx, `SELECT id FROM tasks WHERE session_id = $1`, sessionID)
+	if err != nil {
+		t.Fatalf("non-transactional pool SELECT over RLS-protected tasks: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("expected 0 visible rows with GUC unset (fail closed), got %d", len(rows))
+	}
+	if _, err := database.Query(ctx, `SELECT 1 FROM tasks LIMIT 1`); err != nil {
+		t.Fatalf("non-transactional pool SELECT with no filter: %v", err)
+	}
+
+	// Unfiltered UPDATE over tasks (harness claim shape, no rows match):
+	// must not error either.
+	if err := database.Exec(ctx, `UPDATE tasks SET status = status WHERE session_id = $1`, sessionID); err != nil {
+		t.Fatalf("non-transactional pool UPDATE over RLS-protected tasks: %v", err)
+	}
+
+	// WITH the GUC set (as inside a harness transaction), the same session's
+	// rows become visible through the pool — prove the policy still filters,
+	// not just "no longer errors".
+	if err := adminDB.Exec(ctx,
+		`INSERT INTO tasks (id, session_id, title, status)
+		 VALUES ('00000000-0000-0000-0000-0000000000c8', $1, 'rls-claim-probe', 'pending')
+		 ON CONFLICT (id) DO NOTHING`, sessionID); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+	tx, err := database.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := tx.SetSessionContext(ctx, sessionID); err != nil {
+		t.Fatalf("set session GUC in tx: %v", err)
+	}
+	rows, err = tx.Query(ctx, `SELECT id FROM tasks WHERE session_id = $1`, sessionID)
+	if err != nil {
+		t.Fatalf("tx SELECT with GUC set: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Errorf("expected 1 visible row with GUC set, got %d", len(rows))
+	}
+	_ = tx.Commit()
+}
