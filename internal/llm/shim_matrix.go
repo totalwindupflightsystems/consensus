@@ -189,6 +189,22 @@ func ShimSupportMatrix() ShimMatrix {
 				Note:     "endpoint path is derived from the base: a /v1 base keeps the SDK spelling, an /anthropic base gets /v1/messages",
 			},
 			{
+				ID: "B1-ANTHROPIC-STREAM", Section: "§B1", Format: "anthropic",
+				Item:     "Anthropic streaming protocol (stream:true → SSE message_start / content_block_start / content_block_delta / content_block_stop / message_delta / message_stop, assembled into the same turn the buffered call returns)",
+				State:    CellSupported,
+				Evidence: []string{EvidenceUnit},
+				Doc:      "docs.anthropic.com/messages-streaming (protocol shapes); no DeepSeek recorded exchange carries SSE frames",
+				Note:     "SHIM-SUPPORT-004 — assembly is delegated to the same buildAnthropicResponse the buffered path uses, so a streamed and a buffered turn agree by construction; TestAnthropicConformance_StreamedAndBufferedTurnsAgree fails if a parallel builder is reintroduced. Malformed streams (missing message_start/message_stop, frame without data, unknown event, delta before its block) fail loudly, never partially assemble — TestAnthropicConformance_MalformedStreamFailsLoudly",
+			},
+			{
+				ID: "B3-ANTHROPIC-STREAM-TOOLUSE", Section: "§B3", Format: "anthropic",
+				Item:     "Anthropic tool-use over the stream (tool_use block assembled from input_json_delta partial_json fragments; tool result echoed as tool_result on the next streamed request)",
+				State:    CellSupported,
+				Evidence: []string{EvidenceUnit, EvidenceLive},
+				Doc:      "docs.anthropic.com/messages-streaming (input_json_delta)",
+				Note:     "SHIM-SUPPORT-004 — the fragments replace the opener's input {} placeholder and concatenate byte-exactly (TestAnthropicConformance_StreamThinkingAndToolUseAssemblesToolCall); the full tool loop runs over the stream in TestAnthropicConformance_ToolUseRoundTripOverStream. The declaration shape itself is live-recorded (B3-TOOLS-ANTHROPIC-SHAPE); the streaming transcripts are protocol fixtures, hence the unit evidence",
+			},
+			{
 				ID: "B1-ANTHROPIC-MODELMAP", Section: "§B1", Format: "anthropic",
 				Item:     "Documented Anthropic model-name mapping (claude-opus* → deepseek-v4-pro, claude-haiku*/claude-sonnet* → deepseek-flash, unsupported → deepseek-flash)",
 				State:    CellSupported,

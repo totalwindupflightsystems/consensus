@@ -150,6 +150,16 @@ type RequestOptions struct {
 	Temperature      float64
 	PresencePenalty  float64
 	FrequencyPenalty float64
+
+	// Stream asks for the provider's streaming (SSE) surface on this request.
+	// False defers to the client Config; both mean "buffered" unless a true
+	// value reaches the wire format client. The Anthropic Messages client
+	// serves it with the SSE protocol (message_start → content_block_delta… →
+	// message_delta → message_stop) and returns the same turn shape a buffered
+	// call returns (SHIM-SUPPORT-004). The OpenAI-format client does not serve
+	// it yet: a true value there is a no-op until that surface grows a stream
+	// path, and the conformance matrix records that state.
+	Stream bool
 }
 
 // ============================================================================
@@ -436,6 +446,9 @@ func mergeRequestOptions(base, opts RequestOptions) RequestOptions {
 	}
 	if opts.ToolChoice == "" {
 		opts.ToolChoice = base.ToolChoice
+	}
+	if !opts.Stream {
+		opts.Stream = base.Stream
 	}
 	if opts.TopP == nil {
 		opts.TopP = base.TopP

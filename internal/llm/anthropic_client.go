@@ -61,6 +61,7 @@ type anthropicClient struct {
 	tools             []ToolDefinition
 	toolChoice        string
 	allowReasoningFbk bool
+	stream            bool // default for the per-request Stream option (SHIM-SUPPORT-004)
 }
 
 // NewAnthropicClient creates a real Anthropic Messages API client.
@@ -89,6 +90,7 @@ func NewAnthropicClient(cfg *Config) harness.LLMClient {
 		tools:             cfg.Tools,
 		toolChoice:        cfg.ToolChoice,
 		allowReasoningFbk: cfg.AllowReasoningFallback == nil || *cfg.AllowReasoningFallback,
+		stream:            cfg.Stream,
 	}
 }
 
@@ -105,12 +107,15 @@ var _ harness.LLMClient = (*anthropicClient)(nil)
 // the thinking toggle is `reasoning.effort` (`none` disables) and the effort
 // dial is `output_config.effort`; tools are declared in the Anthropic shape
 // (name/description/input_schema) and tool_choice uses the Anthropic vocabulary
-// (none|auto|any|tool).
+// (none|auto|any|tool). Stream selects the provider's SSE protocol; the client
+// never sends stream:false, so an unset field means the documented buffered
+// default rather than an explicit refusal of streaming (SHIM-SUPPORT-004).
 type anthropicMessageRequest struct {
 	Model       string   `json:"model"`
 	MaxTokens   int      `json:"max_tokens"`
 	Temperature float64  `json:"temperature,omitempty"`
 	TopP        *float64 `json:"top_p,omitempty"`
+	Stream      bool     `json:"stream,omitempty"`
 
 	// Accepted-but-inert while thinking mode is on (spec 024 §B2), so they are
 	// present ONLY for a request that disabled thinking — ResolveSamplingParams
@@ -257,6 +262,11 @@ func (c *anthropicClient) Call(ctx context.Context, messages []harness.Message) 
 // (spec 024 §B2/§B3). Options resolve against the client Config exactly as the
 // OpenAI-format client resolves them, so one RequestOptions value means the same
 // thing on both surfaces.
+// A request that sets Stream is served by the SSE path: the request carries
+// "stream": true and the turn is assembled from the provider's event sequence
+// (message_start → content_block_delta… → message_delta → message_stop) into
+// the same turn shape Call returns, so a caller cannot tell them apart by the
+// result (SHIM-SUPPORT-004).
 func (c *anthropicClient) CallWithOptions(ctx context.Context, messages []harness.Message, opts RequestOptions) (*harness.LLMResponse, error) {
 	startTime := time.Now()
 
@@ -269,6 +279,7 @@ func (c *anthropicClient) CallWithOptions(ctx context.Context, messages []harnes
 		Temperature:      c.temperature,
 		PresencePenalty:  c.presencePenalty,
 		FrequencyPenalty: c.frequencyPenalty,
+		Stream:           c.stream,
 	}, opts)
 
 	// The effort vocabulary is mapped, never passed through, and an
@@ -285,6 +296,14 @@ func (c *anthropicClient) CallWithOptions(ctx context.Context, messages []harnes
 	}
 
 	reqBody := c.buildRequest(messages, opts, dial)
+
+	// A streaming request is served by the SSE path before any retry loop: a
+	// partially-consumed stream is not retryable the way a buffered request is
+	// (the provider may already have billed the turn), so the stream errors
+	// surface to the caller as-is (SHIM-SUPPORT-004).
+	if opts.Stream {
+		return c.streamAnthropic(ctx, reqBody, startTime)
+	}
 
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
@@ -845,4 +864,365 @@ func extractAnthropicErrorDetail(body []byte) errorDetail {
 	}
 
 	return d
+}
+
+// ============================================================================
+// Streaming (SSE) — Anthropic Messages API
+// ============================================================================
+
+// anthropicStreamEventNames are the stream event types the Anthropic Messages
+// protocol documents for a successful turn (https://docs.anthropic.com/en/api/messages-streaming,
+// provider docs read 2026-10-13). Each name maps to the payload struct that
+// decodes its `data:` frame; the client only requires the four that carry turn
+// state (message_start, content_block_delta, message_delta, message_stop) and
+// treats the remaining documented names as structural (no-op) events, so a
+// provider that adds framing events keeps working.
+//
+//	ax:trace work_item=SHIM-SUPPORT-004 spec=specs/024-shim-support-matrix.md
+const (
+	anthropicEvtMessageStart     = "message_start"
+	anthropicEvtContentBlock     = "content_block_start"
+	anthropicEvtContentBlockDel  = "content_block_delta"
+	anthropicEvtContentBlockStop = "content_block_stop"
+	anthropicEvtMessageDelta     = "message_delta"
+	anthropicEvtMessageStop      = "message_stop"
+	anthropicEvtPing             = "ping"
+)
+
+// anthropicStreamErrorNames are the stream event types that report a mid-stream
+// provider failure. Either carries an error object the client surfaces as a
+// failed call.
+const (
+	anthropicEvtError = "error"
+	anthropicEvtAbort = "aborted"
+)
+
+// anthropicStreamEnvelope is one SSE `event:`/`data:` pair on the wire. The
+// Anthropic protocol documents both fields; a data frame without an event name
+// is malformed for this endpoint and is refused with the payload quoted.
+type anthropicStreamEnvelope struct {
+	Event string          `json:"event"`
+	Data  json.RawMessage `json:"data"`
+}
+
+// anthropicStreamDelta is the delta payload of a content_block_delta frame.
+// Exactly one text-bearing field is set per frame; the deltas accumulate into
+// the content blocks started by message_start / content_block_start.
+type anthropicStreamDelta struct {
+	Type      string `json:"type"`
+	Text      string `json:"text,omitempty"`
+	Thinking  string `json:"thinking,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	Input     string `json:"partial_json,omitempty"`
+}
+
+// anthropicStreamBlock mirrors anthropicContentBlock for the content_block_start
+// frame. It reuses the response type's fields; a separate type keeps the wire
+// shape exact (the stream only carries a block header: type, index and the
+// fields of the block itself).
+type anthropicStreamBlock struct {
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	Thinking  string          `json:"thinking,omitempty"`
+	Signature string          `json:"signature,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+}
+
+// anthropicStreamErrorFrame is the payload of a stream `error` frame: the same
+// error envelope the buffered endpoint returns on a failure status.
+type anthropicStreamErrorFrame struct {
+	Type  string                     `json:"type"`
+	Error *anthropicStreamErrorShape `json:"error,omitempty"`
+}
+
+// anthropicStreamErrorShape is the inner error object of an error frame.
+type anthropicStreamErrorShape struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// anthropicStreamAssembler accumulates an Anthropic SSE stream into the same
+// turn the non-streaming Call returns. It is deliberately provider-shape-local:
+// the final assembly is delegated to buildAnthropicResponse, so a streamed turn
+// and a buffered turn are identical by construction, never by parallel logic.
+type anthropicStreamAssembler struct {
+	msg       anthropicMessageResponse
+	blocks    map[int]*anthropicContentBlock
+	startTime time.Time
+	started   bool
+	stopped   bool
+}
+
+func newAnthropicStreamAssembler(startTime time.Time) *anthropicStreamAssembler {
+	return &anthropicStreamAssembler{blocks: map[int]*anthropicContentBlock{}, startTime: startTime}
+}
+
+// addDelta applies one content_block_delta frame to the block it names.
+// Unknown delta types fail loudly: a silently dropped delta would produce a
+// turn that looks complete and is not.
+func (a *anthropicStreamAssembler) addDelta(index int, d anthropicStreamDelta) error {
+	blk, ok := a.blocks[index]
+	if !ok {
+		return fmt.Errorf("llm: anthropic stream delta for block %d before its content_block_start", index)
+	}
+	switch d.Type {
+	case "text_delta":
+		blk.Text += d.Text
+	case "input_json_delta":
+		// The provider opens a tool_use block with input {} and streams the
+		// object as partial_json fragments. The opener's {} is a placeholder:
+		// the FIRST fragment replaces it, later fragments concatenate onto the
+		// accumulated bytes (the fragments together ARE the object).
+		if string(blk.Input) == "{}" {
+			blk.Input = json.RawMessage(d.Input)
+		} else {
+			blk.Input = append(blk.Input, d.Input...)
+		}
+	case "thinking_delta":
+		blk.Thinking += d.Thinking
+	case "signature_delta":
+		blk.Signature += d.Signature
+	default:
+		return fmt.Errorf("llm: anthropic stream carried an unsupported delta type %q", d.Type)
+	}
+	return nil
+}
+
+// finalize collapses the accumulated blocks into the provider response shape
+// and builds the harness turn through the same path Call uses.
+func (a *anthropicStreamAssembler) finalize(c *anthropicClient) (*harness.LLMResponse, error) {
+	content := make([]anthropicContentBlock, 0, len(a.blocks))
+	for i := 0; i < len(a.blocks); i++ {
+		content = append(content, *a.blocks[i])
+	}
+	a.msg.Content = content
+	a.msg.Type = "message"
+	a.msg.Role = "assistant"
+	return c.buildAnthropicResponse(&a.msg, a.startTime)
+}
+
+// parseAnthropicSSEFrames splits an SSE byte stream into event/data envelopes.
+// It tolerates CRLF and LF separators and strips one leading space per SSE
+// field (the format's documented parsing rule). A frame without a `data:` field
+// is malformed and is refused with the offending frame quoted, because a
+// silently skipped frame would leave the assembled turn missing whatever the
+// frame carried.
+func parseAnthropicSSEFrames(body []byte) ([]anthropicStreamEnvelope, error) {
+	var frames []anthropicStreamEnvelope
+	var event string
+	var data []string
+	inFrame := false
+	flush := func() error {
+		if !inFrame {
+			return nil
+		}
+		if event == "" {
+			return fmt.Errorf("llm: anthropic SSE frame without an event name (data=%q)",
+				truncateStr(strings.Join(data, "\n"), 200))
+		}
+		if len(data) == 0 {
+			return fmt.Errorf("llm: anthropic SSE frame %q carries no data", event)
+		}
+		frames = append(frames, anthropicStreamEnvelope{
+			Event: event,
+			Data:  json.RawMessage(strings.Join(data, "\n")),
+		})
+		event = ""
+		data = nil
+		inFrame = false
+		return nil
+	}
+	for _, rawLine := range strings.Split(string(body), "\n") {
+		line := strings.TrimSuffix(rawLine, "\r")
+		switch {
+		case line == "":
+			if err := flush(); err != nil {
+				return nil, err
+			}
+		case strings.HasPrefix(line, ":"):
+			// SSE comment / keep-alive: ignored.
+		case strings.HasPrefix(line, "event:"):
+			inFrame = true
+			event = strings.TrimPrefix(strings.TrimPrefix(line, "event:"), " ")
+		case strings.HasPrefix(line, "data:"):
+			inFrame = true
+			data = append(data, strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
+		default:
+			return nil, fmt.Errorf("llm: anthropic SSE frame carries an unrecognized line %q", truncateStr(line, 120))
+		}
+	}
+	if err := flush(); err != nil {
+		return nil, err
+	}
+	return frames, nil
+}
+
+// decodeAnthropicStreamEvent decodes one frame's data payload for the event
+// types that carry turn state. The frame struct is the wire truth: `type` names
+// the event, `index` the block a delta applies to, `message`/`delta`/`block`
+// the payload objects the documented protocol defines.
+type anthropicStreamFrame struct {
+	Type    string                    `json:"type"`
+	Index   int                       `json:"index"`
+	Delta   *anthropicStreamDelta     `json:"delta,omitempty"`
+	Message *anthropicMessageResponse `json:"message,omitempty"`
+	Block   *anthropicStreamBlock     `json:"content_block,omitempty"`
+	Usage   *anthropicUsage           `json:"usage,omitempty"`
+}
+
+// streamAnthropic consumes an SSE body and assembles the turn.
+func (c *anthropicClient) streamAnthropic(ctx context.Context, reqBody anthropicMessageRequest, startTime time.Time) (*harness.LLMResponse, error) {
+	// The request reaching this path resolved opts.Stream already (the dispatch
+	// in CallWithOptions); the flag goes on the wire here so the marker lives
+	// with the body builder, not the caller.
+	reqBody.Stream = true
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("llm: anthropic stream marshal request: %w", err)
+	}
+
+	url := anthropicMessagesURL(c.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("llm: anthropic stream create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	slog.Info("llm: calling anthropic (streaming)",
+		"model", c.model,
+		"url", url,
+		"system_blocks", len(reqBody.System),
+		"messages", len(reqBody.Messages),
+		"tools", len(reqBody.Tools),
+		"cache_enabled", c.enableCache,
+	)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("llm: anthropic stream http request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= 400 {
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("llm: anthropic stream read error response: %w", err)
+		}
+		ed := extractAnthropicErrorDetail(respBytes)
+		msg := ed.actionableError(resp.StatusCode)
+		slog.Error(msg, "status", resp.StatusCode, "detail", ed)
+		return nil, fmt.Errorf("%s", msg)
+	}
+
+	assembler := newAnthropicStreamAssembler(startTime)
+	// The body is consumed as bytes and framed by parseAnthropicSSEFrames: SSE
+	// event/data framing is line-based text, so a JSON decoder cannot read it,
+	// and one strict parser is the single place a malformed frame is refused.
+	// The stream is already fully produced server-side once the client sees the
+	// bytes (the endpoint returns a complete transcript, it does not pace one),
+	// so this consumes no incremental behavior a chunked reader would expose.
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("llm: anthropic stream read body: %w", err)
+	}
+	frames, err := parseAnthropicSSEFrames(raw)
+	if err != nil {
+		return nil, err
+	}
+	for _, env := range frames {
+		if len(env.Data) == 0 {
+			return nil, fmt.Errorf("llm: anthropic stream frame %q carries no data", env.Event)
+		}
+
+		switch env.Event {
+		case anthropicEvtMessageStart:
+			var frame anthropicStreamFrame
+			if err := json.Unmarshal(env.Data, &frame); err != nil {
+				return nil, fmt.Errorf("llm: anthropic stream parse %s: %w", env.Event, err)
+			}
+			if frame.Message == nil {
+				return nil, fmt.Errorf("llm: anthropic stream %s frame carried no message", env.Event)
+			}
+			assembler.msg = *frame.Message
+			assembler.started = true
+		case anthropicEvtContentBlock:
+			var frame anthropicStreamFrame
+			if err := json.Unmarshal(env.Data, &frame); err != nil {
+				return nil, fmt.Errorf("llm: anthropic stream parse %s: %w", env.Event, err)
+			}
+			if frame.Block == nil {
+				return nil, fmt.Errorf("llm: anthropic stream %s frame carried no content_block", env.Event)
+			}
+			blk := &anthropicContentBlock{
+				Type:      frame.Block.Type,
+				Text:      frame.Block.Text,
+				Thinking:  frame.Block.Thinking,
+				Signature: frame.Block.Signature,
+				ID:        frame.Block.ID,
+				Name:      frame.Block.Name,
+				Input:     frame.Block.Input,
+			}
+			assembler.blocks[frame.Index] = blk
+		case anthropicEvtContentBlockDel:
+			var frame anthropicStreamFrame
+			if err := json.Unmarshal(env.Data, &frame); err != nil {
+				return nil, fmt.Errorf("llm: anthropic stream parse %s: %w", env.Event, err)
+			}
+			if frame.Delta == nil {
+				return nil, fmt.Errorf("llm: anthropic stream %s frame carried no delta", env.Event)
+			}
+			if err := assembler.addDelta(frame.Index, *frame.Delta); err != nil {
+				return nil, err
+			}
+		case anthropicEvtMessageDelta:
+			var frame anthropicStreamFrame
+			if err := json.Unmarshal(env.Data, &frame); err != nil {
+				return nil, fmt.Errorf("llm: anthropic stream parse %s: %w", env.Event, err)
+			}
+			if frame.Usage != nil {
+				if frame.Usage.InputTokens != 0 {
+					assembler.msg.Usage.InputTokens = frame.Usage.InputTokens
+				}
+				if frame.Usage.OutputTokens != 0 {
+					assembler.msg.Usage.OutputTokens = frame.Usage.OutputTokens
+				}
+				if frame.Usage.CacheCreationInputTokens != 0 {
+					assembler.msg.Usage.CacheCreationInputTokens = frame.Usage.CacheCreationInputTokens
+				}
+				if frame.Usage.CacheReadInputTokens != 0 {
+					assembler.msg.Usage.CacheReadInputTokens = frame.Usage.CacheReadInputTokens
+				}
+			}
+		case anthropicEvtMessageStop:
+			assembler.stopped = true
+		case anthropicEvtPing, anthropicEvtContentBlockStop:
+			// Structural events: no turn state.
+		case anthropicEvtError, anthropicEvtAbort:
+			// The error envelope is the API error shape: a top-level object
+			// whose `error` field carries {type, message}.
+			var e anthropicStreamErrorFrame
+			if err := json.Unmarshal(env.Data, &e); err != nil {
+				return nil, fmt.Errorf("llm: anthropic stream %s frame: %w", env.Event, err)
+			}
+			if e.Error == nil || e.Error.Message == "" {
+				return nil, fmt.Errorf("llm: anthropic stream %s frame carried no error detail: %s", env.Event, truncateStr(string(env.Data), 200))
+			}
+			return nil, fmt.Errorf("llm: anthropic stream error (%s): %s", e.Error.Type, e.Error.Message)
+		default:
+			return nil, fmt.Errorf("llm: anthropic stream carried an unknown event type %q", env.Event)
+		}
+	}
+
+	if !assembler.started {
+		return nil, fmt.Errorf("llm: anthropic stream ended without a message_start frame")
+	}
+	if !assembler.stopped {
+		return nil, fmt.Errorf("llm: anthropic stream ended before message_stop")
+	}
+	return assembler.finalize(c)
 }
