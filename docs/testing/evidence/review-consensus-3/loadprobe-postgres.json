@@ -1,0 +1,78 @@
+{
+  "probe": "consensus-loadprobe",
+  "generated_at": "2026-10-16T02:03:12Z",
+  "base_url": "http://127.0.0.1:8090",
+  "backend": "postgres",
+  "turns_per_session": 50,
+  "levels": [
+    {
+      "concurrency": 1,
+      "turns_per_session": 50,
+      "sessions_created": 0,
+      "session_create_errors": 1,
+      "session_create_error": "http 400 INVALID_REQUEST: failed to create session: postgres: exec: ERROR: new row violates row-level security policy for table \"sessions\" (SQLSTATE 42501)",
+      "total_turns": 0,
+      "successful_turns": 0,
+      "error_turns": 0,
+      "error_rate": 1,
+      "duration_ms": 0,
+      "throughput_turns_per_sec": 0,
+      "latency_ms": {
+        "min": 0,
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+      },
+      "errors_by_status": {},
+      "latency_samples_ms": []
+    },
+    {
+      "concurrency": 4,
+      "turns_per_session": 50,
+      "sessions_created": 0,
+      "session_create_errors": 4,
+      "session_create_error": "http 400 INVALID_REQUEST: failed to create session: postgres: exec: ERROR: new row violates row-level security policy for table \"sessions\" (SQLSTATE 42501)",
+      "total_turns": 0,
+      "successful_turns": 0,
+      "error_turns": 0,
+      "error_rate": 1,
+      "duration_ms": 0,
+      "throughput_turns_per_sec": 0,
+      "latency_ms": {
+        "min": 0,
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+      },
+      "errors_by_status": {},
+      "latency_samples_ms": []
+    },
+    {
+      "concurrency": 16,
+      "turns_per_session": 50,
+      "sessions_created": 0,
+      "session_create_errors": 16,
+      "session_create_error": "http 400 INVALID_REQUEST: failed to create session: postgres: exec: ERROR: new row violates row-level security policy for table \"sessions\" (SQLSTATE 42501)",
+      "total_turns": 0,
+      "successful_turns": 0,
+      "error_turns": 0,
+      "error_rate": 1,
+      "duration_ms": 0,
+      "throughput_turns_per_sec": 0,
+      "latency_ms": {
+        "min": 0,
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+      },
+      "errors_by_status": {},
+      "latency_samples_ms": []
+    }
+  ]
+}
