@@ -147,7 +147,7 @@ func newMessageResponseTestServer(t *testing.T) (*Server, *httptest.Server, db.D
 		t.Fatalf("seed response test API key: %v", err)
 	}
 
-	service := NewServiceAdapter(api.NewService(conn, nil))
+	service := NewServiceAdapter(api.NewService(conn, nil, nil))
 	s := NewServer(conn, "test-key", nil, service)
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)

@@ -377,7 +377,7 @@ func newDiffStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
 		}
 	}
 
-	s := NewServer(conn, "test-key", nil, NewServiceAdapter(api.NewService(conn, nil)))
+	s := NewServer(conn, "test-key", nil, NewServiceAdapter(api.NewService(conn, nil, nil)))
 	s.skipAuth = true
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)

@@ -1309,3 +1309,56 @@ tasks:
   status: complete
   created_at: '2026-10-14T05:16:47.019525+00:00'
   completed_at: '2026-10-14T05:26:45.063913+00:00'
+- id: shim-support-003
+  title: 'DeepSeek thinking-mode parameter contract (recovery: landed d4a51e3/7a12e10,
+    never judged)'
+  criteria:
+  - Sampling contract tests (TestSamplingContract_*) exist in internal/llm and pass
+    on merged main; inert params dropped under thinking mode per specs/024 section
+    B2
+  status: complete
+  created_at: '2026-10-16T14:12:10.685515+00:00'
+  completed_at: '2026-10-16T14:12:15.863006+00:00'
+- id: review-consensus-8
+  title: 'Uncovered surfaces review: approvals/quarantine/dashboard/CLI (recovery:
+    landed aff02f0, never judged)'
+  criteria:
+  - Evidence tree docs/testing/evidence/review-consensus-8 exists on merged main with
+    findings.md and raw captures; criteria 2-4 of the row are met by committed evidence
+  status: complete
+  created_at: '2026-10-16T14:12:11.046041+00:00'
+  completed_at: '2026-10-16T14:12:48.024331+00:00'
+- id: review-consensus-3
+  title: 'Postgres load probe: N concurrent sessions, throughput/p95/error rate at
+    2+ concurrency levels'
+  criteria:
+  - 'PASS CRITERIA: (1) published load probe running N concurrent sessions against
+    POSTGRES backend; (2) reported throughput, p95 turn latency and error rate at
+    two or more concurrency levels; (3) raw output committed as evidence; (4) any
+    ceiling found becomes its own row with a fix'
+  status: complete
+  created_at: '2026-10-16T14:13:30.253912+00:00'
+  completed_at: '2026-10-16T14:13:30.755266+00:00'
+- id: pg-seq-42501
+  title: 'agent_role has no USAGE on any sequence: every POST message fails 42501
+    on memory_events_id_seq'
+  criteria:
+  - Migration 030 grants USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO agent_role
+    and is applied on a fresh Postgres DB
+  - has_sequence_privilege('agent_role', <seq>, 'USAGE') is true for every sequence
+    in schema public on a fresh migrated DB
+  - INSERT INTO memory_events through an agent_role connection succeeds (no SQLSTATE
+    42501)
+  - A PG-gated regression test in internal/migrate/postgres_grants_test.go asserts
+    sequence privileges from the catalog and passes live; skip path works without
+    CONSENSUS_TEST_POSTGRES_URL
+  status: complete
+  created_at: '2026-10-16T15:57:06.778920+00:00'
+  completed_at: '2026-10-16T16:43:27.982092+00:00'
+- id: pg-llm-42501
+  title: Fix RLS blocking session-create on API path
+  criteria:
+  - 'Tier1: build+vets; Tier2: session create works on Postgres via adminDB pool,
+    existing tests green'
+  status: in_progress
+  created_at: '2026-10-16T23:28:00.706475+00:00'

@@ -122,7 +122,7 @@ func NewServer(cfg ServerConfig) *Server {
 		admindb:       adminDB,
 		addr:          cfg.Addr,
 		events:        NewEventBus(),
-		svc:           NewService(cfg.DB, nil), // events set below
+		svc:           NewService(cfg.DB, cfg.AdminDB, nil), // events set below
 		hitl:          cfg.HITL,
 		quarantineSvc: cfg.QuarantineService,
 		apiRates:      resolveRates(cfg),

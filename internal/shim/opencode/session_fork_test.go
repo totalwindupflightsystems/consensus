@@ -141,7 +141,7 @@ func TestSessionForkCreatesChildSession(t *testing.T) {
 		t.Errorf("GET /session/%s after fork: got %d, want 200. Body: %s", childID, status, raw)
 	}
 
-	got, err := api.NewService(conn, nil).Sessions.GetSession(ctx, childID)
+	got, err := api.NewService(conn, nil, nil).Sessions.GetSession(ctx, childID)
 	if err != nil {
 		t.Fatalf("native GetSession(%s) after fork: %v", childID, err)
 	}

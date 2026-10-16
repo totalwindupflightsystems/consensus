@@ -37,9 +37,12 @@ type Service struct {
 }
 
 // NewService creates the service layer with all sub-services.
-func NewService(dbase db.DB, events *EventBus) *Service {
+// adminDB is an optional pool that bypasses SET ROLE / RLS (the Postgres
+// admin pool). When nil, writes fall back to dbase for SQLite and
+// single-pool deployments.
+func NewService(dbase db.DB, adminDB db.DB, events *EventBus) *Service {
 	return &Service{
-		Sessions: &SessionService{db: dbase, events: events},
+		Sessions: &SessionService{db: dbase, adminDB: adminDB, events: events},
 		Messages: &MessageService{db: dbase, events: events},
 		Config:   &ConfigService{db: dbase},
 		Tools:    &ToolsService{db: dbase},
@@ -55,6 +58,12 @@ func NewService(dbase db.DB, events *EventBus) *Service {
 type SessionService struct {
 	db     db.DB
 	events *EventBus
+
+	// adminDB is the admin/owner pool that bypasses SET ROLE / RLS.
+	// Session-scoped writes (CreateSession) use this pool so that
+	// RLS policies on the sessions table do not block admin-path inserts.
+	// When nil (SQLite path), db is used for everything.
+	adminDB db.DB
 
 	// modelSyncer optionally enables auto-registration of unrecognized models
 	// from models.dev during session creation. nil = disabled.
@@ -133,12 +142,18 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// Insert session (with optional project_id for scope)
+	// Insert session (with optional project_id for scope).
+	// Use adminDB (no SET ROLE) to bypass RLS on the sessions table.
+	// When adminDB is nil (SQLite path), fall back to db.
+	writeDB := svc.db
+	if svc.adminDB != nil {
+		writeDB = svc.adminDB
+	}
 	var projectIDArg any
 	if input.ProjectID != "" {
 		projectIDArg = input.ProjectID
 	}
-	err := svc.db.Exec(ctx,
+	err := writeDB.Exec(ctx,
 		`INSERT INTO sessions (id, agent_name, model_id, status, goal, context_budget, budget_limit_cents, project_id, heartbeat_at, created_at)
 		 VALUES ($1, $2, $3, 'booting', $4, $5, $6, $7, $8, $9)`,
 		sessionID, input.AgentName, modelID, input.Goal, contextBudget, input.BudgetLimitCents, projectIDArg, now, now,
@@ -147,15 +162,15 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	// Insert API key
+	// Insert API key — same write pool as session insert.
 	keyID := newUUID()
-	err = svc.db.Exec(ctx,
+	err = writeDB.Exec(ctx,
 		`INSERT INTO api_keys (id, key_hash, key_prefix, scope, session_id, created_at)
 		 VALUES ($1, $2, $3, 'session', $4, $5)`,
 		keyID, keyHash, keyPrefix, sessionID, now,
 	)
 	if err != nil {
-		_ = svc.db.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
+		_ = writeDB.Exec(ctx, `UPDATE sessions SET status = 'failed' WHERE id = $1`, sessionID)
 		return nil, fmt.Errorf("failed to create api key: %w", err)
 	}
 
