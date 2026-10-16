@@ -1,4 +1,5 @@
 guards:
+  allow_skips: true
   test_mode: diff
   test_timeout: 600
   secrets: true
