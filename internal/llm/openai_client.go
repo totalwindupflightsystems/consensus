@@ -44,9 +44,13 @@ type openaiClient struct {
 	fallbackBaseURL string        // LM Studio fallback URL (empty = disabled)
 
 	// Thinking-mode defaults (spec 024 §B2), resolved once at construction.
-	thinking          *bool
-	reasoningEffort   string
-	topP              *float64
+	thinking        *bool
+	reasoningEffort string
+	topP            *float64
+	// presencePenalty / frequencyPenalty are the configured defaults for the
+	// two documented-ignored parameters (spec 024 §B2).
+	presencePenalty   float64
+	frequencyPenalty  float64
 	tools             []ToolDefinition
 	toolChoice        string
 	allowReasoningFbk bool
@@ -81,6 +85,8 @@ func NewOpenAIClient(cfg *Config) harness.LLMClient {
 		thinking:          cfg.Thinking,
 		reasoningEffort:   cfg.ReasoningEffort,
 		topP:              cfg.TopP,
+		presencePenalty:   cfg.PresencePenalty,
+		frequencyPenalty:  cfg.FrequencyPenalty,
 		tools:             cfg.Tools,
 		toolChoice:        cfg.ToolChoice,
 		allowReasoningFbk: cfg.AllowReasoningFallback == nil || *cfg.AllowReasoningFallback,
@@ -134,6 +140,16 @@ type RequestOptions struct {
 	// semantics (spec 024 §B2): thinking mode only, clamped to ≥0.95; ignored
 	// entirely in non-thinking mode. nil defers to the client Config.
 	TopP *float64
+
+	// Temperature, PresencePenalty and FrequencyPenalty are the per-request
+	// sampling surface. Zero defers to the client Config; a non-zero value is
+	// subject to the thinking-mode contract (spec 024 §B2): while thinking is
+	// on the provider accepts all three and honours NONE of them, so the client
+	// drops them from the request and names them at WARN. See
+	// ResolveSamplingParams.
+	Temperature      float64
+	PresencePenalty  float64
+	FrequencyPenalty float64
 }
 
 // ============================================================================
@@ -190,6 +206,10 @@ func MapReasoningEffort(effort string) (string, error) {
 // than silently logged so a caller — or the conformance matrix — can see the
 // set the provider ignores. Nil thinking means "not configured", and the
 // provider's default is thinking ON, so the parameters are inert there too.
+//
+// This is the DOCUMENTED set. The subset a particular request actually asked
+// for — which is what gets dropped from the body and named at WARN — comes back
+// from ResolveSamplingParams as SamplingResolution.Dropped.
 func InertThinkingParams(thinking *bool) []string {
 	if thinking != nil && !*thinking {
 		return nil
@@ -203,26 +223,129 @@ func InertThinkingParams(thinking *bool) []string {
 //   - thinking mode: the effective range is 0.95–1.0 and anything below 0.95 is
 //     treated as 0.95, so the value is clamped (and reported as sent).
 //   - non-thinking mode (explicitly disabled): the provider fixes top_p at 1.0
-//     and ignores the caller's value, so nothing is sent — sending a value there
-//     would be tuning a knob that does not exist.
+//     and ignores the caller's value, so that FIXED value is what is sent. The
+//     caller's number is never forwarded there: putting it on the wire would
+//     imply a knob that does not exist on that path.
 //   - unconfigured (>0 was never asked for): nothing is sent.
 //
-// The provider clamps silently, which is exactly why the clamp happens here
-// where it is visible in the outgoing body.
+// The provider clamps silently, which is exactly why the semantics are resolved
+// here, where they are visible in the outgoing body and assertable in a test.
 func ResolveTopP(requested float64, thinking *bool) (float64, bool) {
 	if requested <= 0 {
 		return 0, false
 	}
 	if thinking != nil && !*thinking {
-		return 0, false
+		return fixedNonThinkingTopP, true
 	}
-	if requested < 0.95 {
-		return 0.95, true
+	if requested < thinkingTopPFloor {
+		return thinkingTopPFloor, true
 	}
 	if requested > 1.0 {
 		return 1.0, true
 	}
 	return requested, true
+}
+
+const (
+	// thinkingTopPFloor is the documented floor on top_p in thinking mode
+	// (spec 024 §B2: a value below 0.95 is treated as 0.95).
+	thinkingTopPFloor = 0.95
+
+	// fixedNonThinkingTopP is the value the provider fixes top_p at when
+	// thinking mode is off (spec 024 §B2). It is sent explicitly so the request
+	// body states the effective value instead of leaving the caller's ignored
+	// number on the wire.
+	fixedNonThinkingTopP = 1.0
+)
+
+// SamplingParams is the caller's requested sampling surface for one request.
+// A zero field means "not configured" — which is also the provider's own default
+// for all three, so an unconfigured client sends none of them.
+type SamplingParams struct {
+	Temperature      float64
+	PresencePenalty  float64
+	FrequencyPenalty float64
+}
+
+// SamplingResolution is the sampling surface as it will appear ON THE WIRE for
+// one request (spec 024 §B2). Use wireFloat for the temperature-style fields.
+//
+// A nil field is not sent at all. Dropped names the requested parameters that
+// were removed because the provider documents them as accepted-but-inert while
+// thinking mode is on: it is what logDroppedSamplingParams reports, so a caller
+// who tried to tune one learns it had no effect instead of believing it did.
+//
+// Invariant (asserted by TestSamplingContract_DroppedIsSubsetOfInertSet):
+// every name in Dropped is a member of InertThinkingParams(thinking).
+type SamplingResolution struct {
+	Temperature      *float64
+	PresencePenalty  *float64
+	FrequencyPenalty *float64
+	Dropped          []string
+}
+
+// ResolveSamplingParams encodes the documented thinking-mode sampling contract
+// (spec 024 §B2).
+//
+// Thinking ON — explicitly enabled, or unconfigured, because the provider's
+// documented default is on: temperature, presence_penalty and frequency_penalty
+// are accepted with no error and NO effect. They are therefore dropped from the
+// request instead of being sent as if they mattered, and the dropped names are
+// reported so the drop is visible rather than silent. That is the whole point:
+// the no-op is explicit.
+//
+// Thinking explicitly OFF: the same three parameters ARE honoured (the provider
+// only ignores them while it is reasoning), so they pass through unchanged.
+func ResolveSamplingParams(p SamplingParams, thinking *bool) SamplingResolution {
+	if thinking != nil && !*thinking {
+		return SamplingResolution{
+			Temperature:      optionalFloat(p.Temperature),
+			PresencePenalty:  optionalFloat(p.PresencePenalty),
+			FrequencyPenalty: optionalFloat(p.FrequencyPenalty),
+		}
+	}
+	var dropped []string
+	if p.Temperature != 0 {
+		dropped = append(dropped, "temperature")
+	}
+	if p.PresencePenalty != 0 {
+		dropped = append(dropped, "presence_penalty")
+	}
+	if p.FrequencyPenalty != 0 {
+		dropped = append(dropped, "frequency_penalty")
+	}
+	return SamplingResolution{Dropped: dropped}
+}
+
+// optionalFloat turns a requested value into an optional wire value: zero means
+// "not configured" and is not sent.
+func optionalFloat(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	return &v
+}
+
+// wireFloat dereferences an optional wire value, treating nil as unset. The wire
+// structs use `omitempty`, so an unset value and a zero value produce the same
+// bytes.
+func wireFloat(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+// logDroppedSamplingParams surfaces a thinking-mode drop at WARN. A parameter the
+// provider ignores must never disappear silently: the caller who set it has to
+// be able to see that it was not sent, and why (spec 024 §B2 — the parameters
+// are named so nobody tunes them blind).
+func logDroppedSamplingParams(dropped []string, model, format string) {
+	if len(dropped) == 0 {
+		return
+	}
+	slog.Warn("llm: sampling parameters not sent — inert while thinking mode is on (spec 024 §B2)",
+		"params", dropped, "model", model, "format", format)
 }
 
 // ValidateToolChoice refuses the tool_choice values the provider rejects while
@@ -317,6 +440,15 @@ func mergeRequestOptions(base, opts RequestOptions) RequestOptions {
 	if opts.TopP == nil {
 		opts.TopP = base.TopP
 	}
+	if opts.Temperature == 0 {
+		opts.Temperature = base.Temperature
+	}
+	if opts.PresencePenalty == 0 {
+		opts.PresencePenalty = base.PresencePenalty
+	}
+	if opts.FrequencyPenalty == 0 {
+		opts.FrequencyPenalty = base.FrequencyPenalty
+	}
 	return opts
 }
 
@@ -325,11 +457,14 @@ func mergeRequestOptions(base, opts RequestOptions) RequestOptions {
 // comes back from here is exactly what goes on the wire.
 func (c *openaiClient) resolveOptions(opts RequestOptions) RequestOptions {
 	return mergeRequestOptions(RequestOptions{
-		Thinking:        c.thinking,
-		ReasoningEffort: c.reasoningEffort,
-		Tools:           c.tools,
-		ToolChoice:      c.toolChoice,
-		TopP:            c.topP,
+		Thinking:         c.thinking,
+		ReasoningEffort:  c.reasoningEffort,
+		Tools:            c.tools,
+		ToolChoice:       c.toolChoice,
+		TopP:             c.topP,
+		Temperature:      c.temperature,
+		PresencePenalty:  c.presencePenalty,
+		FrequencyPenalty: c.frequencyPenalty,
 	}, opts)
 }
 
@@ -380,6 +515,12 @@ type openaiChatRequest struct {
 	TopP           *float64            `json:"top_p,omitempty"`
 	ResponseFormat *openaiResponseFmt  `json:"response_format,omitempty"`
 	Stream         bool                `json:"stream"`
+
+	// The provider documents these two as accepted-but-inert while thinking
+	// mode is on (spec 024 §B2), so they are present in the body ONLY for a
+	// request that disabled thinking; ResolveSamplingParams decides.
+	PresencePenalty  *float64 `json:"presence_penalty,omitempty"`
+	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty"`
 
 	// Provider-native tools (spec 024 §B3). Their presence on the wire is what
 	// decides the CoT round-trip (§B2): with tools, every prior turn's
@@ -543,13 +684,15 @@ func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.M
 		return nil, err
 	}
 
-	// The provider accepts these in thinking mode with no effect at all
-	// (spec 024 §B2). Naming them keeps a silent no-op visible so nobody
-	// believes they tuned a knob that does not exist.
-	if inert := InertThinkingParams(opts.Thinking); len(inert) > 0 && c.temperature != 0 {
-		slog.Debug("llm: parameters accepted but inert in thinking mode",
-			"params", inert, "model", c.model)
-	}
+	// Sampling parameters the provider accepts with NO effect in thinking mode
+	// are dropped here rather than sent as if they mattered, and the drop is
+	// named at WARN so nobody tunes them blind (spec 024 §B2).
+	sampling := ResolveSamplingParams(SamplingParams{
+		Temperature:      opts.Temperature,
+		PresencePenalty:  opts.PresencePenalty,
+		FrequencyPenalty: opts.FrequencyPenalty,
+	}, opts.Thinking)
+	logDroppedSamplingParams(sampling.Dropped, c.model, "openai-chat-completions")
 
 	// Build request payload. Skip response_format for local providers (LM Studio,
 	// Ollama) that don't support structured output constraints on all models.
@@ -561,17 +704,19 @@ func (c *openaiClient) CallWithOptions(ctx context.Context, messages []harness.M
 		respFmt = nil
 	}
 	reqBody := openaiChatRequest{
-		Model:           c.model,
-		Messages:        toOpenAIMessages(messages, len(opts.Tools) > 0),
-		MaxTokens:       c.maxTokens,
-		Temperature:     c.temperature,
-		TopP:            topPPayload(opts.TopP, opts.Thinking),
-		ResponseFormat:  respFmt,
-		Stream:          false,
-		Tools:           toOpenAITools(opts.Tools),
-		ToolChoice:      opts.ToolChoice,
-		Thinking:        thinkingPayload(opts.Thinking),
-		ReasoningEffort: effortPayload(dial, opts.Thinking),
+		Model:            c.model,
+		Messages:         toOpenAIMessages(messages, len(opts.Tools) > 0),
+		MaxTokens:        c.maxTokens,
+		Temperature:      wireFloat(sampling.Temperature),
+		TopP:             topPPayload(opts.TopP, opts.Thinking),
+		PresencePenalty:  sampling.PresencePenalty,
+		FrequencyPenalty: sampling.FrequencyPenalty,
+		ResponseFormat:   respFmt,
+		Stream:           false,
+		Tools:            toOpenAITools(opts.Tools),
+		ToolChoice:       opts.ToolChoice,
+		Thinking:         thinkingPayload(opts.Thinking),
+		ReasoningEffort:  effortPayload(dial, opts.Thinking),
 	}
 
 	// Send with retry + backoff

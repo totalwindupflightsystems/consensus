@@ -161,6 +161,14 @@ func ShimSupportMatrix() ShimMatrix {
 				ExpectedResponseHandling: "promotion is WARN-logged and flagged; non-empty content bypasses it; disabling it preserves CoT without promotion",
 				Test:                     "TestDeepSeekConformanceMatrix_ReasoningFallbackIsLoggedFlaggedAndLastResort",
 			},
+			{
+				ID:      "SAMPLING-CONTRACT",
+				Fixture: "testdata/shim-support-exchanges.json#openai.thinking_disabled_inert_params.response",
+				ExpectedRequestShape: "thinking ON drops temperature, presence_penalty and frequency_penalty and floors top_p at 0.95; " +
+					"thinking OFF passes all three through unchanged and sends the fixed top_p 1.0 (the caller's value is never forwarded there)",
+				ExpectedResponseHandling: "the recorded 200 exchange is replayed unchanged; every dropped parameter is named at WARN",
+				Test:                     "TestSamplingContract_CoversEveryFormat",
+			},
 		},
 		Cells: []ShimCell{
 			// ---- §B1 formats -------------------------------------------------
@@ -361,7 +369,9 @@ func ShimSupportMatrix() ShimMatrix {
 				State:    CellSupported,
 				Evidence: []string{EvidenceLive, EvidenceUnit},
 				Doc:      "guides/thinking_mode",
-				Note:     "measured: all three sent in one request → HTTP 200, no error; the client exposes the inert set and logs it at debug level",
+				Note: "measured: all three sent in one request → HTTP 200, no error. The client DROPS them from a thinking-mode body " +
+					"(sending them there implies an effect they do not have) and names each dropped parameter at WARN; a thinking-disabled " +
+					"request passes them through. Enforced by TestSamplingContract_ThinkingModeRequestShape and _CoversEveryFormat",
 			},
 			{
 				ID: "B2-TOP-P", Section: "§B2", Format: "all",
@@ -369,7 +379,9 @@ func ShimSupportMatrix() ShimMatrix {
 				State:    CellSupported,
 				Evidence: []string{EvidenceDoc, EvidenceUnit},
 				Doc:      "guides/thinking_mode",
-				Note:     "the clamp is not observable from the wire, so it is resolved client-side and asserted there; the recorded request carrying top_p 0.5 was accepted (200)",
+				Note: "resolved client-side so the EFFECTIVE value is what reaches the wire: 0.5 → 0.95 in thinking mode, the fixed 1.0 " +
+					"in non-thinking mode, nothing at all when unconfigured (the recorded request carrying top_p 0.5 was accepted, 200). " +
+					"Enforced by TestSamplingContract_TopPSemanticsAreEncoded and _CoversEveryFormat",
 			},
 
 			// ---- §B3 tool calls ----------------------------------------------

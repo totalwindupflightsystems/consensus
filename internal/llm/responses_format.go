@@ -40,18 +40,24 @@ func ResponsesEndpoint(base string) string {
 
 // ResponsesRequest is the Responses request body.
 type ResponsesRequest struct {
-	Model           string                 `json:"model"`
-	Input           []ResponsesInputItem   `json:"input"`
-	Instructions    string                 `json:"instructions,omitempty"`
-	Reasoning       *ResponsesReasoning    `json:"reasoning,omitempty"`
-	Tools           []ResponsesTool        `json:"tools,omitempty"`
-	ToolChoice      any                    `json:"tool_choice,omitempty"`
-	MaxOutputTokens int                    `json:"max_output_tokens,omitempty"`
-	Temperature     float64                `json:"temperature,omitempty"`
-	TopP            *float64               `json:"top_p,omitempty"`
-	Stream          bool                   `json:"stream"`
-	Metadata        map[string]any         `json:"metadata,omitempty"`
-	Text            *ResponsesTextControls `json:"text,omitempty"`
+	Model           string               `json:"model"`
+	Input           []ResponsesInputItem `json:"input"`
+	Instructions    string               `json:"instructions,omitempty"`
+	Reasoning       *ResponsesReasoning  `json:"reasoning,omitempty"`
+	Tools           []ResponsesTool      `json:"tools,omitempty"`
+	ToolChoice      any                  `json:"tool_choice,omitempty"`
+	MaxOutputTokens int                  `json:"max_output_tokens,omitempty"`
+	Temperature     float64              `json:"temperature,omitempty"`
+	TopP            *float64             `json:"top_p,omitempty"`
+
+	// Accepted-but-inert while thinking mode is on (spec 024 §B2), so they are
+	// present ONLY for a request that disabled thinking.
+	PresencePenalty  *float64 `json:"presence_penalty,omitempty"`
+	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty"`
+
+	Stream   bool                   `json:"stream"`
+	Metadata map[string]any         `json:"metadata,omitempty"`
+	Text     *ResponsesTextControls `json:"text,omitempty"`
 }
 
 // ResponsesReasoning carries the effort dial for this format (`summary` is
@@ -149,13 +155,24 @@ func BuildResponsesRequest(model string, messages []harness.Message, opts Reques
 		return ResponsesRequest{}, err
 	}
 
+	// The thinking-mode sampling contract is per thinking mode, not per format
+	// (spec 024 §B2): the parameters the provider ignores while it reasons are
+	// dropped here too, and only the effective top_p is sent.
+	sampling := ResolveSamplingParams(SamplingParams{
+		Temperature:      opts.Temperature,
+		PresencePenalty:  opts.PresencePenalty,
+		FrequencyPenalty: opts.FrequencyPenalty,
+	}, opts.Thinking)
+
 	req := ResponsesRequest{
-		Model:       model,
-		Stream:      false,
-		Reasoning:   responsesReasoningPayload(dial, opts.Thinking),
-		Tools:       toResponsesTools(opts.Tools),
-		ToolChoice:  toResponsesToolChoice(opts.ToolChoice),
-		Temperature: 0,
+		Model:            model,
+		Stream:           false,
+		Reasoning:        responsesReasoningPayload(dial, opts.Thinking),
+		Tools:            toResponsesTools(opts.Tools),
+		ToolChoice:       toResponsesToolChoice(opts.ToolChoice),
+		Temperature:      wireFloat(sampling.Temperature),
+		PresencePenalty:  sampling.PresencePenalty,
+		FrequencyPenalty: sampling.FrequencyPenalty,
 	}
 
 	if opts.TopP != nil {

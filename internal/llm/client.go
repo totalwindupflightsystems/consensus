@@ -78,6 +78,15 @@ type Config struct {
 	// Temperature controls output randomness (0.0-2.0).
 	Temperature float64 `json:"temperature" yaml:"temperature"`
 
+	// PresencePenalty and FrequencyPenalty are the two remaining sampling
+	// parameters the provider documents as accepted-but-inert while thinking
+	// mode is on (spec 024 §B2). Zero means "not configured". They are modelled
+	// explicitly so the no-op is nameable: a thinking-mode request has them
+	// dropped and says so at WARN, instead of a caller believing a knob it cannot
+	// reach had an effect.
+	PresencePenalty  float64 `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`
+	FrequencyPenalty float64 `json:"frequency_penalty,omitempty" yaml:"frequency_penalty,omitempty"`
+
 	// EnableCache enables prompt caching where the provider supports it.
 	EnableCache bool `json:"enable_cache" yaml:"enable_cache"`
 

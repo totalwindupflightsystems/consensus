@@ -118,8 +118,8 @@ V4 Pro money. Recorded here because that consequence is otherwise invisible.
 | Thinking control | the toggle and the effort are resolved **explicitly** (per-request options, then client config); a value outside the effort mapping is **refused**, never silently dropped |
 | Effort with thinking off | explicit `disabled` thinking ⇒ no effort dial is sent (the dial is meaningless when thinking is off) |
 | CoT as the answer | promoting `reasoning_content` into `content` is a **last-resort** substitution: only when `content` is empty, always logged at WARN, always flagged on the response (`reasoning_promoted_to_output`), and disableable — never a silent swap. The Anthropic surface needs it most: a thinking-mode turn can arrive with a `thinking` block and no text block at all |
-| Silently ignored | `temperature`, `presence_penalty`, `frequency_penalty` — accepted, no error, no effect (the client names them so nobody tunes them blind) |
-| `top_p` | thinking mode only, clamped to ≥0.95 (below is treated as 0.95); non-thinking mode fixed at 1.0 and the value is ignored |
+| Silently ignored | `temperature`, `presence_penalty`, `frequency_penalty` — accepted, no error, no effect. While thinking is on the client **drops them from the request** (carrying them would imply an effect they do not have) and names each dropped parameter at WARN; a thinking-disabled request passes them through. Enforced by `TestSamplingContract_ThinkingModeRequestShape`, `_NonThinkingModeRequestShape` and `_CoversEveryFormat` |
+| `top_p` | thinking mode only, floored to ≥0.95 (below is treated as 0.95); non-thinking mode fixed at 1.0 and the caller's value is ignored — the client sends that fixed 1.0, never the ignored number, and sends nothing when nobody asked. Enforced by `TestSamplingContract_TopPSemanticsAreEncoded` and `_CoversEveryFormat` |
 | `max_tokens` | documented range 1–393216; provider defaults 8K non-thinking, 64K thinking, 128K at `effort: max` |
 
 **Documented-vs-live divergences (measured 2026-10-13).** Two documented spellings do not do
@@ -179,16 +179,16 @@ Rows marked **(SHIM-SUPPORT-002)** were first measured 2026-09-29 against
 
 | Requirement | Current state | Evidence |
 |---|---|---|
-| OpenAI format | present, complete | `internal/llm/openai_client.go` — `openaiChatRequest` carries `model, messages, max_tokens, temperature, top_p, response_format, stream, tools, tool_choice, thinking, reasoning_effort` |
-| Anthropic format | present, complete | `internal/llm/anthropic_client.go` — `anthropicMessageRequest` carries `model, max_tokens, temperature, top_p, system, messages, reasoning, output_config, tools, tool_choice` plus content-block turns (thinking / text / tool_use / tool_result) |
+| OpenAI format | present, complete | `internal/llm/openai_client.go` — `openaiChatRequest` carries `model, messages, max_tokens, temperature, top_p, presence_penalty, frequency_penalty, response_format, stream, tools, tool_choice, thinking, reasoning_effort`. The three sampling fields are populated by `ResolveSamplingParams`, so they reach the body only for a thinking-disabled request |
+| Anthropic format | present, complete | `internal/llm/anthropic_client.go` — `anthropicMessageRequest` carries `model, max_tokens, temperature, top_p, presence_penalty, frequency_penalty, system, messages, reasoning, output_config, tools, tool_choice` plus content-block turns (thinking / text / tool_use / tool_result). `BuildResponsesRequest` resolves the same sampling contract on the Responses body |
 | Responses format | wire layer present, **not selectable** | `internal/llm/responses_format.go` (builder + interpreter, pinned against a recorded exchange); `llm.NewClient` has no provider case for it → `SHIM-SUPPORT-005` |
 | Provider-native `tools` / `tool_choice` | **present on all three formats** | `ToolDefinition` → OpenAI nested shape, Anthropic `input_schema` shape, Responses flat shape; `tool_choice` mapped per format (`required` → Anthropic `any`) |
 | Thinking toggle / effort (`thinking`, `reasoning_effort`, `reasoning`, `output_config`) | **present**, all documented spellings | `RequestOptions.Thinking/ReasoningEffort`, `Config.Thinking/ReasoningEffort`; OpenAI `thinking`+`reasoning_effort`, Anthropic `reasoning.effort`+`output_config.effort`, Responses `reasoning.effort` |
 | `reasoning_content` read + round-trip | **present on both wire formats** | OpenAI: re-sent per prior turn when tools are present, omitted otherwise. Anthropic: thinking block (+ signature) echoed with its turn, which the provider requires |
 | `reasoning_signature` | **present** | `harness.Message`/`harness.LLMResponse` + turn snapshot; populated from the provider's `thinking.signature` |
 | Cache token accounting | **present on all three formats** | `prompt_cache_hit_tokens` (preferred) / `prompt_cache_miss_tokens` / `prompt_tokens_details.cached_tokens`; Anthropic `cache_read_input_tokens` / `cache_creation_input_tokens`; Responses `input_tokens_details.cached_tokens` |
-| `top_p` semantics | **present** | `ResolveTopP` — thinking mode only, floored at 0.95, omitted in non-thinking mode |
-| Silently-ignored parameters | **named, not tuned blind** | `InertThinkingParams` exposes the set and the client logs it; the recorded request carrying all three was accepted |
+| `top_p` semantics | **present and enforced** | `ResolveTopP` — floored at 0.95 in thinking mode; the fixed 1.0 in non-thinking mode (the caller's ignored number is never forwarded); nothing sent when unconfigured. `TestSamplingContract_TopPSemanticsAreEncoded`, `TestSamplingContract_CoversEveryFormat` |
+| Silently-ignored parameters | **named and dropped, not tuned blind** | `ResolveSamplingParams` drops the requested subset from a thinking-mode body (all three formats) and `InertThinkingParams` names the documented set; the client logs every drop at WARN. `TestSamplingContract_ThinkingModeRequestShape`, `TestSamplingContract_DroppedIsSubsetOfInertSet`; the recorded request carrying all three was accepted (200) |
 | Tool limits / refusals | **present** | `ValidateToolDefinitions` (charset, 128-character cap, uniqueness) and `ValidateToolChoice` (refuses `required`/named in thinking mode locally) |
 | Beta surface (prefix completion, FIM) | **absent** | `/beta` base not used; both endpoints recorded working → `SHIM-SUPPORT-006` |
 
@@ -247,8 +247,8 @@ call). A cell claims only the evidence it has.
 | B2-COT-PERSIST | §B2 | CoT and its signature are persisted with the turn and handed back | all | supported | turn snapshot iteration_commits.llm_response |
 | B2-EFFORT-WITH-THINKING-OFF | §B2 | With thinking disabled no effort dial is sent | all | supported | — |
 | B2-COT-AS-ANSWER | §B2 | CoT promotion is last-resort, WARN-logged, flagged and disableable | all | supported | — |
-| B2-INERT-PARAMS | §B2 | Documented silently-ignored parameters are named, not tuned blind | all | supported | measured: all three in one request → 200 with no effect |
-| B2-TOP-P | §B2 | top_p: thinking mode only, clamped to ≥0.95; ignored and fixed at 1.0 otherwise | all | supported | clamp resolved client-side; recorded top_p request accepted |
+| B2-INERT-PARAMS | §B2 | Documented silently-ignored parameters are named, not tuned blind | all | supported | measured: all three sent in one request → HTTP 200, no error. The client DROPS them from a thinking-mode body and names each drop at WARN; a thinking-disabled request passes them through. Enforced by TestSamplingContract_ThinkingModeRequestShape / _CoversEveryFormat |
+| B2-TOP-P | §B2 | top_p: thinking mode only, clamped to ≥0.95; ignored and fixed at 1.0 otherwise | all | supported | resolved client-side so the EFFECTIVE value reaches the wire: 0.5 → 0.95 thinking, fixed 1.0 non-thinking, nothing when unconfigured (the recorded top_p 0.5 request was accepted, 200). Enforced by TestSamplingContract_TopPSemanticsAreEncoded / _CoversEveryFormat |
 | B3-TOOLS-SHAPE | §B3 | Tool declaration shape tools[].function.{name,description,parameters} | openai | supported | — |
 | B3-TOOLS-ANTHROPIC-SHAPE | §B3 | Anthropic tool shape (name, description, input_schema) | anthropic | supported | — |
 | B3-TOOL-LIMITS | §B3 | Documented tool limits: name charset, 128-character cap, unique names | all | supported | limits verified in the API reference 2026-10-13 |
@@ -271,7 +271,11 @@ field” and “the real request/persistence path behaves correctly.” The test
 replay `internal/llm/testdata/thinking-cot-turns.json` through `httptest`; the
 persistence row additionally runs a complete harness iteration against a
 temporary SQLite database and reads `iteration_commits.llm_response` back.
-No matrix test calls a live provider.
+No matrix test calls a live provider. SHIM-SUPPORT-003 adds the
+`SAMPLING-CONTRACT` row, which is what turns the §B2 sampling rules above from
+documentation into behaviour: the scenario names the test, and
+`TestDeepSeekConformanceMatrix_ProducesVerifiableScenarioTable` fails if that
+test function does not exist or this table stops naming it.
 
 | Scenario | Recorded fixture | Expected request shape | Expected response handling | Executable test |
 |---|---|---|---|---|
@@ -280,6 +284,7 @@ No matrix test calls a live provider.
 | NO-TOOLS-OMIT | `tools_present.turn2.response` | tools absent; no message carries `reasoning_content` | same recorded response; omission remains the only changed condition | `TestDeepSeekConformanceMatrix_ResendsAllReasoningOnlyWithTools/tools_absent_omits_every_prior_reasoning_turn` |
 | THINKING-PER-REQUEST | `tools_absent.turn1.response` | successive requests emit enabled+low, disabled+no-effort, enabled+max | each response is handled under that request's explicit options | `TestDeepSeekConformanceMatrix_ThinkingControlIsExplicitPerRequest` |
 | FALLBACK-LAST-RESORT | `tools_present.turn1.response` | recorded response has empty `content` and non-empty `reasoning_content` | promotion is WARN-logged and flagged; non-empty content bypasses it; disabling it preserves CoT without promotion | `TestDeepSeekConformanceMatrix_ReasoningFallbackIsLoggedFlaggedAndLastResort` |
+| SAMPLING-CONTRACT | `openai.thinking_disabled_inert_params.response` | thinking ON drops `temperature`, `presence_penalty` and `frequency_penalty` and floors `top_p` to 0.95; thinking OFF passes all three through and sends the fixed `top_p` 1.0 | the recorded 200 exchange is replayed unchanged; every dropped parameter is named at WARN | `TestSamplingContract_CoversEveryFormat` |
 
 `TestDeepSeekConformanceMatrix_ProducesVerifiableScenarioTable` prints this
 scenario → request shape → response handling table in every verbose matrix run

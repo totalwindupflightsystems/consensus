@@ -230,8 +230,8 @@ func TestDeepSeekConformanceMatrix_ReasoningFallbackIsLoggedFlaggedAndLastResort
 // in the test output, making each coverage claim inspectable.
 func TestDeepSeekConformanceMatrix_ProducesVerifiableScenarioTable(t *testing.T) {
 	rows := ShimSupportMatrix().BehaviorScenarios
-	if len(rows) != 5 {
-		t.Fatalf("BehaviorScenarios has %d rows, want 5 explicit request/response scenarios", len(rows))
+	if len(rows) != 6 {
+		t.Fatalf("BehaviorScenarios has %d rows, want 6 explicit request/response scenarios", len(rows))
 	}
 	specRaw, err := os.ReadFile(filepath.Join("..", "..", "specs", "024-shim-support-matrix.md"))
 	if err != nil {
