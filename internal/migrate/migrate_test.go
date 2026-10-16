@@ -769,8 +769,21 @@ func TestMigrationUnderLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Version after AutoMigrate failed: %v", err)
 	}
-	if lastApplied != 27 {
-		t.Fatalf("expected migrations through version 27, got version %d", lastApplied)
+	// Derive the expected version from the embedded set instead of pinning a
+	// literal: the invariant under test is "every embedded migration is applied"
+	// (a hard-coded number rots on each new migration — PG-GRANT-42501 / 028).
+	wantVersion := 0
+	probe := &Runner{}
+	if err := probe.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations (expected version probe) failed: %v", err)
+	}
+	for _, m := range probe.migrations {
+		if m.Version > wantVersion {
+			wantVersion = m.Version
+		}
+	}
+	if lastApplied != wantVersion {
+		t.Fatalf("expected migrations through version %d, got version %d", wantVersion, lastApplied)
 	}
 	t.Logf("AutoMigrate applied migrations up to version %d", lastApplied)
 
