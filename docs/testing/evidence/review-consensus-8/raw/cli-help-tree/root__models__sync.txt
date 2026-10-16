@@ -1,0 +1,17 @@
+Fetch the latest model listing from models.dev and update the
+model_registry table. Entries marked sync_source='static' are never
+overwritten. Use --auto-sync with serve to keep models current.
+
+Usage:
+  consensus models sync [flags]
+
+Flags:
+      --db-url string   Database URL (overrides config)
+  -h, --help            help for sync
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

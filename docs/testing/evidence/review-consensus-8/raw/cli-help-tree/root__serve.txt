@@ -1,0 +1,24 @@
+Start the Consensus server with the harness loop, REST API, MCP server,
+and protocol shims. Connects to PostgreSQL or SQLite depending on
+database configuration.
+
+Usage:
+  consensus serve [flags]
+
+Flags:
+      --adapter string      Enable protocol shims: opencode (SPEC-016 §5.1) (default "opencode")
+      --auto-sync string    Auto-sync model_registry from models.dev on interval (e.g., "6h", "24h")
+      --db-url string       Database connection URL
+  -h, --help                help for serve
+      --hostname string     Bind address (default "127.0.0.1")
+      --log-level string    Log level: debug, info, warn, error (default "info")
+      --mcp                 Enable MCP server endpoint (default true)
+      --migrations string   Path to migration files (default: embedded)
+      --port int            Port to listen on (default 8090)
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

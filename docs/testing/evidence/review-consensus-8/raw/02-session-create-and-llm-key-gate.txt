@@ -1,0 +1,54 @@
+#####################################################################
+# A0. POST /api/v1/sessions with NO LLM key configured (server started with empty llm.api_key)
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/sessions \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"agent_name":"r8-probe","goal":"review-consensus-8"}'
+
+HTTP/1.1 400 Bad Request
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:32:39 GMT
+Content-Length: 347
+
+{"error":{"code":"MISSING_LLM_CONFIG","message":"no LLM API key configured: set the DEEPSEEK_API_KEY (or CONSENSUS_API_KEY) environment variable, or llm.api_key in consensus.yaml, then retry","details":"no LLM API key configured: set the DEEPSEEK_API_KEY (or CONSENSUS_API_KEY) environment variable, or llm.api_key in consensus.yaml, then retry"}}
+
+#####################################################################
+# A1. POST /api/v1/sessions (with dummy llm.api_key set in scratch config)
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/sessions \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"agent_name":"r8-probe","goal":"review-consensus-8 approval gate probe"}'
+
+HTTP/1.1 201 Created
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:32:59 GMT
+Content-Length: 211
+
+{"id":"fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b","status":"booting","api_key":"cs_sk_[REDACTED]","model":"default","created_at":"2026-10-16T02:32:59.667296781Z"}
+
+#####################################################################
+# A2. POST /api/v1/tools/r8_approval_gated_echo/execute — tool enqueued (status=pending)
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/tools/r8_approval_gated_echo/execute \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"session_id":"fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b","parameters":{"target":"production"}}'
+
+HTTP/1.1 500 Internal Server Error
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:33:42 GMT
+Content-Length: 105
+
+{"error":{"code":"INTERNAL_ERROR","message":"failed to enqueue tool","details":"failed to enqueue tool"}}
+

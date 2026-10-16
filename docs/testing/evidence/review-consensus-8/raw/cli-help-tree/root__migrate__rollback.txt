@@ -1,0 +1,15 @@
+Rollback the last migration
+
+Usage:
+  consensus migrate rollback [flags]
+
+Flags:
+  -h, --help   help for rollback
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --db-url string    Database URL for direct migration (e.g. sqlite://dev.db)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

@@ -1,0 +1,20 @@
+Tail session iteration history. Use --follow for polling-based live updates.
+
+With --follow enabled, polls the server every 3 seconds for new iterations.
+For true SSE-based real-time streaming, connect to the server's SSE endpoint
+directly: GET /api/v1/events?session_id=<session-id>
+
+Usage:
+  consensus session logs <session-id> [flags]
+
+Flags:
+      --follow           Poll for live iteration updates every 3s
+  -h, --help             help for logs
+      --iterations int   Show last N iterations (default: all)
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

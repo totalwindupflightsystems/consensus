@@ -1,0 +1,101 @@
+REVIEW-CONSENSUS-8 — scratch instance
+
+Binary:   /tmp/consensus-r8-bin  (go build ./cmd/consensus @ c9b7747)
+Server:   /tmp/consensus-r8-bin serve --config /tmp/r8/consensus-r8.yaml --port 18090
+Database: sqlite:///tmp/r8/consensus.db   (fresh; created by 'consensus init --config ...')
+Model:    http://127.0.0.1:18123/v1  — a local OpenAI-compatible stub (raw/mock-llm.py) that
+          answers turn 1 with a tool_requests payload and later turns with a plain respond.
+          Rationale: the harness needs a model to reach an approval-gated tool call; using a
+          stub keeps the run hermetic (no provider credentials, no egress).
+
+Raw server log (/tmp/r8/serve3.log):
+---------------------------------------------------------------------
+consensus: first_admin_key created=false key_prefix=cs_ak_[REDACTED] id=d45467b5-e033-40e4-9e7d-73b806795a05 created_at=2026-10-16T02:31:42Z
+time=2026-10-15T21:35:08.540-05:00 level=INFO msg="llm key probe ok (...used)" provider=openai base_url=http://127.0.0.1:18123/v1
+time=2026-10-15T21:35:08.540-05:00 level=INFO msg="tool_executor: started" poll_ms=500 timeout=30s
+time=2026-10-15T21:35:08.540-05:00 level=INFO msg="harness: heartbeat loop started" interval=5s
+time=2026-10-15T21:35:08.540-05:00 level=WARN msg="pprof: debug listener failed to start" addr=127.0.0.1:8095 error="listen tcp 127.0.0.1:8095: bind: address already in use"
+time=2026-10-15T21:35:08.540-05:00 level=INFO msg="webhook: starting event routing loop" interval=5s
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="consensus: HITL manager started" expiry_interval=5m
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="events: SQLite poller started" interval=1s
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="consensus: SQLite event polling started"
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="consensus: opencode shim enabled"
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="consensus: H3 shim enabled"
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="consensus: starting" addr=127.0.0.1:18090 backend=sqlite
+time=2026-10-15T21:35:08.814-05:00 level=INFO msg="api: starting" addr=127.0.0.1:18090
+time=2026-10-15T21:35:26.267-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:26.267-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:26.359-05:00 level=INFO msg="llm: calling provider" url=http://127.0.0.1:18123/v1/chat/completions model=deepseek-v4-flash messages=3
+time=2026-10-15T21:35:26.360-05:00 level=INFO msg="llm: response received" model=r8-stub-model elapsed_ms=0 prompt_tokens=100 completion_tokens=50 cached_tokens=0 reasoning_promoted=false
+time=2026-10-15T21:35:26.360-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-10-15T21:35:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:28.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:28.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:33.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:33.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:33.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:38.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:38.568-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:38.569-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:53.542-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:03.542-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:18.542-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="planning: session already claimed by another worker, bailing out" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff actual_status=tool_exec
+time=2026-10-15T21:36:28.890-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=1 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:36:53.945-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=2 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:37:44.541-05:00 level=WARN msg="webhook: quarantining event content" source=r8-quarantine-probe source_id=r8-delivery-1 signature_valid=true threat=true confidence=0.8 reason="Quarantine scanner flagged content: [SQLI-DROP-TABLE] DROP TABLE statement in content" rules=[SQLI-DROP-TABLE]
+time=2026-10-15T21:37:44.654-05:00 level=WARN msg="webhook: quarantining event content" source=r8-quarantine-probe source_id=r8-delivery-2 signature_valid=false threat=false confidence=0 reason="" rules=[]
+time=2026-10-15T21:38:19.208-05:00 level=INFO msg="webhook: woke session via event routing" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff event_id=1
+time=2026-10-15T21:38:19.208-05:00 level=INFO msg="webhook: routed events" count=1 pending=1
+time=2026-10-15T21:38:19.209-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:38:19.209-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:38:19.304-05:00 level=INFO msg="llm: calling provider" url=http://127.0.0.1:18123/v1/chat/completions model=deepseek-v4-flash messages=4
+time=2026-10-15T21:38:19.305-05:00 level=INFO msg="llm: response received" model=r8-stub-model elapsed_ms=0 prompt_tokens=100 completion_tokens=50 cached_tokens=0 reasoning_promoted=false
+time=2026-10-15T21:38:19.305-05:00 level=INFO msg="planning: responding to user" turn=1
+time=2026-10-15T21:38:29.195-05:00 level=INFO msg="quarantine: item approved" id=1 promoted_memory_id=5
+time=2026-10-15T21:38:29.257-05:00 level=INFO msg="quarantine: item rejected" id=2 reason="R8 probe: signature invalid, operator rejects"
+time=2026-10-15T21:38:29.318-05:00 level=WARN msg="api: error" method=POST path=/api/v1/quarantine/1/approve status=400 code=QUARANTINE_ERROR
+time=2026-10-15T21:39:11.746-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=3 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:39:17.727-05:00 level=WARN msg="api: error" method=GET path=/api/v1/approvals/00000000-0000-0000-0000-000000000000 status=404 code=NOT_FOUND
+time=2026-10-15T21:39:18.735-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=4 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:39:23.040-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=5 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:39:27.442-05:00 level=WARN msg="api: error" method=GET path=/api/v1/sessions/00000000-0000-0000-0000-000000000000 status=404 code=NOT_FOUND
+time=2026-10-15T21:39:28.074-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:39:28.074-05:00 level=INFO msg="planning: starting interactive session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff max_turns=10 timeout=3m0s
+time=2026-10-15T21:39:28.133-05:00 level=INFO msg="llm: calling provider" url=http://127.0.0.1:18123/v1/chat/completions model=deepseek-v4-flash messages=3
+time=2026-10-15T21:39:28.134-05:00 level=INFO msg="llm: response received" model=r8-stub-model elapsed_ms=0 prompt_tokens=100 completion_tokens=50 cached_tokens=0 reasoning_promoted=false
+time=2026-10-15T21:39:28.134-05:00 level=INFO msg="planning: responding to user" turn=1
+time=2026-10-15T21:39:30.935-05:00 level=WARN msg="api: error" method=GET path=/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/memory/pages status=404 code=NOT_FOUND
+time=2026-10-15T21:39:31.883-05:00 level=WARN msg="api: error" method=GET path=/api/v1/skills/nonexistent-skill status=404 code=NOT_FOUND
+time=2026-10-15T21:41:19.762-05:00 level=INFO msg="mcp: span start" trace_id=d6050c9a85a30097151f7f861bb26821 span_id=815f0c8705f895b1 operation=mcp.HandleSSE
+time=2026-10-15T21:41:19.762-05:00 level=INFO msg="mcp: client connected" session=f9e3ada5252f9d824519719ec6d14a46 trace_id=d6050c9a85a30097151f7f861bb26821
+time=2026-10-15T21:41:29.764-05:00 level=INFO msg="mcp: span end" trace_id=d6050c9a85a30097151f7f861bb26821 span_id=815f0c8705f895b1 operation=mcp.HandleSSE duration_ms=10002
+time=2026-10-15T21:41:29.764-05:00 level=INFO msg="mcp: client disconnected" session=f9e3ada5252f9d824519719ec6d14a46
+time=2026-10-15T21:41:29.861-05:00 level=WARN msg="webhook: quarantining event content" source=r8-quarantine-probe source_id="" signature_valid=false threat=false confidence=0 reason="" rules=[]
+time=2026-10-15T21:41:29.861-05:00 level=WARN msg="webhook: failed to insert quarantine item" error="quarantine: cannot insert empty content"

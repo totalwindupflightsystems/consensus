@@ -1,0 +1,22 @@
+List memory events, show context, and view iteration history.
+
+Usage:
+  consensus memory [command]
+
+Available Commands:
+  iterations  Show iteration history
+  list        List memory events
+  pages       Show compressed memory pages
+  show        Show a specific memory event
+
+Flags:
+  -h, --help   help for memory
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus memory [command] --help" for more information about a command.

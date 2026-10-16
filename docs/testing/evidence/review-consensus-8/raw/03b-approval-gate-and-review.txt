@@ -1,0 +1,352 @@
+$ sqlite3 /tmp/r8/consensus.db "INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status) VALUES ('b0a129d3-7a0b-41c5-8c84-84db23bb0dff', 1, 'r8_approval_gated_echo', '{"target":"production"}', 'pending');"
+-- inserted, waiting 4s for the 500ms tool_executor poll loop --
+#####################################################################
+# C1. AFTER enqueue: state observed 4s later
+#####################################################################
+$ sqlite3 -header -column /tmp/r8/consensus.db "SELECT id,status,iteration FROM sessions ..."
+
+-- sessions:
+                 id                    status    iteration
+------------------------------------  ---------  ---------
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  completed          0
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  tool_exec          1
+-- tool_requests:
+id               session_id               iteration_id        tool_name         status   approval_request_id
+--  ------------------------------------  ------------  ----------------------  -------  -------------------
+ 1  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  pending  (null)
+-- approval_requests:
+-- tool_results:
+-- server log (approval gate lines):
+time=2026-10-15T21:35:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:33.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:38.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+
+#####################################################################
+# C2. state after the poll loop ran
+#####################################################################
+$ sqlite3 -header -column /tmp/r8/consensus.db "SELECT id,status,iteration FROM sessions ..."
+
+-- sessions:
+                 id                    status    iteration
+------------------------------------  ---------  ---------
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  completed          0
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  paused             1
+-- tool_requests:
+id               session_id               iteration_id        tool_name          status    approval_request_id
+--  ------------------------------------  ------------  ----------------------  ---------  -------------------
+ 1  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+-- approval_requests:
+                 id                    request_type        target_tool        status   reviewer_id
+------------------------------------  --------------  ----------------------  -------  -----------
+5a806490-1e2f-4389-aad9-6cdfaad3999c  tool_execution  r8_approval_gated_echo  pending  (null)
+-- tool_results:
+request_id                  output                  is_error
+----------  --------------------------------------  --------
+         1  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+-- server log (approval gate lines):
+time=2026-10-15T21:35:38.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.890-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=1 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+
+#####################################################################
+# D1. GET /api/v1/approvals — the gate DID create a pending approval (session paused)
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/approvals \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:39 GMT
+Content-Length: 351
+
+[{"id":"5a806490-1e2f-4389-aad9-6cdfaad3999c","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"target":"production"},"target_tool":"r8_approval_gated_echo","status":"pending","created_at":"0001-01-01T00:00:00Z"}]
+
+#####################################################################
+# D2. GET /api/v1/sessions/{id}/approvals?status=all
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/approvals?status=all \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:39 GMT
+Content-Length: 351
+
+[{"id":"5a806490-1e2f-4389-aad9-6cdfaad3999c","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"target":"production"},"target_tool":"r8_approval_gated_echo","status":"pending","created_at":"0001-01-01T00:00:00Z"}]
+
+#####################################################################
+# D3. GET /api/v1/approvals/{id} — approval detail
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/approvals/5a806490-1e2f-4389-aad9-6cdfaad3999c \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:39 GMT
+Content-Length: 349
+
+{"id":"5a806490-1e2f-4389-aad9-6cdfaad3999c","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"target":"production"},"target_tool":"r8_approval_gated_echo","status":"pending","created_at":"0001-01-01T00:00:00Z"}
+
+#####################################################################
+# D4. POST /api/v1/approvals/{id}/review — decision=approved
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/approvals/5a806490-1e2f-4389-aad9-6cdfaad3999c/review \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"decision":"approved","notes":"R8 probe: operator approves the gated production cleanup"}'
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:39 GMT
+Content-Length: 483
+
+{"id":"5a806490-1e2f-4389-aad9-6cdfaad3999c","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"target":"production"},"target_tool":"r8_approval_gated_echo","status":"approved","reviewer_id":"admin","review_notes":"R8 probe: operator approves the gated production cleanup","created_at":"0001-01-01T00:00:00Z","reviewed_at":"0001-01-01T00:00:00Z"}
+
+#####################################################################
+# D5. GET /api/v1/sessions/{id} — session after approval (expect resumed to idle)
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:39 GMT
+Content-Length: 374
+
+{"id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","agent_name":"r8-approval-probe","model_id":"r8-stub-model","status":"idle","goal":"approve a gated tool end to end","context_budget":128000,"budget_limit_cents":0,"tokens_used_in":100,"tokens_used_out":50,"iteration":1,"heartbeat_at":"2026-10-15 21:36:39.458771224 -0500 -05 m=+90.923647239","created_at":"2026-10-16T02:35:21Z"}
+
+#####################################################################
+# D6. DB state after approval review
+#####################################################################
+$ sqlite3 -header -column /tmp/r8/consensus.db "SELECT id,status,iteration FROM sessions ..."
+
+-- sessions:
+                 id                    status    iteration
+------------------------------------  ---------  ---------
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  completed          0
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  idle               1
+-- tool_requests:
+id               session_id               iteration_id        tool_name          status    approval_request_id
+--  ------------------------------------  ------------  ----------------------  ---------  -------------------
+ 1  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+-- approval_requests:
+                 id                    request_type        target_tool         status   reviewer_id
+------------------------------------  --------------  ----------------------  --------  -----------
+5a806490-1e2f-4389-aad9-6cdfaad3999c  tool_execution  r8_approval_gated_echo  approved  admin
+-- tool_results:
+request_id                  output                  is_error
+----------  --------------------------------------  --------
+         1  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+-- server log (approval gate lines):
+time=2026-10-15T21:35:38.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.890-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=1 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+
+#####################################################################
+# E1. REJECT ARM — enqueue a second requires_approval tool_request
+#####################################################################
+$ sqlite3 /tmp/r8/consensus.db "INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status) VALUES ('b0a129d3-7a0b-41c5-8c84-84db23bb0dff', 1, 'r8_approval_gated_echo', '{"target":"production","run":2}', 'pending');"
+#####################################################################
+# E2. GET /api/v1/approvals — second pending approval
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/approvals \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:57 GMT
+Content-Length: 359
+
+[{"id":"98f044b3-9f8a-47ba-9506-76a22348ff65","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"run":2,"target":"production"},"target_tool":"r8_approval_gated_echo","status":"pending","created_at":"0001-01-01T00:00:00Z"}]
+
+#####################################################################
+# E3. DB state before reject
+#####################################################################
+$ sqlite3 -header -column /tmp/r8/consensus.db "SELECT id,status,iteration FROM sessions ..."
+
+-- sessions:
+                 id                    status    iteration
+------------------------------------  ---------  ---------
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  completed          0
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  paused             1
+-- tool_requests:
+id               session_id               iteration_id        tool_name          status    approval_request_id
+--  ------------------------------------  ------------  ----------------------  ---------  -------------------
+ 1  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+ 2  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+-- approval_requests:
+                 id                    request_type        target_tool         status   reviewer_id
+------------------------------------  --------------  ----------------------  --------  -----------
+5a806490-1e2f-4389-aad9-6cdfaad3999c  tool_execution  r8_approval_gated_echo  approved  admin
+98f044b3-9f8a-47ba-9506-76a22348ff65  tool_execution  r8_approval_gated_echo  pending   (null)
+-- tool_results:
+request_id                  output                  is_error
+----------  --------------------------------------  --------
+         1  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+
+         2  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+-- server log (approval gate lines):
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.890-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=1 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:36:53.945-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=2 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+
+#####################################################################
+# E4. POST /api/v1/sessions/{id}/approvals/{aid}/approve — the route named in the task brief
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/approvals/98f044b3-9f8a-47ba-9506-76a22348ff65/approve \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{}'
+
+HTTP/1.1 404 Not Found
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Fri, 16 Oct 2026 02:37:02 GMT
+Content-Length: 19
+
+404 page not found
+
+
+#####################################################################
+# E5. POST /api/v1/approvals/{aid}/review — decision=rejected
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/approvals/98f044b3-9f8a-47ba-9506-76a22348ff65/review \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"decision":"rejected","notes":"R8 probe: operator rejects the gated production cleanup"}'
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:37:02 GMT
+Content-Length: 490
+
+{"id":"98f044b3-9f8a-47ba-9506-76a22348ff65","session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"request_type":"tool_execution","description":"Execute tool \"r8_approval_gated_echo\"","risk_level":"medium","context":{"run":2,"target":"production"},"target_tool":"r8_approval_gated_echo","status":"rejected","reviewer_id":"admin","review_notes":"R8 probe: operator rejects the gated production cleanup","created_at":"0001-01-01T00:00:00Z","reviewed_at":"0001-01-01T00:00:00Z"}
+
+#####################################################################
+# E6. GET /api/v1/sessions/{id} — session after REJECT
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:37:02 GMT
+Content-Length: 375
+
+{"id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","agent_name":"r8-approval-probe","model_id":"r8-stub-model","status":"idle","goal":"approve a gated tool end to end","context_budget":128000,"budget_limit_cents":0,"tokens_used_in":100,"tokens_used_out":50,"iteration":1,"heartbeat_at":"2026-10-15 21:37:02.886190573 -0500 -05 m=+114.351066588","created_at":"2026-10-16T02:35:21Z"}
+
+#####################################################################
+# E7. DB state after reject review
+#####################################################################
+$ sqlite3 -header -column /tmp/r8/consensus.db "SELECT id,status,iteration FROM sessions ..."
+
+-- sessions:
+                 id                    status    iteration
+------------------------------------  ---------  ---------
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  completed          0
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  idle               1
+-- tool_requests:
+id               session_id               iteration_id        tool_name          status    approval_request_id
+--  ------------------------------------  ------------  ----------------------  ---------  -------------------
+ 1  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+ 2  b0a129d3-7a0b-41c5-8c84-84db23bb0dff             1  r8_approval_gated_echo  completed  (null)
+-- approval_requests:
+                 id                    request_type        target_tool         status   reviewer_id
+------------------------------------  --------------  ----------------------  --------  -----------
+5a806490-1e2f-4389-aad9-6cdfaad3999c  tool_execution  r8_approval_gated_echo  approved  admin
+98f044b3-9f8a-47ba-9506-76a22348ff65  tool_execution  r8_approval_gated_echo  rejected  admin
+-- tool_results:
+request_id                  output                  is_error
+----------  --------------------------------------  --------
+         1  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+
+         2  R8-APPROVAL-GATE-BYPASS-PROOF-EXECUTED         0
+-- server log (approval gate lines):
+time=2026-10-15T21:35:43.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:48.540-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:53.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:35:58.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:03.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:08.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:13.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:18.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:23.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.541-05:00 level=INFO msg="harness: found active session" session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+time=2026-10-15T21:36:28.890-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=1 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:36:53.945-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=2 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+

@@ -1,0 +1,15 @@
+Get a specific configuration value. Supports nested keys
+using dot notation (e.g., 'llm.default_model', 'hitl.require_approval_for_destructive').
+
+Usage:
+  consensus config get <key> [flags]
+
+Flags:
+  -h, --help   help for get
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

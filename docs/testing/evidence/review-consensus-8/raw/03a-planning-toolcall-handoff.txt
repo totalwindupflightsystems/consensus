@@ -1,0 +1,108 @@
+#####################################################################
+# B1. POST /api/v1/sessions — create probe session
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/sessions \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"agent_name":"r8-approval-probe","goal":"approve a gated tool end to end","model_id":"r8-stub-model"}'
+
+HTTP/1.1 201 Created
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:35:21 GMT
+Content-Length: 217
+
+{"id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","status":"booting","api_key":"cs_sk_[REDACTED]","model":"r8-stub-model","created_at":"2026-10-16T02:35:21.847575946Z"}
+
+#####################################################################
+# B2. POST /api/v1/sessions/$SID/message — operator message (wakes the harness)
+#####################################################################
+$ curl -sS -i -X POST http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/message \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{"content":"Please run the production cleanup tool now."}'
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:35:26 GMT
+Content-Length: 78
+
+{"session":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","status":"message_received"}
+
+#####################################################################
+# B3. GET /api/v1/sessions/{id}/tool-calls — the planning path's tool hand-off (source=staging_buffer)
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/tool-calls \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:12 GMT
+Content-Length: 314
+
+[{"source":"staging_buffer","id":1,"session_id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","iteration":0,"turn":1,"seq":1,"tool_name":"r8_approval_gated_echo","parameters":{"target":"production"},"status":"executed","description":"tool_call: r8_approval_gated_echo","executed":true,"created_at":"2026-10-16 02:35:26"}]
+
+#####################################################################
+# B4. GET /api/v1/sessions/{id}/approvals — NO approval was requested for the requires_approval tool
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff/approvals \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:12 GMT
+Content-Length: 2
+
+[]
+
+#####################################################################
+# B5. GET /api/v1/approvals — global pending list is empty
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/approvals \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:12 GMT
+Content-Length: 2
+
+[]
+
+#####################################################################
+# B6. GET /api/v1/sessions/{id} — session suspended in tool_exec, nothing executes it
+#####################################################################
+$ curl -sS -i -X GET http://127.0.0.1:18090/api/v1/sessions/b0a129d3-7a0b-41c5-8c84-84db23bb0dff \
+    -H 'Authorization: Bearer $CONSENSUS_API_KEY' \
+    -H 'Content-Type: application/json' \
+    (no body)
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Fri, 16 Oct 2026 02:36:12 GMT
+Content-Length: 343
+
+{"id":"b0a129d3-7a0b-41c5-8c84-84db23bb0dff","agent_name":"r8-approval-probe","model_id":"r8-stub-model","status":"tool_exec","goal":"approve a gated tool end to end","context_budget":128000,"budget_limit_cents":0,"tokens_used_in":100,"tokens_used_out":50,"iteration":1,"heartbeat_at":"2026-10-16 02:35:26","created_at":"2026-10-16T02:35:21Z"}
+

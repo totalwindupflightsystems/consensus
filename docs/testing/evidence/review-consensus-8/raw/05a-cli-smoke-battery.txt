@@ -1,0 +1,876 @@
+CLI smoke battery — 2026-10-16T02:39:11Z
+
+### 1. approve family (real pending approval)
+$ sqlite3 /tmp/r8/consensus.db "INSERT INTO tool_requests (... 'pending');"   # -> gate created approval f1121826-d2a7-4d36-8aa4-c1671264668f
+=====================================================================
+# approve list (table)
+=====================================================================
+$ consensus approve list
+---------------------------------------------------------------------
+ID                                    SESSION_ID                            REQUEST_TYPE    RISK_LEVEL  STATUS   CREATED_AT            
+f1121826-d2a7-4d36-8aa4-c1671264668f  b0a129d3-7a0b-41c5-8c84-84db23bb0dff  tool_execution  medium      pending  0001-01-01T00:00:00Z  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve list (json)
+=====================================================================
+$ consensus approve list --format json
+---------------------------------------------------------------------
+[
+  {
+    "context": {
+      "cli_run": 1,
+      "target": "production"
+    },
+    "created_at": "0001-01-01T00:00:00Z",
+    "description": "Execute tool \"r8_approval_gated_echo\"",
+    "id": "f1121826-d2a7-4d36-8aa4-c1671264668f",
+    "iteration": 0,
+    "request_type": "tool_execution",
+    "risk_level": "medium",
+    "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+    "status": "pending",
+    "target_tool": "r8_approval_gated_echo"
+  }
+]
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve list --risk-level medium
+=====================================================================
+$ consensus approve list --risk-level medium
+---------------------------------------------------------------------
+ID                                    SESSION_ID                            REQUEST_TYPE    RISK_LEVEL  STATUS   CREATED_AT            
+f1121826-d2a7-4d36-8aa4-c1671264668f  b0a129d3-7a0b-41c5-8c84-84db23bb0dff  tool_execution  medium      pending  0001-01-01T00:00:00Z  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve list --session <id>
+=====================================================================
+$ consensus approve list --session b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+ID                                    SESSION_ID                            REQUEST_TYPE    RISK_LEVEL  STATUS   CREATED_AT            
+f1121826-d2a7-4d36-8aa4-c1671264668f  b0a129d3-7a0b-41c5-8c84-84db23bb0dff  tool_execution  medium      pending  0001-01-01T00:00:00Z  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve show <id>
+=====================================================================
+$ consensus approve show f1121826-d2a7-4d36-8aa4-c1671264668f
+---------------------------------------------------------------------
+{
+  "context": {
+    "cli_run": 1,
+    "target": "production"
+  },
+  "created_at": "0001-01-01T00:00:00Z",
+  "description": "Execute tool \"r8_approval_gated_echo\"",
+  "id": "f1121826-d2a7-4d36-8aa4-c1671264668f",
+  "iteration": 0,
+  "request_type": "tool_execution",
+  "risk_level": "medium",
+  "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "status": "pending",
+  "target_tool": "r8_approval_gated_echo"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve show (bad id)
+=====================================================================
+$ consensus approve show 00000000-0000-0000-0000-000000000000
+---------------------------------------------------------------------
+consensus: NOT_FOUND: approval not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# approve show (no args)
+=====================================================================
+$ consensus approve show
+---------------------------------------------------------------------
+consensus: accepts 1 arg(s), received 0
+---------------------------------------------------------------------
+[exit=2]
+
+=====================================================================
+# approve accept <id>
+=====================================================================
+$ consensus approve accept f1121826-d2a7-4d36-8aa4-c1671264668f --notes R8 CLI smoke: accepted
+---------------------------------------------------------------------
+Approval approved: f1121826-d2a7-4d36-8aa4-c1671264668f
+{
+  "context": {
+    "cli_run": 1,
+    "target": "production"
+  },
+  "created_at": "0001-01-01T00:00:00Z",
+  "description": "Execute tool \"r8_approval_gated_echo\"",
+  "id": "f1121826-d2a7-4d36-8aa4-c1671264668f",
+  "iteration": 0,
+  "request_type": "tool_execution",
+  "review_notes": "R8 CLI smoke: accepted",
+  "reviewed_at": "0001-01-01T00:00:00Z",
+  "reviewer_id": "admin",
+  "risk_level": "medium",
+  "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "status": "approved",
+  "target_tool": "r8_approval_gated_echo"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+### 2. reject family (second pending approval)
+=====================================================================
+# approve reject <id>
+=====================================================================
+$ consensus approve reject e5bc3e0f-7f90-4506-bef6-d69441e7504d --reason R8 CLI smoke: rejected via nested verb
+---------------------------------------------------------------------
+Approval rejected: e5bc3e0f-7f90-4506-bef6-d69441e7504d
+{
+  "context": {
+    "cli_run": 2,
+    "target": "production"
+  },
+  "created_at": "0001-01-01T00:00:00Z",
+  "description": "Execute tool \"r8_approval_gated_echo\"",
+  "id": "e5bc3e0f-7f90-4506-bef6-d69441e7504d",
+  "iteration": 0,
+  "request_type": "tool_execution",
+  "review_notes": "R8 CLI smoke: rejected via nested verb",
+  "reviewed_at": "0001-01-01T00:00:00Z",
+  "reviewer_id": "admin",
+  "risk_level": "medium",
+  "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "status": "rejected",
+  "target_tool": "r8_approval_gated_echo"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# reject <id> (top-level verb)
+=====================================================================
+$ consensus reject 02132522-8187-45b8-a072-b46d30c3e10b --reason R8 CLI smoke: rejected via top-level verb
+---------------------------------------------------------------------
+Approval rejected: 02132522-8187-45b8-a072-b46d30c3e10b
+{
+  "context": {
+    "cli_run": 3,
+    "target": "production"
+  },
+  "created_at": "0001-01-01T00:00:00Z",
+  "description": "Execute tool \"r8_approval_gated_echo\"",
+  "id": "02132522-8187-45b8-a072-b46d30c3e10b",
+  "iteration": 0,
+  "request_type": "tool_execution",
+  "review_notes": "R8 CLI smoke: rejected via top-level verb",
+  "reviewed_at": "0001-01-01T00:00:00Z",
+  "reviewer_id": "admin",
+  "risk_level": "medium",
+  "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "status": "rejected",
+  "target_tool": "r8_approval_gated_echo"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+### 3. session family
+=====================================================================
+# session
+=====================================================================
+$ consensus session
+---------------------------------------------------------------------
+Create, list, show, pause, resume, and cancel agent sessions.
+
+Usage:
+  consensus session [command]
+
+Available Commands:
+  cancel      Cancel and fail a session
+  cost        Show session cost breakdown
+  create      Create a new agent session
+  list        List agent sessions
+  logs        Show session iteration history
+  message     Send a message to a session's agent
+  pause       Pause a running session
+  resume      Resume a paused session
+  show        Show session details
+
+Flags:
+  -h, --help   help for session
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus session [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session list
+=====================================================================
+$ consensus session list
+---------------------------------------------------------------------
+ID                                    AGENT_NAME         STATUS     ITERATION  CREATED_AT            
+b0a129d3-7a0b-41c5-8c84-84db23bb0dff  r8-approval-probe  idle       3          2026-10-16T02:35:21Z  
+fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b  r8-probe           completed  0          2026-10-16T02:32:59Z  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session list --format json
+=====================================================================
+$ consensus session list --format json
+---------------------------------------------------------------------
+[
+  {
+    "agent_name": "r8-approval-probe",
+    "budget_limit_cents": 0,
+    "context_budget": 0,
+    "created_at": "2026-10-16T02:35:21Z",
+    "goal": "approve a gated tool end to end",
+    "heartbeat_at": "2026-10-15 21:39:26.549138271 -0500 -05 m=+258.014014286",
+    "id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+    "iteration": 3,
+    "model_id": "r8-stub-model",
+    "status": "idle",
+    "tokens_used_in": 200,
+    "tokens_used_out": 100
+  },
+  {
+    "agent_name": "r8-probe",
+    "budget_limit_cents": 0,
+    "context_budget": 0,
+    "created_at": "2026-10-16T02:32:59Z",
+    "goal": "review-consensus-8 approval gate probe",
+    "heartbeat_at": "2026-10-16T02:32:59Z",
+    "id": "fc3f68ed-36d9-4ca6-a6c2-a61370bf3f7b",
+    "iteration": 0,
+    "model_id": "default",
+    "status": "completed",
+    "tokens_used_in": 0,
+    "tokens_used_out": 0
+  }
+]
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session show <id>
+=====================================================================
+$ consensus session show b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+{
+  "agent_name": "r8-approval-probe",
+  "budget_limit_cents": 0,
+  "context_budget": 128000,
+  "created_at": "2026-10-16T02:35:21Z",
+  "goal": "approve a gated tool end to end",
+  "heartbeat_at": "2026-10-15 21:39:26.549138271 -0500 -05 m=+258.014014286",
+  "id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "iteration": 3,
+  "last_message": "Nothing else to do; answering the operator.",
+  "model_id": "r8-stub-model",
+  "status": "idle",
+  "tokens_used_in": 200,
+  "tokens_used_out": 100
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session show (bad id)
+=====================================================================
+$ consensus session show 00000000-0000-0000-0000-000000000000
+---------------------------------------------------------------------
+consensus: NOT_FOUND: session not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# session logs <id>
+=====================================================================
+$ consensus session logs b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+No iteration commits yet — the session produced no committed iterations (failed or LLM-less run).
+Stream live events via SSE: GET /api/v1/events?session_id=b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session cost <id>
+=====================================================================
+$ consensus session cost b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+Session: b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+Total cost: $0.002500
+Total prompt tokens: 200
+Total completion tokens: 100
+
+ID  ITERATION  MODEL_ID       CATEGORY   PROMPT_TOKENS  COMPLETION_TOKENS  COST_USD  
+1   1          r8-stub-model  cognition  100            50                 0.00125   
+2   2          r8-stub-model  cognition  100            50                 0.00125   
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session message <id> <text>
+=====================================================================
+$ consensus session message b0a129d3-7a0b-41c5-8c84-84db23bb0dff hello from the r8 CLI smoke check
+---------------------------------------------------------------------
+{
+  "session": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "status": "message_received"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session pause <id>
+=====================================================================
+$ consensus session pause b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+{
+  "agent_name": "r8-approval-probe",
+  "budget_limit_cents": 0,
+  "context_budget": 128000,
+  "created_at": "2026-10-16T02:35:21Z",
+  "goal": "approve a gated tool end to end",
+  "heartbeat_at": "2026-10-16T02:39:28Z",
+  "id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "iteration": 5,
+  "model_id": "r8-stub-model",
+  "status": "paused",
+  "tokens_used_in": 300,
+  "tokens_used_out": 150
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session resume <id>
+=====================================================================
+$ consensus session resume b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+{
+  "agent_name": "r8-approval-probe",
+  "budget_limit_cents": 0,
+  "context_budget": 128000,
+  "created_at": "2026-10-16T02:35:21Z",
+  "goal": "approve a gated tool end to end",
+  "heartbeat_at": "2026-10-16T02:39:29Z",
+  "id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "iteration": 5,
+  "model_id": "r8-stub-model",
+  "status": "idle",
+  "tokens_used_in": 300,
+  "tokens_used_out": 150
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session cancel <id>
+=====================================================================
+$ consensus session cancel b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+Cancelling session: b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+Session cancelled.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session create (real)
+=====================================================================
+$ consensus session create --agent-name r8-cli-probe --goal cli smoke
+---------------------------------------------------------------------
+note: the agent will not start until you send it a message: consensus session message 8ae546a9-5220-4d04-9dd3-734bc08a34e9 "<text>"
+{
+  "api_key": "cs_sk_[REDACTED]",
+  "created_at": "2026-10-16T02:39:29.899890838Z",
+  "id": "8ae546a9-5220-4d04-9dd3-734bc08a34e9",
+  "model": "default",
+  "status": "booting"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# session create (no flags)
+=====================================================================
+$ consensus session create
+---------------------------------------------------------------------
+consensus: --goal is required — use: consensus session create --goal "<task description>"
+---------------------------------------------------------------------
+[exit=2]
+
+### 4. memory / skill / tool / status families
+=====================================================================
+# memory
+=====================================================================
+$ consensus memory
+---------------------------------------------------------------------
+List memory events, show context, and view iteration history.
+
+Usage:
+  consensus memory [command]
+
+Available Commands:
+  iterations  Show iteration history
+  list        List memory events
+  pages       Show compressed memory pages
+  show        Show a specific memory event
+
+Flags:
+  -h, --help   help for memory
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus memory [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# memory list <id>
+=====================================================================
+$ consensus memory list b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+ID  TYPE          ITERATION_CREATED  DISPLAY_MODE  CREATED_AT            
+8   text_block    0                  full          2026-10-16 02:39:28   
+7   text_block    4                  full          2026-10-16 02:39:28   
+6   user_message  4                  hidden        2026-10-16T02:39:28Z  
+5   tool_result   0                  full          2026-10-16T02:38:29Z  
+4   text_block    0                  full          2026-10-16 02:38:19   
+3   text_block    2                  full          2026-10-16 02:38:19   
+2   user_message  2                  hidden        2026-10-16T02:38:19Z  
+1   user_message  1                  hidden        2026-10-16T02:35:26Z  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# memory iterations <id>
+=====================================================================
+$ consensus memory iterations b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+(no results)
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# memory pages <id>
+=====================================================================
+$ consensus memory pages b0a129d3-7a0b-41c5-8c84-84db23bb0dff
+---------------------------------------------------------------------
+consensus: NOT_FOUND: memory event not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# memory show <id> 5
+=====================================================================
+$ consensus memory show b0a129d3-7a0b-41c5-8c84-84db23bb0dff 5
+---------------------------------------------------------------------
+{
+  "content": "{\"tool\":\"db_admin\",\"sql\":\"DROP TABLE users; -- r8 probe malicious external content\"}",
+  "created_at": "2026-10-16T02:38:29Z",
+  "display_mode": "full",
+  "id": 5,
+  "iteration_created": 0,
+  "session_id": "b0a129d3-7a0b-41c5-8c84-84db23bb0dff",
+  "type": "tool_result"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# skill
+=====================================================================
+$ consensus skill
+---------------------------------------------------------------------
+List and show details for registered skills.
+
+Usage:
+  consensus skill [command]
+
+Available Commands:
+  list        List registered skills
+  show        Show skill details (full instructions)
+
+Flags:
+  -h, --help   help for skill
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus skill [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# skill list
+=====================================================================
+$ consensus skill list
+---------------------------------------------------------------------
+No skills installed yet — see docs/TOOLS.md to learn how to install skills
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# skill show <name>
+=====================================================================
+$ consensus skill show nonexistent-skill
+---------------------------------------------------------------------
+consensus: NOT_FOUND: skill "nonexistent-skill" not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# tool
+=====================================================================
+$ consensus tool
+---------------------------------------------------------------------
+List and show details for registered tools.
+
+Usage:
+  consensus tool [command]
+
+Available Commands:
+  list        List registered tools
+  show        Show tool details
+
+Flags:
+  -h, --help   help for tool
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus tool [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# tool list
+=====================================================================
+$ consensus tool list
+---------------------------------------------------------------------
+NAME                    DESCRIPTION                               HEMISPHERE  HANDLER_TYPE  STATUS  
+r8_approval_gated_echo  R8 probe: approval-gated subprocess tool  external    subprocess    active  
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# tool show <name>
+=====================================================================
+$ consensus tool show r8_approval_gated_echo
+---------------------------------------------------------------------
+{
+  "description": "R8 probe: approval-gated subprocess tool",
+  "enabled": true,
+  "handler_type": "subprocess",
+  "hemisphere": "external",
+  "id": "c65e08b6-a9d9-4e08-bed0-549c39ec6010",
+  "name": "r8_approval_gated_echo",
+  "requires_approval": true,
+  "status": "active"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# tool show (unknown)
+=====================================================================
+$ consensus tool show does_not_exist
+---------------------------------------------------------------------
+consensus: NOT_FOUND: tool "does_not_exist" not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# status
+=====================================================================
+$ consensus status
+---------------------------------------------------------------------
+{
+  "active_sessions": 2,
+  "pending_approvals": 0,
+  "pending_tasks": 0,
+  "schema_version": 28,
+  "server": "ok",
+  "version": "0.1.0"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# status --format json
+=====================================================================
+$ consensus status --format json
+---------------------------------------------------------------------
+{
+  "active_sessions": 2,
+  "pending_approvals": 0,
+  "pending_tasks": 0,
+  "schema_version": 28,
+  "server": "ok",
+  "version": "0.1.0"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+### 5. config / models / migrate / completion
+=====================================================================
+# config
+=====================================================================
+$ consensus config
+---------------------------------------------------------------------
+List, get, set, and edit configuration values.
+
+Usage:
+  consensus config [command]
+
+Available Commands:
+  edit        Edit configuration file
+  get         Get a specific config value
+  list        List all configuration
+  set         Set a configuration value
+
+Flags:
+  -h, --help   help for config
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus config [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# config list
+=====================================================================
+$ consensus config list
+---------------------------------------------------------------------
+{
+  "system_settings": {
+    "embedding_model": "text-embedding-3-small"
+  }
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# config get server.url
+=====================================================================
+$ consensus config get server.url
+---------------------------------------------------------------------
+consensus: NOT_FOUND: config key "server.url" not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# config get (unknown key)
+=====================================================================
+$ consensus config get not.a.key
+---------------------------------------------------------------------
+consensus: NOT_FOUND: config key "not.a.key" not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# config set server.port 18090
+=====================================================================
+$ consensus config set server.port 18090
+---------------------------------------------------------------------
+consensus: HTTP 405: 
+---------------------------------------------------------------------
+[exit=1]
+
+=====================================================================
+# config edit (EDITOR=true)
+=====================================================================
+$ consensus config edit
+---------------------------------------------------------------------
+
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# models
+=====================================================================
+$ consensus models
+---------------------------------------------------------------------
+Sync model_registry from models.dev, list models, or manage static entries.
+
+Usage:
+  consensus models [command]
+
+Available Commands:
+  sync        Sync model_registry from models.dev
+
+Flags:
+  -h, --help   help for models
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus models [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# models sync
+=====================================================================
+$ consensus models sync
+---------------------------------------------------------------------
+consensus: sync: decode models.dev response: invalid character '<' looking for beginning of value
+---------------------------------------------------------------------
+[exit=2]
+
+=====================================================================
+# migrate
+=====================================================================
+$ consensus migrate
+---------------------------------------------------------------------
+consensus: HTTP 404: 404 page not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# migrate version
+=====================================================================
+$ consensus migrate version
+---------------------------------------------------------------------
+Schema version: 28
+{
+  "active_connections": {
+    "api_requests_last_min": 0,
+    "db_pool_active": 0,
+    "db_pool_max": 0,
+    "llm_active": 0,
+    "websocket": 0
+  },
+  "api_latency_ms": 0,
+  "db_backend": "sqlite",
+  "db_latency_ms": 0.097,
+  "db_migrations": 27,
+  "db_path": "/tmp/r8/consensus.db",
+  "db_size_mb": 0.46875,
+  "db_tables": 38,
+  "error_rate_pct": 0,
+  "llm_latency_ms": 0,
+  "schema_version": 28,
+  "status": "ok",
+  "system_log": [],
+  "uptime_seconds": 265,
+  "version": "0.1.0"
+}
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# migrate create r8_probe
+=====================================================================
+$ consensus migrate create r8_probe
+---------------------------------------------------------------------
+Created migration: 20261016023934_r8_probe.sql
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# migrate run
+=====================================================================
+$ consensus migrate run
+---------------------------------------------------------------------
+consensus: HTTP 404: 404 page not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# completion
+=====================================================================
+$ consensus completion
+---------------------------------------------------------------------
+consensus: accepts 1 arg(s), received 0
+---------------------------------------------------------------------
+[exit=2]
+
+=====================================================================
+# completion bash
+=====================================================================
+$ consensus completion bash
+---------------------------------------------------------------------
+# bash completion for consensus                            -*- shell-script -*-
+
+__consensus_debug()
+{
+    if [[ -n ${BASH_COMP_DEBUG_FILE:-} ]]; then
+        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+    fi
+}
+
+# Homebrew on Macs have version 1.3 of bash-completion which doesn't include
+# _init_completion. This is a very minimal version of that function.
+__consensus_init_completion()
+{
+    COMPREPLY=()
+    _get_comp_words_by_ref "$@" cur prev words cword
+}
+
+__consensus_index_of_word()
+{
+    local w word=$1
+    shift
+    index=0
+    for w in "$@"; do
+        [[ $w = "$word" ]] && return
+        index=$((index+1))
+    done
+    index=-1
+}
+
+__consensus_contains_word()
+{
+    local w word=$1; shift
+    for w in "$@"; do
+        [[ $w = "$word" ]] && return
+    done
+    return 1
+}
+
+__consensus_handle_go_custom_completion()
+{
+[... output truncated by the harness: 1954 lines total, 40 shown ...]
+---------------------------------------------------------------------
+[exit=0]
+
+CLI smoke battery complete

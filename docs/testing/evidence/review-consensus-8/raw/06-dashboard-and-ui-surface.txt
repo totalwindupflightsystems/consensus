@@ -1,0 +1,162 @@
+=====================================================================
+# GET /ui/ (dashboard index)
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/
+---------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Consensus — Admin UI</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+.header h1{font-size:18px;font-weight:600;color:#f0f6fc}
+.header nav{display:flex;gap:8px;margin-left:auto}
+.header nav a{padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500;color:#8b949e;text-decoration:none;transition:background .15s,color .15s}
+.header nav a:hover,.header nav a.active{background:#21262d;color:#f0f6fc}
+.main{padding:24px 20px;max-width:1200px;margin:0 auto}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:20px}
+.card h2{font-size:16px;font-weight:600;margin-bottom:16px;color:#f0f6fc}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 12px;font-size:12px;font-weight:600;color:#8b949e;text-transform:uppercase;border-bottom:1px solid #21262d}
+...
+[__STATUS__200__SIZE__5691]
+
+=====================================================================
+# GET /ui/dashboard
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/dashboard
+---------------------------------------------------------------------
+404 page not found
+
+...
+[__STATUS__404__SIZE__19]
+
+=====================================================================
+# GET /ui/sessions
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/sessions
+---------------------------------------------------------------------
+404 page not found
+
+...
+[__STATUS__404__SIZE__19]
+
+=====================================================================
+# GET /ui/memory
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/memory
+---------------------------------------------------------------------
+404 page not found
+
+...
+[__STATUS__404__SIZE__19]
+
+=====================================================================
+# GET /ui/health
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/health
+---------------------------------------------------------------------
+404 page not found
+
+...
+[__STATUS__404__SIZE__19]
+
+=====================================================================
+# GET /ui/does-not-exist
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/ui/does-not-exist
+---------------------------------------------------------------------
+404 page not found
+
+...
+[__STATUS__404__SIZE__19]
+
+=====================================================================
+# GET /chronicle/
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/chronicle/
+---------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Chronicle — Investigation Workbench</title>
+<link rel="stylesheet" href="/chronicle/css/design-system.css"/>
+<link rel="stylesheet" href="/chronicle/css/layout.css"/>
+<link rel="stylesheet" href="/chronicle/css/components.css"/>
+<link rel="stylesheet" href="/chronicle/css/dashboard.css"/>
+<link rel="stylesheet" href="/chronicle/css/health.css"/>
+<link rel="stylesheet" href="/chronicle/css/timeline.css"/>
+<link rel="stylesheet" href="/chronicle/css/entity-graph.css"/>
+<script src="https://d3js.org/d3.v7.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous" defer></script>
+</head>
+<body>
+<!-- Mobile sidebar backdrop -->
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+...
+[__STATUS__200__SIZE__312003]
+
+=====================================================================
+# GET /mcp
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/mcp
+---------------------------------------------------------------------
+event: endpoint
+data: /mcp/message?sessionId=f9e3ada5252f9d824519719ec6d14a46
+
+
+...
+[__STATUS__200__SIZE__79]
+
+=====================================================================
+# GET /webhooks/r8-quarantine-probe (GET on webhook route)
+=====================================================================
+$ curl -sS -i http://127.0.0.1:18090/webhooks/r8-quarantine-probe
+---------------------------------------------------------------------
+{"status":"accepted"}
+...
+[__STATUS__202__SIZE__21]
+
+=====================================================================
+# dashboard wiring markers (fetched separately, first 3 matches per page)
+=====================================================================
+-- http://127.0.0.1:18090/ui/
+<title>Consensus — Admin UI</title>
+
+-- http://127.0.0.1:18090/ui/dashboard
+
+-- http://127.0.0.1:18090/ui/sessions
+
+-- http://127.0.0.1:18090/ui/memory
+
+-- http://127.0.0.1:18090/ui/health
+
+=====================================================================
+# Re-verification (run after the initial capture): /ui/abc behaves exactly like the four real pages
+=====================================================================
+/ui/                 HTTP 200  5691 bytes
+/ui/dashboard        HTTP 404  19 bytes
+/ui/sessions         HTTP 404  19 bytes
+/ui/memory           HTTP 404  19 bytes
+/ui/health           HTTP 404  19 bytes
+/ui/abc              HTTP 404  19 bytes
+/ui/index.html       HTTP 404  19 bytes
+
+# Nav hrefs emitted by the index page:
+href="/dashboard"
+href="/memory"
+href="/sessions"
+
+# Root-relative nav targets:
+/dashboard   HTTP 404
+/sessions    HTTP 404
+/memory      HTTP 404
+/health      HTTP 404
+
+# The CORS headers are NOT evidence of the web handler: the API router applies them globally
+# (internal/api/server.go:141 'r.Use(s.allowCORSMiddleware)').
+

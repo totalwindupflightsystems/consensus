@@ -1,0 +1,16 @@
+List agent sessions
+
+Usage:
+  consensus session list [flags]
+
+Flags:
+  -h, --help            help for list
+      --limit int       Max sessions to show (default: unlimited)
+      --status string   Filter by status (comma-separated: idle,thinking,paused)
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

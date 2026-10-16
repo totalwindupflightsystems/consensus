@@ -1,0 +1,29 @@
+Start the MCP server in stdio transport mode.
+
+Reads JSON-RPC 2.0 requests from stdin and writes responses to stdout.
+Use stderr for logging. This enables MCP-compatible clients like Claude
+Desktop to launch Consensus as a subprocess.
+
+Example:
+  consensus mcp-stdio --db-url sqlite://dev.db
+
+Environment variables:
+  CONSENSUS_DB_URL  Database connection URL
+  CONSENSUS_LOG_LEVEL  Log level (debug, info, warn, error)
+  CONSENSUS_API_KEY  API key for authentication (or --api-key)
+
+Usage:
+  consensus mcp-stdio [flags]
+
+Flags:
+      --db-url string      Database connection URL (env: CONSENSUS_DB_URL)
+  -h, --help               help for mcp-stdio
+      --log-level string   Log level: debug, info, warn, error (default "info")
+      --port int           Server port (for bootstrap key info) (default 8090)
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

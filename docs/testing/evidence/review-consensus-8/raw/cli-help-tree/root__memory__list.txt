@@ -1,0 +1,16 @@
+List memory events
+
+Usage:
+  consensus memory list <session-id> [flags]
+
+Flags:
+  -h, --help          help for list
+      --limit int     Max events to show (default 50)
+      --type string   Filter by event type (comma-separated: text_block,tool_result)
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)

@@ -1,0 +1,25 @@
+REVIEW-CONSENSUS-8 — SQLite CHECK-constraint probe for the tool_requests status enum
+Run: 2026-10-16T02:42:34Z
+
+$ sqlite3 /tmp/r8/consensus.db ".backup /tmp/r8/constraint-probe.db"   # copy, never the live file
+
+Live schema as created by the embedded migrator (27 migrations applied):
+    status            TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending', 'executing', 'completed', 'failed', 'timeout')),
+
+Probe 1 — INSERT with status='awaiting_approval' (what handleApprovalGated writes):
+$ sqlite3 constraint-probe.db "INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status) VALUES ('<sid>', 1, 'r8_approval_gated_echo', '{}', 'awaiting_approval');"
+Error in 2nd command line argument: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout')
+  -> exit=1
+
+Probe 2 (control) — the identical INSERT with status='pending' succeeds:
+  -> exit=0 ; rows now:
+id  status
+--  -------
+ 1  pending
+ 2  pending
+
+Runtime side of the same failure (from the scratch server log):
+time=2026-10-15T21:39:11.746-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=3 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:39:18.735-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=4 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"
+time=2026-10-15T21:39:23.040-05:00 level=ERROR msg="tool_executor: failed to update tool_request status" request_id=5 error="sqlite: exec: constraint failed: CHECK constraint failed: status IN ('pending', 'executing', 'completed', 'failed', 'timeout') (275)"

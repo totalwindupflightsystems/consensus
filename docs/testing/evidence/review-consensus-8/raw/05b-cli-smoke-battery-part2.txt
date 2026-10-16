@@ -1,0 +1,186 @@
+CLI smoke battery part 2 — 2026-10-16T02:40:04Z
+### remaining verbs
+=====================================================================
+# help
+=====================================================================
+$ consensus help
+---------------------------------------------------------------------
+Consensus is a database-native cognitive architecture for AI agents.
+
+The CLI is a management tool for the Consensus runtime. It handles
+operational tasks: starting the server, managing sessions, reviewing
+approvals, running migrations, and inspecting system state.
+
+Usage:
+  consensus [command]
+
+Available Commands:
+  approve     Manage human-in-the-loop approvals
+  completion  Generate shell completion script
+  config      Manage configuration
+  help        Help about any command
+  init        Bootstrap a new Consensus instance
+  mcp-stdio   Start MCP server over stdin/stdout (SPEC-015 §5.4)
+  memory      Inspect agent memory
+  migrate     Run database migrations
+  models      Manage the model registry
+  reject      Reject a pending approval request
+  serve       Start the Consensus server
+  session     Manage agent sessions
+  skill       Inspect available skills
+  status      Show system health and metrics
+  tool        Inspect available tools
+  version     Print the consensus version
+
+Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+  -h, --help             help for consensus
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+  -v, --version          version for consensus
+
+Use "consensus [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# help session
+=====================================================================
+$ consensus help session
+---------------------------------------------------------------------
+Create, list, show, pause, resume, and cancel agent sessions.
+
+Usage:
+  consensus session [command]
+
+Available Commands:
+  cancel      Cancel and fail a session
+  cost        Show session cost breakdown
+  create      Create a new agent session
+  list        List agent sessions
+  logs        Show session iteration history
+  message     Send a message to a session's agent
+  pause       Pause a running session
+  resume      Resume a paused session
+  show        Show session details
+
+Flags:
+  -h, --help   help for session
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+
+Use "consensus session [command] --help" for more information about a command.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# mcp-stdio (stdin closed)
+=====================================================================
+$ consensus mcp-stdio
+---------------------------------------------------------------------
+time=2026-10-15T21:40:04.784-05:00 level=INFO msg=bootstrap info="consensus: first_admin_key created=false key_prefix=cs_ak_[REDACTED] id=f2252bca-205d-4a05-8522-bfc1f713b3fc created_at=2026-08-18T13:03:00Z"
+time=2026-10-15T21:40:04.784-05:00 level=INFO msg="consensus: starting MCP stdio transport"
+time=2026-10-15T21:40:04.784-05:00 level=INFO msg="mcp: starting stdio transport"
+time=2026-10-15T21:40:04.784-05:00 level=INFO msg="mcp: stdin closed"
+time=2026-10-15T21:40:04.784-05:00 level=INFO msg="consensus: MCP stdio transport shut down"
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# migrate rollback
+=====================================================================
+$ consensus migrate rollback
+---------------------------------------------------------------------
+consensus: HTTP 404: 404 page not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# migrate rollback --to 0
+=====================================================================
+$ consensus migrate rollback --to 0
+---------------------------------------------------------------------
+consensus: unknown flag: --to
+---------------------------------------------------------------------
+[exit=2]
+
+=====================================================================
+# migrate run (again)
+=====================================================================
+$ consensus migrate run
+---------------------------------------------------------------------
+consensus: HTTP 404: 404 page not found
+---------------------------------------------------------------------
+[exit=5]
+
+=====================================================================
+# models sync --help
+=====================================================================
+$ consensus models sync --help
+---------------------------------------------------------------------
+Fetch the latest model listing from models.dev and update the
+model_registry table. Entries marked sync_source='static' are never
+overwritten. Use --auto-sync with serve to keep models current.
+
+Usage:
+  consensus models sync [flags]
+
+Flags:
+      --db-url string   Database URL (overrides config)
+  -h, --help            help for sync
+
+Global Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# approve (bare)
+=====================================================================
+$ consensus approve
+---------------------------------------------------------------------
+No pending approvals.
+---------------------------------------------------------------------
+[exit=0]
+
+=====================================================================
+# reject (bare)
+=====================================================================
+$ consensus reject
+---------------------------------------------------------------------
+consensus: accepts 1 arg(s), received 0
+---------------------------------------------------------------------
+[exit=2]
+
+=====================================================================
+# reject (no args)
+=====================================================================
+$ consensus reject
+---------------------------------------------------------------------
+consensus: accepts 1 arg(s), received 0
+---------------------------------------------------------------------
+[exit=2]
+
+part 2 complete
+=====================================================================
+# mcp-stdio --config <scratch config> (proves which DB it resolves)
+=====================================================================
+$ consensus mcp-stdio --config /tmp/r8/consensus-r8.yaml
+---------------------------------------------------------------------
+time=2026-10-15T21:41:03.648-05:00 level=INFO msg=bootstrap info="consensus: first_admin_key created=false key_prefix=cs_ak_[REDACTED] id=d45467b5-e033-40e4-9e7d-73b806795a05 created_at=2026-10-16T02:31:42Z"
+time=2026-10-15T21:41:03.648-05:00 level=INFO msg="consensus: starting MCP stdio transport"
+time=2026-10-15T21:41:03.648-05:00 level=INFO msg="mcp: starting stdio transport"
+time=2026-10-15T21:41:03.648-05:00 level=INFO msg="mcp: stdin closed"
+time=2026-10-15T21:41:03.648-05:00 level=INFO msg="consensus: MCP stdio transport shut down"
+[exit=0]
