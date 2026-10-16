@@ -225,6 +225,8 @@ call). A cell claims only the evidence it has.
 |---|---|---|---|---|---|
 | B1-OPENAI-CHAT | §B1 | OpenAI Chat Completions format at base https://api.deepseek.com (POST /chat/completions) | openai | supported | base carries no /v1; client appends /chat/completions |
 | B1-ANTHROPIC-MSGS | §B1 | Anthropic Messages format at base https://api.deepseek.com/anthropic (x-api-key; anthropic-version ignored) | anthropic | supported | endpoint derived from base: /v1 base keeps SDK spelling, /anthropic base gets /v1/messages |
+| B1-ANTHROPIC-STREAM | §B1 | Anthropic streaming protocol (stream:true → SSE message_start / content_block_delta / message_delta / message_stop assembled into the same turn the buffered call returns) | anthropic | supported | SHIM-SUPPORT-004 — streamed and buffered turns agree by construction; malformed streams fail loudly (TestAnthropicConformance_*) |
+| B3-ANTHROPIC-STREAM-TOOLUSE | §B3 | Anthropic tool-use over the stream (tool_use assembled from input_json_delta fragments; tool_result echoed on the next streamed request) | anthropic | supported | SHIM-SUPPORT-004 — fragments replace the input placeholder and concatenate byte-exactly (TestAnthropicConformance_*) |
 | B1-ANTHROPIC-MODELMAP | §B1 | Documented Anthropic model-name mapping (claude-opus* → deepseek-v4-pro; claude-haiku*/claude-sonnet* → deepseek-flash; unsupported → deepseek-flash) | anthropic | supported | provider-side mapping; client passes the name through, so the cost consequence is recorded |
 | B1-RESPONSES-SHAPE | §B1 | Responses format request/response shape (POST /responses) | responses | supported | builder + interpreter pinned against a recorded exchange |
 | B1-RESPONSES-WIRING | §B1 | The harness can select the Responses format | responses | not-supported | SHIM-SUPPORT-005 — NewClient has no provider case; the wire layer is unreachable |
@@ -276,6 +278,16 @@ No matrix test calls a live provider. SHIM-SUPPORT-003 adds the
 documentation into behaviour: the scenario names the test, and
 `TestDeepSeekConformanceMatrix_ProducesVerifiableScenarioTable` fails if that
 test function does not exist or this table stops naming it.
+SHIM-SUPPORT-004 adds the two Anthropic streaming/tool-use cells above
+(`B1-ANTHROPIC-STREAM`, `B3-ANTHROPIC-STREAM-TOOLUSE`): the client consumes the
+provider's SSE protocol (`stream:true` → message_start → content_block_delta… →
+message_delta → message_stop) and assembles the same turn the buffered call
+returns, and the tool-use contract (tools[].input_schema, tool_use blocks,
+tool_result results) works over both the buffered and the streaming surface.
+Their transcripts are protocol fixtures built to the documented event shapes,
+not provider recordings — the cells carry `unit` evidence for exactly that
+reason, and the tool-declaration shape stays backed by the recorded exchange
+(`B3-TOOLS-ANTHROPIC-SHAPE`).
 
 | Scenario | Recorded fixture | Expected request shape | Expected response handling | Executable test |
 |---|---|---|---|---|
@@ -290,11 +302,12 @@ test function does not exist or this table stops naming it.
 scenario → request shape → response handling table in every verbose matrix run
 and fails if any row is blank, duplicated, or missing.
 
-Totals at 2026-10-13: **34 supported, 5 not-supported, 1 not-applicable (40 cells)**. The
+Totals at 2026-10-13: **36 supported, 5 not-supported, 1 not-applicable (42 cells)**. The
 five not-supported cells rest on four rows — `SHIM-SUPPORT-005` (Responses wiring),
 `SHIM-SUPPORT-006` (beta surface), `SHIM-SUPPORT-007` (Anthropic off-switch divergence),
 `SHIM-SUPPORT-008` (Responses effort-spelling divergence) — all filed from this row's report
-and listed by the matrix run itself.
+and listed by the matrix run itself. SHIM-SUPPORT-004 added the two Anthropic
+streaming/tool-use cells (36 supported) without closing any not-supported row.
 
 ---
 

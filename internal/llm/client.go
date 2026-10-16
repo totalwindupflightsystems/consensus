@@ -129,6 +129,12 @@ type Config struct {
 	// nil = allowed (documented default: thinking models routinely leave
 	// content empty); false = refuse it and fail loudly instead.
 	AllowReasoningFallback *bool `json:"allow_reasoning_fallback,omitempty" yaml:"allow_reasoning_fallback,omitempty"`
+
+	// Stream defaults every request to the provider's streaming (SSE) surface.
+	// false = buffered (documented default). Only the Anthropic Messages client
+	// serves it in this revision (SHIM-SUPPORT-004); the OpenAI-format and
+	// Responses surfaces stay buffered regardless of this flag.
+	Stream bool `json:"stream,omitempty" yaml:"stream,omitempty"`
 }
 
 // DefaultConfig returns a sensible default configuration.

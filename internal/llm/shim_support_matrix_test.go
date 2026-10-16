@@ -399,6 +399,30 @@ var shimChecks = map[string]func(*testing.T, *shimFixture){
 		}
 	},
 
+	"B1-ANTHROPIC-STREAM": func(t *testing.T, fx *shimFixture) {
+		// SHIM-SUPPORT-004: the streaming protocol is exercised by the
+		// conformance suite; the cell's check re-runs its sequence and
+		// equivalence proofs so the matrix cannot outlive them.
+		t.Run("StreamEventSequence", func(t *testing.T) {
+			TestAnthropicConformance_StreamEventSequence(t)
+		})
+		t.Run("StreamedAndBufferedTurnsAgree", func(t *testing.T) {
+			TestAnthropicConformance_StreamedAndBufferedTurnsAgree(t)
+		})
+		t.Run("MalformedStreamFailsLoudly", func(t *testing.T) {
+			TestAnthropicConformance_MalformedStreamFailsLoudly(t)
+		})
+	},
+
+	"B3-ANTHROPIC-STREAM-TOOLUSE": func(t *testing.T, fx *shimFixture) {
+		t.Run("StreamThinkingAndToolUseAssemblesToolCall", func(t *testing.T) {
+			TestAnthropicConformance_StreamThinkingAndToolUseAssemblesToolCall(t)
+		})
+		t.Run("ToolUseRoundTripOverStream", func(t *testing.T) {
+			TestAnthropicConformance_ToolUseRoundTripOverStream(t)
+		})
+	},
+
 	"B1-ANTHROPIC-MODELMAP": func(t *testing.T, fx *shimFixture) {
 		// The mapping is provider-side; what our client must do is pass the
 		// requested name through untouched so the documented mapping applies.
