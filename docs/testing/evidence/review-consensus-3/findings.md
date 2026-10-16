@@ -148,3 +148,26 @@ unverified change): in `normalizeValue`, convert `[16]byte` (and
   design decision (which pool / which seeding strategy); Finding 3 is a safe
   one-line fix but was left unapplied so it is not committed unverified. All
   three should become board rows with owners.
+
+---
+
+## Update (2026-10-16) — superseded by `findings-v2.md`
+
+`loadprobe-postgres.json` (the run documented above) is superseded by the v2 run
+in `loadprobe-postgres-v2.json` + `findings-v2.md`. That file is kept as the
+historical record of the blocked 2026-10-15 run.
+
+Status of the three defects above, as re-verified live on 2026-10-16:
+
+- **Finding 1 — still live.** The `sessions` INSERT is still rejected by
+  `session_isolate_sessions` (SQLSTATE 42501); the commits named as its fix
+  (`36e6485`, `c5d6447`) cover the auth lookup/rate-limit path and the
+  `current_setting` `missing_ok` class, not the INSERT. See findings-v2.md.
+- **Finding 2 — fixed** by migration `029_seed_default_chat_model.sql`
+  (+ `internal/migrate/seed_default_chat_model_test.go`).
+- **Finding 3 — fixed** in `internal/db/postgres/postgres.go`
+  (+ `internal/db/postgres/postgres_test.go`).
+
+Two further defects (missing sequence grants, and a `COALESCE(uuid_col, '')`
+harness query) were exposed by the v2 run and are documented in findings-v2.md.
+
