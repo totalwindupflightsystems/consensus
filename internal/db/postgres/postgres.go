@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/wojons/consensus/internal/db"
@@ -301,10 +303,31 @@ func scanRow(rows pgx.Rows, columns []string) (db.Row, error) {
 }
 
 // normalizeValue converts driver-specific types to standard Go types.
+//
+// A `uuid` column does not come back as a string from pgx: UUIDCodec.DecodeValue
+// returns the raw [16]byte (pgtype/uuid.go). Every db.Row consumer compares and
+// formats UUIDs as the canonical 8-4-4-4-12 text (SQLite returns UUID columns as
+// TEXT, so this is also backend parity), and `toString` on a [16]byte yields a
+// decimal byte list — never the id. That silently emptied session ids read
+// through the Postgres driver, breaking session-scoped key authorization
+// (internal/api/sessions.go "session key can only message its own session")
+// and every task/memory-event id comparison.
 func normalizeValue(v any) any {
 	switch val := v.(type) {
 	case []byte:
 		return string(val)
+	case [16]byte:
+		// pgx's default codec for uuid returns this shape.
+		return uuid.UUID(val).String()
+	case pgtype.UUID:
+		// Returned when a caller registers pgtype.UUID in the type map.
+		if !val.Valid {
+			return nil
+		}
+		return uuid.UUID(val.Bytes).String()
+	case uuid.UUID:
+		// Returned when the google/uuid type is registered in the type map.
+		return val.String()
 	default:
 		return val
 	}
