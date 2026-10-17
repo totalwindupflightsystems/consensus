@@ -339,10 +339,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// had no shim route at all, so the request fell through to net/http's
 	// default 404. Register the exact path for real; never an /api/* or
 	// /api/provider/* catch-all, so the v1 /provider compatibility route above
-	// (provider.list, a different declared operation) is untouched and the
-	// sibling declared /api/provider/{providerID} (v2.provider.get) keeps the
-	// default 404 it is classified with until its own contract row lands.
+	// (provider.list, a different declared operation) is untouched.
 	mux.HandleFunc("/api/provider", s.handleApiProviderList)
+	// ROUTE-ADD-027: the declared v2.provider.get operation
+	// (GET /api/provider/{providerID}) had no shim route either, so it fell
+	// through to net/http's default 404 as well. Register the exact
+	// one-segment parameter shape for real; never an /api/* or
+	// /api/provider/* catch-all, so the exact list route above and any deeper
+	// /api/provider/a/b sub-path keep the answers they are classified with.
+	mux.HandleFunc("/api/provider/{providerID}", s.handleApiProviderGet)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -586,6 +591,9 @@ var MountPatterns = []string{
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
+	// ROUTE-ADD-027: exact declared parameter shape for v2.provider.get so a
+	// parent chi mount reaches the shim route; no /api/provider/* catch-all.
+	"/api/provider/{providerID}",
 	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
 	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
 	"/api/integration/attempt/{attemptID}",
@@ -715,9 +723,10 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	"/api/question/request":   {},
 	// ROUTE-ADD-026: the declared v2.provider.list path takes the v2
 	// UnauthorizedError 401 envelope (this operation declares it); membership
-	// stays exact-path, so /api/provider/{providerID} (v2.provider.get) and any
-	// other /api/provider/* sub-path keep the shim's own 401 body until their
-	// own rows land.
+	// stays exact-path, so only the registered /api/* shapes join it.
+	// ROUTE-ADD-027 adds the sibling v2.provider.get one-segment shape through
+	// isV2EnvelopeRoutePath below; deeper /api/provider/* sub-paths keep the
+	// shim's own 401 body.
 	"/api/provider": {},
 	// ROUTE-ADD-018 / SHIM-DRIFT-005 uses a path parameter, so
 	// isV2EnvelopeRoutePath recognizes its exact one-segment shape below.
@@ -769,6 +778,15 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// only the concrete parameter shape, so a blank or deeper
 	// /api/permission/saved/* path keeps the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/api/permission/saved/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
+	}
+	// ROUTE-ADD-027: the declared v2.provider.get path
+	// (GET /api/provider/{providerID}) declares the same v2 UnauthorizedError
+	// 401 arm as its sibling v2.provider.list operation, which the exact map
+	// above covers for the bare path. The one-segment rule admits only the
+	// concrete parameter shape, so a blank or deeper /api/provider/* path keeps
+	// the shim's own envelope.
+	if rest, ok := strings.CutPrefix(path, "/api/provider/"); ok {
 		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]

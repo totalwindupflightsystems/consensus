@@ -92,6 +92,17 @@ func newApiProviderListServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
 			synced_at TEXT,
 			provider_id TEXT
 		)`,
+		// migration 001 §2.4: the credential store the sibling declared
+		// operation v2.provider.get (ROUTE-ADD-027) reads as its second
+		// provider-existence evidence. Present and empty here so this
+		// fixture's sibling-route assertions exercise the handler's 404 arm
+		// rather than an unavailable store.
+		`CREATE TABLE system_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			description TEXT,
+			updated_at TEXT
+		)`,
 	} {
 		if err := conn.Exec(ctx, stmt); err != nil {
 			t.Fatalf("prepare api provider list test database: %v", err)
@@ -386,8 +397,10 @@ func TestApiProviderListMountWiring(t *testing.T) {
 	}
 
 	// No catch-all: the sibling declared operation v2.provider.get
-	// (/api/provider/{providerID}) keeps the net/http default 404 it is
-	// classified with, and /api/provider did not become an /api/* subtree.
+	// (/api/provider/{providerID}) has its OWN exact one-segment route
+	// (ROUTE-ADD-027) and an unknown id answers THAT handler's declared 404
+	// ProviderNotFoundError; a deeper sub-path still keeps the net/http default
+	// 404, and /api/provider did not become an /api/* subtree.
 	for _, path := range []string{"/api/provider/anthropic", "/api/provider/bogus", "/api/provider/a/b"} {
 		status, _, _ := doShimRequest(t, srv.URL, http.MethodGet, path)
 		if status != http.StatusNotFound {
@@ -398,8 +411,11 @@ func TestApiProviderListMountWiring(t *testing.T) {
 	if !isV2EnvelopeRoutePath("/api/provider") {
 		t.Error("/api/provider is not listed in v2EnvelopeRoutePaths — its declared 401 body is the v2 UnauthorizedError envelope")
 	}
-	if isV2EnvelopeRoutePath("/api/provider/anthropic") {
-		t.Error("/api/provider/anthropic is treated as a v2-envelope route; membership must be exact-path")
+	if !isV2EnvelopeRoutePath("/api/provider/anthropic") {
+		t.Error("/api/provider/anthropic is not recognized as a v2-envelope route after ROUTE-ADD-027 registered the one-segment shape")
+	}
+	if isV2EnvelopeRoutePath("/api/provider/anthropic/extra") {
+		t.Error("/api/provider/anthropic/extra is treated as a v2-envelope route; membership must be exact-path or the one-segment shape")
 	}
 	if !isV2EnvelopeRoutePath("/api/model") || !isV2EnvelopeRoutePath("/api/agent") {
 		t.Error("a pre-existing v2 route lost its 401 envelope")
