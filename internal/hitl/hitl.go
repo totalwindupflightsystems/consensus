@@ -162,6 +162,8 @@ func DefaultConfiguration() Configuration {
 type Manager struct {
 	database      db.DB
 	subscriptions map[string][]chan Notification
+	rejection     RejectionCallback
+	approval      ApprovalCallback
 }
 
 // New creates a new HITL manager backed by the given database.
@@ -297,12 +299,71 @@ func (m *Manager) ReviewApproval(ctx context.Context, approvalID string, decisio
 		return fmt.Errorf("hitl: update approval: %w", err)
 	}
 
+	// APPROV-GATE-001 §4.2: a rejection keeps the session paused. Prior to
+	// this branch every decision resumed the session identically
+	// (paused → idle), so "reject" carried no more information than
+	// "approve" — the operator could not stop an action by rejecting it.
+	// Tool-request cancellation (tool_request → refused + a tool_result with
+	// is_error=1 so the agent can see WHY it was refused) is handled by the
+	// rejection callback registered in cmd/consensus (hitl cannot import
+	// harness — import cycle).
+	switch decision {
+	case DecisionRejected:
+		// Rejected: session stays paused. An operator resumed an
+		// intentionally held session to a decision they then refused —
+		// leaving it parked is the fail-closed behavior reviewers
+		// documented (findings.md §4.2: "reject → session blocks").
+		if m.rejection != nil {
+			if err := m.rejection(ctx, approvalID, sessionID, reviewerID, reviewNotes); err != nil {
+				return fmt.Errorf("hitl: cancel tool requests: %w", err)
+			}
+		}
+		// Surface the refusal to the operator surfaces too: the paused
+		// session plus the approval row's rejected status is the observable
+		// record (the tool_result refusal is written by the wired callback).
+		slog.Info("hitl: approval rejected — session stays paused",
+			"approval_id", approvalID, "session_id", sessionID, "reviewer", reviewerID)
+		return nil
+	}
+
+	// Approved/modified: run the tool-side follow-through (re-queue the
+	// parked tool request) BEFORE resuming the session, so the executor's
+	// next poll sees a 'pending' row rather than racing the resumed session.
+	if m.approval != nil {
+		if err := m.approval(ctx, approvalID, sessionID); err != nil {
+			return fmt.Errorf("hitl: re-queue approved tool: %w", err)
+		}
+	}
+
 	// Resume the session
 	if err := m.ResumeSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("hitl: resume session: %w", err)
 	}
 
 	return nil
+}
+
+// RejectionCallback is invoked when an approval is rejected. It cancels the
+// linked tool execution (tool_request/status updates + a tool_result with
+// is_error=1 describing the refusal). Registered at startup by consensus to
+// keep this package free of harness imports. A nil callback = no tool-action
+// hook (tests, tools without an executor path).
+type RejectionCallback func(ctx context.Context, approvalID, sessionID, reviewerID, reviewNotes string) error
+
+// ApprovalCallback is invoked when an approval is approved or modified. It
+// re-queues the tool_request parked against the approval so the executor's
+// next poll claims it. Registered at startup by consensus (import-cycle
+// avoidance as above). A nil callback skips the hook.
+type ApprovalCallback func(ctx context.Context, approvalID, sessionID string) error
+
+// SetRejectionCallback wires the rejection hook (called once at startup).
+func (m *Manager) SetRejectionCallback(cb RejectionCallback) {
+	m.rejection = cb
+}
+
+// SetApprovalCallback wires the approval hook (called once at startup).
+func (m *Manager) SetApprovalCallback(cb ApprovalCallback) {
+	m.approval = cb
 }
 
 // ============================================================================

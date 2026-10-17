@@ -274,6 +274,20 @@ func runServer() {
 
 	// HITL Manager — wire into server and start cron (SPEC-014 §5.3, sweep-017)
 	hitlMgr := hitl.New(database)
+	// APPROV-GATE-001: the HITL decision paths now WRITE tool outcomes, not
+	// just session status. The rejection callback cancels the linked
+	// tool_requests (status='failed' + tool_result is_error=1) so the agent
+	// sees the refusal instead of resuming as if nothing happened; the
+	// approve path re-queues the parked request (approved → pending → next
+	// PollOnce claims it). Both helpers read the approval row's target_tool
+	// and decision themselves, keyed by approvalID.
+	hitlMgr.SetRejectionCallback(func(ctx context.Context, approvalID, sessionID, reviewerID, reviewNotes string) error {
+		return harness.RejectToolRequestsForApproval(ctx, database, approvalID, sessionID, reviewNotes)
+	})
+	hitlMgr.SetApprovalCallback(func(ctx context.Context, approvalID, sessionID string) error {
+		_, err := harness.ResumeApprovedToolRequestsByApproval(ctx, database, approvalID)
+		return err
+	})
 	// Initialize default global HITL config (idempotent — migration 008 also inserts defaults)
 	if err := hitlMgr.SetConfiguration(ctx, hitl.DefaultConfiguration()); err != nil {
 		slog.Warn("consensus: failed to init default HITL config", "error", err)

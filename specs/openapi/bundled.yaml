@@ -831,8 +831,11 @@ paths:
       operationId: reviewApproval
       description: |
         Approve, reject, or modify a pending approval request.
-        - approved: resumes the associated session from paused to idle
-        - rejected: permanently rejects the request
+        - approved: records the approval, re-queues the linked tool request for
+          execution, and resumes the associated session from paused to idle
+        - rejected: records the rejection and cancels the linked tool request
+          (terminal 'failed' with an is_error=1 result recording the reviewer's
+          reason); the session REMAINS paused (reject blocks, SPEC-014 §4.1)
         - modified: records the modified_sql and sets status to modified
       security:
         - BearerAuth: []
@@ -1739,17 +1742,16 @@ paths:
                   settings:
                     type: object
                     description: |
-                      Every system_settings row, keyed as stored. A row whose
-                      text is JSON (the `mcp.<name>` server rows PATCH /config
-                      writes) is emitted as that native JSON value — objects
-                      stay objects — so `settings["mcp.websearch"].url` is
-                      readable without a second parse; every other row keeps its
-                      text, so a scalar setting is a string, not a number or a
-                      JSON string literal. When at least one `mcp.<name>` server
-                      row exists, the derived `mcp` block ({'mcp': {'<name>':
-                      {...}}}) is included as well, so the documented block path
-                      `settings.mcp.<name>` resolves; it is derived per response
-                      and never persisted as a row.
+                      Every system_settings row, keyed as stored. A row whose text
+                      is JSON (the `mcp.<name>` server rows PATCH /config writes)
+                      is emitted as that native JSON value — objects stay objects —
+                      so `settings["mcp.websearch"].url` is readable without a
+                      second parse; every other row keeps its text, so a scalar
+                      setting is a string, not a number or a JSON string literal.
+                      When at least one `mcp.<name>` server row exists, the derived
+                      `mcp` block ({'mcp': {'<name>': {...}}}) is included as well,
+                      so the documented block path `settings.mcp.<name>` resolves;
+                      it is derived per response and never persisted as a row.
                     additionalProperties: true
                   provider_default:
                     type: object

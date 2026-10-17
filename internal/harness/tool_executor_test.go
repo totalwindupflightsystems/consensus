@@ -97,6 +97,27 @@ func setupToolExecutorTestDB(t *testing.T) (db.DB, func()) {
 			token_count INTEGER,
 			created_at TEXT DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// approval_requests — the park query's NOT EXISTS rides on it
+		// (APPROV-GATE-001); without the table the gate check errors and
+		// the fail-closed poll aborts.
+		`CREATE TABLE IF NOT EXISTS approval_requests (
+			id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			iteration INTEGER NOT NULL DEFAULT 0,
+			request_type TEXT NOT NULL DEFAULT 'tool_execution',
+			description TEXT NOT NULL DEFAULT '',
+			risk_level TEXT NOT NULL DEFAULT 'medium',
+			context TEXT NOT NULL DEFAULT '{}',
+			target_tool TEXT,
+			target_sql TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			reviewer_id TEXT,
+			review_notes TEXT,
+			modified_sql TEXT,
+			created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+			reviewed_at TEXT,
+			expires_at TEXT DEFAULT CURRENT_TIMESTAMP
+		)`,
 	} {
 		if err := database.Exec(ctx, stmt); err != nil {
 			_ = database.Close()

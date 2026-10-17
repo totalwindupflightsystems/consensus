@@ -65,8 +65,11 @@ review:
     operationId: reviewApproval
     description: |
       Approve, reject, or modify a pending approval request.
-      - approved: resumes the associated session from paused to idle
-      - rejected: permanently rejects the request
+      - approved: records the approval, re-queues the linked tool request for
+        execution, and resumes the associated session from paused to idle
+      - rejected: records the rejection and cancels the linked tool request
+        (terminal 'failed' with an is_error=1 result recording the reviewer's
+        reason); the session REMAINS paused (reject blocks, SPEC-014 §4.1)
       - modified: records the modified_sql and sets status to modified
     security:
       - BearerAuth: []

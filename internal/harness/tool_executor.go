@@ -182,10 +182,16 @@ func (e *ToolExecutorImpl) PollOnce(ctx context.Context) (int, error) {
 	// Step 0: Handle approval-gated tools before claiming.
 	// Tools with requires_approval=true get an approval_request created
 	// and their status set to 'awaiting_approval' instead of being claimed.
+	// APPROV-GATE-001: a gate-check ERROR is fail-closed — bail out of the
+	// whole poll instead of continuing, because "claim and execute a gated
+	// tool while the gate state is unknowable" is exactly the §4.1 defect
+	// class (pre-fix the not-found-tables error was logged here and the
+	// request executed anyway).
 	approvalCount, err := e.handleApprovalGated(ctx)
 	if err != nil {
-		slog.Warn("tool_executor: approval gate processing error", "error", err)
-		// Non-fatal — continue with non-gated tools
+		slog.Error("tool_executor: approval gate check failed — poll aborted (fail-closed)",
+			"error", err)
+		return 0, err
 	}
 	_ = approvalCount
 
@@ -308,13 +314,26 @@ func (e *ToolExecutorImpl) handleApprovalGated(ctx context.Context) (int, error)
 		return 0, nil
 	}
 
-	// Find pending requests for tools that require approval
+	// Find pending requests for tools that require approval, skipping rows
+	// an operator has ALREADY blessed (APPROV-GATE-001): approve re-queues
+	// the parked request to 'pending' for execution — WITHOUT the approved-
+	// guard the park query would match it again (still 'pending' + gated
+	// tool) and flip it straight back to 'awaiting_approval', bouncing
+	// between the two states forever. Only 'approved' opens the gate: a
+	// 'rejected' decision must NOT let a fresh request skip the human —
+	// fail-closed, the operator re-reviews the retry.
 	rows, err := e.database.Query(ctx, `
 		SELECT tr.id, tr.session_id, tr.tool_name, tr.parameters
 		FROM tool_requests tr
 		JOIN tools_registry t ON t.name = tr.tool_name AND t.enabled = true
 		WHERE tr.status = 'pending'
 		  AND t.requires_approval = true
+		  AND NOT EXISTS (
+			SELECT 1 FROM approval_requests ar
+			WHERE ar.target_tool = tr.tool_name
+			  AND ar.session_id = tr.session_id
+			  AND ar.status = 'approved'
+		  )
 		LIMIT 5
 	`)
 	if err != nil {
@@ -364,6 +383,124 @@ func (e *ToolExecutorImpl) handleApprovalGated(ctx context.Context) (int, error)
 	}
 
 	return count, nil
+}
+
+// ============================================================================
+// APPROV-GATE-001 — approve/reject follow-through
+// ============================================================================
+
+// lookupApprovalForFollowThrough reads the approval row's status and
+// target_tool keyed by approvalID. Exported-shape helper shared by the two
+// follow-through functions below; callers gate on the returned status.
+func lookupApprovalForFollowThrough(ctx context.Context, database db.DB, approvalID string) (status, targetTool, sessionID string, err error) {
+	row, err := database.QueryRow(ctx, `
+		SELECT status, target_tool, session_id FROM approval_requests WHERE id = $1
+	`, approvalID)
+	if err != nil {
+		return "", "", "", fmt.Errorf("approval_followthrough: lookup %q: %w", approvalID, err)
+	}
+	if row == nil {
+		return "", "", "", fmt.Errorf("approval_followthrough: approval %q not found", approvalID)
+	}
+	status = toString(row["status"])
+	targetTool = toString(row["target_tool"])
+	sessionID = toString(row["session_id"])
+	if targetTool == "" {
+		return status, "", sessionID, nil
+	}
+	return status, targetTool, sessionID, nil
+}
+
+// ResumeApprovedToolRequestsByApproval flips the tool_request parked against
+// approvalID back to 'pending' when that approval is approved. The next
+// PollOnce claim then executes the tool — approval-first, per findings.md
+// §4.1's acceptance (the gated tool must run AFTER a human decision, never
+// before).
+//
+// The parked row is matched on (session_id, target_tool, status='awaiting_approval').
+// Non-approved or non-tool requests are no-ops (fail-closed: nothing executes
+// unless the approval row itself says 'approved').
+func ResumeApprovedToolRequestsByApproval(ctx context.Context, database db.DB, approvalID string) (int, error) {
+	if database == nil {
+		return 0, fmt.Errorf("approval_resume: no database configured")
+	}
+
+	status, targetTool, sessionID, err := lookupApprovalForFollowThrough(ctx, database, approvalID)
+	if err != nil {
+		return 0, err
+	}
+	if status != "approved" || targetTool == "" {
+		// Not an approved tool-execution approval: nothing to re-queue.
+		return 0, nil
+	}
+
+	if err := database.Exec(ctx, `
+		UPDATE tool_requests
+		SET status = 'pending', approval_request_id = $3
+		WHERE session_id = $1
+		  AND tool_name = $2
+		  AND status = 'awaiting_approval'
+	`, sessionID, targetTool, approvalID); err != nil {
+		return 0, fmt.Errorf("approval_resume: re-queue: %w", err)
+	}
+
+	slog.Info("tool_executor: approved tool request re-queued",
+		"session_id", sessionID, "tool", targetTool, "approval_id", approvalID)
+	return 1, nil
+}
+
+// RejectToolRequestsForApproval cancels the tool execution parked against
+// approvalID when the review decision was 'rejected': the tool_request is
+// marked 'failed', and a tool_result row with is_error=1 records WHY — the
+// reviewer's notes — so the agent sees the refusal instead of resuming as if
+// the call had never happened (findings.md §4.2). The session is left parked
+// (ReviewApproval's reject branch skips ResumeSession); a new operator
+// message resumes it through the normal wake path.
+//
+// Non-rejected or non-tool approvals are no-ops.
+func RejectToolRequestsForApproval(ctx context.Context, database db.DB, approvalID, sessionID, reviewNotes string) error {
+	if database == nil {
+		return fmt.Errorf("approval_reject: no database configured")
+	}
+
+	status, targetTool, reqSessionID, err := lookupApprovalForFollowThrough(ctx, database, approvalID)
+	if err != nil {
+		return err
+	}
+	if status != "rejected" || targetTool == "" {
+		return nil
+	}
+	if sessionID != "" && reqSessionID != "" && sessionID != reqSessionID {
+		return fmt.Errorf("approval_reject: session mismatch for approval %q", approvalID)
+	}
+
+	now := time.Now()
+	if err := database.Exec(ctx, `
+		UPDATE tool_requests
+		SET status = 'failed', completed_at = $3, approval_request_id = $4
+		WHERE session_id = $1
+		  AND tool_name = $2
+		  AND status IN ('awaiting_approval', 'pending')
+	`, reqSessionID, targetTool, now, approvalID); err != nil {
+		return fmt.Errorf("approval_reject: fail request: %w", err)
+	}
+
+	// tool_result exposes the refusal to the agent's next context read.
+	// exit_code -3 marks an approval refusal (executor convention: -2
+	// TOOL_ERROR, -1 sandbox signals); error_code 'APPROVAL_REFUSED'.
+	refusal := fmt.Sprintf("tool %q refused by reviewer %s: %s", targetTool, "operator", strings.TrimSpace(reviewNotes))
+	if err := database.Exec(ctx, `
+		INSERT INTO tool_results (request_id, session_id, output, is_error, error_code, exit_code, duration_ms)
+		VALUES (
+			(SELECT id FROM tool_requests WHERE session_id = $1 AND tool_name = $2 AND approval_request_id = $3 ORDER BY id DESC LIMIT 1),
+			$1, $4, true, 'APPROVAL_REFUSED', -3, 0)
+	`, reqSessionID, targetTool, approvalID, refusal); err != nil {
+		return fmt.Errorf("approval_reject: record refusal: %w", err)
+	}
+
+	slog.Info("tool_executor: rejected tool request cancelled",
+		"session_id", reqSessionID, "tool", targetTool, "approval_id", approvalID)
+	return nil
 }
 
 // ============================================================================
