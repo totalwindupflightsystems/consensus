@@ -38,7 +38,13 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	// rejecting session creation here turns it into an actionable API error
 	// instead of an opaque auth failure at the session's first LLM dispatch.
 	// requireLLMKey is nil when unset (tests, shims) — feature off.
-	if s.requireLLMKey != nil && !s.requireLLMKey() {
+	//
+	// DF-CONSENSUS-109: the mock provider needs no credential — it is the
+	// deterministic in-process client used for keyless dogfood/test runs
+	// (CONSENSUS_MOCK_LLM=1 is still enforced when the client is built) — so
+	// the key gate must not reject a fresh user whose resolved config says
+	// llm.provider=mock.
+	if s.requireLLMKey != nil && !s.requireLLMKey() && !s.isMockProvider() {
 		writeError(w, r, http.StatusBadRequest, "MISSING_LLM_CONFIG",
 			"no LLM API key configured: set the DEEPSEEK_API_KEY (or CONSENSUS_API_KEY) "+
 				"environment variable, or llm.api_key in consensus.yaml, then retry")

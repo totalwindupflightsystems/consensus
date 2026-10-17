@@ -315,6 +315,103 @@ func TestCreateSession_MissingLLMKey(t *testing.T) {
 	})
 }
 
+// DF-CONSENSUS-109: the mock provider is credential-free, so a keyless fresh
+// user configured with llm.provider=mock must be able to create sessions.
+// Every non-mock provider keeps the DF-CONSENSUS-50 fail-fast gate.
+func TestCreateSession_MockProviderBypassesLLMKeyGate(t *testing.T) {
+	body := `{"agent_name":"mock-probe","goal":"DF-CONSENSUS-109"}`
+
+	post := func(t *testing.T, srv *integrationServer) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+		w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
+		return w
+	}
+
+	t.Run("mock_provider_returns_201_without_key", func(t *testing.T) {
+		srv := newIntegrationServer(t)
+		defer srv.close()
+		srv.requireLLMKey = func() bool { return false } // no key configured at all
+		srv.llmProvider = "mock"
+
+		w := post(t, srv)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected 201 for mock provider, got %d: %s", w.Code, w.Body.String())
+		}
+
+		// The session must really exist — a 201 that persisted nothing would
+		// pass a status-code-only assertion.
+		rows, err := srv.conn.Query(context.Background(),
+			`SELECT id FROM sessions WHERE agent_name = 'mock-probe'`)
+		if err != nil {
+			t.Fatalf("query sessions: %v", err)
+		}
+		if len(rows) != 1 {
+			t.Fatalf("expected 1 persisted session, got %d", len(rows))
+		}
+	})
+
+	// Mock spellings must be accepted; every other provider keeps the gate.
+	providerCases := []struct {
+		name     string
+		provider string
+		want     int
+	}{
+		{"lowercase_mock_bypasses", "mock", http.StatusCreated},
+		{"uppercase_mock_bypasses", "MOCK", http.StatusCreated},
+		{"mixed_case_mock_bypasses", "Mock", http.StatusCreated},
+		{"padded_mock_bypasses", " mock ", http.StatusCreated},
+		{"unset_provider_stays_gated", "", http.StatusBadRequest},
+		{"openai_stays_gated", "openai", http.StatusBadRequest},
+		{"anthropic_stays_gated", "anthropic", http.StatusBadRequest},
+		{"openrouter_stays_gated", "openrouter", http.StatusBadRequest},
+		{"lookalike_stays_gated", "mockish", http.StatusBadRequest},
+	}
+	for _, tc := range providerCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newIntegrationServer(t)
+			defer srv.close()
+			srv.requireLLMKey = func() bool { return false }
+			srv.llmProvider = tc.provider
+
+			w := post(t, srv)
+			if w.Code != tc.want {
+				t.Fatalf("provider %q: expected %d, got %d: %s",
+					tc.provider, tc.want, w.Code, w.Body.String())
+			}
+			if tc.want == http.StatusBadRequest {
+				var resp ErrorResponse
+				if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+					t.Fatalf("decode error body: %v", err)
+				}
+				if resp.Error.Code != "MISSING_LLM_CONFIG" {
+					t.Errorf("expected MISSING_LLM_CONFIG, got %q", resp.Error.Code)
+				}
+			}
+		})
+	}
+
+	t.Run("config_wires_provider_into_server", func(t *testing.T) {
+		srv := newIntegrationServer(t)
+		defer srv.close()
+
+		// LLMProvider flows from ServerConfig (what cmd/consensus passes)
+		// into the server's predicate — not just into the struct literal.
+		wired := NewServer(ServerConfig{Addr: ":0", DB: srv.conn, LLMProvider: "mock"})
+		if !wired.isMockProvider() {
+			t.Error("ServerConfig.LLMProvider=mock did not reach isMockProvider")
+		}
+		unset := NewServer(ServerConfig{Addr: ":0", DB: srv.conn})
+		if unset.isMockProvider() {
+			t.Error("unset LLMProvider must not be treated as mock")
+		}
+	})
+}
+
 func TestCreateSession_NonAdminKey(t *testing.T) {
 	srv := newIntegrationServer(t)
 	defer srv.close()

@@ -163,6 +163,30 @@ func TestApplyStartupValidations_TemplateAPIKeyWarns(t *testing.T) {
 	}
 }
 
+// DF-CONSENSUS-109: the mock provider needs no credential, so a keyless mock
+// run must not be told its harness will fail on LLM calls. Non-mock providers
+// keep the C-GAP-003 warning.
+func TestApplyStartupValidations_MockProviderNoKeyNoWarning(t *testing.T) {
+	cfg := Defaults()
+	cfg.LLM.Provider = "mock"
+	cfg.LLM.APIKey = ""
+
+	warns := cfg.ApplyStartupValidations()
+
+	for _, w := range warns {
+		if strings.Contains(w, "LLM API key") {
+			t.Fatalf("unexpected API key warning for mock provider: %q", w)
+		}
+	}
+
+	// Negative control: the same config on a real provider still warns.
+	cfg.LLM.Provider = "openai"
+	warns = cfg.ApplyStartupValidations()
+	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
+		t.Fatalf("expected API key warning for openai provider, got %v", warns)
+	}
+}
+
 func TestApplyStartupValidations_SetAPIKeyNoWarning(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.APIKey = "sk-test-key"

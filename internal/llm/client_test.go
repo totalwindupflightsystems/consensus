@@ -57,7 +57,11 @@ func TestMockClient_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestMockClient_DefaultNoOp(t *testing.T) {
+// DF-CONSENSUS-109: the default mock output must be a terminal, user-visible
+// turn. An empty AgentOutput read as no_op, so keyless mock sessions burned
+// every planning turn and ended with "max turns reached with no productive
+// work".
+func TestMockClient_DefaultResponds(t *testing.T) {
 	mock := NewMockClient()
 
 	output, err := mock.Call(context.Background(), nil)
@@ -69,6 +73,41 @@ func TestMockClient_DefaultNoOp(t *testing.T) {
 	}
 	if len(output.Output.MemoryStateChanges) != 0 {
 		t.Errorf("default mock should have empty memory_state_changes, got %d", len(output.Output.MemoryStateChanges))
+	}
+	if strings.TrimSpace(output.Output.MessageToUser) == "" {
+		t.Error("default mock must return a non-empty message_to_user")
+	}
+	if output.Output.MessageToUser != MockAssistantMessage {
+		t.Errorf("message_to_user = %q, want MockAssistantMessage", output.Output.MessageToUser)
+	}
+	if len(output.Output.SystemActions) != 1 || output.Output.SystemActions[0] != "respond" {
+		t.Errorf("system_actions = %v, want [respond] — anything else leaves the planning loop with no terminal action",
+			output.Output.SystemActions)
+	}
+}
+
+// The mock provider is reachable through the factory (the path a keyless
+// fresh user takes) and yields the responding default output.
+func TestNewClient_MockProviderReturnsRespondingClient(t *testing.T) {
+	t.Setenv("CONSENSUS_MOCK_LLM", "1")
+
+	client, err := NewClient(&Config{Provider: ProviderMock, Model: "mock-model"})
+	if err != nil {
+		t.Fatalf("NewClient(mock): %v", err)
+	}
+	if _, ok := client.(*MockClient); !ok {
+		t.Fatalf("NewClient(mock) = %T, want *MockClient", client)
+	}
+
+	resp, err := client.Call(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("mock call: %v", err)
+	}
+	if resp.Output.MessageToUser != MockAssistantMessage {
+		t.Errorf("message_to_user = %q, want %q", resp.Output.MessageToUser, MockAssistantMessage)
+	}
+	if len(resp.Output.SystemActions) != 1 || resp.Output.SystemActions[0] != "respond" {
+		t.Errorf("system_actions = %v, want [respond]", resp.Output.SystemActions)
 	}
 }
 

@@ -456,6 +456,13 @@ func applyEnvOverrides(cfg *Config) {
 	}
 }
 
+// isMockProviderName reports whether the resolved llm.provider selects the
+// credential-free in-process mock client (DF-CONSENSUS-109). Case- and
+// whitespace-insensitive because the value comes from YAML/env resolution.
+func isMockProviderName(provider string) bool {
+	return strings.EqualFold(strings.TrimSpace(provider), "mock")
+}
+
 // ApplyStartupValidations checks the effective configuration for problems
 // that would fail at runtime. Non-fatal misconfigurations are corrected in
 // place; remaining problems are returned as prominent startup warnings for
@@ -479,7 +486,11 @@ func applyEnvOverrides(cfg *Config) {
 func (cfg *Config) ApplyStartupValidations() []string {
 	var warns []string
 
-	if cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${") {
+	// DF-CONSENSUS-109: provider=mock is served by the in-process mock client,
+	// which needs no credential — warning a keyless mock user that "the agent
+	// harness will fail on LLM calls" is simply wrong.
+	if !isMockProviderName(cfg.LLM.Provider) &&
+		(cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
 		warns = append(warns, "No LLM API key configured — agent harness will fail on LLM calls (set DEEPSEEK_API_KEY or CONSENSUS_API_KEY)")
 	}
 

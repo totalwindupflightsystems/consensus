@@ -306,6 +306,12 @@ func runServer() {
 		RequireLLMKey: func() bool {
 			return cfg.LLM.APIKey != "" && !strings.HasPrefix(cfg.LLM.APIKey, "${")
 		},
+		// DF-CONSENSUS-109: the resolved provider decides whether the
+		// MISSING_LLM_CONFIG gate applies at all. provider=mock needs no
+		// credential (the mock client is in-process; CONSENSUS_MOCK_LLM=1
+		// is enforced when that client is built), so a keyless fresh user
+		// in mock mode can create sessions.
+		LLMProvider: cfg.LLM.Provider,
 	})
 
 	// DF-CONSENSUS-56: the harness applies terminal status transitions by SQL

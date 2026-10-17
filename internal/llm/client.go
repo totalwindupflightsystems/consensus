@@ -209,13 +209,26 @@ type MockClient struct {
 	Err    error
 }
 
-// NewMockClient creates a new mock client with a default no-op output.
+// MockAssistantMessage is the deterministic assistant reply the default mock
+// client returns to the user.
+//
+// DF-CONSENSUS-109: the mock client used to answer every planning turn with an
+// AgentOutput carrying no system action and no user-visible text. The planning
+// loop reads that as no_op, so a keyless mock session burned all its turns and
+// ended with "max turns reached with no productive work". The mock now answers
+// with a "respond" action, which terminalizes the iteration on turn 1 with a
+// real assistant message — the same shape a working provider produces.
+const MockAssistantMessage = "This is a mock response from the Consensus agent using the mock LLM provider. In production, a real LLM would answer here."
+
+// NewMockClient creates a new mock client that answers each call with a
+// deterministic assistant message and a "respond" action.
 func NewMockClient() *MockClient {
 	return &MockClient{
 		Output: &harness.AgentOutput{
 			InternalMonologue:  "mock reasoning",
+			MessageToUser:      MockAssistantMessage,
+			SystemActions:      []string{"respond"},
 			MemoryStateChanges: []string{},
-			SystemActions:      []string{},
 			ToolRequests:       []harness.ToolRequest{},
 			SubAgentSpawns:     []harness.SubAgentSpawn{},
 		},

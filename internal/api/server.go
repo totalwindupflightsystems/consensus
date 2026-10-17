@@ -19,6 +19,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,6 +62,10 @@ type Server struct {
 	// requireLLMKey mirrors ServerConfig.RequireLLMKey (DF-CONSENSUS-50).
 	// Nil = feature off (legacy behavior).
 	requireLLMKey func() bool
+
+	// llmProvider is the resolved llm.provider value (DF-CONSENSUS-109).
+	// Empty = unknown; the MISSING_LLM_CONFIG gate then behaves as before.
+	llmProvider string
 
 	mu sync.RWMutex
 
@@ -105,6 +110,12 @@ type ServerConfig struct {
 	// legacy behavior where session creation succeeds and the misconfiguration
 	// surfaces only as an opaque auth failure at first LLM dispatch.
 	RequireLLMKey func() bool
+
+	// LLMProvider is the resolved llm.provider ("mock", "openai", ...).
+	// DF-CONSENSUS-109: the mock provider is credential-free, so the
+	// MISSING_LLM_CONFIG gate must not apply to it. Empty (unset callers,
+	// shims) keeps the gate's prior behavior.
+	LLMProvider string
 }
 
 // NewServer creates a new API server with all middleware and routes.
@@ -128,6 +139,7 @@ func NewServer(cfg ServerConfig) *Server {
 		apiRates:      resolveRates(cfg),
 		wake:          cfg.Wake,
 		requireLLMKey: cfg.RequireLLMKey,
+		llmProvider:   cfg.LLMProvider,
 	}
 	s.svc.Sessions.events = s.events
 	s.svc.Messages.events = s.events
@@ -429,6 +441,19 @@ var defaultRateLimits = map[string]int{
 	"session":  100,
 	"readonly": 200,
 	"webhook":  500,
+}
+
+// providerMock is the llm.provider value served by the credential-free,
+// in-process mock client (internal/llm.ProviderMock). Kept as a literal here
+// so the API layer does not take a dependency on the LLM package.
+const providerMock = "mock"
+
+// isMockProvider reports whether the server was configured with the mock LLM
+// provider (DF-CONSENSUS-109). Comparison is case- and whitespace-insensitive
+// because the value arrives from YAML/env resolution. An unset provider is
+// never mock, so the MISSING_LLM_CONFIG gate keeps its prior behavior.
+func (s *Server) isMockProvider() bool {
+	return strings.EqualFold(strings.TrimSpace(s.llmProvider), providerMock)
 }
 
 // resolveRates builds the active per-scope rate limit map from config,

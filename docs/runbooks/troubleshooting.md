@@ -176,6 +176,13 @@ export CONSENSUS_MOCK_LLM=1
 ./bin/consensus serve
 ```
 
+**Mock mode needs no API key.** With `llm.provider: mock` (or
+`CONSENSUS_LLM_PROVIDER=mock`) plus `CONSENSUS_MOCK_LLM=1`, session creation
+succeeds without a key and the mock client answers each planning iteration with
+a deterministic assistant message. There is no `MISSING_LLM_CONFIG` error and no
+"max turns reached with no productive work" loop. That gate and the startup key
+warning apply only to non-mock providers.
+
 ### Symptom: "no admin key in database"
 
 This happens on first startup when no bootstrap key is found. Consensus auto-generates one:
