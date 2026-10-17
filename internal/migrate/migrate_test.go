@@ -117,7 +117,7 @@ const harnessSessionReadQuery = `
 	       context_budget, tokens_used_in, tokens_used_out,
 	       iteration, planning_max_turns, 3,
 	       COALESCE(budget_limit_cents, 0) AS budget_limit_cents,
-	       COALESCE(parent_id, '') AS parent_id
+	       COALESCE(CAST(parent_id AS TEXT), '') AS parent_id
 	FROM sessions WHERE id = $1
 `
 

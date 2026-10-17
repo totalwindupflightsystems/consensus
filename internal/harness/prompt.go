@@ -134,7 +134,7 @@ func (b *SystemPromptBuilder) buildLayers(ctx context.Context, config *SystemPro
 	isSubAgent := config.IsSubAgent
 	if !isSubAgent && config.SessionID != "" && b.harness.db != nil {
 		rows, qErr := b.harness.db.Query(ctx,
-			`SELECT COALESCE(parent_id, '') = '' AS is_root FROM sessions WHERE id = $1`,
+			`SELECT COALESCE(CAST(parent_id AS TEXT), '') = '' AS is_root FROM sessions WHERE id = $1`,
 			config.SessionID)
 		if qErr == nil && len(rows) > 0 {
 			if parentEmpty, ok := rows[0]["is_root"]; ok {
