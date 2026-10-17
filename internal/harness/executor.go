@@ -407,6 +407,11 @@ func (h *Harness) handleLLMError(ctx context.Context, sessionID string, ic *Iter
 			"session_id", sessionID, "count", errorCount, "threshold", threshold)
 		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
 			slog.Error("harness: failed to pause session after circuit breaker trip", "session_id", sessionID, "error", pauseErr)
+		} else {
+			// DF-CONSENSUS-56: publish the harness-applied pause so SSE
+			// clients observe the transition (audit iteration is the last
+			// attempted one).
+			h.publishStatus(sessionID, "paused", audit.Iteration)
 		}
 	} else {
 		// Below threshold — return the claimed task to 'pending' so
@@ -814,6 +819,10 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 						slog.Error("harness: circuit breaker tripped, pausing session", "session_id", sessionID)
 						if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
 							slog.Error("harness: failed to pause session", "session_id", sessionID, "error", pauseErr)
+						} else {
+							// DF-CONSENSUS-56: publish the harness-applied pause
+							// so SSE clients observe the transition.
+							h.publishStatus(sessionID, "paused", 0)
 						}
 					}
 				} else if result == nil {
@@ -821,6 +830,16 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 				} else if result.NextStatus != "" {
 					if err := h.db.Exec(ctx, `UPDATE sessions SET status = $1, heartbeat_at = CURRENT_TIMESTAMP WHERE id = $2`, result.NextStatus, sessionID); err != nil {
 						slog.Error("harness: failed to apply session status transition", "session_id", sessionID, "next_status", result.NextStatus, "error", err)
+					} else {
+						// DF-CONSENSUS-56: the harness applies terminal status
+						// transitions by SQL only; without this publish an
+						// event-driven SSE client waits forever for the turn to
+						// end (streams showed turn-start 'thinking' only).
+						// Best-effort: only on a successful UPDATE, and only the
+						// terminal transitions the harness itself applies —
+						// never the 'thinking' transition (the api layer owns
+						// that one).
+						h.publishStatus(sessionID, result.NextStatus, result.AuditEntry.Iteration)
 					}
 					// Persist the monologue (LLM response text) so H3 clients can retrieve it
 					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" {

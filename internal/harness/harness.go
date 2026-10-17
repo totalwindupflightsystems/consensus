@@ -227,6 +227,11 @@ type Harness struct {
 	// ToolExecutor runs sandboxed tool execution asynchronously (optional, may be nil).
 	ToolExecutor ToolExecutor
 
+	// EventPublisher publishes session_update events for status transitions
+	// the harness applies itself (DF-CONSENSUS-56). Optional — nil disables
+	// publishing. Wired in cmd/consensus/main.go to the api.Server's EventBus.
+	EventPublisher EventPublisher
+
 	// MaxConsecutiveErrors is the consecutive-errors circuit breaker threshold
 	// (harness.max_consecutive_errors config). Zero means "use the default" —
 	// see maxConsecutiveErrors() in circuit.go (DOGFOOD-003).
@@ -258,6 +263,29 @@ type BillingTracker interface {
 	RecordBilling(ctx context.Context, sessionID string, iteration int64, modelID string, category string, promptTokens, completionTokens, cacheReadTokens, cacheWriteTokens int64, costUSD float64)
 	BudgetCheck(ctx context.Context, sessionID string, budgetLimitCents int64) (exceeded bool, err error)
 	GetCumulativeCost(ctx context.Context, sessionID string) (int64, error)
+}
+
+// EventPublisher mirrors the subset of internal/api.EventBus the harness
+// needs to publish session status transitions (DF-CONSENSUS-56). The
+// interface lives here because internal/api depends (transitively) on this
+// package — a harness → api import would cycle. internal/api.EventBus
+// satisfies it implicitly; nil means publishing is disabled (tests,
+// non-serve callers).
+type EventPublisher interface {
+	PublishSessionUpdate(sessionID, status string, iteration int64)
+}
+
+// publishStatus emits a session_update event for a harness-applied status
+// transition. The harness writes status changes by SQL only (SPEC-008 §3);
+// without this, event-driven SSE clients never observe the terminal
+// transition of a turn (DF-CONSENSUS-56). Best-effort and nil-safe: a nil
+// publisher (tests, CLI paths) is a no-op, and the call never alters
+// executor semantics.
+func (h *Harness) publishStatus(sessionID, status string, iteration int64) {
+	if h.EventPublisher == nil {
+		return
+	}
+	h.EventPublisher.PublishSessionUpdate(sessionID, status, iteration)
 }
 
 // ToolExecutor runs pending tool requests asynchronously.

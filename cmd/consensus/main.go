@@ -308,6 +308,15 @@ func runServer() {
 		},
 	})
 
+	// DF-CONSENSUS-56: the harness applies terminal status transitions by SQL
+	// only (executor.go NextStatus apply + breaker/planning pauses); without a
+	// publisher, SSE clients on GET /api/v1/events never observe the terminal
+	// transition of a turn. internal/api depends (transitively) on the harness
+	// package, so the publisher is injected as the harness-side EventPublisher
+	// interface — *api.EventBus satisfies it implicitly. Set AFTER NewServer,
+	// which owns the EventBus.
+	h.EventPublisher = apiSrv.EventBus()
+
 	// models.dev auto-sync (--auto-sync flag)
 	if autoSyncInterval := os.Getenv("CONSENSUS_AUTO_SYNC"); autoSyncInterval != "" {
 		dur, err := time.ParseDuration(autoSyncInterval)

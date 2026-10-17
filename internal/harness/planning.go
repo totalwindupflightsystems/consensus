@@ -1035,6 +1035,11 @@ func (h *Harness) handleLLMPlanningError(ctx context.Context, tx db.Tx, sessionI
 			"session_id", sessionID, "count", errorCount, "threshold", threshold)
 		if pauseErr := h.db.Exec(ctx, `UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); pauseErr != nil {
 			slog.Error("planning: failed to pause session after circuit breaker trip", "session_id", sessionID, "error", pauseErr)
+		} else {
+			// DF-CONSENSUS-56: publish the harness-applied pause so SSE
+			// clients observe the transition (audit iteration 0 — no
+			// audit entry lands on an LLM-error trip).
+			h.publishStatus(sessionID, "paused", 0)
 		}
 	} else {
 		// Below threshold — back to 'thinking' so the heartbeat re-claims and
