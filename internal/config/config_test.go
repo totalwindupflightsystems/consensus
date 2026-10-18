@@ -1,10 +1,14 @@
 package config
 
 import (
+	"bytes"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 // hermeticEnv clears every LLM-related environment variable these tests
@@ -246,6 +250,55 @@ func TestApplyStartupValidations_NoBaseURLKeepsCompression(t *testing.T) {
 }
 
 // --- applyEnvOverrides (C-GAP-015: OPENROUTER_API_KEY read path) ---
+
+func TestEnvVarOverridesConfigKey(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("DEEPSEEK_API_KEY", "env-key")
+
+	cfg := Defaults()
+	if err := yaml.Unmarshal([]byte("llm:\n  api_key: config-key\n"), &cfg); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+
+	var logOutput bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logOutput, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.APIKey != "env-key" {
+		t.Fatalf("LLM.APIKey = %q, want DEEPSEEK_API_KEY value", cfg.LLM.APIKey)
+	}
+	const warning = "LLM API key: using DEEPSEEK_API_KEY from environment (overrides config file value)"
+	if got := logOutput.String(); !strings.Contains(got, "level=WARN") || !strings.Contains(got, warning) {
+		t.Fatalf("startup log = %q, want WARN containing %q", got, warning)
+	}
+}
+
+func TestEnvVarExpandsPlaceholderWithoutOverrideWarning(t *testing.T) {
+	hermeticEnv(t)
+	t.Setenv("DEEPSEEK_API_KEY", "env-key")
+
+	cfg := Defaults()
+	if err := yaml.Unmarshal([]byte("llm:\n  api_key: ${DEEPSEEK_API_KEY}\n"), &cfg); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+
+	var logOutput bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logOutput, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	applyEnvOverrides(&cfg)
+
+	if cfg.LLM.APIKey != "env-key" {
+		t.Fatalf("LLM.APIKey = %q, want expanded DEEPSEEK_API_KEY value", cfg.LLM.APIKey)
+	}
+	if got := logOutput.String(); strings.Contains(got, "overrides config file value") {
+		t.Fatalf("placeholder expansion emitted override warning: %q", got)
+	}
+}
 
 func TestApplyEnvOverrides_OpenRouterAPIKey(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "sk-or-test")

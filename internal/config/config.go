@@ -9,6 +9,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
@@ -353,6 +354,10 @@ func configFileAtHome(elem ...string) string {
 }
 
 func applyEnvOverrides(cfg *Config) {
+	configAPIKey := cfg.LLM.APIKey
+	configAPIKeyIsConcrete := configAPIKey != "" && !strings.HasPrefix(configAPIKey, "${")
+	apiKeyEnvSource := ""
+
 	if v := os.Getenv("CONSENSUS_HOSTNAME"); v != "" {
 		cfg.Server.Hostname = v
 	}
@@ -364,6 +369,7 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("CONSENSUS_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v
+		apiKeyEnvSource = "CONSENSUS_API_KEY"
 	}
 	if v := os.Getenv("CONSENSUS_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
@@ -412,12 +418,16 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("OPENAI_API_KEY"); v != "" && cfg.LLM.Provider == "openai" && cfg.LLM.APIKey == "" {
 		cfg.LLM.APIKey = v
+		apiKeyEnvSource = "OPENAI_API_KEY"
 	}
 	if v := os.Getenv("ANTHROPIC_API_KEY"); v != "" && cfg.LLM.Provider == "anthropic" && cfg.LLM.APIKey == "" {
 		cfg.LLM.APIKey = v
+		apiKeyEnvSource = "ANTHROPIC_API_KEY"
 	}
-	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
+	if v := os.Getenv("DEEPSEEK_API_KEY"); v != "" && (cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${") ||
+		(apiKeyEnvSource == "" && configAPIKeyIsConcrete && cfg.LLM.APIKey == configAPIKey)) {
 		cfg.LLM.APIKey = v
+		apiKeyEnvSource = "DEEPSEEK_API_KEY"
 		// DEEPSEEK_API_KEY is a provider signal only when no endpoint or
 		// provider override was configured. Preserve explicit environment and
 		// config-file choices; otherwise make the README's env-only contract
@@ -449,10 +459,15 @@ func applyEnvOverrides(cfg *Config) {
 	// operator choice and is preserved.
 	if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v
+		apiKeyEnvSource = "OPENROUTER_API_KEY"
 		cfg.LLM.Provider = "openrouter"
 		if !baseURLFromEnv {
 			cfg.LLM.BaseURL = ""
 		}
+	}
+
+	if apiKeyEnvSource == "DEEPSEEK_API_KEY" && configAPIKeyIsConcrete && configAPIKey != cfg.LLM.APIKey {
+		slog.Warn("LLM API key: using DEEPSEEK_API_KEY from environment (overrides config file value)")
 	}
 }
 
