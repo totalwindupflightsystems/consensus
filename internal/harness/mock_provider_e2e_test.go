@@ -1,9 +1,9 @@
 // Package harness_test: DF-CONSENSUS-109 end-to-end proof.
 //
 // The two dogfood defects were reported by a keyless fresh user in mock mode:
-//   1. POST /api/v1/sessions answered 400 MISSING_LLM_CONFIG, and
-//   2. once past that, the harness burned MaxTurns on "planning: no-op turn"
-//      and ended with "max turns reached with no productive work".
+//  1. POST /api/v1/sessions answered 400 MISSING_LLM_CONFIG, and
+//  2. once past that, the harness burned MaxTurns on "planning: no-op turn"
+//     and ended with "max turns reached with no productive work".
 //
 // This test binds the pieces the user actually hits: the real migration set,
 // the factory-built mock client (llm.NewClient with provider=mock and
