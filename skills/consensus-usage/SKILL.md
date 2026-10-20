@@ -15,8 +15,11 @@ description: >-
   and the --config flag landmine. v2.10 adds the 2026-10-16 run: provider
   contract findings (model alias, thinking default), the SSE terminal-event
   gap, native JSON config, the new /api/* families, and the crash-recovery
-  drill recipe.
-version: 2.10.0
+  drill recipe. v2.11 adds the 2026-10-20 run: the first drive of GET /api/pty
+  (ROUTE-ADD-028) and GET /api/provider/{providerID} (ROUTE-ADD-027) — both
+  conformant — plus the PUT /auth validation hole (DF-CONSENSUS-59): any JSON
+  object is stored as credential rows and mints provider existence.
+version: 2.11.0
 category: software-development
 ---
 
@@ -405,4 +408,27 @@ session row (or the scratch DB) before restart.
   build 86s, init 2s, serve+health ~3s. Check `git log origin/master..HEAD`
   before comparing behavior across checkouts — origin can lag local master
   (DF-CONSENSUS-57).
+
+## The v2 pty + provider surfaces 2026-10-20 (first drive @ facf424)
+
+- **GET /api/pty** (v2.pty.list) verified conformant on every arm: 401
+  unauth, 200 truthful-empty `{data:[],location:{directory,project}}`,
+  400 InvalidRequestError for blank/unknown/unreadable `location[directory]`
+  selectors, POST 501 typed `not_implemented` naming v2.pty.create
+  (intentional narrowing), 405 undeclared methods, default 404 on deeper
+  `/api/pty/*` paths, v1 `/pty` untouched. Warm p50 0.53ms.
+- **GET /api/provider/{providerID}** (v2.provider.get) correct per-arm
+  (404 ProviderNotFoundError for unknown ids, 400 blank segment, 401/405)
+  and resolves a provider once it has credential rows.
+- **PUT /auth LANDMINE (DF-CONSENSUS-59, open P1)**: `PUT /auth/{id}`
+  validates NOTHING — any JSON object is decoded and stored verbatim as
+  `auth.<provider>.<field>` system_settings rows (`{"bogus":true}` → 200
+  "saved"), and because GET /api/provider/{id} reads those rows for
+  existence, a junk PUT makes a PHANTOM provider answer 200 on the v2
+  surface. DELETE /auth/{id} cleans up. Never trust a PUT /auth 200 as
+  "credentials valid"; validate bodies client-side until the fix lands.
+- **DF-CONSENSUS-58 WARN verified fixed live**: keyless boot logs
+  `level=WARN msg="consensus: No LLM API key configured — …"` as the first
+  boot line — no more silent empty-key downgrade. The pprof `:8095`
+  collision re-proven the same boot.
 
