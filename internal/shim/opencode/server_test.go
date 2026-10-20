@@ -2137,7 +2137,7 @@ func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
 		return len(rows)
 	}
 
-	resp := do(http.MethodPut, "/auth/prov_1", `{"apiKey":"k1","secret":"s1"}`)
+	resp := do(http.MethodPut, "/auth/prov_1", `{"api_key":"k1","client_secret":"s1"}`)
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT /auth/prov_1: expected 200, got %d", resp.StatusCode)
@@ -2176,6 +2176,179 @@ func TestHandleAuthDeleteRemovesOnlyProviderRows(t *testing.T) {
 		if got := countRows(prefix); got != 1 {
 			t.Errorf("rows under %s must survive the delete, got %d", prefix, got)
 		}
+	}
+}
+
+// TestHandleAuthPutUnknownKeyReturns400 pins the DF-CONSENSUS-59 input gate:
+// PUT /auth/{providerID} must reject unknown fields with 400 INVALID_REQUEST
+// (naming them) instead of storing them verbatim.
+func TestHandleAuthPutUnknownKeyReturns400(t *testing.T) {
+	_, srv, _ := newAuthStoreTestServer(t)
+
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/auth/nonexistent", strings.NewReader(`{"bogus_key":"value"}`))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT /auth/nonexistent: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("PUT with unknown key: expected 400, got %d. Body: %s", resp.StatusCode, body)
+	}
+	var envelope struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("400 body not JSON: %v", err)
+	}
+	if envelope.Error.Code != "INVALID_REQUEST" {
+		t.Errorf("expected error code INVALID_REQUEST, got %q", envelope.Error.Code)
+	}
+	if !strings.Contains(envelope.Error.Message, "bogus_key") {
+		t.Errorf("error message should name the unknown field, got %q", envelope.Error.Message)
+	}
+}
+
+// TestHandleAuthPutValidKeysSucceeds pins the positive arm of the same gate:
+// every allowed field name still stores and answers 200.
+func TestHandleAuthPutValidKeysSucceeds(t *testing.T) {
+	ctx := context.Background()
+	_, srv, conn := newAuthStoreTestServer(t)
+
+	body := `{"client_id":"cid","client_secret":"sec","api_key":"key","oauth_client_id":"ocid","oauth_client_secret":"osec"}`
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/auth/prov_valid", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT /auth/prov_valid: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("PUT with only allowed keys: expected 200, got %d. Body: %s", resp.StatusCode, respBody)
+	}
+
+	rows, err := conn.Query(ctx,
+		`SELECT key, value FROM system_settings WHERE key LIKE 'auth.prov_valid.%' ORDER BY key`)
+	if err != nil {
+		t.Fatalf("query stored rows: %v", err)
+	}
+	if len(rows) != 5 {
+		t.Fatalf("expected 5 stored rows for all allowed fields, got %d", len(rows))
+	}
+	for _, row := range rows {
+		key := toString(row["key"])
+		value := toString(row["value"])
+		field := strings.TrimPrefix(key, "auth.prov_valid.")
+		if _, ok := authAllowedFields[field]; !ok {
+			t.Errorf("stored row %s is not an allowed field", key)
+		}
+		if value == "" {
+			t.Errorf("stored row %s lost its value", key)
+		}
+	}
+}
+
+// TestHandleAuthPutMalformedBodyDoesNotMintProvider drives the full
+// DF-CONSENSUS-59 regression: a PUT with an unknown key must not store any
+// row, so the previously-phantom provider stays absent on both existence
+// surfaces — GET /api/provider/{id} answers the typed 404 and GET
+// /provider/auth does not list it.
+func TestHandleAuthPutMalformedBodyDoesNotMintProvider(t *testing.T) {
+	ctx := context.Background()
+	_, srv, conn := newAuthStoreTestServer(t)
+	// handleApiProviderGet reads the routing catalog before the credential
+	// evidence; an empty model_registry keeps the catalog arm silent (no
+	// provider cataloged) so the stored-row derivation decides.
+	if err := conn.Exec(ctx,
+		`CREATE TABLE model_registry (
+			model_id TEXT PRIMARY KEY,
+			tier INTEGER NOT NULL,
+			max_context INTEGER NOT NULL,
+			cost_per_m_in REAL NOT NULL,
+			cost_per_m_out REAL NOT NULL,
+			classifier_tags TEXT,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			sync_source TEXT NOT NULL DEFAULT 'static',
+			synced_at TEXT,
+			provider_id TEXT
+		)`); err != nil {
+		t.Fatalf("create model_registry: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/auth/nonexistent", strings.NewReader(`{"bogus_key":"value"}`))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT /auth/nonexistent: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("PUT with unknown key: expected 400, got %d", resp.StatusCode)
+	}
+
+	rows, err := conn.Query(ctx,
+		`SELECT key FROM system_settings WHERE key LIKE 'auth.nonexistent.%'`)
+	if err != nil {
+		t.Fatalf("query stored rows: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("rejected PUT must not store rows, found %d", len(rows))
+	}
+
+	// Evidence 1: GET /api/provider/nonexistent must keep the typed 404.
+	providerReq, err := http.NewRequest(http.MethodGet, srv.URL+"/api/provider/nonexistent", nil)
+	if err != nil {
+		t.Fatalf("build provider request: %v", err)
+	}
+	providerResp, err := http.DefaultClient.Do(providerReq)
+	if err != nil {
+		t.Fatalf("GET /api/provider/nonexistent: %v", err)
+	}
+	defer func() { _ = providerResp.Body.Close() }()
+	if providerResp.StatusCode != http.StatusNotFound {
+		providerBody, _ := io.ReadAll(providerResp.Body)
+		t.Fatalf("GET /api/provider/nonexistent after rejected PUT: expected 404, got %d. Body: %s",
+			providerResp.StatusCode, providerBody)
+	}
+	var notFound struct {
+		Tag     string `json:"_tag"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(providerResp.Body).Decode(&notFound); err != nil {
+		t.Fatalf("404 body not JSON: %v", err)
+	}
+	if notFound.Tag != "ProviderNotFoundError" {
+		t.Errorf("expected _tag ProviderNotFoundError, got %q", notFound.Tag)
+	}
+
+	// Evidence 2: GET /provider/auth must not advertise the provider.
+	authResp, err := http.Get(srv.URL + "/provider/auth")
+	if err != nil {
+		t.Fatalf("GET /provider/auth: %v", err)
+	}
+	defer func() { _ = authResp.Body.Close() }()
+	if authResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /provider/auth: expected 200, got %d", authResp.StatusCode)
+	}
+	var methods map[string]any
+	if err := json.NewDecoder(authResp.Body).Decode(&methods); err != nil {
+		t.Fatalf("/provider/auth body not JSON: %v", err)
+	}
+	if _, listed := methods["nonexistent"]; listed {
+		t.Errorf("GET /provider/auth must not list a provider whose PUT was rejected")
 	}
 }
 

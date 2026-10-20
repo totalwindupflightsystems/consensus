@@ -2233,12 +2233,42 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// authAllowedFields enumerates the credential fields PUT /auth/{providerID}
+// accepts (DF-CONSENSUS-59): the upstream opencode protocol's known auth
+// field names (SPEC-017 §3.2 stores credentials as system_settings rows, it
+// does not enumerate fields). Without this gate any JSON object keys were
+// stored verbatim as auth.<providerID>.<unknown>, minting phantom provider
+// existence in GET /provider/auth and GET /api/provider/{providerID} — both
+// derive which providers exist purely from those rows.
+var authAllowedFields = map[string]struct{}{
+	"client_id":           {},
+	"client_secret":       {},
+	"api_key":             {},
+	"oauth_client_id":     {},
+	"oauth_client_secret": {},
+}
+
 // handleAuthPut stores the submitted auth fields as system_settings rows
-// keyed auth.<providerID>.<field>.
+// keyed auth.<providerID>.<field>. Unknown fields are rejected with 400
+// INVALID_REQUEST before anything is stored (DF-CONSENSUS-59), so a junk PUT
+// can never mint provider existence downstream.
 func (s *Server) handleAuthPut(w http.ResponseWriter, r *http.Request, path string) {
 	var req map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body")
+		return
+	}
+
+	unknown := make([]string, 0)
+	for k := range req {
+		if _, ok := authAllowedFields[k]; !ok {
+			unknown = append(unknown, k)
+		}
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		writeOpencodeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"unknown auth field(s): "+strings.Join(unknown, ", "))
 		return
 	}
 
