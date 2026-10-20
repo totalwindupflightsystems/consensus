@@ -26,6 +26,8 @@ _tmp/
 
 # GitReins — verdicts and history (contains evaluator output, not source)
 .gitreins/history/
+# GitReins — local task state (AGENTS.md: never commit tasks.yaml)
+.gitreins/tasks.yaml
 .env
 
 # Build artifacts
