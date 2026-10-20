@@ -341,13 +341,25 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /api/provider/* catch-all, so the v1 /provider compatibility route above
 	// (provider.list, a different declared operation) is untouched.
 	mux.HandleFunc("/api/provider", s.handleApiProviderList)
-	// ROUTE-ADD-027: the declared v2.provider.get operation
-	// (GET /api/provider/{providerID}) had no shim route either, so it fell
+	// ROUTE-ADD-027: the declared v2.provider.get operation (GET
+	// /api/provider/{providerID}) had no shim route either, so it fell
 	// through to net/http's default 404 as well. Register the exact
 	// one-segment parameter shape for real; never an /api/* or
 	// /api/provider/* catch-all, so the exact list route above and any deeper
 	// /api/provider/a/b sub-path keep the answers they are classified with.
 	mux.HandleFunc("/api/provider/{providerID}", s.handleApiProviderGet)
+	// ROUTE-ADD-028: the declared v2.pty.list operation (GET /api/pty,
+	// baseline-report source item SHIM-DRIFT-024) had no shim route at all,
+	// so the request fell through to net/http's default 404. Register the
+	// exact path for real; never an /api/* or /api/pty/* catch-all, so the
+	// v1 /pty compatibility family above (pty.list, pty.create, pty.shells
+	// and the /pty/{ptyID} operations) is untouched and deeper /api/pty/a/b
+	// sub-paths keep the answers they are classified with. The exact
+	// registration means the declared sibling method POST /api/pty
+	// (v2.pty.create) reaches the handler too, where the typed
+	// not-implemented envelope answers it (SHIM-GAP-002; the ROUTE-ADD-103
+	// intentional narrowing beside bare /pty).
+	mux.HandleFunc("/api/pty", s.handleApiPty)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -594,6 +606,11 @@ var MountPatterns = []string{
 	// ROUTE-ADD-027: exact declared parameter shape for v2.provider.get so a
 	// parent chi mount reaches the shim route; no /api/provider/* catch-all.
 	"/api/provider/{providerID}",
+	// ROUTE-ADD-028: exact /api/pty (v2.pty.list), never an /api/* or
+	// /api/pty/* catch-all; the declared sibling method POST /api/pty
+	// (v2.pty.create) answers the typed 501 intentional narrowing through the
+	// same registration.
+	"/api/pty",
 	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
 	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
 	"/api/integration/attempt/{attemptID}",
@@ -728,6 +745,12 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// isV2EnvelopeRoutePath below; deeper /api/provider/* sub-paths keep the
 	// shim's own 401 body.
 	"/api/provider": {},
+	// ROUTE-ADD-028: the declared v2.pty.list path (and the declared sibling
+	// method v2.pty.create on the same exact path) take the v2
+	// UnauthorizedError 401 envelope; membership stays exact-path, so the
+	// declared /api/pty/{ptyID} family keeps its own row and deeper
+	// /api/pty/* sub-paths keep the shim's own 401 body.
+	"/api/pty": {},
 	// ROUTE-ADD-018 / SHIM-DRIFT-005 uses a path parameter, so
 	// isV2EnvelopeRoutePath recognizes its exact one-segment shape below.
 	// ROUTE-ADD-008 / SHIM-DRIFT-002: the declared v2.credential family —

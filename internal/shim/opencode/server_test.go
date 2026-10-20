@@ -3791,6 +3791,13 @@ type notImplementedRoute struct {
 var notImplementedRoutes = []notImplementedRoute{
 	// Intentional narrowing: the route is registered and answers typed 501.
 	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
+	// ROUTE-ADD-028 re-added SHIM-DRIFT-025 (POST /api/pty,
+	// v2.pty.create): registering the exact /api/pty mount means the declared
+	// sibling method reaches the handler, where the typed not-implemented
+	// envelope answers it — previously NOT-SERVED (net/http default 404), a
+	// class the table could not see. Same shape as ROUTE-ADD-102's
+	// registration of bare /pty above.
+	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create"},
 	// ROUTE-ADD-007 + ROUTE-ADD-008 registered the /api/credential/{credentialID}
 	// subtree: DELETE (v2.credential.remove) is covered by the merged
 	// dispatcher's 204 no-op; PATCH (v2.credential.update) is NOT a typed-501
@@ -3838,14 +3845,15 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 1 = pty.create. ROUTE-FIX-023 moved the six pinned-upstream TUI
+	// 2 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028).
+	// ROUTE-FIX-023 moved the six pinned-upstream TUI
 	// operations to truthful 200/400 handlers, ROUTE-FIX-031 moved POST
 	// /vcs/apply (vcs.apply), ROUTE-FIX-032 served vcs.diff.raw, and
 	// ROUTE-ADD-007 + ROUTE-ADD-008 served both /api/credential operations
 	// (DELETE covered; PATCH the declared-400 no-store narrowing, which is
 	// error-contract narrowing, not a typed-501 stub).
-	if len(notImplementedRoutes) != 1 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 1 after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, ROUTE-FIX-032 serves vcs.diff.raw, and ROUTE-ADD-007/008 serve the credential family; table has %d",
+	if len(notImplementedRoutes) != 2 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 after ROUTE-FIX-023 serves six TUI operations, ROUTE-FIX-031 serves vcs.apply, ROUTE-FIX-032 serves vcs.diff.raw, ROUTE-ADD-007/008 serve the credential family, and ROUTE-ADD-028 re-adds the /api/pty narrowing; table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
