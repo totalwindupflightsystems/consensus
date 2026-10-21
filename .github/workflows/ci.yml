@@ -272,16 +272,17 @@ jobs:
           context: .
           push: ${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           build-args: |
-            GO_IMAGE=public.ecr.aws/docker/library/golang:1.26-alpine
-            ALPINE_IMAGE=public.ecr.aws/docker/library/alpine:3.21
+            GO_IMAGE=docker.io/library/golang:1.26-alpine
+            ALPINE_IMAGE=docker.io/library/alpine:3.21
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # public.ecr.aws intermittently answers 429 "Data limit exceeded" on
-      # base-image manifests (see INT-CI-002 / INT-CI-006). Retry the whole
-      # build up to 3 extra times with backoff before giving up.
+      # docker.io/library is the shipped base-image source. It replaced the
+      # public ECR mirror after recurring 429 "Data limit exceeded" manifest
+      # errors (INT-CI-002 / INT-CI-006, run 39625937328). Override either
+      # ARG to pin a different mirror.
       - name: Retry build on transient registry errors
         if: ${{ failure() }}
         uses: nick-fields/retry@v3
@@ -299,8 +300,8 @@ jobs:
               PUSH_FLAG="--push"
             fi
             docker buildx build \
-              --build-arg GO_IMAGE=public.ecr.aws/docker/library/golang:1.26-alpine \
-              --build-arg ALPINE_IMAGE=public.ecr.aws/docker/library/alpine:3.21 \
+              --build-arg GO_IMAGE=docker.io/library/golang:1.26-alpine \
+              --build-arg ALPINE_IMAGE=docker.io/library/alpine:3.21 \
               $TAGS $PUSH_FLAG \
               --cache-from type=gha \
               --cache-to type=gha,mode=max \
