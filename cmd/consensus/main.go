@@ -420,8 +420,13 @@ func runServer() {
 
 	// Web Admin UI (SPEC-016 §12) — dark-themed dashboard for sessions, memory, health.
 	// Served at /ui/ — the UI proxies API calls through its own /api/ path.
+	// QA-CONSENSUS-29: the mount uses the /* wildcard (chi matches a bare
+	// "/ui/" pattern only exactly, so /ui/dashboard previously fell through
+	// to NotFound), bare /ui redirects to /ui/, and the UI's own links are
+	// prefix-relative so navigation never leaves the /ui prefix. The wiring
+	// lives in mountUI so tests exercise the production mount shape.
 	webUI := web.NewServer("http://" + addrString(cfg.Server))
-	apiMux.Handle("/ui/", http.StripPrefix("/ui", webUI.Handler()))
+	mountUI(apiMux, webUI.Handler())
 
 	// Chronicle Investigation Workbench (SPEC-026) — dark-theme operational
 	// dashboard for AI-powered investigations. Served at /chronicle/.
