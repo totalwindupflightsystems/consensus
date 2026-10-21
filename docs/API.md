@@ -440,7 +440,7 @@ An authorized session ID with no matching rows returns `200` with `[]`.
 |---|---|
 | `GET /api/v1/approvals` | List approvals |
 | `GET /api/v1/approvals/{approvalID}` | Get one approval |
-| `POST /api/v1/approvals/{approvalID}/review` | Approve/reject (`{"decision":"approve"}` or `{"decision":"reject"}`) |
+| `POST /api/v1/approvals/{approvalID}/review` | Review (`{"decision":"approved"}`, `{"decision":"rejected"}`, or `{"decision":"modified"}` with `modified_sql`; optional `notes`) |
 
 ---
 
