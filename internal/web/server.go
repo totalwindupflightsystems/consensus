@@ -88,7 +88,7 @@ try {
   var tb=document.getElementById('sessions-table');
   if(!sess.length){tb.innerHTML='<tr><td colspan="6" class="empty-state">No sessions</td></tr>';return}
   tb.innerHTML=sess.slice(0,10).map(function(s){
-    return'<tr><td><code>'+truncate(s.id,10)+'</code></td><td>'+(s.agent_name||'—')+'</td><td><span class="'+statusClass(s.status)+'">'+s.status+'</span></td><td>'+(s.iteration||0)+'</td><td>'+formatTime(s.created_at)+'</td><td class="actions"><button onclick="window.location=\\'/sessions?id=\\''+s.id+'\\'">View</button></td></tr>'
+    return'<tr><td><code>'+truncate(s.id,10)+'</code></td><td>'+(s.agent_name||'—')+'</td><td><span class="'+statusClass(s.status)+'">'+s.status+'</span></td><td>'+(s.iteration||0)+'</td><td>'+formatTime(s.created_at)+'</td><td class="actions"><button onclick="window.location=\\'sessions?id=\\''+s.id+'\\'">View</button></td></tr>'
   }).join('')
 }catch(err){
   document.getElementById('health-status').innerHTML='<div class="error-box">'+err.message+'</div>'
@@ -197,8 +197,21 @@ document.getElementById('session-lookup').addEventListener('keydown',function(e)
 }
 
 func (s *Server) handleHealthPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"healthy":true,"version":"consensus-0.1.0","ui":"web-admin"}`))
+	// QA-CONSENSUS-29: /health is a UI subpage and must render as HTML like
+	// its siblings. The previous literal status JSON is kept as the static
+	// pre-content (so plain GETs still surface the same fields) and is then
+	// refreshed live from the real API endpoint the UI already uses.
+	c := `
+<div class="card"><h2>Health</h2><pre id="health-status">{"healthy":true,"version":"consensus-0.1.0","ui":"web-admin"}</pre></div>
+<script>(async function(){
+try {
+  var h=await apiFetch('/api/v1/health');
+  document.getElementById('health-status').textContent=JSON.stringify(h,null,2);
+}catch(err){
+  document.getElementById('health-status').innerHTML='<div class=\"error-box\">'+err.message+'</div>'
+}})();
+</script>`
+	s.html(w, pageShell("Health — Consensus", s.apiURL, "", c))
 }
 
 func (s *Server) html(w http.ResponseWriter, page string) {
@@ -272,9 +285,9 @@ input:focus,select:focus{outline:none;border-color:#58a6ff}
 <body>
 <header class="header"><h1>⚡ Consensus</h1>
 <nav>
-<a href="/dashboard"` + dashClass + `>Dashboard</a>
-<a href="/sessions"` + sessClass + `>Sessions</a>
-<a href="/memory"` + memClass + `>Memory</a>
+<a href="dashboard"` + dashClass + `>Dashboard</a>
+<a href="sessions"` + sessClass + `>Sessions</a>
+<a href="memory"` + memClass + `>Memory</a>
 </nav>
 </header>
 <main class="main">` + content + `</main>
