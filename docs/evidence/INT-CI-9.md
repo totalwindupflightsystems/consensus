@@ -64,7 +64,7 @@ been run from this commit; this artifact records local verification only.
 - The retry step (`nick-fields/retry@v3`) — kept, now retrying docker.io.
 - All other CI jobs, GHCR login/metadata/push behavior, and all application code.
 
-ch:trace row=INT-CI-9 spec=none:no repository spec anchor identified wave=none:serial test=.github/workflows/ci.yml::base-image-source-check doc=docs/evidence/INT-CI-9.md prompt=/tmp/consensus-foreman-2026-10-21-15-37-47-INT-CI-9-brief.txt evidence=docs/evidence/INT-CI-9.md witness=github:run/39625937328 verdict=none:foreman-runs-judge-after-commit commit=none:pending-foreman-trace memory=none:not-written
+ch:trace row=INT-CI-9 spec=none:no repository spec anchor identified wave=none:serial test=.github/workflows/ci.yml::base-image-source-check doc=docs/evidence/INT-CI-9.md prompt=/tmp/consensus-foreman-2026-10-21-15-37-47-INT-CI-9-brief.txt evidence=docs/evidence/INT-CI-9.md witness=github:run/39625937328 verdict=none:foreman-runs-judge-after-commit commit=881fd07ddba9129ef37046e9ca7c637ede460f2f memory=none:not-written
 
 STATUS: complete
 TIER: T3 — locally verified end to end without hosted CI: `docker build --check .`
