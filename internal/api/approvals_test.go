@@ -41,6 +41,174 @@ func TestListApprovals_Empty(t *testing.T) {
 	}
 }
 
+func TestApprovalTimestampsRoundTripAcrossGetEndpoints(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	sessionID := "sess-approval-timestamps"
+	now := time.Now().UTC()
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, created_at, heartbeat_at) VALUES ($1, 'test', 'gpt-4o', 'idle', 'Goal', $2, $2)`, sessionID, now.Format(time.RFC3339Nano)); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+
+	created, err := srv.hitl.RequestApproval(ctx, sessionID, "tool_execution", "Check timestamps", "medium")
+	if err != nil {
+		t.Fatalf("request approval: %v", err)
+	}
+
+	dbCreated, dbReviewed, dbExpires := readApprovalDBTimes(t, srv, created.ID)
+	if dbReviewed != nil {
+		t.Fatalf("reviewed_at must be NULL before review, got %s", dbReviewed.Format(time.RFC3339Nano))
+	}
+
+	for name, path := range map[string]string{
+		"pending list": "/api/v1/approvals",
+		"detail":       "/api/v1/approvals/" + created.ID,
+		"session list": "/api/v1/sessions/" + sessionID + "/approvals",
+	} {
+		t.Run("before review/"+name, func(t *testing.T) {
+			got := getApprovalFromEndpoint(t, srv, path, created.ID)
+			assertApprovalResponseTimes(t, got, dbCreated, nil, dbExpires)
+		})
+	}
+
+	body := `{"decision":"approved","notes":"timestamp check"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/approvals/"+created.ID+"/review", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("review approval: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	dbCreated, dbReviewed, dbExpires = readApprovalDBTimes(t, srv, created.ID)
+	if dbReviewed == nil {
+		t.Fatal("reviewed_at must be set in the database after review")
+	}
+
+	for name, path := range map[string]string{
+		"detail":       "/api/v1/approvals/" + created.ID,
+		"session list": "/api/v1/sessions/" + sessionID + "/approvals?status=all",
+	} {
+		t.Run("after review/"+name, func(t *testing.T) {
+			got := getApprovalFromEndpoint(t, srv, path, created.ID)
+			assertApprovalResponseTimes(t, got, dbCreated, dbReviewed, dbExpires)
+		})
+	}
+}
+
+func getApprovalFromEndpoint(t *testing.T, srv *integrationServer, path, approvalID string) ApprovalResponse {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET %s: expected 200, got %d: %s", path, w.Code, w.Body.String())
+	}
+
+	if strings.Contains(path, "/sessions/") || path == "/api/v1/approvals" {
+		var approvals []ApprovalResponse
+		if err := json.NewDecoder(w.Body).Decode(&approvals); err != nil {
+			t.Fatalf("decode GET %s: %v", path, err)
+		}
+		for _, approval := range approvals {
+			if approval.ID == approvalID {
+				return approval
+			}
+		}
+		t.Fatalf("GET %s: approval %s not found in response", path, approvalID)
+	}
+
+	var approval ApprovalResponse
+	if err := json.NewDecoder(w.Body).Decode(&approval); err != nil {
+		t.Fatalf("decode GET %s: %v", path, err)
+	}
+	return approval
+}
+
+func readApprovalDBTimes(t *testing.T, srv *integrationServer, approvalID string) (time.Time, *time.Time, time.Time) {
+	t.Helper()
+	rows, err := srv.conn.Query(context.Background(), `SELECT created_at, reviewed_at, expires_at FROM approval_requests WHERE id = $1`, approvalID)
+	if err != nil {
+		t.Fatalf("query approval timestamps: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected one approval row, got %d", len(rows))
+	}
+
+	created := mustTestTimestamp(t, rows[0]["created_at"])
+	expires := mustTestTimestamp(t, rows[0]["expires_at"])
+	var reviewed *time.Time
+	if rows[0]["reviewed_at"] != nil {
+		parsed := mustTestTimestamp(t, rows[0]["reviewed_at"])
+		reviewed = &parsed
+	}
+	return created, reviewed, expires
+}
+
+func mustTestTimestamp(t *testing.T, value any) time.Time {
+	t.Helper()
+	if timestamp, ok := value.(time.Time); ok {
+		return timestamp
+	}
+	text, ok := value.(string)
+	if !ok {
+		t.Fatalf("timestamp has unsupported type %T", value)
+	}
+	if monotonic := strings.LastIndex(text, " m="); monotonic >= 0 {
+		text = text[:monotonic]
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02 15:04:05.999999999 -0700 MST",
+		"2006-01-02 15:04:05.999999999 -0700",
+		"2006-01-02 15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05",
+	} {
+		if timestamp, err := time.Parse(layout, text); err == nil {
+			return timestamp
+		}
+	}
+	t.Fatalf("timestamp %q does not match a supported database layout", text)
+	return time.Time{}
+}
+
+func assertApprovalResponseTimes(t *testing.T, got ApprovalResponse, created time.Time, reviewed *time.Time, expires time.Time) {
+	t.Helper()
+	apiCreated := mustTestTimestamp(t, got.CreatedAt)
+	if apiCreated.IsZero() {
+		t.Fatalf("created_at is zero-time: got %q", got.CreatedAt)
+	}
+	if !apiCreated.Equal(created) {
+		t.Errorf("created_at mismatch: API=%s DB=%s", apiCreated.Format(time.RFC3339Nano), created.Format(time.RFC3339Nano))
+	}
+
+	if got.ExpiresAt == nil {
+		t.Fatalf("expires_at is null: DB=%s", expires.Format(time.RFC3339Nano))
+	}
+	apiExpires := mustTestTimestamp(t, *got.ExpiresAt)
+	if !apiExpires.Equal(expires) {
+		t.Errorf("expires_at mismatch: API=%s DB=%s", apiExpires.Format(time.RFC3339Nano), expires.Format(time.RFC3339Nano))
+	}
+
+	if reviewed == nil {
+		if got.ReviewedAt != nil {
+			t.Errorf("reviewed_at must be null before review, got %q", *got.ReviewedAt)
+		}
+		return
+	}
+	if got.ReviewedAt == nil {
+		t.Fatalf("reviewed_at is null: DB=%s", reviewed.Format(time.RFC3339Nano))
+	}
+	apiReviewed := mustTestTimestamp(t, *got.ReviewedAt)
+	if !apiReviewed.Equal(*reviewed) {
+		t.Errorf("reviewed_at mismatch: API=%s DB=%s", apiReviewed.Format(time.RFC3339Nano), reviewed.Format(time.RFC3339Nano))
+	}
+}
+
 func TestListApprovals_WithData(t *testing.T) {
 	srv := newIntegrationServer(t)
 	defer srv.close()

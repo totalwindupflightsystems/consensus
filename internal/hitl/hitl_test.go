@@ -472,6 +472,52 @@ func TestPauseResumeCycle(t *testing.T) {
 	}
 }
 
+func TestRowToApprovalTimestampDriverShapes(t *testing.T) {
+	expected := time.Date(2026, 10, 20, 2, 41, 20, 347123456, time.FixedZone("EST", -5*60*60))
+	legacySQLite := expected.Format("2006-01-02 15:04:05.999999999 -0700 MST") + " m=+0.123456789"
+
+	for name, value := range map[string]any{
+		"sqlite legacy string": legacySQLite,
+		"sqlite RFC3339":       expected.Format(time.RFC3339Nano),
+		"postgres time.Time":   expected,
+	} {
+		t.Run(name, func(t *testing.T) {
+			request, err := rowToApproval(db.Row{
+				"created_at":  value,
+				"reviewed_at": value,
+				"expires_at":  value,
+			})
+			if err != nil {
+				t.Fatalf("rowToApproval: %v", err)
+			}
+			if !request.CreatedAt.Equal(expected) {
+				t.Errorf("created_at=%s, want %s", request.CreatedAt.Format(time.RFC3339Nano), expected.Format(time.RFC3339Nano))
+			}
+			if request.ReviewedAt == nil || !request.ReviewedAt.Equal(expected) {
+				t.Errorf("reviewed_at=%v, want %s", request.ReviewedAt, expected.Format(time.RFC3339Nano))
+			}
+			if !request.ExpiresAt.Equal(expected) {
+				t.Errorf("expires_at=%s, want %s", request.ExpiresAt.Format(time.RFC3339Nano), expected.Format(time.RFC3339Nano))
+			}
+		})
+	}
+}
+
+func TestApprovalTimestampParseErrorsAreReturned(t *testing.T) {
+	if _, err := rowToApproval(db.Row{"created_at": "not-a-time"}); err == nil {
+		t.Fatal("rowToApproval must return malformed created_at errors")
+	}
+
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	mustExec(t, database, ctx, `INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, status, created_at) VALUES ('bad-time', 'session', 0, 'tool_execution', 'bad timestamp', 'low', 'pending', 'not-a-time')`)
+
+	if _, err := New(database).ListPendingApprovals(ctx); err == nil {
+		t.Fatal("ListPendingApprovals must return mapper errors instead of silently dropping rows")
+	}
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================

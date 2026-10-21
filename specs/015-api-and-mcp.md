@@ -248,6 +248,16 @@ then source/id for deterministic polling.
 | `POST` | `/api/v1/approvals/:id/review` | Approve/reject/modify | admin |
 | `GET` | `/api/v1/sessions/:id/approvals` | List approvals for session | session, admin |
 
+All three approval GET endpoints use the same response schema. Approval lifecycle
+timestamps are RFC3339 UTC strings and preserve available fractional-second
+precision:
+
+| Field | Presence | Meaning |
+|---|---|---|
+| `created_at` | required | Time the approval request was created |
+| `reviewed_at` | omitted until review | Time an admin approved, rejected, or modified the request |
+| `expires_at` | present when configured | Deadline after which an unreviewed request expires |
+
 ### 3.6 Billing & Metrics
 
 | Method | Path | Description | Scope |

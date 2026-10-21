@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/wojons/consensus/internal/hitl"
 )
@@ -201,7 +202,7 @@ func hitlRequestToResponse(req *hitl.ApprovalRequest) ApprovalResponse {
 		RiskLevel:   string(req.RiskLevel),
 		Context:     parseJSONRaw(req.Context),
 		Status:      string(req.Status),
-		CreatedAt:   req.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:   req.CreatedAt.UTC().Format(time.RFC3339Nano),
 	}
 	if req.TargetTool != "" {
 		r.TargetTool = &req.TargetTool
@@ -219,11 +220,11 @@ func hitlRequestToResponse(req *hitl.ApprovalRequest) ApprovalResponse {
 		r.ModifiedSQL = &req.ModifiedSQL
 	}
 	if req.ReviewedAt != nil {
-		s := req.ReviewedAt.Format("2006-01-02T15:04:05Z")
+		s := req.ReviewedAt.UTC().Format(time.RFC3339Nano)
 		r.ReviewedAt = &s
 	}
 	if !req.ExpiresAt.IsZero() {
-		s := req.ExpiresAt.Format("2006-01-02T15:04:05Z")
+		s := req.ExpiresAt.UTC().Format(time.RFC3339Nano)
 		r.ExpiresAt = &s
 	}
 	return r

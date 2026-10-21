@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -197,7 +198,8 @@ func (m *Manager) RequestApproval(ctx context.Context, sessionID string, request
 		return nil, fmt.Errorf("hitl: get config: %w", err)
 	}
 
-	expiresAt := time.Now().Add(time.Duration(cfg.ApprovalTimeoutMinutes) * time.Minute)
+	now := time.Now().UTC()
+	expiresAt := now.Add(time.Duration(cfg.ApprovalTimeoutMinutes) * time.Minute)
 	requestID := uuid.New().String()
 
 	req := &ApprovalRequest{
@@ -207,6 +209,7 @@ func (m *Manager) RequestApproval(ctx context.Context, sessionID string, request
 		Description: description,
 		RiskLevel:   riskLevel,
 		Status:      ApprovalStatusPending,
+		CreatedAt:   now,
 		ExpiresAt:   expiresAt,
 	}
 
@@ -219,7 +222,7 @@ func (m *Manager) RequestApproval(ctx context.Context, sessionID string, request
 	err = m.database.Exec(ctx, `
 		INSERT INTO approval_requests (id, session_id, iteration, request_type, description, risk_level, context, target_tool, target_sql, status, expires_at, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-	`, requestID, sessionID, 0, string(requestType), description, string(riskLevel), req.Context, req.TargetTool, req.TargetSQL, string(ApprovalStatusPending), expiresAt, time.Now())
+	`, requestID, sessionID, 0, string(requestType), description, string(riskLevel), req.Context, req.TargetTool, req.TargetSQL, string(ApprovalStatusPending), expiresAt.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, fmt.Errorf("hitl: insert approval request: %w", err)
 	}
@@ -287,7 +290,7 @@ func (m *Manager) ReviewApproval(ctx context.Context, approvalID string, decisio
 		return fmt.Errorf("hitl: approval %q is not pending (current: %s)", approvalID, currentStatus)
 	}
 
-	now := time.Now()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 
 	// Update the approval request
 	err = m.database.Exec(ctx, `
@@ -374,8 +377,10 @@ func (m *Manager) SetApprovalCallback(cb ApprovalCallback) {
 // This runs on a cron schedule (every 5 minutes by default).
 // Returns the number of requests expired.
 func (m *Manager) ExpirePendingApprovals(ctx context.Context) (int, error) {
+	cutoff := time.Now().UTC().Format(time.RFC3339Nano)
+
 	// Count first for reliable return value across backends
-	rows, err := m.database.Query(ctx, `SELECT COUNT(*) as cnt FROM approval_requests WHERE status = 'pending' AND expires_at < $1`, time.Now())
+	rows, err := m.database.Query(ctx, `SELECT COUNT(*) as cnt FROM approval_requests WHERE status = 'pending' AND expires_at < $1`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("hitl: expire approvals count: %w", err)
 	}
@@ -392,7 +397,7 @@ func (m *Manager) ExpirePendingApprovals(ctx context.Context) (int, error) {
 		UPDATE approval_requests
 		SET status = 'expired'
 		WHERE status = 'pending' AND expires_at < $1
-	`, time.Now())
+	`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("hitl: expire approvals: %w", err)
 	}
@@ -606,10 +611,10 @@ func (m *Manager) ListApprovalsByStatus(ctx context.Context, status ApprovalStat
 	}
 
 	var result []ApprovalRequest
-	for _, row := range rows {
+	for i, row := range rows {
 		req, err := rowToApproval(row)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("hitl: map approval row %d: %w", i, err)
 		}
 		result = append(result, *req)
 	}
@@ -634,10 +639,10 @@ func (m *Manager) ListPendingForSession(ctx context.Context, sessionID string) (
 	}
 
 	var result []ApprovalRequest
-	for _, row := range rows {
+	for i, row := range rows {
 		req, err := rowToApproval(row)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("hitl: map approval row %d: %w", i, err)
 		}
 		result = append(result, *req)
 	}
@@ -657,10 +662,10 @@ func (m *Manager) ListSessionApprovals(ctx context.Context, sessionID string) ([
 	}
 
 	var result []ApprovalRequest
-	for _, row := range rows {
+	for i, row := range rows {
 		req, err := rowToApproval(row)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("hitl: map approval row %d: %w", i, err)
 		}
 		result = append(result, *req)
 	}
@@ -679,10 +684,10 @@ func (m *Manager) ListSessionApprovalsByStatus(ctx context.Context, sessionID st
 	}
 
 	var result []ApprovalRequest
-	for _, row := range rows {
+	for i, row := range rows {
 		req, err := rowToApproval(row)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("hitl: map approval row %d: %w", i, err)
 		}
 		result = append(result, *req)
 	}
@@ -806,18 +811,80 @@ func rowToApproval(row db.Row) (*ApprovalRequest, error) {
 	if v, ok := row["modified_sql"].(string); ok {
 		req.ModifiedSQL = v
 	}
-	if v, ok := row["created_at"].(string); ok {
-		req.CreatedAt, _ = time.Parse(time.RFC3339, v)
+	createdAt, err := parseApprovalTimestamp(row["created_at"])
+	if err != nil {
+		return nil, fmt.Errorf("created_at: %w", err)
 	}
-	if v, ok := row["reviewed_at"].(string); ok && v != "" {
-		t, _ := time.Parse(time.RFC3339, v)
-		req.ReviewedAt = &t
+	if createdAt.IsZero() {
+		return nil, fmt.Errorf("created_at: value is required")
 	}
-	if v, ok := row["expires_at"].(string); ok {
-		req.ExpiresAt, _ = time.Parse(time.RFC3339, v)
+	req.CreatedAt = createdAt
+
+	reviewedAt, err := parseApprovalTimestamp(row["reviewed_at"])
+	if err != nil {
+		return nil, fmt.Errorf("reviewed_at: %w", err)
+	}
+	if !reviewedAt.IsZero() {
+		req.ReviewedAt = &reviewedAt
 	}
 
+	expiresAt, err := parseApprovalTimestamp(row["expires_at"])
+	if err != nil {
+		return nil, fmt.Errorf("expires_at: %w", err)
+	}
+	req.ExpiresAt = expiresAt
+
 	return req, nil
+}
+
+// parseApprovalTimestamp accepts the two database driver shapes used by
+// Consensus. PostgreSQL returns TIMESTAMPTZ columns as time.Time, while SQLite
+// returns TEXT. The legacy SQLite write path stored time.Time.String output,
+// including a possible monotonic-clock suffix; new writes use RFC3339Nano UTC.
+func parseApprovalTimestamp(value any) (time.Time, error) {
+	if value == nil {
+		return time.Time{}, nil
+	}
+	if timestamp, ok := value.(time.Time); ok {
+		return timestamp, nil
+	}
+	if timestamp, ok := value.(*time.Time); ok {
+		if timestamp == nil {
+			return time.Time{}, nil
+		}
+		return *timestamp, nil
+	}
+
+	var text string
+	switch value := value.(type) {
+	case string:
+		text = value
+	case []byte:
+		text = string(value)
+	default:
+		return time.Time{}, fmt.Errorf("unsupported value type %T", value)
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return time.Time{}, nil
+	}
+	if monotonic := strings.LastIndex(text, " m="); monotonic >= 0 {
+		text = text[:monotonic]
+	}
+
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02 15:04:05.999999999 -0700 MST",
+		"2006-01-02 15:04:05.999999999 -0700",
+		"2006-01-02 15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	} {
+		if timestamp, err := time.Parse(layout, text); err == nil {
+			return timestamp, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported timestamp %q", text)
 }
 
 func toInt(v interface{}) int {
