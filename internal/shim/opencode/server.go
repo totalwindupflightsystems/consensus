@@ -537,6 +537,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	mux.HandleFunc("/vcs/", s.handleProjectVCSSStub)
 	mux.HandleFunc("/instance", s.handleInstance)
 	mux.HandleFunc("/instance/", s.handleInstanceSub)
+	// ROUTE-ADD-068 / SHIM-DRIFT-036: the exact control-plane move path had no
+	// shim route at all, so POST /experimental/control-plane/move-session fell
+	// through to net/http's default 404 (the drift row's NOT-SERVED class).
+	// The /experimental/* MountPatterns entry already carries the subtree
+	// through a parent chi mount; this registration is the missing exact path.
+	// It stays exact so the sibling declared control-plane / project-copy
+	// operations remain unclaimed until their own contract rows land.
+	mux.HandleFunc("/experimental/control-plane/move-session", s.handleExperimentalMoveSession)
 
 	return s
 }
@@ -7678,4 +7686,182 @@ func (s *Server) sessionPromptAsync(w http.ResponseWriter, r *http.Request, sess
 
 	// Declared success: 204 No Content, empty body.
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleExperimentalMoveSession serves POST
+// /experimental/control-plane/move-session — upstream
+// experimental.controlPlane.moveSession (ROUTE-ADD-068, source item
+// SHIM-DRIFT-036 in the pre-change artifact; declared responses: 204 "Session
+// moved", 400 MoveSessionError | InvalidRequestError). Before this exact route
+// was registered, net/http answered the default 404 for every request (the
+// artifact's NOT-SERVED class).
+//
+// Upstream contract (specs/openapi/upstream/openapi-1.18.33.json
+// paths."/experimental/control-plane/move-session".post): the requestBody is
+// {sessionID*: string pattern ^ses, destination*: {directory*: string},
+// moveChanges?: boolean} with additionalProperties: false; the declared success
+// is an EMPTY 204 and both declared error arms are 400s.
+//
+// Truthfulness: this shim is a protocol translation surface over exactly ONE
+// workspace (requestWorkspaceDir) and keeps no control-plane session-move
+// backend — sessions are the runtime's own rows and carry no per-session
+// project-directory binding to rewrite, and no upstream project-copy machinery
+// exists here. So:
+//   - a well-formed request whose destination resolves to the workspace this
+//     instance serves ANSWERS THE DECLARED 204: the session already resides in
+//     the only project directory this instance holds, so "Session moved" is the
+//     truthful idempotent no-op (nothing is moved, no state is claimed to have
+//     changed, and the optional moveChanges flag is moot because no directory
+//     boundary is crossed);
+//   - a well-formed request whose destination is any OTHER directory answers the
+//     declared 400 MoveSessionError naming that this shim serves one workspace
+//     and cannot move a session out of it — never a fabricated 204;
+//   - a sessionID this runtime does not hold answers the same declared 400
+//     MoveSessionError; the operation declares no 404, so an unknown id is never
+//     answered with an undeclared code;
+//   - a body that violates the declared schema answers the declared 400
+//     InvalidRequestError through the sibling writeV2InvalidRequest helper,
+//     whose {_tag, message, kind?, field?} shape IS components.schemas.
+//     InvalidRequestError (the helper's name records the schema family, not the
+//     /api/* v2 route family).
+//
+// The declared ^ses pattern is deliberately NOT enforced on sessionID: this
+// runtime issues the ids it accepts (sessions.id — the same ids GET /session and
+// POST /session return, which are not ^ses-prefixed; the tui.selectSession
+// precedent), so refusing them would make the operation unreachable for every id
+// this server hands out. The pinned document declares no query parameters, so
+// none are read. Non-POST answers 405 METHOD_NOT_ALLOWED (the sibling
+// method-guard envelope); the operation declares no 401 arm, and unauthenticated
+// requests are stopped at the api-key auth wall like every implemented route.
+func (s *Server) handleExperimentalMoveSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+
+	if r.Body == nil || r.ContentLength == 0 {
+		writeV2InvalidRequest(w, "Body", "sessionID",
+			"request body required: the declared schema carries required sessionID and destination")
+		return
+	}
+	var body map[string]json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeV2InvalidRequest(w, "Body", "", "malformed request body: "+err.Error())
+		return
+	}
+	// A JSON null body decodes without error into a nil map (encoding/json
+	// leaves the destination untouched) — still not the declared object.
+	if body == nil {
+		writeV2InvalidRequest(w, "Body", "", "request body must be a JSON object carrying sessionID and destination")
+		return
+	}
+	for field := range body {
+		switch field {
+		case "sessionID", "destination", "moveChanges":
+		default:
+			writeV2InvalidRequest(w, "Body", field,
+				fmt.Sprintf("unknown field %q: the declared body schema is additionalProperties:false", field))
+			return
+		}
+	}
+
+	rawSessionID, ok := body["sessionID"]
+	if !ok {
+		writeV2InvalidRequest(w, "Body", "sessionID", `required field "sessionID" is missing`)
+		return
+	}
+	var sessionID string
+	if err := json.Unmarshal(rawSessionID, &sessionID); err != nil {
+		writeV2InvalidRequest(w, "Body", "sessionID", `field "sessionID" must be a string`)
+		return
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		writeV2InvalidRequest(w, "Body", "sessionID", `field "sessionID" must not be blank`)
+		return
+	}
+
+	rawDestination, ok := body["destination"]
+	if !ok {
+		writeV2InvalidRequest(w, "Body", "destination", `required field "destination" is missing`)
+		return
+	}
+	var destination map[string]json.RawMessage
+	if err := json.Unmarshal(rawDestination, &destination); err != nil {
+		writeV2InvalidRequest(w, "Body", "destination", `field "destination" must be an object`)
+		return
+	}
+	if destination == nil {
+		writeV2InvalidRequest(w, "Body", "destination", `field "destination" must be an object, not null`)
+		return
+	}
+	for field := range destination {
+		if field != "directory" {
+			writeV2InvalidRequest(w, "Body", "destination."+field,
+				fmt.Sprintf("unknown field %q: the declared MoveSessionDestination schema allows only \"directory\"", field))
+			return
+		}
+	}
+	rawDirectory, ok := destination["directory"]
+	if !ok {
+		writeV2InvalidRequest(w, "Body", "destination.directory", `required field "directory" is missing`)
+		return
+	}
+	var directory string
+	if err := json.Unmarshal(rawDirectory, &directory); err != nil {
+		writeV2InvalidRequest(w, "Body", "destination.directory", `field "directory" must be a string`)
+		return
+	}
+	if strings.TrimSpace(directory) == "" {
+		writeV2InvalidRequest(w, "Body", "destination.directory", `field "directory" must not be blank`)
+		return
+	}
+
+	if rawMoveChanges, ok := body["moveChanges"]; ok {
+		var moveChanges bool
+		// A JSON null unmarshals into a bool without error (encoding/json
+		// leaves the destination untouched), so refuse it explicitly: the
+		// declared member is a boolean, not a nullable one.
+		if strings.TrimSpace(string(rawMoveChanges)) == "null" {
+			writeV2InvalidRequest(w, "Body", "moveChanges", `field "moveChanges" must be a boolean, not null`)
+			return
+		}
+		if err := json.Unmarshal(rawMoveChanges, &moveChanges); err != nil {
+			writeV2InvalidRequest(w, "Body", "moveChanges", `field "moveChanges" must be a boolean`)
+			return
+		}
+	}
+
+	// Resolve the session against the runtime's real session store. A lookup
+	// error and a missing row are the same answer: this instance does not hold
+	// the session, so nothing can be moved.
+	if row, err := s.db.QueryRow(r.Context(), `SELECT id FROM sessions WHERE id = $1`, sessionID); err != nil || row == nil {
+		writeOpencodeNamedError(w, r, http.StatusBadRequest, "MoveSessionError",
+			fmt.Sprintf("no session %q in this runtime: nothing to move", sessionID))
+		return
+	}
+
+	if !sameWorkspaceDirectory(directory, s.requestWorkspaceDir(r)) {
+		writeOpencodeNamedError(w, r, http.StatusBadRequest, "MoveSessionError",
+			fmt.Sprintf("cannot move session %q to %q: this shim serves exactly one workspace (%q) and implements no cross-directory session move",
+				sessionID, directory, s.requestWorkspaceDir(r)))
+		return
+	}
+
+	// The destination is the workspace this instance already serves, so the
+	// session is where the caller asked for it: the declared 204 is the
+	// truthful idempotent no-op.
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// sameWorkspaceDirectory reports whether two directory spellings name the same
+// directory: cleaned equality first, then symlink-resolved equality when both
+// paths exist (the /tmp vs /private/tmp class of spelling difference).
+func sameWorkspaceDirectory(a, b string) bool {
+	ca, cb := filepath.Clean(strings.TrimSpace(a)), filepath.Clean(strings.TrimSpace(b))
+	if ca == cb {
+		return true
+	}
+	ra, errA := filepath.EvalSymlinks(ca)
+	rb, errB := filepath.EvalSymlinks(cb)
+	return errA == nil && errB == nil && ra == rb
 }
