@@ -583,6 +583,11 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:196 handleToolIDs"
+  - path: /experimental/console/orgs
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleConsoleOrgs (ROUTE-ADD-066, source item SHIM-DRIFT-063 in the committed artifact): upstream experimental.console.listOrgs, declared responses 200 {orgs: ConsoleOrg[]}, 400 BadRequestError, 500 InternalServerError. Serves the declared 200 with the object shape and an empty, non-null orgs array because this runtime is logged in to no Console account and holds no org registry — an org entry (accountID, accountEmail, accountUrl, orgID, orgName, active) would fabricate an account; blank directory/workspace query selectors answer the declared 400 BadRequestError (name BadRequest, data.kind Query); non-GET answers 405 METHOD_NOT_ALLOWED. The declared 500 InternalServerError is a genuine-failure arm of the upstream Console client and is never triggered here: the handler holds no Console backend that can fail, and an invented 5xx would be fabricated behaviour. Unauthenticated requests answer the standard shim 401 envelope (the operation declares no 401 arm — /experimental/* keeps normal api-key auth, unlike the fixed-workspace compatibility routes)"
 
   # ── File / find ──
   - path: /api/fs/find

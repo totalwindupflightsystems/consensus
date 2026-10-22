@@ -399,6 +399,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
 	mux.HandleFunc("/experimental/tool/ids", s.handleToolIDs)
+	// ROUTE-ADD-066 / source item SHIM-DRIFT-063: the exact
+	// /experimental/console/orgs path had no shim route at all, so
+	// GET /experimental/console/orgs (upstream experimental.console.listOrgs)
+	// fell through to net/http's default 404 — the artifact's NOT-SERVED
+	// class, indistinguishable from "no such opencode operation". Serve it
+	// exactly; the declared sibling paths /experimental/console and
+	// /experimental/console/switch keep their own drift rows and stay 404.
+	mux.HandleFunc("/experimental/console/orgs", s.handleConsoleOrgs)
 
 	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
 	// recursive filesystem search. Keep the registration exact so sibling v2
@@ -4781,6 +4789,46 @@ func (s *Server) handleFormatter(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, []map[string]any{})
+}
+
+// handleConsoleOrgs serves GET /experimental/console/orgs — upstream
+// experimental.console.listOrgs (ROUTE-ADD-066, source item SHIM-DRIFT-063,
+// declared responses: 200 {orgs: ConsoleOrg[]}, 400 BadRequestError,
+// 500 InternalServerError). Before this change the path had no shim route at
+// all, so GET /experimental/console/orgs fell through to net/http's default
+// 404 — the declared-vs-served artifact's NOT-SERVED class, indistinguishable
+// from "no such opencode operation".
+//
+// TRUTHFULNESS: the declared 200 orgs entries require accountID, accountEmail,
+// accountUrl, orgID, orgName and active — they describe Console accounts this
+// runtime is not logged in to and holds no registry for, so any entry would
+// fabricate an account and an org. The truthful payload is the declared
+// object shape with an empty, non-null `orgs` array (the same empty-registry
+// answer the sibling /command, /skill and /formatter routes give), never null
+// and never an invented org. The declared 400 is served for malformed input: a
+// present-but-blank declared directory/workspace query selector answers the
+// declared BadRequestError envelope (name BadRequest, data.kind Query). The
+// declared 500 InternalServerError arm is a genuine-failure arm of the upstream
+// Console client; this handler holds no Console backend that can fail and its
+// answer is constant, so it never fabricates a 5xx — an invented 500 would be
+// exactly the undeclared-behaviour lie the served-surface vocabulary forbids.
+// Non-GET answers 405 METHOD_NOT_ALLOWED — sibling method-guard convention,
+// matching handleCommandList/handleFormatter/handleSkill.
+//
+// ch:trace row=ROUTE-ADD-066 spec=specs/openapi/upstream/openapi-1.18.33.json#experimental.console.listOrgs test=internal/shim/opencode/console_orgs_test.go evidence=specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json witness=none:unattended-worker-session
+func (s *Server) handleConsoleOrgs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && (len(values) == 0 || strings.TrimSpace(values[0]) == "") {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, map[string]any{"orgs": []map[string]any{}})
 }
 
 // handleSyncHistory serves POST /sync/history — upstream sync.history.list
