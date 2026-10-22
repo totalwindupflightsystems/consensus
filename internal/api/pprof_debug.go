@@ -7,14 +7,17 @@
 // DF-CONSENSUS-19 class of exposure.
 //
 // The listener is started by cmd/consensus/main.go (runServer) using the
-// server.pprof_addr config value (default 127.0.0.1:8095, empty = off).
+// server.pprof_addr config value (default: derived from server.port as
+// 127.0.0.1:PORT+10000 to avoid collision across instances; empty = off).
 package api
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // registers /debug/pprof/* on http.DefaultServeMux
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +26,13 @@ var loopbackHosts = map[string]bool{
 	"127.0.0.1": true,
 	"::1":       true,
 	"localhost": true,
+}
+
+// DefaultPprofAddr derives a collision-safe pprof address from a server port.
+// The convention is port+10000 on loopback (e.g. :8090 → 127.0.0.1:18090).
+// The config value overrides this; set to "" to disable pprof entirely.
+func DefaultPprofAddr(serverPort int) string {
+	return fmt.Sprintf("127.0.0.1:%d", serverPort+10000)
 }
 
 // StartPprofListener starts the loopback-only pprof debug listener serving
@@ -34,7 +44,7 @@ func StartPprofListener(addr string) net.Listener {
 	if addr == "" {
 		return nil
 	}
-	host, _, err := net.SplitHostPort(addr)
+	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
 		slog.Error("pprof: invalid debug address, listener disabled", "addr", addr, "error", err)
 		return nil
@@ -45,19 +55,37 @@ func StartPprofListener(addr string) net.Listener {
 			"addr", addr)
 		return nil
 	}
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		// A busy debug port must never take the server down.
-		slog.Warn("pprof: debug listener failed to start", "addr", addr, "error", err)
-		return nil
-	}
-	go func() {
-		if err := http.Serve(ln, http.DefaultServeMux); err != nil {
-			// ErrServerClosed only happens via ln.Close(), i.e. shutdown.
-			slog.Debug("pprof: debug listener stopped", "addr", addr, "error", err)
+
+	// Auto-retry on port collision: try up to 5 consecutive ports.
+	maxRetries := 5
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		port := portStr
+		if attempt > 0 {
+			if p, e := strconv.Atoi(portStr); e == nil {
+				portStr = strconv.Itoa(p + attempt)
+				port = portStr
+			}
 		}
-	}()
-	slog.Info("pprof: debug listener started (loopback only)", "addr", ln.Addr().String(),
-		"endpoints", "/debug/pprof/, /debug/pprof/heap, /debug/pprof/goroutine?debug=2")
-	return ln
+		candidate := net.JoinHostPort(host, port)
+
+		ln, err := net.Listen("tcp", candidate)
+		if err == nil {
+			if attempt > 0 {
+				slog.Warn("pprof: port in use, auto-resolved to "+candidate, "base_addr", addr)
+			}
+			go func() {
+				if err := http.Serve(ln, http.DefaultServeMux); err != nil {
+					// ErrServerClosed only happens via ln.Close(), i.e. shutdown.
+					slog.Debug("pprof: debug listener stopped", "addr", ln.Addr().String(), "error", err)
+				}
+			}()
+			slog.Info("pprof: debug listener started (loopback only)", "addr", ln.Addr().String(),
+				"endpoints", "/debug/pprof/, /debug/pprof/heap, /debug/pprof/goroutine?debug=2")
+			return ln
+		}
+	}
+	// Exhausted retries — log and disable, never crash the server.
+	slog.Warn("pprof: debug listener failed to start after "+strconv.Itoa(maxRetries)+" retries (all ports in use)",
+		"base_addr", addr, "error", err)
+	return nil
 }

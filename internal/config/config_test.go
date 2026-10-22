@@ -79,9 +79,10 @@ func TestDefaults(t *testing.T) {
 	if cfg.Logging.Level != "info" {
 		t.Errorf("expected info log level, got %s", cfg.Logging.Level)
 	}
-	// PERF-CONSENSUS-11: pprof debug listener defaults to loopback 127.0.0.1:8095.
-	if cfg.Server.PprofAddr != "127.0.0.1:8095" {
-		t.Errorf("expected default pprof address 127.0.0.1:8095, got %q", cfg.Server.PprofAddr)
+	// PERF-CONSENSUS-11 / DF-CONSENSUS-58: pprof defaults to server.port+10000
+	// on loopback (127.0.0.1:18090) to avoid collision across instances.
+	if cfg.Server.PprofAddr != "127.0.0.1:18090" {
+		t.Errorf("expected default pprof address 127.0.0.1:18090, got %q", cfg.Server.PprofAddr)
 	}
 }
 
@@ -143,59 +144,65 @@ func TestAPIRateDefaults(t *testing.T) {
 
 // --- ApplyStartupValidations (C-GAP-002, C-GAP-003) ---
 
-func TestApplyStartupValidations_EmptyAPIKeyWarns(t *testing.T) {
+// DF-CONSENSUS-58: empty/non-mock key returns an error, not a warning.
+func TestApplyStartupValidations_EmptyAPIKeyReturnsError(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.APIKey = ""
 
-	warns := cfg.ApplyStartupValidations()
-
-	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
-		t.Fatalf("expected API key warning, got %v", warns)
+	_, err := cfg.ApplyStartupValidations()
+	if err == nil {
+		t.Fatal("expected error for empty API key")
+	}
+	if !strings.Contains(err.Error(), "LLM API key not configured") {
+		t.Fatalf("expected 'LLM API key not configured' error, got: %v", err)
 	}
 }
 
-func TestApplyStartupValidations_TemplateAPIKeyWarns(t *testing.T) {
+// DF-CONSENSUS-58: unresolved ${...} key returns an error on non-mock providers.
+func TestApplyStartupValidations_TemplateAPIKeyReturnsError(t *testing.T) {
 	cfg := Defaults()
-	// yaml.v3 leaves ${DEEPSEEK_API_KEY} as a literal when the env var is
-	// unset — the startup validation must catch the template form too.
 	cfg.LLM.APIKey = "${DEEPSEEK_API_KEY}"
 
-	warns := cfg.ApplyStartupValidations()
-
-	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
-		t.Fatalf("expected API key warning for ${...} template, got %v", warns)
+	_, err := cfg.ApplyStartupValidations()
+	if err == nil {
+		t.Fatal("expected error for ${...} template key")
+	}
+	if !strings.Contains(err.Error(), "LLM API key not configured") {
+		t.Fatalf("expected 'LLM API key not configured' error, got: %v", err)
 	}
 }
 
-// DF-CONSENSUS-109: the mock provider needs no credential, so a keyless mock
-// run must not be told its harness will fail on LLM calls. Non-mock providers
-// keep the C-GAP-003 warning.
-func TestApplyStartupValidations_MockProviderNoKeyNoWarning(t *testing.T) {
+// DF-CONSENSUS-58/109: mock provider with no key must NOT error.
+// Non-mock providers return an error (not a warning) for empty keys.
+func TestApplyStartupValidations_MockProviderNoKeyNoError(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.Provider = "mock"
 	cfg.LLM.APIKey = ""
 
-	warns := cfg.ApplyStartupValidations()
-
-	for _, w := range warns {
-		if strings.Contains(w, "LLM API key") {
-			t.Fatalf("unexpected API key warning for mock provider: %q", w)
-		}
+	_, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("mock provider should not error without key: %v", err)
 	}
 
-	// Negative control: the same config on a real provider still warns.
+	// Negative control: the same config on a real provider still errors.
 	cfg.LLM.Provider = "openai"
-	warns = cfg.ApplyStartupValidations()
-	if !strings.Contains(strings.Join(warns, "\n"), "No LLM API key") {
-		t.Fatalf("expected API key warning for openai provider, got %v", warns)
+	_, err = cfg.ApplyStartupValidations()
+	if err == nil {
+		t.Fatal("expected error for non-mock provider without key")
+	}
+	if !strings.Contains(err.Error(), "LLM API key not configured") {
+		t.Fatalf("expected 'LLM API key not configured' error, got: %v", err)
 	}
 }
 
-func TestApplyStartupValidations_SetAPIKeyNoWarning(t *testing.T) {
+func TestApplyStartupValidations_SetAPIKeyNoError(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.APIKey = "sk-test-key"
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("unexpected error with valid API key: %v", err)
+	}
 
 	for _, w := range warns {
 		if strings.Contains(w, "LLM API key") {
@@ -207,9 +214,13 @@ func TestApplyStartupValidations_SetAPIKeyNoWarning(t *testing.T) {
 func TestApplyStartupValidations_DeepSeekDisablesCompression(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.BaseURL = "https://api.deepseek.com/v1"
+	cfg.LLM.APIKey = "test-key"
 	cfg.Compression.Enabled = true
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if cfg.Compression.Enabled {
 		t.Error("expected compression to be disabled on DeepSeek backend")
@@ -230,7 +241,10 @@ func TestApplyStartupValidations_NonDeepSeekKeepsCompression(t *testing.T) {
 	cfg.LLM.BaseURL = "https://api.openai.com/v1"
 	cfg.Compression.Enabled = true
 
-	_ = cfg.ApplyStartupValidations()
+	_, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !cfg.Compression.Enabled {
 		t.Error("expected compression to stay enabled on OpenAI backend")
@@ -242,7 +256,10 @@ func TestApplyStartupValidations_NoBaseURLKeepsCompression(t *testing.T) {
 	cfg.LLM.BaseURL = ""
 	cfg.Compression.Enabled = true
 
-	_ = cfg.ApplyStartupValidations()
+	_, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !cfg.Compression.Enabled {
 		t.Error("expected compression to stay enabled when base URL is empty (provider default)")

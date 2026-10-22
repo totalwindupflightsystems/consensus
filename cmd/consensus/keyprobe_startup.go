@@ -70,8 +70,8 @@ func runLLMKeyProbe(provider llm.Provider, baseURL, apiKey, model string) {
 //	other   → WARN with the status (429, 5xx, unexpected): inconclusive
 //
 // No key configured (empty or ${VAR} placeholder) skips the probe entirely —
-// that case keeps its existing config-level WARN ("No LLM API key
-// configured — ..." from ApplyStartupValidations).
+// that case is now caught at startup by ApplyStartupValidations (DF-CONSENSUS-58),
+// which returns an error and exits the process.
 func probeLLMKeyStartup(ctx context.Context, provider llm.Provider, baseURL, apiKey, model string) {
 	if !llm.IsKeyConfigured(apiKey) {
 		return

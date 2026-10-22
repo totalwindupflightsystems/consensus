@@ -70,7 +70,16 @@ func TestApplyStartupValidations_NonLoopbackHostnameWarns(t *testing.T) {
 	cfg.LLM.APIKey = "test-key" // silence the unrelated C-GAP-003 key warning
 	cfg.Server.Hostname = "0.0.0.0"
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+
+
+	if err != nil {
+
+
+		t.Fatalf("unexpected error: %v", err)
+
+
+	}
 
 	found := false
 	for _, w := range warns {
@@ -89,7 +98,16 @@ func TestApplyStartupValidations_LoopbackHostnameNoShimWarn(t *testing.T) {
 	cfg := Defaults()
 	cfg.LLM.APIKey = "test-key" // silence the unrelated C-GAP-003 key warning
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+
+
+	if err != nil {
+
+
+		t.Fatalf("unexpected error: %v", err)
+
+
+	}
 
 	for _, w := range warns {
 		if strings.Contains(w, "opencode shim") {
@@ -105,7 +123,16 @@ func TestApplyStartupValidations_LocalhostNoShimWarn(t *testing.T) {
 	cfg.LLM.APIKey = "test-key"
 	cfg.Server.Hostname = "localhost"
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+
+
+	if err != nil {
+
+
+		t.Fatalf("unexpected error: %v", err)
+
+
+	}
 
 	for _, w := range warns {
 		if strings.Contains(w, "opencode shim") {
@@ -124,7 +151,16 @@ func TestApplyStartupValidations_UnresolvableHostnameWarns(t *testing.T) {
 	cfg.LLM.APIKey = "test-key"
 	cfg.Server.Hostname = "not-a-hostname.invalid"
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+
+
+	if err != nil {
+
+
+		t.Fatalf("unexpected error: %v", err)
+
+
+	}
 
 	found := false
 	for _, w := range warns {

@@ -33,13 +33,21 @@ func TestLoad_ShippedConfigNoCompressionWarning(t *testing.T) {
 		t.Fatalf("LoadWithPath(shipped consensus.yaml): %v", err)
 	}
 
+	// The shipped config has api_key: ${DEEPSEEK_API_KEY} which resolves
+	// empty. Set a dummy key so ApplyStartupValidations reaches the
+	// compression check without erroring on the key.
+	cfg.LLM.APIKey = "test-key"
+
 	// Guard precondition: this test only pins something while the shipped
 	// LLM block still targets DeepSeek. If that changes, revisit the test.
 	if cfg.LLM.BaseURL != "https://api.deepseek.com/v1" {
 		t.Fatalf("shipped consensus.yaml no longer targets DeepSeek (base_url=%q); revisit this test", cfg.LLM.BaseURL)
 	}
 
-	warns := cfg.ApplyStartupValidations()
+	warns, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		t.Fatalf("unexpected error from shipped config: %v", err)
+	}
 
 	for _, w := range warns {
 		if strings.Contains(w, "Compression worker DISABLED") {

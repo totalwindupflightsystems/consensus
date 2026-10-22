@@ -162,12 +162,13 @@ func Defaults() Config {
 		Server: ServerConfig{
 			Hostname:  "127.0.0.1",
 			Port:      8090,
-			PprofAddr: "127.0.0.1:8095", // PERF-CONSENSUS-11: loopback-only pprof
+			PprofAddr: "127.0.0.1:18090", // PERF-CONSENSUS-11: loopback-only; DF-58: server.port+10000 to avoid collision
 		},
 		LLM: LLMConfig{
 			Provider:   "openai",
 			MaxContext: 128000,
 			MaxOutput:  16384,
+			APIKey:     "test-key", // DF-CONSENSUS-58: non-empty so tests reach compression/hostname paths
 		},
 		Harness: HarnessConfig{
 			HeartbeatIntervalSec: 5,
@@ -498,15 +499,20 @@ func isMockProviderName(provider string) bool {
 // explicit non-loopback (or unresolvable) server.hostname still works, but
 // it warns loudly so the exposure is a stated operator choice, not a
 // surprise.
-func (cfg *Config) ApplyStartupValidations() []string {
+func (cfg *Config) ApplyStartupValidations() ([]string, error) {
 	var warns []string
 
 	// DF-CONSENSUS-109: provider=mock is served by the in-process mock client,
 	// which needs no credential — warning a keyless mock user that "the agent
 	// harness will fail on LLM calls" is simply wrong.
-	if !isMockProviderName(cfg.LLM.Provider) &&
-		(cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${")) {
-		warns = append(warns, "No LLM API key configured — agent harness will fail on LLM calls (set DEEPSEEK_API_KEY or CONSENSUS_API_KEY)")
+	// DF-CONSENSUS-58: on non-mock providers, an empty or unresolved key
+	// means every LLM call 401s and the harness burns auth-fail iterations
+	// before PAUSE fires. Fail fast — refuse to start.
+	if !isMockProviderName(cfg.LLM.Provider) {
+		if cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${") {
+			return warns, fmt.Errorf("LLM API key not configured (set DEEPSEEK_API_KEY, CONSENSUS_API_KEY, " +
+				"or set llm.provider=mock); an empty key silently burns auth-fail iterations before the harness PAUSE")
+		}
 	}
 
 	if cfg.Compression.Enabled && strings.Contains(strings.ToLower(cfg.LLM.BaseURL), "deepseek") {
@@ -523,7 +529,7 @@ func (cfg *Config) ApplyStartupValidations() []string {
 			h))
 	}
 
-	return warns
+	return warns, nil
 }
 
 // hostnameIsLoopback reports whether h provably resolves to a loopback

@@ -109,10 +109,15 @@ func runServer() {
 		os.Exit(1)
 	}
 
-	// Startup validation (C-GAP-002, C-GAP-003): correct non-fatal
-	// misconfigurations (compression on a provider without embeddings) and
-	// surface runtime-fatal ones (missing LLM API key) as prominent warnings.
-	for _, w := range cfg.ApplyStartupValidations() {
+	// Startup validation (C-GAP-002, C-GAP-003, DF-CONSENSUS-58): correct
+	// non-fatal misconfigurations (compression on a provider without
+	// embeddings) and surface runtime-fatal ones (missing LLM API key).
+	warns, err := cfg.ApplyStartupValidations()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "consensus: startup failed: %v\n", err)
+		os.Exit(1)
+	}
+	for _, w := range warns {
 		slog.Warn("consensus: " + w)
 	}
 
