@@ -58,6 +58,8 @@ consensus --help                   # management commands
 
 ## 5. Commands
 
+`consensus help <command>` prints built-in help for any command listed below; `consensus completion` generates shell completion scripts (§7).
+
 ### 5.1 `consensus serve`
 
 Start the Consensus server (REST API, protocol adapters, MCP server, harness heartbeat).
@@ -68,14 +70,22 @@ consensus serve [flags]
 Flags:
   --port          Port to listen on (default: 8090)
   --hostname      Bind address (default: 127.0.0.1)
-  --mcp           Enable MCP server endpoint (default: true)
-  --adapter       Enable TUI protocol shims: opencode, pi-agent (default: opencode)
-  --db-url        Database connection URL (PocketBase: ignored, uses embedded SQLite)
-  --migrations    Path to migration files (default: ./migrations)
+  --mcp           Enable MCP server endpoint (default: true) (no-op: parsed, unused —
+                  MCP is mounted unconditionally; see docs/runbooks/serve-adapters.md)
+  --adapter       Enable protocol shims: opencode (SPEC-016 §5.1) (default: opencode)
+                  (no-op: parsed, unused — adapter mounting is governed by the YAML
+                  adapters.* keys; see docs/runbooks/serve-adapters.md)
+  --auto-sync     Auto-sync model_registry from models.dev on interval (e.g., "6h", "24h")
+  --db-url        Database connection URL
+  --migrations    Path to migration files (default: embedded)
   --log-level     Log level: debug, info, warn, error (default: info)
 ```
 
 Starts the Go binary with harness loop, REST API, and MCP server. With SQLite, the database is embedded. With Postgres, connects to the specified database.
+
+`--adapter` and `--mcp` are accepted for compatibility but currently have no runtime effect — they are parsed by the CLI but never read by the serve callback; the MCP HTTP handler is mounted unconditionally and adapter mounting is driven by the `adapters.*` YAML keys (see §6 and `docs/runbooks/serve-adapters.md`). The OpenCode and H3 shims are controlled by `adapters.opencode.enabled` and `adapters.h3.enabled`.
+
+`--auto-sync` periodically runs the model-registry sync (same work as `consensus models sync`, §5.10) on the given duration interval.
 
 ### 5.2 `consensus init`
 
@@ -312,6 +322,50 @@ consensus skill show <skill-name>
 `--rate-limit`, `--requires-approval` and `--disabled` are optional and fall
 back to the registry's column defaults.
 
+### 5.10 `consensus models`
+
+Manage the model registry.
+
+```bash
+# Sync model_registry from models.dev
+consensus models sync [--db-url <url>]
+
+Flags (models sync):
+  --db-url        Database URL (overrides config)
+```
+
+`models sync` fetches the latest model listing from models.dev and updates the
+`model_registry` table. Entries marked `sync_source='static'` are never
+overwritten. Use `consensus serve --auto-sync <interval>` to keep models
+current without manual invocations.
+
+### 5.11 `consensus mcp-stdio`
+
+Start the MCP server in stdio transport mode. Reads JSON-RPC 2.0 requests
+from stdin and writes responses to stdout; stderr is used for logging. This
+enables MCP-compatible clients such as Claude Desktop to launch Consensus
+as a subprocess (SPEC-015 §5.4).
+
+```bash
+consensus mcp-stdio [--db-url <url>] [--log-level <level>] [--port <port>]
+
+Flags:
+  --db-url        Database connection URL (env: CONSENSUS_DB_URL)
+  --log-level     Log level: debug, info, warn, error (default: info)
+  --port          Server port (for bootstrap key info) (default: 8090)
+```
+
+Environment variables: `CONSENSUS_DB_URL`, `CONSENSUS_LOG_LEVEL`,
+`CONSENSUS_API_KEY`.
+
+### 5.12 `consensus version`
+
+Print the consensus build version (same string as the `--version` flag).
+
+```bash
+consensus version
+```
+
 ---
 
 ## 6. Configuration File
@@ -488,6 +542,8 @@ The CLI is the primary management interface. Every management task can be done f
 | List tools | `consensus tool list` | All registered tools with status |
 | List skills | `consensus skill list` | Skill metadata |
 | Check API key scopes | `consensus config list` (shows auth section) | Keys and their scopes |
+| Sync model registry | `consensus models sync` | Latest models.dev listing into `model_registry` (or `serve --auto-sync`) |
+| Run MCP client via stdio | `consensus mcp-stdio` | JSON-RPC 2.0 over stdin/stdout for MCP-compatible clients (SPEC-015 §5.4) |
 
 ### 11.4 Observability
 
@@ -498,6 +554,7 @@ The CLI is the primary management interface. Every management task can be done f
 | Iteration diff | `consensus memory iterations <id> --diff` | What changed between iterations |
 | System metrics | `consensus status --verbose` | Total sessions, total cost, avg cost/session, error rate |
 | Billing breakdown | `consensus session cost <id>` | Per-iteration token counts and costs |
+| Print build version | `consensus version` | The build string (same as `--version`) |
 
 ---
 
