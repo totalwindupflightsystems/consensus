@@ -83,10 +83,12 @@ if [ "$BUILD" = "1" ]; then
 fi
 [ -x "$BIN" ] || { echo "check-spec-parity: $BIN is not executable" >&2; exit 2; }
 
-echo "check-spec-parity: starting scratch server on 127.0.0.1:$PORT (sqlite, no API key needed)"
+echo "check-spec-parity: starting scratch server on 127.0.0.1:$PORT (sqlite, mock LLM, no API key needed)"
 CONSENSUS_PORT="$PORT" \
 CONSENSUS_HOSTNAME="127.0.0.1" \
 CONSENSUS_DB_URL="sqlite://$SCRATCH/parity.db" \
+CONSENSUS_LLM_PROVIDER="mock" \
+CONSENSUS_MOCK_LLM="1" \
   "$BIN" serve --db-url "sqlite://$SCRATCH/parity.db" > "$SCRATCH/serve.log" 2>&1 &
 PID=$!
 
