@@ -31,7 +31,8 @@ Before you start:
 
 This is the working fresh-user path on Linux, macOS, and WSL2. The repository
 is anonymously cloneable, and its shipped config explicitly pins
-`database.max_open_conns: 5`:
+`database.max_open_conns: 10` (raised from 5, which saturated under
+concurrent load):
 
 ```bash
 git clone https://github.com/totalwindupflightsystems/consensus.git

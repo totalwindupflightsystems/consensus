@@ -178,7 +178,8 @@ cd consensus
 export DEEPSEEK_API_KEY="sk-..."
 go build -o bin/consensus ./cmd/consensus/
 
-# The shipped config explicitly pins database.max_open_conns: 5.
+# The shipped config explicitly pins database.max_open_conns: 10 (raised from
+# 5: pool=5 saturated at 16+ concurrent sessions with 82/320 client timeouts).
 ./bin/consensus init --config consensus.yaml
 ./bin/consensus serve --config consensus.yaml
 ```

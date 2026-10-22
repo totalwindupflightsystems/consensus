@@ -26,7 +26,11 @@ harness:
 
 database:
   url: sqlite://dev.db?_journal_mode=WAL
-  max_open_conns: 5
+  # 10 connections: the previous shipped value of 5 saturated under concurrent
+  # load (16+ sessions: 82/320 client 30s timeouts, p95=30s — findings-v2 arm M);
+  # pool=10 cleared all 320 sessions at p95=120ms (arm N). Applies to both
+  # backends: PostgreSQL pool MaxConns and the SQLite connection cap.
+  max_open_conns: 10
 
 hitl:
   auto_pause_on_error_threshold: 3

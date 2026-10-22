@@ -79,8 +79,9 @@ func TestOpenMemorySkippedParentCreation(t *testing.T) {
 
 // TestOpenMaxOpenConnsOverrideReachesDriver proves the max_open_conns
 // override actually reaches the driver (pool-fix follow-up: the shipped
-// consensus.yaml pins database.max_open_conns: 5 and the no-config
-// default is 8 — both must be honored per-backend, including SQLite).
+// consensus.yaml pins database.max_open_conns: 10 (raised from 5 in
+// PG-POOL-SAT) and the no-config default is 8 — both must be honored
+// per-backend, including SQLite).
 // SQLite is in-package, so the wrapped *sql.DB is reachable via d.conn.
 func TestOpenMaxOpenConnsOverrideReachesDriver(t *testing.T) {
 	ctx := context.Background()
