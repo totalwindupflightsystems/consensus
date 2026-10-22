@@ -149,8 +149,8 @@ func seedPendingToolRequest(t *testing.T, database db.DB, sessionID, toolName st
 	var id string
 	// Use a unique ID to prevent conflicts
 	rows, err := database.Query(ctx,
-		`INSERT INTO tool_requests (session_id, tool_name, parameters, status, created_at)
-		 VALUES ($1, $2, $3, 'pending', datetime('now'))
+		`INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at)
+		 VALUES ($1, 0, $2, $3, 'pending', datetime('now'))
 		 RETURNING id`,
 		sessionID, toolName, `{"key":"value"}`)
 	if err != nil {
@@ -702,8 +702,8 @@ func TestToolExecutor_PollOnce_SubprocessToolExecutes(t *testing.T) {
 
 	// Seed a pending request for the subprocess tool with params
 	rows, err := database.Query(ctx,
-		`INSERT INTO tool_requests (session_id, tool_name, parameters, status, created_at)
-		 VALUES ($1, $2, $3, 'pending', datetime('now'))
+		`INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at)
+		 VALUES ($1, 0, $2, $3, 'pending', datetime('now'))
 		 RETURNING id`,
 		sessionID, "echo_tool", `{"message":"hello from sandbox"}`)
 	if err != nil {
@@ -777,8 +777,8 @@ func TestToolExecutor_PollOnce_SubprocessToolWithTimeout(t *testing.T) {
 
 	// Seed a request with a very short timeout
 	rows, err := database.Query(ctx,
-		`INSERT INTO tool_requests (session_id, tool_name, parameters, status, timeout_ms, created_at)
-		 VALUES ($1, $2, $3, 'pending', 100, datetime('now'))
+		`INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, timeout_ms, created_at)
+		 VALUES ($1, 0, $2, $3, 'pending', 100, datetime('now'))
 		 RETURNING id`,
 		sessionID, "sleep_tool", `{"duration":"10"}`)
 	if err != nil {

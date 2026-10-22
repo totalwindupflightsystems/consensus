@@ -405,6 +405,48 @@ ExecuteToolRequest:
       additionalProperties: true
       description: Tool-specific parameters matching the tool's parameter_schema.
 
+CreateToolRequest:
+  type: object
+  required: [name, description, handler_ref]
+  properties:
+    name:
+      type: string
+      maxLength: 128
+      description: Unique tool name (the executor resolves tool_requests by this name).
+    description:
+      type: string
+      description: Human-readable description shown to agents during discovery.
+    hemisphere:
+      type: string
+      enum: [internal, external]
+      default: internal
+    handler_type:
+      type: string
+      enum: [sql_function, http_endpoint, go_native, subprocess]
+      default: sql_function
+    handler_ref:
+      type: string
+      description: SQL function name, URL, Go handler name, or executable command line.
+    parameter_schema:
+      type: object
+      additionalProperties: true
+      description: JSON Schema describing the tool's parameters.
+    status:
+      type: string
+      enum: [active, testing, deprecated, disabled]
+      default: active
+    enabled:
+      type: boolean
+      default: true
+    requires_approval:
+      type: boolean
+      default: false
+      description: When true, every execution parks at awaiting_approval for human review (SPEC-014 §2.2).
+    rate_limit_per_min:
+      type: integer
+      minimum: 1
+      description: Per-minute execution cap. Omitted = unlimited.
+
 ExecuteToolResponse:
   type: object
   required: [tool_name, is_error]

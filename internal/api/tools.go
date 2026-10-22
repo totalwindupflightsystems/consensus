@@ -79,6 +79,171 @@ func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
+// POST /api/v1/tools — Register a tool in tools_registry
+// ============================================================================
+
+// handleCreateTool registers a tool row (DF-CONSENSUS-62).
+//
+// Before this handler there was NO user-facing on-ramp to tools_registry: a
+// fresh install shipped the table empty, the CLI `tool` verb was inspect-only,
+// and the only documented way to reach the HITL approval gate was a direct
+// INSERT. Registration is an admin-plane write because the row decides what
+// executable capability the runtime will dispatch (handler_type/handler_ref),
+// so it requires an admin-scoped key — the same bar as API-key minting.
+func (s *Server) handleCreateTool(w http.ResponseWriter, r *http.Request) {
+	if GetAuthScope(r) != "admin" {
+		writeError(w, r, http.StatusForbidden, "FORBIDDEN", "admin scope required")
+		return
+	}
+
+	var req CreateToolRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "malformed request body: "+err.Error())
+		return
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "name is required")
+		return
+	}
+	if len(name) > 128 {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "name must be 128 characters or fewer")
+		return
+	}
+	description := strings.TrimSpace(req.Description)
+	if description == "" {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "description is required")
+		return
+	}
+	handlerRef := strings.TrimSpace(req.HandlerRef)
+	if handlerRef == "" {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "handler_ref is required")
+		return
+	}
+
+	// Defaults mirror the registry's column defaults so a caller can register
+	// a row with the minimum three required fields.
+	hemisphere := strings.TrimSpace(req.Hemisphere)
+	if hemisphere == "" {
+		hemisphere = "internal"
+	}
+	switch hemisphere {
+	case "internal", "external":
+	default:
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"hemisphere must be one of: internal, external")
+		return
+	}
+
+	handlerType := strings.TrimSpace(req.HandlerType)
+	if handlerType == "" {
+		handlerType = "sql_function"
+	}
+	switch handlerType {
+	case "sql_function", "http_endpoint", "go_native", "subprocess":
+	default:
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"handler_type must be one of: sql_function, http_endpoint, go_native, subprocess")
+		return
+	}
+
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = "active"
+	}
+	switch status {
+	case "active", "testing", "deprecated", "disabled":
+	default:
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+			"status must be one of: active, testing, deprecated, disabled")
+		return
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	parameterSchema := "{}"
+	if len(req.ParameterSchema) > 0 && string(req.ParameterSchema) != "null" {
+		var probe map[string]any
+		if err := json.Unmarshal(req.ParameterSchema, &probe); err != nil {
+			writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST",
+				"parameter_schema must be a JSON object")
+			return
+		}
+		parameterSchema = string(req.ParameterSchema)
+	}
+
+	ctx := r.Context()
+
+	// A precise 409 beats a dialect-specific unique-violation error string, and
+	// it also tells the caller the name is taken before any write is attempted.
+	existing, err := s.db.Query(ctx, `SELECT id FROM tools_registry WHERE name = $1`, name)
+	if err != nil {
+		slog.Error("api: failed to check tool name", "tool", name, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to register tool")
+		return
+	}
+	if len(existing) > 0 {
+		writeError(w, r, http.StatusConflict, "CONFLICT", fmt.Sprintf("tool %q already exists", name))
+		return
+	}
+
+	// The agent role holds only SELECT on tools_registry (migration 001 §10 —
+	// the registry is shared, read-mostly). Write through the admin handle so
+	// the insert works on Postgres as well as SQLite; admindb falls back to the
+	// agent pool when no separate pool is configured (SQLite, tests).
+	var rateLimit *int
+	if req.RateLimitPerMin != nil && *req.RateLimitPerMin > 0 {
+		rateLimit = req.RateLimitPerMin
+	}
+
+	// Generate the id in Go instead of relying on the column default: the
+	// defaults differ by dialect (gen_random_uuid on Postgres, randomblob on
+	// SQLite) and not every schema that carries this table declares one.
+	toolID := newUUID()
+
+	if err := s.admindb.Exec(ctx,
+		`INSERT INTO tools_registry
+			(id, name, description, hemisphere, parameter_schema, handler_type, handler_ref,
+			 status, enabled, requires_approval, rate_limit_per_min)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		toolID, name, description, hemisphere, parameterSchema, handlerType, handlerRef,
+		status, enabled, req.RequiresApproval, rateLimit,
+	); err != nil {
+		slog.Error("api: failed to register tool", "tool", name, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to register tool")
+		return
+	}
+
+	row, err := s.db.QueryRow(ctx,
+		`SELECT id, name, description, hemisphere, handler_type, status, enabled, requires_approval
+		 FROM tools_registry
+		 WHERE name = $1`, name)
+	if err != nil || row == nil {
+		// The row was written; report it rather than a misleading 500-free 200
+		// with no body.
+		slog.Error("api: tool registered but read-back failed", "tool", name, "error", err)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to read back registered tool")
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, ToolResponse{
+		ID:               toString(row["id"]),
+		Name:             toString(row["name"]),
+		Description:      toString(row["description"]),
+		Hemisphere:       toString(row["hemisphere"]),
+		HandlerType:      toString(row["handler_type"]),
+		Status:           toString(row["status"]),
+		Enabled:          toBool(row["enabled"]),
+		RequiresApproval: toBool(row["requires_approval"]),
+	})
+}
+
+// ============================================================================
 // GET /api/v1/skills — List skill metadata (progressive disclosure)
 // ============================================================================
 
@@ -244,11 +409,12 @@ func (s *Server) executeSQLFunctionTool(w http.ResponseWriter, r *http.Request, 
 		result = map[string]any{"row_count": 0}
 	}
 
-	// Also insert a tool_requests record for audit
+	// Also insert a tool_requests record for audit (iteration_id is NOT NULL
+	// with no default — see enqueueExternalTool).
 	_ = s.db.Exec(ctx,
-		`INSERT INTO tool_requests (session_id, tool_name, parameters, status, completed_at)
-		 VALUES ($1, $2, $3, 'completed', datetime('now'))`,
-		req.SessionID, toolName, "{}",
+		`INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, completed_at)
+		 VALUES ($1, $2, $3, $4, 'completed', datetime('now'))`,
+		req.SessionID, s.sessionIteration(ctx, req.SessionID), toolName, "{}",
 	)
 
 	resp := ExecuteToolResponse{
@@ -298,10 +464,15 @@ func (s *Server) enqueueExternalTool(w http.ResponseWriter, r *http.Request, ctx
 	toolName := toString(toolRow["name"])
 	paramsJSON, _ := json.Marshal(req.Parameters)
 
+	// tool_requests.iteration_id is NOT NULL with no column default on both
+	// backends (001 §4.2 Postgres, 031 SQLite rebuild). Omitting it made this
+	// path fail with `NOT NULL constraint failed: tool_requests.iteration_id`
+	// (500 INTERNAL_ERROR) on a fresh install — i.e. the documented execute
+	// route could not create the request the approval gate watches (DF-CONSENSUS-62).
 	err := s.db.Exec(ctx,
-		`INSERT INTO tool_requests (session_id, tool_name, parameters, status)
-		 VALUES ($1, $2, $3, 'pending')`,
-		req.SessionID, toolName, string(paramsJSON),
+		`INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status)
+		 VALUES ($1, $2, $3, $4, 'pending')`,
+		req.SessionID, s.sessionIteration(ctx, req.SessionID), toolName, string(paramsJSON),
 	)
 	if err != nil {
 		slog.Error("api: failed to enqueue tool", "tool", toolName, "error", err)
@@ -315,6 +486,19 @@ func (s *Server) enqueueExternalTool(w http.ResponseWriter, r *http.Request, ctx
 		IsError:  false,
 	}
 	writeJSON(w, resp)
+}
+
+// sessionIteration returns the session's current iteration number, which every
+// tool_requests row must carry (the column is NOT NULL with no default).
+// A missing session or a read error yields 0: the enqueue must not fail on a
+// bookkeeping lookup, and 0 is the migration-legacy value for "not yet in an
+// iteration".
+func (s *Server) sessionIteration(ctx context.Context, sessionID string) int64 {
+	row, err := s.db.QueryRow(ctx, `SELECT iteration FROM sessions WHERE id = $1`, sessionID)
+	if err != nil || row == nil {
+		return 0
+	}
+	return toInt64(row["iteration"])
 }
 
 // ============================================================================

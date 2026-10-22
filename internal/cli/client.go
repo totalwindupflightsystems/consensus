@@ -288,6 +288,17 @@ func (c *Client) ListTools() ([]map[string]any, error) {
 	return result, c.decodeBody(resp, &result)
 }
 
+// CreateTool registers a tool via POST /api/v1/tools (DF-CONSENSUS-62).
+// The request body must carry at least name, description and handler_ref.
+func (c *Client) CreateTool(req map[string]any) (map[string]any, error) {
+	resp, err := c.post("/api/v1/tools", req)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	return result, c.decodeBody(resp, &result)
+}
+
 func (c *Client) ListSkills() ([]map[string]any, error) {
 	resp, err := c.get("/api/v1/skills")
 	if err != nil {

@@ -28,6 +28,46 @@ tools:
       "500":
         $ref: "../components/responses.yaml#/InternalError"
 
+  # POST /api/v1/tools — register a tool (DF-CONSENSUS-62). Without this the
+  # approval gate (requires_approval rows) had no user-facing on-ramp.
+  post:
+    tags: [Tools]
+    summary: Register a tool
+    operationId: createTool
+    description: |
+      Registers a tool in `tools_registry`. The row is what makes a capability
+      dispatchable: the executor resolves `tool_requests` against this table, and
+      rows with `requires_approval=true` park every execution at
+      `awaiting_approval` for human review (SPEC-014 §2.2).
+
+      Requires an **admin** key — registration decides what executable
+      capability the runtime will dispatch.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateToolRequest"
+    responses:
+      "201":
+        description: Tool registered.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Tool"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
 # GET /api/v1/tool-requests
 toolRequests:
   get:

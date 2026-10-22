@@ -221,6 +221,7 @@ immediately.
 | Method | Path | Description | Scope |
 |---|---|---|---|
 | `GET` | `/api/v1/tools` | List available tools | session, admin, readonly |
+| `POST` | `/api/v1/tools` | Register a tool in `tools_registry` (`requires_approval` is what arms the HITL gate) | admin |
 | `GET` | `/api/v1/tool-requests` | List tool execution requests (filters: `session_id`, `status`; oldest first; maximum 100) | session, admin, readonly |
 | `GET` | `/api/v1/tool-requests/:requestId` | Get one tool execution request, including its result when available | session, admin, readonly |
 | `GET` | `/api/v1/sessions/:id/tool-calls` | List the session's tool requests and planning `tool_call_ref` staging entries as one chronological view | session, admin, readonly |

@@ -127,7 +127,10 @@ CREATE TABLE skills_registry (
 CREATE TABLE tool_requests (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id        TEXT NOT NULL REFERENCES sessions(id),
-    iteration_id      INTEGER NOT NULL DEFAULT 0,
+    -- Production shape: NOT NULL with NO default (001 §4.2 Postgres, and the
+    -- 031 SQLite rebuild). A DEFAULT 0 here let the enqueue path pass its
+    -- tests while failing live (DF-CONSENSUS-62) — keep the fixture strict.
+    iteration_id      INTEGER NOT NULL,
     tool_name         TEXT NOT NULL DEFAULT '',
     parameters        TEXT NOT NULL DEFAULT '{}',
     status            TEXT NOT NULL DEFAULT 'pending'

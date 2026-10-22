@@ -324,19 +324,92 @@ curl -X POST http://localhost:8090/api/v1/tasks/<task-id>/claim \
 | Route | Description |
 |---|---|
 | `GET /api/v1/tools` | List available agent tools |
+| `POST /api/v1/tools` | Register a tool (admin key) |
 | `GET /api/v1/skills` | List installed skills |
 | `GET /api/v1/skills/{skillName}` | Fetch one skill's definition |
 | `POST /api/v1/tools/{toolName}/execute` | Execute a tool |
 
+A fresh install already ships two tools, so the examples below work without
+registering anything first:
+
+| Tool | `handler_type` | `requires_approval` | What it does |
+|---|---|---|---|
+| `list_sessions` | `go_native` | no | Lists the most recent sessions |
+| `demo_approval_gate` | `go_native` | **yes** | Parks each execution request for human review — the on-ramp to the approval flow |
+
+Registering another tool takes an **admin** key. `name`, `description` and
+`handler_ref` are required; `hemisphere` (`internal`/`external`),
+`handler_type` (`sql_function`/`http_endpoint`/`go_native`/`subprocess`),
+`status` and `parameter_schema` default to the registry's own column defaults.
+
 ```bash
+# List tools
 curl http://localhost:8090/api/v1/tools \
   -H "Authorization: Bearer cs_ak_your_secret_key"
 
-curl -X POST http://localhost:8090/api/v1/tools/query/execute \
+# Register a tool
+curl -X POST http://localhost:8090/api/v1/tools \
   -H "Authorization: Bearer cs_ak_your_secret_key" \
   -H "Content-Type: application/json" \
-  -d '{"query":"SELECT * FROM sessions LIMIT 5"}'
+  -d '{
+        "name": "fetch_url",
+        "description": "Fetch a URL and return its body",
+        "hemisphere": "external",
+        "handler_type": "http_endpoint",
+        "handler_ref": "https://fetcher.internal/fetch",
+        "requires_approval": true,
+        "parameter_schema": {"type":"object","properties":{"url":{"type":"string"}}}
+      }'
 ```
+
+A successful registration returns `201 Created` with the created row; a taken
+name returns `409 CONFLICT`; a non-admin key returns `403 FORBIDDEN`.
+
+### Executing a tool
+
+`session_id` is **required** in the execute payload — every execution is
+attributed to a session (`400 INVALID_REQUEST: session_id is required`
+otherwise). `parameters` is optional and passed to the handler.
+
+```bash
+curl -X POST http://localhost:8090/api/v1/tools/list_sessions/execute \
+  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"<session-uuid>","parameters":{}}'
+```
+
+For `sql_function` and `go_native` tools the response carries the result
+inline. For `http_endpoint` and `subprocess` tools the call enqueues a
+`tool_requests` row (`{"status":"pending","message":"tool execution enqueued"}`)
+that the harness executor claims asynchronously.
+
+#### Approval-gated tools
+
+If the tool's registry row has `requires_approval=true`, the executor does not
+run the request: it parks it at `awaiting_approval` and creates an
+`approval_requests` row. Approve or reject it through the approvals API:
+
+```bash
+# 1. Request execution of the seeded gated tool
+curl -X POST http://localhost:8090/api/v1/tools/demo_approval_gate/execute \
+  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"<session-uuid>"}'
+
+# 2. The request now sits at awaiting_approval; find its approval id
+curl "http://localhost:8090/api/v1/tool-requests?status=awaiting_approval" \
+  -H "Authorization: Bearer cs_ak_your_secret_key"
+
+# 3. Approve (admin key) — the request is re-queued and executes on the next poll
+curl -X POST http://localhost:8090/api/v1/approvals/<approval-id>/review \
+  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"approved","notes":"reviewed"}'
+```
+
+Rejection cancels the request (`failed` plus a refusal tool result); nothing
+executes. The same flow is available from the CLI:
+`consensus tool register <name> --description ... --handler-ref ... --requires-approval`.
 
 ### Tool execution request inspection
 

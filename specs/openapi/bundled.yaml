@@ -598,6 +598,44 @@ paths:
                   $ref: '#/components/schemas/Tool'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Tools
+      summary: Register a tool
+      operationId: createTool
+      description: |
+        Registers a tool in `tools_registry`. The row is what makes a capability
+        dispatchable: the executor resolves `tool_requests` against this table, and
+        rows with `requires_approval=true` park every execution at
+        `awaiting_approval` for human review (SPEC-014 §2.2).
+
+        Requires an **admin** key — registration decides what executable
+        capability the runtime will dispatch.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateToolRequest'
+      responses:
+        '201':
+          description: Tool registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/tools/{toolName}/execute:
     post:
       tags:
@@ -3198,6 +3236,60 @@ components:
         requires_approval:
           type: boolean
           description: Whether human approval is required before executing this tool.
+    CreateToolRequest:
+      type: object
+      required:
+        - name
+        - description
+        - handler_ref
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          description: Unique tool name (the executor resolves tool_requests by this name).
+        description:
+          type: string
+          description: Human-readable description shown to agents during discovery.
+        hemisphere:
+          type: string
+          enum:
+            - internal
+            - external
+          default: internal
+        handler_type:
+          type: string
+          enum:
+            - sql_function
+            - http_endpoint
+            - go_native
+            - subprocess
+          default: sql_function
+        handler_ref:
+          type: string
+          description: SQL function name, URL, Go handler name, or executable command line.
+        parameter_schema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema describing the tool's parameters.
+        status:
+          type: string
+          enum:
+            - active
+            - testing
+            - deprecated
+            - disabled
+          default: active
+        enabled:
+          type: boolean
+          default: true
+        requires_approval:
+          type: boolean
+          default: false
+          description: When true, every execution parks at awaiting_approval for human review (SPEC-014 §2.2).
+        rate_limit_per_min:
+          type: integer
+          minimum: 1
+          description: Per-minute execution cap. Omitted = unlimited.
     ExecuteToolRequest:
       type: object
       required:

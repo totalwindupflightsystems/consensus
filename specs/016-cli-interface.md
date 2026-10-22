@@ -273,7 +273,9 @@ consensus memory pages <session-id>
 
 ### 5.9 `consensus tool`
 
-Inspect available tools and skills.
+Register and inspect tools. Registration writes the `tools_registry` row the
+harness dispatches against; a row with `requires_approval` set parks every
+execution for human review (SPEC-014 §2.2). It requires an admin API key.
 
 ```bash
 # List registered tools
@@ -282,12 +284,33 @@ consensus tool list
 # Show tool details
 consensus tool show <tool-name>
 
+# Register a tool (requires admin key)
+consensus tool register fetch_url \
+  --description "Fetch a URL and return its body" \
+  --hemisphere external \
+  --handler-type http_endpoint \
+  --handler-ref "https://fetcher.internal/fetch" \
+  --parameter-schema '{"type":"object","properties":{"url":{"type":"string"}}}'
+
+# Register an approval-gated tool
+consensus tool register purge_cache \
+  --description "Flush the response cache" \
+  --handler-type subprocess \
+  --handler-ref "purge_cache --all" \
+  --requires-approval
+
 # List skills
 consensus skill list
 
 # Show skill details
 consensus skill show <skill-name>
 ```
+
+`register` flags: `--description` and `--handler-ref` are required;
+`--handler-type` (`sql_function` | `http_endpoint` | `go_native` | `subprocess`),
+`--hemisphere` (`internal` | `external`), `--status`, `--parameter-schema`,
+`--rate-limit`, `--requires-approval` and `--disabled` are optional and fall
+back to the registry's column defaults.
 
 ---
 

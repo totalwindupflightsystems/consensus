@@ -190,6 +190,9 @@ func NewServer(cfg ServerConfig) *Server {
 
 		// Tools & Skills
 		r.Get("/api/v1/tools", s.handleListTools)
+		// POST /api/v1/tools — register a tool (DF-CONSENSUS-62: the approval
+		// gate was unreachable from any user-facing surface without this).
+		r.Post("/api/v1/tools", s.handleCreateTool)
 		r.Get("/api/v1/tool-requests", s.handleListToolRequests)
 		r.Get("/api/v1/tool-requests/{requestID}", extractToolRequestID(s.handleGetToolRequest))
 		r.Get("/api/v1/sessions/{id}/tool-calls", extractSessionID(s.handleSessionToolCalls))

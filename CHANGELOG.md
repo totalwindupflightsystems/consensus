@@ -6,8 +6,26 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Tool registration on-ramp (DF-CONSENSUS-62)** — `POST /api/v1/tools`
+  (admin key) and `consensus tool register <name>` create `tools_registry`
+  rows, and migration `032_seed_builtin_tools.sql` ships two built-in tools on
+  a fresh install (`list_sessions`, plus `demo_approval_gate` with
+  `requires_approval=true`). The HITL approval gate was previously reachable
+  only by writing SQL by hand: the registry shipped empty, the CLI `tool` verb
+  was inspect-only, and no REST create route existed.
+
 ### Fixed
 
+- **External tool execution could not enqueue (DF-CONSENSUS-62)** —
+  `POST /api/v1/tools/{name}/execute` now records
+  `tool_requests.iteration_id` (NOT NULL with no column default on both
+  backends), so requests for `http_endpoint`/`subprocess` tools reach the
+  executor instead of failing with `500 INTERNAL_ERROR: failed to enqueue
+  tool`. The test fixture had a `DEFAULT 0` the production schema does not
+  have, which is why the bug was invisible to the suite; the fixture now
+  matches the production column.
 - **Install frictions (DF-CONSENSUS-9)** — README documents the Go 1.26
   prerequisite with exact bare-Debian/Ubuntu tarball commands (and
   `docs/quickstart-cross-platform.md` no longer recommends the outdated

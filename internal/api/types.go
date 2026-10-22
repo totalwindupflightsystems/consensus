@@ -3,7 +3,10 @@
 // axiom:trace work_item=interfaces-api-cli-01 spec=specs/015-api-and-mcp.md plan=phase-2/task-2-1/step-2-1-1 impl=internal/api/types.go
 package api
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // ============================================================================
 // Session Endpoint Types (SPEC-015 §3.1)
@@ -77,6 +80,25 @@ type ToolResponse struct {
 	Status           string `json:"status"`
 	Enabled          bool   `json:"enabled"`
 	RequiresApproval bool   `json:"requires_approval"`
+}
+
+// CreateToolRequest is the request body for POST /api/v1/tools — register a
+// tool in tools_registry (DF-CONSENSUS-62).
+//
+// name, description and handler_ref are required. hemisphere, handler_type and
+// status fall back to the registry defaults (internal / sql_function / active),
+// enabled defaults to true, and parameter_schema defaults to {}.
+type CreateToolRequest struct {
+	Name             string          `json:"name"`
+	Description      string          `json:"description"`
+	Hemisphere       string          `json:"hemisphere,omitempty"`
+	HandlerType      string          `json:"handler_type,omitempty"`
+	HandlerRef       string          `json:"handler_ref,omitempty"`
+	ParameterSchema  json.RawMessage `json:"parameter_schema,omitempty"`
+	Status           string          `json:"status,omitempty"`
+	Enabled          *bool           `json:"enabled,omitempty"`
+	RequiresApproval bool            `json:"requires_approval,omitempty"`
+	RateLimitPerMin  *int            `json:"rate_limit_per_min,omitempty"`
 }
 
 // SkillResponse is the response body for GET /api/v1/skills.

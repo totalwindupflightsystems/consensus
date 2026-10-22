@@ -58,6 +58,7 @@ not apply to that verb.
 | `config edit` | 0 | — (offline) | — | — | 2; 1 if `$EDITOR` exits non-zero |
 | `tool list` | 0 (empty registry = still 0) | 3 | 4 | — | 2 |
 | `tool show <name>` | 0 | 3 | 4 | 5 *(fixed, DOC-10: was 0)* | 2 |
+| `tool register <name>` | 0 | 3 | 4 | — | 2 (missing `--description`/`--handler-ref`); 6 on `CONFLICT` (name taken) |
 | `skill list` | 0 (empty = still 0) | 3 | 4 | — | 2 |
 | `skill show <name>` | 0 | 3 | 4 | 5 | 2 |
 | `memory list` / `iterations` | 0 (200-empty = still 0)¹ | 3 | 4 | — | 2 |

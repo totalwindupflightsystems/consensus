@@ -118,7 +118,7 @@ paths:
   /api/v1/tasks/{taskId}/claim:
     $ref: "./paths/tasks.yaml#/claim"
   /api/v1/tools:
-    $ref: "./paths/tools.yaml#/tools"
+    $ref: "./paths/tools.yaml#/tools"          # GET list + POST register (operationId createTool)
   /api/v1/tools/{toolName}/execute:
     $ref: "./paths/tools.yaml#/execute"
   /api/v1/tool-requests:
