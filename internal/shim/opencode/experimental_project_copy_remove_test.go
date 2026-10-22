@@ -216,9 +216,10 @@ func TestExperimentalProjectCopyRemoveMalformedAnswersDeclared400(t *testing.T) 
 // TestExperimentalProjectCopyRemoveMethodAndMountWiring pins the exact chi
 // mount (the /experimental/* MountPattern already reaches the shim), the
 // sibling METHOD_NOT_ALLOWED envelope for every undeclared method, the declared
-// sibling POST (v2.projectCopy.create) answered by the typed 501 intentional
-// narrowing (SHIM-GAP-002 forbids a registered route from lying with 404/405
-// for a declared operation), the untouched sibling /experimental/tool routes,
+// sibling POST (v2.projectCopy.create) answered by its OWN served contract
+// (ROUTE-ADD-070 retired the typed 501 narrowing — the sibling answers a
+// declared 400 for the absent-body shape here, its own tests pin the 200),
+// the untouched sibling /experimental/tool routes,
 // and the absence of any /experimental/* catch-all.
 func TestExperimentalProjectCopyRemoveMethodAndMountWiring(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
@@ -249,28 +250,20 @@ func TestExperimentalProjectCopyRemoveMethodAndMountWiring(t *testing.T) {
 		t.Fatalf("chi-mounted DELETE copy: got %d, want 204. Body: %s", status, resp)
 	}
 
-	// The declared sibling POST on this exact path is a different operation:
-	// it answers the typed 501 not_implemented envelope naming it, never a
-	// lying 404/405 from the registered route.
+	// The declared sibling POST on this exact path is a different operation
+	// served by its own contract row (ROUTE-ADD-070): a bodyless POST fails
+	// that operation's required-body validation with the declared 400
+	// InvalidRequestError — never a lying 404/405 from the registered route
+	// and never the retired typed 501.
 	status, header, body := doCopyRequest(t, srv.URL, http.MethodPost,
 		"/experimental/project/prj-wired/copy", "")
-	if status != http.StatusNotImplemented {
-		t.Fatalf("POST copy: got %d, want the typed 501 intentional narrowing. Body: %s", status, body)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST copy: got %d, want the sibling contract's declared 400. Body: %s", status, body)
 	}
 	if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Errorf("POST copy Content-Type = %q, want application/json", ct)
 	}
-	var narrowed struct {
-		Error     string `json:"error"`
-		Operation string `json:"operation"`
-		Detail    string `json:"detail"`
-	}
-	if err := json.Unmarshal(body, &narrowed); err != nil {
-		t.Fatalf("POST copy 501 body is not JSON: %v (%s)", err, body)
-	}
-	if narrowed.Error != "not_implemented" || narrowed.Operation != "v2.projectCopy.create" || strings.TrimSpace(narrowed.Detail) == "" {
-		t.Errorf("POST copy 501 body = %s, want {error: not_implemented, operation: v2.projectCopy.create, detail}", body)
-	}
+	assertCopyInvalidRequest(t, "POST copy absent body", status, body, "Body", "")
 
 	// Undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope.
 	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodPatch} {
