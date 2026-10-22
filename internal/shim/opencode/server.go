@@ -399,6 +399,18 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
 	mux.HandleFunc("/experimental/tool/ids", s.handleToolIDs)
+	// ROUTE-ADD-069 / source item SHIM-DRIFT-037 (the board row cited
+	// SHIM-DRIFT-066, a positional id from an earlier baseline): the declared
+	// v2.projectCopy.remove operation (DELETE
+	// /experimental/project/{projectID}/copy) had no shim route at all, so
+	// every request on that exact path fell through to net/http's default 404
+	// — the artifact's NOT-SERVED class. Register the exact declared path
+	// shape (/experimental/* is already a chi MountPattern, so a parent mount
+	// reaches it); never an /experimental/project/* catch-all, so the sibling
+	// declared /copy paths (v2.projectCopy.create, experimental.projectCopy
+	// .generateName, v2.projectCopy.refresh) keep the drift class their own
+	// contract rows are filed against.
+	mux.HandleFunc("/experimental/project/{projectID}/copy", s.handleExperimentalProjectCopyRemove)
 
 	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
 	// recursive filesystem search. Keep the registration exact so sibling v2
@@ -811,6 +823,18 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/api/provider/"); ok {
 		return rest != "" && !strings.Contains(rest, "/")
+	}
+	// ROUTE-ADD-069: the declared v2.projectCopy.remove path
+	// (DELETE /experimental/project/{projectID}/copy) is a v2.* operation, so
+	// its unauthenticated answer is the v2 UnauthorizedError envelope rather
+	// than the shim's own UNAUTHENTICATED body. The family is declared with a
+	// path parameter, so only the concrete one-segment shape
+	// (/experimental/project/<non-empty-id>/copy) joins the envelope; every
+	// other /experimental/* path keeps the shim's own envelope.
+	if rest, ok := strings.CutPrefix(path, "/experimental/project/"); ok {
+		if id, ok := strings.CutSuffix(rest, "/copy"); ok {
+			return id != "" && !strings.Contains(id, "/")
+		}
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
@@ -5137,6 +5161,144 @@ func (s *Server) handleToolIDs(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, toString(row["name"]))
 	}
 	writeJSON(w, ids)
+}
+
+// handleExperimentalProjectCopyRemove serves DELETE
+// /experimental/project/{projectID}/copy — upstream v2.projectCopy.remove
+// (ROUTE-ADD-069; declared responses: 204 No Content, 400 ProjectCopyError |
+// InvalidRequestError). Before this route was registered, net/http answered the
+// default 404 for every request on the path (the declared-vs-served artifact's
+// NOT-SERVED class).
+//
+// ch:trace row=ROUTE-ADD-069 spec=specs/openapi/upstream/openapi-1.18.33.json#v2.projectCopy.remove test=internal/shim/opencode/experimental_project_copy_remove_test.go doc=specs/openapi/upstream/consensus-shim-served-surface.yaml evidence=specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json witness=none:self-verified-in-worktree
+//
+// TRUTHFULNESS — the decision rule the ROUTE-ADD-025 saved-permission removal
+// established: the runtime keeps NO project-copy registry. Nothing in
+// internal/db or the migration set records a copied project, and the declared
+// sibling projectCopy.create is not served either, so no projectID addresses a
+// copy this runtime holds. Removal is therefore an idempotent no-op, and the
+// declared 204 (which has no body by definition) fabricates neither a stored
+// copy nor a deletion claim. The declared 400 arm answers REAL malformed input:
+//
+//   - a present-but-blank {projectID} segment — the pinned document declares
+//     `projectID` as a plain required string with NO pattern, so blank is the
+//     only ill-shaped id the contract itself defines (kind Path);
+//   - a body that violates the declared requestBody {directory*: string,
+//     force*: boolean} with additionalProperties:false (kind Body/Payload);
+//   - a malformed deepObject `location` selector (kind Query). The operation
+//     declares that selector exactly like the ROUTE-ADD-021 family, so the
+//     shared apiV2LocationSelector verdict applies.
+//
+// The document marks the requestBody itself OPTIONAL (no requestBody.required),
+// so an absent or empty body is well-formed and proceeds to the declared 204 —
+// the ptyUpdate absent-body rule. Both declared 400 shapes are admitted by the
+// operation's anyOf; the handler answers the InvalidRequestError arm
+// (writeV2InvalidRequest), whose body is exactly {_tag, message, kind, field}.
+//
+// Auth is untouched: /experimental/* is not a stub path, so the standard
+// api-key wall applies, and the unauthenticated 401 is the v2 UnauthorizedError
+// envelope because v2.projectCopy.remove is a v2.* operation (see
+// isV2EnvelopeRoutePath).
+//
+// The exact registration means every method on the path reaches this handler.
+// Only DELETE is declared here: the declared sibling POST on the same exact
+// path (v2.projectCopy.create) is a DIFFERENT operation owned by its own
+// contract row, and SHIM-GAP-002 forbids a registered route from answering a
+// lying 404/405 for a declared operation — so it keeps the typed 501
+// not_implemented envelope naming v2.projectCopy.create (the ROUTE-ADD-028
+// /api/pty parallel, recorded in notImplementedRoutes and the artifact's
+// intentional_narrowing bucket with a rationale): the declared 200
+// ProjectCopyCopy would fabricate a copied project this runtime never held.
+// Every other undeclared method answers the sibling METHOD_NOT_ALLOWED 405
+// envelope the whole v2 family uses.
+func (s *Server) handleExperimentalProjectCopyRemove(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodDelete:
+		// Declared operation: validate, then the idempotent no-op below.
+	case http.MethodPost:
+		// Declared sibling v2.projectCopy.create on this exact path.
+		writeNotImplemented(w, r, "v2.projectCopy.create",
+			"v2.projectCopy.create is not implemented: this runtime keeps no project-copy registry, so the declared 200 ProjectCopyCopy would fabricate a copied project; use the native project surface")
+		return
+	default:
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use DELETE")
+		return
+	}
+
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	if projectID == "" {
+		writeV2InvalidRequest(w, "Path", "projectID", "projectID must not be blank")
+		return
+	}
+
+	if _, ok := s.apiV2LocationSelector(w, r); !ok {
+		return
+	}
+
+	if !validateProjectCopyRemoveBody(w, r) {
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// validateProjectCopyRemoveBody validates the declared requestBody of
+// v2.projectCopy.remove — {directory*: string, force*: boolean} with
+// additionalProperties:false — strictly and BEFORE the (no-op) removal, the
+// ptyUpdate / tui.showToast / vcs.apply rule: a non-object or unparseable body,
+// more than one JSON value, an undeclared key, a non-string `directory` or a
+// non-boolean `force` answers the declared 400 InvalidRequestError (kind
+// Body/Payload) instead of being silently ignored.
+//
+// The body itself is optional: the pinned document sets no requestBody.required,
+// so an absent body, an empty body or `{}` is well-formed input and proceeds.
+// The declared members, when present, are required by the operation's own
+// schema (required: [directory, force]), so a body carrying one of them must
+// carry both.
+func validateProjectCopyRemoveBody(w http.ResponseWriter, r *http.Request) bool {
+	if r.Body == nil {
+		return true
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	var body struct {
+		Directory json.RawMessage `json:"directory"`
+		Force     json.RawMessage `json:"force"`
+	}
+	if err := dec.Decode(&body); err != nil {
+		// io.EOF is the absent/empty body: well-formed because the document
+		// marks no member required at the requestBody level.
+		if err == io.EOF {
+			return true
+		}
+		writeV2InvalidRequest(w, "Body", "",
+			`request body must be a JSON object carrying only the declared fields (directory, force)`)
+		return false
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeV2InvalidRequest(w, "Body", "", "request body must contain exactly one JSON object")
+		return false
+	}
+	if len(body.Directory) == 0 && len(body.Force) == 0 {
+		return true
+	}
+	if len(body.Directory) == 0 || len(body.Force) == 0 {
+		writeV2InvalidRequest(w, "Payload", "",
+			`fields "directory" and "force" are declared required and must be carried together`)
+		return false
+	}
+	var directory string
+	if err := json.Unmarshal(body.Directory, &directory); err != nil {
+		writeV2InvalidRequest(w, "Payload", "directory", `field "directory" must be a string`)
+		return false
+	}
+	var force bool
+	if err := json.Unmarshal(body.Force, &force); err != nil {
+		writeV2InvalidRequest(w, "Payload", "force", `field "force" must be a boolean`)
+		return false
+	}
+	return true
 }
 
 func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
