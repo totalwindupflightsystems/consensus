@@ -399,6 +399,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
 	mux.HandleFunc("/experimental/tool/ids", s.handleToolIDs)
+	// ROUTE-ADD-067 / SHIM-DRIFT-035: serve the declared experimental Console
+	// org switch. Exact path only — the sibling /experimental/console/* paths
+	// (/console/orgs) keep their own NOT-SERVED rows until their own contract
+	// rows land, and a parent chi mount already reaches this subtree through
+	// the /experimental/* MountPatterns entry.
+	mux.HandleFunc("/experimental/console/switch", s.handleConsoleSwitch)
 
 	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
 	// recursive filesystem search. Keep the registration exact so sibling v2
@@ -5137,6 +5143,84 @@ func (s *Server) handleToolIDs(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, toString(row["name"]))
 	}
 	writeJSON(w, ids)
+}
+
+// handleConsoleSwitch serves POST /experimental/console/switch — upstream
+// experimental.console.switchOrg (ROUTE-ADD-067, source item SHIM-DRIFT-035 in
+// specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json; contract
+// specs/024-shim-support-matrix.md §A). Upstream persists a new active Console
+// account/org selection in the local OpenCode state; the Consensus shim is an
+// in-process protocol translation surface that keeps no Console account/org
+// store and holds no upstream Console backend, so it answers the declared 200
+// with the truthful boolean false — the switch was not performed — instead of
+// fabricating success (the tui.showToast / provider.oauth.authorize truthful
+// boolean-false precedent). A parent chi mount already reaches this subtree
+// through the /experimental/* MountPatterns entry; only the exact mux path was
+// missing, so every method answered the net/http default 404 before this row.
+//
+// Input handling follows the declared schema. The declared requestBody is the
+// object {accountID*: string, orgID*: string} with additionalProperties: false;
+// the pinned document does not mark requestBody required, so an absent body is
+// well-formed (the handleGlobalUpgrade convention), while a body that is
+// present must decode as exactly one JSON object with only those two fields —
+// unknown fields are refused through decodeDeclaredJSONObject (SHIM-GAP-004),
+// and a missing, non-string or blank accountID/orgID is refused too. Malformed
+// input answers the sibling 400 BadRequest envelope (writeOpencodeBadRequest,
+// kind Body) rather than silently accepting a selection the caller did not
+// state. The declared optional directory/workspace query selectors are
+// accepted, and a present-but-blank value answers the same 400 with kind Query
+// (the projectUpdate selector convention). Non-POST answers 405
+// METHOD_NOT_ALLOWED — sibling method-guard convention (handleLog,
+// handleGlobalUpgrade).
+func (s *Server) handleConsoleSwitch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && (len(values) == 0 || strings.TrimSpace(values[0]) == "") {
+			writeOpencodeBadRequest(w, r, "Query", fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		var body map[string]json.RawMessage
+		if !decodeDeclaredJSONObject(w, r, &body,
+			`request body must be a JSON object containing only "accountID" and "orgID"`) {
+			return
+		}
+		if body == nil {
+			writeOpencodeBadRequest(w, r, "Body",
+				`request body must be a JSON object containing only "accountID" and "orgID"`)
+			return
+		}
+		for field := range body {
+			if field != "accountID" && field != "orgID" {
+				writeOpencodeBadRequest(w, r, "Body",
+					fmt.Sprintf("unknown field %q: the declared body schema allows only \"accountID\" and \"orgID\"", field))
+				return
+			}
+		}
+		for _, field := range []string{"accountID", "orgID"} {
+			raw, ok := body[field]
+			if !ok {
+				writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("required field %q is missing", field))
+				return
+			}
+			var value string
+			if err := json.Unmarshal(raw, &value); err != nil {
+				writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("field %q must be a string", field))
+				return
+			}
+			if strings.TrimSpace(value) == "" {
+				writeOpencodeBadRequest(w, r, "Body", fmt.Sprintf("field %q must not be blank", field))
+				return
+			}
+		}
+	}
+	// Truthful answer: this shim switches no Console org (no Console backend,
+	// no account/org store), so the declared boolean success marker is false.
+	writeJSON(w, false)
 }
 
 func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
