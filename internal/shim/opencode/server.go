@@ -399,6 +399,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// Tools
 	mux.HandleFunc("/experimental/tool", s.handleTools)
 	mux.HandleFunc("/experimental/tool/ids", s.handleToolIDs)
+	// ROUTE-ADD-064: the exact /experimental/capabilities path had no shim
+	// route at all, so GET fell through to net/http's default 404 (the
+	// declared-vs-served artifact's NOT-SERVED class). Serve the declared
+	// experimental.capabilities.get operation. Registration stays exact: the
+	// /experimental/* family (already in MountPatterns) has no catch-all, so
+	// the sibling declared operations keep their own rows until they land.
+	mux.HandleFunc("/experimental/capabilities", s.handleExperimentalCapabilities)
 
 	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
 	// recursive filesystem search. Keep the registration exact so sibling v2
@@ -5119,6 +5126,44 @@ func (s *Server) handleTools(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, tools)
+}
+
+// handleExperimentalCapabilities serves GET /experimental/capabilities —
+// upstream experimental.capabilities.get (ROUTE-ADD-064, declared responses:
+// 200 ExperimentalCapabilities, 400 BadRequestError). The declared
+// ExperimentalCapabilities object has exactly one required member,
+// backgroundSubagents: boolean (additionalProperties: false).
+//
+// The answer is a build-level capability, not per-request data: this runtime
+// DOES implement sub-agent spawning (SPEC-004) — a spawn is queued as a task
+// row that the harness claim loop picks up and executes asynchronously, with
+// sessions.parent_id lineage, the wake_parent_on_completion notification and
+// the subagent_max_depth setting (default 5) — so the truthful value is true.
+// It is not tied to a store or a runtime toggle that could make it
+// instance-dependent, and no other declared member exists to report.
+//
+// The operation declares optional directory/workspace query selectors for
+// workspace scoping; the capability answer is workspace-independent, so a
+// valued selector is well-formed and filters nothing, while a
+// present-but-blank one is malformed input and answers the declared
+// BadRequestError body (name "BadRequest", data.kind "Query", the offending
+// parameter named in data.message). Undeclared methods answer the sibling
+// METHOD_NOT_ALLOWED 405 envelope (handleTools/handleFormatter convention).
+//
+// ch:trace row=ROUTE-ADD-064 spec=specs/openapi/upstream/openapi-1.18.33.json#experimental.capabilities.get test=internal/shim/opencode/experimental_capabilities_test.go evidence=specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json witness=none:unattended-worker-session
+func (s *Server) handleExperimentalCapabilities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if values, present := r.URL.Query()[param]; present && (len(values) == 0 || strings.TrimSpace(values[0]) == "") {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+	writeJSON(w, map[string]any{"backgroundSubagents": true})
 }
 
 func (s *Server) handleToolIDs(w http.ResponseWriter, r *http.Request) {
