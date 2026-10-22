@@ -583,6 +583,14 @@ routes:
     outcome: 200
     auth: api-key
     evidence: "server.go:196 handleToolIDs"
+  # ROUTE-ADD-064 / source item SHIM-DRIFT-032 in this artifact's positional ids
+  # (the board row cited SHIM-DRIFT-061, which names a different operation):
+  # exact-path registration; the /experimental/* family has no catch-all.
+  - path: /experimental/capabilities
+    method: GET
+    outcome: 200
+    auth: api-key
+    evidence: "server.go handleExperimentalCapabilities (ROUTE-ADD-064): declared responses 200 ExperimentalCapabilities, 400 BadRequestError. Served arms: GET answers the declared 200 with the single declared member — backgroundSubagents: true, the truthful build-level capability answer (this runtime implements sub-agent spawning per SPEC-004: internal/subagent SpawnSubAgent queues a task the internal/harness claim loop executes asynchronously, sessions.parent_id lineage, wake-on-completion, subagent_max_depth default 5); a present-but-blank declared directory/workspace selector answers the declared BadRequestError 400 (name BadRequest, data.kind Query); undeclared methods answer 405 METHOD_NOT_ALLOWED; the exact registration leaves the declared /experimental/tool routes and undeclared /experimental/* siblings untouched (no catch-all); auth is the standard api-key wall"
 
   # ── File / find ──
   - path: /api/fs/find
