@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/wojons/consensus/internal/llm"
 )
@@ -58,7 +59,7 @@ func TestProbeLLMKeyStartup_AuthFailureLogsLoudErrorWithLast4Only(t *testing.T) 
 	defer srv.Close()
 	swapProbeSeam(t, llm.ProbeKey, srv.Client())
 
-	probeLLMKeyStartup(context.Background(), llm.ProviderOpenAI, srv.URL, wiringKeyDead, "test-model")
+	probeLLMKeyStartup(context.Background(), 10*time.Second, llm.ProviderOpenAI, srv.URL, wiringKeyDead, "test-model")
 
 	logs := restore.String()
 	if !strings.Contains(logs, "LLM AUTH FAILED") {
@@ -84,7 +85,7 @@ func TestProbeLLMKeyStartup_SuccessLogsSingleInfoLine(t *testing.T) {
 	defer srv.Close()
 	swapProbeSeam(t, llm.ProbeKey, srv.Client())
 
-	probeLLMKeyStartup(context.Background(), llm.ProviderOpenAI, srv.URL, wiringKeyOk, "test-model")
+	probeLLMKeyStartup(context.Background(), 10*time.Second, llm.ProviderOpenAI, srv.URL, wiringKeyOk, "test-model")
 
 	logs := restore.String()
 	if strings.Count(logs, "llm key probe ok") != 1 {
@@ -105,7 +106,7 @@ func TestProbeLLMKeyStartup_NetworkFailureWarnsAndContinues(t *testing.T) {
 	srv.Close() // refuses connections now
 	swapProbeSeam(t, llm.ProbeKey, http.DefaultClient)
 
-	probeLLMKeyStartup(context.Background(), llm.ProviderOpenAI, url, wiringKeyOk, "test-model")
+	probeLLMKeyStartup(context.Background(), 10*time.Second, llm.ProviderOpenAI, url, wiringKeyOk, "test-model")
 
 	logs := restore.String()
 	if !strings.Contains(logs, "llm key probe unreachable (network)") {
@@ -126,7 +127,7 @@ func TestProbeLLMKeyStartup_SkipsUnconfiguredAndPlaceholderKeys(t *testing.T) {
 		}, nil)
 
 	for _, key := range []string{"", "${DEEPSEEK_API_KEY}", "${CONSENSUS_API_KEY}"} {
-		probeLLMKeyStartup(context.Background(), llm.ProviderOpenAI, "https://unused.invalid", key, "m")
+		probeLLMKeyStartup(context.Background(), 10*time.Second, llm.ProviderOpenAI, "https://unused.invalid", key, "m")
 	}
 	if got := calls.Load(); got != 0 {
 		t.Errorf("probe ran %d times for unconfigured/placeholder keys, want 0 (config WARN covers that case)", got)
@@ -150,5 +151,28 @@ func TestRunLLMKeyProbe_IsNoOpUnderGoTest(t *testing.T) {
 
 	if called.Load() {
 		t.Error("runLLMKeyProbe probed inside a go test binary — the go-test skip is broken")
+	}
+}
+
+// TestProbeLLMKeyStartup_MockProviderSkipsProbe pins DOGFOOD-110: provider
+// "mock" never makes network calls, so the startup key probe must skip it —
+// a probe against a dummy key on a real base_url logs a loud 401 "LLM AUTH
+// FAILED" for a provider that can never use it.
+func TestProbeLLMKeyStartup_MockProviderSkipsProbe(t *testing.T) {
+	restore := captureSlog(t)
+	var calls atomic.Int32
+	swapProbeSeam(t,
+		func(ctx context.Context, httpClient *http.Client, provider llm.Provider, baseURL, apiKey, model string) *llm.KeyProbeVerdict {
+			calls.Add(1)
+			return &llm.KeyProbeVerdict{}
+		}, nil)
+
+	probeLLMKeyStartup(context.Background(), 10*time.Second, llm.ProviderMock, "https://api.deepseek.com/v1", wiringKeyOk, "mock-model")
+
+	if got := calls.Load(); got != 0 {
+		t.Errorf("probe ran %d times for provider=mock, want 0 (mock never makes network calls)", got)
+	}
+	if restore.String() != "" {
+		t.Errorf("expected no probe log lines for provider=mock, got:\n%s", restore.String())
 	}
 }

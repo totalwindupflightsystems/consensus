@@ -46,9 +46,11 @@ func runLLMKeyProbe(provider llm.Provider, baseURL, apiKey, model string) {
 	if runningUnderGoTest() {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	probeLLMKeyStartup(ctx, provider, baseURL, apiKey, model)
+	// DOGFOOD-110: the mock provider never makes network calls, so probing
+	// its dummy key against a real base_url only logs a loud, meaningless
+	// auth failure at serve startup. Skip before any probing; probeLLMKeyStartup
+	// enforces this skip itself so the guard covers every entry path.
+	probeLLMKeyStartup(context.Background(), 10*time.Second, provider, baseURL, apiKey, model)
 }
 
 // probeLLMKeyStartup probes the configured LLM key and logs the verdict at
@@ -63,15 +65,26 @@ func runLLMKeyProbe(provider llm.Provider, baseURL, apiKey, model string) {
 //	          continues because auth will surface on the first LLM call
 //	other   → WARN with the status (429, 5xx, unexpected): inconclusive
 //
+// Provider "mock" (llm.ProviderMock) skips the probe entirely — the mock
+// client never makes network calls, so a probe of its dummy key against a
+// real base_url can only produce a misleading auth error (DOGFOOD-110).
+//
 // No key configured (empty or ${VAR} placeholder) skips the probe entirely —
 // that case keeps its existing config-level WARN ("No LLM API key
 // configured — ..." from ApplyStartupValidations).
-func probeLLMKeyStartup(ctx context.Context, provider llm.Provider, baseURL, apiKey, model string) {
+func probeLLMKeyStartup(ctx context.Context, timeout time.Duration, provider llm.Provider, baseURL, apiKey, model string) {
+	// DOGFOOD-110: skip the probe for the mock provider — it never makes
+	// network calls, so its key cannot be probed meaningfully.
+	if provider == llm.ProviderMock {
+		return
+	}
 	if !llm.IsKeyConfigured(apiKey) {
 		return
 	}
 
-	v := llmProbeFn(ctx, llmProbeHTTPClient, provider, baseURL, apiKey, model)
+	probeCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	v := llmProbeFn(probeCtx, llmProbeHTTPClient, provider, baseURL, apiKey, model)
 
 	switch {
 	case v.OK:
