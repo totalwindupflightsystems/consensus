@@ -46,6 +46,12 @@ func runLLMKeyProbe(provider llm.Provider, baseURL, apiKey, model string) {
 	if runningUnderGoTest() {
 		return
 	}
+	// Skip the startup probe for the mock provider — the mock never makes
+	// network calls, so a dummy key will always produce a 401 that only
+	// confuses operators (DOGFOOD-110).
+	if provider == "mock" {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	probeLLMKeyStartup(ctx, provider, baseURL, apiKey, model)
