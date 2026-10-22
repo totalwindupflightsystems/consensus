@@ -144,7 +144,7 @@ func TestConsoleOrgsNeighboursUntouched(t *testing.T) {
 	if status != http.StatusOK {
 		t.Errorf("GET /experimental/console: got %d, want 200 (parent path, served by its own ROUTE-ADD-065 row). Body: %s", status, body)
 	}
-	if !strings.Contains(body, "consoleManagedProviders") {
+	if !strings.Contains(string(body), "consoleManagedProviders") {
 		t.Errorf("GET /experimental/console: body is not the parent ConsoleState payload (orgs handler leaked into the parent path). Body: %s", body)
 	}
 
