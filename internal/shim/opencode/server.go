@@ -7928,27 +7928,27 @@ func sameWorkspaceDirectory(a, b string) bool {
 // isV2EnvelopeRoutePath).
 //
 // The exact registration means every method on the path reaches this handler.
-// Only DELETE is declared here: the declared sibling POST on the same exact
-// path (v2.projectCopy.create) is a DIFFERENT operation owned by its own
-// contract row, and SHIM-GAP-002 forbids a registered route from answering a
-// lying 404/405 for a declared operation — so it keeps the typed 501
-// not_implemented envelope naming v2.projectCopy.create (the ROUTE-ADD-028
-// /api/pty parallel, recorded in notImplementedRoutes and the artifact's
-// intentional_narrowing bucket with a rationale): the declared 200
-// ProjectCopyCopy would fabricate a copied project this runtime never held.
-// Every other undeclared method answers the sibling METHOD_NOT_ALLOWED 405
-// envelope the whole v2 family uses.
+// DELETE is the operation this dispatcher answers; the declared sibling POST on
+// the same exact path (v2.projectCopy.create) is a DIFFERENT operation whose
+// contract row ROUTE-ADD-070 owns — its arm dispatches to
+// handleExperimentalProjectCopyCreate (experimental_project_copy_create.go),
+// which serves the declared 200/400 for real and retired this comment's
+// former typed 501 intentional narrowing. Every other undeclared method
+// answers the sibling METHOD_NOT_ALLOWED 405 envelope the whole v2 family
+// uses.
 func (s *Server) handleExperimentalProjectCopyRemove(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodDelete:
 		// Declared operation: validate, then the idempotent no-op below.
 	case http.MethodPost:
-		// Declared sibling v2.projectCopy.create on this exact path.
-		writeNotImplemented(w, r, "v2.projectCopy.create",
-			"v2.projectCopy.create is not implemented: this runtime keeps no project-copy registry, so the declared 200 ProjectCopyCopy would fabricate a copied project; use the native project surface")
+		// Declared sibling v2.projectCopy.create on this exact path. ROUTE-ADD-070
+		// serves it for real (the narrowing of ROUTE-ADD-069 is gone): the
+		// upstream operation is a real git-worktree effect on the location-selected
+		// workspace, answerable without a project-copy registry.
+		s.handleExperimentalProjectCopyCreate(w, r)
 		return
 	default:
-		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use DELETE")
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use DELETE or POST")
 		return
 	}
 
