@@ -406,6 +406,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /experimental/* family (already in MountPatterns) has no catch-all, so
 	// the sibling declared operations keep their own rows until they land.
 	mux.HandleFunc("/experimental/capabilities", s.handleExperimentalCapabilities)
+	// ROUTE-ADD-065 / SHIM-DRIFT-062: the exact /experimental/console path was
+	// never registered, so GET /experimental/console fell through to net/http's
+	// default 404 — the drift row's NOT-SERVED class, indistinguishable from
+	// "no such opencode operation". Serve the declared experimental.console.get
+	// operation. A parent chi mount already reaches this subtree through the
+	// /experimental/* MountPatterns entry, so only the exact mux path was
+	// missing; the sibling /experimental/tool routes are separate declared
+	// operations and stay untouched.
+	mux.HandleFunc("/experimental/console", s.handleExperimentalConsole)
 
 	// ROUTE-ADD-010 / SHIM-DRIFT-006: serve the upstream v2 location-scoped
 	// recursive filesystem search. Keep the registration exact so sibling v2
@@ -5182,6 +5191,99 @@ func (s *Server) handleToolIDs(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, toString(row["name"]))
 	}
 	writeJSON(w, ids)
+}
+
+// handleExperimentalConsole serves GET /experimental/console — upstream
+// experimental.console.get (ROUTE-ADD-065; source item SHIM-DRIFT-062 in the
+// 2026-09-29 baseline report, positional id SHIM-DRIFT-033 in the regenerated
+// artifact; declared responses 200 ConsoleState, 400 BadRequestError, 500
+// InternalServerError). Before this change the exact path had no shim route at
+// all, so every method fell through to net/http's default 404.
+//
+// TRUTHFULNESS — this shim integrates with no opencode Console (the cloud
+// surface that manages providers and orgs), so it reports the runtime's real
+// state instead of inventing one:
+//
+//   - consoleManagedProviders is READ from the instance's settings store
+//     (system_settings keys console.<providerID>[.<field>] — the same store and
+//     naming convention PUT /auth/{providerID} uses for credentials) and
+//     deduplicated per provider id. This runtime ships no Console integration,
+//     so no such row exists and the list is served empty (never null, never a
+//     provider the store does not hold); a binding an operator stores is
+//     reported as stored.
+//   - switchableOrgCount is 0: the instance joins no org directory and offers
+//     no org switch, so 0 is the runtime truth rather than a store-derived
+//     claim (the operation declares the member required with minimum 0).
+//   - activeOrgName is optional in the pinned schema and omitted — this
+//     instance has no active org, and an empty string would assert an org with
+//     a blank name.
+//
+// An unreadable settings store answers the declared 500 InternalServerError
+// {_tag:"InternalServerError"}: absence is never claimed from a store the shim
+// could not read (the handleProviderGet rule), and the declared 500 schema is
+// additionalProperties:false, so the body carries that one member.
+//
+// The operation declares the optional directory/workspace query selectors as
+// plain strings, so a present-but-blank selector is malformed input and answers
+// the declared BadRequestError body through writeOpencodeBadRequest (the
+// sibling handleSyncHistory convention) without reading the store. A valued
+// selector is well-formed and keeps the 200: the state this instance reports is
+// workspace-independent.
+//
+// Non-GET answers 405 METHOD_NOT_ALLOWED — sibling method-guard convention
+// (handleFormatter/handleSkill). Exact path only, no catch-all: the sibling
+// /experimental/tool and /experimental/tool/ids routes are separate declared
+// operations, and deeper /experimental/* sub-paths keep their own rows (or the
+// net/http default 404).
+func (s *Server) handleExperimentalConsole(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET")
+		return
+	}
+	for _, param := range []string{"directory", "workspace"} {
+		if v, ok := r.URL.Query()[param]; ok && strings.TrimSpace(v[0]) == "" {
+			writeOpencodeBadRequest(w, r, "Query",
+				fmt.Sprintf("query parameter %q must not be blank", param))
+			return
+		}
+	}
+
+	rows, err := s.db.Query(r.Context(),
+		`SELECT key FROM system_settings WHERE key LIKE 'console.%' ORDER BY key`)
+	if err != nil {
+		writeJSONStatus(w, http.StatusInternalServerError, map[string]string{"_tag": "InternalServerError"})
+		slog.Warn("opencode-shim: console state unavailable", "error", err)
+		return
+	}
+
+	providers := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		key := toString(row["key"])
+		providerID, ok := strings.CutPrefix(key, "console.")
+		if !ok {
+			continue
+		}
+		// console.<providerID>.<field> rows describe the same binding as the
+		// console.<providerID> row itself, so only the first segment names the
+		// provider.
+		if i := strings.Index(providerID, "."); i >= 0 {
+			providerID = providerID[:i]
+		}
+		if providerID == "" {
+			continue
+		}
+		if _, dup := seen[providerID]; dup {
+			continue
+		}
+		seen[providerID] = struct{}{}
+		providers = append(providers, providerID)
+	}
+
+	writeJSON(w, map[string]any{
+		"consoleManagedProviders": providers,
+		"switchableOrgCount":      0,
+	})
 }
 
 func (s *Server) handleMCPEndpoint(w http.ResponseWriter, r *http.Request) {
