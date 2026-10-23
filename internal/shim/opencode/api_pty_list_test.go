@@ -298,15 +298,17 @@ func TestApiPtyListMountWiring(t *testing.T) {
 		t.Fatalf("chi-mounted GET /api/pty: got %d, want 200 (the mount must reach the shim route). Body: %s", status, body)
 	}
 
-	// No catch-all: the declared /api/pty/{ptyID} family (v2.pty.get /
-	// v2.pty.update / v2.pty.remove / v2.pty.connect / v2.pty.connectToken)
-	// keeps its own board rows and its own future routes — registering the
-	// bare /api/pty mount must not swallow them, and a deeper sub-path keeps
-	// the net/http default 404 it is classified with.
-	for _, path := range []string{"/api/pty/pty1", "/api/pty/a/b"} {
+	// No catch-all: registering the bare /api/pty mount (and since
+	// ROUTE-ADD-030 the exact one-segment /api/pty/{ptyID} route) must not
+	// swallow deeper sub-paths — /api/pty/a/b keeps the net/http default 404
+	// it is classified with. (GET /api/pty/pty1 was asserted 404 here before
+	// ROUTE-ADD-030 served the ptyID family; that row now answers the
+	// declared 404 typed PtyNotFoundError — same code, a different reason —
+	// so the catch-all check moved to the unregistered two-segment shape.)
+	for _, path := range []string{"/api/pty/a/b"} {
 		status, _, _ := doShimRequest(t, srv.URL, http.MethodGet, path)
 		if status != http.StatusNotFound {
-			t.Errorf("GET %s: got %d, want 404 — ROUTE-ADD-028 registers the exact path, never a catch-all", path, status)
+			t.Errorf("GET %s: got %d, want 404 — ROUTE-ADD-028 registers the exact paths, never a catch-all", path, status)
 		}
 	}
 
@@ -320,8 +322,14 @@ func TestApiPtyListMountWiring(t *testing.T) {
 	if !isV2EnvelopeRoutePath("/api/pty") {
 		t.Error("/api/pty is not listed in v2EnvelopeRoutePaths — its declared 401 body is the v2 UnauthorizedError envelope")
 	}
-	if isV2EnvelopeRoutePath("/api/pty/pty1") {
-		t.Error("/api/pty/pty1 is treated as a v2-envelope route; membership must be exact-path (the ptyID family is a different row)")
+	// ROUTE-ADD-030: the declared /api/pty/{ptyID} family (v2.pty.get/update/
+	// remove) carries the declared 401 too, so the concrete one-segment shape
+	// joins the envelope; deeper /api/pty/* sub-paths keep the shim's own body.
+	if !isV2EnvelopeRoutePath("/api/pty/pty_abc") {
+		t.Error("/api/pty/pty_abc is not treated as a v2-envelope route — the declared ptyID family carries the v2 UnauthorizedError 401 arm (ROUTE-ADD-030/031/032)")
+	}
+	if isV2EnvelopeRoutePath("/api/pty/pty1/connect") {
+		t.Error("/api/pty/pty1/connect is treated as a v2-envelope route; membership must stay the exact one-segment shape (the connect/connect-token rows are ROUTE-ADD-033/034)")
 	}
 	if !isV2EnvelopeRoutePath("/api/provider") {
 		t.Error("a pre-existing v2 route lost its 401 envelope")

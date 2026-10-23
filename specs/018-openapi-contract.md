@@ -801,7 +801,28 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - widening requires: a real v2 session-event store (a design change with its
   own row, not a contract detail).
 
-`counts` at this revision: `narrowed_error_contract_only: 16`, **`narrowed_unexplained: 0`**,
+#### SHIM-NARROWED-101 — v2.pty.get (`GET /api/pty/{ptyID}`)
+- declared: 200 Pty, 400, 401, 404
+- served: 404 typed `PtyNotFoundError` for every well-formed ptyID; 400 for an ill-shaped id (declared pattern `^pty`) or a blank/non-directory selector; 401 via the /api/* auth wall's v2 envelope
+- rationale: the same missing PTY registry as the v1 pty.get (SHIM-NARROWED-012) — the /api/pty/{ptyID} family routes to the SAME handlers (`handleApiPtyByID` dispatches to `ptyGet`/`ptyUpdate`/`ptyRemove`), so no `^pty` id names a terminal and the declared 200 Pty cannot be produced without asserting one that does not exist (ROUTE-ADD-031).
+- evidence: `internal/shim/opencode/api_pty_by_id.go:63 handleApiPtyByID`; refusal `internal/shim/opencode/pty_routes.go:224 writeOpencodeNotFoundError`
+- widening requires: the PTY registry + runner (the SHIM-NARROWED-012 engine).
+
+#### SHIM-NARROWED-102 — v2.pty.update (`PUT /api/pty/{ptyID}`)
+- declared: 200 Pty, 400, 401, 404
+- served: 404 typed `PtyNotFoundError`; 400 for the same inputs plus a body violating the declared `{title?, size?{rows*,cols*}}` schema; 401 via the /api/* auth wall's v2 envelope
+- rationale: no PTY exists whose title/size could be applied (ROUTE-ADD-032) — the v1 pty.update rationale (SHIM-NARROWED-013) applies verbatim through the shared dispatcher.
+- evidence: `internal/shim/opencode/api_pty_by_id.go:65 handleApiPtyByID`; refusal `internal/shim/opencode/pty_routes.go:258 writeOpencodeNotFoundError`
+- widening requires: the PTY registry + runner.
+
+#### SHIM-NARROWED-103 — v2.pty.remove (`DELETE /api/pty/{ptyID}`)
+- declared: 204 <No Content>, 400, 401, 404
+- served: 404 typed `PtyNotFoundError` for every well-formed ptyID; 400 for an ill-shaped id or a blank/non-directory selector; 401 via the /api/* auth wall's v2 envelope
+- rationale: the declared 204 would report the removal of a terminal that never existed (ROUTE-ADD-030) — the v1 pty.remove rationale (SHIM-NARROWED-014) applies verbatim through the shared dispatcher.
+- evidence: `internal/shim/opencode/api_pty_by_id.go:67 handleApiPtyByID`; refusal `internal/shim/opencode/pty_routes.go:340 writeOpencodeNotFoundError`
+- widening requires: the PTY registry + runner.
+
+`counts` at this revision: `narrowed_error_contract_only: 19`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
 

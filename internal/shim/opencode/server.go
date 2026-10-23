@@ -360,6 +360,20 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// not-implemented envelope answers it (SHIM-GAP-002; the ROUTE-ADD-103
 	// intentional narrowing beside bare /pty).
 	mux.HandleFunc("/api/pty", s.handleApiPty)
+	// ROUTE-ADD-030 / ROUTE-ADD-031 / ROUTE-ADD-032: the declared
+	// /api/pty/{ptyID} family (v2.pty.get / v2.pty.update / v2.pty.remove)
+	// had no shim route at all, so every method on it fell through to
+	// net/http's default 404 — the drift artifact's NOT-SERVED class. One
+	// exact one-segment registration dispatches on r.Method (api_pty_by_id.go,
+	// the v1 handlePtyByID precedent): a second HandleFunc on the same
+	// pattern would panic, and a partial registration would reclassify the
+	// declared siblings on the same exact path as METHOD-MISSING, which
+	// TestNotImplementedTableMatchesDeclaredSurfaceArtifact forbids. No
+	// /api/pty/* catch-all is introduced: the declared sibling sub-paths
+	// /api/pty/{ptyID}/connect and /api/pty/{ptyID}/connect-token keep their
+	// own rows (ROUTE-ADD-033/034) and deeper /api/pty/* sub-paths keep the
+	// answers they are classified with.
+	mux.HandleFunc("/api/pty/{ptyID}", s.handleApiPtyByID)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -680,6 +694,11 @@ var MountPatterns = []string{
 	// (v2.pty.create) answers the typed 501 intentional narrowing through the
 	// same registration.
 	"/api/pty",
+	// ROUTE-ADD-030/031/032: exact declared one-segment parameter shape for
+	// v2.pty.get / v2.pty.update / v2.pty.remove (one registration dispatched
+	// by method) so a parent chi mount reaches the shim route; no
+	// /api/pty/* subtree catch-all is introduced.
+	"/api/pty/{ptyID}",
 	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
 	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
 	"/api/integration/attempt/{attemptID}",
@@ -892,6 +911,15 @@ func isV2EnvelopeRoutePath(path string) bool {
 		if id, ok := strings.CutSuffix(rest, "/copy"); ok {
 			return id != "" && !strings.Contains(id, "/")
 		}
+	}
+	// ROUTE-ADD-030/031/032: the declared /api/pty/{ptyID} family
+	// (v2.pty.get / v2.pty.update / v2.pty.remove) carries the same v2
+	// UnauthorizedError 401 arm as its sibling list operation, which the
+	// exact map above covers for the bare path. The one-segment rule admits
+	// only the concrete parameter shape, so a blank or deeper /api/pty/*
+	// path keeps the shim's own envelope.
+	if rest, ok := strings.CutPrefix(path, "/api/pty/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
