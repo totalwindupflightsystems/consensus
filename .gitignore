@@ -69,5 +69,9 @@ service-account*.json
 # gitreins judge token telemetry (local-only)
 .gitreins/usage.jsonl
 dagger.db
-EOF
 .gitreins/logs/
+
+# Local foreman manifests, serve logs, and worktree debris
+.coding-hermes/waves/
+serve-env.log
+wt/
