@@ -108,12 +108,22 @@ const (
 // sibling experimental.* handlers (e.g. /experimental/capabilities) make, and
 // isV2EnvelopeRoutePath is deliberately NOT extended for this path.
 func (s *Server) handleExperimentalWorktreeCreate(w http.ResponseWriter, r *http.Request) {
-	// Method dispatch. ROUTE-ADD-084 (worktree.list, GET) and ROUTE-ADD-083
-	// (worktree.remove, DELETE) extend this dispatcher in later rows; until
-	// then every non-POST method keeps the honest 405 rather than a fabricated
-	// answer or a 404 that would erase the fact that the route is served.
-	if r.Method != http.MethodPost {
-		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
+	// Method dispatch on the one registered pattern. GET (ROUTE-ADD-084,
+	// worktree.list) and DELETE (ROUTE-ADD-083, worktree.remove) are declared on
+	// this same path and are served by experimental_worktree_list_remove.go;
+	// anything else keeps the honest 405 rather than a fabricated answer or a
+	// 404 that would erase the fact that the route is served.
+	switch r.Method {
+	case http.MethodGet:
+		s.handleExperimentalWorktreeList(w, r)
+		return
+	case http.MethodDelete:
+		s.handleExperimentalWorktreeRemove(w, r)
+		return
+	case http.MethodPost:
+		// fall through to the create arm below
+	default:
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET, POST or DELETE")
 		return
 	}
 
