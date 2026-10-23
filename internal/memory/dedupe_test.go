@@ -187,3 +187,75 @@ func TestSkipDuplicateUserMessage(t *testing.T) {
 		t.Error("blank session id must report not-duplicate")
 	}
 }
+
+// TestIsDuplicateUserMessageTx_ReadsThroughTheTransaction pins the INT-CI-11
+// Tx-capable probe: it must see both already-committed rows and rows written
+// earlier in the same transaction, without borrowing a second pooled
+// connection (which is what deadlocked the bounded pool in production).
+func TestIsDuplicateUserMessageTx_ReadsThroughTheTransaction(t *testing.T) {
+	database := newDedupeDB(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+
+	// Committed row: visible to a transaction opened afterwards.
+	insertUserMessage(t, database, "sess-tx", "run the tests", now.Add(-time.Second))
+
+	tx, err := database.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	got, err := IsDuplicateUserMessageTx(ctx, tx, "sess-tx", "run the tests", now)
+	if err != nil {
+		t.Fatalf("probe committed row through tx: %v", err)
+	}
+	if !got {
+		t.Error("tx probe must see a committed in-window duplicate")
+	}
+
+	// Row written inside the transaction: the probe reads its own tx state.
+	if err := tx.Exec(ctx,
+		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		 VALUES ('user_message', $1, $2, 1, $3)`,
+		"deploy the release", "sess-tx", now.UTC().Format(time.RFC3339)); err != nil {
+		t.Fatalf("insert in tx: %v", err)
+	}
+	got, err = IsDuplicateUserMessageTx(ctx, tx, "sess-tx", "deploy the release", now)
+	if err != nil {
+		t.Fatalf("probe in-tx row: %v", err)
+	}
+	if !got {
+		t.Error("tx probe must see a row written earlier in the same transaction")
+	}
+
+	// Negative arm: different content is not a duplicate.
+	got, err = IsDuplicateUserMessageTx(ctx, tx, "sess-tx", "unrelated command", now)
+	if err != nil {
+		t.Fatalf("probe different content: %v", err)
+	}
+	if got {
+		t.Error("tx probe flagged different content as duplicate")
+	}
+
+	// The Skip* form stamps "now" itself, so it needs a row inside the live
+	// dedupe window rather than the fixed test timestamp.
+	if err := tx.Exec(ctx,
+		`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+		 VALUES ('user_message', $1, $2, 1, $3)`,
+		"wake the harness", "sess-tx", time.Now().UTC().Format(time.RFC3339)); err != nil {
+		t.Fatalf("insert live-window row: %v", err)
+	}
+	if !SkipDuplicateUserMessageTx(ctx, tx, "sess-tx", "wake the harness") {
+		t.Error("SkipDuplicateUserMessageTx must skip an in-window duplicate")
+	}
+	if SkipDuplicateUserMessageTx(ctx, tx, "sess-tx", "unrelated command") {
+		t.Error("SkipDuplicateUserMessageTx must not skip different content")
+	}
+	if SkipDuplicateUserMessageTx(ctx, nil, "sess-tx", "run the tests") {
+		t.Error("nil transaction must report not-duplicate")
+	}
+	if SkipDuplicateUserMessageTx(ctx, tx, "  ", "run the tests") {
+		t.Error("blank session id must report not-duplicate")
+	}
+}

@@ -506,7 +506,12 @@ func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.R
 	// arrives without the header (or with a new one). Advisory probe — see
 	// the non-idempotent path above for the TOCTOU caveat. A dropped
 	// duplicate returns the same 200 shape as the delivered original.
-	if memory.SkipDuplicateUserMessage(ctx, s.db, id, req.Content) {
+	//
+	// INT-CI-11: the probe runs ON THE TRANSACTION. Querying through the pool
+	// here would need a second connection while this request already holds one
+	// (plus the write lock), so a handful of concurrent retries deadlocked the
+	// bounded pool instead of returning.
+	if memory.SkipDuplicateUserMessageTx(ctx, tx, id, req.Content) {
 		writeJSON(w, map[string]any{
 			"status":     "message_received",
 			"session":    id,

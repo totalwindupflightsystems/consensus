@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/wojons/consensus/internal/db"
 	"github.com/wojons/consensus/internal/db/driver"
@@ -1024,6 +1025,12 @@ func TestSendMessage_ConcurrentIdempotencyRetryAppliesOnce(t *testing.T) {
 	}
 
 	const retries = 4
+	// INT-CI-11: bound the concurrent block. Before the fix this test deadlocked
+	// the 4-connection sqlite pool and sat in the CI job until the 10m timeout
+	// with no attribution. A stall here is a pool-starvation deadlock, not a slow
+	// machine, so fail fast and say so.
+	const stallDeadline = 20 * time.Second
+	begin := time.Now()
 	start := make(chan struct{})
 	responses := make([]*httptest.ResponseRecorder, retries)
 	var wg sync.WaitGroup
@@ -1036,7 +1043,20 @@ func TestSendMessage_ConcurrentIdempotencyRetryAppliesOnce(t *testing.T) {
 		}(i)
 	}
 	close(start)
-	wg.Wait()
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+	watchdog := time.NewTimer(stallDeadline)
+	defer watchdog.Stop()
+	select {
+	case <-finished:
+	case <-watchdog.C:
+		t.Fatalf("TestSendMessage_ConcurrentIdempotencyRetryAppliesOnce: %d concurrent idempotent retries stalled for %s "+
+			"(deadline %s): possible sqlite pool starvation / dedupe probe outside the transaction",
+			retries, time.Since(begin).Round(time.Millisecond), stallDeadline)
+	}
 
 	var originalID int64
 	for i, response := range responses {
