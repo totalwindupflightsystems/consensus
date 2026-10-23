@@ -3938,6 +3938,12 @@ type notImplementedRoute struct {
 	method    string
 	path      string // concrete request path; placeholders filled with the ids below
 	operation string // upstream operationId the envelope must name
+	// body is a well-formed request body for operations that declare a
+	// REQUIRED requestBody (ROUTE-ADD-029: v2.pty.create declares
+	// `"required": true` on requestBody, so the declared 400 arm answers an
+	// absent body and the typed 501 narrowing is reached only with a body that
+	// satisfies the declared schema). Empty means the probe sends no body.
+	body string
 }
 
 // notImplementedRoutes is every finding SHIM-GAP-002 fixes. The count is
@@ -3963,14 +3969,18 @@ type notImplementedRoute struct {
 // table and is covered by TestVCSDiffRawDeclaredContract.
 var notImplementedRoutes = []notImplementedRoute{
 	// Intentional narrowing: the route is registered and answers typed 501.
-	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create"},
+	{"SHIM-DRIFT-106", http.MethodPost, "/pty", "pty.create", ""},
 	// ROUTE-ADD-028 re-added SHIM-DRIFT-025 (POST /api/pty,
 	// v2.pty.create): registering the exact /api/pty mount means the declared
 	// sibling method reaches the handler, where the typed not-implemented
 	// envelope answers it — previously NOT-SERVED (net/http default 404), a
 	// class the table could not see. Same shape as ROUTE-ADD-102's
-	// registration of bare /pty above.
-	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create"},
+	// registration of bare /pty above. ROUTE-ADD-029 then served the
+	// operation's declared 400 InvalidRequestError arm (location selector +
+	// required requestBody schema, api_pty_create.go), so this probe sends
+	// the declared requestBody as `{}` — the smallest well-formed body — to
+	// reach the narrowing instead of the 400.
+	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create", "{}"},
 	// ROUTE-ADD-069 registers the exact declared
 	// /experimental/project/{projectID}/copy path for v2.projectCopy.remove
 	// (DELETE). The declared sibling POST on that same exact path
@@ -4054,7 +4064,14 @@ func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
 
 	for _, route := range notImplementedRoutes {
 		t.Run(route.sourceID+" "+route.method+" "+route.path, func(t *testing.T) {
-			status, header, body := doShimRequest(t, srv.URL, route.method, route.path)
+			var status int
+			var header http.Header
+			var body []byte
+			if route.body == "" {
+				status, header, body = doShimRequest(t, srv.URL, route.method, route.path)
+			} else {
+				status, header, body = doShimRequestBody(t, srv.URL, route.method, route.path, route.body)
+			}
 
 			if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
 				t.Fatalf("%s %s answered %d — a registered route may not lie with 404/405. Body: %s",

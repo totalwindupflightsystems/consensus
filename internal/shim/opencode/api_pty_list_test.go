@@ -183,13 +183,17 @@ func TestApiPtyListDeclared400MalformedSelector(t *testing.T) {
 // TestApiPtyListCreateAnswersTyped501 pins the SHIM-GAP-002 contract for the
 // declared sibling method on the same exact path: POST /api/pty is
 // v2.pty.create, and once the path is registered that method reaches the
-// handler — where it must answer the typed not-implemented envelope naming
-// pty.create (the ROUTE-ADD-103 intentional narrowing beside bare /pty),
-// never a lying 404 from the registered route and never a bare 501.
+// handler — where a WELL-FORMED request must answer the typed not-implemented
+// envelope naming pty.create (the ROUTE-ADD-103 intentional narrowing beside
+// bare /pty), never a lying 404 from the registered route and never a bare
+// 501. The request carries the declared required requestBody as `{}` (valid:
+// no member is required, additionalProperties:false) because ROUTE-ADD-029
+// serves the declared 400 arm for a body that violates the schema — the 400
+// arms themselves are pinned in api_pty_create_test.go.
 func TestApiPtyListCreateAnswersTyped501(t *testing.T) {
 	_, srv := newApiPtyListServer(t)
 
-	status, header, body := doShimRequest(t, srv.URL, http.MethodPost, "/api/pty")
+	status, header, body := doShimRequestBody(t, srv.URL, http.MethodPost, "/api/pty", `{}`)
 	if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
 		t.Fatalf("POST /api/pty answered %d — a registered route may not lie with 404/405 (SHIM-GAP-002). Body: %s", status, body)
 	}

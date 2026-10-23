@@ -30,13 +30,14 @@ import (
 // records for the v1 pty.list), so the truthful data payload is the empty,
 // non-null array. Any entry would assert a terminal that does not exist.
 //
-// POST v2.pty.create stays the explicit intentional narrowing
-// (x-shim-intentional-narrowing on its served-surface row): registering the
-// exact path means the declared sibling method reaches this handler, and
-// SHIM-GAP-002 forbids a registered route from answering a lying 404/405 for a
-// declared operation — the typed not_implemented envelope names pty.create,
-// exactly as bare POST /pty does. The declared 200 Pty body would fabricate a
-// spawned process.
+// POST v2.pty.create is served by apiPtyCreate (api_pty_create.go,
+// ROUTE-ADD-029): the declared 400 InvalidRequestError arm is answered for a
+// request that violates the declared input contract (location selector, or the
+// required requestBody/its schema), and a well-formed request keeps the
+// explicit intentional narrowing — the typed not_implemented envelope naming
+// pty.create, exactly as bare POST /pty does. The declared 200 Pty body stays
+// unserved because it would fabricate a spawned process: this runtime keeps no
+// pty registry (SPEC-017 §3.9).
 //
 // Every other method keeps the sibling METHOD_NOT_ALLOWED envelope (the
 // ROUTE-ADD-005 convention shared by the whole v2 list family).
@@ -58,8 +59,7 @@ func (s *Server) handleApiPty(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		s.apiPtyList(w, r)
 	case http.MethodPost:
-		writeNotImplemented(w, r, "v2.pty.create",
-			"v2.pty.create is not implemented: spawning pseudo-terminals is opencode-specific and Consensus keeps no pty registry; use the native shell tool inside an agent session")
+		s.apiPtyCreate(w, r)
 	default:
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use GET or POST")
 	}
