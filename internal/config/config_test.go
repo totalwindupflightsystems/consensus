@@ -833,7 +833,7 @@ func TestLoad_NoConfigNoOverrideLeavesBaseURLEmpty(t *testing.T) {
 // CONFIG-INERT-1 — every declared key reaches a runtime consumer
 // ============================================================================
 //
-// ch:trace row=CONFIG-INERT-1 spec=internal/config/config.go#L63-L139 wave=none:serial-tick test=internal/config/config_test.go::TestConfigInertKeysResolved doc=docs/CONFIG.md prompt=/tmp/consensus-foreman-2026-10-23-07-21-45-CONFIG-INERT-1-brief.txt evidence=commit witness=none:local-repo-verification verdict=none:pending commit=none:pending-foreman-trace memory=none:pending
+// ch:trace row=CONFIG-INERT-1 spec=internal/config/config.go#L63-L139 wave=none:serial-tick test=internal/config/config_test.go::TestConfigInertKeysResolved doc=docs/CONFIG.md prompt=/tmp/consensus-foreman-2026-10-23-07-21-45-CONFIG-INERT-1-brief.txt evidence=commit witness=none:local-repo-verification verdict=none:pending commit=02527d230510bcfe0728724eab107900b4d8b910 memory=none:pending
 //
 // The keys below were parsed and documented but read by nothing. Each is now
 // either wired to its consumer (retainedWiredKeys) or gone from the struct,
