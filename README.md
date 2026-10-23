@@ -493,6 +493,7 @@ networks:
 
 - **[HTTP API Reference](docs/API.md)** — every REST endpoint with request/response examples, auth requirements, and error codes
 - **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
+- **[Configuration Reference](docs/CONFIG.md)** — YAML configuration reference: every key with its type, compiled default, environment override, and the code that consumes it
 - **[CLI Exit Codes](docs/CLI-EXIT-CODES.md)** — per-verb exit-code table (0/1/2 + 3–7), the scriptable-CLI rationale, and `set -e`-safe usage examples
 - **[Testing and QA](docs/testing/README.md)** — canonical test plan, machine manifest, quorum verdicts, evidence layout, and executable battery guards
 - **[Runbooks](docs/runbooks/)** — operational procedures: deployment, backup/restore, failure-modes, troubleshooting, admin key rotation, and adapter setup
