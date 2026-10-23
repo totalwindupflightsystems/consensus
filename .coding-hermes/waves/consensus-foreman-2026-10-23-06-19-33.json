@@ -1,0 +1,42 @@
+{
+  "tick_id": "consensus-foreman-2026-10-23-06-19-33",
+  "project": "consensus",
+  "wave_budget": 12,
+  "mode": "wave",
+  "worker_model": "glm-5.3-flash",
+  "worker_provider": "zai-glm",
+  "base": "origin/main @ a108da1",
+  "dispatched_at": "2026-10-23T11:30:00Z",
+  "finished_at": "2026-10-23T12:00:00Z",
+  "independence_note": "Three rows with no depends_on edges between them: ROUTE-ADD-085 (POST /experimental/worktree) and ROUTE-ADD-086 (POST /experimental/worktree/reset) are distinct exact mux patterns, each with its own new handler file; DOC-22 is a new docs/CONFIG.md and touches no Go code. ROUTE-ADD-084 (GET /experimental/worktree) was held out of the wave because it shares the exact path pattern with 085 (a second mux.HandleFunc on the same pattern panics) and must extend 085's method dispatcher; it was implemented foreman-direct in the already-created wt/ROUTE-ADD-084 worktree together with ROUTE-ADD-083 (DELETE), which lives on the same pattern.",
+  "tasks": [
+    {"id": "ROUTE-ADD-085", "route": "POST /experimental/worktree", "worktree": "~/worktrees/consensus-ROUTE-ADD-085", "branch": "wt/ROUTE-ADD-085", "commit": "b5807d2", "merge": "fcb4516", "gitreins": "route-add-085", "tier1": "PASS", "verdict": "889598ee", "status": "complete"},
+    {"id": "ROUTE-ADD-086", "route": "POST /experimental/worktree/reset", "worktree": "~/worktrees/consensus-ROUTE-ADD-086", "branch": "wt/ROUTE-ADD-086", "commit": "aa0acab", "merge": "db944ae", "gitreins": "route-add-086", "tier1": "PASS", "verdict": "4780f394", "status": "complete"},
+    {"id": "DOC-22", "route": "docs/CONFIG.md YAML configuration reference", "worktree": "~/worktrees/consensus-DOC-22", "branch": "wt/DOC-22", "commit": "04cb341", "merge": "5a43003", "gitreins": "doc-22", "tier1": "PASS", "verdict": "1f2bd97b", "status": "complete"},
+    {"id": "ROUTE-ADD-084", "route": "GET /experimental/worktree", "worktree": "~/worktrees/consensus-ROUTE-ADD-084", "branch": "wt/ROUTE-ADD-084", "commit": "9c6d2a1", "merge": "ae94992", "gitreins": "route-add-084", "tier1": "PASS", "verdict": "9f0c926e", "status": "complete", "implemented_by": "foreman-direct (dispatcher extension)"},
+    {"id": "ROUTE-ADD-083", "route": "DELETE /experimental/worktree", "worktree": "~/worktrees/consensus-ROUTE-ADD-084", "branch": "wt/ROUTE-ADD-084", "commit": "9c6d2a1", "merge": "ae94992", "gitreins": "route-add-083", "tier1": "PASS", "verdict": "69d5bcde", "status": "complete", "implemented_by": "foreman-direct (same dispatcher)"}
+  ],
+  "artifacts": {
+    "covered_operations": [114, 118],
+    "drift_declared_not_served": [54, 50],
+    "method_missing_class": [2, 0],
+    "regenerated_by": "foreman on the merged tree (workers did not touch generated artifacts)",
+    "commit": "b5e9290"
+  },
+  "gates": {
+    "per_branch": "go build ./... + go vet ./internal/shim/opencode/ + go test -run Worktree ./internal/shim/opencode/ (3/3 green, re-verified by the foreman in each worktree)",
+    "per_merge": "merged-tree go build + go vet + full shim package suite before/after each merge",
+    "final": "go test -short -count=1 ./... rc=0 on merged main; make check-spec-parity PASS (69 paths / 83 ops)"
+  },
+  "incident": {
+    "what": "Registering POST alone on /experimental/worktree reclassified the declared GET and DELETE from NOT-SERVED to METHOD-MISSING, a class TestNotImplementedTableMatchesDeclaredSurfaceArtifact forbids. The full short suite caught it after the first artifact regeneration (the shim package suite alone had been green).",
+    "resolution": "Served both arms in the same tick (ROUTE-ADD-084 + ROUTE-ADD-083) as a dispatcher extension; the 085 method-guard test was rewritten to assert the undeclared-method guard only. Full suite re-run green; METHOD-MISSING class is now empty.",
+    "lesson": "A single-method route registration on a multi-operation path changes the drift CLASS of its siblings; never regenerate the artifact before the whole path's declared methods are served."
+  },
+  "bookkeeping": {
+    "rows_closed": ["ROUTE-ADD-083", "ROUTE-ADD-084", "ROUTE-ADD-085", "ROUTE-ADD-086", "DOC-22"],
+    "rows_filed": ["CONFIG-INERT-1", "DOC-25"],
+    "tick_event": 733,
+    "header": "ticks_total 936, ticks_idle 0, last_commit b5e9290"
+  }
+}
