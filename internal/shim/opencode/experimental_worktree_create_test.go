@@ -417,7 +417,11 @@ func TestWorktreeCreateMethodGuard(t *testing.T) {
 	repo := makeGitRepoNamed(t, "worktree-methods")
 	srv := worktreeCreateServer(t, repo)
 
-	for _, method := range []string{http.MethodGet, http.MethodDelete, http.MethodPut, http.MethodPatch} {
+	// GET and DELETE are declared on this path and are now served by their own
+	// rows (ROUTE-ADD-084 worktree.list, ROUTE-ADD-083 worktree.remove), so the
+	// guard here is the UNDECLARED-method guard only. The two declared arms are
+	// pinned by experimental_worktree_list_remove_test.go.
+	for _, method := range []string{http.MethodPut, http.MethodPatch} {
 		status, _, body := worktreeCreateDoRequest(t, srv.URL, method, worktreeCreatePath, "")
 		if status != http.StatusMethodNotAllowed {
 			t.Errorf("%s %s: got %d, want 405. Body: %s", method, worktreeCreatePath, status, body)
