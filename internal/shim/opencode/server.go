@@ -406,6 +406,16 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /experimental/* family (already in MountPatterns) has no catch-all, so
 	// the sibling declared operations keep their own rows until they land.
 	mux.HandleFunc("/experimental/capabilities", s.handleExperimentalCapabilities)
+	// ROUTE-ADD-085: the exact /experimental/worktree path had no shim route at
+	// all, so every method fell through to net/http's default 404 (the
+	// declared-vs-served artifact's NOT-SERVED class). Register the path once so
+	// its POST (upstream worktree.create — a real `git worktree add --detach`)
+	// is served; the method dispatcher inside answers the honest 405 for the
+	// declared GET/DELETE siblings until ROUTE-ADD-084 / ROUTE-ADD-083 land.
+	// The registration stays exact (no /experimental/worktree catch-all), so the
+	// declared /experimental/tool and /experimental/console siblings keep their
+	// own handlers.
+	mux.HandleFunc("/experimental/worktree", s.handleExperimentalWorktreeCreate)
 	// ROUTE-ADD-065 / SHIM-DRIFT-062: the exact /experimental/console path was
 	// never registered, so GET /experimental/console fell through to net/http's
 	// default 404 — the drift row's NOT-SERVED class, indistinguishable from
