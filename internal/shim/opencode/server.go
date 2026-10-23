@@ -567,6 +567,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// .generateName, v2.projectCopy.refresh) keep the drift class their own
 	// contract rows are filed against.
 	mux.HandleFunc("/experimental/project/{projectID}/copy", s.handleExperimentalProjectCopyRemove)
+	// ROUTE-ADD-086 / source item SHIM-DRIFT-083: the exact
+	// /experimental/worktree/reset path had no shim route at all, so POST
+	// (upstream worktree.reset) fell through to net/http's default 404 — the
+	// artifact's NOT-SERVED class, indistinguishable from "no such opencode
+	// operation". Registration stays EXACT: the sibling /experimental/worktree
+	// path carries its own declared operations (worktree.create/list/remove)
+	// and is served by its own contract row, so no /experimental/worktree
+	// prefix or catch-all is claimed here.
+	mux.HandleFunc("/experimental/worktree/reset", s.handleExperimentalWorktreeReset)
 
 	return s
 }
