@@ -432,3 +432,49 @@ session row (or the scratch DB) before restart.
   boot line — no more silent empty-key downgrade. The pprof `:8095`
   collision re-proven the same boot.
 
+## The /experimental/* worktree + copy families 2026-10-23 (first drive @ 1482437)
+
+These four families are **served for real** — worktree create/reset/remove and
+project-copy manipulate actual `git worktree`s on disk, and the console family
+answers truthful-empty. The landmines are in the input contract of the two
+destructive worktree operations, so drive them in this order.
+
+- **Create and list honour the DECLARED selector, remove/reset do not.**
+  `POST|GET /experimental/worktree?directory=<repo>` both work from a server
+  whose CWD is anywhere (`worktreeCreateDeclaredDirectory`), but
+  `DELETE /experimental/worktree` and `POST /experimental/worktree/reset`
+  resolve their workspace with `apiV2LocationSelector`, which reads ONLY
+  `location[directory]` / `location[workspace]` (bracketed) or
+  `x-opencode-directory`, else the process CWD. Consequence: on a server
+  launched outside the repo you can create a worktree and never remove it —
+  `400 WorktreeNotGitError "workspace <server cwd> is not a git repository"`.
+  Workaround proven live: send the header `x-opencode-directory: <repo>` or
+  `?location[directory]=<repo>`. DF-CONSENSUS-63 (P1, open).
+- **remove ignores the declared request body.** `DELETE /experimental/worktree`
+  with the declared `WorktreeRemoveInput` body `{"directory":"<worktree>"}` and
+  no query parameter answers `400 WorktreeRemoveFailedError "needs an explicit
+  directory query parameter"`; the same request with `?directory=<worktree>`
+  removes it. `reset` is the opposite (body REQUIRED, body-less call → 400
+  kind=Body). Send both the query parameter and the body until DF-63 lands.
+- **`startCommand` is accepted and never executed** (DF-CONSENSUS-64, P2): the
+  response is the declared `200 Worktree`, the script does not run, and the only
+  signal is a server-side `level=WARN msg="opencode-shim: worktree startCommand
+  accepted but not executed"` — invisible to an HTTP client. Do not rely on a
+  worktree's dev server being started for you.
+- **Debugging technique that made both findings attributive: two servers, one
+  binary, different CWD.** `consensus serve` from inside the repo and from a
+  neutral directory (different `--port`, different DB) — the only difference is
+  the process working directory, which isolates "selector ignored" from "code
+  broken" in one A/B.
+- **Refusals are good and worth relying on**: `?directory=<primary checkout>` →
+  400 (only linked worktrees removable), `?directory=/etc` → 400 InvalidRequest
+  (escape refused), unknown body field → 400 naming the field,
+  `copy {"strategy":"local"}` → 400 ProjectCopyError naming the one registered
+  strategy (`git_worktree`), `copy` missing `directory` → 400 kind=Payload.
+- **Declared-but-unserved (do not re-file them as new)**: `POST
+  /experimental/project/{id}/copy/generate-name` and `.../copy/refresh` answer a
+  bare untyped `404 page not found`; open rows ROUTE-ADD-071/072.
+- **Perf baseline (hyperfine -w1 -r10, upper bounds including curl spawn)**:
+  worktree list 9.7 ms, console 6.8 ms, create+remove of a real git worktree
+  22.4 ms, `consensus init` 2.4 s. Nothing here is slow enough to notice.
+
