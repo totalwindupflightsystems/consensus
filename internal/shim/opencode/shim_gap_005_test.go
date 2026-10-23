@@ -436,6 +436,13 @@ func shimGap005Requests() map[string]shimGap005Request {
 		// ROUTE-ADD-009: no declared parameters and no requestBody, so an
 		// empty GET is every declared input the operation accepts.
 		"v2.event.subscribe": {http.MethodGet, "/api/event", ""},
+
+		// ROUTE-ADD-030/031/032: the /api/pty/{ptyID} family shares the v1
+		// pty.get/update/remove handlers, so a well-formed id on the v2 path
+		// answers the same declared 404 (never the declared 200 Pty / 204).
+		"v2.pty.get":    {http.MethodGet, "/api/pty/pty_gap5", ""},
+		"v2.pty.update": {http.MethodPut, "/api/pty/pty_gap5", ""},
+		"v2.pty.remove": {http.MethodDelete, "/api/pty/pty_gap5", ""},
 	}
 }
 

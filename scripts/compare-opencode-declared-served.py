@@ -372,6 +372,9 @@ def main():
         ("/session/{sessionID}/share", "POST"): "SHIM-NARROWED-020",
         ("/session/{sessionID}/share", "DELETE"): "SHIM-NARROWED-021",
         ("/api/event", "GET"): "SHIM-NARROWED-100",
+        ("/api/pty/{ptyID}", "GET"): "SHIM-NARROWED-101",
+        ("/api/pty/{ptyID}", "PUT"): "SHIM-NARROWED-102",
+        ("/api/pty/{ptyID}", "DELETE"): "SHIM-NARROWED-103",
     }
     for i, r in enumerate(narrowed):
         rid = stable_narrowed_ids.get((r.get("path"), r.get("method")))
