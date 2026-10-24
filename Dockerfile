@@ -1,7 +1,7 @@
 # Consensus — multi-stage Docker build
 # Build:  docker build -t consensus .
 # Run:    docker run -p 8090:8090 consensus
-# Prod:   docker run -e CONSENSUS_API_KEY=cs_ak_... -v consensus-data:/data consensus
+# Prod:   docker run -e CONSENSUS_API_KEY=cs_ak_... -v consensus-data:/home/consensus/data consensus
 
 ARG GO_IMAGE=docker.io/library/golang:1.26-alpine
 ARG ALPINE_IMAGE=docker.io/library/alpine:3.21
@@ -23,8 +23,13 @@ FROM ${ALPINE_IMAGE}
 
 RUN apk add --no-cache ca-certificates curl tzdata
 
-# Non-root user
-RUN adduser -D -h /home/consensus consensus
+# Non-root user. Create and own the SQLite data dir BEFORE USER so a fresh
+# named/anonymous volume for /home/consensus/data initializes from this
+# directory (root:root 0755 otherwise; sqlite then fails with
+# "unable to open database file (14)" — QA-CONSENSUS-32).
+RUN adduser -D -h /home/consensus consensus \
+    && mkdir -p /home/consensus/data \
+    && chown -R consensus:consensus /home/consensus/data
 USER consensus
 WORKDIR /home/consensus
 
