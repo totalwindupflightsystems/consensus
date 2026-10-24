@@ -858,3 +858,4 @@
 {"id": "EVT-DF-CONSENSUS-63-CLOSE", "task_id": "DF-CONSENSUS-63", "timestamp": "2026-10-24T04:48:03Z", "kind": "close", "actor": "foreman:consensus", "detail": "worker commit 49b3bf0; go build/vet/test green; CI green; pushed to origin/main"}
 {"id": 753, "timestamp": "2026-10-24 06:54:16", "event_type": "task_updated", "task_id": "QA-CONSENSUS-32", "actor": "foreman", "detail": "{\"status\":\"pending\"}"}
 {"id": 754, "timestamp": "2026-10-24 20:24:00", "event_type": "task_verified", "task_id": "QA-CONSENSUS-32", "actor": "foreman:consensus", "detail": "merged 9bf8f0a; worker 4bda2a2; go build/vet/test PASS; Docker build PASS; fresh named volume /api/v1/health=200 and /ui/=200 text/html; container running as uid/gid 1000:1000; stale pre-merge judge cb8b4904 superseded by post-merge judge"}
+{"id": 755, "timestamp": "2026-10-24 21:20:27", "event_type": "task_completed", "task_id": "DF-CONSENSUS-64", "actor": "foreman", "detail": "{\"status\":\"complete\"}"}
