@@ -2,8 +2,10 @@ package opencode
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -113,6 +115,51 @@ func TestWorktreeListAuth(t *testing.T) {
 		if got.Error.Code != "UNAUTHENTICATED" || strings.TrimSpace(got.Error.Message) == "" {
 			t.Errorf("%s 401 body = %s, want the shim {error:{code:UNAUTHENTICATED, message}} envelope", method, body)
 		}
+	}
+}
+
+// TestWorktreeRemoveDeclaredInputAndWorkspaceResolution covers the declared
+// body/query target forms and fixed-workspace selectors.
+func TestWorktreeRemoveDeclaredInputAndWorkspaceResolution(t *testing.T) {
+	cases := []struct {
+		name       string
+		body       string
+		query      string
+		workdir    string
+		wantStatus int
+	}{
+		{name: "body only", body: "BODY", wantStatus: http.StatusOK},
+		{name: "query only", query: "QUERY", wantStatus: http.StatusOK},
+		{name: "workspace selector", query: "QUERY", workdir: "OUTSIDE", wantStatus: http.StatusOK},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := makeGitRepoNamed(t, "wt-remove-declared")
+			linked := worktreeLinked(t, repo, tc.name)
+			server := NewServer(&mockDB{}, "test-key", nil, nil)
+			server.skipAuth = true
+			server.workdir = repo
+			if tc.workdir == "OUTSIDE" {
+				server.workdir = t.TempDir()
+			}
+			srv := httptest.NewServer(server.Handler())
+			defer srv.Close()
+			body := tc.body
+			if body != "" {
+				body = fmt.Sprintf(`{"directory":%q}`, linked)
+			}
+			query := tc.query
+			if query != "" {
+				query = "?directory=" + url.QueryEscape(linked)
+			}
+			status, _, response := worktreeCreateDoRequest(t, srv.URL, http.MethodDelete, worktreeCreatePath+query, body)
+			if status != tc.wantStatus {
+				t.Fatalf("DELETE: got %d, want %d. Body: %s", status, tc.wantStatus, response)
+			}
+			if _, err := os.Stat(linked); !os.IsNotExist(err) {
+				t.Fatalf("worktree still exists after removal: %v", err)
+			}
+		})
 	}
 }
 

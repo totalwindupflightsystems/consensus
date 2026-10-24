@@ -2,7 +2,9 @@ package opencode
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -131,11 +133,10 @@ func (s *Server) handleExperimentalWorktreeList(w http.ResponseWriter, r *http.R
 //   - SUCCESS answers the declared 200 `true`, and only then — the directory
 //     really is gone.
 func (s *Server) handleExperimentalWorktreeRemove(w http.ResponseWriter, r *http.Request) {
-	location, ok := s.apiV2LocationSelector(w, r)
-	if !ok {
+	bodyDirectory, bodyOK := worktreeRemoveDecodeBody(w, r)
+	if !bodyOK {
 		return
 	}
-	workspace := location.directory
 
 	q := r.URL.Query()
 	for _, param := range []string{"directory", "workspace"} {
@@ -144,6 +145,21 @@ func (s *Server) handleExperimentalWorktreeRemove(w http.ResponseWriter, r *http
 				fmt.Sprintf("query parameter %q must not be blank", param))
 			return
 		}
+	}
+
+	target := strings.TrimSpace(q.Get("directory"))
+	if target == "" {
+		target = bodyDirectory
+	}
+	if target == "" {
+		writeOpencodeNamedError(w, r, http.StatusBadRequest, "WorktreeRemoveFailedError",
+			"worktree.remove needs an explicit directory query parameter or request body field")
+		return
+	}
+
+	workspace, ok := s.worktreeRemoveWorkspace(w, r, target)
+	if !ok {
+		return
 	}
 
 	ctx := r.Context()
@@ -156,13 +172,6 @@ func (s *Server) handleExperimentalWorktreeRemove(w http.ResponseWriter, r *http
 		}
 		writeOpencodeNamedError(w, r, http.StatusBadRequest, "WorktreeRemoveFailedError",
 			fmt.Sprintf("git worktree list failed in %s: %v", workspace, err))
-		return
-	}
-
-	target := strings.TrimSpace(q.Get("directory"))
-	if target == "" {
-		writeOpencodeNamedError(w, r, http.StatusBadRequest, "WorktreeRemoveFailedError",
-			"worktree.remove needs an explicit directory query parameter: without one the only candidate is the primary checkout, which this runtime refuses to remove")
 		return
 	}
 
@@ -207,6 +216,72 @@ func (s *Server) handleExperimentalWorktreeRemove(w http.ResponseWriter, r *http
 	}
 
 	writeJSON(w, true)
+}
+
+// worktreeRemoveDecodeBody accepts the declared WorktreeRemoveInput body.
+func worktreeRemoveDecodeBody(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if r.Body == nil {
+		return "", true
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	var raw struct {
+		Directory json.RawMessage `json:"directory"`
+	}
+	if err := dec.Decode(&raw); err != nil {
+		if err == io.EOF {
+			return "", true
+		}
+		writeV2InvalidRequest(w, "Body", "", fmt.Sprintf("request body must carry only the declared field \"directory\": %v", err))
+		return "", false
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeV2InvalidRequest(w, "Body", "", "request body must contain exactly one JSON object")
+		return "", false
+	}
+	if len(raw.Directory) == 0 {
+		return "", true
+	}
+	if strings.TrimSpace(string(raw.Directory)) == "null" {
+		writeV2InvalidRequest(w, "Payload", "directory", `field "directory" must be a string, not null`)
+		return "", false
+	}
+	var directory string
+	if err := json.Unmarshal(raw.Directory, &directory); err != nil || strings.TrimSpace(directory) == "" {
+		writeV2InvalidRequest(w, "Payload", "directory", `field "directory" must be a non-blank string`)
+		return "", false
+	}
+	return directory, true
+}
+
+// worktreeRemoveWorkspace applies the SPEC-017 fixed-workspace selector order.
+func (s *Server) worktreeRemoveWorkspace(_ http.ResponseWriter, r *http.Request, _ string) (string, bool) {
+	return s.worktreeDeclaredWorkspace(r), true
+}
+
+// worktreeDeclaredWorkspace applies SPEC-017's fixed-workspace precedence.
+func (s *Server) worktreeDeclaredWorkspace(r *http.Request) string {
+	if header := strings.TrimSpace(r.Header.Get("x-opencode-directory")); header != "" {
+		return filepath.Clean(header)
+	}
+	q := r.URL.Query()
+	if directory := strings.TrimSpace(q.Get("directory")); directory != "" {
+		candidate := filepath.Clean(directory)
+		if commonDir, err := runGit(r.Context(), candidate, "rev-parse", "--git-common-dir"); err == nil {
+			commonDir = strings.TrimSpace(commonDir)
+			if !filepath.IsAbs(commonDir) {
+				commonDir = filepath.Join(candidate, commonDir)
+			}
+			if absolute, absErr := filepath.Abs(commonDir); absErr == nil {
+				return filepath.Dir(absolute)
+			}
+		}
+	}
+	if workspace := strings.TrimSpace(q.Get("workspace")); workspace != "" {
+		return filepath.Clean(workspace)
+	}
+	return s.requestWorkspaceDir(r)
 }
 
 // worktreePathRegistered reports whether target is one of the registered

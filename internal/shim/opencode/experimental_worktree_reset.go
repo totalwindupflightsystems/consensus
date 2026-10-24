@@ -96,14 +96,6 @@ const (
 // exact path reaches this registration; undeclared methods keep the sibling
 // 405 METHOD_NOT_ALLOWED envelope.
 func (s *Server) handleExperimentalWorktreeReset(w http.ResponseWriter, r *http.Request) {
-	// The location selector is both a declared validation arm and the
-	// operation's real workspace: upstream resolves the repository from the
-	// routed workspace, exactly the directory this helper returns.
-	location, ok := s.apiV2LocationSelector(w, r)
-	if !ok {
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "use POST")
 		return
@@ -118,7 +110,7 @@ func (s *Server) handleExperimentalWorktreeReset(w http.ResponseWriter, r *http.
 	// workspace. Both the lexical and the symlink-resolved spellings must be
 	// contained, so neither "../.." nor a symlink can point the destructive
 	// command outside.
-	workspace := filepath.Clean(location.directory)
+	workspace := filepath.Clean(s.worktreeDeclaredWorkspace(r))
 	target := filepath.Clean(directory)
 	if !filepath.IsAbs(target) {
 		writeV2InvalidRequest(w, "Payload", "directory",
