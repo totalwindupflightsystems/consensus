@@ -173,6 +173,15 @@ test-pg-full:
 run: build
 	$(BINARY)
 
+# --- Release ---
+# Release preflight (RELEASE-CONSENSUS-4): runs scripts/release.sh --dry-run.
+# Verifies clean tree, 0/0 remote parity, VERSION == newest CHANGELOG heading,
+# and a green CI run for HEAD — then prints the exact tag command. Never tags
+# or pushes. The full procedure is documented in docs/release.md.
+.PHONY: release-dry
+release-dry:
+	@bash scripts/release.sh --dry-run
+
 # --- GitReins ---
 # One-command setup: pip install gitreins && make gitreins-install
 # Tier 1: make gitreins-guard     (secrets, vet, test-short — fast, no LLM)

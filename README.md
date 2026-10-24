@@ -325,6 +325,16 @@ docker info --format '{{.ServerVersion}}'   # answers ⇒ socket is live
 Then `docker login ghcr.io` and the Option 2 pull below work unchanged — the
 client is talking to the running rootless daemon through its socket.
 
+### Cutting a release
+
+Releases are tag-driven: an annotated `v*` tag push runs the GoReleaser
+workflow and publishes the archives. The full procedure — CHANGELOG promotion,
+the prep commit, waiting for green CI on that exact SHA, the preflight
+checks, and rollback — is documented in
+[docs/release.md](docs/release.md). From a clean, pushed checkout,
+`make release-dry` runs the preflight and prints the tag command without
+creating one.
+
 Three commands. You have a running agent harness with:
 - Append-only memory ledger
 - Vector-validated compression (harness-internal)
