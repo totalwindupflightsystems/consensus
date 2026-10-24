@@ -1,0 +1,37 @@
+{
+  "tick": "consensus-foreman-2026-10-24-23-28-00",
+  "project": "consensus",
+  "mode": "serial",
+  "wave_budget": 9,
+  "base": "a7bb3c96bf977fbcf0359bf55d1fb71300d9ce93",
+  "census": {
+    "selected": "ROUTE-ADD-033",
+    "eligible_count": 1,
+    "wave_reason": "serial fallback: only one fully dispatchable in-scope code row; RELEASE-CONSENSUS-3 is owner-gated and other pending rows are record-only, blocked, or unrelated"
+  },
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-033",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-033",
+      "branch": "wt/ROUTE-ADD-033",
+      "base": "a7bb3c96bf977fbcf0359bf55d1fb71300d9ce93",
+      "status": "failed",
+      "worker": {
+        "model": "glm-5.3-flash",
+        "provider": "zai-glm",
+        "process_pid": 1965773,
+        "exit": "terminated after 6m; no diff or commit"
+      },
+      "gitreins": {
+        "task": "route-add-033",
+        "verdict": "35263160",
+        "result": "FAIL/INCOMPLETE",
+        "evaluated_commit": "a7bb3c96bf977fbcf0359bf55d1fb71300d9ce93"
+      },
+      "disposition": "left pending for a future retry; no implementation claim"
+    }
+  ],
+  "merges": [],
+  "verdicts": [".gitreins/history/2026-10-24/35263160/verdict.json"],
+  "closeout": "FAILED: selected worker produced no usable diff; board row reset to pending; GitReins task completed and deleted"
+}
