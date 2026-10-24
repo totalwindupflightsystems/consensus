@@ -2,6 +2,7 @@ package opencode
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -440,6 +441,83 @@ func TestWorktreeCreateMethodGuard(t *testing.T) {
 	if entries, err := os.ReadDir(filepath.Join(repo, worktreeCreateDirName)); err == nil && len(entries) != 0 {
 		t.Errorf("a non-POST method created %d worktrees", len(entries))
 	}
+}
+
+// TestWorktreeCreateStartCommandRefusedBeforeEffect pins the DF-CONSENSUS-64
+// contract truth: WorktreeCreateInput.startCommand declares "additional startup
+// script to run after the project's start command", and this runtime executes
+// no startup scripts on a request. The truthful answer is the DECLARED 400
+// WorktreeError arm WorktreeStartCommandFailedError — the member the pinned
+// document's WorktreeError enum names for exactly this subject — naming
+// startCommand in data.message, answered BEFORE any effect: the worktree the
+// request names is NOT created and no command is run.
+//
+// Red proof / non-vacuity: against the pre-change tree the same request
+// answers the declared 200 {name, directory} while the marker file never
+// appears (the dogfood's own observation), so the two control arms — a
+// startCommand-less create still succeeds with a REAL worktree, and the
+// refused request leaves nothing on disk — keep this test from passing on a
+// handler that merely refuses everything or answers an unconditional 400.
+//
+// Why refusal rather than execution: running the client-supplied string as a
+// shell would hand every API caller command execution on the host, and the
+// pinned upstream semantics ("run after the project's start command") describe
+// a process lifecycle this serverless shim does not have. Creating the
+// worktree anyway and THEN answering failure would trade the old partial truth
+// for a new one (an effect the response says failed); refusing before the
+// effect answers exactly one state.
+func TestWorktreeCreateStartCommandRefusedBeforeEffect(t *testing.T) {
+	repo := makeGitRepoNamed(t, "worktree-startcmd")
+	marker := filepath.Join(t.TempDir(), "startcommand-marker")
+	srv := worktreeCreateServer(t, repo)
+
+	payload := fmt.Sprintf(`{"name":"df-consensus-64","startCommand":"touch %s"}`, marker)
+	status, _, body := worktreeCreateDoRequest(t, srv.URL, http.MethodPost,
+		worktreeCreatePath, payload)
+	worktreeCreateAssertNamedError(t, "startCommand refusal", status, body,
+		"WorktreeStartCommandFailedError")
+
+	// The refusal names the unsupported field, not just the arm.
+	var named struct {
+		Data struct {
+			Message string `json:"message"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &named); err != nil {
+		t.Fatalf("400 body is not JSON: %v (%s)", err, body)
+	}
+	if !strings.Contains(named.Data.Message, "startCommand") {
+		t.Errorf("400 message = %q, want it to name the unsupported field startCommand", named.Data.Message)
+	}
+
+	// Refusal BEFORE the effect: no worktree was created for the request...
+	if entries, err := os.ReadDir(filepath.Join(repo, worktreeCreateDirName)); err == nil {
+		for _, entry := range entries {
+			if entry.Name() == "df-consensus-64" {
+				t.Errorf("a refused startCommand request still created the worktree %q", entry.Name())
+			}
+		}
+	}
+	// ...and nothing executed the client-supplied command.
+	if _, err := os.Stat(marker); err == nil {
+		t.Errorf("startCommand was EXECUTED: marker %s exists — the shim must run no client command", marker)
+	}
+
+	// Control arm (non-vacuity): the same request WITHOUT startCommand still
+	// gets the declared 200 and a real worktree, so the refusal is bound to the
+	// field, not to the route.
+	status, _, body = worktreeCreateDoRequest(t, srv.URL, http.MethodPost,
+		worktreeCreatePath, `{"name":"df-consensus-64"}`)
+	if status != http.StatusOK {
+		t.Fatalf("startCommand-less control: got %d, want the declared 200. Body: %s", status, body)
+	}
+	var got struct {
+		Directory string `json:"directory"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil || got.Directory == "" {
+		t.Fatalf("control 200 body = %s, want {name, directory}; decode err: %v", body, err)
+	}
+	worktreeCreateAssertRealWorktree(t, "control worktree", got.Directory, repo, "df-consensus-64")
 }
 
 // TestWorktreeCreateNeighboursUntouched is the non-vacuity control: serving the

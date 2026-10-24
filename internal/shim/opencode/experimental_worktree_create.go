@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -85,12 +84,13 @@ const (
 //     same declared 400 InvalidRequestError, field "name". No default name is
 //     silently substituted for an explicit one;
 //   - an absent/empty `name` is generated as `wt-<8 hex>`;
-//   - `startCommand` is ACCEPTED by the contract but this runtime executes no
-//     startup scripts (it has no per-project start-command registry and runs
-//     no shell on a request), so the value is never executed; the handler
-//     says so in a log line rather than pretending the script ran. That is
-//     also why the undeclared-in-this-runtime
-//     WorktreeStartCommandFailedError arm never fires here;
+//   - a well-formed body carrying `startCommand` answers the declared 400
+//     WorktreeStartCommandFailedError naming the field, BEFORE any effect —
+//     the worktree is not created and the value is never executed (DF-CONSENSUS-64;
+//     the pinned document declares this arm in the WorktreeError enum for
+//     exactly this subject, and this runtime has no per-project start-command
+//     registry, no shell and no process lifecycle to run a script "after the
+//     project's start command");
 //   - the workspace is not a git repository → declared 400
 //     WorktreeNotGitError {name, data:{message}} (upstream's own arm);
 //   - any create failure — destination already exists, `git worktree add`
@@ -147,10 +147,20 @@ func (s *Server) handleExperimentalWorktreeCreate(w http.ResponseWriter, r *http
 		return
 	}
 	if startCommand != "" {
-		// The contract carries the member; this runtime runs no startup
-		// scripts, so say that instead of silently pretending it ran.
-		slog.Warn("opencode-shim: worktree startCommand accepted but not executed",
-			"path", r.URL.Path, "workspace", sourceDir)
+		// Declared-contract refusal (DF-CONSENSUS-64): the pinned document
+		// declares WorktreeStartCommandFailedError in the WorktreeError enum
+		// for exactly this subject. This runtime executes no startup scripts
+		// on a request (it has no per-project start-command registry, no
+		// shell, and no process lifecycle to run one "after the project's
+		// start command"), so a well-formed body carrying startCommand answers
+		// this declared 400 BEFORE any effect: the worktree is not created and
+		// the value is never executed. The previous behaviour — accept the
+		// field, disclose it only in a server-side WARN no HTTP client ever
+		// reads, and answer the declared 200 anyway — was the partial truth
+		// this arm removes.
+		writeOpencodeNamedError(w, r, http.StatusBadRequest, "WorktreeStartCommandFailedError",
+			`field "startCommand" is not supported: this runtime executes no startup scripts, so the worktree was not created`)
+		return
 	}
 	if name == "" {
 		generated, err := worktreeCreateGenerateName()
