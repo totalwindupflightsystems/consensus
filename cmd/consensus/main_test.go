@@ -6,6 +6,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/wojons/consensus/internal/cli"
@@ -196,6 +197,68 @@ func TestShippedConfigWithoutOverridesKeepsDeepSeek(t *testing.T) {
 	if got := llmCfg.BaseURL; got != "https://api.deepseek.com/v1" {
 		t.Errorf("LLM base URL = %q, want the config-file value preserved", got)
 	}
+}
+
+// TestStartupValidationRefusesMissingLLMKey is the QA-CONSENSUS-10 regression
+// pin for the shipped missing-config startup contract (DF-CONSENSUS-58,
+// specs/009-deployment.md startup validation). runServer calls
+// cfg.ApplyStartupValidations() right after config.Load and before opening the
+// database or serving; a missing or unresolved ${...} LLM API key must fail
+// fast with the descriptive "LLM API key not configured" error. Asserted on
+// the exact seam runServer uses — config.Load → ApplyStartupValidations —
+// with the shipped-config shape, so a regression that demotes the fatal error
+// back to a warning (or drops it) fails here instead of in production.
+func TestStartupValidationRefusesMissingLLMKey(t *testing.T) {
+	t.Run("placeholder key from shipped config fails fast", func(t *testing.T) {
+		clearLLMEnv(t)
+		t.Setenv("CONSENSUS_CONFIG", writeShippedLikeConfig(t))
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("config.Load: %v", err)
+		}
+		if got := cfg.LLM.APIKey; got != "${DEEPSEEK_API_KEY}" {
+			t.Fatalf("yaml must NOT expand the ${...} placeholder (Load returned %q) — the fatal-validation predicate depends on the literal surviving", got)
+		}
+
+		if _, err := cfg.ApplyStartupValidations(); err == nil {
+			t.Fatal("expected startup refusal for an unresolved ${DEEPSEEK_API_KEY} key, got nil error")
+		} else if !strings.Contains(err.Error(), "LLM API key not configured") {
+			t.Fatalf("expected the descriptive 'LLM API key not configured' error, got: %v", err)
+		}
+	})
+
+	t.Run("configured key keeps startup valid", func(t *testing.T) {
+		clearLLMEnv(t)
+		t.Setenv("CONSENSUS_CONFIG", writeShippedLikeConfig(t))
+		t.Setenv("DEEPSEEK_API_KEY", "sk-ds-test")
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("config.Load: %v", err)
+		}
+		if _, err := cfg.ApplyStartupValidations(); err != nil {
+			t.Fatalf("a configured key must not trip startup refusal, got: %v", err)
+		}
+	})
+
+	t.Run("mock provider needs no key", func(t *testing.T) {
+		clearLLMEnv(t)
+		mockYAML := "llm:\n  provider: mock\n  api_key: \"\"\n"
+		path := filepath.Join(t.TempDir(), "consensus.yaml")
+		if err := os.WriteFile(path, []byte(mockYAML), 0o600); err != nil {
+			t.Fatalf("write config: %v", err)
+		}
+		t.Setenv("CONSENSUS_CONFIG", path)
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("config.Load: %v", err)
+		}
+		if _, err := cfg.ApplyStartupValidations(); err != nil {
+			t.Fatalf("provider=mock is credential-free (DF-CONSENSUS-109); startup refusal would be a regression, got: %v", err)
+		}
+	})
 }
 
 // RELEASE-CONSENSUS-1: the goreleaser ldflags stamp main.version/commit/date.
