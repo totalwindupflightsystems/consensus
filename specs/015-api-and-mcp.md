@@ -643,7 +643,7 @@ All API errors follow a consistent format:
 
 | HTTP Code | Code | Description |
 |---|---|---|
-| 400 | `INVALID_REQUEST` | Malformed JSON, missing required field |
+| 400 | `INVALID_REQUEST` | Malformed JSON, missing required field(s) — one 400 names every missing field (REVIEW-CONSENSUS-11) |
 | 401 | `UNAUTHENTICATED` | Missing or invalid API key |
 | 403 | `FORBIDDEN` | API key scope doesn't permit this action |
 | 404 | `NOT_FOUND` | Resource doesn't exist |

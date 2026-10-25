@@ -245,6 +245,28 @@ func TestCreateSession_MissingRequiredFields(t *testing.T) {
 			if w.Code != http.StatusBadRequest {
 				t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
 			}
+
+			// REVIEW-CONSENSUS-11: one 400 response must name BOTH missing
+			// required fields (batched validation), not one field per
+			// round trip.
+			if tt.name == "empty object" {
+				body := w.Body.String()
+				if !strings.Contains(body, "agent_name is required") {
+					t.Errorf("empty-object 400 body must name agent_name: %s", body)
+				}
+				if !strings.Contains(body, "goal is required") {
+					t.Errorf("empty-object 400 body must name goal: %s", body)
+				}
+				// The combined validation error must be returned BEFORE any
+				// session is persisted.
+				rows, err := srv.conn.Query(context.Background(), `SELECT id FROM sessions`)
+				if err != nil {
+					t.Fatalf("sessions query failed: %v", err)
+				}
+				if len(rows) != 0 {
+					t.Errorf("validation error must precede persistence, found %d session rows", len(rows))
+				}
+			}
 		})
 	}
 }
