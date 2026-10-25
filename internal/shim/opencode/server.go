@@ -349,6 +349,22 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// filed against, and the v1 /session family above is a different surface
 	// and stays untouched.
 	mux.HandleFunc("/api/session", s.handleApiSessionList)
+	// ROUTE-ADD-039 / source item SHIM-DRIFT-035 (the board row's citation;
+	// positional id SHIM-DRIFT-001 in the committed artifact): the declared
+	// v2.session.active operation (GET /api/session/active) had no shim route
+	// at all, so the request fell through to net/http's default 404 — the
+	// drift artifact's NOT-SERVED class, indistinguishable from "no such
+	// opencode operation". Register the exact path (see
+	// api_session_active.go): the declared 200 {data: {^ses: SessionActive}}
+	// envelope, the declared InvalidRequestError 400 for an unreadable
+	// sessions store, and the declared UnauthorizedError 401 via the
+	// exact-path v2EnvelopeRoutePaths entry. GET is the ONLY method the
+	// pinned document declares on this path, so every other method keeps the
+	// METHOD_NOT_ALLOWED envelope and no sibling operation is reclassified.
+	// Never an /api/session/* prefix or /api/* catch-all, so the declared
+	// /api/session/{sessionID}[...] operations keep the 404 their own
+	// contract rows are filed against.
+	mux.HandleFunc("/api/session/active", s.handleApiSessionActive)
 	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
 	// had no shim route at all, so the request fell through to net/http's
 	// default 404. Register the exact path for real; never an /api/* or
@@ -710,6 +726,11 @@ var MountPatterns = []string{
 	// /api/session/{sessionID}[...] operations keep the answers they are
 	// classified with.
 	"/api/session",
+	// ROUTE-ADD-039: exact /api/session/active (v2.session.active) so a
+	// parent chi mount reaches the shim route; never an /api/session/*
+	// subtree mount, so the sibling declared /api/session/{sessionID}[...]
+	// operations keep the answers they are classified with.
+	"/api/session/active",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -864,6 +885,12 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// /api/session/{sessionID}[...] operations — which have no route here —
 	// keep the shim's own envelope until their own contract rows land.
 	"/api/session": {},
+	// ROUTE-ADD-039: the declared v2.session.active path takes the v2
+	// UnauthorizedError 401 envelope (the operation declares it). Membership
+	// stays exact-path: GET is the only declared method on this path, and
+	// the /api/session/{sessionID}[...] operations — which have no route
+	// here — keep the shim's own envelope until their own contract rows land.
+	"/api/session/active": {},
 	// ROUTE-ADD-026: the declared v2.provider.list path takes the v2
 	// UnauthorizedError 401 envelope (this operation declares it); membership
 	// stays exact-path, so only the registered /api/* shapes join it.

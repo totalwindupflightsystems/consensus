@@ -399,9 +399,11 @@ func TestApiSessionListMountWiring(t *testing.T) {
 	}
 
 	// No catch-all: the sibling declared operations on /api/session/{sessionID}
-	// (v2.session.get/active/prompt/...) keep their own contract rows, so this
-	// exact registration must not answer them.
-	for _, path := range []string{"/api/session/active", "/api/session/ses_abc", "/api/session/a/b"} {
+	// (v2.session.get/prompt/...) keep their own contract rows, so this exact
+	// registration must not answer them. /api/session/active is no longer in
+	// this list: ROUTE-ADD-039 serves it through its OWN exact registration
+	// (api_session_active.go, pinned by TestApiSessionActiveMountWiring).
+	for _, path := range []string{"/api/session/ses_abc", "/api/session/a/b"} {
 		status, _, _ := doShimRequest(t, srv.URL, http.MethodGet, path)
 		if status != http.StatusNotFound {
 			t.Errorf("GET %s: got %d, want 404 — ROUTE-ADD-037 registers the exact path, never a catch-all", path, status)
@@ -411,8 +413,8 @@ func TestApiSessionListMountWiring(t *testing.T) {
 	if !isV2EnvelopeRoutePath("/api/session") {
 		t.Error("/api/session is not listed in v2EnvelopeRoutePaths — its declared 401 body is the v2 UnauthorizedError envelope")
 	}
-	if isV2EnvelopeRoutePath("/api/session/active") {
-		t.Error("/api/session/active is treated as a v2-envelope route; membership must stay exact-path until its own row lands")
+	if !isV2EnvelopeRoutePath("/api/session/active") {
+		t.Error("/api/session/active is served by ROUTE-ADD-039 and declares the v2 UnauthorizedError 401 arm — it must be a v2-envelope route now that its own row has landed")
 	}
 	if isV2EnvelopeRoutePath("/api/sessions") {
 		t.Error("/api/sessions must not be treated as a v2-envelope route")
