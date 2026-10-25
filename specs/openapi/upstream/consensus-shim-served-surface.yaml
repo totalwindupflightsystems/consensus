@@ -494,6 +494,15 @@ routes:
     narrowing-rationale: "The runtime keeps no PTY registry and opens no PTY WebSocket, so the declared 200 Connected session cannot be produced truthfully. The registered route does serve every declared arm a client actually controls: the declared 401 through the api-key wall's v2 UnauthorizedError envelope, the declared 403 {_tag: Forbidden} for any blank or foreign directory/workspace selector, and the declared 404 for a well-formed request (typed NotFoundError NamedError shape). The declared 400 BadRequestError arm is likewise unreachable: like the v1 pty.connect handler this one shares, the operation validates no input of its own, so an ill-shaped ptyID is answered the declared 404 rather than a 400."
     evidence: "api_pty_connect.go handleApiPtyConnect (ROUTE-ADD-033), dispatching to the v1 ptySelectorVerdict (403) and writeOpencodeNamedError (404) arms in pty_routes.go; the v2 envelope membership in server.go isV2EnvelopeRoutePath supplies the declared 401"
 
+  # ── v2 pty connect-token (ROUTE-ADD-034) ──
+  - path: /api/pty/{ptyID}/connect-token
+    method: POST
+    outcome: 404-typed
+    auth: api-key
+    x-shim-error-contract-narrowing: true
+    narrowing-rationale: "The runtime keeps no PTY registry and mints no one-time PTY connect ticket, so the declared 200 PtyTicketConnectToken cannot be produced truthfully. The registered route serves every declared arm a client controls: the declared 401 through the v2 UnauthorizedError envelope, the declared 400 BadRequestError for the declared ^pty path parameter and malformed workspace selectors, the declared 403 PtyForbiddenError for a foreign workspace selector, and the declared 404 PtyNotFoundError for every well-formed id."
+    evidence: "api_pty_connect_token.go handleApiPtyConnectToken (ROUTE-ADD-034), delegating to handlePtyConnectToken in pty_routes.go so v1 and v2 share the validation order, typed 400/403/404 envelopes, and truthful no-ticket behavior; server.go isV2EnvelopeRoutePath supplies the declared 401"
+
   # ── v2 pty get/update/remove (ROUTE-ADD-030/031/032) ──
   - path: /api/pty/{ptyID}
     method: GET

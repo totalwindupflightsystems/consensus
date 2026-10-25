@@ -169,23 +169,25 @@ func TestApiPtyByIDRouteResolvesToTheByIDHandler(t *testing.T) {
 	// /api/pty/{ptyID}/connect): it declares the same v2 UnauthorizedError 401
 	// arm and its concrete two-segment shape is registered, so the same api-key
 	// wall answers the same envelope. Membership stays SHAPE-bounded, never a
-	// prefix rule — an unregistered /api/pty/* sub-path (the connect-token
-	// sibling ROUTE-ADD-034 has yet to serve, any deeper segment) still keeps
-	// the shim's own envelope, and a blank ptyID segment is not a path.
+	// prefix rule — the registered connect-token sibling (ROUTE-ADD-034) has
+	// its own exact shape, while any deeper segment keeps the shim's own
+	// envelope, and a blank ptyID segment is not a path.
 	if !isV2EnvelopeRoutePath("/api/pty/pty_abc") {
 		t.Error("/api/pty/pty_abc is not a v2EnvelopeRoutePath member — the declared ptyID family carries the v2 401 arm")
 	}
 	if !isV2EnvelopeRoutePath("/api/pty/pty_abc/connect") {
 		t.Error("/api/pty/pty_abc/connect is not a v2EnvelopeRoutePath member — the declared v2.pty.connect operation carries the v2 UnauthorizedError 401 arm and its shape is registered (ROUTE-ADD-033)")
 	}
+	if !isV2EnvelopeRoutePath("/api/pty/pty_abc/connect-token") {
+		t.Error("/api/pty/pty_abc/connect-token is not a v2EnvelopeRoutePath member — the declared v2.pty.connectToken operation carries the v2 UnauthorizedError 401 arm and its shape is registered (ROUTE-ADD-034)")
+	}
 	for _, path := range []string{
 		"/api/pty/pty_abc/sub",
-		"/api/pty/pty_abc/connect-token",
 		"/api/pty//connect",
 		"/api/pty/a/b/connect",
 	} {
 		if isV2EnvelopeRoutePath(path) {
-			t.Errorf("%s joins the v2 envelope; membership must stay the registered shapes only (one ptyID segment, optionally the /connect literal)", path)
+			t.Errorf("%s joins the v2 envelope; membership must stay the registered shapes only (one ptyID segment, optionally /connect or /connect-token)", path)
 		}
 	}
 }

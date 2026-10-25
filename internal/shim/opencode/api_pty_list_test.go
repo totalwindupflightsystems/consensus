@@ -332,14 +332,17 @@ func TestApiPtyListMountWiring(t *testing.T) {
 	// declared v2.pty.connect operation on /api/pty/{ptyID}/connect declares
 	// the same v2 401 arm, so that concrete sub-path joins the envelope. The
 	// membership is still shape-bounded rather than rest-of-prefix: the
-	// connect-token sibling (ROUTE-ADD-034, not yet registered under /api) and
-	// every other deeper segment keep the shim's own envelope.
+	// registered connect-token sibling (ROUTE-ADD-034) joins the envelope,
+	// while every other deeper segment keeps the shim's own envelope.
 	if !isV2EnvelopeRoutePath("/api/pty/pty1/connect") {
 		t.Error("/api/pty/pty1/connect is not treated as a v2-envelope route — the declared v2.pty.connect operation carries the v2 UnauthorizedError 401 arm and the shape is registered (ROUTE-ADD-033)")
 	}
-	for _, path := range []string{"/api/pty/pty1/connect-token", "/api/pty/pty1/extra", "/api/pty/pty1/connect/extra"} {
+	if !isV2EnvelopeRoutePath("/api/pty/pty1/connect-token") {
+		t.Error("/api/pty/pty1/connect-token is not treated as a v2-envelope route — the declared v2.pty.connectToken operation carries the v2 UnauthorizedError 401 arm and the shape is registered (ROUTE-ADD-034)")
+	}
+	for _, path := range []string{"/api/pty/pty1/extra", "/api/pty/pty1/connect/extra"} {
 		if isV2EnvelopeRoutePath(path) {
-			t.Errorf("%s is treated as a v2-envelope route; membership must stay the registered shapes (one ptyID segment, optionally the /connect literal)", path)
+			t.Errorf("%s is treated as a v2-envelope route; membership must stay the registered shapes (one ptyID segment, optionally /connect or /connect-token)", path)
 		}
 	}
 	if !isV2EnvelopeRoutePath("/api/provider") {

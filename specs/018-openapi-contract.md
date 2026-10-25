@@ -822,6 +822,13 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/api_pty_by_id.go:67 handleApiPtyByID`; refusal `internal/shim/opencode/pty_routes.go:340 writeOpencodeNotFoundError`
 - widening requires: the PTY registry + runner.
 
+#### SHIM-NARROWED-106 — v2.pty.connectToken (`POST /api/pty/{ptyID}/connect-token`)
+- declared: 200 `PtyTicketConnectToken`, 400, 401, 403, 404
+- served: 404 typed `PtyNotFoundError` for every well-formed ptyID; 400 `BadRequestError` for an ill-shaped `^pty` id or malformed workspace selector; 403 `PtyForbiddenError` for a foreign workspace selector; 401 via the /api/* auth wall's v2 `UnauthorizedError` envelope
+- rationale: the runtime keeps no PTY registry and mints no one-time connect ticket, so the declared 200 cannot be produced truthfully. ROUTE-ADD-034 registers the v2 path and delegates to the existing v1 handler, preserving the v1 validation order and typed error envelopes without fabricating a ticket.
+- evidence: `internal/shim/opencode/api_pty_connect_token.go:34 handleApiPtyConnectToken`; delegated validation `internal/shim/opencode/pty_routes.go:393 handlePtyConnectToken`; 401 via `internal/shim/opencode/server.go:866 isV2EnvelopeRoutePath`
+- widening requires: a real PTY registry and one-time ticket minting/lookup mechanism.
+
 #### SHIM-NARROWED-105 — v2.pty.connect (`GET /api/pty/{ptyID}/connect`)
 - declared: 200 boolean ("Connected session"), 400, 401, 403, 404
 - served: 404 typed `NotFoundError` (the `NamedError` shape `{name, data:{message}}`) for every well-formed request; the declared 403 `{_tag:"Forbidden"}` for a blank or foreign directory/workspace selector; 401 via the /api/* auth wall's v2 `UnauthorizedError` envelope; the pre-change net/http 404 for an undeclared method (405 is in no declared set). The declared 400 arm is unreachable for the same reason the success is: the handler validates no declared input of its own, so an ill-shaped ptyID is answered the declared 404 — the v1 pty.connect behaviour (SHIM-NARROWED-015) reached through the delegation ROUTE-ADD-033 registered.
@@ -829,7 +836,7 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/api_pty_connect.go:12 handleApiPtyConnect`; refusal `internal/shim/opencode/api_pty_connect.go:22 writeOpencodeNamedError`; selector arm `internal/shim/opencode/pty_routes.go:372 ptyConnectForbidden`; 401 via the shape match `internal/shim/opencode/server.go:860 isV2EnvelopeRoutePath`
 - widening requires: the PTY registry plus a WebSocket/attach surface (the SHIM-NARROWED-015 engine).
 
-`counts` at this revision: `narrowed_error_contract_only: 20`, **`narrowed_unexplained: 0`**,
+`counts` at this revision: `narrowed_error_contract_only: 21`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 2` (`pty.create` and its declared v2 sibling `v2.pty.create`,
 SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).

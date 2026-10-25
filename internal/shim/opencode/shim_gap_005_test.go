@@ -449,6 +449,11 @@ func shimGap005Requests() map[string]shimGap005Request {
 		// well-formed id (no PTY registry, no WebSocket attach), never the
 		// declared 200 "Connected session".
 		"v2.pty.connect": {http.MethodGet, "/api/pty/pty_gap5/connect", ""},
+		// ROUTE-ADD-034: the declared v2.pty.connectToken operation is
+		// registered on its exact two-segment sub-path and delegates to the v1
+		// handler, answering the declared 404 for a well-formed id rather than
+		// fabricating a one-time ticket.
+		"v2.pty.connectToken": {http.MethodPost, "/api/pty/pty_gap5/connect-token", ""},
 	}
 }
 

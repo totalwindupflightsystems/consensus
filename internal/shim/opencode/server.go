@@ -370,6 +370,12 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// declared siblings on the same exact path as METHOD-MISSING, which
 	// TestNotImplementedTableMatchesDeclaredSurfaceArtifact forbids. No
 	mux.HandleFunc("/api/pty/{ptyID}/connect", s.handleApiPtyConnect)
+	// ROUTE-ADD-034: the declared v2 pty.connectToken operation
+	// (POST /api/pty/{ptyID}/connect-token) is served by the v2 wrapper
+	// in api_pty_connect_token.go, which delegates to the v1
+	// handlePtyConnectToken so the declared validation order and error
+	// envelopes stay byte-identical across the two path prefixes.
+	mux.HandleFunc("/api/pty/{ptyID}/connect-token", s.handleApiPtyConnectToken)
 	// /api/pty/* catch-all is introduced: the declared sibling sub-paths
 	// /api/pty/{ptyID}/connect and /api/pty/{ptyID}/connect-token keep their
 	// own rows (ROUTE-ADD-033/034) and deeper /api/pty/* sub-paths keep the
@@ -700,6 +706,10 @@ var MountPatterns = []string{
 	// by method) so a parent chi mount reaches the shim route; no
 	// /api/pty/* subtree catch-all is introduced.
 	"/api/pty/{ptyID}",
+	// ROUTE-ADD-034: exact declared parameter shape for v2.pty.connectToken;
+	// this is a separate route from /api/pty/{ptyID} and /connect, never a
+	// subtree catch-all.
+	"/api/pty/{ptyID}/connect-token",
 	// ROUTE-ADD-015 / SHIM-DRIFT-002: exact declared parameter path for
 	// v2.integration.attempt.cancel; no /api/* catch-all is introduced.
 	"/api/integration/attempt/{attemptID}",
@@ -921,6 +931,9 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// path keeps the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/api/pty/"); ok {
 		if id, ok := strings.CutSuffix(rest, "/connect"); ok {
+			return id != "" && !strings.Contains(id, "/")
+		}
+		if id, ok := strings.CutSuffix(rest, "/connect-token"); ok {
 			return id != "" && !strings.Contains(id, "/")
 		}
 		return rest != "" && !strings.Contains(rest, "/")
