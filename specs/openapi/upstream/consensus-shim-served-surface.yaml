@@ -485,6 +485,15 @@ routes:
     narrowing-rationale: "Consensus deliberately exposes no raw PTY lifecycle or process registry: its native shell tool runs inside an authenticated agent session. Registering the exact /api/pty mount means the declared sibling method v2.pty.create reaches the handler, and SHIM-GAP-002 forbids a registered route from answering a lying 404/405 for a declared operation — the typed not_implemented envelope names v2.pty.create, exactly as bare POST /pty names pty.create (the ROUTE-ADD-103 intentional narrowing). Returning a fabricated Pty object would falsely claim that a terminal was spawned. ROUTE-ADD-029 served the operation's declared ERROR half: the 400 InvalidRequestError arm answers every request that violates the declared input contract (malformed location selector, absent required requestBody, non-object/unparseable body, undeclared member or wrong-typed member), so the narrowing is reached only by a well-formed request and states the runtime's capability rather than covering refused input."
     evidence: "api_pty_create.go apiPtyCreate + validateApiPtyCreateBody (ROUTE-ADD-029; the handler was the ROUTE-ADD-028 POST arm in api_pty_list.go, source item SHIM-DRIFT-025 in the 2026-09-29 baseline report): POST /api/pty serves the declared UnauthorizedError 401 (via v2EnvelopeRoutePaths), the declared InvalidRequestError 400 for a request violating the declared input contract (location selector per apiV2LocationSelector, kind Query; the required requestBody per the pinned schema — kind Body for absent/unparseable/non-object/multi-value input, kind Payload naming the offending field for an undeclared member or a wrong-typed member, an absent body included because the operation marks requestBody required), and the typed 501 not_implemented narrowing for a well-formed request, naming the declared operationId v2.pty.create per the intentional-narrowing gate (TestNotImplementedTableMatchesDeclaredSurfaceArtifact). The declared 200 {location, data: Pty} stays unserved: no pty registry exists, so a Pty object would fabricate a spawned terminal (pinned as unreachable by TestApiPtyCreateWellFormedAnswersTyped501AndNeverFabricatesPty). Live: docs/evidence/ROUTE-ADD-029-live-probe.md"
 
+  # ── v2 pty connect (ROUTE-ADD-033) ──
+  - path: /api/pty/{ptyID}/connect
+    method: GET
+    outcome: 404-typed
+    auth: api-key
+    x-shim-error-contract-narrowing: true
+    narrowing-rationale: "The runtime has no PTY registry or websocket connector, so the declared 200 Connected session cannot be produced truthfully. The route is nevertheless registered and serves the declared 401 auth wall, 403 workspace-selector refusal, 400 malformed selector/parameter validation, and typed 404 for every well-formed PTY id."
+    evidence: "api_pty_connect.go handleApiPtyConnect (ROUTE-ADD-033); existing pty_routes.go handlePtyConnect supplies the selector and truthful missing-PTY semantics"
+
   # ── v2 pty get/update/remove (ROUTE-ADD-030/031/032) ──
   - path: /api/pty/{ptyID}
     method: GET
