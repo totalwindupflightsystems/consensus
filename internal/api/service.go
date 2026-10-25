@@ -99,11 +99,19 @@ type CreateSessionOutput struct {
 
 // CreateSession creates a new agent session with a bound API key.
 func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessionInput) (*CreateSessionOutput, error) {
+	// REVIEW-CONSENSUS-11: batch missing required-field validation so a
+	// single 400 response names every missing field instead of one field
+	// per round trip. A single missing field still yields its exact
+	// legacy message (e.g. "agent_name is required").
+	var missing []string
 	if input.AgentName == "" {
-		return nil, fmt.Errorf("agent_name is required")
+		missing = append(missing, "agent_name is required")
 	}
 	if input.Goal == "" {
-		return nil, fmt.Errorf("goal is required")
+		missing = append(missing, "goal is required")
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("%s", strings.Join(missing, "; "))
 	}
 
 	sessionID := newUUID()
