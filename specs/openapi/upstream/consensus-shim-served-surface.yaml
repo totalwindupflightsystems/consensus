@@ -491,8 +491,8 @@ routes:
     outcome: 404-typed
     auth: api-key
     x-shim-error-contract-narrowing: true
-    narrowing-rationale: "The runtime has no PTY registry or websocket connector, so the declared 200 Connected session cannot be produced truthfully. The route is nevertheless registered and serves the declared 401 auth wall, 403 workspace-selector refusal, 400 malformed selector/parameter validation, and typed 404 for every well-formed PTY id."
-    evidence: "api_pty_connect.go handleApiPtyConnect (ROUTE-ADD-033); existing pty_routes.go handlePtyConnect supplies the selector and truthful missing-PTY semantics"
+    narrowing-rationale: "The runtime keeps no PTY registry and opens no PTY WebSocket, so the declared 200 Connected session cannot be produced truthfully. The registered route does serve every declared arm a client actually controls: the declared 401 through the api-key wall's v2 UnauthorizedError envelope, the declared 403 {_tag: Forbidden} for any blank or foreign directory/workspace selector, and the declared 404 for a well-formed request (typed NotFoundError NamedError shape). The declared 400 BadRequestError arm is likewise unreachable: like the v1 pty.connect handler this one shares, the operation validates no input of its own, so an ill-shaped ptyID is answered the declared 404 rather than a 400."
+    evidence: "api_pty_connect.go handleApiPtyConnect (ROUTE-ADD-033), dispatching to the v1 ptySelectorVerdict (403) and writeOpencodeNamedError (404) arms in pty_routes.go; the v2 envelope membership in server.go isV2EnvelopeRoutePath supplies the declared 401"
 
   # ── v2 pty get/update/remove (ROUTE-ADD-030/031/032) ──
   - path: /api/pty/{ptyID}

@@ -822,8 +822,16 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/api_pty_by_id.go:67 handleApiPtyByID`; refusal `internal/shim/opencode/pty_routes.go:340 writeOpencodeNotFoundError`
 - widening requires: the PTY registry + runner.
 
-`counts` at this revision: `narrowed_error_contract_only: 19`, **`narrowed_unexplained: 0`**,
-`intentional_narrowing: 1` (`pty.create`, SPEC-017 §3.9), `semantic_different: 2`
+#### SHIM-NARROWED-105 — v2.pty.connect (`GET /api/pty/{ptyID}/connect`)
+- declared: 200 boolean ("Connected session"), 400, 401, 403, 404
+- served: 404 typed `NotFoundError` (the `NamedError` shape `{name, data:{message}}`) for every well-formed request; the declared 403 `{_tag:"Forbidden"}` for a blank or foreign directory/workspace selector; 401 via the /api/* auth wall's v2 `UnauthorizedError` envelope; the pre-change net/http 404 for an undeclared method (405 is in no declared set). The declared 400 arm is unreachable for the same reason the success is: the handler validates no declared input of its own, so an ill-shaped ptyID is answered the declared 404 — the v1 pty.connect behaviour (SHIM-NARROWED-015) reached through the delegation ROUTE-ADD-033 registered.
+- rationale: the shim keeps no PTY registry and opens no PTY WebSocket (the v1 pty.connect truth, SHIM-NARROWED-015), so there is no terminal to attach to and the declared boolean 200 could only assert a connection that does not exist. ROUTE-ADD-033 registered the v2 route — which is why this operation left the comparator's NOT-SERVED class and is recorded here instead; its `connect-token` sibling stays NOT-SERVED until ROUTE-ADD-034 registers that shape.
+- evidence: `internal/shim/opencode/api_pty_connect.go:12 handleApiPtyConnect`; refusal `internal/shim/opencode/api_pty_connect.go:22 writeOpencodeNamedError`; selector arm `internal/shim/opencode/pty_routes.go:372 ptyConnectForbidden`; 401 via the shape match `internal/shim/opencode/server.go:860 isV2EnvelopeRoutePath`
+- widening requires: the PTY registry plus a WebSocket/attach surface (the SHIM-NARROWED-015 engine).
+
+`counts` at this revision: `narrowed_error_contract_only: 20`, **`narrowed_unexplained: 0`**,
+`intentional_narrowing: 2` (`pty.create` and its declared v2 sibling `v2.pty.create`,
+SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
 
 **On the "6 narrowed operations" figure.** A stale snapshot of the comparator's

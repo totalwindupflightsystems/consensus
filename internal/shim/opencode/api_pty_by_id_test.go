@@ -164,13 +164,29 @@ func TestApiPtyByIDRouteResolvesToTheByIDHandler(t *testing.T) {
 	}
 
 	// The ptyID path is in the v2 envelope membership (it declares the v2
-	// UnauthorizedError 401 arm), while the sibling connect sub-path keeps its
-	// own rows and stays out.
+	// UnauthorizedError 401 arm). ROUTE-ADD-033 widened that membership to the
+	// declared sibling operation v2.pty.connect (GET
+	// /api/pty/{ptyID}/connect): it declares the same v2 UnauthorizedError 401
+	// arm and its concrete two-segment shape is registered, so the same api-key
+	// wall answers the same envelope. Membership stays SHAPE-bounded, never a
+	// prefix rule — an unregistered /api/pty/* sub-path (the connect-token
+	// sibling ROUTE-ADD-034 has yet to serve, any deeper segment) still keeps
+	// the shim's own envelope, and a blank ptyID segment is not a path.
 	if !isV2EnvelopeRoutePath("/api/pty/pty_abc") {
 		t.Error("/api/pty/pty_abc is not a v2EnvelopeRoutePath member — the declared ptyID family carries the v2 401 arm")
 	}
-	if isV2EnvelopeRoutePath("/api/pty/pty_abc/connect") {
-		t.Error("/api/pty/pty_abc/connect joins the v2 envelope; membership must stay the exact one-segment shape")
+	if !isV2EnvelopeRoutePath("/api/pty/pty_abc/connect") {
+		t.Error("/api/pty/pty_abc/connect is not a v2EnvelopeRoutePath member — the declared v2.pty.connect operation carries the v2 UnauthorizedError 401 arm and its shape is registered (ROUTE-ADD-033)")
+	}
+	for _, path := range []string{
+		"/api/pty/pty_abc/sub",
+		"/api/pty/pty_abc/connect-token",
+		"/api/pty//connect",
+		"/api/pty/a/b/connect",
+	} {
+		if isV2EnvelopeRoutePath(path) {
+			t.Errorf("%s joins the v2 envelope; membership must stay the registered shapes only (one ptyID segment, optionally the /connect literal)", path)
+		}
 	}
 }
 
@@ -206,6 +222,25 @@ func TestApiPtyByIDServeDeclared401(t *testing.T) {
 		if _, ok := got["error"]; ok {
 			t.Errorf("401 body carries the shim's UNAUTHENTICATED envelope member: %s", body)
 		}
+	}
+
+	// ROUTE-ADD-033: the declared v2.pty.connect operation on the registered
+	// two-segment sub-path declares the same 401 arm, so the envelope
+	// membership must be the envelope the auth wall really writes — not merely
+	// a set entry the route can drift away from.
+	status, _, body := doShimRequest(t, srv.URL, http.MethodGet, "/api/pty/pty_abc/connect")
+	if status != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated GET /api/pty/pty_abc/connect: got %d, want 401. Body: %s", status, body)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("401 body is not JSON: %v (%s)", err, body)
+	}
+	if got["_tag"] != "UnauthorizedError" {
+		t.Errorf("_tag = %v, want UnauthorizedError (the declared v2 401 body on the v2.pty.connect sub-path). Body: %s", got["_tag"], body)
+	}
+	if _, ok := got["error"]; ok {
+		t.Errorf("401 body carries the shim's UNAUTHENTICATED envelope member: %s", body)
 	}
 }
 

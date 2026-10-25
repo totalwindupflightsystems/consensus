@@ -443,6 +443,12 @@ func shimGap005Requests() map[string]shimGap005Request {
 		"v2.pty.get":    {http.MethodGet, "/api/pty/pty_gap5", ""},
 		"v2.pty.update": {http.MethodPut, "/api/pty/pty_gap5", ""},
 		"v2.pty.remove": {http.MethodDelete, "/api/pty/pty_gap5", ""},
+
+		// ROUTE-ADD-033: the declared v2.pty.connect operation is registered on
+		// the two-segment sub-path and answers the declared 404 for a
+		// well-formed id (no PTY registry, no WebSocket attach), never the
+		// declared 200 "Connected session".
+		"v2.pty.connect": {http.MethodGet, "/api/pty/pty_gap5/connect", ""},
 	}
 }
 

@@ -25,15 +25,15 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 163,
+    "served_route_entries": 164,
     "covered_operations": 118,
-    "narrowed_error_contract_only": 19,
+    "narrowed_error_contract_only": 20,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 2,
     "semantic_different": 2,
-    "drift_declared_not_served": 47,
+    "drift_declared_not_served": 46,
     "drift_by_class": {
-      "NOT-SERVED": 43,
+      "NOT-SERVED": 42,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -1289,6 +1289,19 @@
       "id": "SHIM-NARROWED-102"
     },
     {
+      "path": "/api/pty/{ptyID}/connect",
+      "method": "GET",
+      "operationId": "v2.pty.connect",
+      "tags": "pty",
+      "declared_responses": "200,400,401,403,404",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "404-typed",
+      "evidence": "api_pty_connect.go handleApiPtyConnect (ROUTE-ADD-033), dispatching to the v1 ptySelectorVerdict (403) and writeOpencodeNamedError (404) arms in pty_routes.go; the v2 envelope membership in server.go isV2EnvelopeRoutePath supplies the declared 401",
+      "rationale": "The runtime keeps no PTY registry and opens no PTY WebSocket, so the declared 200 Connected session cannot be produced truthfully. The registered route does serve every declared arm a client actually controls: the declared 401 through the api-key wall's v2 UnauthorizedError envelope, the declared 403 {_tag: Forbidden} for any blank or foreign directory/workspace selector, and the declared 404 for a well-formed request (typed NotFoundError NamedError shape). The declared 400 BadRequestError arm is likewise unreachable: like the v1 pty.connect handler this one shares, the operation validates no input of its own, so an ill-shaped ptyID is answered the declared 404 rather than a 400.",
+      "detail": "shim answers the declared 404 but never the declared success code 200",
+      "id": "SHIM-NARROWED-105"
+    },
+    {
       "path": "/mcp/{name}/auth",
       "method": "POST",
       "operationId": "mcp.auth.start",
@@ -1529,17 +1542,6 @@
   ],
   "drift_declared_not_served": [
     {
-      "path": "/api/pty/{ptyID}/connect",
-      "method": "GET",
-      "operationId": "v2.pty.connect",
-      "tags": "pty",
-      "declared_responses": "200,400,401,403,404",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-001"
-    },
-    {
       "path": "/api/pty/{ptyID}/connect-token",
       "method": "POST",
       "operationId": "v2.pty.connectToken",
@@ -1548,7 +1550,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-002"
+      "id": "SHIM-DRIFT-001"
     },
     {
       "path": "/api/session",
@@ -1559,7 +1561,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-003"
+      "id": "SHIM-DRIFT-002"
     },
     {
       "path": "/api/session",
@@ -1570,7 +1572,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-004"
+      "id": "SHIM-DRIFT-003"
     },
     {
       "path": "/api/session/active",
@@ -1581,7 +1583,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-005"
+      "id": "SHIM-DRIFT-004"
     },
     {
       "path": "/api/session/{sessionID}",
@@ -1592,7 +1594,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006"
+      "id": "SHIM-DRIFT-005"
     },
     {
       "path": "/api/session/{sessionID}/agent",
@@ -1603,7 +1605,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-007"
+      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/api/session/{sessionID}/compact",
@@ -1614,7 +1616,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008"
+      "id": "SHIM-DRIFT-007"
     },
     {
       "path": "/api/session/{sessionID}/context",
@@ -1625,7 +1627,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/api/session/{sessionID}/event",
@@ -1636,7 +1638,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/api/session/{sessionID}/history",
@@ -1647,7 +1649,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/api/session/{sessionID}/interrupt",
@@ -1658,7 +1660,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/api/session/{sessionID}/message",
@@ -1669,7 +1671,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/api/session/{sessionID}/message/{messageID}",
@@ -1680,7 +1682,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/api/session/{sessionID}/model",
@@ -1691,7 +1693,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1702,7 +1704,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/api/session/{sessionID}/permission",
@@ -1713,7 +1715,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}",
@@ -1724,7 +1726,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/api/session/{sessionID}/permission/{requestID}/reply",
@@ -1735,7 +1737,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-019"
+      "id": "SHIM-DRIFT-018"
     },
     {
       "path": "/api/session/{sessionID}/prompt",
@@ -1746,7 +1748,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-020"
+      "id": "SHIM-DRIFT-019"
     },
     {
       "path": "/api/session/{sessionID}/question",
@@ -1757,7 +1759,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-021"
+      "id": "SHIM-DRIFT-020"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reject",
@@ -1768,7 +1770,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-022"
+      "id": "SHIM-DRIFT-021"
     },
     {
       "path": "/api/session/{sessionID}/question/{requestID}/reply",
@@ -1779,7 +1781,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-023"
+      "id": "SHIM-DRIFT-022"
     },
     {
       "path": "/api/session/{sessionID}/revert/clear",
@@ -1790,7 +1792,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-024"
+      "id": "SHIM-DRIFT-023"
     },
     {
       "path": "/api/session/{sessionID}/revert/commit",
@@ -1801,7 +1803,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-025"
+      "id": "SHIM-DRIFT-024"
     },
     {
       "path": "/api/session/{sessionID}/revert/stage",
@@ -1812,7 +1814,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-026"
+      "id": "SHIM-DRIFT-025"
     },
     {
       "path": "/api/session/{sessionID}/wait",
@@ -1823,7 +1825,7 @@
       "family": "/api/*  (v2 surface)",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-027"
+      "id": "SHIM-DRIFT-026"
     },
     {
       "path": "/auth/{providerID}",
@@ -1836,7 +1838,7 @@
       "evidence": "server.go:1094 (only PUT is supported)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 405",
-      "id": "SHIM-DRIFT-028"
+      "id": "SHIM-DRIFT-027"
     },
     {
       "path": "/experimental/project/{projectID}/copy/generate-name",
@@ -1847,7 +1849,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-029"
+      "id": "SHIM-DRIFT-028"
     },
     {
       "path": "/experimental/project/{projectID}/copy/refresh",
@@ -1858,7 +1860,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-030"
+      "id": "SHIM-DRIFT-029"
     },
     {
       "path": "/experimental/resource",
@@ -1869,7 +1871,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-031"
+      "id": "SHIM-DRIFT-030"
     },
     {
       "path": "/experimental/session",
@@ -1880,7 +1882,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-032"
+      "id": "SHIM-DRIFT-031"
     },
     {
       "path": "/experimental/session/{sessionID}/background",
@@ -1891,7 +1893,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-033"
+      "id": "SHIM-DRIFT-032"
     },
     {
       "path": "/experimental/workspace",
@@ -1902,7 +1904,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-034"
+      "id": "SHIM-DRIFT-033"
     },
     {
       "path": "/experimental/workspace",
@@ -1913,7 +1915,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-035"
+      "id": "SHIM-DRIFT-034"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1924,7 +1926,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-036"
+      "id": "SHIM-DRIFT-035"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1935,7 +1937,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-037"
+      "id": "SHIM-DRIFT-036"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1946,7 +1948,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-038"
+      "id": "SHIM-DRIFT-037"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1957,7 +1959,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-039"
+      "id": "SHIM-DRIFT-038"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1968,7 +1970,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-040"
+      "id": "SHIM-DRIFT-039"
     },
     {
       "path": "/formatter",
@@ -1979,7 +1981,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-041"
+      "id": "SHIM-DRIFT-040"
     },
     {
       "path": "/global/upgrade",
@@ -1990,7 +1992,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-042"
+      "id": "SHIM-DRIFT-041"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -2001,7 +2003,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-043"
+      "id": "SHIM-DRIFT-042"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2014,7 +2016,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-044"
+      "id": "SHIM-DRIFT-043"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2027,7 +2029,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-045"
+      "id": "SHIM-DRIFT-044"
     },
     {
       "path": "/sync/steal",
@@ -2038,7 +2040,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-046"
+      "id": "SHIM-DRIFT-045"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2051,7 +2053,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-047"
+      "id": "SHIM-DRIFT-046"
     }
   ],
   "drift_served_not_declared": [],
