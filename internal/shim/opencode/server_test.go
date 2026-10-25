@@ -3981,6 +3981,11 @@ var notImplementedRoutes = []notImplementedRoute{
 	// the declared requestBody as `{}` — the smallest well-formed body — to
 	// reach the narrowing instead of the 400.
 	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create", "{}"},
+	// ROUTE-ADD-037 registered the exact /api/session path for v2.session.list;
+	// POST is its declared sibling v2.session.create. ROUTE-ADD-038 now
+	// validates its request body and answers the truthful typed 501 narrowing,
+	// so keep it in this table until a real session-create contract exists.
+	{"SHIM-NARROWED-U002", http.MethodPost, "/api/session", "v2.session.create", "{}"},
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -4021,11 +4026,10 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 2 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028).
-	// ROUTE-ADD-038 served POST /api/session (v2.session.create) for real,
-	// removing it from this table and the artifact's intentional_narrowing
-	// bucket (the ROUTE-ADD-070 precedent). ROUTE-FIX-023 moved the six
-	// pinned-upstream TUI operations to truthful 200/400 handlers,
+	// 3 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028)
+	// + v2.session.create (ROUTE-ADD-038, truthful typed narrowing).
+	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
+	// 200/400 handlers,
 	// ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply),
 	// ROUTE-FIX-032 served vcs.diff.raw, ROUTE-ADD-007 + ROUTE-ADD-008 served
 	// the credential family (DELETE covered; PATCH the declared-400 no-store

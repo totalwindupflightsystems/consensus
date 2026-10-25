@@ -104,18 +104,15 @@ import (
 //
 // Declared arms:
 //
-//	200 SessionV2Info — the runtime owns a real session-create path through
-//	                    Service.CreateSession, so a well-formed create is answered
-//	                    with the declared SessionV2Info shape built from the
-//	                    resulting row. The declared requestBody accepts the
-//	                    optional fields id (pattern ^ses), agent, model (ModelRef),
-//	                    and location (LocationRef); absent body/absent fields are
-//	                    well-formed because the pinned document marks requestBody
-//	                    required but marks no property required.
-//	400 InvalidRequestError — malformed JSON, undeclared body members, a supplied
-//	                    id that does not match ^ses, or a session-create failure
-//	                    are answered through the declared error arm rather than
-//	                    a fabricated success.
+//	501 typed narrowing — the runtime has no truthful session-create contract.
+//	                    Consensus derives sessions from agent runs and cannot
+//	                    produce the declared opencode SessionV2Info without
+//	                    fabricating identifiers and lifecycle state. The narrowing
+//	                    is recorded in the served-surface artifact and contract
+//	                    ledger as SHIM-NARROWED-U002.
+//	400 InvalidRequestError — malformed JSON, undeclared body members, or a
+//	                    supplied id that does not match ^ses are rejected before
+//	                    the narrowing response.
 //	401 UnauthorizedError — the exact-path v2EnvelopeRoutePaths entry.
 func (s *Server) handleApiSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
