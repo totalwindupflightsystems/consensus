@@ -3974,40 +3974,13 @@ var notImplementedRoutes = []notImplementedRoute{
 	// v2.pty.create): registering the exact /api/pty mount means the declared
 	// sibling method reaches the handler, where the typed not-implemented
 	// envelope answers it — previously NOT-SERVED (net/http default 404), a
-	// class the table could not see. Same shape as ROUTE-ADD-102's
+	// class this table could not see. Same shape as ROUTE-ADD-102's
 	// registration of bare /pty above. ROUTE-ADD-029 then served the
 	// operation's declared 400 InvalidRequestError arm (location selector +
 	// required requestBody schema, api_pty_create.go), so this probe sends
 	// the declared requestBody as `{}` — the smallest well-formed body — to
 	// reach the narrowing instead of the 400.
 	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create", "{}"},
-	// ROUTE-ADD-037 registers the exact declared /api/session path for
-	// v2.session.list (GET). The declared sibling method POST /api/session
-	// (v2.session.create) therefore reaches that handler, where it answers the
-	// typed not_implemented envelope naming v2.session.create — previously
-	// NOT-SERVED (net/http default 404), a class this table could not see. It
-	// leaves both this table and the artifact's intentional_narrowing bucket
-	// when ROUTE-ADD-038 serves the operation for real (the ROUTE-ADD-070
-	// precedent). The operation declares no required requestBody for this
-	// probe's purposes: this handler serves no input arm of it yet, so the
-	// probe sends no body.
-	{"SHIM-DRIFT-033", http.MethodPost, "/api/session", "v2.session.create", ""},
-	// ROUTE-ADD-069 registers the exact declared
-	// /experimental/project/{projectID}/copy path for v2.projectCopy.remove
-	// (DELETE). The declared sibling POST on that same exact path
-	// (v2.projectCopy.create, SHIM-DRIFT-038 in the committed artifact) reached
-	// the handler as a typed-501 intentional narrowing while no project-copy
-	// machinery existed; ROUTE-ADD-070 serves it for real (the declared 200
-	// ProjectCopyCopy is a real git-worktree effect, no registry needed), so
-	// the narrowing left the table AND the artifact's intentional_narrowing
-	// bucket (the test below pins the one-to-one agreement).
-	// ROUTE-ADD-007 + ROUTE-ADD-008 registered the /api/credential/{credentialID}
-	// subtree: DELETE (v2.credential.remove) is covered by the merged
-	// dispatcher's 204 no-op; PATCH (v2.credential.update) is NOT a typed-501
-	// narrowing — ROUTE-ADD-008 serves the declared 400 InvalidRequestError
-	// for every well-formed request (the no-credential-store truthfulness
-	// narrowing, artifact class narrowed_error_contract_only, SHIM-NARROWED-022),
-	// so it is pinned by the credential tests instead of this table.
 }
 
 // shimRouteShape normalizes a concrete request path to the artifact's
@@ -4048,12 +4021,12 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 3 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028) +
-	// v2.session.create (/api/session POST, exposed by ROUTE-ADD-037's exact
-	// registration of v2.session.list on the same path; it leaves this table
-	// when ROUTE-ADD-038 serves it for real).
-	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
-	// 200/400 handlers, ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply),
+	// 2 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028).
+	// ROUTE-ADD-038 served POST /api/session (v2.session.create) for real,
+	// removing it from this table and the artifact's intentional_narrowing
+	// bucket (the ROUTE-ADD-070 precedent). ROUTE-FIX-023 moved the six
+	// pinned-upstream TUI operations to truthful 200/400 handlers,
+	// ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply),
 	// ROUTE-FIX-032 served vcs.diff.raw, ROUTE-ADD-007 + ROUTE-ADD-008 served
 	// the credential family (DELETE covered; PATCH the declared-400 no-store
 	// narrowing, which is error-contract narrowing, not a typed-501 stub),
@@ -4061,8 +4034,8 @@ func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
 	// declared sibling POST on /experimental/project/{projectID}/copy, and
 	// ROUTE-ADD-070 served that POST for real (the declared 200 is a real
 	// git-worktree effect), removing it again.
-	if len(notImplementedRoutes) != 3 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 3 (pty.create, v2.pty.create, v2.session.create after ROUTE-ADD-037); table has %d",
+	if len(notImplementedRoutes) != 2 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 (pty.create, v2.pty.create); table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}

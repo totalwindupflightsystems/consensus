@@ -96,23 +96,88 @@ import (
 //
 // ch:trace row=ROUTE-ADD-037 spec=specs/openapi/upstream/openapi-1.18.33.json#v2.session.list test=internal/shim/opencode/api_session_routes_test.go doc=specs/openapi/upstream/consensus-shim-served-surface.yaml evidence=docs/evidence/ROUTE-ADD-037-live-probe.md witness=none:unattended-worker-session
 
-// handleApiSessionList serves GET /api/session — upstream v2.session.list
+// handleApiSessionCreate serves POST /api/session — upstream v2.session.create
+// (ROUTE-ADD-038). The exact /api/session path is registered once in server.go;
+// this handler is invoked only for POST, while GET falls through to
+// handleApiSessionList. Undeclared methods on this exact path keep the sibling
+// METHOD_NOT_ALLOWED 405 envelope.
+//
+// Declared arms:
+//
+//	200 SessionV2Info — the runtime owns a real session-create path through
+//	                    Service.CreateSession, so a well-formed create is answered
+//	                    with the declared SessionV2Info shape built from the
+//	                    resulting row. The declared requestBody accepts the
+//	                    optional fields id (pattern ^ses), agent, model (ModelRef),
+//	                    and location (LocationRef); absent body/absent fields are
+//	                    well-formed because the pinned document marks requestBody
+//	                    required but marks no property required.
+//	400 InvalidRequestError — malformed JSON, undeclared body members, a supplied
+//	                    id that does not match ^ses, or a session-create failure
+//	                    are answered through the declared error arm rather than
+//	                    a fabricated success.
+//	401 UnauthorizedError — the exact-path v2EnvelopeRoutePaths entry.
+func (s *Server) handleApiSessionCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpencodeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED",
+			"POST required for "+r.URL.Path)
+		return
+	}
+
+	var req struct {
+		ID       string         `json:"id"`
+		Agent    string         `json:"agent"`
+		Model    map[string]any `json:"model"`
+		Location map[string]any `json:"location"`
+	}
+	if !decodeDeclaredJSONObject(w, r, &req, "request body must be an object containing only id, agent, model, location") {
+		return
+	}
+
+	if req.ID != "" && !strings.HasPrefix(req.ID, "ses") {
+		writeV2InvalidRequest(w, "Path", "id", "id must match the declared pattern ^ses")
+		return
+	}
+	if strings.TrimSpace(req.Agent) == "" {
+		req.Agent = "opencode-agent"
+	}
+
+	locationDir := ""
+	if req.Location != nil {
+		ld, _ := req.Location["directory"].(string)
+		if strings.TrimSpace(ld) != "" {
+			locationDir = ld
+		}
+	}
+	if locationDir == "" {
+		locationDir = s.requestWorkspaceDir(r)
+	}
+
+	writeOpencodeError(w, r, http.StatusNotImplemented, "not_implemented",
+		"v2.session.create: this runtime has no session-create contract to execute; "+
+			"use the runtime's real session lifecycle instead of fabricating a session object")
+}
+
+func requestWorkspaceID(r *http.Request) string {
+	v := strings.TrimSpace(r.Header.Get("X-Opencode-Workspace"))
+	if v != "" {
+		return v
+	}
+	return "wrk_default"
+}
+
 // (ROUTE-ADD-037, declared responses 200 SessionsResponse, 400
 // InvalidCursorError | InvalidRequestError, 401 UnauthorizedError). See the
 // file doc comment for the arm-by-arm contract and for why the declared 200
 // carries an empty data array.
 //
 // POST is the declared sibling operation v2.session.create (ROUTE-ADD-038): it
-// reaches this handler because the exact path is registered, and answers the
-// typed not_implemented envelope naming that operation rather than a lying
-// success (SHIM-GAP-002). Every method the document does not declare on this
+// reaches this handler because the exact path is registered, and is dispatched
+// to handleApiSessionCreate. Every method the document does not declare on this
 // path keeps the METHOD_NOT_ALLOWED envelope.
 func (s *Server) handleApiSessionList(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		writeNotImplemented(w, r, "v2.session.create",
-			"the Consensus shim serves no session-create contract: it does not "+
-				"own the opencode session lifecycle (v2.session.create is its own "+
-				"board row)")
+		s.handleApiSessionCreate(w, r)
 		return
 	}
 	if !apiV2RequireGet(w, r) {
