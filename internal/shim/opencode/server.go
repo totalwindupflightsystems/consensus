@@ -369,6 +369,7 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// pattern would panic, and a partial registration would reclassify the
 	// declared siblings on the same exact path as METHOD-MISSING, which
 	// TestNotImplementedTableMatchesDeclaredSurfaceArtifact forbids. No
+	mux.HandleFunc("/api/pty/{ptyID}/connect", s.handleApiPtyConnect)
 	// /api/pty/* catch-all is introduced: the declared sibling sub-paths
 	// /api/pty/{ptyID}/connect and /api/pty/{ptyID}/connect-token keep their
 	// own rows (ROUTE-ADD-033/034) and deeper /api/pty/* sub-paths keep the
@@ -919,6 +920,9 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// only the concrete parameter shape, so a blank or deeper /api/pty/*
 	// path keeps the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/api/pty/"); ok {
+		if id, ok := strings.CutSuffix(rest, "/connect"); ok {
+			return id != "" && !strings.Contains(id, "/")
+		}
 		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]

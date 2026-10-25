@@ -365,6 +365,7 @@ def main():
         ("/pty/{ptyID}", "PUT"): "SHIM-NARROWED-013",
         ("/pty/{ptyID}", "DELETE"): "SHIM-NARROWED-014",
         ("/pty/{ptyID}/connect", "GET"): "SHIM-NARROWED-015",
+        ("/api/pty/{ptyID}/connect", "GET"): "SHIM-NARROWED-105",
         ("/pty/{ptyID}/connect-token", "POST"): "SHIM-NARROWED-016",
         ("/mcp/{name}/auth", "POST"): "SHIM-NARROWED-017",
         ("/mcp/{name}/auth/authenticate", "POST"): "SHIM-NARROWED-018",
