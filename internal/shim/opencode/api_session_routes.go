@@ -94,7 +94,7 @@ import (
 // sibling v2 read-only operations. Serving real SessionV2Info rows is a design
 // change with its own row, not a contract detail.
 //
-// ch:trace row=ROUTE-ADD-037 spec=specs/openapi/upstream/openapi-1.18.33.json#v2.session.list test=internal/shim/opencode/api_session_routes_test.go witness=none:unattended-worker-session
+// ch:trace row=ROUTE-ADD-037 spec=specs/openapi/upstream/openapi-1.18.33.json#v2.session.list test=internal/shim/opencode/api_session_routes_test.go doc=specs/openapi/upstream/consensus-shim-served-surface.yaml evidence=docs/evidence/ROUTE-ADD-037-live-probe.md witness=none:unattended-worker-session
 
 // handleApiSessionList serves GET /api/session — upstream v2.session.list
 // (ROUTE-ADD-037, declared responses 200 SessionsResponse, 400
