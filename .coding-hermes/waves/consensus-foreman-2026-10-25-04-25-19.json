@@ -1,0 +1,17 @@
+{
+  "tick": "consensus-foreman-2026-10-25-04-25-19",
+  "mode": "serial-fallback",
+  "wave_budget": 1,
+  "base": "a3da94e",
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-038",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-038",
+      "branch": "wt/ROUTE-ADD-038",
+      "status": "prepared",
+      "gitreins": "route-add-038",
+      "model": "glm-5.3-flash",
+      "provider": "zai-glm"
+    }
+  ]
+}
