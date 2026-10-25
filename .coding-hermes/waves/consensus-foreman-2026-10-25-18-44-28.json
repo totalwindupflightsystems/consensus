@@ -1,0 +1,15 @@
+{
+  "tick": "consensus-foreman-2026-10-25-18-44-28",
+  "project": "consensus",
+  "mode": "serial",
+  "budget": 2,
+  "workers": [
+    {
+      "task_id": "REVIEW-CONSENSUS-11",
+      "worktree": "/home/kara/worktrees/consensus-REVIEW-CONSENSUS-11",
+      "branch": "wt/REVIEW-CONSENSUS-11",
+      "base": "c1b7dd5",
+      "status": "dispatched"
+    }
+  ]
+}
