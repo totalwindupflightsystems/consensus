@@ -1,0 +1,16 @@
+{
+  "tick": "consensus-foreman-2026-10-25-19-22-41",
+  "project": "consensus",
+  "mode": "serial",
+  "wave_budget": 9,
+  "workers": [
+    {
+      "task_id": "ROUTE-ADD-039",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-039",
+      "branch": "wt/ROUTE-ADD-039",
+      "base": "origin/main",
+      "base_sha": "a316c6e",
+      "status": "dispatched"
+    }
+  ]
+}
