@@ -209,6 +209,30 @@ Multiple binary instances can share one Postgres backend:
 
 SQLite mode does not support horizontal scaling (single-writer). For single-machine workloads, SQLite is sufficient.
 
+### 7. Docker Compose Files
+
+The repository ships two Compose files with distinct, non-interchangeable roles:
+
+| File | Role | Services |
+|---|---|---|
+| `docker-compose.yml` | PostgreSQL **test dependency** — starts only the database for local development and CI; the Consensus binary is built and run by hand or by the test harness | `postgres` |
+| `docker-compose.prod.yml` | **Production deployment surface** — runs the full Consensus + PostgreSQL stack | `postgres`, `consensus` |
+
+```bash
+# Dev: database only. The Consensus binary is NOT part of this stack.
+docker compose -f docker-compose.yml up -d
+./consensus serve --db postgres://localhost:5432/consensus
+
+# Production: Consensus + PostgreSQL, health-gated
+docker compose -f docker-compose.prod.yml up -d --wait
+```
+
+The production stack listens on port **8090** and serves a health endpoint at
+`/api/v1/health`. Its compose healthcheck polls that endpoint, so
+`up -d --wait` returns only once Consensus is actually serving. The
+self-hosted Supabase stack described in topology 4 above is Supabase's own
+distribution and is unrelated to these two files.
+
 ---
 
 ## Schema Migrations
