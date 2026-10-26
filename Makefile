@@ -109,6 +109,18 @@ lint-spec:
 check-spec-parity:
 	@bash scripts/check-spec-parity.sh
 
+# Shim coverage artifact (specs/024 §A.3, SHIM-GAP-008). Runs the existing
+# declared-vs-served comparator
+# (scripts/compare-opencode-declared-served.py) into a temporary directory —
+# never overwriting the checked-in artifact
+# specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json — and
+# publishes coverage_pct=<n.nn> computed from the comparator's counts, with
+# the protocol pin (specs/openapi/opencode-pin.yaml) and the commit it ran at.
+# Regression proof: bash scripts/shim-coverage-test.sh
+.PHONY: shim-coverage
+shim-coverage:
+	@bash scripts/shim-coverage.sh
+
 # Run contract tests against a running server (SPEC-018 §6)
 # Requires: consensus server running, API key in CONSENSUS_API_KEY env var
 contract-test: build
