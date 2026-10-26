@@ -98,7 +98,7 @@ jobs:
           # Hosted runners always take this branch: publish the database on the
           # host port the test URL names.
           if docker run -d --name consensus-postgres "${db_args[@]}" -p 5432:5432 "$image" >/dev/null; then
-            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable" >> "$GITHUB_ENV"
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:***@localhost:5432/consensus?sslmode=disable" >> "$GITHUB_ENV"
           else
             # The host port is taken — a machine-local PostgreSQL, which hosted
             # runners do not have and which is what breaks local `act` runs
@@ -110,7 +110,7 @@ jobs:
             docker run -d --name consensus-postgres "${db_args[@]}" -p 127.0.0.1::5432 "$image" >/dev/null
             host_port=$(docker port consensus-postgres 5432/tcp | head -n1 | sed 's/.*://')
             [ -n "$host_port" ] || { echo "could not determine the published postgres port" >&2; exit 1; }
-            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@127.0.0.1:${host_port}/consensus?sslmode=disable" >> "$GITHUB_ENV"
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:***@127.0.0.1:${host_port}/consensus?sslmode=disable" >> "$GITHUB_ENV"
           fi
 
           for attempt in {1..10}; do
@@ -140,7 +140,7 @@ jobs:
           version: latest
           args: check
 
-  # ── GitReins Tier 1 Guard (fast, no LLM — every push/PR) ─────
+  # ── GitReins Tier 1 Guard (fast, no LLM — every push/PR) ──────
   gitreins-guard:
     name: GitReins Guard (Tier 1)
     runs-on: ubuntu-latest
@@ -180,7 +180,7 @@ jobs:
           bash .gitreins/pre-commit
         # Runs the same pre-commit hook CI-side — secrets (blocking), vet, test-short
 
-  # ── GitReins Tier 2 Evaluator (LLM — manual/scheduled/PR) ─────
+  # ── GitReins Tier 2 Evaluator (LLM — manual/scheduled/PR) ──────
   gitreins-eval:
     name: GitReins Evaluator (Tier 2)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -265,6 +265,32 @@ jobs:
             type=sha,prefix=
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
+
+      # ── Pre-pull base images with retry to avoid transient 429s ──
+      # INT-CI-7 fix: public registry rate limits on base-image pulls
+      # cause buildx to fail before any retry logic runs. This pre-flight
+      # ensures images are cached locally so buildx can use the copy from
+      # disk instead of re-fetching from the remote.
+      - name: Pre-pull base images with retry
+        shell: bash
+        run: |
+          for image in \
+            docker.io/library/golang:1.26-alpine \
+            docker.io/library/alpine:3.21; do
+            for attempt in {1..5}; do
+              if docker pull "$image"; then
+                echo "Pulled $image (attempt $attempt)"
+                break
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "Failed to pull $image after $attempt attempts" >&2
+                exit 1
+              fi
+              delay=$((attempt * 10))
+              echo "Pull attempt $attempt failed for $image; retrying in ${delay}s" >&2
+              sleep "$delay"
+            done
+          done
 
       - name: Build and push (retry on transient registry rate limits)
         uses: docker/build-push-action@v6
