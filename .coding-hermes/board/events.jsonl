@@ -887,3 +887,7 @@
 {"id":778,"timestamp":"2026-10-26T11:38:10Z","event_type":"task_created","task_id":"INT-CI-13","actor":"foreman","detail":"{\"tick\":\"consensus-foreman-2026-10-26-10-51-41\",\"reason\":\"three recent exact-head CI failures at Postgres SASL authentication before assertions\",\"runs\":[\"40308959653\",\"40310054572\",\"40310114422\"]}","tick_number":"consensus-foreman-2026-10-26-10-51-41"}
 {"id":779,"timestamp":"2026-10-26T12:34:59Z","event_type":"task_completed","task_id":"INT-CI-13","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
 {"id":780,"timestamp":"2026-10-26T14:09:19Z","event_type":"task_completed","task_id":"QA-CONSENSUS-16","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
+{"id":781,"timestamp":"2026-10-26T21:18:06Z","event_type":"task_created","task_id":"DOC-26","actor":"foreman","detail":"{\"id\":\"DOC-26\",\"status\":\"pending\"}","tick_number":null}
+{"id":782,"timestamp":"2026-10-26T21:18:38Z","event_type":"task_created","task_id":"DOC-27","actor":"foreman","detail":"{\"id\":\"DOC-27\",\"status\":\"pending\"}","tick_number":null}
+{"id":783,"timestamp":"2026-10-26T21:19:14Z","event_type":"task_updated","task_id":"DOC-26","actor":"foreman","detail":"{\"status\":\"pending\"}","tick_number":null}
+{"id":784,"timestamp":"2026-10-26T21:19:14Z","event_type":"task_updated","task_id":"DOC-27","actor":"foreman","detail":"{\"status\":\"pending\"}","tick_number":null}
