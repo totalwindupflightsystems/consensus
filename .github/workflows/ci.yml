@@ -98,7 +98,7 @@ jobs:
           # Hosted runners always take this branch: publish the database on the
           # host port the test URL names.
           if docker run -d --name consensus-postgres "${db_args[@]}" -p 5432:5432 "$image" >/dev/null; then
-            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:***@localhost:5432/consensus?sslmode=disable" >> "$GITHUB_ENV"
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable" >> "$GITHUB_ENV"
           else
             # The host port is taken — a machine-local PostgreSQL, which hosted
             # runners do not have and which is what breaks local `act` runs
@@ -110,7 +110,7 @@ jobs:
             docker run -d --name consensus-postgres "${db_args[@]}" -p 127.0.0.1::5432 "$image" >/dev/null
             host_port=$(docker port consensus-postgres 5432/tcp | head -n1 | sed 's/.*://')
             [ -n "$host_port" ] || { echo "could not determine the published postgres port" >&2; exit 1; }
-            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:***@127.0.0.1:${host_port}/consensus?sslmode=disable" >> "$GITHUB_ENV"
+            echo "CONSENSUS_TEST_POSTGRES_URL=postgres://consensus:consensus@127.0.0.1:${host_port}/consensus?sslmode=disable" >> "$GITHUB_ENV"
           fi
 
           for attempt in {1..10}; do
