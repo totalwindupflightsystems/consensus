@@ -1,0 +1,32 @@
+{
+  "tick": "consensus-foreman-2026-10-27-05-44-27",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "wave_budget": 12,
+  "reason": "Only one dispatchable implementation row selected; other P1 release row is owner-gated and remaining rows are lower priority or dependency-blocked.",
+  "base": "origin/main",
+  "base_sha": "5e1c8243c0762dd44f5715229693f98bbc90b455",
+  "workers": [
+    {
+      "task_id": "RELEASE-CONSENSUS-5",
+      "worktree": "/home/kara/worktrees/consensus-RELEASE-CONSENSUS-5",
+      "branch": "wt/RELEASE-CONSENSUS-5",
+      "base": "origin/main",
+      "base_sha": "5e1c8243c0762dd44f5715229693f98bbc90b455",
+      "worker_model": "glm-5.3-flash",
+      "worker_provider": "zai-glm",
+      "brief": "/tmp/consensus-foreman-2026-10-27-05-44-27-RELEASE-CONSENSUS-5-brief.txt",
+      "gitreins_task": "release-consensus-5",
+      "worker_commit": "038821b219a36a18893ea662f1217cbe41061b47",
+      "verdict": ".gitreins/history/2026-10-27/6a0de4fa/verdict.json",
+      "status": "complete",
+      "gates": {
+        "build": "PASS",
+        "vet": "PASS",
+        "tests": "PASS",
+        "gitreins": "PASS",
+        "ci": "GREEN run 40458535355"
+      }
+    }
+  ]
+}
