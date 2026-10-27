@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [Unreleased]
+## [0.1.0] — 2026-10-27
 
 ### Added
 
@@ -42,10 +42,12 @@ All notable changes to this project are documented here.
   retry without its `Idempotency-Key`). Wired into all three API-surface
   message paths (send, idempotent send, `Service.SendMessage`); duplicates
   return the same `200` shape as the original.
-
----
-
-## [0.1.0] — 2026-09-29
+- **worktree.remove does not implement the declared input contract (DF-CONSENSUS-63)** —
+  the request body field `directory` was silently ignored; the fix reads
+  `WorktreeRemoveInput.directory` as the body-only target while retaining
+  the query selector, and resolves remove/reset workspaces using the
+  SPEC-017 fixed workspace precedence so servers launched outside a
+  repository can operate on explicitly selected worktrees.
 
 First release of Consensus: a database-native cognitive architecture for AI
 agents. One Go binary (`cmd/consensus`) carrying the full runtime against
