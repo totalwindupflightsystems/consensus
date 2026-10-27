@@ -17,8 +17,10 @@
       "provider": "zai-glm",
       "dispatch_script": "/tmp/consensus-foreman-2026-10-27-11-52-25-dispatch.sh",
       "pid": 2801870,
-      "state": "dispatched"
+      "state": "failed",
+      "result": "No source diff or commit; worker remained in initialization and was terminated."
     }
   ],
-  "trace": "ch:trace row=INT-BOARD-1 spec=.coding-hermes/board/tasks.jsonl#acceptance wave=.coding-hermes/waves/consensus-foreman-2026-10-27-11-52-25.json#INT-BOARD-1 test=scripts/board-commit-ancestry-audit.py doc=scripts/board-commit-ancestry-audit.py prompt=/tmp/consensus-foreman-2026-10-27-11-52-25-INT-BOARD-1-brief.txt evidence=none:foreman-verifies-after-merge witness=none:worker-report-only verdict=none:foreman-runs-gitreins-judge commit=worker-commit memory=none:foreman-writes"
+  "closeout": "FAILED: no implementation landed; INT-BOARD-1 remains pending for recovery.",
+  "trace": "ch:trace row=INT-BOARD-1 spec=.coding-hermes/board/tasks.jsonl#acceptance wave=.coding-hermes/waves/consensus-foreman-2026-10-27-11-52-25.json#INT-BOARD-1 test=scripts/board-commit-ancestry-audit.py doc=scripts/board-commit-ancestry-audit.py prompt=/tmp/consensus-foreman-2026-10-27-11-52-25-INT-BOARD-1-brief.txt evidence=none:worker-produced-no-diff witness=none:no-landed-commit verdict=none:judge-no-verdict-artifact commit=none:no-commit memory=none:foreman-writes"
 }
