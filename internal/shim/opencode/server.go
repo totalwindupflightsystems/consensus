@@ -371,7 +371,21 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /api/session/{sessionID}[...] operations keep the 404 their own
 	// contract rows are filed against.
 	mux.HandleFunc("/api/session/active", s.handleApiSessionActive)
-	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
+	// ROUTE-ADD-040 / source item SHIM-DRIFT-036: the declared v2.session.get
+	// operation (GET /api/session/{sessionID}) had no shim route, so it fell
+	// through to net/http's default 404 — the drift artifact's NOT-SERVED
+	// class. Register the exact one-segment parameter shape for real
+	// (api_session_get.go): the declared 200 envelope, the declared
+	// InvalidRequestError 400, the declared UnauthorizedError 401 via
+	// v2EnvelopeRoutePaths, and the declared NotFoundError 404. GET is the ONLY
+	// method the pinned document declares on this path, so every other method
+	// keeps the METHOD_NOT_ALLOWED envelope.
+	// ROUTE-ADD-040 / source item SHIM-DRIFT-036: the declared v2.session.get
+	// operation (GET /api/session/{sessionID}) had no shim route, so it fell
+	// through to net/http's default 404. Register the exact one-segment
+	// parameter shape (api_session_get.go): declared 200, 400, 401, 404.
+	mux.HandleFunc("/api/session/{sessionID}", s.handleApiSessionGet)
+	// ROUTE-ADD-026: the declared v2.provider.list operation
 	// had no shim route at all, so the request fell through to net/http's
 	// default 404. Register the exact path for real; never an /api/* or
 	// /api/provider/* catch-all, so the v1 /provider compatibility route above
@@ -894,9 +908,15 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// ROUTE-ADD-039: the declared v2.session.active path takes the v2
 	// UnauthorizedError 401 envelope (the operation declares it). Membership
 	// stays exact-path: GET is the only declared method on this path, and
-	// the /api/session/{sessionID}[...] operations — which have no route
-	// here — keep the shim's own envelope until their own contract rows land.
+	// the /api/session/{sessionID} path is registered in this exact map for
+	// its own 401 arm.
 	"/api/session/active": {},
+	// ROUTE-ADD-040: the declared v2.session.get path
+	// (GET /api/session/{sessionID}) takes the v2 UnauthorizedError 401
+	// envelope (the operation declares it). The entry is an exact one-segment
+	// parameter shape in this map, so blank or deeper /api/session/* sub-paths
+	// keep the shim's own envelope until their contract rows land.
+	"/api/session/{sessionID}": {},
 	// ROUTE-ADD-026: the declared v2.provider.list path takes the v2
 	// UnauthorizedError 401 envelope (this operation declares it); membership
 	// stays exact-path, so only the registered /api/* shapes join it.
