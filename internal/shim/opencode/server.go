@@ -371,6 +371,21 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /api/session/{sessionID}[...] operations keep the 404 their own
 	// contract rows are filed against.
 	mux.HandleFunc("/api/session/active", s.handleApiSessionActive)
+	// ROUTE-ADD-041: the declared v2.session.switchAgent operation (POST
+	// /api/session/{sessionID}/agent) had no shim route at all, so the request
+	// fell through to net/http's default 404 — the drift artifact's NOT-SERVED
+	// class. Register the exact two-segment path (see api_session_agent.go):
+	// the declared 204 no-content arm answered as a truthful idempotent no-op,
+	// the declared InvalidRequestError 400 for a blank sessionID and for every
+	// declared body violation, the declared SessionNotFoundError 404 when the
+	// sessionID is not a session this instance holds (read from the real
+	// sessions store), and the declared UnauthorizedError 401 via the
+	// isV2EnvelopeRoutePath two-segment shape below. Never an /api/session/*
+	// catch-all, so every sibling declared /api/session/{sessionID}[...]
+	// operation keeps the classification its own contract row is filed
+	// against, and POST is the only method the pinned document declares here,
+	// so undeclared methods keep the METHOD_NOT_ALLOWED envelope.
+	mux.HandleFunc("/api/session/{sessionID}/agent", s.handleApiSessionAgent)
 	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
 	// had no shim route at all, so the request fell through to net/http's
 	// default 404. Register the exact path for real; never an /api/* or
@@ -737,6 +752,13 @@ var MountPatterns = []string{
 	// subtree mount, so the sibling declared /api/session/{sessionID}[...]
 	// operations keep the answers they are classified with.
 	"/api/session/active",
+	// ROUTE-ADD-041: exact /api/session/{sessionID}/agent
+	// (v2.session.switchAgent) so a parent chi mount reaches the shim route.
+	// Written as the concrete two-segment pattern, never an /api/session/*
+	// subtree mount, so every sibling declared /api/session/{sessionID}[...]
+	// operation keeps the answer (net/http default 404) its own contract row
+	// is filed against — the ROUTE-ADD-037/039 exact-entry convention.
+	"/api/session/{sessionID}/agent",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -997,6 +1019,15 @@ func isV2EnvelopeRoutePath(path string) bool {
 			return id != "" && !strings.Contains(id, "/")
 		}
 		return rest != "" && !strings.Contains(rest, "/")
+	}
+	// ROUTE-ADD-041: the declared v2.session.switchAgent path
+	// (POST /api/session/{sessionID}/agent) carries the same v2
+	// UnauthorizedError arm. The rule admits only the concrete two-segment
+	// shape whose second segment is literally "agent", so the sibling
+	// /api/session/{sessionID}[...] operations and deeper /api/session/*
+	// sub-paths keep the shim's own envelope.
+	if isApiSessionAgentPath(path) {
+		return true
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
