@@ -1,0 +1,21 @@
+{
+  "tick": "consensus-foreman-2026-10-27-04-41-26",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "base": "origin/master",
+  "base_sha": "a3da94e",
+  "tasks": [
+    {
+      "id": "ROUTE-ADD-049",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-049",
+      "branch": "wt/ROUTE-ADD-049",
+      "worker_model": "glm-5.3-flash",
+      "worker_provider": "zai-glm",
+      "brief": "/tmp/consensus-foreman-2026-10-27-04-41-26-ROUTE-ADD-049-brief.txt",
+      "gitreins_task": "route-add-049"
+    }
+  ],
+  "status": "failed",
+  "failure": "worker died during gateway/session initialization with zero worktree diff; no implementation commit",
+  "gitreins_complete": true
+}
