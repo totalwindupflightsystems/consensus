@@ -417,6 +417,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// own rows (ROUTE-ADD-033/034) and deeper /api/pty/* sub-paths keep the
 	// answers they are classified with.
 	mux.HandleFunc("/api/pty/{ptyID}", s.handleApiPtyByID)
+	// ROUTE-ADD-049: the declared v2.session.switchModel operation
+	// (POST /api/session/{sessionID}/model, source item SHIM-DRIFT-010) had
+	// no shim route at all, so the request fell through to net/http's
+	// default 404. Register the exact one-segment parameter shape for real;
+	// the v2 UnauthorizedError 401 arm is enforced via v2EnvelopeRoutePaths
+	// below, and deeper /api/session/{sessionID}/... paths keep their own
+	// declared rows (or the default 404 when not yet implemented).
+	mux.HandleFunc("/api/session/{sessionID}/model", s.handleApiSessionModelSwitch)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -918,6 +926,12 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// exact-path map membership is the default; see isV2EnvelopeRoutePath).
 	"/api/credential/": {},
 	"/api/event":       {},
+	// ROUTE-ADD-049: the declared v2.session.switchModel operation
+	// (POST /api/session/{sessionID}/model) carries the v2
+	// UnauthorizedError 401 arm via this exact-path entry; the
+	// parameter shape /api/session/{sessionID}/model is admitted by
+	// the one-segment containment check in isV2EnvelopeRoutePath below.
+	"/api/session/{sessionID}/model": {},
 }
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*
