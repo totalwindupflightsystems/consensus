@@ -10,7 +10,6 @@ llm:
   provider: openai
   base_url: https://api.deepseek.com/v1
   api_key: ${DEEPSEEK_API_KEY}
-  max_context_tokens: 128000
   max_output_tokens: 16384
   # Alternative: LM Studio (local qwen models)
   # default_model: qwen/qwen3.6-35b-a3b
@@ -20,9 +19,12 @@ llm:
 
 harness:
   heartbeat_interval_seconds: 5
-  max_iterations: 100
   max_consecutive_errors: 3
-  budget_limit_cents: 1000
+  # Max seconds for one planning session: LLM calls and SQLite writes share
+  # this single deadline. Raise it for a slow local model (LM Studio needs
+  # 300+). The per-session turn cap and spend cap are session state set at
+  # session creation (planning_max_turns / budget_limit_cents), not here.
+  planning_timeout_seconds: 180
 
 database:
   url: sqlite://dev.db?_journal_mode=WAL

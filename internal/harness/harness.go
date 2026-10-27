@@ -237,6 +237,13 @@ type Harness struct {
 	// see maxConsecutiveErrors() in circuit.go (DOGFOOD-003).
 	MaxConsecutiveErrors int
 
+	// PlanningTimeout bounds one interactive planning session — the deadline
+	// applied to the planning context in RunInteractivePlanning. Wired from
+	// harness.planning_timeout_seconds (CONFIG-INERT-1); zero means "use
+	// DefaultPlanningConfig().Timeout". The per-run iteration cap stays
+	// session state (sessions.planning_max_turns), not process config.
+	PlanningTimeout time.Duration
+
 	// inFlight tracks sessions currently inside RunInteractivePlanning, with
 	// the time each claim was taken. Prevents the heartbeat loop from
 	// dispatching duplicate goroutines for the same session (which causes
@@ -322,8 +329,12 @@ func New(database db.DB, llm LLMClient) *Harness {
 			ClaimVisibilityTimeout: defaultClaimVisibilityTimeout,
 		},
 		MaxConsecutiveErrors: 3, // SPEC-006 §Circuit Breakers default; config may override
-		inFlight:             make(map[string]time.Time),
-		wakeCh:               make(chan string, wakeChannelCapacity),
+		// CONFIG-INERT-1: the shipped planning deadline, so a dispatch that
+		// carries no planning config still gets the spec default. Config
+		// overrides it from harness.planning_timeout_seconds.
+		PlanningTimeout: DefaultPlanningConfig().Timeout,
+		inFlight:        make(map[string]time.Time),
+		wakeCh:          make(chan string, wakeChannelCapacity),
 	}
 }
 

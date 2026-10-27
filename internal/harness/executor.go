@@ -802,7 +802,7 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 					h.inFlightMu.Unlock()
 				}()
 
-				result, err := h.RunInteractivePlanning(ctx, sessionID, nil)
+				result, err := h.RunInteractivePlanning(ctx, sessionID, h.planningConfig())
 				if err != nil {
 					slog.Error("harness: planning failed", "session_id", sessionID, "error", err)
 

@@ -97,6 +97,11 @@ func runServer() {
 		os.Exit(1)
 	}
 
+	// CONFIG-INERT-1: logging.level / logging.format are effective. The handler
+	// installed above covers errors raised while loading; now that the file is
+	// read, replace it with the configured one (default text/info is unchanged).
+	slog.SetDefault(slog.New(cfg.Logging.SlogHandler(os.Stderr)))
+
 	// Pre-flight port probe (C-GAP-038): if something already occupies the
 	// effective listen port, fail fast with an actionable diagnostic naming
 	// the occupant class instead of a bare EADDRINUSE deep in startup.
@@ -188,6 +193,12 @@ func runServer() {
 	}
 	if cfg.Harness.MaxConsecutiveErrors > 0 {
 		h.MaxConsecutiveErrors = cfg.Harness.MaxConsecutiveErrors
+	}
+	// CONFIG-INERT-1: harness.planning_timeout_seconds becomes the planning
+	// deadline (PlanningConfig.Timeout) for every dispatched planning session.
+	// <= 0 keeps the compiled 180s default.
+	if cfg.Harness.PlanningTimeoutSec > 0 {
+		h.PlanningTimeout = time.Duration(cfg.Harness.PlanningTimeoutSec) * time.Second
 	}
 	go h.StartHeartbeatLoop(ctx)
 
@@ -293,8 +304,12 @@ func runServer() {
 		_, err := harness.ResumeApprovedToolRequestsByApproval(ctx, database, approvalID)
 		return err
 	})
-	// Initialize default global HITL config (idempotent — migration 008 also inserts defaults)
-	if err := hitlMgr.SetConfiguration(ctx, hitl.DefaultConfiguration()); err != nil {
+	// Initialize the global HITL config from the YAML/env configuration
+	// (CONFIG-INERT-1). Before this the startup write used
+	// hitl.DefaultConfiguration() unconditionally, so the four hitl.* keys
+	// were parsed and ignored. Idempotent — migration 008 also inserts
+	// defaults, and the write runs at every start either way.
+	if err := hitlMgr.SetConfiguration(ctx, hitlConfigurationFromConfig(cfg.HITL)); err != nil {
 		slog.Warn("consensus: failed to init default HITL config", "error", err)
 	}
 	// Start expiry cron — every 5 minutes, expires stale pending approvals
@@ -526,6 +541,11 @@ func runMCPStdio() {
 		os.Exit(1)
 	}
 
+	// CONFIG-INERT-1: the stdio transport honours the same logging.level /
+	// logging.format handler as serve. Logs stay on stderr; stdout is the
+	// JSON-RPC channel.
+	slog.SetDefault(slog.New(cfg.Logging.SlogHandler(os.Stderr)))
+
 	database, err := dbdriver.Open(ctx, cfg.Database)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "db: %v\n", err)
@@ -716,6 +736,32 @@ func runInit(dbURL string) error {
 
 func addrString(sc config.ServerConfig) string {
 	return fmt.Sprintf("%s:%d", sc.Hostname, sc.Port)
+}
+
+// hitlConfigurationFromConfig maps the YAML/env hitl section onto the
+// configuration the HITL manager operates with (CONFIG-INERT-1).
+//
+// The four keys that exist in the config surface are taken from the resolved
+// configuration; the two settings with no YAML key — require_approval_for_external_tools
+// and notify_on_pause — keep the shipped defaults from hitl.DefaultConfiguration,
+// so enabling the wiring changes nothing an operator did not set. A zero /
+// absent numeric value keeps the shipped default rather than disabling the
+// protection: max_consecutive-errors-style "0 means default" is the harness
+// convention these values follow.
+func hitlConfigurationFromConfig(c config.HITLConfig) hitl.Configuration {
+	effective := hitl.DefaultConfiguration()
+	effective.Scope = hitl.ScopeGlobal
+	if c.AutoPauseOnErrorThreshold > 0 {
+		effective.AutoPauseOnErrorThreshold = c.AutoPauseOnErrorThreshold
+	}
+	if c.ApprovalTimeoutMinutes > 0 {
+		effective.ApprovalTimeoutMinutes = c.ApprovalTimeoutMinutes
+	}
+	// Booleans are unambiguous: the loader always resolves them (compiled
+	// default true) so the resolved value is the operator's intent.
+	effective.RequireApprovalForDestructive = c.RequireApprovalForDestructive
+	effective.RequireApprovalForSchemaChanges = c.RequireApprovalForSchemaChanges
+	return effective
 }
 
 // resolveLLMBaseURL returns the effective LLM provider base URL.

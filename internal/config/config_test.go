@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -59,8 +60,11 @@ func TestDefaults(t *testing.T) {
 	if cfg.Harness.HeartbeatIntervalSec != 5 {
 		t.Errorf("expected heartbeat 5s, got %d", cfg.Harness.HeartbeatIntervalSec)
 	}
-	if cfg.Harness.MaxIterations != 100 {
-		t.Errorf("expected max iterations 100, got %d", cfg.Harness.MaxIterations)
+	// CONFIG-INERT-1: planning_timeout_seconds is retained and wired (it is the
+	// planning deadline); max_iterations/budget_limit_cents are session state
+	// and were removed from this surface.
+	if cfg.Harness.PlanningTimeoutSec != 180 {
+		t.Errorf("expected planning timeout 180s, got %d", cfg.Harness.PlanningTimeoutSec)
 	}
 	if cfg.Harness.MaxConsecutiveErrors != 3 {
 		t.Errorf("expected max consecutive errors 3, got %d", cfg.Harness.MaxConsecutiveErrors)
@@ -823,4 +827,239 @@ func TestLoad_NoConfigNoOverrideLeavesBaseURLEmpty(t *testing.T) {
 	if cfg.LLM.BaseURL != "" {
 		t.Errorf("expected empty base URL with no config and no override, got %q", cfg.LLM.BaseURL)
 	}
+}
+
+// ============================================================================
+// CONFIG-INERT-1 — every declared key reaches a runtime consumer
+// ============================================================================
+//
+// ch:trace row=CONFIG-INERT-1 spec=internal/config/config.go#L63-L139 wave=none:serial-tick test=internal/config/config_test.go::TestConfigInertKeysResolved doc=docs/CONFIG.md prompt=/tmp/consensus-foreman-2026-10-23-07-21-45-CONFIG-INERT-1-brief.txt evidence=commit witness=none:local-repo-verification verdict=none:pending commit=02527d230510bcfe0728724eab107900b4d8b910 memory=none:pending
+//
+// The keys below were parsed and documented but read by nothing. Each is now
+// either wired to its consumer (retainedWiredKeys) or gone from the struct,
+// the shipped sample and docs/CONFIG.md (removedYAMLKeys). These assertions
+// are a surface census: they fail if a later change re-adds a YAML key with no
+// consumer, or silently drops one that has one.
+//
+// One key of the same class is deliberately outside this row's scope:
+// adapters.opencode.admin_key is still declared and still unread by the shim,
+// and both docs/CONFIG.md §5.10 and docs/runbooks/serve-adapters.md say so.
+
+var removedYAMLKeys = []string{
+	"harness.max_iterations",         // session state: sessions.planning_max_turns
+	"harness.budget_limit_cents",     // session state: sessions.budget_limit_cents
+	"harness.transaction_timeout_ms", // SQLite lock wait: database.busy_timeout_ms
+	"llm.max_context_tokens",         // session state: sessions.context_budget
+	"database.max_idle_conns",        // no consumer on either backend
+}
+
+var retainedWiredKeys = []struct {
+	key      string
+	consumer string
+}{
+	{"harness.heartbeat_interval_seconds", "harness heartbeat loop (cmd/consensus/main.go)"},
+	{"harness.max_consecutive_errors", "circuit breaker threshold (internal/harness/circuit.go)"},
+	{"harness.planning_timeout_seconds", "PlanningConfig.Timeout (internal/harness planningConfig)"},
+	{"llm.max_output_tokens", "llm.Config.MaxTokens (cmd/consensus/main.go)"},
+	{"database.max_open_conns", "sqlite/postgres pool sizing (internal/db/*)"},
+	{"database.busy_timeout_ms", "SQLite PRAGMA busy_timeout (internal/db/sqlite)"},
+	{"hitl.auto_pause_on_error_threshold", "hitl.Configuration (cmd hitlConfigurationFromConfig)"},
+	{"hitl.require_approval_for_destructive", "hitl.Configuration (cmd hitlConfigurationFromConfig)"},
+	{"hitl.require_approval_for_schema_changes", "hitl.Configuration (cmd hitlConfigurationFromConfig)"},
+	{"hitl.approval_timeout_minutes", "approval expiry (internal/hitl RequestApproval)"},
+	{"logging.level", "slog handler level (LoggingConfig.SlogHandler)"},
+	{"logging.format", "slog text/json handler (LoggingConfig.SlogHandler)"},
+	{"crier.url", "internal/crier client ladder + startup warning (ApplyStartupValidations)"},
+	{"crier.agent_id", "internal/crier intake identity + startup warning"},
+	{"api_rate.admin_per_min", "api.ServerConfig.AdminRate"},
+	{"api_rate.session_per_min", "api.ServerConfig.SessionRate"},
+	{"api_rate.readonly_per_min", "api.ServerConfig.ReadonlyRate"},
+	{"api_rate.webhook_per_min", "api.ServerConfig.WebhookRate"},
+	{"compression.enabled", "compression worker start (cmd/consensus/main.go)"},
+	{"compression.poll_interval_seconds", "worker PollInterval"},
+	{"compression.batch_size", "worker BatchSize"},
+	{"compression.cosine_threshold", "worker CosineThreshold"},
+	{"compression.embedding_model", "worker EmbeddingModel"},
+	{"adapters.opencode.enabled", "opencode shim mount"},
+	{"adapters.h3.enabled", "H3 shim mount"},
+}
+
+// yamlKeyPaths walks a config struct type and collects every dotted YAML key
+// it declares (the `yaml` struct tags), which is the exact surface
+// `yaml.Unmarshal` accepts.
+func yamlKeyPaths(t reflect.Type, prefix string, out map[string]bool) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" { // unexported: never decoded from YAML
+			continue
+		}
+		tag := strings.Split(f.Tag.Get("yaml"), ",")[0]
+		path := tag
+		switch {
+		case tag == "":
+			path = prefix
+		case prefix != "":
+			path = prefix + "." + tag
+		}
+		out[path] = true
+		if f.Type.Kind() == reflect.Struct && path != "" {
+			yamlKeyPaths(f.Type, path, out)
+		}
+	}
+}
+
+func TestConfigInertKeysResolved(t *testing.T) {
+	t.Run("surface census: removed keys gone, wired keys declared", func(t *testing.T) {
+		paths := map[string]bool{}
+		yamlKeyPaths(reflect.TypeOf(Config{}), "", paths)
+
+		for _, key := range removedYAMLKeys {
+			if paths[key] {
+				t.Errorf("yaml key %q is still declared in Config but has no runtime consumer — "+
+					"wire it to one or remove it (CONFIG-INERT-1)", key)
+			}
+		}
+		for _, k := range retainedWiredKeys {
+			if !paths[k.key] {
+				t.Errorf("yaml key %q is missing from Config but %s consumes it", k.key, k.consumer)
+			}
+		}
+	})
+
+	t.Run("retained keys resolve from yaml, then env", func(t *testing.T) {
+		hermeticEnv(t)
+		t.Setenv("CONSENSUS_LOG_LEVEL", "")
+		path := writeConfig(t, `harness:
+  planning_timeout_seconds: 240
+logging:
+  level: debug
+  format: json
+hitl:
+  auto_pause_on_error_threshold: 7
+  require_approval_for_destructive: false
+  require_approval_for_schema_changes: false
+  approval_timeout_minutes: 15
+crier:
+  url: http://file-crier:8767
+  agent_id: consensus-file
+`)
+		t.Setenv("CONSENSUS_CONFIG", path)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.Harness.PlanningTimeoutSec != 240 {
+			t.Errorf("harness.planning_timeout_seconds = %d, want 240", cfg.Harness.PlanningTimeoutSec)
+		}
+		if cfg.Logging.Level != "debug" || cfg.Logging.Format != "json" {
+			t.Errorf("logging = %+v, want debug/json from the file", cfg.Logging)
+		}
+		if cfg.HITL.AutoPauseOnErrorThreshold != 7 || cfg.HITL.ApprovalTimeoutMinutes != 15 {
+			t.Errorf("hitl = %+v, want the file's thresholds", cfg.HITL)
+		}
+		if cfg.HITL.RequireApprovalForDestructive || cfg.HITL.RequireApprovalForSchemaChanges {
+			t.Errorf("hitl = %+v, want both approval gates disabled from the file", cfg.HITL)
+		}
+		if cfg.Crier.URL != "http://file-crier:8767" || cfg.Crier.AgentID != "consensus-file" {
+			t.Errorf("crier = %+v, want the file's values", cfg.Crier)
+		}
+
+		// CONFIG-INERT-1: logging.level is also env-overridable, and the env
+		// value must win (applyEnvOverrides, same ladder as every other key).
+		t.Setenv("CONSENSUS_LOG_LEVEL", "warn")
+		cfg, err = Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.Logging.Level != "warn" {
+			t.Errorf("logging.level = %q, want CONSENSUS_LOG_LEVEL to win", cfg.Logging.Level)
+		}
+	})
+
+	t.Run("logging keys build the handler the process installs", func(t *testing.T) {
+		var buf bytes.Buffer
+		infoCfg := LoggingConfig{Level: "warn", Format: "text"}
+		logger := slog.New(infoCfg.SlogHandler(&buf))
+		logger.Info("dropped")
+		logger.Warn("kept", "k", "v")
+		out := buf.String()
+		if strings.Contains(out, "dropped") {
+			t.Errorf("logging.level=warn let an INFO record through: %q", out)
+		}
+		if !strings.Contains(out, "kept") || !strings.Contains(out, "level=WARN") {
+			t.Errorf("text handler did not emit the WARN record: %q", out)
+		}
+
+		buf.Reset()
+		jsonCfg := LoggingConfig{Level: "debug", Format: "json"}
+		slog.New(jsonCfg.SlogHandler(&buf)).Debug("structured", "session", "s1")
+		out = strings.TrimSpace(buf.String())
+		if !strings.HasPrefix(out, "{") || !strings.Contains(out, `"msg":"structured"`) {
+			t.Errorf("logging.format=json did not produce a JSON line: %q", out)
+		}
+
+		if got := (LoggingConfig{Level: "not-a-level"}).SlogLevel(); got != slog.LevelInfo {
+			t.Errorf("unknown level fell back to %v, want info", got)
+		}
+	})
+
+	t.Run("stale removed keys in an existing file are ignored, not errors", func(t *testing.T) {
+		hermeticEnv(t)
+		// The loader is a plain yaml.Unmarshal with no KnownFields, so an
+		// operator's pre-CONFIG-INERT-1 file must keep loading: the deleted
+		// keys are dropped silently, and the retained keys still apply.
+		path := writeConfig(t, `llm:
+  max_context_tokens: 64000
+harness:
+  max_iterations: 250
+  budget_limit_cents: 5000
+  transaction_timeout_ms: 1000
+  planning_timeout_seconds: 300
+database:
+  max_idle_conns: 4
+`)
+		t.Setenv("CONSENSUS_CONFIG", path)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("a file carrying removed keys must still load: %v", err)
+		}
+		if cfg.Harness.PlanningTimeoutSec != 300 {
+			t.Errorf("planning_timeout_seconds = %d, want 300 (retained key ignored?)",
+				cfg.Harness.PlanningTimeoutSec)
+		}
+	})
+
+	t.Run("configured crier section is reported, not silently accepted", func(t *testing.T) {
+		cfg := Defaults()
+		cfg.LLM.APIKey = "test-key"
+		cfg.Compression.Enabled = false
+
+		warns, err := cfg.ApplyStartupValidations()
+		if err != nil {
+			t.Fatalf("ApplyStartupValidations: %v", err)
+		}
+		for _, w := range warns {
+			if strings.Contains(w, "crier") {
+				t.Errorf("an unconfigured crier section warned: %q", w)
+			}
+		}
+
+		cfg.Crier.URL = "http://crier:8767"
+		cfg.Crier.AgentID = "consensus"
+		warns, err = cfg.ApplyStartupValidations()
+		if err != nil {
+			t.Fatalf("ApplyStartupValidations: %v", err)
+		}
+		found := false
+		for _, w := range warns {
+			if strings.Contains(w, "crier intake runner") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("configured crier section produced no warning; warns = %v", warns)
+		}
+	})
 }
