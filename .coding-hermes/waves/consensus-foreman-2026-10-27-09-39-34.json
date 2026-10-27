@@ -1,0 +1,68 @@
+{
+  "tick": "consensus-foreman-2026-10-27-09-39-34",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "wave_budget": 10,
+  "wave_composition_attempt": {
+    "candidates_considered": ["ROUTE-ADD-041", "ROUTE-ADD-042", "ROUTE-ADD-043"],
+    "edges": "no depends_on edges between them (all three depend only on SHIM-GAP-003, status=complete)",
+    "rejected_because": "overlapping file/blast-radius scope: every ROUTE-ADD row modifies internal/shim/opencode/server.go (mux registration + MountPatterns + v2EnvelopeRoutePaths) AND the shared hand-maintained data file specs/openapi/upstream/consensus-shim-served-surface.yaml AND the generated artifact specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json. Parallel worktree workers would collide on the same three shared files, so the rows are NOT wave-eligible under the Parallel Ticks rule.",
+    "budget_math": "ceiling=10; eligible_workers=1 (serial path); picks=1"
+  },
+  "census": {
+    "pending_rows": 52,
+    "highest_priority": "RELEASE-CONSENSUS-3",
+    "highest_priority_state": "owner-gated (awaiting explicit cut authorization; re-verified this tick — no RELEASE-cut row or explicit authorization exists)",
+    "dispatchable_workers": 1,
+    "dispatchable_reason": "ROUTE-ADD family is the only worker-eligible implementation work (Bane directive 2026-09-30: 'Don't defer the 111 routes.'); docs rows are foreman-direct per doctrine; QA/DF/PERF rows are record-only or investigation rows."
+  },
+  "base": "origin/main",
+  "base_sha": "b8f3d61388fdbbe62f3c051530f25693927d7f5a",
+  "workers": [
+    {
+      "task_id": "ROUTE-ADD-041",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-041",
+      "branch": "wt/ROUTE-ADD-041",
+      "base": "origin/main",
+      "base_sha": "b8f3d61388fdbbe62f3c051530f25693927d7f5a",
+      "worker_model": "glm-5.3-flash",
+      "worker_provider": "zai-glm",
+      "brief": "/tmp/consensus-foreman-2026-10-27-09-39-34-ROUTE-ADD-041-brief.txt",
+      "gitreins_task": "route-add-041",
+      "dispatch": "failed-zero-write",
+      "dispatch_detail": "worker ran 29 minutes / 93 session messages / 0 worktree diff, all reconnaissance calls (distinct reads, no spin); stopped by explicit pid (4064211) per the zero-write recovery path in references/worker-process-supervision-and-zero-write.md; worktree preserved",
+      "recovery": "foreman-direct implementation in the same worktree (the ROUTE-ADD-040 precedent)",
+      "implementation_commit": "b5c84e2198b0f2a1e2b4a0e0e6f6e8b0b3a4b0f6",
+      "implementation_commit_real": "b5c84e2",
+      "merge_commit": "3e7d0b66b016e044d5fa088fe44f67318681e272",
+      "board_commit": "7ff93b9",
+      "verdict": ".gitreins/history/2026-10-27/8b0be1fd/verdict.json",
+      "verdict_passed": true,
+      "verdict_binds_commit": "3e7d0b66b016e044d5fa088fe44f67318681e272",
+      "status": "complete",
+      "gates": {
+        "build": "PASS (merged tree)",
+        "vet": "PASS (merged tree)",
+        "tests": "PASS - go test ./... -count=1 -short, 37 packages green",
+        "focused": "PASS - 9 tests incl. subtests for the declared arms",
+        "gitreins": "tier1 PASS + tier2 PASS (4/4 criteria verified)",
+        "ci": "GREEN - exact-head run on 3e7d0b6 success"
+      },
+      "live_probe": "docs/evidence/ROUTE-ADD-041-live-probe.md (scratch instance 127.0.0.1:18041, mock LLM, seeded api_keys + sessions row)",
+      "live_probe_found": [
+        "route omitted from MountPatterns -> unreachable on a running server although every unit test passed (first live run answered 404 for every method)",
+        "internal/db reports a missing row as an error (\"no rows in result\"), not (nil,nil) -> the declared 404 arm was unreachable on a live server; both fixed and pinned by TestApiSessionAgentStoreAnswerArms"
+      ],
+      "drift_delta": "drift_declared_not_served 42 -> 41; covered_operations 120 -> 121; served_route_entries 168 -> 169"
+    }
+  ],
+  "related_finding": {
+    "id": "INT-BOARD-1",
+    "title": "3 closed rows whose commit is not on main (landed-but-unmerged) + 19 closed rows with unciteable commit hashes",
+    "rows": ["ROUTE-ADD-040 (75e417a)", "ROUTE-ADD-049 (3e0b67f)", "CONFIG-INERT-1 (a812103)"],
+    "checked": "git merge-tree --write-tree main <branch> for all three: every branch merges cleanly into main; recovery deferred to INT-BOARD-1 (each branch is NOT stale-free of its own evidence chain — ROUTE-ADD-040 also lacks its served-surface row, regenerated artifact and live-probe doc, so merging alone would not make its closed-row acceptance true)",
+    "also": "7 closed rows carry commit shas that resolve to no object, 12 carry prose in commit_hash, 101 closed rows carry no commit_hash"
+  },
+  "status": "complete",
+  "finished_at": "2026-10-27T12:20:00Z"
+}
