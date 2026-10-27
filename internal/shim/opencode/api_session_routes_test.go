@@ -309,31 +309,22 @@ func TestApiSessionListUnreadableStoreAnswersDeclared400(t *testing.T) {
 	}
 }
 
-// TestApiSessionListPostAnswersTyped501NamingSessionCreate pins the declared
-// sibling method: POST /api/session is v2.session.create — a SEPARATE declared
-// operation with its own contract row (ROUTE-ADD-038). Because the exact path is
-// registered, that method reaches this handler, and SHIM-GAP-002 forbids a
-// registered route from answering a lying 404/405 as if the operation did not
-// exist: it answers the typed not_implemented envelope naming the operation.
-func TestApiSessionListPostAnswersTyped501NamingSessionCreate(t *testing.T) {
+// TestApiSessionCreateNoBodyAnswersDeclared400 pins the POST sibling's
+// malformed-body arm now that v2.session.create is served independently of
+// the GET list handler (ROUTE-ADD-038).
+func TestApiSessionCreateNoBodyAnswersDeclared400(t *testing.T) {
 	_, srv, _ := newApiSessionListServer(t)
 
 	status, _, body := doShimRequest(t, srv.URL, http.MethodPost, "/api/session")
-	if status != http.StatusNotImplemented {
-		t.Fatalf("POST /api/session: got %d, want 501 (typed not_implemented narrowing). Body: %s", status, body)
+	if status != http.StatusBadRequest {
+		t.Fatalf("POST /api/session without a body: got %d, want 400 InvalidRequestError. Body: %s", status, body)
 	}
 	var got map[string]any
 	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("POST /api/session: 501 body is not JSON: %v (%s)", err, body)
+		t.Fatalf("POST /api/session: 400 body is not JSON: %v (%s)", err, body)
 	}
-	if got["error"] != "not_implemented" {
-		t.Errorf("error = %v, want not_implemented", got["error"])
-	}
-	if got["operation"] != "v2.session.create" {
-		t.Errorf("operation = %v, want v2.session.create (the declared operation this path exposes)", got["operation"])
-	}
-	if detail, _ := got["detail"].(string); strings.TrimSpace(detail) == "" {
-		t.Error("detail must name what is missing; got empty")
+	if got["_tag"] != "InvalidRequestError" {
+		t.Errorf("_tag = %v, want InvalidRequestError", got["_tag"])
 	}
 }
 

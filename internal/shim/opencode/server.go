@@ -348,7 +348,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /api/session/{sessionID}[...] keep the 404 their own contract rows are
 	// filed against, and the v1 /session family above is a different surface
 	// and stays untouched.
-	mux.HandleFunc("/api/session", s.handleApiSessionList)
+	mux.HandleFunc("/api/session", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			s.handleApiSessionCreate(w, r)
+			return
+		}
+		s.handleApiSessionList(w, r)
+	})
 	// ROUTE-ADD-039 / source item SHIM-DRIFT-035 (the board row's citation;
 	// positional id SHIM-DRIFT-001 in the committed artifact): the declared
 	// v2.session.active operation (GET /api/session/active) had no shim route

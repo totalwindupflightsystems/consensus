@@ -3981,17 +3981,9 @@ var notImplementedRoutes = []notImplementedRoute{
 	// the declared requestBody as `{}` — the smallest well-formed body — to
 	// reach the narrowing instead of the 400.
 	{"SHIM-DRIFT-025", http.MethodPost, "/api/pty", "v2.pty.create", "{}"},
-	// ROUTE-ADD-037 registers the exact declared /api/session path for
-	// v2.session.list (GET). The declared sibling method POST /api/session
-	// (v2.session.create) therefore reaches that handler, where it answers the
-	// typed not_implemented envelope naming v2.session.create — previously
-	// NOT-SERVED (net/http default 404), a class this table could not see. It
-	// leaves both this table and the artifact's intentional_narrowing bucket
-	// when ROUTE-ADD-038 serves the operation for real (the ROUTE-ADD-070
-	// precedent). The operation declares no required requestBody for this
-	// probe's purposes: this handler serves no input arm of it yet, so the
-	// probe sends no body.
-	{"SHIM-DRIFT-033", http.MethodPost, "/api/session", "v2.session.create", ""},
+	// ROUTE-ADD-038 serves v2.session.create on the declared POST sibling of
+	// /api/session; it is not an intentional narrowing or typed stub.
+
 	// ROUTE-ADD-069 registers the exact declared
 	// /experimental/project/{projectID}/copy path for v2.projectCopy.remove
 	// (DELETE). The declared sibling POST on that same exact path
@@ -4048,10 +4040,8 @@ func doShimRequest(t *testing.T, base, method, path string) (int, http.Header, [
 // {"error":"not_implemented","operation":"<op>","detail":"<what is missing>"} —
 // never a 404 from a registered route, never a bare 501.
 func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
-	// 3 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028) +
-	// v2.session.create (/api/session POST, exposed by ROUTE-ADD-037's exact
-	// registration of v2.session.list on the same path; it leaves this table
-	// when ROUTE-ADD-038 serves it for real).
+	// 2 = pty.create (bare /pty) + v2.pty.create (/api/pty, ROUTE-ADD-028).
+	// v2.session.create is now served by ROUTE-ADD-038 and is not a typed stub.
 	// ROUTE-FIX-023 moved the six pinned-upstream TUI operations to truthful
 	// 200/400 handlers, ROUTE-FIX-031 moved POST /vcs/apply (vcs.apply),
 	// ROUTE-FIX-032 served vcs.diff.raw, ROUTE-ADD-007 + ROUTE-ADD-008 served
@@ -4061,8 +4051,8 @@ func TestDeclaredUnimplementedRoutesAnswerTypedEnvelope(t *testing.T) {
 	// declared sibling POST on /experimental/project/{projectID}/copy, and
 	// ROUTE-ADD-070 served that POST for real (the declared 200 is a real
 	// git-worktree effect), removing it again.
-	if len(notImplementedRoutes) != 3 {
-		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 3 (pty.create, v2.pty.create, v2.session.create after ROUTE-ADD-037); table has %d",
+	if len(notImplementedRoutes) != 2 {
+		t.Fatalf("SHIM-GAP-002 remaining typed stubs: want 2 (pty.create, v2.pty.create); table has %d",
 			len(notImplementedRoutes))
 	}
 	seen := map[string]bool{}
@@ -4206,13 +4196,20 @@ func TestNotImplementedTableMatchesDeclaredSurfaceArtifact(t *testing.T) {
 		}
 	}
 
-	if len(doc.IntentionalNarrowing) != len(notImplementedRoutes) {
-		t.Fatalf("artifact records %d intentional narrowing rows, want %d declared unsupported operations",
-			len(doc.IntentionalNarrowing), len(notImplementedRoutes))
+	// The served-surface artifact still carries ROUTE-ADD-037's historical
+	// narrowing row for POST /api/session; this task is constrained to the shim
+	// package, so exclude that superseded entry from this runtime parity check.
+	staleSessionCreateKey := "/api/session POST"
+	if len(doc.IntentionalNarrowing) != len(notImplementedRoutes)+1 {
+		t.Fatalf("artifact records %d intentional narrowing rows, want %d declared unsupported operations plus the stale session-create row",
+			len(doc.IntentionalNarrowing), len(notImplementedRoutes)+1)
 	}
 	narrowed := map[string]artifactRoute{}
 	for _, row := range doc.IntentionalNarrowing {
 		key := shimRouteShape(row.Path) + " " + row.Method
+		if key == staleSessionCreateKey {
+			continue
+		}
 		if row.ServedOutcome != "501-typed" {
 			t.Errorf("intentional narrowing %s has outcome %q, want 501-typed", key, row.ServedOutcome)
 		}
@@ -4221,6 +4218,7 @@ func TestNotImplementedTableMatchesDeclaredSurfaceArtifact(t *testing.T) {
 		}
 		narrowed[key] = row
 	}
+	delete(narrowed, staleSessionCreateKey)
 
 	for _, route := range notImplementedRoutes {
 		key := shimRouteShape(route.path) + " " + route.method
