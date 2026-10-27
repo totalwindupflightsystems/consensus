@@ -65,10 +65,10 @@ Run migrations independently before starting the server:
 
 ```bash
 # Check current migration status
-./bin/consensus migrate status --db-url postgres://user:pass@host:5432/consensus
+./bin/consensus migrate version --db-url postgres://user:***@host:5432/consensus
 
 # Apply all pending migrations
-./bin/consensus migrate up --db-url postgres://user:pass@host:5432/consensus
+./bin/consensus migrate run --db-url postgres://user:***@host:5432/consensus
 
 # Rollback last migration (emergency only)
 ./bin/consensus migrate rollback --db-url postgres://user:pass@host:5432/consensus
@@ -79,7 +79,7 @@ Run migrations independently before starting the server:
 The CLI preflights the implicit Consensus server at port 8090 before running most commands. If that port is occupied by a non-Consensus service, pass a harmless, non-listening custom server URL to bypass that identity probe. The URL is not contacted for a direct `--db-url` migration; the migration still runs against the database URL:
 
 ```bash
-./bin/consensus migrate status --server http://127.0.0.1:19999 --db-url sqlite:///tmp/consensus.db
+./bin/consensus migrate version --server http://127.0.0.1:19999 --db-url sqlite:///tmp/consensus.db
 ./bin/consensus migrate rollback --server http://127.0.0.1:19999 --db-url sqlite:///tmp/consensus.db
 ```
 
@@ -116,7 +116,7 @@ curl -H "Authorization: Bearer $CONSENSUS_API_KEY" http://localhost:8090/api/v1/
 |-------|---------|----------|
 | Server running | `curl localhost:8090/api/v1/health` | HTTP 200, `status: ok` |
 | DB connected | Health check includes DB | `database: connected` |
-| Schema current | `./bin/consensus migrate status` | `Schema version: N` (latest) |
+| Schema current | `./bin/consensus migrate version` | `Schema version: N` (latest) |
 | Bootstrap key | Server stdout at startup | `Admin key: cs_ak_...` |
 | LLM configured | Server logs | `consensus: starting` |
 
@@ -164,7 +164,7 @@ cp bin/consensus.prev bin/consensus  # if you kept a backup
 ## Verification
 
 - [ ] Binary compiles: `make build`
-- [ ] Migrations apply: `./bin/consensus migrate status`
+- [ ] Migrations apply: `./bin/consensus migrate version --db-url postgres://user:***@host:5432/consensus`
 - [ ] Server starts: `curl localhost:8090/api/v1/health` → 200
 - [ ] Auth works: `curl` with API key → sessions list
 - [ ] Bootstrap key printed on first startup

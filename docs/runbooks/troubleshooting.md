@@ -55,7 +55,7 @@ Set via `CONSENSUS_LOG_LEVEL` env var or `--log-level` flag:
 
 ```bash
 # Enable debug logging
-CONSENSUS_LOG_LEVEL=debug ./bin/consensus serve --db sqlite://consensus.db
+CONSENSUS_LOG_LEVEL=debug ./bin/consensus serve --db-url sqlite://consensus.db
 ```
 
 ### Key Log Messages to Watch
@@ -95,7 +95,7 @@ curl http://localhost:8090/api/v1/health
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| HTTP 200 with `status: "degraded"` | DB slow or migration pending | Check DB load, run migrate status |
+| HTTP 200 with `status: "degraded"` | DB slow or migration pending | Check DB load, run `migrate version` |
 | HTTP 503 | DB not connected | Check DB URL, credentials |
 | Connection refused | Server not running | Start the binary |
 | Timeout | Firewall or wrong port | Check listen address in config |
@@ -144,12 +144,12 @@ curl -H "Authorization: Bearer $CONSENSUS_API_KEY" \
 
 3. **Check migration state** — if DB connects but schema is wrong:
    ```bash
-   ./bin/consensus migrate status --db-url "$DATABASE_URL"
+   ./bin/consensus migrate version --db-url "$DATABASE_URL"
    ```
 
    If port 8090 is occupied by a non-Consensus service, the CLI's default-server identity preflight can block a direct database migration. Bypass that probe with a harmless, non-listening custom URL; it is not contacted when `--db-url` selects direct-DB mode:
    ```bash
-   ./bin/consensus migrate status --server http://127.0.0.1:19999 --db-url "$DATABASE_URL"
+   ./bin/consensus migrate version --server http://127.0.0.1:19999 --db-url "$DATABASE_URL"
    ./bin/consensus migrate rollback --server http://127.0.0.1:19999 --db-url "$DATABASE_URL"
    ```
    The equivalent environment override is `CONSENSUS_SERVER=http://127.0.0.1:19999`.
@@ -267,8 +267,8 @@ du -sh /var/log/consensus/
 # Health check
 curl http://localhost:8090/api/v1/health
 
-# Migration status
-./bin/consensus migrate status --db-url "$DATABASE_URL"
+# Migration version
+./bin/consensus migrate version --db-url "$DATABASE_URL"
 
 # View active sessions
 ./bin/consensus session list
