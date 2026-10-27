@@ -1,0 +1,24 @@
+{
+  "scheduler_tick": "consensus-foreman-2026-10-27-11-52-25",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "budget": 12,
+  "base": "origin/main",
+  "base_sha": "3fbe77deb100f7eaa892412223f5e9ee1918a652",
+  "selected": ["INT-BOARD-1"],
+  "workers": [
+    {
+      "task_id": "INT-BOARD-1",
+      "worktree": "/home/kara/worktrees/consensus-INT-BOARD-1",
+      "branch": "wt/INT-BOARD-1",
+      "base_sha": "3fbe77deb100f7eaa892412223f5e9ee1918a652",
+      "brief": "/tmp/consensus-foreman-2026-10-27-11-52-25-INT-BOARD-1-brief.txt",
+      "model": "glm-5.3-flash",
+      "provider": "zai-glm",
+      "dispatch_script": "/tmp/consensus-foreman-2026-10-27-11-52-25-dispatch.sh",
+      "pid": 2801870,
+      "state": "dispatched"
+    }
+  ],
+  "trace": "ch:trace row=INT-BOARD-1 spec=.coding-hermes/board/tasks.jsonl#acceptance wave=.coding-hermes/waves/consensus-foreman-2026-10-27-11-52-25.json#INT-BOARD-1 test=scripts/board-commit-ancestry-audit.py doc=scripts/board-commit-ancestry-audit.py prompt=/tmp/consensus-foreman-2026-10-27-11-52-25-INT-BOARD-1-brief.txt evidence=none:foreman-verifies-after-merge witness=none:worker-report-only verdict=none:foreman-runs-gitreins-judge commit=worker-commit memory=none:foreman-writes"
+}
