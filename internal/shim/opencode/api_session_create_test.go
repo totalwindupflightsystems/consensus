@@ -108,9 +108,20 @@ func TestApiSessionCreateExactRouteRegistration(t *testing.T) {
 	s.skipAuth = true
 	srv := httptest.NewServer(s.Handler())
 	defer srv.Close()
+	// ROUTE-ADD-040 registers the declared one-segment parameter shape
+	// /api/session/{sessionID} (v2.session.get, GET-only), so "extra" is no
+	// longer an unrouted path: POST on it answers the session-get family's
+	// METHOD_NOT_ALLOWED (GET is the only method that path declares) and the
+	// create route keeps its own exact /api/session registration. A DEEPER
+	// sub-path is still unrouted and keeps net/http's default 404 — the
+	// original no-catch-all guarantee of ROUTE-ADD-038.
 	status, _, body := doShimRequestWithBody(t, srv.URL, http.MethodPost, "/api/session/extra", `{"agent_name":"planner","goal":"ship feature"}`)
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("POST /api/session/extra: got %d, want 405 (the declared v2.session.get path, GET-only, was registered by ROUTE-ADD-040). Body: %s", status, body)
+	}
+	status, _, body = doShimRequestWithBody(t, srv.URL, http.MethodPost, "/api/session/extra/deeper", `{"agent_name":"planner","goal":"ship feature"}`)
 	if status != http.StatusNotFound {
-		t.Errorf("POST /api/session/extra: got %d, want 404 (exact route only). Body: %s", status, body)
+		t.Errorf("POST /api/session/extra/deeper: got %d, want 404 (exact shapes only, never a catch-all). Body: %s", status, body)
 	}
 }
 

@@ -147,6 +147,19 @@ func DefaultPlanningConfig() *PlanningConfig {
 	}
 }
 
+// planningConfig returns the configuration a production dispatch hands to
+// RunInteractivePlanning: the spec defaults with the operator's planning
+// deadline applied (harness.planning_timeout_seconds → h.PlanningTimeout,
+// CONFIG-INERT-1). A zero/negative field keeps the default, so the shipped
+// behavior (180s) is unchanged for every caller that never sets it.
+func (h *Harness) planningConfig() *PlanningConfig {
+	cfg := DefaultPlanningConfig()
+	if h.PlanningTimeout > 0 {
+		cfg.Timeout = h.PlanningTimeout
+	}
+	return cfg
+}
+
 // ============================================================================
 // RunInteractivePlanning — the main entry point (SPEC-020 §5)
 // ============================================================================

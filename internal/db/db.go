@@ -77,10 +77,6 @@ type Config struct {
 	// backends: Postgres pool sizing and SQLite SetMaxOpenConns (<= 0 falls back to 4).
 	MaxOpenConns int `yaml:"max_open_conns" json:"max_open_conns"`
 
-	// MaxIdleConns is the maximum number of idle connections (Postgres only;
-	// the SQLite backend does not consume this value yet).
-	MaxIdleConns int `yaml:"max_idle_conns" json:"max_idle_conns"`
-
 	// BusyTimeoutMs is the SQLite busy timeout in milliseconds.
 	// When a SQLite operation encounters a locked database, it retries for this
 	// duration before returning SQLITE_BUSY. Defaults to 5000 (5 seconds).

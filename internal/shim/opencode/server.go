@@ -386,6 +386,23 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// against, and POST is the only method the pinned document declares here,
 	// so undeclared methods keep the METHOD_NOT_ALLOWED envelope.
 	mux.HandleFunc("/api/session/{sessionID}/agent", s.handleApiSessionAgent)
+	// ROUTE-ADD-040 (merged from wt/route-add-040, 75e417a + 7fabf15) /
+	// source item SHIM-DRIFT-036 (the board row's citation; positional ids
+	// renumber on regeneration — the operation identity is
+	// GET /api/session/{sessionID} v2.session.get): the declared v2.session.get
+	// operation had no shim route, so it fell through to net/http's default 404
+	// — the drift artifact's NOT-SERVED class. Register the exact one-segment
+	// parameter shape for real (api_session_get.go): the declared 200 envelope,
+	// the declared InvalidRequestError 400, the declared UnauthorizedError 401
+	// via the one-segment v2 envelope rule in isV2EnvelopeRoutePath, and the
+	// declared NotFoundError 404. GET is the ONLY method the pinned document
+	// declares on this path, so every other method keeps the
+	// METHOD_NOT_ALLOWED envelope; deeper /api/session/{sessionID}/... paths
+	// keep the net/http default 404 their own contract rows are filed against
+	// (more specific patterns — this exact shape, /api/session/active and the
+	// sibling two-segment routes — always win over the one-segment wildcard,
+	// so no sibling operation is reclassified by this registration).
+	mux.HandleFunc("/api/session/{sessionID}", s.handleApiSessionGet)
 	// ROUTE-ADD-026: the declared v2.provider.list operation (GET /api/provider)
 	// had no shim route at all, so the request fell through to net/http's
 	// default 404. Register the exact path for real; never an /api/* or
@@ -432,6 +449,22 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// own rows (ROUTE-ADD-033/034) and deeper /api/pty/* sub-paths keep the
 	// answers they are classified with.
 	mux.HandleFunc("/api/pty/{ptyID}", s.handleApiPtyByID)
+	// ROUTE-ADD-049 (merged from wt/ROUTE-ADD-049, 3e0b67f) — POST
+	// /api/session/{sessionID}/model, upstream v2.session.switchModel
+	// (SHIM-DRIFT-010): the declared operation had no shim route at all, so
+	// the request fell through to net/http's default 404. Register the exact
+	// two-segment shape (api_session_model_switch.go). The handler completes
+	// the merge on this tree: the 401 arm is served through the
+	// isApiSessionModelPath rule in isV2EnvelopeRoutePath below (a literal
+	// v2EnvelopeRoutePaths entry can never match a parameterized concrete
+	// path), and the session-existence 404 is decided with the shared
+	// isNoRowsResult seam (internal/db reports a missing row as its own error
+	// string, not sql.ErrNoRows — the ROUTE-ADD-041 api_session_agent.go
+	// pattern this tree carries). The v2 InvalidRequestError 400 for a blank
+	// segment, the declared 204 no-op, and the exact-shape registration (the
+	// sibling one-segment v2.session.get and deeper /api/session/* paths keep
+	// their own answers) are unchanged from the branch commit.
+	mux.HandleFunc("/api/session/{sessionID}/model", s.handleApiSessionModelSwitch)
 	// ROUTE-ADD-015+016 merge resolution: the shared exact parameter pattern
 	// /api/integration/attempt/{attemptID} is registered ONCE and dispatched
 	// by method — GET status -> handleApiIntegrationRA016 (v2.integration.attempt.status,
@@ -759,6 +792,20 @@ var MountPatterns = []string{
 	// operation keeps the answer (net/http default 404) its own contract row
 	// is filed against — the ROUTE-ADD-037/039 exact-entry convention.
 	"/api/session/{sessionID}/agent",
+	// ROUTE-ADD-040 (merged from wt/route-add-040): exact declared parameter
+	// shape for v2.session.get so a parent chi mount reaches the shim route;
+	// never an /api/session/* subtree mount and never an /api/* catch-all, so
+	// the deeper declared /api/session/{sessionID}/... operations keep the
+	// answers they are classified with (the /api/provider/{providerID}
+	// precedent).
+	"/api/session/{sessionID}",
+	// ROUTE-ADD-049 (merged from wt/ROUTE-ADD-049): exact
+	// /api/session/{sessionID}/model (v2.session.switchModel) so a parent chi
+	// mount reaches the shim route. Concrete two-segment pattern, never an
+	// /api/session/* subtree mount, so every sibling declared
+	// /api/session/{sessionID}[...] operation keeps the answer its own
+	// contract row is filed against.
+	"/api/session/{sessionID}/model",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -916,8 +963,8 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// ROUTE-ADD-039: the declared v2.session.active path takes the v2
 	// UnauthorizedError 401 envelope (the operation declares it). Membership
 	// stays exact-path: GET is the only declared method on this path, and
-	// the /api/session/{sessionID}[...] operations — which have no route
-	// here — keep the shim's own envelope until their own contract rows land.
+	// the parameterized /api/session/{sessionID} shapes reach their own
+	// rules in isV2EnvelopeRoutePath below.
 	"/api/session/active": {},
 	// ROUTE-ADD-026: the declared v2.provider.list path takes the v2
 	// UnauthorizedError 401 envelope (this operation declares it); membership
@@ -1028,6 +1075,30 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// sub-paths keep the shim's own envelope.
 	if isApiSessionAgentPath(path) {
 		return true
+	}
+	// ROUTE-ADD-049 (merged from wt/ROUTE-ADD-049): the declared
+	// v2.session.switchModel path (POST /api/session/{sessionID}/model)
+	// carries the same v2 UnauthorizedError arm. The rule admits only the
+	// concrete two-segment shape whose second segment is literally "model",
+	// so the sibling one-segment v2.session.get shape, the sibling
+	// two-segment switchAgent shape and every deeper /api/session/* sub-path
+	// keep the shim's own envelope. (The branch commit instead registered a
+	// literal "/api/session/{sessionID}/model" entry in the exact map above —
+	// a shape that key can never match, so the merged rule replaces it.)
+	if isApiSessionModelPath(path) {
+		return true
+	}
+	// ROUTE-ADD-040 (merged from wt/route-add-040): the declared v2.session.get
+	// path (GET /api/session/{sessionID}) declares the same v2 UnauthorizedError
+	// 401 arm as its sibling v2.session.list / v2.session.active operations,
+	// which the exact map above covers for their literal paths. The
+	// one-segment rule admits only the concrete parameter shape, so a blank
+	// or deeper /api/session/* path keeps the shim's own envelope. The rule
+	// also admits /api/session/active — that path is itself a declared v2
+	// operation carrying the same 401 arm, and the exact map entry above
+	// already classifies it; no undeclared path gains the envelope.
+	if rest, ok := strings.CutPrefix(path, "/api/session/"); ok {
+		return rest != "" && !strings.Contains(rest, "/")
 	}
 	_, ok := v2EnvelopeRoutePaths[path]
 	return ok
