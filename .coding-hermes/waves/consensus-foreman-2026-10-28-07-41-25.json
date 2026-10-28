@@ -1,0 +1,35 @@
+{
+  "scheduler_tick": "consensus-foreman-2026-10-28-07-41-25",
+  "project": "consensus",
+  "mode": "serial-fallback",
+  "budget": 11,
+  "composition_note": "Wave rejected: all 31 pending ROUTE-ADD rows share 4 hot seams (server.go registration + MountPatterns + isV2EnvelopeRoutePath, the generated comparator JSON, consensus-shim-served-surface.yaml, specs/018 section 12.3 ledger). File-disjointness doctrine says concurrent writers to one seam trade a queue slot for a merge conflict that costs the whole merge gate. Project rule also caps ticks at one worker.",
+  "base": "origin/main",
+  "base_sha": "1106e4c",
+  "selected": ["ROUTE-ADD-045", "ROUTE-ADD-047", "ROUTE-ADD-048"],
+  "unit_rationale": "One store family (memory_events + display_modes) and one dispatcher shape; the three rows are sibling message-read operations of the same declared path prefix. Grouped per the path-not-row law.",
+  "workers": [
+    {
+      "task_ids": ["ROUTE-ADD-045", "ROUTE-ADD-047", "ROUTE-ADD-048"],
+      "gitreins_task": "route-add-045",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-045",
+      "branch": "wt/ROUTE-ADD-045",
+      "base_sha": "1106e4c",
+      "brief": "/tmp/consensus-foreman-2026-10-28-07-41-25-brief-045.txt",
+      "model": "glm-5.3-flash",
+      "provider": "zai-glm",
+      "dispatch_script": "/tmp/consensus-foreman-2026-10-28-07-41-25-dispatch.sh",
+      "pid": 1713210,
+      "state": "merged",
+      "result": "Worker committed 54e6488 (12 files, +1890/-72) after 59 min; foreman verified all gates on the worktree, amended the commit message for the co-author trailer (f4848f1), merged --no-ff as d61be8b with trailer on the merge, rebuilt via commit-tree CAS after an amend mis-target (disclosed below)."
+    }
+  ],
+  "final_shas": {
+    "implementation": "f4848f1",
+    "merge": "d61be8b",
+    "verdict_tier1": "7efbbdf9",
+    "tier2_job": "job-a143871eb7734ff5b0cd26210898d6d6"
+  },
+  "incident_disclosure": "Foreman error and repair, both disclosed: the first trailer amend ran against HEAD-of-merge on main instead of the worker commit (the merge briefly carried the worker's message + trailer while the implementation commit lacked it, inverting the repo convention). Repair: amended the worker commit in its own worktree (54e6488 -> f4848f1), rebuilt the merge via git commit-tree + CAS update-ref so no reset --hard touched the shared tree (approval-gated anyway), gates re-run on the rebuilt merge (build/vet/shim suite/check-spec-parity PASS at d61be8b).",
+  "trace": "ch:trace row=ROUTE-ADD-045 spec=specs/openapi/upstream/openapi-1.18.33.json#v2.session.history test=internal/shim/opencode/api_session_history_test.go doc=specs/openapi/upstream/consensus-shim-served-surface.yaml wave=.coding-hermes/waves/consensus-foreman-2026-10-28-07-41-25.json evidence=docs/evidence/ROUTE-ADD-045-live-probe.md witness=session:20261028_030944_9fb128 verdict=7efbbdf9+tier2-async:job-a143871eb7734ff5b0cd26210898d6d6 commit=f4848f1 memory=none:foreman-writes"
+}
