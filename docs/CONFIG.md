@@ -7,13 +7,17 @@ controls in the running server.
 The single source of truth is the `Config` struct and its `Defaults()` constructor in
 [`internal/config/config.go`](../internal/config/config.go). This page documents what that
 file declares and what the rest of the tree consumes — nothing is inferred from the sample
-`consensus.yaml`, and where a key is declared but **not** wired into the runtime the entry
-says so explicitly (see [§6](#6-keys-the-loader-parses-but-nothing-consumes)).
+`consensus.yaml`. Every key named by CONFIG-INERT-1 now either has a named runtime reader or
+is gone from the surface — the keys that were taken off, and why, are listed in
+[§6](#6-keys-removed-by-config-inert-1). One known gap remains outside that row's scope and
+is stated where it appears: `adapters.opencode.admin_key` (§5.10), which the shim accepts
+and does not read.
 
 *Verified against:* `internal/config/config.go`, `cmd/consensus/main.go`,
 `internal/cli/serve.go`, `internal/cli/mcp_stdio.go`, `internal/db/db.go`,
 `internal/db/sqlite/sqlite.go`, `internal/api/server.go`, `internal/hitl/hitl.go`,
-`internal/compression/worker.go`, `consensus.yaml`.
+`internal/harness/planning.go`, `internal/harness/executor.go`,
+`internal/compression/worker.go`, `internal/crier/client.go`, `consensus.yaml`.
 
 ---
 
@@ -177,7 +181,6 @@ Sample file sets `hostname: 127.0.0.1`, `port: 8090`, and omits `pprof_addr`.
 | `llm.provider` | string | `openai` | `CONSENSUS_LLM_PROVIDER`; also forced to `openrouter` by `OPENROUTER_API_KEY` | Selects the client implementation: `openai`, `anthropic`, `openrouter`, or `mock`. `mock` is the credential-free in-process client and is the only provider that skips the §4.2 fatal and the §4.3 probe. |
 | `llm.api_key` | string | non-empty placeholder literal — **not** a usable credential (`internal/config/config.go:171`, DF-CONSENSUS-58) | `CONSENSUS_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY` (see §3) | Bearer credential for completions, embeddings, and the summarizer. |
 | `llm.base_url` | string | `""` (provider factory default) | `CONSENSUS_LLM_BASE_URL`, then `OPENROUTER_BASE_URL` | API root, e.g. `https://api.deepseek.com/v1`. Also the host used for embeddings (§5.7). |
-| `llm.max_context_tokens` | int | `128000` | none | Parsed only — no runtime consumer was found for `Config.LLM.MaxContext` outside `internal/config`. Per-session context budgets come from the session row (`context_budget`), not this key. |
 | `llm.max_output_tokens` | int | `16384` | none | `llm.Config.MaxTokens` for each completion (`cmd/consensus/main.go:163`); a value `<= 0` falls back to `16384` (`cmd/consensus/main.go:167-169`). |
 
 Sample file pins `default_model: deepseek-v4-flash`, `provider: openai`,
@@ -189,12 +192,17 @@ Sample file pins `default_model: deepseek-v4-flash`, `provider: openai`,
 |---|---|---|---|---|
 | `harness.heartbeat_interval_seconds` | int | `5` | none | Heartbeat poller tick (`h.HeartbeatConfig.Interval`); applied only when `> 0` (`cmd/consensus/main.go:186-188`). This is how often idle sessions are re-dispatched; a session's inbound message also wakes it immediately. |
 | `harness.max_consecutive_errors` | int | `3` | none | Circuit-breaker threshold: after this many consecutive failed iterations the session is paused (`internal/harness/circuit.go:124-127`). Applied only when `> 0` (`cmd/consensus/main.go:189-191`). |
-| `harness.max_iterations` | int | `100` | none | Parsed into `Config.Harness`; **no consumer** — the serve path never copies it into the harness. The per-run iteration cap is read from the session row: `sessions.planning_max_turns`, `COALESCE`d to `3` (`internal/harness/context.go:506-532`). Setting it today changes nothing (§6). |
-| `harness.budget_limit_cents` | int | `1000` | none | Parsed only. Per-session enforcement uses `sessions.budget_limit_cents` (migration 022, `NOT NULL DEFAULT 0` = no limit), so this key does not cap spend (§6). |
-| `harness.planning_timeout_seconds` | int | `180` | none | Declared as "max seconds for the full planning session"; LLM calls and SQLite writes compete for that one deadline, and the field comment suggests 300+ for a slow local model (LM Studio). **Not wired**: a repository-wide grep finds no reader of `Config.Harness.PlanningTimeoutSec` outside `internal/config` (§6). |
-| `harness.transaction_timeout_ms` | int | `60000` | none | Declared as "max milliseconds a single SQL statement may hold the planning transaction". **Not wired** (§6). The SQLite lock wait is controlled instead by `database.busy_timeout_ms`, which is not present in the shipped sample. |
+| `harness.planning_timeout_seconds` | int | `180` | none | Deadline for one interactive planning session: it becomes `PlanningConfig.Timeout`, applied as the planning context's deadline (`internal/harness/planning.go`, `RunInteractivePlanning`). Wired end to end — `cmd/consensus/main.go` sets `h.PlanningTimeout` and the dispatcher passes `h.planningConfig()` (`internal/harness/executor.go`). Raise it for a slow local model (LM Studio needs 300+); `<= 0` keeps the 180s default. |
 
-Sample file sets the first four keys (`5`, `100`, `3`, `1000`) and omits the two timeouts.
+Sample file sets `heartbeat_interval_seconds: 5`, `max_consecutive_errors: 3` and
+`planning_timeout_seconds: 180`.
+
+**Not in this section, by design:** the per-run turn cap and the spend cap are *session*
+state, set when the session is created — `sessions.planning_max_turns`
+(default `3`, `internal/harness/context.go:506-532`) and `sessions.budget_limit_cents`
+(migration 022, `0` = no limit). A process-wide YAML key for either would be a second
+source of truth, so `harness.max_iterations` and `harness.budget_limit_cents` were removed
+(§6) rather than wired to a value the harness would have to prefer over the session row.
 
 ### 5.4 `database`
 
@@ -204,7 +212,6 @@ Struct is `db.Config` (`internal/db/db.go:70-88`).
 |---|---|---|---|---|
 | `database.url` | string | `sqlite://$HOME/.consensus/consensus.db` | `CONSENSUS_DB_URL` | Connection string. `sqlite://` URLs get `$HOME`, `${HOME}`, and a leading `~` expanded (`resolveDBURL`, `internal/config/config.go:301-321`); `postgres://` URLs are passed through untouched. Backend is inferred from the scheme. |
 | `database.max_open_conns` | int | `8` | none | Pool size for both backends: Postgres `MaxConns` and the SQLite `SetMaxOpenConns` cap. `<= 0` falls back to `4` on SQLite (`internal/db/sqlite/sqlite.go:90-94`). |
-| `database.max_idle_conns` | int | `0` | none | Declared for Postgres pooling; **neither backend reads it** — `internal/db/postgres/postgres.go` sets only `MaxOpenConns` (§6). |
 | `database.busy_timeout_ms` | int | `0` → effective `5000` | none | SQLite only: lock-retry window before `SQLITE_BUSY`. `<= 0` means 5000 ms (`internal/db/sqlite/sqlite.go:49-53`). Ignored by Postgres. Not in the shipped sample. |
 
 Sample file sets `url: sqlite://dev.db?_journal_mode=WAL` and `max_open_conns: 10` (raised
@@ -215,28 +222,25 @@ the measurement).
 
 | Key | Type | Default (compiled) | Env override | Effect |
 |---|---|---|---|---|
-| `hitl.auto_pause_on_error_threshold` | int | `3` | none | Parsed only — see the note below. |
-| `hitl.require_approval_for_destructive` | bool | `true` | none | Parsed only. |
-| `hitl.require_approval_for_schema_changes` | bool | `true` | none | Parsed only. |
-| `hitl.approval_timeout_minutes` | int | `60` | none | Parsed only. |
+| `hitl.auto_pause_on_error_threshold` | int | `3` | none | Consecutive-error threshold persisted into the **global** HITL configuration at startup. Effective for every session without a session-scoped override. `<= 0` keeps the shipped default. |
+| `hitl.require_approval_for_destructive` | bool | `true` | none | Global gate: destructive operations park for human approval before they run. |
+| `hitl.require_approval_for_schema_changes` | bool | `true` | none | Global gate: schema changes park for human approval. |
+| `hitl.approval_timeout_minutes` | int | `60` | none | Lifetime of a pending approval: `expires_at = now + this` (`internal/hitl/hitl.go`, `RequestApproval`). The expiry cron then fails sessions left paused with only expired approvals. `<= 0` keeps the shipped default. |
 
-**These four keys do not reach the HITL manager.** `runServer` builds the manager and writes
-`hitl.DefaultConfiguration()` into the database at every start
-(`cmd/consensus/main.go:281-299`); the effective values are the ones in
-`internal/hitl/hitl.go:146-156` (same numbers as the defaults above, plus
-`require_approval_for_external_tools: false` and `notify_on_pause: true`, which have no YAML
-key at all). Grepping for `Config.HITL` finds no reader outside `internal/config` and its
-tests, and `hitl.Manager.SetConfiguration` has exactly one caller — that startup write — so
-there is no API or CLI writer that could apply a value from this section either. Change the
-numbers in `internal/hitl/hitl.go` (or wire the config in) before expecting this section to
-matter (§6).
+These four keys are **wired** (CONFIG-INERT-1). `runServer` builds the manager and writes the
+global configuration from the resolved config at every start
+(`cmd/consensus/main.go` → `hitlConfigurationFromConfig`), so the values in this section are
+the ones `GET /api/v1/sessions/{id}/approvals` and the approval gate act on. Two settings
+have no YAML key and keep their `internal/hitl/hitl.go` defaults —
+`require_approval_for_external_tools: false` and `notify_on_pause: true`. A session-scoped
+row written through the API still takes precedence over the global row.
 
 ### 5.6 `logging`
 
 | Key | Type | Default (compiled) | Env override | Effect |
 |---|---|---|---|---|
-| `logging.level` | string | `info` | `CONSENSUS_LOG_LEVEL` | Parsed into `Config.Logging.Level` and overridden from the env var — but **no consumer reads it**. `runServer` and `runMCPStdio` install a fixed `slog.LevelInfo` text handler on stderr (`cmd/consensus/main.go:92`, `:521`), and `serve --log-level` only sets the env var that nobody reads. A non-`info` level therefore has no effect today (§6). |
-| `logging.format` | string | `text` | none | Parsed only; the handler is hard-coded to `slog.NewTextHandler`. |
+| `logging.level` | string | `info` | `CONSENSUS_LOG_LEVEL` | Minimum level of the process logger: `debug`, `info`, `warn` (`warning` accepted) or `error`, case-insensitive. Unknown values fall back to `info` rather than failing startup. Applied through `LoggingConfig.SlogHandler`, which `runServer` and `runMCPStdio` install with `slog.SetDefault` (CONFIG-INERT-1). `serve --log-level` sets the same env var, so the flag works too. |
+| `logging.format` | string | `text` | none | `text` emits the human-readable `level=… msg=…` lines; `json` emits one JSON object per line (for log collectors). Anything else is treated as `text`. |
 
 ### 5.7 `compression`
 
@@ -279,9 +283,16 @@ request over the ceiling gets `429 RATE_LIMITED`.
 ### 5.9 `crier`
 
 Inbound crier message-bus settings (CR-IN-001). **The shipped `consensus.yaml` has no
-`crier` section** — this is a loader-supported section, and the server has no runtime
-consumer for it today: `internal/crier` exists as a package, but nothing in `cmd/consensus`
-imports it, so the intake is not started by `serve` (§6).
+`crier` section.**
+
+The consumer path is `internal/crier` — the client (register / deliver /
+retrieve-with-lease / ack) and the intake that appends retrieved messages to the session
+ledger — and the section resolves exactly the ladder that client uses. What does *not*
+exist is a runner: `consensus serve` starts no intake loop, so these values reach the
+package only when an intake caller constructs it with them. This is the **one section this
+page still describes as configure-only**, and the server says so out loud: a configured
+`crier` section produces a startup warning naming the missing runner
+(`ApplyStartupValidations`), so it is never silently accepted.
 
 | Key | Type | Default (compiled) | Env override | Effect |
 |---|---|---|---|---|
@@ -295,31 +306,36 @@ Also absent from the shipped `consensus.yaml`. Both adapters default to **enable
 | Key | Type | Default (compiled) | Env override | Effect |
 |---|---|---|---|---|
 | `adapters.opencode.enabled` | bool | `true` | none | Mounts the opencode-compatible shim (`cmd/consensus/main.go:444-446`), including the auth-free `/instance/*` surface — see the loopback warning in §4.2. |
-| `adapters.opencode.admin_key` | string | `""` | none | Admin API key used for auth translation in the shim. |
+| `adapters.opencode.admin_key` | string | `""` | none | **Accepted, not read.** Startup passes it to `opencode.NewServer`, which stores it and no handler reads it — the same known gap recorded in [`runbooks/serve-adapters.md`](runbooks/serve-adapters.md). Leave it empty; the shim's `/instance/*` surface is auth-free by design (§4.2). |
 | `adapters.h3.enabled` | bool | `true` | none | Mounts the H3 protocol adapter (`cmd/consensus/main.go:473-480`). |
 
 ---
 
-## 6. Keys the loader parses but nothing consumes
+## 6. Keys removed by CONFIG-INERT-1
 
-Documented honestly rather than omitted: setting these has no effect on the running server
-today. Each is either a declared-but-unwired setting or a value the runtime takes from
-another source.
+These keys were declared, defaulted and (in some docs) promised, and no runtime reader
+existed for them: setting them changed nothing. They are **gone** from `Config`, from the
+shipped `consensus.yaml` and from this page; the value the runtime really uses is named
+below. Two consequences worth knowing:
 
-| Key | Status | Where the effective value actually comes from |
+- The loader is a plain `yaml.Unmarshal` with no `KnownFields` (§1), so an older config
+  file that still carries one of these keys **keeps loading** — the key is ignored, exactly
+  as it was ignored while it existed. There is no strict-decoding mode to turn on.
+- The surface is asserted by `TestConfigInertKeysResolved`
+  (`internal/config/config_test.go`): a deleted key re-appearing in the struct, or a wired
+  key disappearing, fails the test.
+
+| Removed key | Was defaulted to | Where the effective value actually comes from |
 |---|---|---|
-| `harness.planning_timeout_seconds` | parsed, defaulted (`180`), **no reader** | The planning deadline is the context passed into planning; `handlePlanningTimeout` reacts to a cancelled context (`internal/harness/planning.go:260`, `:1012`). Nothing derives that deadline from this key. |
-| `harness.transaction_timeout_ms` | parsed, defaulted (`60000`), **no reader** | SQLite lock waits come from `database.busy_timeout_ms` → `PRAGMA busy_timeout` (`internal/db/sqlite/sqlite.go:49-77`). |
-| `harness.max_iterations` | parsed, **not applied** | `sessions.planning_max_turns`, `COALESCE`d to `3` (`internal/harness/context.go:506-532`). |
-| `harness.budget_limit_cents` | parsed, **not applied** | `sessions.budget_limit_cents` (migration 022; `0` = no limit). |
-| `hitl.*` (all four) | parsed, **not applied** | `hitl.DefaultConfiguration()` re-persisted at every start (`cmd/consensus/main.go:296-299`); `SetConfiguration` has no other caller. |
-| `logging.level`, `logging.format` | parsed, **not applied** | Fixed `slog.LevelInfo` text handler (`cmd/consensus/main.go:92`). |
-| `llm.max_context_tokens` | parsed, **no reader** | Session `context_budget`. |
-| `database.max_idle_conns` | parsed, **no reader** | Postgres pool defaults. |
-| `crier.url`, `crier.agent_id` | parsed and env-overridable, **no consumer in `serve`** | `internal/crier` is not imported by `cmd/consensus`. |
+| `harness.max_iterations` | `100` | `sessions.planning_max_turns`, `COALESCE`d to `3` (`internal/harness/context.go:506-532`) — per-session state set at creation. |
+| `harness.budget_limit_cents` | `1000` | `sessions.budget_limit_cents` (migration 022; `0` = no limit), set at session creation and enforced per LLM call in `internal/harness/executor.go`. |
+| `harness.transaction_timeout_ms` | `60000` | No second policy: the SQLite lock wait is `database.busy_timeout_ms` → `PRAGMA busy_timeout` (`internal/db/sqlite/sqlite.go:49-77`). |
+| `llm.max_context_tokens` | `128000` | Session `context_budget` (per-creation), and `model_registry.max_context` for the model's real window. |
+| `database.max_idle_conns` | `0` | Nothing — neither backend had an idle cap to set (the Postgres pool is `pgxpool`, sized by `max_open_conns`). |
 
-Filing a bug against a value from this table is legitimate: the key is declared in the
-config struct and appears in the sample file, which is a reasonable expectation of effect.
+Filing a bug against a *current* key is legitimate: every key in §5 now has a named reader.
+A `crier` section is the one exception this page still flags (§5.9) — it is reported at
+startup instead of being applied, until an intake runner exists.
 
 ---
 
@@ -342,11 +358,13 @@ compression:
 harness:
   heartbeat_interval_seconds: 5
   max_consecutive_errors: 5
+  planning_timeout_seconds: 600   # slow local planner: whole planning session deadline
 ```
 
-A slow planner does **not** need `harness.planning_timeout_seconds` — that key is unwired
-(§6). Increase `database.busy_timeout_ms` (SQLite) if long planning writes collide with the
-heartbeat poller.
+`harness.planning_timeout_seconds` **is** the slow-model knob now (CONFIG-INERT-1): it
+bounds the entire planning session, LLM calls and SQLite writes included, and defaults to
+180s. Increase `database.busy_timeout_ms` (SQLite) as well if long planning writes collide
+with the heartbeat poller.
 
 ### DeepSeek direct (rate-limit tuning)
 

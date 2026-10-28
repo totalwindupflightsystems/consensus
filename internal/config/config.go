@@ -9,6 +9,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/url"
@@ -56,25 +57,28 @@ type LLMConfig struct {
 	Provider     string `yaml:"provider"` // openai | anthropic | openrouter
 	APIKey       string `yaml:"api_key"`
 	BaseURL      string `yaml:"base_url"` // override API base URL (e.g. OpenRouter)
-	MaxContext   int    `yaml:"max_context_tokens"`
 	MaxOutput    int    `yaml:"max_output_tokens"`
 }
 
 // HarnessConfig holds harness loop settings.
+//
+// Only keys with a runtime consumer live here (CONFIG-INERT-1). A key that
+// merely round-tripped through YAML was removed rather than kept as a promise
+// the binary does not keep: the per-run iteration cap and spend cap are
+// session state (sessions.planning_max_turns, sessions.budget_limit_cents,
+// set at session creation), not process configuration, and the SQLite lock
+// wait is database.busy_timeout_ms — so max_iterations, budget_limit_cents
+// and transaction_timeout_ms are gone from this surface.
 type HarnessConfig struct {
 	HeartbeatIntervalSec int `yaml:"heartbeat_interval_seconds"`
-	MaxIterations        int `yaml:"max_iterations"`
 	MaxConsecutiveErrors int `yaml:"max_consecutive_errors"`
-	BudgetLimitCents     int `yaml:"budget_limit_cents"`
 	// PlanningTimeoutSec is the max seconds for the full planning session.
 	// LLM calls + SQLite writes compete for this single deadline. If your
-	// model runs slow (>170s), increase this or see BusyTimeoutMs.
+	// model runs slow (>170s), increase this or see database.busy_timeout_ms.
 	// Default: 180 (3 minutes). Local LLMs like LM Studio may need 300+.
+	// Consumed by the harness: it becomes PlanningConfig.Timeout for every
+	// interactive planning dispatch (cmd/consensus/main.go → h.PlanningTimeout).
 	PlanningTimeoutSec int `yaml:"planning_timeout_seconds"`
-	// TransactionTimeoutMs is the max milliseconds a single SQL statement may
-	// hold the planning transaction before it's considered stuck.
-	// Default: 60000 (60s).
-	TransactionTimeoutMs int `yaml:"transaction_timeout_ms"`
 }
 
 // HITLConfig holds human-in-the-loop settings.
@@ -86,9 +90,42 @@ type HITLConfig struct {
 }
 
 // LoggingConfig holds logging settings.
+//
+// Both keys are consumed: runServer and runMCPStdio install the handler these
+// two values describe via SlogHandler (CONFIG-INERT-1).
 type LoggingConfig struct {
 	Level  string `yaml:"level"`  // debug | info | warn | error
 	Format string `yaml:"format"` // text | json
+}
+
+// SlogLevel maps logging.level onto a slog.Level. Unknown or empty values fall
+// back to slog.LevelInfo — the compiled default — instead of failing startup:
+// a mistyped level is an inconvenience, not a reason to refuse to boot. The
+// match is case-insensitive and "warning" is accepted for "warn".
+func (c LoggingConfig) SlogLevel() slog.Level {
+	switch strings.ToLower(strings.TrimSpace(c.Level)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+// SlogHandler builds the process log handler described by logging.level and
+// logging.format. format: json selects slog.NewJSONHandler (machine-readable
+// lines for collectors); anything else — including an unset value — selects
+// the text handler the binary has always shipped. Both entry points install
+// the result with slog.SetDefault, so these are the effective knobs.
+func (c LoggingConfig) SlogHandler(w io.Writer) slog.Handler {
+	opts := &slog.HandlerOptions{Level: c.SlogLevel()}
+	if strings.EqualFold(strings.TrimSpace(c.Format), "json") {
+		return slog.NewJSONHandler(w, opts)
+	}
+	return slog.NewTextHandler(w, opts)
 }
 
 // APIRateConfig holds API rate limiting defaults.
@@ -127,6 +164,14 @@ type CompressionConfig struct {
 // then crier.DefaultBaseURL (http://localhost:8767). The client does the same
 // resolution for an empty value, so a config file that omits the section and
 // an env-only deployment both end up at the same endpoint.
+//
+// Runtime status (CONFIG-INERT-1): the values are read by internal/crier's
+// client and intake, but no entry point starts an intake runner yet, so
+// configuring this section does not change what `consensus serve` does.
+// ApplyStartupValidations reports a configured section at startup rather than
+// accepting it silently; the section stays in the struct because the intake
+// package — client, intake and their regression tests — is the supported
+// consumer path (CR-IN-001) and resolves exactly this ladder.
 type CrierConfig struct {
 	// URL is the crier relay base URL. Empty falls back to
 	// CONSENSUS_CRIER_URL and then http://localhost:8767.
@@ -165,18 +210,14 @@ func Defaults() Config {
 			PprofAddr: "127.0.0.1:18090", // PERF-CONSENSUS-11: loopback-only; DF-58: server.port+10000 to avoid collision
 		},
 		LLM: LLMConfig{
-			Provider:   "openai",
-			MaxContext: 128000,
-			MaxOutput:  16384,
-			APIKey:     "test-key", // DF-CONSENSUS-58: non-empty so tests reach compression/hostname paths
+			Provider:  "openai",
+			MaxOutput: 16384,
+			APIKey:    "test-key", // DF-CONSENSUS-58: non-empty so tests reach compression/hostname paths
 		},
 		Harness: HarnessConfig{
 			HeartbeatIntervalSec: 5,
-			MaxIterations:        100,
 			MaxConsecutiveErrors: 3,
-			BudgetLimitCents:     1000,
 			PlanningTimeoutSec:   180,
-			TransactionTimeoutMs: 60000,
 		},
 		Database: db.Config{
 			URL:          resolveDBURL("sqlite://$HOME/.consensus/consensus.db"),
@@ -518,6 +559,18 @@ func (cfg *Config) ApplyStartupValidations() ([]string, error) {
 	if cfg.Compression.Enabled && strings.Contains(strings.ToLower(cfg.LLM.BaseURL), "deepseek") {
 		cfg.Compression.Enabled = false
 		warns = append(warns, "Compression worker DISABLED — provider DeepSeek has no embeddings endpoint (set compression.enabled=false or configure an OpenAI-compatible embeddings provider)")
+	}
+
+	// CONFIG-INERT-1: crier.url / crier.agent_id configure the inbound crier
+	// intake (internal/crier, CR-IN-001), and no entry point starts an intake
+	// runner yet. Accepting a configured section in silence would promise an
+	// effect the process does not have, so it is reported at startup instead.
+	if cfg.Crier.URL != "" || cfg.Crier.AgentID != "" {
+		warns = append(warns, fmt.Sprintf(
+			"crier section configured (url=%q agent_id=%q) but this binary starts no crier intake runner — "+
+				"internal/crier's client and intake resolve these values only when an intake caller "+
+				"constructs them (CR-IN-001); `consensus serve` consumes nothing from crier today",
+			cfg.Crier.URL, cfg.Crier.AgentID))
 	}
 
 	// DF-CONSENSUS-19: fail closed on "cannot prove loopback". A wildcard or
