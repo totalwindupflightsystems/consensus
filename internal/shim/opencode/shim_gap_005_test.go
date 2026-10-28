@@ -454,6 +454,15 @@ func shimGap005Requests() map[string]shimGap005Request {
 		// handler, answering the declared 404 for a well-formed id rather than
 		// fabricating a one-time ticket.
 		"v2.pty.connectToken": {http.MethodPost, "/api/pty/pty_gap5/connect-token", ""},
+
+		// ROUTE-ADD-048: the declared v2.session.message operation resolves
+		// the session first, then the message; the well-formed arm — a known
+		// session with a well-formed messageID — answers the declared 404
+		// MessageNotFoundError (never the declared 200 SessionMessage: the
+		// ^msg_-keyed union is not producible truthfully from the
+		// integer-keyed memory_events ledger, the SHIM-NARROWED-107
+		// narrowing recorded in specs/018 §12.3).
+		"v2.session.message": {http.MethodGet, "/api/session/s_gap5/message/msg-42", ""},
 	}
 }
 
