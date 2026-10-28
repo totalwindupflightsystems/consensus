@@ -428,6 +428,24 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// narrowing, SHIM-NARROWED-107 — the file doc comment). Never an
 	// /api/session/* catch-all; GET is the only declared method.
 	mux.HandleFunc("/api/session/{sessionID}/message/{messageID}", s.handleApiSessionMessageGet)
+	// ROUTE-ADD-042: the declared v2.session.compact operation (POST
+	// /api/session/{sessionID}/compact) had no shim route at all, so the
+	// request fell through to net/http's default 404 — the drift artifact's
+	// NOT-SERVED class. Register the exact two-segment path (see
+	// api_session_compact.go): the declared 204 no-content arm answered as a
+	// truthful no-op, the declared InvalidRequestError 400 for a blank
+	// sessionID, the declared SessionNotFoundError 404 when the sessionID is
+	// not a session this instance holds (read from the real sessions store
+	// through the isNoRowsResult seam), the declared ServiceUnavailableError
+	// 503 when that store cannot be read (this operation DOES declare a 5xx
+	// arm, unlike its siblings), and the declared UnauthorizedError 401 via
+	// the isV2EnvelopeRoutePath two-segment shape below. Never an
+	// /api/session/* catch-all, so every sibling declared
+	// /api/session/{sessionID}[...] operation keeps the classification its own
+	// contract row is filed against, and POST is the only method the pinned
+	// document declares here, so undeclared methods keep the
+	// METHOD_NOT_ALLOWED envelope.
+	mux.HandleFunc("/api/session/{sessionID}/compact", s.handleApiSessionCompact)
 	// ROUTE-ADD-040 (merged from wt/route-add-040, 75e417a + 7fabf15) /
 	// source item SHIM-DRIFT-036 (the board row's citation; positional ids
 	// renumber on regeneration — the operation identity is
@@ -864,6 +882,12 @@ var MountPatterns = []string{
 	// (v2.session.message) — concrete three-segment pattern, never a subtree
 	// mount.
 	"/api/session/{sessionID}/message/{messageID}",
+	// ROUTE-ADD-042: exact /api/session/{sessionID}/compact
+	// (v2.session.compact) so a parent chi mount reaches the shim route.
+	// Concrete two-segment pattern, never an /api/session/* subtree mount, so
+	// every sibling declared /api/session/{sessionID}[...] operation keeps the
+	// answer its own contract row is filed against.
+	"/api/session/{sessionID}/compact",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -1168,6 +1192,16 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// "/api/session/{sessionID}/..." map key: a parameterized concrete path
 	// can never match one (the ROUTE-ADD-049 dead-key note).
 	if isApiSessionMessageGetPath(path) {
+		return true
+	}
+	// ROUTE-ADD-042: the declared v2.session.compact path
+	// (POST /api/session/{sessionID}/compact — exactly two segments, the
+	// second literally "compact") carries the same v2 UnauthorizedError arm.
+	// Never a literal map key: a parameterized concrete path can never match
+	// one (the ROUTE-ADD-049 dead-key note), and the rule admits only this
+	// concrete shape so sibling and deeper /api/session/* paths keep the
+	// shim's own envelope.
+	if isApiSessionCompactPath(path) {
 		return true
 	}
 	// ROUTE-ADD-040 (merged from wt/route-add-040): the declared v2.session.get
