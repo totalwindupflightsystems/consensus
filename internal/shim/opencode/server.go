@@ -386,6 +386,48 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// against, and POST is the only method the pinned document declares here,
 	// so undeclared methods keep the METHOD_NOT_ALLOWED envelope.
 	mux.HandleFunc("/api/session/{sessionID}/agent", s.handleApiSessionAgent)
+	// ROUTE-ADD-045: the declared v2.session.history operation (GET
+	// /api/session/{sessionID}/history) had no shim route at all, so the
+	// request fell through to net/http's default 404 — the drift artifact's
+	// NOT-SERVED class. Register the exact two-segment path (see
+	// api_session_history.go): the declared 200 {data, hasMore} envelope
+	// carrying an honest replay of the session's memory_events (display
+	// state respected), the declared InvalidRequestError 400 for a blank
+	// sessionID or a malformed declared selector, the declared
+	// SessionNotFoundError 404 read from the real sessions store, and the
+	// declared UnauthorizedError 401 via the isV2EnvelopeRoutePath
+	// two-segment shape below. Never an /api/session/* catch-all, so every
+	// sibling declared /api/session/{sessionID}[...] operation keeps the
+	// classification its own contract row is filed against, and GET is the
+	// only method the pinned document declares here, so undeclared methods
+	// keep the METHOD_NOT_ALLOWED envelope.
+	mux.HandleFunc("/api/session/{sessionID}/history", s.handleApiSessionHistory)
+	// ROUTE-ADD-047: the declared v2.session.messages operation (GET
+	// /api/session/{sessionID}/message) had no shim route at all, so the
+	// request fell through to net/http's default 404 — the drift artifact's
+	// NOT-SERVED class. Register the exact two-segment path (see
+	// api_session_messages.go): the declared 200 {data, cursor} envelope
+	// over the session's memory_events, the declared InvalidRequestError 400
+	// arms, the declared SessionNotFoundError 404, the declared
+	// UnauthorizedError 401 via the two-segment envelope shape, and this
+	// family's ONLY declared 500 UnknownError for a store the instance
+	// cannot read. Never an /api/session/* catch-all (the three-segment
+	// /message/{messageID} sibling below keeps its own classification); GET
+	// is the only declared method, so undeclared methods keep the 405.
+	mux.HandleFunc("/api/session/{sessionID}/message", s.handleApiSessionMessages)
+	// ROUTE-ADD-048: the declared v2.session.message operation (GET
+	// /api/session/{sessionID}/message/{messageID}) had no shim route at
+	// all, so the request fell through to net/http's default 404 — the
+	// drift artifact's NOT-SERVED class. Register the exact three-segment
+	// path (see api_session_message_get.go): the declared 404 resolves the
+	// session FIRST (SessionNotFoundError naming sessionID) then the message
+	// (MessageNotFoundError naming messageID) so a client can tell the two
+	// apart; the declared 400 arms (blank sessionID or messageID), the v2
+	// 401 envelope via the three-segment shape, and the declared 200
+	// SessionMessage is never fabricated (the honest error-contract
+	// narrowing, SHIM-NARROWED-107 — the file doc comment). Never an
+	// /api/session/* catch-all; GET is the only declared method.
+	mux.HandleFunc("/api/session/{sessionID}/message/{messageID}", s.handleApiSessionMessageGet)
 	// ROUTE-ADD-040 (merged from wt/route-add-040, 75e417a + 7fabf15) /
 	// source item SHIM-DRIFT-036 (the board row's citation; positional ids
 	// renumber on regeneration — the operation identity is
@@ -806,6 +848,22 @@ var MountPatterns = []string{
 	// /api/session/{sessionID}[...] operation keeps the answer its own
 	// contract row is filed against.
 	"/api/session/{sessionID}/model",
+	// ROUTE-ADD-045: exact /api/session/{sessionID}/history
+	// (v2.session.history) so a parent chi mount reaches the shim route.
+	// Concrete two-segment pattern, never an /api/session/* subtree mount,
+	// so every sibling declared /api/session/{sessionID}[...] operation
+	// keeps the answer its own contract row is filed against.
+	"/api/session/{sessionID}/history",
+	// ROUTE-ADD-047: exact /api/session/{sessionID}/message
+	// (v2.session.messages) — concrete two-segment pattern, never a subtree
+	// mount, so the three-segment /message/{messageID} sibling (ROUTE-ADD-048)
+	// and every other /api/session/{sessionID}[...] operation keep the
+	// answers their own contract rows are filed against.
+	"/api/session/{sessionID}/message",
+	// ROUTE-ADD-048: exact /api/session/{sessionID}/message/{messageID}
+	// (v2.session.message) — concrete three-segment pattern, never a subtree
+	// mount.
+	"/api/session/{sessionID}/message/{messageID}",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -1086,6 +1144,30 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// literal "/api/session/{sessionID}/model" entry in the exact map above —
 	// a shape that key can never match, so the merged rule replaces it.)
 	if isApiSessionModelPath(path) {
+		return true
+	}
+	// ROUTE-ADD-045: the declared v2.session.history path
+	// (GET /api/session/{sessionID}/history) carries the same v2
+	// UnauthorizedError arm. The rule admits only the concrete two-segment
+	// shape whose second segment is literally "history"; it must be checked
+	// BEFORE the one-segment rule below, which rejects every deeper
+	// /api/session/* path. Siblings keep the shim's own envelope.
+	if isApiSessionHistoryPath(path) {
+		return true
+	}
+	// ROUTE-ADD-047: the declared v2.session.messages path
+	// (GET /api/session/{sessionID}/message — exactly two segments, the
+	// second literally "message") carries the same v2 UnauthorizedError arm.
+	if isApiSessionMessagesPath(path) {
+		return true
+	}
+	// ROUTE-ADD-048: the declared v2.session.message path
+	// (GET /api/session/{sessionID}/message/{messageID} — exactly three
+	// segments, a non-blank messageID after the literal "message" segment)
+	// carries the same v2 UnauthorizedError arm. Never a literal
+	// "/api/session/{sessionID}/..." map key: a parameterized concrete path
+	// can never match one (the ROUTE-ADD-049 dead-key note).
+	if isApiSessionMessageGetPath(path) {
 		return true
 	}
 	// ROUTE-ADD-040 (merged from wt/route-add-040): the declared v2.session.get
