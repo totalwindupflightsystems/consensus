@@ -1,0 +1,28 @@
+{
+  "tick": "consensus-foreman-2026-10-29-13-47-29",
+  "project": "consensus",
+  "mode": "serial",
+  "wave_budget": 12,
+  "census": {
+    "pending_rows": 50,
+    "eligible_independent_rows": 0,
+    "reason": "project foreman contract limits this tick to one worker; serial fallback used"
+  },
+  "selected_task": "ROUTE-ADD-043",
+  "workers": [
+    {
+      "task": "ROUTE-ADD-043",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-043",
+      "branch": "wt/ROUTE-ADD-043",
+      "base": "bcd56eb01e38a43bb8cf7c6b96798d2a8e05747b",
+      "dispatch": "failed_initialization",
+      "commit": null,
+      "merged": false,
+      "gates": {
+        "gitreins": "tier1 PASS at unchanged base bcd56eb; no implementation landed",
+        "worker": "no diff or commit after bounded observation"
+      }
+    }
+  ],
+  "closeout": "pending row preserved; no implementation claim; fresh dispatch required"
+}
