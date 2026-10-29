@@ -72,12 +72,9 @@ func TestApplyStartupValidations_NonLoopbackHostnameWarns(t *testing.T) {
 
 	warns, err := cfg.ApplyStartupValidations()
 
-
 	if err != nil {
 
-
 		t.Fatalf("unexpected error: %v", err)
-
 
 	}
 
@@ -100,12 +97,9 @@ func TestApplyStartupValidations_LoopbackHostnameNoShimWarn(t *testing.T) {
 
 	warns, err := cfg.ApplyStartupValidations()
 
-
 	if err != nil {
 
-
 		t.Fatalf("unexpected error: %v", err)
-
 
 	}
 
@@ -125,12 +119,9 @@ func TestApplyStartupValidations_LocalhostNoShimWarn(t *testing.T) {
 
 	warns, err := cfg.ApplyStartupValidations()
 
-
 	if err != nil {
 
-
 		t.Fatalf("unexpected error: %v", err)
-
 
 	}
 
@@ -153,12 +144,9 @@ func TestApplyStartupValidations_UnresolvableHostnameWarns(t *testing.T) {
 
 	warns, err := cfg.ApplyStartupValidations()
 
-
 	if err != nil {
 
-
 		t.Fatalf("unexpected error: %v", err)
-
 
 	}
 

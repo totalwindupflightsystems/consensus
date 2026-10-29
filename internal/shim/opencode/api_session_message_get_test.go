@@ -197,14 +197,14 @@ func TestApiSessionMessageGetUndeclaredMethodAnswers405(t *testing.T) {
 // TestIsApiSessionMessageGetPath pins the envelope-shape predicate.
 func TestIsApiSessionMessageGetPath(t *testing.T) {
 	cases := map[string]bool{
-		"/api/session/abc/message/msg_1":      true,
-		"/api/session/abc/message":            false,
-		"/api/session/abc/message/":           false,
+		"/api/session/abc/message/msg_1":       true,
+		"/api/session/abc/message":             false,
+		"/api/session/abc/message/":            false,
 		"/api/session/abc/message/msg_1/extra": false,
-		"/api/session//message/msg_1":         false,
-		"/api/session/abc/history":            false,
-		"/api/session/abc":                    false,
-		"/api/provider":                       false,
+		"/api/session//message/msg_1":          false,
+		"/api/session/abc/history":             false,
+		"/api/session/abc":                     false,
+		"/api/provider":                        false,
 	}
 	for path, want := range cases {
 		if got := isApiSessionMessageGetPath(path); got != want {

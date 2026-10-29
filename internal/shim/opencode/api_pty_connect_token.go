@@ -41,4 +41,3 @@ func (s *Server) handleApiPtyConnectToken(w http.ResponseWriter, r *http.Request
 	// /api/pty/{ptyID}/connect-token (server.go).
 	s.handlePtyConnectToken(w, r)
 }
-

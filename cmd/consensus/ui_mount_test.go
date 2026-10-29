@@ -169,4 +169,3 @@ func TestMountUI_UnknownSubpathStill404s(t *testing.T) {
 // STATUS: complete
 // TIER: T3 (state focused mount and live/httptest observations)
 // EVIDENCE: docs/testing/evidence/qa-consensus-29/ui-mount-probe.txt
-

@@ -71,9 +71,9 @@ func TestApiSessionAgentKnownSessionAnswersDeclared204(t *testing.T) {
 // and agent must be a present, non-blank string.
 func TestApiSessionAgentBodyViolationsAnswerDeclared400(t *testing.T) {
 	cases := []struct {
-		name string
-		body string
-		kind string
+		name  string
+		body  string
+		kind  string
 		field string
 	}{
 		{"absent body", ``, "Body", "body"},
@@ -228,14 +228,14 @@ func TestApiSessionAgentServesDeclared401(t *testing.T) {
 // sibling session paths and deeper sub-paths keep the shim's own envelope.
 func TestIsApiSessionAgentPath(t *testing.T) {
 	cases := map[string]bool{
-		"/api/session/abc/agent":     true,
-		"/api/session/abc/compact":   false,
-		"/api/session/abc":           false,
-		"/api/session/active":        false,
-		"/api/session/abc/agent/x":   false,
-		"/api/session//agent":        false,
-		"/api/session/abc/agent/":    false,
-		"/api/provider":              false,
+		"/api/session/abc/agent":   true,
+		"/api/session/abc/compact": false,
+		"/api/session/abc":         false,
+		"/api/session/active":      false,
+		"/api/session/abc/agent/x": false,
+		"/api/session//agent":      false,
+		"/api/session/abc/agent/":  false,
+		"/api/provider":            false,
 	}
 	for path, want := range cases {
 		if got := isApiSessionAgentPath(path); got != want {

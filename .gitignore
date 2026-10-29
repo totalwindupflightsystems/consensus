@@ -75,3 +75,7 @@ dagger.db
 .coding-hermes/waves/
 serve-env.log
 wt/
+
+# Python bytecode (scripts/) 
+__pycache__/
+*.pyc
