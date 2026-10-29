@@ -27,6 +27,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Check Go formatting
+        run: make fmt-check
+
   # ── Cross-Platform Build Matrix ─────────────────────────────────
   cross-build:
     name: Build (${{ matrix.os }}/${{ matrix.arch }})

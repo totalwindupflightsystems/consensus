@@ -39,7 +39,7 @@ pipeline:
       on_fail: block
     - id: lint
       type: script
-      run: go vet ./...
+      run: "GO_STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep '\\.go$' || true); if [ -n \"$GO_STAGED\" ]; then go vet ./... && test -z \"$(printf '%s\\n' \"$GO_STAGED\" | xargs -r gofmt -l)\"; else go vet ./...; fi"
       on_fail: continue
     - id: tests
       type: script

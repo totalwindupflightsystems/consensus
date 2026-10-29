@@ -7,7 +7,7 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build fresh dev dev-pg test test-short test-opencode-upstream smoke lint clean run docker
+.PHONY: build fresh dev dev-pg test test-short test-opencode-upstream smoke fmt-check lint clean run docker
 
 # --- Build ---
 
@@ -51,6 +51,15 @@ test-opencode-upstream:
 # Validates the install in under 60 seconds. See demo/README.md.
 smoke:
 	timeout 60 $(GO) test -run Smoke ./demo/
+
+# Fail when any tracked Go source is not gofmt-formatted.
+fmt-check:
+	@files=$$(git ls-files '*.go'); \
+	if [ -z "$$files" ]; then exit 0; fi; \
+	bad=$$(printf '%s\n' "$$files" | xargs -r gofmt -l); \
+	if [ -n "$$bad" ]; then \
+		echo "Unformatted Go files:" >&2; printf '%s\n' "$$bad" >&2; exit 1; \
+	fi
 
 # --- Lint ---
 
