@@ -961,3 +961,4 @@
 {"id":960,"timestamp":"2026-10-29T00:43:45+00:00","event_type":"task_updated","task_id":"QA-CONSENSUS-5","actor":"pm","detail":"{\"status\":\"pending\",\"criteria_rebackfilled\":true}"}
 {"id":961,"timestamp":"2026-10-29T00:43:45+00:00","event_type":"task_updated","task_id":"PERF-CONSENSUS-12","actor":"pm","detail":"{\"status\":\"complete\",\"verification\":\"3 probes rc 0\"}"}
 {"id":962,"timestamp":"2026-10-29T00:43:45+00:00","event_type":"task_updated","task_id":"QA-CONSENSUS-21","actor":"pm","detail":"{\"status\":\"complete\",\"reason\":\"parent REVIEW-CONSENSUS-10 complete\"}"}
+{"id": 963, "timestamp": "2026-10-28T19:52:00-05:00", "event_type": "task_updated", "task_id": "ROUTE-ADD-043", "actor": "pm", "detail": "{\"tick\": \"consensus-pm-2026-10-29-00-11-17\", \"type\": \"DEAD-DISPATCH-RECOVERY\", \"note\": \"worker_status in_progress->pending; worker never launched (log file absent), worktree clean at da70bdc\"}"}
