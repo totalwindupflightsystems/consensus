@@ -435,6 +435,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /api/session/* catch-all. The handler replays and polls the durable
 	// memory_events ledger without fabricating OpenCode event identities.
 	mux.HandleFunc("/api/session/{sessionID}/event", s.handleApiSessionEvent)
+	// ROUTE-ADD-046: exact v2.session.interrupt route; never an
+	// /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/interrupt", s.handleApiSessionInterrupt)
 	// ROUTE-ADD-042: the declared v2.session.compact operation (POST
 	// /api/session/{sessionID}/compact) had no shim route at all, so the
 	// request fell through to net/http's default 404 — the drift artifact's
@@ -893,6 +896,8 @@ var MountPatterns = []string{
 	"/api/session/{sessionID}/context",
 	// ROUTE-ADD-044: exact /api/session/{sessionID}/event
 	"/api/session/{sessionID}/event",
+	// ROUTE-ADD-046: exact /api/session/{sessionID}/interrupt
+	"/api/session/{sessionID}/interrupt",
 	// ROUTE-ADD-042: exact /api/session/{sessionID}/compact
 	// (v2.session.compact) so a parent chi mount reaches the shim route.
 	// Concrete two-segment pattern, never an /api/session/* subtree mount, so
@@ -1211,6 +1216,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	}
 	// ROUTE-ADD-044: the declared v2.session.events path.
 	if isApiSessionEventPath(path) {
+		return true
+	}
+	// ROUTE-ADD-046: the declared v2.session.interrupt path.
+	if isApiSessionInterruptPath(path) {
 		return true
 	}
 	// ROUTE-ADD-042: the declared v2.session.compact path
