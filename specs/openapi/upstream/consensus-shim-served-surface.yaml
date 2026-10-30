@@ -563,6 +563,20 @@ routes:
     other_methods_outcome: method-missing
     evidence: "api_session_model_switch.go handleApiSessionModelSwitch (ROUTE-ADD-049; source item SHIM-DRIFT-010 in the board row's citation — the operation identity this row covers is POST /api/session/{sessionID}/model v2.session.switchModel): serves the declared 204 NoContent with an EMPTY body as a truthful no-op — the Consensus runtime keeps no upstream OpenCode session model-switch pipeline (no model assignment concept, no process to reconfigure), so no model binding is changed and no data-bearing success is fabricated (the declared success carries no body, the handleApiSessionAgent truthful-204 precedent). The declared 404 SessionNotFoundError is decided against the runtime's REAL sessions store (migration 001 §3.2) through the shared isNoRowsResult seam (internal/db reports a missing row as its own error value, the ROUTE-ADD-041 api_session_agent.go pattern), so a client distinguishes 'no such session' from 'the request was accepted'; a store the instance cannot read answers the declared InvalidRequestError 400 (this operation declares no 5xx arm — absence is never claimed from an unreadable store), and a present-but-blank sessionID segment (%20) answers the same declared 400 with field sessionID. Unauthenticated requests answer the declared UnauthorizedError 401 through the isApiSessionModelPath two-segment rule in server.go isV2EnvelopeRoutePath (the branch commit's literal v2EnvelopeRoutePaths entry could never match a parameterized concrete path — the merged rule replaces it; the isApiSessionAgentPath precedent). Undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope (POST is the only method the pinned document declares on this path). The registration is the exact two-segment shape, never an /api/session/* catch-all, so the sibling one-segment v2.session.get shape and every deeper /api/session/{sessionID}/... path keep the net/http answers their own contract rows are filed against."
 
+  # ── v2 session permission list/create (ROUTE-ADD-050/051) ──
+  - path: /api/session/{sessionID}/permission
+    method: GET
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_permission.go handleApiSessionPermissionList (ROUTE-ADD-050; operationId v2.session.permission.list): serves the declared 200 {data: PermissionV2Request[]} envelope after reading the real approval_requests rows scoped to the session. Native approval rows use UUID/native session ids and request_type/target fields, so no row can be truthfully reshaped into the closed ^per/^ses PermissionV2Request schema; the honest data array is empty. A blank sessionID or unreadable sessions/approval_requests store answers the declared InvalidRequestError 400, a readable unknown session answers SessionNotFoundError 404, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and undeclared methods keep 405."
+  - path: /api/session/{sessionID}/permission
+    method: POST
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_permission.go handleApiSessionPermissionCreate (ROUTE-ADD-051; operationId v2.session.permission.create): validates the declared {action, resources, optional id/save/metadata/source/agent} body, resolves the real sessions row, inserts a pending approval_requests row with protocol id context, and returns {data: {id, effect: ask}}. The runtime has no permission rule evaluator, so ask is the truthful effect and the approval row is the real pending HITL state. Malformed body/path and unreadable stores answer declared 400, unknown session answers 404, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and undeclared methods keep 405."
+
   # ── v2 provider list (ROUTE-ADD-026) ──
   - path: /api/provider
     method: GET
