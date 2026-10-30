@@ -537,6 +537,15 @@ routes:
     auth: api-key
     other_methods_outcome: method-missing
     evidence: "api_session_event.go handleApiSessionEvent (ROUTE-ADD-044; operation identity v2.session.events): serves the declared text/event-stream response by replaying the session's durable memory_events strictly after the optional after boundary, then polling the same append-only ledger for newly committed rows until the client disconnects. Every frame carries SSE id, event, and JSON data fields; data exposes only runtime-native memory_event_id/type/iteration_created/created_at plus stored content, or the stored summary_text for compressed rows, while hidden rows are withheld and no ^evt_/^msg_ identity or session.next.* discriminator is fabricated (the v2.session.history reshape-refusal convention). The after value is the last-seen non-negative memory_events id; blank, non-numeric, or negative values answer the declared InvalidRequestError 400. A blank sessionID or unreadable ledger also answers the declared 400, an unknown session answers the declared SessionNotFoundError 404, and unauthenticated requests answer the declared UnauthorizedError 401 through isApiSessionEventPath."
+  # ── v2 session interrupt (ROUTE-ADD-046) ──
+  - path: /api/session/{sessionID}/interrupt
+    method: POST
+    operationId: v2.session.interrupt
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: internal/shim/opencode/api_session_interrupt_test.go
+    x-shim-intentional-narrowing: false
 
   # ── v2 session compact (ROUTE-ADD-042) ──
   - path: /api/session/{sessionID}/compact

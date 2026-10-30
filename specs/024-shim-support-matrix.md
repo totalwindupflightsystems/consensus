@@ -69,6 +69,12 @@ when the state the declared success describes does not exist.
 
 ---
 
+### A1. v2 session interrupt
+
+| Operation | Path | Status | Outcome | Evidence |
+|---|---|---|---|---|
+| `v2.session.interrupt` | `POST /api/session/{sessionID}/interrupt` | COVERED | 204 | `internal/shim/opencode/api_session_interrupt_test.go` (ROUTE-ADD-046) |
+
 ## B. Provider-facing: the DeepSeek harness API
 
 Consensus's harness runs its agent loop against a provider API. For DeepSeek — our default
