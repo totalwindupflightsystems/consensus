@@ -428,6 +428,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// narrowing, SHIM-NARROWED-107 — the file doc comment). Never an
 	// /api/session/* catch-all; GET is the only declared method.
 	mux.HandleFunc("/api/session/{sessionID}/message/{messageID}", s.handleApiSessionMessageGet)
+	// ROUTE-ADD-043: exact v2.session.context route; never an
+	// /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/context", s.handleApiSessionContext)
 	// ROUTE-ADD-042: the declared v2.session.compact operation (POST
 	// /api/session/{sessionID}/compact) had no shim route at all, so the
 	// request fell through to net/http's default 404 — the drift artifact's
@@ -882,6 +885,8 @@ var MountPatterns = []string{
 	// (v2.session.message) — concrete three-segment pattern, never a subtree
 	// mount.
 	"/api/session/{sessionID}/message/{messageID}",
+	// ROUTE-ADD-043: exact /api/session/{sessionID}/context
+	"/api/session/{sessionID}/context",
 	// ROUTE-ADD-042: exact /api/session/{sessionID}/compact
 	// (v2.session.compact) so a parent chi mount reaches the shim route.
 	// Concrete two-segment pattern, never an /api/session/* subtree mount, so
@@ -1192,6 +1197,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// "/api/session/{sessionID}/..." map key: a parameterized concrete path
 	// can never match one (the ROUTE-ADD-049 dead-key note).
 	if isApiSessionMessageGetPath(path) {
+		return true
+	}
+	// ROUTE-ADD-043: the declared v2.session.context path.
+	if isApiSessionContextPath(path) {
 		return true
 	}
 	// ROUTE-ADD-042: the declared v2.session.compact path
