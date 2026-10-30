@@ -75,6 +75,20 @@ when the state the declared success describes does not exist.
 |---|---|---|---|---|
 | `v2.session.interrupt` | `POST /api/session/{sessionID}/interrupt` | COVERED | 204 | `internal/shim/opencode/api_session_interrupt_test.go` (ROUTE-ADD-046) |
 
+### A2. v2 session permissions
+
+| Operation | Path | Status | Outcome | Evidence |
+|---|---|---|---|---|
+| `v2.session.permission.list` | `GET /api/session/{sessionID}/permission` | COVERED | 200, 400, 401, 404 | `internal/shim/opencode/api_session_permission_test.go` (ROUTE-ADD-050) |
+| `v2.session.permission.create` | `POST /api/session/{sessionID}/permission` | COVERED | 200, 400, 401, 404 | `internal/shim/opencode/api_session_permission_test.go` (ROUTE-ADD-051) |
+
+The permission list reads the real `approval_requests` store but returns an empty
+non-null `data` array because native UUID/session identifiers and HITL request
+fields cannot be losslessly reshaped into the pinned `PermissionV2Request`
+schema's closed `^per`/`^ses` contract. Creation validates the declared body,
+records a pending native approval request, and returns the truthful `ask` effect;
+it does not claim that a permission rule was evaluated or granted.
+
 ## B. Provider-facing: the DeepSeek harness API
 
 Consensus's harness runs its agent loop against a provider API. For DeepSeek — our default

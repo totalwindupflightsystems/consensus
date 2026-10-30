@@ -456,6 +456,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// document declares here, so undeclared methods keep the
 	// METHOD_NOT_ALLOWED envelope.
 	mux.HandleFunc("/api/session/{sessionID}/compact", s.handleApiSessionCompact)
+	// ROUTE-ADD-050/051: serve the declared v2.session.permission.list and
+	// v2.session.permission.create operations on one exact method-dispatch
+	// pattern. The sibling /permission/{requestID} routes remain distinct.
+	mux.HandleFunc("/api/session/{sessionID}/permission", s.handleApiSessionPermission)
 	// ROUTE-ADD-040 (merged from wt/route-add-040, 75e417a + 7fabf15) /
 	// source item SHIM-DRIFT-036 (the board row's citation; positional ids
 	// renumber on regeneration — the operation identity is
@@ -904,6 +908,8 @@ var MountPatterns = []string{
 	// every sibling declared /api/session/{sessionID}[...] operation keeps the
 	// answer its own contract row is filed against.
 	"/api/session/{sessionID}/compact",
+	// ROUTE-ADD-050/051: exact v2.session.permission list/create path.
+	"/api/session/{sessionID}/permission",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -1230,6 +1236,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// concrete shape so sibling and deeper /api/session/* paths keep the
 	// shim's own envelope.
 	if isApiSessionCompactPath(path) {
+		return true
+	}
+	// ROUTE-ADD-050/051: the declared v2.session.permission list/create path.
+	if isApiSessionPermissionPath(path) {
 		return true
 	}
 	// ROUTE-ADD-040 (merged from wt/route-add-040): the declared v2.session.get
