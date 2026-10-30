@@ -530,6 +530,14 @@ routes:
     other_methods_outcome: method-missing
     evidence: "api_session_context.go handleApiSessionContext (ROUTE-ADD-043; operation identity v2.session.context): serves the declared {data} envelope over the runtime's active memory_events view, omitting hidden entries and exposing stored summaries for compressed entries. Runtime-native memory_event_id fields are used inside data because the ledger does not provide OpenCode's ^msg_ identifiers; no message identity is fabricated. A blank sessionID answers InvalidRequestError 400, an unreadable store answers UnknownError 500, and an unknown session answers SessionNotFoundError 404. Unauthenticated requests use the v2 UnauthorizedError envelope through isApiSessionContextPath. Live: docs/evidence/ROUTE-ADD-043-live-probe.md"
 
+  # ── v2 session durable event stream (ROUTE-ADD-044) ──
+  - path: /api/session/{sessionID}/event
+    method: GET
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_event.go handleApiSessionEvent (ROUTE-ADD-044; operation identity v2.session.events): serves the declared text/event-stream response by replaying the session's durable memory_events strictly after the optional after boundary, then polling the same append-only ledger for newly committed rows until the client disconnects. Every frame carries SSE id, event, and JSON data fields; data exposes only runtime-native memory_event_id/type/iteration_created/created_at plus stored content, or the stored summary_text for compressed rows, while hidden rows are withheld and no ^evt_/^msg_ identity or session.next.* discriminator is fabricated (the v2.session.history reshape-refusal convention). The after value is the last-seen non-negative memory_events id; blank, non-numeric, or negative values answer the declared InvalidRequestError 400. A blank sessionID or unreadable ledger also answers the declared 400, an unknown session answers the declared SessionNotFoundError 404, and unauthenticated requests answer the declared UnauthorizedError 401 through isApiSessionEventPath."
+
   # ── v2 session compact (ROUTE-ADD-042) ──
   - path: /api/session/{sessionID}/compact
     method: POST
