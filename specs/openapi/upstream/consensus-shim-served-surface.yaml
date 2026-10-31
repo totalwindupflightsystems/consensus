@@ -592,6 +592,13 @@ routes:
     auth: api-key
     other_methods_outcome: method-missing
     evidence: "api_session_permission_get.go handleApiSessionPermissionGet (ROUTE-ADD-052; operationId v2.session.permission.get): resolves the real session and pending approval_requests row by the protocol id retained in context, returning the declared {data: PermissionV2Request} shape. Blank or non-^per path values and unreadable stores answer the declared 400, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and unknown session/request answers the typed 404 arms."
+  - path: /api/session/{sessionID}/permission/{requestID}/reply
+    method: POST
+    operationId: v2.session.permission.reply
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_permission_reply.go handleApiSessionPermissionReply (ROUTE-ADD-053; operationId v2.session.permission.reply): validates the declared {reply: once|always|reject, message?} body and ^ses/^per path parameters, reads the real approval_requests row owned by the session, and resolves a pending request with the existing approval status/review metadata columns before answering the declared empty 204. Malformed body/path or an unreadable store answer declared 400, unknown/non-pending or session-mismatched requests answer typed PermissionNotFoundError 404, unauthenticated requests use the v2 UnauthorizedError envelope, and undeclared methods keep 405."
 
   # ── v2 provider list (ROUTE-ADD-026) ──
   - path: /api/provider
