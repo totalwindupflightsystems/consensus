@@ -586,6 +586,12 @@ routes:
     auth: api-key
     other_methods_outcome: method-missing
     evidence: "api_session_permission.go handleApiSessionPermissionCreate (ROUTE-ADD-051; operationId v2.session.permission.create): validates the declared {action, resources, optional id/save/metadata/source/agent} body, resolves the real sessions row, inserts a pending approval_requests row with protocol id context, and returns {data: {id, effect: ask}}. The runtime has no permission rule evaluator, so ask is the truthful effect and the approval row is the real pending HITL state. Malformed body/path and unreadable stores answer declared 400, unknown session answers 404, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and undeclared methods keep 405."
+  - path: /api/session/{sessionID}/permission/{requestID}
+    method: GET
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_permission_get.go handleApiSessionPermissionGet (ROUTE-ADD-052; operationId v2.session.permission.get): resolves the real session and pending approval_requests row by the protocol id retained in context, returning the declared {data: PermissionV2Request} shape. Blank or non-^per path values and unreadable stores answer the declared 400, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and unknown session/request answers the typed 404 arms."
 
   # ── v2 provider list (ROUTE-ADD-026) ──
   - path: /api/provider
