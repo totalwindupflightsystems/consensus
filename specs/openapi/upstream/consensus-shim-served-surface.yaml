@@ -585,7 +585,14 @@ routes:
     outcome: 200
     auth: api-key
     other_methods_outcome: method-missing
-    evidence: "api_session_permission.go handleApiSessionPermissionCreate (ROUTE-ADD-051; operationId v2.session.permission.create): validates the declared {action, resources, optional id/save/metadata/source/agent} body, resolves the real sessions row, inserts a pending approval_requests row with protocol id context, and returns {data: {id, effect: ask}}. The runtime has no permission rule evaluator, so ask is the truthful effect and the approval row is the real pending HITL state. Malformed body/path and unreadable stores answer declared 400, unknown session answers 404, unauthenticated requests use the v2 UnauthorizedError 401 envelope, and undeclared methods keep 405."
+    evidence: "api_session_permission.go handleApiSessionPermissionCreate (ROUTE-ADD-051; operationId v2.session.permission.create): validates the declared {action, resources, optional id/save/metadata/source/agent} body, resolves the real sessions row, inserts a pending approval_requests row with protocol id context, and returns {data: {id, effect: ask}}. The runtime has no permission rule evaluator, so ask is the truthful effect and the approval row is the real pending HITL state. Malformed body/path and unreadable stores answer declared 400, unknown session answers 404, unauthenticated requests use the v2 UnauthorizedError envelope, and undeclared methods keep 405."
+  - path: /api/session/{sessionID}/permission/{requestID}/reply
+    method: POST
+    operationId: v2.session.permission.reply
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_permission_reply.go handleApiSessionPermissionReply (ROUTE-ADD-053; operationId v2.session.permission.reply): validates the declared {reply: once|always|reject, message?} body and ^ses/^per path parameters, reads the real approval_requests row owned by the session, and resolves a pending request with the existing approval status/review metadata columns before answering the declared empty 204. Malformed body/path or an unreadable store answer declared 400, unknown/non-pending or session-mismatched requests answer typed PermissionNotFoundError 404, unauthenticated requests use the v2 UnauthorizedError envelope, and undeclared methods keep 405."
 
   # ── v2 provider list (ROUTE-ADD-026) ──
   - path: /api/provider
