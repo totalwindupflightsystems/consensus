@@ -428,6 +428,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// narrowing, SHIM-NARROWED-107 — the file doc comment). Never an
 	// /api/session/* catch-all; GET is the only declared method.
 	mux.HandleFunc("/api/session/{sessionID}/message/{messageID}", s.handleApiSessionMessageGet)
+	// ROUTE-ADD-055: exact v2.session.question.list route; never an
+	// /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/question", s.handleApiSessionQuestionList)
 	// ROUTE-ADD-043: exact v2.session.context route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/context", s.handleApiSessionContext)
@@ -905,6 +908,9 @@ var MountPatterns = []string{
 	// and every other /api/session/{sessionID}[...] operation keep the
 	// answers their own contract rows are filed against.
 	"/api/session/{sessionID}/message",
+	// ROUTE-ADD-055: exact /api/session/{sessionID}/question
+	// (v2.session.question.list), never a subtree mount.
+	"/api/session/{sessionID}/question",
 	// ROUTE-ADD-048: exact /api/session/{sessionID}/message/{messageID}
 	// (v2.session.message) — concrete three-segment pattern, never a subtree
 	// mount.
@@ -1226,6 +1232,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// (GET /api/session/{sessionID}/message — exactly two segments, the
 	// second literally "message") carries the same v2 UnauthorizedError arm.
 	if isApiSessionMessagesPath(path) {
+		return true
+	}
+	// ROUTE-ADD-055: the declared v2.session.question.list path.
+	if isApiSessionQuestionPath(path) {
 		return true
 	}
 	// ROUTE-ADD-048: the declared v2.session.message path

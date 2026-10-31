@@ -287,13 +287,14 @@ func TestApiV2ListsRecordedCoveredInArtifact(t *testing.T) {
 	doc := decodeArtifact(t)
 
 	want := map[string]struct{ path, operation string }{
-		"/api/location":           {"/api/location", "v2.location.get"},
-		"/api/model":              {"/api/model", "v2.model.list"},
-		"/api/reference":          {"/api/reference", "v2.reference.list"},
-		"/api/skill":              {"/api/skill", "v2.skill.list"},
-		"/api/permission/request": {"/api/permission/request", "v2.permission.request.list"},
-		"/api/permission/saved":   {"/api/permission/saved", "v2.permission.saved.list"},
-		"/api/question/request":   {"/api/question/request", "v2.question.request.list"},
+		"/api/location":                     {"/api/location", "v2.location.get"},
+		"/api/model":                        {"/api/model", "v2.model.list"},
+		"/api/reference":                    {"/api/reference", "v2.reference.list"},
+		"/api/skill":                        {"/api/skill", "v2.skill.list"},
+		"/api/permission/request":           {"/api/permission/request", "v2.permission.request.list"},
+		"/api/permission/saved":             {"/api/permission/saved", "v2.permission.saved.list"},
+		"/api/question/request":             {"/api/question/request", "v2.question.request.list"},
+		"/api/session/{sessionID}/question": {"/api/session/{sessionID}/question", "v2.session.question.list"},
 	}
 
 	covered := map[string]artifactOperation{}
