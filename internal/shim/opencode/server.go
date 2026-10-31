@@ -438,6 +438,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// ROUTE-ADD-046: exact v2.session.interrupt route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/interrupt", s.handleApiSessionInterrupt)
+	// ROUTE-ADD-058: exact v2.session.revert.clear route; never an
+	// /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/revert/clear", s.handleSessionRevertClear)
 	// ROUTE-ADD-042: the declared v2.session.compact operation (POST
 	// /api/session/{sessionID}/compact) had no shim route at all, so the
 	// request fell through to net/http's default 404 — the drift artifact's
@@ -902,6 +905,8 @@ var MountPatterns = []string{
 	"/api/session/{sessionID}/event",
 	// ROUTE-ADD-046: exact /api/session/{sessionID}/interrupt
 	"/api/session/{sessionID}/interrupt",
+	// ROUTE-ADD-058: exact /api/session/{sessionID}/revert/clear
+	"/api/session/{sessionID}/revert/clear",
 	// ROUTE-ADD-042: exact /api/session/{sessionID}/compact
 	// (v2.session.compact) so a parent chi mount reaches the shim route.
 	// Concrete two-segment pattern, never an /api/session/* subtree mount, so
@@ -1226,6 +1231,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	}
 	// ROUTE-ADD-046: the declared v2.session.interrupt path.
 	if isApiSessionInterruptPath(path) {
+		return true
+	}
+	// ROUTE-ADD-058: the declared v2.session.revert.clear path.
+	if isApiSessionRevertClearPath(path) {
 		return true
 	}
 	// ROUTE-ADD-042: the declared v2.session.compact path
