@@ -25,15 +25,15 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 189,
-    "covered_operations": 140,
-    "narrowed_error_contract_only": 22,
+    "served_route_entries": 191,
+    "covered_operations": 141,
+    "narrowed_error_contract_only": 23,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 3,
     "semantic_different": 2,
-    "drift_declared_not_served": 21,
+    "drift_declared_not_served": 19,
     "drift_by_class": {
-      "NOT-SERVED": 17,
+      "NOT-SERVED": 15,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -670,6 +670,16 @@
       "family": "/experimental/*",
       "served_outcome": "200",
       "evidence": "server.go:196 handleToolIDs"
+    },
+    {
+      "path": "/experimental/workspace",
+      "method": "GET",
+      "operationId": "experimental.workspace.list",
+      "tags": "workspace",
+      "declared_responses": "200,400",
+      "family": "/experimental/*",
+      "served_outcome": "200",
+      "evidence": "server.go exact /experimental/workspace dispatcher to handleExperimentalWorkspaceList (experimental_workspace.go, ROUTE-ADD-076; operationId experimental.workspace.list): the runtime has no persistent workspace registry, so the declared 200 Workspace[] is truthfully an empty array; blank directory/workspace selectors answer the declared 400 BadRequestError. Exact registration does not claim workspace siblings.\n"
     },
     {
       "path": "/experimental/worktree",
@@ -1548,6 +1558,19 @@
       "id": "SHIM-NARROWED-107"
     },
     {
+      "path": "/experimental/workspace",
+      "method": "POST",
+      "operationId": "experimental.workspace.create",
+      "tags": "workspace",
+      "declared_responses": "200,400",
+      "family": "/experimental/*",
+      "served_outcome": "400",
+      "evidence": "server.go exact /experimental/workspace dispatcher to handleExperimentalWorkspaceCreate (experimental_workspace.go, ROUTE-ADD-077; operationId experimental.workspace.create): strict validation of {id?, type*, branch?, extra?}, then declared 400 WorkspaceCreateError.\n",
+      "rationale": "The runtime owns neither the upstream workspace adapter registry nor its persistent workspace store, so no input can truthfully produce the declared 200 Workspace. The handler validates the declared optional body and then answers the declared 400 WorkspaceCreateError rather than inventing an id, type, projectID, directory or timeUsed; widening requires implementing the workspace adapter and persistence lifecycle.",
+      "detail": "shim answers the declared 400 but never the declared success code 200",
+      "id": "SHIM-NARROWED-108"
+    },
+    {
       "path": "/mcp/{name}/auth",
       "method": "POST",
       "operationId": "mcp.auth.start",
@@ -1880,28 +1903,6 @@
       "id": "SHIM-DRIFT-007"
     },
     {
-      "path": "/experimental/workspace",
-      "method": "GET",
-      "operationId": "experimental.workspace.list",
-      "tags": "workspace",
-      "declared_responses": "200,400",
-      "family": "/experimental/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008"
-    },
-    {
-      "path": "/experimental/workspace",
-      "method": "POST",
-      "operationId": "experimental.workspace.create",
-      "tags": "workspace",
-      "declared_responses": "200,400",
-      "family": "/experimental/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009"
-    },
-    {
       "path": "/experimental/workspace/adapter",
       "method": "GET",
       "operationId": "experimental.workspace.adapter.list",
@@ -1910,7 +1911,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1921,7 +1922,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1932,7 +1933,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1943,7 +1944,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1954,7 +1955,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/formatter",
@@ -1965,7 +1966,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/global/upgrade",
@@ -1976,7 +1977,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -1987,7 +1988,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2000,7 +2001,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2013,7 +2014,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-019"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/sync/steal",
@@ -2024,7 +2025,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-020"
+      "id": "SHIM-DRIFT-018"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2037,7 +2038,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-021"
+      "id": "SHIM-DRIFT-019"
     }
   ],
   "drift_served_not_declared": [],

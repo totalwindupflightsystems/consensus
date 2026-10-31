@@ -619,6 +619,11 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// declared /experimental/tool and /experimental/console siblings keep their
 	// own handlers.
 	mux.HandleFunc("/experimental/worktree", s.handleExperimentalWorktreeCreate)
+	// ROUTE-ADD-076 / ROUTE-ADD-077: GET and POST share one exact
+	// /experimental/workspace registration. Do not use a subtree catch-all:
+	// /experimental/workspace/adapter, /status, /sync-list, /warp and /{id}
+	// remain available for their own future route registrations.
+	mux.HandleFunc("/experimental/workspace", s.handleExperimentalWorkspace)
 	// ROUTE-ADD-065 / SHIM-DRIFT-062: the exact /experimental/console path was
 	// never registered, so GET /experimental/console fell through to net/http's
 	// default 404 — the drift row's NOT-SERVED class, indistinguishable from
@@ -1133,6 +1138,9 @@ var v2EnvelopeRoutePaths = map[string]struct{}{
 	// exact-path map membership is the default; see isV2EnvelopeRoutePath).
 	"/api/credential/": {},
 	"/api/event":       {},
+	// ROUTE-ADD-076/077: the exact experimental workspace path carries the
+	// v2 UnauthorizedError envelope through the authenticated experimental API.
+	"/experimental/workspace": {},
 }
 
 // isV2EnvelopeRoutePath reports whether path is one of the declared /api/*

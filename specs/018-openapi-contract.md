@@ -843,7 +843,14 @@ widened instead of recorded — see §12.2 (`permission.reply`, `tui.selectSessi
 - evidence: `internal/shim/opencode/api_session_message_get.go:84 handleApiSessionMessageGet`; session-first resolution `internal/shim/opencode/api_session_message_get.go:129` via `isNoRowsResult`; message resolution `sessionHasMessage` (`internal/shim/opencode/server.go:7776`); refusal `internal/shim/opencode/api_session_message_get.go:152 writeV2MessageNotFoundError`; 401 via the shape match `internal/shim/opencode/server.go isV2EnvelopeRoutePath` → `isApiSessionMessageGetPath`
 - widening requires: ^msg_-keyed message identities (a message-id minting engine) so a GET can truthfully return the declared SessionMessage shape.
 
-`counts` at this revision: `narrowed_error_contract_only: 22`, **`narrowed_unexplained: 0`**,
+#### SHIM-NARROWED-108 — experimental.workspace.create (`POST /experimental/workspace`)
+- declared: 200 Workspace, 400 WorkspaceCreateError | BadRequest | InvalidRequestError
+- served: 400 WorkspaceCreateError for every well-formed request after validating the optional {id?, type*, branch?, extra?} body; 400 BadRequest for blank directory or workspace selectors; 401 UnauthorizedError through the exact authenticated route; 405 for undeclared methods
+- rationale: Consensus owns neither the pinned upstream workspace adapter registry nor a persistent workspace store. It therefore cannot truthfully create or return a Workspace with an id, projectID, directory and timeUsed; the handler refuses the capability in the operation's declared WorkspaceCreateError arm rather than inventing data or claiming an adapter effect.
+- evidence: `internal/shim/opencode/experimental_workspace.go:47 handleExperimentalWorkspaceCreate`; refusal `internal/shim/opencode/experimental_workspace.go:65 writeOpencodeNamedError`; registration `internal/shim/opencode/server.go:620`
+- widening requires: a workspace adapter registry, persistence for Workspace records, and the adapter create/start lifecycle.
+
+`counts` at this revision: `narrowed_error_contract_only: 23`, **`narrowed_unexplained: 0`**,
 `intentional_narrowing: 2` (`pty.create` and its declared v2 sibling `v2.pty.create`,
 SPEC-017 §3.9), `semantic_different: 2`
 (the `/mcp` protocol delegation, SPEC-024 §A).
