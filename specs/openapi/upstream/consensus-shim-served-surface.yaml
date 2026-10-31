@@ -537,6 +537,20 @@ routes:
     auth: api-key
     other_methods_outcome: method-missing
     evidence: "api_session_question.go handleApiSessionQuestionList (ROUTE-ADD-055; operationId v2.session.question.list): resolves the real sessions store, answers the declared SessionNotFoundError 404 for a readable unknown session and InvalidRequestError 400 for blank or unreadable session input, then reads pending approval_requests rows scoped to the session. Consensus has no QuestionV2Request producer — native approval rows do not have the required ^que identity or question/header/options fields — so the truthful 200 is {data: []}, never fabricated question entries. Unauthenticated requests use the v2 UnauthorizedError envelope through isApiSessionQuestionPath."
+  - path: /api/session/{sessionID}/question/{requestID}/reject
+    method: POST
+    operationId: v2.session.question.reject
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_question_reject_reply.go handleApiSessionQuestionReject (ROUTE-ADD-056; operationId v2.session.question.reject): validates the declared ^que requestID and resolves the real session store, answering SessionNotFoundError 404 for a readable missing session and InvalidRequestError 400 for malformed path or unreadable store. A well-formed request for a known session answers the declared empty 204 as an honest no-op because Consensus has no OpenCode question producer or pending-question registry; no question rejection or fabricated body is claimed. Unauthenticated requests use the v2 UnauthorizedError envelope through isApiSessionQuestionRejectPath."
+  - path: /api/session/{sessionID}/question/{requestID}/reply
+    method: POST
+    operationId: v2.session.question.reply
+    outcome: 204
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: "api_session_question_reject_reply.go handleApiSessionQuestionReply (ROUTE-ADD-057; operationId v2.session.question.reply): validates the required additionalProperties:false {answers: string[][]} body and declared ^que requestID, then resolves the real session store, answering SessionNotFoundError 404 for a readable missing session and InvalidRequestError 400 for malformed path/body or unreadable store. A well-formed request for a known session answers the declared empty 204 as an honest no-op because Consensus has no OpenCode question producer or pending-question registry; no answer or fabricated body is claimed. Unauthenticated requests use the v2 UnauthorizedError envelope through isApiSessionQuestionReplyPath."
   - path: /api/session/{sessionID}/context
     method: GET
     outcome: 200

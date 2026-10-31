@@ -431,6 +431,10 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// ROUTE-ADD-055: exact v2.session.question.list route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/question", s.handleApiSessionQuestionList)
+	// ROUTE-ADD-056/057: the declared session question actions each have their
+	// own exact pattern and dispatcher; neither is a question subtree catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/question/{requestID}/reject", s.handleApiSessionQuestionReject)
+	mux.HandleFunc("/api/session/{sessionID}/question/{requestID}/reply", s.handleApiSessionQuestionReply)
 	// ROUTE-ADD-043: exact v2.session.context route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/context", s.handleApiSessionContext)
@@ -911,6 +915,10 @@ var MountPatterns = []string{
 	// ROUTE-ADD-055: exact /api/session/{sessionID}/question
 	// (v2.session.question.list), never a subtree mount.
 	"/api/session/{sessionID}/question",
+	// ROUTE-ADD-056/057: exact session question action paths, never a subtree
+	// mount.
+	"/api/session/{sessionID}/question/{requestID}/reject",
+	"/api/session/{sessionID}/question/{requestID}/reply",
 	// ROUTE-ADD-048: exact /api/session/{sessionID}/message/{messageID}
 	// (v2.session.message) — concrete three-segment pattern, never a subtree
 	// mount.
@@ -1236,6 +1244,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	}
 	// ROUTE-ADD-055: the declared v2.session.question.list path.
 	if isApiSessionQuestionPath(path) {
+		return true
+	}
+	// ROUTE-ADD-056/057: the declared v2 session question action paths.
+	if isApiSessionQuestionRejectPath(path) || isApiSessionQuestionReplyPath(path) {
 		return true
 	}
 	// ROUTE-ADD-048: the declared v2.session.message path
