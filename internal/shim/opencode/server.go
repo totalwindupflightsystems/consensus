@@ -438,6 +438,9 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// ROUTE-ADD-046: exact v2.session.interrupt route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/interrupt", s.handleApiSessionInterrupt)
+	// ROUTE-ADD-054: exact v2.session.prompt route; never an
+	// /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/prompt", s.handleApiSessionPrompt)
 	// ROUTE-ADD-058: exact v2.session.revert.clear route; never an
 	// /api/session/* catch-all.
 	mux.HandleFunc("/api/session/{sessionID}/revert/clear", s.handleSessionRevertClear)
@@ -463,6 +466,13 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// v2.session.permission.create operations on one exact method-dispatch
 	// pattern. The sibling /permission/{requestID} routes remain distinct.
 	mux.HandleFunc("/api/session/{sessionID}/permission", s.handleApiSessionPermission)
+	// ROUTE-ADD-052: serve the declared v2.session.permission.get operation on
+	// its exact three-segment path; never introduce an /api/session/* catch-all.
+	mux.HandleFunc("/api/session/{sessionID}/permission/{requestID}", s.handleApiSessionPermissionGet)
+	// ROUTE-ADD-053: serve the declared v2.session.permission.reply operation
+	// on its exact three-segment path; the parent permission route remains
+	// distinct from this request-specific reply action.
+	mux.HandleFunc("/api/session/{sessionID}/permission/{requestID}/reply", s.handleApiSessionPermissionReply)
 	// ROUTE-ADD-040 (merged from wt/route-add-040, 75e417a + 7fabf15) /
 	// source item SHIM-DRIFT-036 (the board row's citation; positional ids
 	// renumber on regeneration — the operation identity is
@@ -905,6 +915,8 @@ var MountPatterns = []string{
 	"/api/session/{sessionID}/event",
 	// ROUTE-ADD-046: exact /api/session/{sessionID}/interrupt
 	"/api/session/{sessionID}/interrupt",
+	// ROUTE-ADD-054: exact /api/session/{sessionID}/prompt.
+	"/api/session/{sessionID}/prompt",
 	// ROUTE-ADD-058: exact /api/session/{sessionID}/revert/clear
 	"/api/session/{sessionID}/revert/clear",
 	// ROUTE-ADD-042: exact /api/session/{sessionID}/compact
@@ -915,6 +927,10 @@ var MountPatterns = []string{
 	"/api/session/{sessionID}/compact",
 	// ROUTE-ADD-050/051: exact v2.session.permission list/create path.
 	"/api/session/{sessionID}/permission",
+	// ROUTE-ADD-052: exact v2.session.permission.get path.
+	"/api/session/{sessionID}/permission/{requestID}",
+	// ROUTE-ADD-053: exact v2.session.permission.reply path.
+	"/api/session/{sessionID}/permission/{requestID}/reply",
 	// ROUTE-ADD-026: exact /api/provider (v2.provider.list), never an /api/* or
 	// /api/provider/* catch-all.
 	"/api/provider",
@@ -1233,6 +1249,10 @@ func isV2EnvelopeRoutePath(path string) bool {
 	if isApiSessionInterruptPath(path) {
 		return true
 	}
+	// ROUTE-ADD-054: the declared v2.session.prompt path.
+	if isApiSessionPromptPath(path) {
+		return true
+	}
 	// ROUTE-ADD-058: the declared v2.session.revert.clear path.
 	if isApiSessionRevertClearPath(path) {
 		return true
@@ -1248,7 +1268,11 @@ func isV2EnvelopeRoutePath(path string) bool {
 		return true
 	}
 	// ROUTE-ADD-050/051: the declared v2.session.permission list/create path.
-	if isApiSessionPermissionPath(path) {
+	if isApiSessionPermissionPath(path) || isApiSessionPermissionGetPath(path) {
+		return true
+	}
+	// ROUTE-ADD-053: the declared v2.session.permission.reply path.
+	if isApiSessionPermissionReplyPath(path) {
 		return true
 	}
 	// ROUTE-ADD-040 (merged from wt/route-add-040): the declared v2.session.get
