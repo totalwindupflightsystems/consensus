@@ -1,0 +1,40 @@
+{
+  "tick_id": "consensus-foreman-2026-10-31-06-09-32",
+  "wave_id": "consensus-foreman-2026-10-31-06-09-32",
+  "created_at": "2026-10-31T06:09:32-05:00",
+  "base_sha": "86b8005963c8e6bc7d6da2f06c052b8fb5194e5d",
+  "tasks": [
+    {
+      "row_id": "ROUTE-ADD-052",
+      "gitreins_id": "route-add-052",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-052",
+      "branch": "wt/ROUTE-ADD-052",
+      "title": "GET /api/session/{sessionID}/permission/{requestID}",
+      "operationId": "v2.session.permission.get",
+      "source_item": "SHIM-DRIFT-048"
+    },
+    {
+      "row_id": "ROUTE-ADD-053",
+      "gitreins_id": "route-add-053",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-053",
+      "branch": "wt/ROUTE-ADD-053",
+      "title": "POST /api/session/{sessionID}/permission/{requestID}/reply",
+      "operationId": "v2.session.permission.reply",
+      "source_item": "SHIM-DRIFT-049"
+    },
+    {
+      "row_id": "ROUTE-ADD-054",
+      "gitreins_id": "route-add-054",
+      "worktree": "/home/kara/worktrees/consensus-ROUTE-ADD-054",
+      "branch": "wt/ROUTE-ADD-054",
+      "title": "POST /api/session/{sessionID}/prompt",
+      "operationId": "v2.session.prompt",
+      "source_item": "SHIM-DRIFT-050"
+    }
+  ],
+  "status": "recovered",
+  "finished_at": "2026-10-31T07:10:14-05:00",
+  "verified_tree_sha": "2fe2ce92b178c2d5a975aa695134ff8d0befff58",
+  "closeout_commit_sha": "pending:board closeout",
+  "recovery_note": "Recovered ROUTE-ADD-052/053/054 via INT-CI-15 artifact regeneration. Final canonical merge 2fe2ce92b178c2d5a975aa695134ff8d0befff58; targeted route consistency PASS. GitReins tier2 PASS; tier1 blocked by missing PyYAML and unrelated keyless smoke timeout."
+}
