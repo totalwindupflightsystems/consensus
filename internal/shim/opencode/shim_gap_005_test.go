@@ -462,7 +462,8 @@ func shimGap005Requests() map[string]shimGap005Request {
 		// ^msg_-keyed union is not producible truthfully from the
 		// integer-keyed memory_events ledger, the SHIM-NARROWED-107
 		// narrowing recorded in specs/018 §12.3).
-		"v2.session.message": {http.MethodGet, "/api/session/s_gap5/message/msg-42", ""},
+		"v2.session.message":            {http.MethodGet, "/api/session/s_gap5/message/msg-42", ""},
+		"experimental.workspace.create": {http.MethodPost, "/experimental/workspace", `{"type":"unknown"}`},
 	}
 }
 

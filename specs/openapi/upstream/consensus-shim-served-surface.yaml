@@ -1248,6 +1248,39 @@ routes:
 
 
 
+  # ── Experimental workspace ──
+  - path: /experimental/workspace
+    method: GET
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: >
+      server.go exact /experimental/workspace dispatcher to
+      handleExperimentalWorkspaceList (experimental_workspace.go, ROUTE-ADD-076;
+      operationId experimental.workspace.list): the runtime has no persistent
+      workspace registry, so the declared 200 Workspace[] is truthfully an empty
+      array; blank directory/workspace selectors answer the declared 400
+      BadRequestError. Exact registration does not claim workspace siblings.
+
+  - path: /experimental/workspace
+    method: POST
+    outcome: 400
+    auth: api-key
+    other_methods_outcome: method-missing
+    x-shim-error-contract-narrowing: true
+    narrowing-rationale: >
+      The runtime owns neither the upstream workspace adapter registry nor its
+      persistent workspace store, so no input can truthfully produce the
+      declared 200 Workspace. The handler validates the declared optional body
+      and then answers the declared 400 WorkspaceCreateError rather than
+      inventing an id, type, projectID, directory or timeUsed; widening requires
+      implementing the workspace adapter and persistence lifecycle.
+    evidence: >
+      server.go exact /experimental/workspace dispatcher to
+      handleExperimentalWorkspaceCreate (experimental_workspace.go, ROUTE-ADD-077;
+      operationId experimental.workspace.create): strict validation of
+      {id?, type*, branch?, extra?}, then declared 400 WorkspaceCreateError.
+
   # ── Experimental worktree ──
   - path: /experimental/worktree
     method: GET
