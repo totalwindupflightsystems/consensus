@@ -25,15 +25,15 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 191,
-    "covered_operations": 141,
+    "served_route_entries": 192,
+    "covered_operations": 142,
     "narrowed_error_contract_only": 23,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 3,
     "semantic_different": 2,
-    "drift_declared_not_served": 19,
+    "drift_declared_not_served": 18,
     "drift_by_class": {
-      "NOT-SERVED": 15,
+      "NOT-SERVED": 14,
       "OUTCOME-MISMATCH": 4
     },
     "drift_served_not_declared": 0,
@@ -650,6 +650,16 @@
       "family": "/experimental/*",
       "served_outcome": "200",
       "evidence": "server.go handleExperimentalProjectCopyRemove POST arm -> handleExperimentalProjectCopyCreate (experimental_project_copy_create.go) + validateProjectCopyCreateBody + projectCopySlug (ROUTE-ADD-070; the typed 501 intentional narrowing SHIM-NARROWED-U002 this row replaced is GONE \u2014 the narrowing's no-registry premise blocked upstream's project_directory bookkeeping table, not the declared 200 itself): the pinned upstream source (packages/server/src/handlers/project-copy.ts + packages/core/src/project/copy.ts + copy-strategies.ts + git.ts worktreeCreate) makes v2.projectCopy.create a REAL git-worktree effect \u2014 `git worktree add --detach <directory>/<name> HEAD` (the only upstream-registered strategy id 'git_worktree') with sourceDirectory = location.project.directory, the workspace the request routes to (this shim's requestWorkspaceDir, overridable by x-opencode-directory / location[directory]) \u2014 and the declared 200 ProjectCopyCopy carries exactly {directory}. The handler performs that effect with runGit (GIT_* env stripped, ctx-bounded \u2014 the projectInitGit ROUTE-FIX-006 real-workspace-effect precedent) and answers 200 {directory: <the created absolute path>} \u2014 the created directory exists and is a real git worktree (TestExperimentalProjectCopyCreateServesDeclared200 verifies it via git worktree list), so nothing is fabricated: neither a stored copy, a registry row (the runtime keeps NONE and this path reads/writes no store), nor an id/timestamp the declared ProjectCopyCopy never carried. An absent name generates the upstream Slug.create two-word slug, the suffix -2..-10 collision loop is upstream's own. The declared 400 arm answers real malformed/failing input: a present-but-blank {projectID} (kind Path), a malformed deepObject location selector (kind Query), a body violating the declared requestBody {strategy*: string, directory*: string, name?: string} additionalProperties:false (kind Body/Payload \u2014 UNLIKE the sibling DELETE the body carries required members, so an absent/empty body is NOT well-formed and answers 400), a strategy other than 'git_worktree' (upstream StrategyUnavailableError -> the ProjectCopyError arm {name, data{message}}: only that one strategy is registered upstream), a non-git source directory (upstream DirectoryUnavailableError), an exhausted destination suffix loop (upstream DestinationExistsError), and a failed `git worktree add` \u2014 all the declared ProjectCopyError shape, never an undeclared 5xx. Auth is the standard api-key wall; unauthenticated POST answers the v2 UnauthorizedError 401 through the /experimental/project/<id>/copy shape rule in isV2EnvelopeRoutePath (v2.projectCopy.create is a v2.* operation); undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope; /copy/generate-name, /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404"
+    },
+    {
+      "path": "/experimental/session",
+      "method": "GET",
+      "operationId": "experimental.session.list",
+      "tags": "experimental",
+      "declared_responses": "200,400",
+      "family": "/experimental/*",
+      "served_outcome": "200",
+      "evidence": "server.go exact /experimental/session registration -> handleExperimentalSession (api_experimental_session.go, ROUTE-ADD-074; source item SHIM-DRIFT-014, operationId experimental.session.list): the exact path had no shim route at all (net/http default 404). The handler validates the declared query parameters against the pinned schema \u2014 a present-but-blank directory/workspace selector, a roots/archived value that is neither boolean true/false nor the declared string-enum form, and a blank or non-numeric start/cursor/limit all answer the declared 400 BadRequestError (kind Query; search is free-form and never refused) \u2014 then READS the runtime's real sessions store: an unreadable store answers the declared 400 BadRequestError because the operation declares no 5xx arm (the handleApiSessionList convention, answered through this operation's declared arm). The declared 200 GlobalSession[] answers the empty, non-null array: no sessions row can be truthfully reshaped into a GlobalSession (required id must match ^ses while sessions.id is a native UUID; slug, projectID, directory, title, version and time.updated have no truthful counterparts \u2014 the ROUTE-ADD-037 v2.session.list reshape-refusal precedent). Non-GET keeps the sibling METHOD_NOT_ALLOWED 405 envelope. Exact registration only: /experimental/session/{sessionID}/background keeps its own row and deeper sub-paths keep the net/http default 404. Test: api_experimental_session_test.go.\n"
     },
     {
       "path": "/experimental/tool",
@@ -1881,17 +1891,6 @@
       "id": "SHIM-DRIFT-005"
     },
     {
-      "path": "/experimental/session",
-      "method": "GET",
-      "operationId": "experimental.session.list",
-      "tags": "experimental",
-      "declared_responses": "200,400",
-      "family": "/experimental/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006"
-    },
-    {
       "path": "/experimental/session/{sessionID}/background",
       "method": "POST",
       "operationId": "experimental.session.background",
@@ -1900,7 +1899,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-007"
+      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1911,7 +1910,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008"
+      "id": "SHIM-DRIFT-007"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1922,7 +1921,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1933,7 +1932,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1944,7 +1943,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1955,7 +1954,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/formatter",
@@ -1966,7 +1965,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/global/upgrade",
@@ -1977,7 +1976,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -1988,7 +1987,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2001,7 +2000,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2014,7 +2013,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/sync/steal",
@@ -2025,7 +2024,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2038,7 +2037,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-019"
+      "id": "SHIM-DRIFT-018"
     }
   ],
   "drift_served_not_declared": [],

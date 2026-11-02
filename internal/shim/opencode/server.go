@@ -624,6 +624,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// /experimental/workspace/adapter, /status, /sync-list, /warp and /{id}
 	// remain available for their own future route registrations.
 	mux.HandleFunc("/experimental/workspace", s.handleExperimentalWorkspace)
+	// ROUTE-ADD-074 / SHIM-DRIFT-014: the exact /experimental/session path had
+	// no shim route at all, so GET /experimental/session (upstream
+	// experimental.session.list) fell through to net/http's default 404 — the
+	// drift row's NOT-SERVED class, indistinguishable from "no such opencode
+	// operation". Serve the declared operation. A parent chi mount already
+	// reaches this subtree through the /experimental/* MountPatterns entry, so
+	// only the exact mux path was missing; the registration stays exact (no
+	// /experimental/session catch-all), so the declared sibling
+	// /experimental/session/{sessionID}/background and deeper sub-paths keep
+	// their own contract rows (or the default 404) until they land.
+	mux.HandleFunc("/experimental/session", s.handleExperimentalSession)
 	// ROUTE-ADD-065 / SHIM-DRIFT-062: the exact /experimental/console path was
 	// never registered, so GET /experimental/console fell through to net/http's
 	// default 404 — the drift row's NOT-SERVED class, indistinguishable from

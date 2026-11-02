@@ -1315,6 +1315,35 @@ routes:
       operationId experimental.workspace.create): strict validation of
       {id?, type*, branch?, extra?}, then declared 400 WorkspaceCreateError.
 
+  # ── Experimental session ──
+  - path: /experimental/session
+    method: GET
+    outcome: 200
+    auth: api-key
+    other_methods_outcome: method-missing
+    evidence: >
+      server.go exact /experimental/session registration ->
+      handleExperimentalSession (api_experimental_session.go, ROUTE-ADD-074;
+      source item SHIM-DRIFT-014, operationId experimental.session.list): the
+      exact path had no shim route at all (net/http default 404). The handler
+      validates the declared query parameters against the pinned schema — a
+      present-but-blank directory/workspace selector, a roots/archived value
+      that is neither boolean true/false nor the declared string-enum form, and
+      a blank or non-numeric start/cursor/limit all answer the declared 400
+      BadRequestError (kind Query; search is free-form and never refused) — then
+      READS the runtime's real sessions store: an unreadable store answers the
+      declared 400 BadRequestError because the operation declares no 5xx arm
+      (the handleApiSessionList convention, answered through this operation's
+      declared arm). The declared 200 GlobalSession[] answers the empty,
+      non-null array: no sessions row can be truthfully reshaped into a
+      GlobalSession (required id must match ^ses while sessions.id is a native
+      UUID; slug, projectID, directory, title, version and time.updated have no
+      truthful counterparts — the ROUTE-ADD-037 v2.session.list reshape-refusal
+      precedent). Non-GET keeps the sibling METHOD_NOT_ALLOWED 405 envelope.
+      Exact registration only: /experimental/session/{sessionID}/background
+      keeps its own row and deeper sub-paths keep the net/http default 404.
+      Test: api_experimental_session_test.go.
+
   # ── Experimental worktree ──
   - path: /experimental/worktree
     method: GET
