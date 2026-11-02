@@ -619,6 +619,15 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// declared /experimental/tool and /experimental/console siblings keep their
 	// own handlers.
 	mux.HandleFunc("/experimental/worktree", s.handleExperimentalWorktreeCreate)
+	// ROUTE-ADD-073: the exact /experimental/resource path had no shim route
+	// at all, so GET /experimental/resource fell through to net/http's
+	// default 404 (the declared-vs-served artifact's NOT-SERVED class).
+	// Serve the declared experimental.resource.list operation. Registration
+	// stays exact: the /experimental/* family has no catch-all, so the
+	// declared siblings (/experimental/tool, /experimental/console, ...)
+	// keep their own rows and undeclared /experimental/* sub-paths keep the
+	// default 404.
+	mux.HandleFunc("/experimental/resource", s.handleExperimentalResource)
 	// ROUTE-ADD-076 / ROUTE-ADD-077: GET and POST share one exact
 	// /experimental/workspace registration. Do not use a subtree catch-all:
 	// /experimental/workspace/adapter, /status, /sync-list, /warp and /{id}
