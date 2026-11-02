@@ -299,7 +299,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          # Publish only from the default branch (main). The gate used to name
+          # the legacy `master` branch, which this repository does not have, so
+          # pushes to main built the image but never pushed it.
+          push: ${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           build-args: |
             GO_IMAGE=docker.io/library/golang:1.26-alpine
             ALPINE_IMAGE=docker.io/library/alpine:3.21
@@ -325,7 +328,7 @@ jobs:
             set -e
             TAGS=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ')
             PUSH_FLAG=""
-            if [ "${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}" = "true" ]; then
+            if [ "${{ env.ACT != 'true' && env.GHCR_TOKEN != '' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}" = "true" ]; then
               PUSH_FLAG="--push"
             fi
             docker buildx build \

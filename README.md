@@ -227,14 +227,18 @@ CONSENSUS_DB_URL="sqlite:///tmp/consensus.db" CONSENSUS_PORT=8124 \
 
 ### Option 2: Docker (registry access currently required)
 
-CI publishes `ghcr.io/totalwindupflightsystems/consensus:latest` — the image
-path follows this repository
-(`github.com/totalwindupflightsystems/consensus`). Anonymous GHCR pulls of it
-currently return HTTP 401; package visibility is not something this
-repository's documentation can change, so prefer the source build above. If
-your GitHub account already has package access, log in first (username: your
-GitHub username; password: a personal access token with the `read:packages`
-scope):
+CI publishes `ghcr.io/totalwindupflightsystems/consensus:latest` on every push
+to `main` (the default branch), once the Docker job's build-and-push step
+succeeds; each run also publishes a second tag containing the commit SHA. The
+image path follows this repository
+(`github.com/totalwindupflightsystems/consensus`). Pushes to any other branch,
+and pull requests, build the image but do not publish it.
+
+Anonymous GHCR pulls of it currently return HTTP 401; package visibility is
+not something this repository's documentation can change, so prefer the
+source build above. If your GitHub account already has package access, log in
+first (username: your GitHub username; password: a personal access token with
+the `read:packages` scope):
 
 ```bash
 docker login ghcr.io
