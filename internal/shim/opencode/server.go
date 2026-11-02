@@ -771,10 +771,27 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 	// — the artifact's NOT-SERVED class. Register the exact declared path
 	// shape (/experimental/* is already a chi MountPattern, so a parent mount
 	// reaches it); never an /experimental/project/* catch-all, so the sibling
-	// declared /copy paths (v2.projectCopy.create, experimental.projectCopy
-	// .generateName, v2.projectCopy.refresh) keep the drift class their own
-	// contract rows are filed against.
+	// declared /copy paths keep the answers their own contract rows own: the
+	// sibling POST on this same exact path (v2.projectCopy.create) is served
+	// by this handler's dispatch (ROUTE-ADD-070), POST
+	// /experimental/project/{projectID}/copy/refresh (v2.projectCopy.refresh)
+	// by its own exact registration (ROUTE-ADD-072), and
+	// experimental.projectCopy.generateName keeps the drift class its own
+	// contract row is filed against.
 	mux.HandleFunc("/experimental/project/{projectID}/copy", s.handleExperimentalProjectCopyRemove)
+	// ROUTE-ADD-072 / source item SHIM-DRIFT-004 in the committed artifact
+	// (the board row cited SHIM-DRIFT-069, a positional id from the
+	// 2026-09-29 baseline report): the declared v2.projectCopy.refresh
+	// operation (POST /experimental/project/{projectID}/copy/refresh) had no
+	// shim route at all, so every request on that exact path fell through to
+	// net/http's default 404 — the artifact's NOT-SERVED class. Register the
+	// exact declared path shape (/experimental/* is already a chi
+	// MountPattern, so a parent mount reaches it); never an
+	// /experimental/project/* catch-all, so the remaining sibling declared
+	// /copy path (experimental.projectCopy.generateName) and every undeclared
+	// shape keep the net/http default 404 their own contract rows are filed
+	// against.
+	mux.HandleFunc("/experimental/project/{projectID}/copy/refresh", s.handleExperimentalProjectCopyRefresh)
 	// ROUTE-ADD-086 / source item SHIM-DRIFT-083: the exact
 	// /experimental/worktree/reset path had no shim route at all, so POST
 	// (upstream worktree.reset) fell through to net/http's default 404 — the
@@ -1203,6 +1220,16 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// other /experimental/* path keeps the shim's own envelope.
 	if rest, ok := strings.CutPrefix(path, "/experimental/project/"); ok {
 		if id, ok := strings.CutSuffix(rest, "/copy"); ok {
+			return id != "" && !strings.Contains(id, "/")
+		}
+		// ROUTE-ADD-072: the declared v2.projectCopy.refresh path
+		// (POST /experimental/project/{projectID}/copy/refresh) is a v2.*
+		// operation like its copy siblings, so its unauthenticated answer is
+		// the v2 UnauthorizedError envelope too. The rule admits only the
+		// concrete <non-empty-id>/copy/refresh shape; a blank id, deeper
+		// shapes and every other /experimental/* path keep the shim's own
+		// envelope.
+		if id, ok := strings.CutSuffix(rest, "/copy/refresh"); ok {
 			return id != "" && !strings.Contains(id, "/")
 		}
 	}

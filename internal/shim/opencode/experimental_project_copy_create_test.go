@@ -358,8 +358,10 @@ func TestExperimentalProjectCopyCreateSiblingDeleteUntouched(t *testing.T) {
 }
 
 // TestExperimentalProjectCopyCreateNoCatchAll pins the exact-path
-// registration: /copy/generate-name, /copy/refresh, /copyx and deeper shapes
-// keep the net/http default 404 they are classified with, and undeclared
+// registration: /copy/generate-name, /copyx and deeper shapes
+// keep the net/http default 404 they are classified with (the declared
+// /copy/refresh sibling is served by its own exact registration since
+// ROUTE-ADD-072), and undeclared
 // methods on the exact path keep the 405 sibling envelope.
 func TestExperimentalProjectCopyCreateNoCatchAll(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
