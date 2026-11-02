@@ -50,7 +50,7 @@ This isn't theoretical. It's running. Right now. With real DeepSeek API calls.
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║     CONSCIENCE — Real LLM-Powered Agent Harness Demo        ║
+║     Consensus — Real LLM-Powered Agent Harness Demo         ║
 ╚══════════════════════════════════════════════════════════════╝
 
 ━━━ DEMO 2: Multi-Topic Sessions ━━━
