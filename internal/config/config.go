@@ -193,6 +193,16 @@ type AdaptersConfig struct {
 type OpenCodeAdapterConfig struct {
 	Enabled  bool   `yaml:"enabled"`
 	AdminKey string `yaml:"admin_key"` // Admin API key for auth translation
+	// MessageResponseTimeoutSec is the shim's synchronous message-response
+	// budget (BUG-013): how long POST /session/{id}/message waits for the
+	// agent's turn before answering 504 RESPONSE_TIMEOUT. Zero keeps the
+	// shim's compiled 90s default. Consumers whose turns run longer than
+	// 90s must raise this above their planning wall. Consumed by
+	// cmd/consensus/main.go via opencode.WithMessageResponseTimeout. The
+	// CONSENSUS_MESSAGE_RESPONSE_TIMEOUT env var (a Go duration string,
+	// e.g. "3m") is read by the shim itself at construction and wins over
+	// this key.
+	MessageResponseTimeoutSec int `yaml:"message_response_timeout_seconds"`
 }
 
 // H3AdapterConfig holds the H3 protocol shim adapter settings (get-h3

@@ -881,6 +881,7 @@ var retainedWiredKeys = []struct {
 	{"compression.cosine_threshold", "worker CosineThreshold"},
 	{"compression.embedding_model", "worker EmbeddingModel"},
 	{"adapters.opencode.enabled", "opencode shim mount"},
+	{"adapters.opencode.message_response_timeout_seconds", "opencode shim message-response budget (opencode.WithMessageResponseTimeout, cmd/consensus/main.go)"},
 	{"adapters.h3.enabled", "H3 shim mount"},
 }
 
@@ -942,6 +943,9 @@ hitl:
 crier:
   url: http://file-crier:8767
   agent_id: consensus-file
+adapters:
+  opencode:
+    message_response_timeout_seconds: 300
 `)
 		t.Setenv("CONSENSUS_CONFIG", path)
 
@@ -951,6 +955,11 @@ crier:
 		}
 		if cfg.Harness.PlanningTimeoutSec != 240 {
 			t.Errorf("harness.planning_timeout_seconds = %d, want 240", cfg.Harness.PlanningTimeoutSec)
+		}
+		// BUG-013: the shim's message-response budget resolves from the
+		// file; the shim applies it via opencode.WithMessageResponseTimeout.
+		if cfg.Adapters.OpenCode.MessageResponseTimeoutSec != 300 {
+			t.Errorf("adapters.opencode.message_response_timeout_seconds = %d, want 300", cfg.Adapters.OpenCode.MessageResponseTimeoutSec)
 		}
 		if cfg.Logging.Level != "debug" || cfg.Logging.Format != "json" {
 			t.Errorf("logging = %+v, want debug/json from the file", cfg.Logging)

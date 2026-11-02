@@ -458,7 +458,12 @@ func runServer() {
 	// into native Consensus API calls. Enabled by default.
 	if cfg.Adapters.OpenCode.Enabled {
 		shimService := opencode.NewServiceAdapter(apiSrv.Service())
-		shimSrv := opencode.NewServer(database, cfg.Adapters.OpenCode.AdminKey, shimEvents, shimService)
+		// BUG-013: raise the shim's synchronous message-response budget from
+		// deployment config. Zero keeps the shim's compiled 90s default; the
+		// CONSENSUS_MESSAGE_RESPONSE_TIMEOUT env var (read by the shim at
+		// construction, docs/CONFIG.md §5.10) wins over this file value.
+		shimSrv := opencode.NewServer(database, cfg.Adapters.OpenCode.AdminKey, shimEvents, shimService,
+			opencode.WithMessageResponseTimeout(time.Duration(cfg.Adapters.OpenCode.MessageResponseTimeoutSec)*time.Second))
 		// MCP-DIRECT-001: an MCP client that speaks to the shim's bare /mcp
 		// mount (a URL guessable from the documented /mcp/sse route) must
 		// reach the real MCP handler, not the shim's 501 stub.

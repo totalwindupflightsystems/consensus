@@ -149,10 +149,58 @@ type MessageSendResult struct {
 
 const defaultMessageResponseTimeout = 90 * time.Second
 
+// ServerOption adjusts construction-time behavior of the opencode shim.
+type ServerOption func(*Server)
+
+// WithMessageResponseTimeout overrides the shim's synchronous
+// message-response budget (BUG-013): how long POST /session/{id}/message
+// (and the sibling synchronous endpoints) wait for the agent's turn before
+// answering 504 RESPONSE_TIMEOUT. The default stays
+// defaultMessageResponseTimeout (90s); a non-positive duration keeps it, so
+// a caller passing an unset value cannot silently disable the bound.
+//
+// Consumers whose agent turns legitimately run longer than 90s — dexdat-core
+// planning sessions whose wall is harness.planning_timeout_seconds at 3m+
+// against slow models — must raise this budget above their planning wall, or
+// every long turn surfaces as a 504 while the session itself stays healthy.
+//
+// Deployment precedence: the CONSENSUS_MESSAGE_RESPONSE_TIMEOUT environment
+// variable wins over this option (it is read at construction in NewServer),
+// matching the env-beats-file precedence documented in docs/CONFIG.md §2.
+func WithMessageResponseTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		if d > 0 {
+			s.messageResponseTimeout = d
+		}
+	}
+}
+
+// messageResponseTimeoutFromEnv resolves the deployment-level response
+// budget from CONSENSUS_MESSAGE_RESPONSE_TIMEOUT. The value is a Go duration
+// string ("3m", "200s"). Unset, unparseable or non-positive values return 0
+// — "no deployment override" — instead of failing startup: a bad value must
+// not keep the shim from booting (the field keeps whatever the default or
+// the WithMessageResponseTimeout option set). getenv is injected so tests
+// can exercise the parse table without mutating process environment.
+func messageResponseTimeoutFromEnv(getenv func(string) string) time.Duration {
+	v := strings.TrimSpace(getenv("CONSENSUS_MESSAGE_RESPONSE_TIMEOUT"))
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0
+	}
+	return d
+}
+
 // NewServer creates the opencode shim with all routes registered.
 // svc is the API service layer — the shim calls this instead of raw DB.
 // If eventBus is nil, the shim falls back to polling-based event streaming.
-func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Server {
+// Options (see ServerOption) adjust the construction defaults; the
+// CONSENSUS_MESSAGE_RESPONSE_TIMEOUT environment variable, when set to a
+// valid positive duration, wins over the WithMessageResponseTimeout option.
+func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service, opts ...ServerOption) *Server {
 	wd, err := os.Getwd()
 	if err != nil {
 		wd = "."
@@ -165,6 +213,17 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service) *Se
 		adminKey:               adminKey,
 		workdir:                wd,
 		startedAt:              time.Now().UTC(),
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(s)
+		}
+	}
+	// BUG-013: deployment-level response budget. The environment wins over
+	// the option (env beats file, docs/CONFIG.md §2); unset or invalid
+	// values keep whatever the default/option established above.
+	if d := messageResponseTimeoutFromEnv(os.Getenv); d > 0 {
+		s.messageResponseTimeout = d
 	}
 	mux := http.NewServeMux()
 	s.mux = mux

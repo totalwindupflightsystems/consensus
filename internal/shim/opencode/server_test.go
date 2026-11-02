@@ -93,7 +93,7 @@ func newTestServer(mdb *mockDB) (*Server, *httptest.Server) {
 	return s, srv
 }
 
-func newMessageResponseTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) {
+func newMessageResponseTestServer(t *testing.T, opts ...ServerOption) (*Server, *httptest.Server, db.DB) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -148,7 +148,7 @@ func newMessageResponseTestServer(t *testing.T) (*Server, *httptest.Server, db.D
 	}
 
 	service := NewServiceAdapter(api.NewService(conn, nil, nil))
-	s := NewServer(conn, "test-key", nil, service)
+	s := NewServer(conn, "test-key", nil, service, opts...)
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)
 	return s, srv, conn
