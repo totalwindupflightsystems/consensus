@@ -861,8 +861,20 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service, opt
 	// reaches it); never an /experimental/project/* catch-all, so the sibling
 	// declared /copy paths (v2.projectCopy.create, experimental.projectCopy
 	// .generateName, v2.projectCopy.refresh) keep the drift class their own
-	// contract rows are filed against.
+	// contract rows are filed against. ROUTE-ADD-070 served the POST arm on
+	// this exact path, ROUTE-ADD-071 served the sibling .generateName path
+	// (registered just below), and v2.projectCopy.refresh still owns its own
+	// drift row.
 	mux.HandleFunc("/experimental/project/{projectID}/copy", s.handleExperimentalProjectCopyRemove)
+	// ROUTE-ADD-071 / source item SHIM-DRIFT-002: the declared
+	// experimental.projectCopy.generateName operation (POST
+	// /experimental/project/{projectID}/copy/generate-name) had no shim route at
+	// all, so every request on that exact path fell through to net/http's
+	// default 404 — the artifact's NOT-SERVED class. Registration stays EXACT
+	// (no /experimental/project/* catch-all): the sibling /copy paths keep the
+	// contract rows that own them, and the deeper /copy/* shapes keep the
+	// default 404 they are classified with.
+	mux.HandleFunc("/experimental/project/{projectID}/copy/generate-name", s.handleExperimentalProjectCopyGenerateName)
 	// ROUTE-ADD-086 / source item SHIM-DRIFT-083: the exact
 	// /experimental/worktree/reset path had no shim route at all, so POST
 	// (upstream worktree.reset) fell through to net/http's default 404 — the

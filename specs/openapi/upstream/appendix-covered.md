@@ -62,6 +62,7 @@
 | /experimental/control-plane/move-session | POST | experimental.controlPlane.moveSession | 204,400 | 204 |
 | /experimental/project/{projectID}/copy | DELETE | v2.projectCopy.remove | 204,400 | 204 |
 | /experimental/project/{projectID}/copy | POST | v2.projectCopy.create | 200,400 | 200 |
+| /experimental/project/{projectID}/copy/generate-name | POST | experimental.projectCopy.generateName | 200,400 | 200 |
 | /experimental/tool | GET | tool.list | 200,400 | 200 |
 | /experimental/tool/ids | GET | tool.ids | 200,400 | 200 |
 | /experimental/workspace | GET | experimental.workspace.list | 200,400 | 200 |

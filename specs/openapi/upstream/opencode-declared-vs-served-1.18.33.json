@@ -25,16 +25,16 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 192,
-    "covered_operations": 142,
+    "served_route_entries": 193,
+    "covered_operations": 143,
     "narrowed_error_contract_only": 23,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 3,
     "semantic_different": 2,
-    "drift_declared_not_served": 18,
+    "drift_declared_not_served": 17,
     "drift_by_class": {
       "OUTCOME-MISMATCH": 4,
-      "NOT-SERVED": 14
+      "NOT-SERVED": 13
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -649,7 +649,7 @@
       "declared_responses": "204,400",
       "family": "/experimental/*",
       "served_outcome": "204",
-      "evidence": "server.go handleExperimentalProjectCopyRemove + validateProjectCopyRemoveBody (ROUTE-ADD-069; source item SHIM-DRIFT-037 in this artifact \u2014 the board row cited SHIM-DRIFT-066, a positional id from the 2026-09-29 baseline report): declared responses 204 No Content, 400 ProjectCopyError | InvalidRequestError. Served arms: the declared 204 with an empty body for every well-formed request \u2014 this runtime keeps NO project-copy registry (nothing in internal/db or the migration set records a copied project), so removal is the idempotent no-op of the ROUTE-ADD-025 saved-permission removal: the 204 fabricates neither a stored copy nor a deletion claim. The declared 400 arm answers real malformed input: a present-but-blank {projectID} (the pinned document declares it as a plain required string with NO pattern, kind Path), a body violating the declared requestBody {directory*: string, force*: boolean} additionalProperties:false (kind Body for a body that is not exactly one JSON object of declared fields, kind Payload for a wrong-typed or unpaired declared member), and a malformed deepObject location selector (kind Query, the shared apiV2LocationSelector rule). The requestBody itself is optional (no requestBody.required in the pinned document), so an absent/empty body or {} is well-formed and answers the declared 204 (the ptyUpdate absent-body rule); the emitted 400 body is the InvalidRequestError arm ({_tag, message, kind, field}) of the operation's declared anyOf. Auth is the standard api-key wall (/experimental/* is not a stub path); unauthenticated requests answer the v2 UnauthorizedError 401 through the /experimental/project/<id>/copy shape rule in isV2EnvelopeRoutePath, because v2.projectCopy.remove is a v2.* operation. Exact declared path only \u2014 no /experimental/project/* catch-all: the declared sibling POST on this exact path (v2.projectCopy.create) is a different operation dispatching to handleExperimentalProjectCopyCreate (ROUTE-ADD-070, its served row below), while /copy/generate-name, /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404 they are classified with. NOTE (ROUTE-ADD-070): the DELETE keeps its no-registry idempotent no-op even though the sibling POST now performs REAL git-worktree creates \u2014 the runtime records no copy registry, so remove cannot truthfully resolve a created copy's registration; the two arms' asymmetry (real create, no-op remove) is the recorded consequence of owning only what the runtime can honestly do"
+      "evidence": "server.go handleExperimentalProjectCopyRemove + validateProjectCopyRemoveBody (ROUTE-ADD-069; source item SHIM-DRIFT-037 in this artifact \u2014 the board row cited SHIM-DRIFT-066, a positional id from the 2026-09-29 baseline report): declared responses 204 No Content, 400 ProjectCopyError | InvalidRequestError. Served arms: the declared 204 with an empty body for every well-formed request \u2014 this runtime keeps NO project-copy registry (nothing in internal/db or the migration set records a copied project), so removal is the idempotent no-op of the ROUTE-ADD-025 saved-permission removal: the 204 fabricates neither a stored copy nor a deletion claim. The declared 400 arm answers real malformed input: a present-but-blank {projectID} (the pinned document declares it as a plain required string with NO pattern, kind Path), a body violating the declared requestBody {directory*: string, force*: boolean} additionalProperties:false (kind Body for a body that is not exactly one JSON object of declared fields, kind Payload for a wrong-typed or unpaired declared member), and a malformed deepObject location selector (kind Query, the shared apiV2LocationSelector rule). The requestBody itself is optional (no requestBody.required in the pinned document), so an absent/empty body or {} is well-formed and answers the declared 204 (the ptyUpdate absent-body rule); the emitted 400 body is the InvalidRequestError arm ({_tag, message, kind, field}) of the operation's declared anyOf. Auth is the standard api-key wall (/experimental/* is not a stub path); unauthenticated requests answer the v2 UnauthorizedError 401 through the /experimental/project/<id>/copy shape rule in isV2EnvelopeRoutePath, because v2.projectCopy.remove is a v2.* operation. Exact declared path only \u2014 no /experimental/project/* catch-all: the declared sibling POST on this exact path (v2.projectCopy.create) is a different operation dispatching to handleExperimentalProjectCopyCreate (ROUTE-ADD-070, its served row below), while /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404 they are classified with (ROUTE-ADD-071 later served the sibling /copy/generate-name path, whose own row carries its contract). NOTE (ROUTE-ADD-070): the DELETE keeps its no-registry idempotent no-op even though the sibling POST now performs REAL git-worktree creates \u2014 the runtime records no copy registry, so remove cannot truthfully resolve a created copy's registration; the two arms' asymmetry (real create, no-op remove) is the recorded consequence of owning only what the runtime can honestly do"
     },
     {
       "path": "/experimental/project/{projectID}/copy",
@@ -659,7 +659,17 @@
       "declared_responses": "200,400",
       "family": "/experimental/*",
       "served_outcome": "200",
-      "evidence": "server.go handleExperimentalProjectCopyRemove POST arm -> handleExperimentalProjectCopyCreate (experimental_project_copy_create.go) + validateProjectCopyCreateBody + projectCopySlug (ROUTE-ADD-070; the typed 501 intentional narrowing SHIM-NARROWED-U002 this row replaced is GONE \u2014 the narrowing's no-registry premise blocked upstream's project_directory bookkeeping table, not the declared 200 itself): the pinned upstream source (packages/server/src/handlers/project-copy.ts + packages/core/src/project/copy.ts + copy-strategies.ts + git.ts worktreeCreate) makes v2.projectCopy.create a REAL git-worktree effect \u2014 `git worktree add --detach <directory>/<name> HEAD` (the only upstream-registered strategy id 'git_worktree') with sourceDirectory = location.project.directory, the workspace the request routes to (this shim's requestWorkspaceDir, overridable by x-opencode-directory / location[directory]) \u2014 and the declared 200 ProjectCopyCopy carries exactly {directory}. The handler performs that effect with runGit (GIT_* env stripped, ctx-bounded \u2014 the projectInitGit ROUTE-FIX-006 real-workspace-effect precedent) and answers 200 {directory: <the created absolute path>} \u2014 the created directory exists and is a real git worktree (TestExperimentalProjectCopyCreateServesDeclared200 verifies it via git worktree list), so nothing is fabricated: neither a stored copy, a registry row (the runtime keeps NONE and this path reads/writes no store), nor an id/timestamp the declared ProjectCopyCopy never carried. An absent name generates the upstream Slug.create two-word slug, the suffix -2..-10 collision loop is upstream's own. The declared 400 arm answers real malformed/failing input: a present-but-blank {projectID} (kind Path), a malformed deepObject location selector (kind Query), a body violating the declared requestBody {strategy*: string, directory*: string, name?: string} additionalProperties:false (kind Body/Payload \u2014 UNLIKE the sibling DELETE the body carries required members, so an absent/empty body is NOT well-formed and answers 400), a strategy other than 'git_worktree' (upstream StrategyUnavailableError -> the ProjectCopyError arm {name, data{message}}: only that one strategy is registered upstream), a non-git source directory (upstream DirectoryUnavailableError), an exhausted destination suffix loop (upstream DestinationExistsError), and a failed `git worktree add` \u2014 all the declared ProjectCopyError shape, never an undeclared 5xx. Auth is the standard api-key wall; unauthenticated POST answers the v2 UnauthorizedError 401 through the /experimental/project/<id>/copy shape rule in isV2EnvelopeRoutePath (v2.projectCopy.create is a v2.* operation); undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope; /copy/generate-name, /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404"
+      "evidence": "server.go handleExperimentalProjectCopyRemove POST arm -> handleExperimentalProjectCopyCreate (experimental_project_copy_create.go) + validateProjectCopyCreateBody + projectCopySlug (ROUTE-ADD-070; the typed 501 intentional narrowing SHIM-NARROWED-U002 this row replaced is GONE \u2014 the narrowing's no-registry premise blocked upstream's project_directory bookkeeping table, not the declared 200 itself): the pinned upstream source (packages/server/src/handlers/project-copy.ts + packages/core/src/project/copy.ts + copy-strategies.ts + git.ts worktreeCreate) makes v2.projectCopy.create a REAL git-worktree effect \u2014 `git worktree add --detach <directory>/<name> HEAD` (the only upstream-registered strategy id 'git_worktree') with sourceDirectory = location.project.directory, the workspace the request routes to (this shim's requestWorkspaceDir, overridable by x-opencode-directory / location[directory]) \u2014 and the declared 200 ProjectCopyCopy carries exactly {directory}. The handler performs that effect with runGit (GIT_* env stripped, ctx-bounded \u2014 the projectInitGit ROUTE-FIX-006 real-workspace-effect precedent) and answers 200 {directory: <the created absolute path>} \u2014 the created directory exists and is a real git worktree (TestExperimentalProjectCopyCreateServesDeclared200 verifies it via git worktree list), so nothing is fabricated: neither a stored copy, a registry row (the runtime keeps NONE and this path reads/writes no store), nor an id/timestamp the declared ProjectCopyCopy never carried. An absent name generates the upstream Slug.create two-word slug, the suffix -2..-10 collision loop is upstream's own. The declared 400 arm answers real malformed/failing input: a present-but-blank {projectID} (kind Path), a malformed deepObject location selector (kind Query), a body violating the declared requestBody {strategy*: string, directory*: string, name?: string} additionalProperties:false (kind Body/Payload \u2014 UNLIKE the sibling DELETE the body carries required members, so an absent/empty body is NOT well-formed and answers 400), a strategy other than 'git_worktree' (upstream StrategyUnavailableError -> the ProjectCopyError arm {name, data{message}}: only that one strategy is registered upstream), a non-git source directory (upstream DirectoryUnavailableError), an exhausted destination suffix loop (upstream DestinationExistsError), and a failed `git worktree add` \u2014 all the declared ProjectCopyError shape, never an undeclared 5xx. Auth is the standard api-key wall; unauthenticated POST answers the v2 UnauthorizedError 401 through the /experimental/project/<id>/copy shape rule in isV2EnvelopeRoutePath (v2.projectCopy.create is a v2.* operation); undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope; /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404 (ROUTE-ADD-071 later served the sibling /copy/generate-name path, whose own row carries its contract)"
+    },
+    {
+      "path": "/experimental/project/{projectID}/copy/generate-name",
+      "method": "POST",
+      "operationId": "experimental.projectCopy.generateName",
+      "tags": "projectCopy",
+      "declared_responses": "200,400",
+      "family": "/experimental/*",
+      "served_outcome": "200",
+      "evidence": "server.go mux registration -> handleExperimentalProjectCopyGenerateName (experimental_project_copy_generate_name.go) + validateProjectCopyGenerateNameBody + projectCopyNameFromContext/projectCopySlugFromWords (ROUTE-ADD-071; source item SHIM-DRIFT-002 in the pre-change artifact): declared responses 200 {name*: string} additionalProperties:false and 400 BadRequestError; before the route existed every request on the exact path fell through to net/http's default 404 (NOT-SERVED). The declared 200 is truthful because the operation's contract is a NAME, not a stored copy or a filesystem effect: the handler derives a short kebab-case name from the request's own `context` (up to two non-stop-word tokens, lowercased/alphanumeric, each bounded, deterministic \u2014 no model call and no stored state), and falls back to the sibling copy handler's two-word generator projectCopySlug (upstream Slug.create form) when the context is absent, empty or stop-word-only; the declared body {name} is answered with exactly that derived string, claiming no copy, no destination and no registry row (collision suffixing belongs to the sibling v2.projectCopy.create, whose declared response reports the real created directory). Declared 400 arms: a present-but-blank {projectID} (the pinned document declares it as a plain required string with NO pattern; kind Params \u2014 BadRequestError's enum carries Params, not the v2 InvalidRequestError's Path), a present-but-blank declared directory/workspace query selector (kind Query, the shared /experimental/workspace selector rule), and a requestBody that is not exactly one JSON object carrying only the optional `context` string (kind Body for malformed/non-object/JSON-null/multi-value bodies, kind Payload for a non-string or null context; the document marks no requestBody.required, so an absent or empty body is well-formed), plus a name-generator failure answered as the declared 400 because the operation declares no 5xx arm. Auth is the standard api-key wall (/experimental/* is not a stub path); experimental.projectCopy.generateName is a v1 (experimental.*) operation, so the unauthenticated answer is the shim's own UNAUTHENTICATED envelope, NOT the v2 UnauthorizedError the sibling /copy rows carry (isV2EnvelopeRoutePath's /experimental/project/<id>/copy shape rule does not match this deeper path). Registration is EXACT \u2014 no /experimental/project/* catch-all: /copy/refresh, /copyx and deeper sub-paths keep the net/http default 404 they are classified with, and non-POST methods on this path answer the sibling METHOD_NOT_ALLOWED 405 envelope"
     },
     {
       "path": "/experimental/tool",
@@ -1847,17 +1857,6 @@
       "id": "SHIM-DRIFT-001"
     },
     {
-      "path": "/experimental/project/{projectID}/copy/generate-name",
-      "method": "POST",
-      "operationId": "experimental.projectCopy.generateName",
-      "tags": "projectCopy",
-      "declared_responses": "200,400",
-      "family": "/experimental/*",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-002"
-    },
-    {
       "path": "/experimental/project/{projectID}/copy/refresh",
       "method": "POST",
       "operationId": "v2.projectCopy.refresh",
@@ -1866,7 +1865,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-003"
+      "id": "SHIM-DRIFT-002"
     },
     {
       "path": "/experimental/resource",
@@ -1877,7 +1876,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-004"
+      "id": "SHIM-DRIFT-003"
     },
     {
       "path": "/experimental/session",
@@ -1888,7 +1887,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-005"
+      "id": "SHIM-DRIFT-004"
     },
     {
       "path": "/experimental/session/{sessionID}/background",
@@ -1899,7 +1898,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006"
+      "id": "SHIM-DRIFT-005"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1910,7 +1909,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-007"
+      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1921,7 +1920,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008"
+      "id": "SHIM-DRIFT-007"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1932,7 +1931,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1943,7 +1942,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1954,7 +1953,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/formatter",
@@ -1965,7 +1964,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/global/upgrade",
@@ -1976,7 +1975,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -1987,7 +1986,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2000,7 +1999,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2013,7 +2012,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/sync/steal",
@@ -2024,7 +2023,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2037,7 +2036,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-017"
     }
   ],
   "drift_served_not_declared": [],

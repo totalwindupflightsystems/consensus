@@ -299,16 +299,26 @@ func TestExperimentalProjectCopyRemoveMethodAndMountWiring(t *testing.T) {
 	}
 
 	// No catch-all: undeclared /experimental/project* shapes keep the net/http
-	// default 404 they are classified with.
+	// default 404 they are classified with. /copy/generate-name LEFT this list in
+	// ROUTE-ADD-071 — the path is now served by its own exact contract row, so a
+	// non-POST method there answers that handler's 405 (pinned below), never a
+	// default 404.
 	for _, path := range []string{
 		"/experimental/project/prj-wired/copy/deeper",
 		"/experimental/project/prj-wired/copyx",
-		"/experimental/project/prj-wired/copy/generate-name",
 	} {
 		status, _, _ := doCopyRequest(t, srv.URL, http.MethodDelete, path, "")
 		if status != http.StatusNotFound {
 			t.Errorf("DELETE %s: got %d, want 404 (exact declared path only)", path, status)
 		}
+	}
+
+	// ROUTE-ADD-071 served the sibling exact path; a method it does not declare
+	// rejects with the shim's METHOD_NOT_ALLOWED envelope rather than 404.
+	status, _, body = doCopyRequest(t, srv.URL, http.MethodDelete,
+		"/experimental/project/prj-wired/copy/generate-name", "")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("DELETE /copy/generate-name: got %d, want 405 METHOD_NOT_ALLOWED. Body: %s", status, body)
 	}
 }
 

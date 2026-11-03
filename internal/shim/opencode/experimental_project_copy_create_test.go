@@ -358,9 +358,11 @@ func TestExperimentalProjectCopyCreateSiblingDeleteUntouched(t *testing.T) {
 }
 
 // TestExperimentalProjectCopyCreateNoCatchAll pins the exact-path
-// registration: /copy/generate-name, /copy/refresh, /copyx and deeper shapes
-// keep the net/http default 404 they are classified with, and undeclared
-// methods on the exact path keep the 405 sibling envelope.
+// registration: /copy/refresh, /copyx and deeper shapes keep the net/http
+// default 404 they are classified with, and undeclared methods on the exact
+// path keep the 405 sibling envelope. /copy/generate-name left this list in
+// ROUTE-ADD-071 — it is now served by its own exact contract row, so POST there
+// answers that handler (asserted below) instead of a default 404.
 func TestExperimentalProjectCopyCreateNoCatchAll(t *testing.T) {
 	s := NewServer(&mockDB{}, "test-key", nil, nil)
 	s.skipAuth = true
@@ -375,14 +377,23 @@ func TestExperimentalProjectCopyCreateNoCatchAll(t *testing.T) {
 	for _, path := range []string{
 		"/experimental/project/prj-catch/copy/deeper",
 		"/experimental/project/prj-catch/copyx",
-		"/experimental/project/prj-catch/copy/generate-name",
 	} {
 		status, _, _ := doCopyRequest(t, srv.URL, http.MethodPost, path, `{}`)
 		if status != http.StatusNotFound {
 			t.Errorf("POST %s: got %d, want 404 (exact declared path only)", path, status)
 		}
 	}
-	status, _, body := doCopyRequest(t, srv.URL, http.MethodPut,
+	// ROUTE-ADD-071: the sibling exact path is served by
+	// experimental.projectCopy.generateName, so this POST reaches a handler that
+	// answers its own declared contract (the body `{}` is well-formed) rather
+	// than falling through to net/http's 404 — proof no catch-all is involved:
+	// the deeper /copy/deeper shape above still 404s.
+	status, _, body := doCopyRequest(t, srv.URL, http.MethodPost,
+		"/experimental/project/prj-catch/copy/generate-name", `{}`)
+	if status != http.StatusOK {
+		t.Errorf("POST /copy/generate-name: got %d, want the ROUTE-ADD-071 declared 200. Body: %s", status, body)
+	}
+	status, _, body = doCopyRequest(t, srv.URL, http.MethodPut,
 		"/experimental/project/prj-catch/copy", `{}`)
 	if status != http.StatusMethodNotAllowed {
 		t.Errorf("PUT copy: got %d, want 405. Body: %s", status, body)
