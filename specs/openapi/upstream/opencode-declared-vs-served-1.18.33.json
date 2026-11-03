@@ -25,16 +25,16 @@
   "counts": {
     "declared_paths": 162,
     "declared_operations": 188,
-    "served_route_entries": 191,
-    "covered_operations": 141,
+    "served_route_entries": 192,
+    "covered_operations": 142,
     "narrowed_error_contract_only": 23,
     "narrowed_unexplained": 0,
     "intentional_narrowing": 3,
     "semantic_different": 2,
-    "drift_declared_not_served": 19,
+    "drift_declared_not_served": 18,
     "drift_by_class": {
-      "NOT-SERVED": 15,
-      "OUTCOME-MISMATCH": 4
+      "OUTCOME-MISMATCH": 4,
+      "NOT-SERVED": 14
     },
     "drift_served_not_declared": 0,
     "served_drift_by_class": {},
@@ -510,6 +510,16 @@
       "family": "/api/*  (v2 surface)",
       "served_outcome": "200",
       "evidence": "internal/shim/opencode/api_session_revert_commit_stage.go handleSessionRevertStage (ROUTE-ADD-060): validates the required {messageID: ^msg_, partID?: string, files?: boolean} body, resolves the real sessions store for the declared 404, and returns the declared {data: RevertState} envelope with the requested messageID and no invented optional snapshot, diff, or files fields. Malformed path/body input answers the declared 400; unauthenticated requests use the v2 UnauthorizedError envelope via isApiSessionRevertStagePath; undeclared methods keep METHOD_NOT_ALLOWED."
+    },
+    {
+      "path": "/api/session/{sessionID}/wait",
+      "method": "POST",
+      "operationId": "v2.session.wait",
+      "tags": "sessions",
+      "declared_responses": "204,400,401,404,503",
+      "family": "/api/*  (v2 surface)",
+      "served_outcome": "204",
+      "evidence": "api_session_wait.go handleApiSessionWait (ROUTE-ADD-061; the operation identity this row covers is POST /api/session/{sessionID}/wait v2.session.wait \u2014 source item SHIM-DRIFT-057 in the committed artifact's positional ids, which the comparator renumbers on every regeneration, so this row, the handler and its tests are keyed by operationId, never by a drift id): serves the declared 204 with an EMPTY body when the session's AGENT LOOP is not running \u2014 immediately for a session that is already settled, and after the wait for one that is busy. UNLIKE the sibling ROUTE-ADD-041/042/049/054 truthful-204 no-ops, this one evaluates the declared condition against REAL state: the sessions row carries `status`, the finite-state-machine member internal/session/session.go defines (booting, idle, planning, thinking, tool_exec, executing, waiting_sub, completed, failed, paused), and the harness loop (internal/harness executor + planning) is what moves a session through the working states and back to idle. The handler polls that column at defaultSessionWaitPollInterval (100ms per waiting client; one primary-key lookup per tick) and answers as soon as the status leaves the working set named by the shared sessionIsActive predicate (session_p1_routes.go \u2014 planning/thinking/tool_exec/executing/waiting_sub, the same mid-turn test the sibling POST prompt route uses to detect a busy session); idle, paused, completed and failed have no loop running and answer immediately, booting is not in the working set either (a session still being constructed claims no loop yet), and an empty/NULL status reads as 'no loop claimed'. The declared success carries NO body, so the 204 asserts only that observable fact \u2014 it echoes no identifier and invents no state. The declared 400 InvalidRequestError serves a present-but-blank sessionID segment (%20; kind Path, field sessionID); the declared ^ses pattern is NOT enforced as a 400 because the runtime's session ids are native UUIDs (the v2.session.get / v2.session.compact divergence), so an id of any shape resolves against the real store, and the document declares no requestBody and no query parameter, so an unexpected body or query string is ignored rather than refused (the handleApiSessionActive convention). The declared 404 SessionNotFoundError {_tag, sessionID, message} is decided from the REAL sessions store through the shared isNoRowsResult seam (internal/db reports a missing row as its own error value, the ROUTE-ADD-041 pattern) on the FIRST read and on EVERY poll inside the wait, so a session deleted while a client waits is reported as it now is. THIS operation declares a 5xx arm, and BOTH ways the condition cannot be evaluated use it: an unreadable sessions store answers the declared 503 ServiceUnavailableError {_tag, message, service: 'sessions'} (absence is never claimed from a store that could not be read), and a wait that expires while the loop is still working answers the same declared 503 naming the status last observed and the budget \u2014 the declared idle state was never observed, so no 204 is invented. The wait budget IS messageResponseTimeout (server.go), the deployment knob (CONSENSUS_MESSAGE_RESPONSE_TIMEOUT / adapters.opencode.message_response_timeout_seconds, BUG-013) that bounds every other synchronous wait-for-the-agent endpoint, so a deployment that raised it above its planning wall gets the matching window here; request cancellation shortens it further and writes nothing at all. Unauthenticated requests answer the declared UnauthorizedError 401 through the isV2EnvelopeRoutePath two-segment rule isApiSessionWaitPath (server.go \u2014 a literal map key could never match a parameterized concrete path, the ROUTE-ADD-049 dead-key note); undeclared methods keep the sibling METHOD_NOT_ALLOWED 405 envelope (POST is the only method the pinned document declares on this path). The registration is the exact two-segment shape plus the exact MountPatterns entry, never an /api/session/* catch-all, so every sibling declared /api/session/{sessionID}[...] operation keeps the answer its own contract row is filed against. Live: docs/evidence/ROUTE-ADD-061-live-probe.md"
     },
     {
       "path": "/api/skill",
@@ -1824,17 +1834,6 @@
   ],
   "drift_declared_not_served": [
     {
-      "path": "/api/session/{sessionID}/wait",
-      "method": "POST",
-      "operationId": "v2.session.wait",
-      "tags": "sessions",
-      "declared_responses": "204,400,401,404,503",
-      "family": "/api/*  (v2 surface)",
-      "class": "NOT-SERVED",
-      "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-001"
-    },
-    {
       "path": "/auth/{providerID}",
       "method": "DELETE",
       "operationId": "auth.remove",
@@ -1845,7 +1844,7 @@
       "evidence": "server.go:1094 (only PUT is supported)",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 405",
-      "id": "SHIM-DRIFT-002"
+      "id": "SHIM-DRIFT-001"
     },
     {
       "path": "/experimental/project/{projectID}/copy/generate-name",
@@ -1856,7 +1855,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-003"
+      "id": "SHIM-DRIFT-002"
     },
     {
       "path": "/experimental/project/{projectID}/copy/refresh",
@@ -1867,7 +1866,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-004"
+      "id": "SHIM-DRIFT-003"
     },
     {
       "path": "/experimental/resource",
@@ -1878,7 +1877,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-005"
+      "id": "SHIM-DRIFT-004"
     },
     {
       "path": "/experimental/session",
@@ -1889,7 +1888,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-006"
+      "id": "SHIM-DRIFT-005"
     },
     {
       "path": "/experimental/session/{sessionID}/background",
@@ -1900,7 +1899,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-007"
+      "id": "SHIM-DRIFT-006"
     },
     {
       "path": "/experimental/workspace/adapter",
@@ -1911,7 +1910,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-008"
+      "id": "SHIM-DRIFT-007"
     },
     {
       "path": "/experimental/workspace/status",
@@ -1922,7 +1921,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-009"
+      "id": "SHIM-DRIFT-008"
     },
     {
       "path": "/experimental/workspace/sync-list",
@@ -1933,7 +1932,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-010"
+      "id": "SHIM-DRIFT-009"
     },
     {
       "path": "/experimental/workspace/warp",
@@ -1944,7 +1943,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-011"
+      "id": "SHIM-DRIFT-010"
     },
     {
       "path": "/experimental/workspace/{id}",
@@ -1955,7 +1954,7 @@
       "family": "/experimental/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-012"
+      "id": "SHIM-DRIFT-011"
     },
     {
       "path": "/formatter",
@@ -1966,7 +1965,7 @@
       "family": "/formatter",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-013"
+      "id": "SHIM-DRIFT-012"
     },
     {
       "path": "/global/upgrade",
@@ -1977,7 +1976,7 @@
       "family": "/global/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-014"
+      "id": "SHIM-DRIFT-013"
     },
     {
       "path": "/provider/{providerID}/oauth/authorize",
@@ -1988,7 +1987,7 @@
       "family": "/provider/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-015"
+      "id": "SHIM-DRIFT-014"
     },
     {
       "path": "/session/{sessionID}/fork",
@@ -2001,7 +2000,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-016"
+      "id": "SHIM-DRIFT-015"
     },
     {
       "path": "/session/{sessionID}/init",
@@ -2014,7 +2013,7 @@
       "evidence": "server.go:900 stub list",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400,404, served 501",
-      "id": "SHIM-DRIFT-017"
+      "id": "SHIM-DRIFT-016"
     },
     {
       "path": "/sync/steal",
@@ -2025,7 +2024,7 @@
       "family": "/sync/*",
       "class": "NOT-SERVED",
       "detail": "no shim route at all; net/http default 404",
-      "id": "SHIM-DRIFT-018"
+      "id": "SHIM-DRIFT-017"
     },
     {
       "path": "/tui/submit-prompt",
@@ -2038,7 +2037,7 @@
       "evidence": "server.go:209 handleTUI",
       "class": "OUTCOME-MISMATCH",
       "detail": "declared 200,400, served 501",
-      "id": "SHIM-DRIFT-019"
+      "id": "SHIM-DRIFT-018"
     }
   ],
   "drift_served_not_declared": [],

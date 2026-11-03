@@ -38,7 +38,16 @@
 | /api/session/{sessionID}/model | POST | v2.session.switchModel | 204,400,401,404 | 204 |
 | /api/session/{sessionID}/permission | GET | v2.session.permission.list | 200,400,401,404 | 200 |
 | /api/session/{sessionID}/permission | POST | v2.session.permission.create | 200,400,401,404 | 200 |
+| /api/session/{sessionID}/permission/{requestID} | GET | v2.session.permission.get | 200,400,401,404 | 200 |
+| /api/session/{sessionID}/permission/{requestID}/reply | POST | v2.session.permission.reply | 204,400,401,404 | 204 |
+| /api/session/{sessionID}/prompt | POST | v2.session.prompt | 200,400,401,404,409 | 200 |
+| /api/session/{sessionID}/question | GET | v2.session.question.list | 200,400,401,404 | 200 |
+| /api/session/{sessionID}/question/{requestID}/reject | POST | v2.session.question.reject | 204,400,401,404 | 204 |
+| /api/session/{sessionID}/question/{requestID}/reply | POST | v2.session.question.reply | 204,400,401,404 | 204 |
 | /api/session/{sessionID}/revert/clear | POST | v2.session.revert.clear | 204,400,401,404,500 | 204 |
+| /api/session/{sessionID}/revert/commit | POST | v2.session.revert.commit | 204,400,401,404 | 204 |
+| /api/session/{sessionID}/revert/stage | POST | v2.session.revert.stage | 200,400,401,404,500 | 200 |
+| /api/session/{sessionID}/wait | POST | v2.session.wait | 204,400,401,404,503 | 204 |
 | /api/skill | GET | v2.skill.list | 200,400,401 | 200 |
 | /auth/{providerID} | PUT | auth.set | 200,400 | 200 |
 | /command | GET | command.list | 200,400 | 200 |
@@ -55,6 +64,7 @@
 | /experimental/project/{projectID}/copy | POST | v2.projectCopy.create | 200,400 | 200 |
 | /experimental/tool | GET | tool.list | 200,400 | 200 |
 | /experimental/tool/ids | GET | tool.ids | 200,400 | 200 |
+| /experimental/workspace | GET | experimental.workspace.list | 200,400 | 200 |
 | /experimental/worktree | DELETE | worktree.remove | 200,400 | 200 |
 | /experimental/worktree | GET | worktree.list | 200,400 | 200 |
 | /experimental/worktree | POST | worktree.create | 200,400 | 200 |

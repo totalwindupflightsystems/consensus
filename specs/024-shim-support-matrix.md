@@ -89,6 +89,31 @@ schema's closed `^per`/`^ses` contract. Creation validates the declared body,
 records a pending native approval request, and returns the truthful `ask` effect;
 it does not claim that a permission rule was evaluated or granted.
 
+### A3. v2 session wait
+
+| Operation | Path | Status | Outcome | Evidence |
+|---|---|---|---|---|
+| `v2.session.wait` | `POST /api/session/{sessionID}/wait` | COVERED | 204, 400, 401, 404, 503 | `internal/shim/opencode/api_session_wait_test.go` (ROUTE-ADD-061) |
+
+The declared success means "the session's agent loop is not running". Unlike the
+sibling truthful-`204` no-ops (`session.switchAgent`, `session.compact`,
+`session.switchModel`), this condition is evaluated against real state: the
+handler polls `sessions.status` — the finite-state-machine member
+`internal/session/session.go` defines, moved by the harness loop — and answers
+`204` only once the status leaves the working set (`planning`, `thinking`,
+`tool_exec`, `executing`, `waiting_sub`; the shared `sessionIsActive` predicate).
+`idle`, `paused`, `completed`, `failed` and `booting` have no loop running and
+answer immediately.
+
+The operation declares a `503`, and both ways the condition cannot be evaluated
+use it: an unreadable `sessions` store (`service: "sessions"`), and a wait that
+expires while the loop is still working — the message names the status last
+observed, so a client can tell a long turn from a dead one instead of receiving
+an invented `204`. The wait budget is `messageResponseTimeout`
+(`CONSENSUS_MESSAGE_RESPONSE_TIMEOUT`, BUG-013), the same deployment knob that
+bounds every other synchronous wait-for-the-agent endpoint. The session is
+re-resolved on every poll, so a row deleted mid-wait answers the declared `404`.
+
 ## B. Provider-facing: the DeepSeek harness API
 
 Consensus's harness runs its agent loop against a provider API. For DeepSeek — our default

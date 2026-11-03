@@ -62,6 +62,13 @@ type Server struct {
 	// agent response. Request cancellation can shorten this bound.
 	messageResponseTimeout time.Duration
 
+	// How often POST /api/session/{sessionID}/wait (v2.session.wait) re-reads
+	// the session's agent-loop status while the loop is still working
+	// (ROUTE-ADD-061). Defaults to defaultSessionWaitPollInterval; overridable
+	// for tests, which must be able to observe a status transition without
+	// paying the production interval.
+	sessionWaitPollInterval time.Duration
+
 	// Admin API key for auth translation (Basic Auth password → admin key)
 	adminKey string
 
@@ -206,13 +213,14 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service, opt
 		wd = "."
 	}
 	s := &Server{
-		db:                     dbase,
-		svc:                    svc,
-		events:                 eventBus,
-		messageResponseTimeout: defaultMessageResponseTimeout,
-		adminKey:               adminKey,
-		workdir:                wd,
-		startedAt:              time.Now().UTC(),
+		db:                      dbase,
+		svc:                     svc,
+		events:                  eventBus,
+		messageResponseTimeout:  defaultMessageResponseTimeout,
+		sessionWaitPollInterval: defaultSessionWaitPollInterval,
+		adminKey:                adminKey,
+		workdir:                 wd,
+		startedAt:               time.Now().UTC(),
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -532,6 +540,27 @@ func NewServer(dbase db.DB, adminKey string, eventBus EventBus, svc Service, opt
 	// document declares here, so undeclared methods keep the
 	// METHOD_NOT_ALLOWED envelope.
 	mux.HandleFunc("/api/session/{sessionID}/compact", s.handleApiSessionCompact)
+	// ROUTE-ADD-061 (source item SHIM-DRIFT-057 in the committed artifact's
+	// positional ids; the comparator renumbers them, so the operation identity
+	// is POST /api/session/{sessionID}/wait v2.session.wait): the declared wait
+	// operation had no shim route at all, so the request fell through to
+	// net/http's default 404 — the drift artifact's NOT-SERVED class. Register
+	// the exact two-segment path (see api_session_wait.go): the declared 204
+	// no-content arm is answered when the session's agent loop is NOT running —
+	// immediately for a session that is already idle, after polling the real
+	// sessions.status column for one that is busy — the declared
+	// InvalidRequestError 400 for a blank sessionID, the declared
+	// SessionNotFoundError 404 for an id this instance does not hold (read from
+	// the real sessions store), the declared ServiceUnavailableError 503 both
+	// when that store cannot be read and when the wait expires before the loop
+	// went idle (this operation DOES declare a 5xx arm), and the declared
+	// UnauthorizedError 401 via the isV2EnvelopeRoutePath two-segment shape
+	// below. Never an /api/session/* catch-all, so every sibling declared
+	// /api/session/{sessionID}[...] operation keeps the classification its own
+	// contract row is filed against, and POST is the only method the pinned
+	// document declares here, so undeclared methods keep the
+	// METHOD_NOT_ALLOWED envelope.
+	mux.HandleFunc("/api/session/{sessionID}/wait", s.handleApiSessionWait)
 	// ROUTE-ADD-050/051: serve the declared v2.session.permission.list and
 	// v2.session.permission.create operations on one exact method-dispatch
 	// pattern. The sibling /permission/{requestID} routes remain distinct.
@@ -1010,6 +1039,12 @@ var MountPatterns = []string{
 	// every sibling declared /api/session/{sessionID}[...] operation keeps the
 	// answer its own contract row is filed against.
 	"/api/session/{sessionID}/compact",
+	// ROUTE-ADD-061: exact /api/session/{sessionID}/wait (v2.session.wait) so a
+	// parent chi mount reaches the shim route. Concrete two-segment pattern,
+	// never an /api/session/* subtree mount, so every sibling declared
+	// /api/session/{sessionID}[...] operation keeps the answer its own contract
+	// row is filed against.
+	"/api/session/{sessionID}/wait",
 	// ROUTE-ADD-050/051: exact v2.session.permission list/create path.
 	"/api/session/{sessionID}/permission",
 	// ROUTE-ADD-052: exact v2.session.permission.get path.
@@ -1365,6 +1400,14 @@ func isV2EnvelopeRoutePath(path string) bool {
 	// concrete shape so sibling and deeper /api/session/* paths keep the
 	// shim's own envelope.
 	if isApiSessionCompactPath(path) {
+		return true
+	}
+	// ROUTE-ADD-061: the declared v2.session.wait path
+	// (POST /api/session/{sessionID}/wait — exactly two segments, the second
+	// literally "wait") carries the same v2 UnauthorizedError arm. The rule
+	// admits only this concrete shape so sibling and deeper /api/session/*
+	// paths keep the shim's own envelope.
+	if isApiSessionWaitPath(path) {
 		return true
 	}
 	// ROUTE-ADD-050/051: the declared v2.session.permission list/create path.
