@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Carter Review, 3 Nov 2026</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --txt:#12151a; --mut:#5a6270; --line:#e2ded6;
+  --rule:#c9c3b8; --good:#0e6b4f; --bad:#a32b1f; --warn:#8a5a00; --chipbg:#f1eee7;
+  --accent:#1f4b6e;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101317; --panel:#171b21; --txt:#eef1f5; --mut:#a4adba; --line:#2a3038;
+    --rule:#3a424c; --good:#59c99b; --bad:#f08477; --warn:#e0ad58; --chipbg:#1d222a;
+    --accent:#8fbde0;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--txt);
+  font:16px/1.62 ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+  padding:0 0 5rem;
+}
+.wrap{max-width:900px;margin:0 auto;padding:0 1.15rem}
+header{padding:2.6rem 0 1.4rem;border-bottom:1px solid var(--rule)}
+.kicker{
+  font:600 .72rem/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--mut); margin:0 0 .7rem
+}
+h1{
+  font-size:clamp(1.65rem,5.2vw,2.5rem); line-height:1.14; margin:0 0 .55rem;
+  letter-spacing:-.018em; font-weight:700
+}
+.dek{font-size:1.02rem;color:var(--mut);margin:0;max-width:62ch}
+.meta{
+  font:400 .8rem/1.7 ui-sans-serif,system-ui,sans-serif;color:var(--mut);
+  margin:1.15rem 0 0;display:flex;flex-wrap:wrap;gap:.35rem 1.1rem
+}
+.meta b{color:var(--txt);font-weight:600}
+
+.verdict{
+  margin:1.9rem 0 0;padding:1.15rem 1.25rem;background:var(--panel);
+  border:1px solid var(--line);border-radius:3px
+}
+.verdict p{margin:0;font-size:1.13rem;line-height:1.5}
+.verdict p+p{margin-top:.7rem;font-size:.95rem;color:var(--mut)}
+
+nav{margin:1.7rem 0 0;font:400 .85rem/1.9 ui-sans-serif,system-ui,sans-serif}
+nav ol{margin:.35rem 0 0;padding-left:1.25rem;columns:2;column-gap:2rem}
+@media(max-width:640px){nav ol{columns:1}}
+nav a{color:var(--txt);text-decoration:none;border-bottom:1px solid var(--line)}
+nav a:hover{border-bottom-color:var(--accent)}
+
+section{padding:2.35rem 0 0}
+h2{
+  font-size:1.28rem;line-height:1.25;margin:2.2rem 0 .7rem;letter-spacing:-.012em;
+  font-weight:700;padding-top:1.1rem;border-top:1px solid var(--line)
+}
+section:first-of-type h2{border-top:0;padding-top:0;margin-top:1.1rem}
+h3{font-size:1rem;margin:1.5rem 0 .4rem;font-weight:700;letter-spacing:.005em}
+p{margin:.62rem 0;max-width:70ch}
+ul,ol{margin:.6rem 0;padding-left:1.3rem;max-width:70ch}
+li{margin:.3rem 0}
+a{color:var(--accent)}
+code{
+  font:.88em/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--chipbg);padding:.1em .32em;border-radius:2px;overflow-wrap:anywhere
+}
+.lede{font-size:1.06rem}
+
+table{
+  width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem;
+  font-family:ui-sans-serif,system-ui,sans-serif
+}
+th,td{text-align:left;padding:.52rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:.76rem;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--rule)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
+tr:last-child td{border-bottom:0}
+.good{color:var(--good);font-weight:600}
+.bad{color:var(--bad);font-weight:600}
+.warn{color:var(--warn);font-weight:600}
+
+@media(max-width:720px){
+  table.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  table.stack tr{display:block;border-bottom:1px solid var(--rule);padding:.5rem 0}
+  table.stack td{display:grid;grid-template-columns:minmax(6.5rem,38%) 1fr;gap:.7rem;border:0;padding:.22rem 0}
+  table.stack td::before{
+    content:attr(data-label);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--mut);font-weight:600
+  }
+  table.stack td.num{white-space:normal}
+}
+
+.note{
+  margin:1.15rem 0;padding:.85rem 1rem;background:var(--chipbg);
+  border-radius:3px;font-size:.92rem;color:var(--txt)
+}
+.note strong{font-weight:700}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;margin:1.2rem 0}
+@media(max-width:720px){.split{grid-template-columns:1fr}}
+.split h3{margin-top:0}
+
+footer{
+  margin-top:3.2rem;padding-top:1.3rem;border-top:1px solid var(--rule);
+  font:400 .78rem/1.75 ui-sans-serif,system-ui,sans-serif;color:var(--mut)
+}
+footer b{color:var(--txt);font-weight:600}
+footer p{max-width:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">Project review &middot; Carter method</p>
+  <h1>Consensus: route-compatible, outcome-broken</h1>
+  <p class="dek">A fresh-clone, hands-on review of the DB-native agent runtime — built, tested, served, driven against a real model, and run head-to-head against a 1.5.0 agent harness on identical inputs.</p>
+  <div class="meta">
+    <span><b>To</b> Bane</span>
+    <span><b>From</b> thread 4314</span>
+    <span><b>Date</b> 3 November 2026</span>
+    <span><b>Repo</b> totalwindupflightsystems/consensus</span>
+    <span><b>Measured at</b> <code>4e84706</code></span>
+    <span><b>Rows filed at</b> <code>89dc891</code></span>
+  </div>
+</header>
+
+<div class="verdict">
+  <p><strong>The compatibility surface is real. The agent loop is not.</strong> All 48 declared v2 (<code>/api/*</code>) operations answer, and all 34 pinned upstream assertions pass. The same engine could not complete a two-line file-writing task that a minimal harness finished in 8.75 seconds.</p>
+  <p>Those are not contradictory findings. The suites test that requests are accepted and shaped correctly. Nothing tested that the agent then does the work — and that is exactly where it stops.</p>
+</div>
+
+<nav>
+  <p class="kicker" style="margin-bottom:.2rem">Contents</p>
+  <ol>
+    <li><a href="#answer">The one-line answer</a></li>
+    <li><a href="#spine">What it is, and whether it builds</a></li>
+    <li><a href="#bakeoff">The head-to-head</a></li>
+    <li><a href="#rootcause">Why the turn dies</a></li>
+    <li><a href="#coverage">The v2 API question, answered</a></li>
+    <li><a href="#upstream">Upstream suite results</a></li>
+    <li><a href="#three">Three states worth separating</a></li>
+    <li><a href="#good">What is genuinely good</a></li>
+    <li><a href="#bad">What is broken</a></li>
+    <li><a href="#board">Board state and rows filed</a></li>
+    <li><a href="#next">What I would do next</a></li>
+    <li><a href="#limits">What was not exercised</a></li>
+  </ol>
+</nav>
+
+<section id="answer">
+  <h2>The one-line answer</h2>
+  <p class="lede">If you move an agent to the v2 API structures and point it at this database, <strong>the protocol will hold up and the agent will not finish its work.</strong></p>
+  <p>The shim answers correctly and completely on the read surface. The moment the agent needs to <em>act</em> — write a file, run a command — the turn suspends into a state that nothing ever resumes. That is not a slow path or an edge case; it is the first tool call of the first real task.</p>
+</section>
+
+<section id="spine">
+  <h2>What it is, and whether it builds</h2>
+  <p>Consensus is a database-native agent runtime: the database is the execution engine rather than a persistence layer beside it. Context is a live view, memory is an append-only ledger, and a turn is meant to commit or roll back atomically. It serves REST, MCP, an opencode-protocol shim and an H3 shim from one Go binary.</p>
+  <p>I cloned the canonical repo fresh, built it with its own Makefile, ran its short suite, and served it on a scratch port. Nothing here is read from documentation.</p>
+
+  <table class="stack">
+    <thead><tr><th>Check</th><th>Result</th><th>Method</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Check">Clone</td><td data-label="Result" class="good">clean, pinned</td><td data-label="Method"><code>d97e42b</code> at review start</td></tr>
+      <tr><td data-label="Check">Build</td><td data-label="Result" class="good">PASS — 2 s</td><td data-label="Method"><code>make build</code>, <code>CGO_ENABLED=0</code></td></tr>
+      <tr><td data-label="Check">Binary</td><td data-label="Result" class="num">28,013,960 B</td><td data-label="Method">sha256 <code>3dac1026…132c</code></td></tr>
+      <tr><td data-label="Check">Short suite</td><td data-label="Result" class="good">PASS — 35 s</td><td data-label="Method"><code>make test-short</code>, exit 0, 37 packages</td></tr>
+      <tr><td data-label="Check">Schema</td><td data-label="Result" class="num">38 tables</td><td data-label="Method">fresh <code>consensus init</code></td></tr>
+      <tr><td data-label="Check">Startup without a provider</td><td data-label="Result" class="good">fails closed</td><td data-label="Method">clear error, no silent iteration burn</td></tr>
+      <tr><td data-label="Check">Startup in mock mode</td><td data-label="Result" class="good">health 200 in 1 s</td><td data-label="Method">port 18361, <code>CONSENSUS_MOCK_LLM=1</code></td></tr>
+    </tbody>
+  </table>
+  <p>The spine is sound. Build and test are fast, the binary is static, and the failure mode when misconfigured is honest — it refuses to start rather than pretending. Very little of what follows is a structural complaint.</p>
+</section>
+
+<section id="bakeoff">
+  <h2>The head-to-head</h2>
+  <p>Same provider key, same model (<code>deepseek-chat</code>), same prompt, same scratch directory, same machine, minutes apart. Both sides measured from their own telemetry rather than from my console.</p>
+  <p>The task: <em>create <code>hello.py</code> containing a <code>greet(name)</code> function and a call printing <code>greet("bakeoff")</code>, then run it with <code>python3</code> and report the output.</em> Two lines of code. The canonical shape of what a coding agent does.</p>
+
+  <table class="stack">
+    <thead><tr><th>Measure</th><th>Pi 1.5.0</th><th>Consensus @ 4e84706</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Measure">Task outcome</td><td data-label="Pi 1.5.0" class="good">COMPLETE</td><td data-label="Consensus" class="bad">INCOMPLETE — wedged</td></tr>
+      <tr><td data-label="Measure">Wall clock</td><td data-label="Pi 1.5.0" class="num">8.75 s</td><td data-label="Consensus" class="num">never finished</td></tr>
+      <tr><td data-label="Measure">Turns</td><td data-label="Pi 1.5.0" class="num">3</td><td data-label="Consensus" class="num">1 (stuck)</td></tr>
+      <tr><td data-label="Measure">Tool calls executed</td><td data-label="Pi 1.5.0" class="num">2 — <code>write</code> 2 ms, <code>bash</code> 3468 ms</td><td data-label="Consensus" class="num bad">0</td></tr>
+      <tr><td data-label="Measure">Tool requests persisted</td><td data-label="Pi 1.5.0">n/a</td><td data-label="Consensus" class="num bad">0</td></tr>
+      <tr><td data-label="Measure">Tokens in / out</td><td data-label="Pi 1.5.0" class="num">3062 / 152</td><td data-label="Consensus" class="num">1682 / 247</td></tr>
+      <tr><td data-label="Measure">Files written</td><td data-label="Pi 1.5.0" class="good">hello.py, correct</td><td data-label="Consensus" class="bad">none</td></tr>
+      <tr><td data-label="Measure">Program output</td><td data-label="Pi 1.5.0" class="good"><code>Hello, bakeoff!</code></td><td data-label="Consensus" class="bad">none</td></tr>
+      <tr><td data-label="Measure">Terminal state reached</td><td data-label="Pi 1.5.0" class="good">yes</td><td data-label="Consensus" class="bad">no — <code>tool_exec</code> forever</td></tr>
+      <tr><td data-label="Measure">Install footprint</td><td data-label="Pi 1.5.0" class="num">123 npm packages, 8 s</td><td data-label="Consensus" class="num">static binary, 2 s build</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Note on the harness version.</strong> The locally installed <code>pi</code> was a stale binary reporting <code>0.0.0</code>, dated 7 October and predating the entire 1.x line. It was replaced with the current <strong>1.5.0</strong> (published 2 November) before this run, so the comparison is against a shipping release rather than an antique. The old binary is archived, not deleted.
+  </div>
+
+  <p>Consensus did real work before it stopped. The session was created in 0.18 s, the message was accepted in 0.184 s, and the model genuinely ran — 1682 tokens in, 247 out, iteration 1, with the user message persisted to the ledger. It then set a status it never leaves.</p>
+  <p>Reproduced twice on fresh sessions. The count of identical bail-out log lines reached <strong>61</strong> before I stopped watching:</p>
+  <p><code>planning: session already claimed by another worker, bailing out</code> … <code>actual_status=tool_exec</code></p>
+</section>
+
+<section id="rootcause">
+  <h2>Why the turn dies</h2>
+  <p>The cause is short enough to quote. <code>handleToolCallDuringPlanning</code> in <code>internal/harness/planning.go</code> (lines 1145–1165) does three things when the model asks for a tool:</p>
+  <ol>
+    <li>Calls <code>tx.Rollback()</code> to close the planning transaction.</li>
+    <li>Executes <code>UPDATE sessions SET status = 'tool_exec'</code>.</li>
+    <li>Returns.</li>
+  </ol>
+  <p>The staged tool-call rows are discarded with the transaction that is rolled back, and <strong>no <code>tool_requests</code> row is ever written.</strong> I confirmed this against the live database: <code>tool_requests = 0</code>, <code>iteration_commits = 0</code>, <code>memory_events = 1</code>. The session is marked as waiting for a tool that does not exist, and nothing can claim work that was never recorded.</p>
+  <p>Two things then conspire to make it permanent. The claim reaper added for <code>REVIEW-CONSENSUS-1</code> sweeps only the <code>tasks</code> table (<code>executor.go:917</code>) and never inspects sessions. Meanwhile <code>findActiveSessions</code> (<code>executor.go:988</code>) keeps re-selecting sessions in <code>tool_exec</code>, so the loop spins without ever expiring or failing the row. No terminal state, no notification, no recovery.</p>
+
+  <div class="note">
+    <strong>A correction to my own first reading.</strong> I initially blamed <code>DF-CONSENSUS-48</code>, which had recorded that the async ToolExecutor was never started in production. That fix is genuinely in place — <code>cmd/consensus/main.go:209–211</code> constructs and starts it. The executor was running correctly and had nothing to do, because no request had been written for it. The rollback is deliberate in the code; what is missing is the insert that was meant to follow it.
+  </div>
+</section>
+
+<section id="coverage">
+  <h2>The v2 API question, answered</h2>
+  <p>Declared against pinned upstream <strong>v1.18.33</strong> (<code>7945de20</code>), 188 operations across 162 paths. Filtering out the <code>/experimental/*</code> namespace, which upstream itself treats as unstable, changes the v2 picture not at all:</p>
+
+  <table class="stack">
+    <thead><tr><th>Surface</th><th>Declared</th><th>Served</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Surface">v2 <code>/api/*</code></td><td data-label="Declared" class="num">48</td><td data-label="Served" class="num">48</td><td data-label="Status" class="good">every route answers</td></tr>
+      <tr><td data-label="Surface">v2 narrowed (error half only)</td><td data-label="Declared" class="num">8</td><td data-label="Served" class="num">8</td><td data-label="Status" class="warn">refuses writes</td></tr>
+      <tr><td data-label="Surface"><code>/experimental/*</code></td><td data-label="Declared" class="num">9</td><td data-label="Served" class="num">0</td><td data-label="Status" class="warn">out of scope by choice</td></tr>
+      <tr><td data-label="Surface">All operations</td><td data-label="Declared" class="num">188</td><td data-label="Served" class="num">143</td><td data-label="Status" class="good">76.1% covered</td></tr>
+      <tr><td data-label="Surface">Not served or mismatched</td><td data-label="Declared" class="num">—</td><td data-label="Served" class="num">17</td><td data-label="Status" class="warn">13 missing, 4 wrong outcome</td></tr>
+      <tr><td data-label="Surface">Shim extensions (ours, undeclared upstream)</td><td data-label="Declared" class="num">—</td><td data-label="Served" class="num">17</td><td data-label="Status">declared as extensions</td></tr>
+    </tbody>
+  </table>
+
+  <p>Two caveats sit inside that green row. Eight v2 operations serve only their error contract — a client that <em>reads</em> through v2 is fine, but one that writes through <code>/api/pty</code>, <code>/api/event</code>, <code>/api/credential</code> or <code>/api/session/{id}/message/{id}</code> still gets a refusal. And three route rows (<code>ROUTE-ADD-052/053/054</code>, the v2 permission and prompt endpoints) are marked failed on the board, so they are gaps rather than coverage.</p>
+  <p>Route coverage has moved a long way: from 16.5% when the route rows were filed, to 36.2% at the last reading, to <strong>76.1%</strong> today. That work is real and it holds up.</p>
+</section>
+
+<section id="upstream">
+  <h2>Upstream suite results</h2>
+  <p>The project runs opencode's own TypeScript suites against the live shim — pinned by revision and by per-file SHA-256, with a transport-only patch that is restored on exit, and a hard refusal if either drifts. The latest committed reading, <code>v1.18.33-r4</code>:</p>
+
+  <table class="stack">
+    <thead><tr><th>Upstream suite</th><th>Tests</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Suite"><code>httpapi-instance.test.ts</code></td><td data-label="Tests" class="num">7</td><td data-label="Result" class="good">7 pass</td></tr>
+      <tr><td data-label="Suite"><code>httpapi-sdk.test.ts</code></td><td data-label="Tests" class="num">18</td><td data-label="Result" class="good">18 pass</td></tr>
+      <tr><td data-label="Suite"><code>sdk-error-shape.test.ts</code></td><td data-label="Tests" class="num">2</td><td data-label="Result" class="good">2 pass</td></tr>
+      <tr><td data-label="Suite"><code>client/promise.test.ts</code></td><td data-label="Tests" class="num">7</td><td data-label="Result" class="good">7 pass</td></tr>
+      <tr><td data-label="Suite"><strong>Total</strong></td><td data-label="Tests" class="num"><strong>34</strong></td><td data-label="Result" class="good"><strong>34 pass, 0 divergences</strong></td></tr>
+    </tbody>
+  </table>
+  <p>The error-shape suite was 0 of 2 at revision <code>r2</code> and is clean from <code>r3</code> onward — the fix is visible in the committed evidence, not just asserted.</p>
+  <p>This is a better test harness than most projects have, and it is measuring the right thing for what it claims: that an upstream client will not be surprised by our HTTP surface.</p>
+</section>
+
+<section id="three">
+  <h2>Three states worth separating</h2>
+  <p>The reason this review reads as harsh while the numbers read as healthy is that three different questions were being answered by one set of green results.</p>
+
+  <table class="stack">
+    <thead><tr><th>Question</th><th>Answer</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Question">Do the v2 routes answer?</td><td data-label="Answer" class="good">Yes — 48 of 48</td><td data-label="Evidence">coverage artifact at pinned upstream</td></tr>
+      <tr><td data-label="Question">Do upstream assertions pass?</td><td data-label="Answer" class="good">Yes — 34 of 34</td><td data-label="Evidence">four pinned suites, zero divergences</td></tr>
+      <tr><td data-label="Question">Does an agent finish a real task?</td><td data-label="Answer" class="bad">No — 0 of 1</td><td data-label="Evidence">bakeoff: wedge at first tool call</td></tr>
+    </tbody>
+  </table>
+
+  <p>All three can be true at once, and they are. The suites assert that a request is accepted and returned in the right shape. They do not assert that the agent then acts on the response — so a turn that answers <code>200 message_received</code> and then silently dies satisfies every one of them.</p>
+  <p>That is the missing third column, and it cannot be closed by more of the same testing. It needs a suite that drives a real task through the shim and asserts the agent's <em>file writes and command output</em>, not the status codes. Such a suite would fail today for a reason the error-shape tests do not model — which is the point of writing it.</p>
+</section>
+
+<section id="good">
+  <h2>What is genuinely good</h2>
+  <ul>
+    <li><strong>The protocol work is real and recent.</strong> 76.1% of 188 declared operations served, all of v2 answering, 17 shim extensions properly declared rather than smuggled in.</li>
+    <li><strong>The upstream harness is honest engineering.</strong> Revision pin plus per-file hashes, a transport-only patch restored on a trap, refusal on drift. Most compatibility claims are not tested this way.</li>
+    <li><strong>Fast, clean build.</strong> 2-second build, static 28 MB binary, 35-second short suite, 38-table schema. No ceremony.</li>
+    <li><strong>Fails closed on misconfiguration.</strong> A missing provider produces a clear error rather than burning iterations against a dead endpoint — that specific mistake is designed out.</li>
+    <li><strong>Cost is first-class.</strong> Tokens, iterations and cost are columns on the session row and exposed through the API, not reconstructed from logs after the fact.</li>
+    <li><strong>The board is a real queue.</strong> 478 rows, 34 pending with priorities, dispatches happening. Work gets written down here rather than remembered.</li>
+  </ul>
+</section>
+
+<section id="bad">
+  <h2>What is broken</h2>
+  <ul>
+    <li><strong>No tool call ever reaches the queue.</strong> The rollback discards it before it can be persisted. Every tool-using task wedges at the first call, permanently, with no reaper and no notification.</li>
+    <li><strong>The engine has no hands.</strong> A fresh install seeds exactly two tools — <code>list_sessions</code> and <code>demo_approval_gate</code>. There is no read, write, edit, glob or bash. The canonical coding task is not slow here; it is inexpressible. The async executor's dispatch path is additionally a <code>go_native</code> stub that returns a description of itself instead of executing.</li>
+    <li><strong>A session claim has no expiry.</strong> The lease added for <code>REVIEW-CONSENSUS-1</code> does not cover sessions, so criterion "no row can remain claimed forever" is unmet — and was recorded as complete anyway.</li>
+    <li><strong>Eight v2 write paths answer only their error half</strong>, which reads as covered in a route table and refuses in a client.</li>
+    <li><strong>Three v2 route rows sit <code>failed</code></strong> — permission and prompt endpoints — so the v2 family is not actually complete at 48.</li>
+    <li><strong>Documented API shape disagrees with the implementation</strong> in two ways that cost real time: the message endpoint is singular (<code>/message</code>; the plural 404s) and <code>content</code> must be a plain string, not the content-block array the naming invites.</li>
+  </ul>
+</section>
+
+<section id="board">
+  <h2>Board state and rows filed</h2>
+  <p>478 unique rows: 432 complete, 8 done, 34 pending, 3 failed, 1 closed. Of the pending set, 5 are P1 and 1 is P0.</p>
+  <table class="stack">
+    <thead><tr><th>Row</th><th>Priority</th><th>State</th><th>What it records</th></tr></thead>
+    <tbody>
+      <tr><td data-label="Row"><code>DF-CONSENSUS-65</code></td><td data-label="Priority">P0</td><td data-label="State">filed</td><td data-label="What">Tool call rolled back, never persisted — the wedge's cause, with a reproduction that asserts <code>tool_requests &gt; 0</code> and a terminal state</td></tr>
+      <tr><td data-label="Row"><code>DF-CONSENSUS-66</code></td><td data-label="Priority">P1</td><td data-label="State">filed</td><td data-label="What">No filesystem or shell builtin tools; acceptance requires the bakeoff task to pass on a fresh init</td></tr>
+      <tr><td data-label="Row"><code>REVIEW-CONSENSUS-1</code></td><td data-label="Priority">P1</td><td data-label="State">reopened</td><td data-label="What">Lease covers <code>tasks</code> only; sessions permanently unclaimable. Corrected in place rather than twinned</td></tr>
+    </tbody>
+  </table>
+  <p>The third row was marked complete on <code>6768957</code>. Reopening it rather than filing a duplicate keeps one instruction per piece of work, and records that the recovery half is blocked behind the cause: a correct lease has nothing to redeliver until <code>DF-CONSENSUS-65</code> lands.</p>
+</section>
+
+<section id="next">
+  <h2>What I would do next</h2>
+  <ol>
+    <li><strong>Fix the insert, not the rollback.</strong> Persist the tool request before or independent of the suspend, then re-run the bakeoff unchanged. A two-line task completing is the acceptance test.</li>
+    <li><strong>Give the engine hands.</strong> Seed read, write, edit, glob and bash as real handlers — not stubs — and make the executor path dispatch them. Without this, fixing the wedge only produces sessions that wedge later.</li>
+    <li><strong>Extend the reaper to sessions</strong> so a dead worker cannot strand a session, and add the test that kills a worker mid-claim.</li>
+    <li><strong>Write the outcome-level suite</strong> — drive a real task and assert file writes and command output. This is the third column, and it is the only thing that would have caught the current state.</li>
+    <li><strong>Then re-run the head-to-head</strong> so the comparison has two real legs instead of one.</li>
+  </ol>
+  <p>Items 1 and 2 are the whole ballgame. Everything else in this report is either already working or waiting behind them.</p>
+</section>
+
+<section id="limits">
+  <h2>What was not exercised</h2>
+  <p>To be explicit about the boundaries of this review:</p>
+  <ul>
+    <li><strong>Postgres backend.</strong> Everything above ran on SQLite only. The Postgres path was not built, migrated or driven.</li>
+    <li><strong>The deployed stack.</strong> The live container on :8380 was health-checked read-only and left untouched. I did not rebuild or redeploy it, so nothing here speaks to whether the running image matches <code>4e84706</code>.</li>
+    <li><strong>MCP surface.</strong> Not probed in this pass.</li>
+    <li><strong>Multi-turn and multi-tool flows.</strong> Impossible to reach — the first tool call wedges — so agent behaviour beyond turn one is unmeasured rather than untested.</li>
+    <li><strong>The 9 experimental operations.</strong> Deliberately excluded, on the grounds that upstream treats that namespace as unstable.</li>
+    <li><strong>The bunker QA batteries.</strong> Not run; no clean-machine leg is included here.</li>
+  </ul>
+  <p>A passing suite elsewhere is not evidence for any of the above.</p>
+</section>
+
+<footer>
+  <p><b>Method.</b> Fresh <code>git clone</code> of <code>totalwindupflightsystems/consensus</code> into an isolated directory; built with the project's own <code>make build</code>; tested with <code>make test-short</code>; served on scratch ports 18361 (mock) and 18371 (real provider) with the owner's live stack on :8380 left untouched; bakeoff arm A drove <code>pi 1.5.0</code> in <code>--print --mode json</code> and its metrics were parsed from the 122-event NDJSON stream; arm B drove the consensus REST API and its metrics were read from the session row and the SQLite ledger.</p>
+  <p><b>Numbers by method.</b> Build, test and binary figures were measured on this machine on 3 November 2026. Coverage figures are read from the committed artifact <code>specs/openapi/upstream/opencode-declared-vs-served-1.18.33.json</code> at pin <code>7945de20</code>. Upstream suite results are read from <code>docs/evidence/opencode-upstream-v1.18.33-r4/summary.md</code>. Board figures are counted from <code>.coding-hermes/board/tasks.jsonl</code> at <code>89dc891</code>.</p>
+  <p><b>Toolchain.</b> Go (project default), Node v22.22.3, npm 10.9.8, <code>pi</code> 1.5.0, model <code>deepseek-chat</code> over the DeepSeek PAYG key. Ports 18361 and 18371, both since stopped. No credential value appears in this report.</p>
+  <p><b>Evidence.</b> <code>~/consensus-carter-review-2026-11-01/payg-bakeoff/{VERDICT.txt,pi-run/stdout.json,consensus-run/,analyze_pi.py}</code> regenerates every bakeoff figure above.</p>
+  <p style="margin-top:1.1rem"><b>Carter review</b> &middot; thread 4314 &middot; 3 November 2026 &middot; repo measured at <code>4e84706</code> &middot; rows filed at <code>89dc891</code></p>
+</footer>
+
+</div>
+</body>
+</html>
