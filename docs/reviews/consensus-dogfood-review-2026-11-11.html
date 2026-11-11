@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consensus — Carter Review, 3 Nov 2026</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --txt:#12151a; --mut:#5a6270; --line:#e2ded6;
+  --rule:#c9c3b8; --good:#0e6b4f; --bad:#a32b1f; --warn:#8a5a00; --chipbg:#f1eee7;
+  --accent:#1f4b6e;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101317; --panel:#171b21; --txt:#eef1f5; --mut:#a4adba; --line:#2a3038;
+    --rule:#3a424c; --good:#59c99b; --bad:#f08477; --warn:#e0ad58; --chipbg:#1d222a;
+    --accent:#8fbde0;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--txt);
+  font:16px/1.62 ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+  padding:0 0 5rem;
+}
+.wrap{max-width:900px;margin:0 auto;padding:0 1.15rem}
+header{padding:2.6rem 0 1.4rem;border-bottom:1px solid var(--rule)}
+.kicker{
+  font:600 .72rem/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--mut); margin:0 0 .7rem
+}
+h1{
+  font-size:clamp(1.65rem,5.2vw,2.5rem); line-height:1.14; margin:0 0 .55rem;
+  letter-spacing:-.018em; font-weight:700
+}
+.dek{font-size:1.02rem;color:var(--mut);margin:0;max-width:62ch}
+.meta{
+  font:400 .8rem/1.7 ui-sans-serif,system-ui,sans-serif;color:var(--mut);
+  margin:1.15rem 0 0;display:flex;flex-wrap:wrap;gap:.35rem 1.1rem
+}
+.meta b{color:var(--txt);font-weight:600}
+
+.verdict{
+  margin:1.9rem 0 0;padding:1.15rem 1.25rem;background:var(--panel);
+  border:1px solid var(--line);border-radius:3px
+}
+.verdict p{margin:0;font-size:1.13rem;line-height:1.5}
+.verdict p+p{margin-top:.7rem;font-size:.95rem;color:var(--mut)}
+
+nav{margin:1.7rem 0 0;font:400 .85rem/1.9 ui-sans-serif,system-ui,sans-serif}
+nav ol{margin:.35rem 0 0;padding-left:1.25rem;columns:2;column-gap:2rem}
+@media(max-width:640px){nav ol{columns:1}}
+nav a{color:var(--txt);text-decoration:none;border-bottom:1px solid var(--line)}
+nav a:hover{border-bottom-color:var(--accent)}
+
+section{padding:2.35rem 0 0}
+h2{
+  font-size:1.28rem;line-height:1.25;margin:2.2rem 0 .7rem;letter-spacing:-.012em;
+  font-weight:700;padding-top:1.1rem;border-top:1px solid var(--line)
+}
+section:first-of-type h2{border-top:0;padding-top:0;margin-top:1.1rem}
+h3{font-size:1rem;margin:1.5rem 0 .4rem;font-weight:700;letter-spacing:.005em}
+p{margin:.62rem 0;max-width:70ch}
+ul,ol{margin:.6rem 0;padding-left:1.3rem;max-width:70ch}
+li{margin:.3rem 0}
+a{color:var(--accent)}
+code{
+  font:.88em/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--chipbg);padding:.1em .32em;border-radius:2px;overflow-wrap:anywhere
+}
+.lede{font-size:1.06rem}
+
+table{
+  width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem;
+  font-family:ui-sans-serif,system-ui,sans-serif
+}
+th,td{text-align:left;padding:.52rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:.76rem;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--rule)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
+tr:last-child td{border-bottom:0}
+.good{color:var(--good);font-weight:600}
+.bad{color:var(--bad);font-weight:600}
+.warn{color:var(--warn);font-weight:600}
+
+@media(max-width:720px){
+  table.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  table.stack tr{display:block;border-bottom:1px solid var(--rule);padding:.5rem 0}
+  table.stack td{display:grid;grid-template-columns:minmax(6.5rem,38%) 1fr;gap:.7rem;border:0;padding:.22rem 0}
+  table.stack td::before{
+    content:attr(data-label);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--mut);font-weight:600
+  }
+  table.stack td.num{white-space:normal}
+}
+
+.note{
+  margin:1.15rem 0;padding:.85rem 1rem;background:var(--chipbg);
+  border-radius:3px;font-size:.92rem;color:var(--txt)
+}
+.note strong{font-weight:700}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;margin:1.2rem 0}
+@media(max-width:720px){.split{grid-template-columns:1fr}}
+.split h3{margin-top:0}
+
+footer{
+  margin-top:3.2rem;padding-top:1.3rem;border-top:1px solid var(--rule);
+  font:400 .78rem/1.75 ui-sans-serif,system-ui,sans-serif;color:var(--mut)
+}
+footer b{color:var(--txt);font-weight:600}
+footer p{max-width:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">Dogfood review &middot; Carter method</p>
+  <h1>Consensus dogfood: the front door holds, the wedge stands</h1>
+  <p class="dek">A live dogfood of the custom harness at the current head — built, served, driven over HTTP against a real model — plus the static wiring audit, and where the 38 pending rows stand.</p>
+  <div class="meta">
+    <span><b>To</b> Bane</span>
+    <span><b>From</b> thread 4314</span>
+    <span><b>Date</b> 11 November 2026</span>
+    <span><b>Repo</b> totalwindupflightsystems/consensus</span>
+    <span><b>Measured at</b> <code>f4ebedb</code></span>
+    <span><b>Prior review</b> <code>64ffb7c</code> (3 Nov)</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <p><strong>Unchanged, and now re-proven rather than assumed.</strong> All 38 declared v2 (<code>/api/*</code>, non-experimental) operations in the served spec are mounted with zero 5xx. The same engine still could not complete a one-line file-writing task — the turn froze in <code>tool_exec</code> for two full minutes with 24 worker-claim bailouts, and the file never appeared.</p>
+  <p>Twelve commits have landed since the last review. Every one is board bookkeeping; zero touch production code. The 3 November findings carry forward by code identity, and today's live run confirms them.</p>
+</div>
+
+<nav>
+  <p class="kicker" style="margin-bottom:.2rem">Contents</p>
+  <ol>
+    <li><a href="#answer">The one-line answer</a></li>
+    <li><a href="#dogfood">Today's dogfood, at the current head</a></li>
+    <li><a href="#remain">Where we remain</a></li>
+    <li><a href="#wiring">The static wiring audit, at this head</a></li>
+    <li><a href="#board">Board state</a></li>
+    <li><a href="#good">What is genuinely good</a></li>
+    <li><a href="#bad">What is broken</a></li>
+    <li><a href="#lanes">What happens when this message lands</a></li>
+    <li><a href="#limits">What was not exercised</a></li>
+  </ol>
+</nav>
+
+<section id="answer">
+  <h2>The one-line answer</h2>
+  <p class="lede">Eight days and twelve commits later, nothing has changed in the code — and today's dogfood proves the 3&nbsp;November verdict still holds exactly: <strong>the front door answers on every route, and the engine still wedges on the first tool call.</strong></p>
+  <p>The twelve commits since the last review are all board bookkeeping and one symbol-cache refresh — the diff on the three files that contain the wedge is empty. That is not neglect; the board now names the work precisely (38 pending rows, including a five-row front-door wiring program). It means the measured picture from the last review carries forward by code identity, and today's live run confirms it rather than assuming it.</p>
+</section>
+
+<section id="dogfood">
+  <h2>Today's dogfood, at the current head</h2>
+  <p>A fresh clone at <code>f4ebedb</code> (4 November 2026, current <code>origin/main</code>), built with the project's own toolchain, served on scratch ports, driven over HTTP only — no in-process calls, no test-seeded rows. This is the front-door method that the project's own <code>WIRE-CONSENSUS-1</code> row asks for.</p>
+  <ul>
+    <li><strong>Build</strong> — <code>CGO_ENABLED=0 go build</code>, exit 0, binary 28,035,255 bytes.</li>
+    <li><strong>Route surface</strong> — the served <code>openapi.json</code> declares 38 v2 (<code>/api/*</code>, non-experimental) operations. <strong>38 of 38 are mounted</strong> (zero mux 404s), zero 5xx responses. The compatibility surface is still real.</li>
+    <li><strong>The wedge, live</strong> — one session against the real provider, given a one-line task that requires exactly one file write. Message accepted 200 <code>message_received</code>. Then: <code>tool_exec</code> at every poll from t+15s to t+120s, <code>iteration</code> frozen at 1, <strong>24</strong> <code>session already claimed by another worker</code> lines in the serve log, and <code>df_probe.txt</code> never created. Same signature as 3 November — that is now 5 reproductions across two sessions a week apart, on two different commits, including this one.</li>
+  </ul>
+</section>
+
+<section id="remain">
+  <h2>Where we remain</h2>
+  <p>Four defect rows and one reopened review carry the whole failure surface. None has an owner working it while the lanes were parked:</p>
+  <ul>
+    <li><code>DF-CONSENSUS-65</code> (P0) — every tool-calling session wedges forever: the planning transaction is rolled back before any <code>tool_requests</code> row is written. Reconfirmed today, live.</li>
+    <li><code>DF-CONSENSUS-66</code> (P1) — a fresh install exposes only <code>list_sessions</code> and <code>demo_approval_gate</code>. No read/write/edit/glob/bash tools exist; the canonical coding task is inexpressible, not merely slow.</li>
+    <li><code>DF-CONSENSUS-67</code> (P1) — <code>skills_registry</code> is read by the v2 skills endpoint and written by nothing in production. The route answers and can only ever return an empty set.</li>
+    <li><code>REVIEW-CONSENSUS-1</code> (P1, reopened) — the claim reaper sweeps the tasks table only; a dead worker holding a session claim blocks it forever. This is the half of the wedge that survives even after DF-65's fix.</li>
+  </ul>
+  <p>Against that, the board now carries <strong>WIRE-CONSENSUS-1..5</strong> — the front-door program this dogfood foreshadows: one HTTP-only end-to-end battery as the gate; every stub on a reachable path implemented or honestly 501; the four read-but-never-written tables resolved; the static wiring checker adopted as a CI ratchet; and route-to-front-door parity asserted from the served spec. Today's run is, in effect, a hand-executed first pass of WIRE-CONSENSUS-1.</p>
+</section>
+
+<section id="wiring">
+  <h2>The static wiring audit, at this head</h2>
+  <p><code>scripts/audit/wirecheck.py</code> (landed 4 November at <code>47574e8</code>) runs in about a second over 189 production files and names what a green test suite cannot:</p>
+  <ul>
+    <li><strong>4 tables read in production and written by none</strong> — <code>skills_registry</code>, <code>memory_pages</code>, <code>projects</code>, <code>routing_rules</code>. Each endpoint over them answers correctly and is permanently empty.</li>
+    <li><strong>23 stub returns on reachable paths</strong> — including <code>ExecuteTool</code> at <code>internal/tools/execute.go:103</code> returning a success-shaped string that says it is a stub, and seven shim handlers answering <code>NOT_IMPLEMENTED</code> while route coverage counts them served.</li>
+    <li><strong>68 test files that create their own schema and seed their own rows</strong> — the honest-tests-of-the-wrong-half pattern. The tool executor's 7 passing tests pass because the test writes the row that production never writes.</li>
+  </ul>
+  <p>The tool executor tests are not lies — they genuinely prove the executor executes. They prove nothing about who feeds it, and nobody does. That distinction is the whole lesson of this project phase.</p>
+</section>
+
+<section id="board">
+  <h2>Board state</h2>
+  <p>484 rows: 436 complete, 8 done, 1 closed, 1 blocked, <strong>38 pending</strong>. The pending set by family:</p>
+  <ul>
+    <li><strong>ROUTE ×9</strong> — long-tail v2 routes (ADD-072..075, 078, 079, +3), the remaining unmounted or unverified operations.</li>
+    <li><strong>README ×6, DOC ×5</strong> — documentation debt; none block the runtime.</li>
+    <li><strong>QA ×5</strong> — the QA battery rows unblocked by the 4 November PM tick, waiting for the QA lane to run.</li>
+    <li><strong>WIRE ×5</strong> — the front-door program.</li>
+    <li><strong>DF ×4</strong> — the four defect rows above (52 is the credential premise).</li>
+    <li><strong>REVIEW ×2, PERF ×1, DOGFOOD ×1</strong> — the reaper, a perf pass, and the standing dogfood row.</li>
+  </ul>
+</section>
+
+<section id="good">
+  <h2>What is genuinely good</h2>
+  <ul>
+    <li><strong>The board is truthful.</strong> 484 rows, each filed with measured reasoning and runnable acceptance criteria. The PM tick on 4 November actively repaired stale premises and made seven open rows dispatchable. The record is an asset, not folklore.</li>
+    <li><strong>The coverage discipline held.</strong> The declared-vs-served artifact at pin v1.18.33 still measures 68/188 overall with drift classes named per item — and this review's mount-check over the <em>served</em> spec (38/38) is a different measurement that agrees with it on the surface.</li>
+    <li><strong>The wiring tooling exists and finds real things.</strong> wirecheck names the four dead tables and 23 stubs in one second; its function-level cousin shipped to Hilo this week (<code>GAP-121</code>, landed at <code>4f16dadc</code> in <code>gethilo/hilo</code>), so the same class of defect is now caught upstream too.</li>
+    <li><strong>Nothing was pretended.</strong> The 12 bookkeeping commits make no code claims; the rows that would fix the wedge sat honestly pending rather than being closed by a commit message.</li>
+  </ul>
+</section>
+
+<section id="bad">
+  <h2>What is broken</h2>
+  <ul>
+    <li><strong>The agent loop still cannot act.</strong> One week and a day after the first reproduction, the first tool call of the first real task still suspends the session permanently. The fix is small (planning.go:1145-1165 commits a status that implies a row it never writes) and it is the single highest-leverage change available.</li>
+    <li><strong>Every route answering is not every route working.</strong> Four empty-set endpoints and seven NOT_IMPLEMENTED shim handlers sit inside a 38/38 mount figure. That is exactly the gap the WIRE rows exist to close.</li>
+    <li><strong>The lanes are parked.</strong> All consensus lanes were operator-disabled on 4 November for the factory-control-plane standby, so the defects above have had no foreman tick since. This report's delivery re-arms them per your go.</li>
+  </ul>
+</section>
+
+<section id="lanes">
+  <h2>What happens when this message lands</h2>
+  <p>Per your go, the consensus scheduler family comes back up immediately after this report: <code>foreman, pm, qa, sync, dogfood, docs, readme, releng</code> (review is already on), each verified by reading <code>enabled</code> back from the scheduler API. The five per-role <code>-qa</code> satellites stay retired under the one-QA-lane ruling, and <code>ops</code>/<code>perf</code> come up with the family unless you would rather hold them. The foreman's first tick should arm within minutes of a board write — the pending set above is its work order, with <code>DF-CONSENSUS-65</code> as the obvious first pick.</p>
+</section>
+
+<section id="limits">
+  <h2>What was not exercised</h2>
+  <ul>
+    <li><strong>Multi-turn and multi-tool flows</strong> — unreachable while the first tool call wedges; turn-one is the measured boundary.</li>
+    <li><strong>The 9 experimental operations</strong> — excluded, consistent with the last review and upstream's own instability marking.</li>
+    <li><strong>Postgres-backed serving</strong> — today's dogfood ran SQLite; the Postgres repair of <code>7df0a32</code> is untested here.</li>
+    <li><strong>The pinned upstream assertion suites</strong> — not re-run today; the 34/34 figure from 3 November predates <code>f4ebedb</code> by bookkeeping-only commits, so it stands by code identity but was not re-measured.</li>
+    <li><strong>MCP surface</strong> — the session-auth fix (<code>be28a9e</code>) is untested in this pass.</li>
+    <li><strong>The deployed live stack on :8380</strong> — left untouched throughout; it still runs the 24 September image and does not contain any fix measured here.</li>
+  </ul>
+  <p>A passing suite elsewhere is not evidence for any of the above.</p>
+</section>
+
+<footer>
+  <p><b>Method.</b> Fresh <code>git clone</code> of <code>totalwindupflightsystems/consensus</code> at <code>origin/main</code> into <code>~/consensus-dogfood-2026-11-11/</code>; built with the project's toolchain; served on scratch ports 18417 (mock) and 18419 (real provider); every measurement taken over HTTP against the running binary. Route mounting was checked by enumerating the served <code>openapi.json</code> and probing each operation for a mounted handler (anything other than a mux 404). The wedge was driven with one real session — create 201, message 200, then session-state polling every 15 seconds for two minutes. The static audit was <code>python3 scripts/audit/wirecheck.py</code> at the same head. The owner's live stack on :8380 was not touched.</p>
+  <p><b>Numbers by method.</b> Build, mount, wedge and stub figures were measured on this machine on 11 November 2026 at HEAD <code>f4ebedb</code>. Board figures are counted from <code>.coding-hermes/board/tasks.jsonl</code> on <code>origin/main</code> at the same head. The "12 commits, no production code" claim is <code>git log 4e84706..origin/main</code> plus an empty <code>git diff --stat</code> over <code>internal/harness/planning.go</code>, <code>internal/harness/tool_executor.go</code>, <code>internal/tools/execute.go</code>.</p>
+  <p><b>Toolchain.</b> Go (project default), binary 28,035,255 bytes, model <code>deepseek-v4-flash</code> over the configured key (key value never read into this report). Ports 18417 and 18419, both stopped after the run. Scratch session id <code>10030132-1a1c-4076-9e0b-37b811a1dd75</code>.</p>
+  <p><b>Evidence.</b> <code>~/consensus-dogfood-2026-11-11/</code> — <code>dogfood.sh</code>, <code>wedge_probe.sh</code>, <code>dogfood.log</code>, <code>wedge*.log</code>, <code>serve.log</code>/<code>serve3.log</code>, <code>sess3.json</code>, <code>openapi.json</code> — regenerates every figure above.</p>
+  <p style="margin-top:1.1rem"><b>Dogfood review</b> &middot; thread 4314 &middot; 11 November 2026 &middot; repo measured at <code>f4ebedb</code> &middot; prior review at <code>64ffb7c</code> (3 November)</p>
+</footer>
+
+</div>
+</body>
+</html>
