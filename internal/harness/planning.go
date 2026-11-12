@@ -1145,12 +1145,40 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 }
 
 func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int) (*IterationResult, error) {
-	// Suspend the open transaction — transition to tool_exec
-	_ = tx.Rollback() // Close the planning tx; tool execution will re-open a new one
+	// DF-CONSENSUS-65: the executor can only claim committed tool_requests.
+	// Close the planning transaction first because it holds the SQLite write
+	// lock, then persist every request and the tool_exec status in one atomic
+	// handoff. A partial failure leaves neither a status without work nor a
+	// partial batch for the executor to consume.
+	_ = tx.Rollback()
 
-	if err := h.db.Exec(ctx, `UPDATE sessions SET status = 'tool_exec' WHERE id = $1`, sessionID); err != nil {
-		return nil, err
+	handoffTx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tool handoff transaction: %w", err)
 	}
+	defer func() { _ = handoffTx.Rollback() }()
+	if err := handoffTx.SetSessionContext(ctx, sessionID); err != nil {
+		return nil, fmt.Errorf("set tool handoff session context: %w", err)
+	}
+	for _, toolReq := range plan.ToolRequests {
+		paramsJSON, err := json.Marshal(toolReq.Parameters)
+		if err != nil {
+			return nil, fmt.Errorf("marshal tool request %s parameters: %w", toolReq.ToolName, err)
+		}
+		if err := handoffTx.Exec(ctx, `
+			INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at)
+			VALUES ($1, $2, $3, $4, 'pending', CURRENT_TIMESTAMP)
+		`, sessionID, turn, toolReq.ToolName, string(paramsJSON)); err != nil {
+			return nil, fmt.Errorf("persist tool request %s: %w", toolReq.ToolName, err)
+		}
+	}
+	if err := handoffTx.Exec(ctx, `UPDATE sessions SET status = 'tool_exec', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
+		return nil, fmt.Errorf("update session status to tool_exec: %w", err)
+	}
+	if err := handoffTx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tool handoff: %w", err)
+	}
+	slog.Info("planning: tool requests handed off", "session_id", sessionID, "turn", turn, "tools", len(plan.ToolRequests))
 
 	return &IterationResult{
 		Status:     "success",
