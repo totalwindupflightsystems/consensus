@@ -885,11 +885,14 @@ func (h *Harness) claimVisibilityTimeout() time.Duration {
 	return defaultClaimVisibilityTimeout
 }
 
-// runClaimReaper periodically reclaims stale task claims (REVIEW-CONSENSUS-1).
+// runClaimReaper periodically reclaims stale task and session claims
+// (REVIEW-CONSENSUS-1).
 //
 // A task whose claim has been held longer than the visibility timeout is
 // presumed abandoned (its worker died mid-task) and is returned to 'pending'
-// with claimed_at cleared, so the normal heartbeat path can re-claim it.
+// with claimed_at cleared. A planning/tool_exec session whose heartbeat has
+// expired is returned to 'thinking'. Both then use the normal heartbeat path
+// to be claimed again.
 // Exits when ctx is cancelled.
 func (h *Harness) runClaimReaper(ctx context.Context) {
 	// Reap once immediately: a server restarting after a worker crash must
@@ -913,8 +916,8 @@ func (h *Harness) runClaimReaper(ctx context.Context) {
 	}
 }
 
-// reapStaleClaims resets one pass worth of stale 'in_progress' claims to
-// 'pending'. Returns the number of tasks reclaimed.
+// reapStaleClaims resets one pass worth of stale task claims to 'pending' and
+// stale session claims to 'thinking'. It returns the total claims reclaimed.
 func (h *Harness) reapStaleClaims(ctx context.Context) (int, error) {
 	// claimed_at is TEXT (RFC3339 UTC) on SQLite and TIMESTAMPTZ on
 	// Postgres, so the lease-expiry arithmetic must run on the parsed
@@ -956,6 +959,72 @@ func (h *Harness) reapStaleClaims(ctx context.Context) (int, error) {
 		slog.Warn("harness: reclaimed stale task claim",
 			"task_id", taskID,
 			"session_id", sessionID,
+			"held_for", held.Round(time.Second),
+			"visibility_timeout", h.claimVisibilityTimeout(),
+		)
+	}
+
+	reapedSessions, sessionErr := h.reapStaleSessionClaims(ctx)
+	if sessionErr != nil {
+		return reaped, fmt.Errorf("claim reaper: sessions: %w", sessionErr)
+	}
+	return reaped + reapedSessions, nil
+}
+
+// reapStaleSessionClaims expires planning/tool_exec leases whose heartbeat has
+// stopped. Resetting the row to thinking lets the normal dispatcher retry it;
+// without this pass a killed worker leaves findActiveSessions rediscovering the
+// same claim forever.
+func (h *Harness) reapStaleSessionClaims(ctx context.Context) (int, error) {
+	rows, err := h.db.Query(ctx, `
+		SELECT id, status, heartbeat_at
+		FROM sessions
+		WHERE status IN ('planning', 'tool_exec')
+		  AND heartbeat_at IS NOT NULL
+		  AND deleted_at IS NULL
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("select: %w", err)
+	}
+
+	now := time.Now()
+	reaped := 0
+	for _, r := range rows {
+		var heartbeatAt time.Time
+		if ts, ok := r["heartbeat_at"].(time.Time); ok {
+			heartbeatAt = ts
+		} else {
+			parsed, ok := parseClaimedAt(toString(r["heartbeat_at"]))
+			if !ok {
+				slog.Warn("harness: claim reaper skipping session with unparseable heartbeat_at",
+					"session_id", toString(r["id"]), "heartbeat_at", toString(r["heartbeat_at"]))
+				continue
+			}
+			heartbeatAt = parsed
+		}
+
+		held := now.Sub(heartbeatAt)
+		if held <= h.claimVisibilityTimeout() {
+			continue // lease still valid — a live worker owns this claim
+		}
+
+		sessionID := toString(r["id"])
+		previousStatus := toString(r["status"])
+		// Compare the heartbeat in the UPDATE so a worker that renewed its
+		// lease after our SELECT is never reset by this reaper pass.
+		if err := h.db.Exec(ctx, `
+			UPDATE sessions
+			SET status = 'thinking', heartbeat_at = CURRENT_TIMESTAMP
+			WHERE id = $1 AND status = $2 AND heartbeat_at = $3
+		`, sessionID, previousStatus, r["heartbeat_at"]); err != nil {
+			slog.Error("harness: claim reaper failed to reclaim session",
+				"session_id", sessionID, "error", err)
+			continue
+		}
+		reaped++
+		slog.Warn("harness: reclaimed stale session claim",
+			"session_id", sessionID,
+			"previous_status", previousStatus,
 			"held_for", held.Round(time.Second),
 			"visibility_timeout", h.claimVisibilityTimeout(),
 		)
