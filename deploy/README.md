@@ -2,6 +2,26 @@
 
 Deploy the Consensus agent runtime on any database backend, from local development to production scaling.
 
+## Production Docker Compose surface
+
+The production Docker deployment is `docker-compose.prod.yml`; it is the only Compose file in this repository that starts both the `postgres` dependency and the `consensus` runtime. From the repository root, prepare a `.env` file containing the required `DEEPSEEK_API_KEY` and `CONSENSUS_API_KEY` values, then run:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --wait
+curl -fsS http://127.0.0.1:8090/api/v1/health
+```
+
+The Compose healthcheck probes `http://localhost:8090/api/v1/health`, and the runtime publishes host port `8090`. Inspect the rendered contract without starting containers:
+
+```bash
+docker compose -f docker-compose.prod.yml config --services
+docker compose -f docker-compose.prod.yml config
+```
+
+The expected services are `postgres` and `consensus`; the rendered configuration must contain one published `8090` port and the same `/api/v1/health` healthcheck. The development `docker-compose.yml` is PostgreSQL-only and is not the application deployment surface.
+
+To stop this stack without deleting named volumes, run `docker compose -f docker-compose.prod.yml down`. Do not use `down -v` unless the persisted database and Consensus data are intentionally being discarded.
+
 axiom:trace work_item=deployment-ops-01 spec=specs/009-deployment.md plan=phase-1/task-1-2/step-1-2-1 doc=deploy/README.md
 
 ## Quick Start
