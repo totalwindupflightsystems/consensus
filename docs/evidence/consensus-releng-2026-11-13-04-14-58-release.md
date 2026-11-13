@@ -5,7 +5,7 @@ Repository: totalwindupflightsystems/consensus
 Canonical remote: git@github.com:totalwindupflightsystems/consensus.git
 Release remote alias: origin
 Default branch: main
-Certified candidate: 755907cbb4a14bea1b18eec3b6499260b2b689b1
+Certified candidate: 4c65e0a7a5fb8e75030f52cfaaf44697f31cdd9c
 Candidate source: origin/main after fetch; local detached worktree at the certified SHA
 Remote parity at census: 0/0
 
@@ -75,10 +75,24 @@ Skipped by design: E2E (Real LLM) and GitReins Evaluator (Tier 2). These skipped
 
 ## Receipts
 
-- Certified candidate: 755907cbb4a14bea1b18eec3b6499260b2b689b1
+- Certified candidate: 4c65e0a7a5fb8e75030f52cfaaf44697f31cdd9c
 - Candidate CI: 43365237663, completed success on the exact candidate
 - Release preflight: `bash scripts/release.sh --dry-run`, exit 0
 - Build: `go build ./...`, exit 0
 - Targeted test: exit 0
 - Board baseline validation: `boardctl validate`, RESULT: OK with 789 inherited warnings and 0 errors
 - Evidence artifact is intended to be committed before the board carrier is updated.
+
+## Pass 3 — final-tip delta re-anchor (2026-11-13)
+
+The fetched canonical default branch advanced from 755907cbb4a14bea1b18eec3b6499260b2b689b1 to 4c65e0a7a5fb8e75030f52cfaaf44697f31cdd9c. The changed-path set outside `.coding-hermes/` and this readiness artifact is empty, so the prior material census and release-tooling checks carry by identical product-tree bytes. The candidate receipt was nevertheless re-queried at the new full SHA.
+
+- Certified candidate: 4c65e0a7a5fb8e75030f52cfaaf44697f31cdd9c.
+- Candidate CI: GitHub Actions run 43368905841, workflow CI, push to main, exact head SHA, completed success. Per-job readback: Build & Test, Postgres Integration, GoReleaser Config, GitReins Guard (Tier 1), Docker Build & Push, and all five cross-build jobs succeeded; E2E (Real LLM) and GitReins Evaluator (Tier 2) were skipped by design.
+- Remote state rechecked: no v* tag refs and no GitHub Release objects. Existing tags were not moved and no release mutation was attempted.
+- Repository-owned preflight: `bash scripts/release.sh --dry-run` exit 0; it passed clean-tree, parity 0/0, VERSION/CHANGELOG consistency, and exact-head CI. `go build ./...` exit 0. The targeted shim test exited 0.
+- Full-history census at the certified candidate: 1,785 commits, 1,633 non-merges; feat 114, fix 217, perf 2, other conventional 1,132, nonconventional 168; bang subjects 0 and `BREAKING CHANGE:` footers 0. The four commits since the prior evidence candidate are bookkeeping/operations (`docs(releng)`, two `board(releng)`, and `qa`), with no product-path change and no semver materiality.
+- GitReins: no verdict is bound to the exact candidate SHA. Historical verdicts remain stale and are not upgraded.
+- Dogfood: the committed review remains at f4ebedb, stale relative to this candidate; it reports the first real tool-call wedge. Open P0/P1 rows remain, including DF-CONSENSUS-65, DF-CONSENSUS-66, DF-CONSENSUS-67, WIRE-CONSENSUS-1/2/3, REVIEW-CONSENSUS-1, QA-CONSENSUS-REVIEW-1, QA-CONSENSUS-FOREMAN-1, DF-CONSENSUS-068, QA-CONSENSUS-34, and QA-CONSENSUS-35.
+
+Decision remains NO CUT. RELEASE-CONSENSUS-3 is still status blocked and requires explicit owner authorization naming totalwindupflightsystems/consensus and v0.1.0. No RELEASE-cut row or equivalent authorization was found in the fetched board/events. No tag, GitHub Release, asset, version surface, or board status was mutated by this sweep.
