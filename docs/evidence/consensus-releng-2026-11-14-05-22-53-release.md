@@ -110,3 +110,30 @@ Why this blocks a cut rather than being advisory:
 - Evidence commit precedes the board carrier update; the carrier ships alone.
 
 Measured 2026-11-14T05:36Z.
+
+## Pass 2 — re-fire of tick consensus-releng-2026-11-14-05-22-53 (2026-11-14T05:52Z)
+
+The lane re-fired on the same tick id 11 minutes after this record was written. Re-anchored on `origin/main` = `9248f474039fcc71e951845afc5ec87c5f596b66` (fetch at 05:52Z; local checkout `e561d92` sits 2 commits behind and was used only to host the read-only `govulncheck` build, whose result is tree-scoped, not HEAD-scoped).
+
+Movement since the certified candidate: 2 commits, both bookkeeping — `1ecc3a1` (this record, under `docs/`) and `9248f47` (the board carrier). The material path set — everything outside `.coding-hermes/`, `.gitreins/`, `docs/`, `CHANGELOG.md`, `README.md` — is **empty**. The commit census, class counts, CI map and preflight above therefore carry unchanged; they are not re-quoted as a fresh measurement of a new tree.
+
+New receipts this pass:
+
+| Leg | Measurement |
+|---|---|
+| Carrier CI (`9248f47`) | run `43563003325`, workflow CI, completed/**success** — 10 jobs executed and green: Build & Test, Postgres Integration, GitReins Guard (Tier 1), GoReleaser Config, Docker Build & Push, Build linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64. Skipped by design: GitReins Evaluator (Tier 2), E2E (Real LLM). |
+| Evidence CI (`1ecc3a1`) | run `43562468162`, CI, completed/**success** |
+| Security gate, independently re-measured | `govulncheck ./...` exit 3 — 19 reachable vulnerabilities; `go.mod` still `go 1.26.0` + `toolchain go1.26.5`; `golang.org/x/text v0.39.0` |
+| Release surface | `git ls-remote --tags origin` = 0 refs; `gh release list` = 0 objects |
+| Authorization | none found; RELEASE-CONSENSUS-3 still `blocked`; latest audit event id 1039 |
+| Blocking fix | RELEASE-CONSENSUS-6 still `pending`; no fix branch — the only release heads are `wt/RELEASE-CONSENSUS-4` and `wt/RELEASE-CONSENSUS-5`, both **0 commits ahead** of main (spent worktrees, not a fix) |
+
+Deliberately not done: no tag created, no Release published, no `VERSION` or `CHANGELOG.md` mutation, no GoReleaser invocation, no force-update of any ref.
+
+`scripts/release.sh --dry-run` was **not** re-run this pass. The only checkout that could host it is 2 commits behind `origin/main`, and its exact-SHA CI check would fail there on the stale HEAD for reasons unrelated to the project — a false red. The 4/4 preflight above was measured on the byte-identical tree and is carried as such, not restated as new.
+
+Decision unchanged: **NO CUT**. The single blocking gate remains RELEASE-CONSENSUS-6 — toolchain below the fixed Go patch level, 19 reachable advisories, including the emSign/eMudhra trust line that `crypto/x509` closes at go1.26.10. Authorization is still absent.
+
+This pass is idempotent-bound by the marker `consensus-releng-2026-11-14-05-22-53/pass2` in the board event log.
+
+Measured 2026-11-14T05:52Z.
