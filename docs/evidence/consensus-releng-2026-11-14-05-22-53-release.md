@@ -137,3 +137,30 @@ Decision unchanged: **NO CUT**. The single blocking gate remains RELEASE-CONSENS
 This pass is idempotent-bound by the marker `consensus-releng-2026-11-14-05-22-53/pass2` in the board event log.
 
 Measured 2026-11-14T05:52Z.
+
+## Pass 3 — third re-fire of tick consensus-releng-2026-11-14-05-22-53 (2026-11-14T06:45Z)
+
+The lane re-fired a third time on the same tick id, 52 minutes after this record was first written. Re-anchored on `origin/main` = `05f89c37283613a4a14eab1c8f9cd03ab2782230` (fetch at 06:44Z). The local checkout `e561d92` sits 4 commits behind and still carries pass 1's superseded index, so it was read in place only — `git worktree add` for a clean detached tree was refused by the unattended-surface consent gate this pass, was not retried, and the carrier was built with a throwaway index instead.
+
+Movement since the certified candidate: 3 paths, all bookkeeping — `.coding-hermes/board/events.jsonl`, `.coding-hermes/board/tasks.jsonl`, `docs/evidence/consensus-releng-2026-11-14-05-22-53-release.md`. The material path set (everything outside `.coding-hermes/`, `.gitreins/`, `docs/`, `CHANGELOG.md`, `README.md`) is **empty**. The commit census, class counts, CI map and preflight stand exactly as measured on `e561d92`; they are carried, not restated as a fresh measurement of a new tree.
+
+New receipts this pass:
+
+| Leg | Measurement |
+|---|---|
+| Carrier CI (`05f89c3`) | run `43564566738`, workflow CI, completed/**success** — 10 jobs green: GoReleaser Config, Build & Test, Docker Build & Push, GitReins Guard (Tier 1), Postgres Integration, and the five cross-builds (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64). Skipped by design: GitReins Evaluator (Tier 2), E2E (Real LLM). |
+| Pass-2 evidence CI (`16bef13`) | run `43564380375`, CI, completed/**success** |
+| Security gate, independently re-measured | `govulncheck ./...` exit **3**, `19` reachable vulnerabilities; `go.mod` still `go 1.26.0` + `toolchain go1.26.5`; `golang.org/x/text v0.39.0` |
+| Release surface | `git ls-remote --tags origin` = 0 refs; `gh release list` = 0 objects |
+| Authorization | still none; RELEASE-CONSENSUS-3 `blocked`; the marker-bearing audit event is id 1040 |
+| Blocking fix | RELEASE-CONSENSUS-6 still `pending`; no branch above go1.26.5 — `wt/RELEASE-CONSENSUS-4` and `wt/RELEASE-CONSENSUS-5` are both 0 commits ahead of main |
+
+Deliberately not done, again: no tag created, no Release published, no `VERSION` or `CHANGELOG.md` mutation, no GoReleaser invocation, no force-update of any ref, and no cleanup of the shared checkout's superseded index.
+
+`scripts/release.sh --dry-run` was **not** re-run this pass. The only checkout that could host it is now 4 commits behind `origin/main` and carries uncommitted board/evidence changes; preflight check 1 (clean tree) and check 2 (parity 0/0) would both refuse for reasons that say nothing about the project — a false red. The 4/4 preflight above was measured on the byte-identical tree and is carried as such.
+
+Decision unchanged: **NO CUT**. The single blocking gate remains RELEASE-CONSENSUS-6 — toolchain below the fixed Go patch level, 19 reachable advisories, including the emSign/eMudhra certificate line that `crypto/x509` closes at go1.26.10. Owner authorization for a v0.1.0 cut is still absent, and a third pass that finds no movement is not a substitute for it.
+
+This pass is idempotent-bound by the marker `consensus-releng-2026-11-14-05-22-53/pass3` in the board event log.
+
+Measured 2026-11-14T06:45Z.
