@@ -20,13 +20,28 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/wojons/consensus/internal/tools"
 )
+
+// registerApprovalGateHandler registers the go_native handler the gated tool
+// rows in this file point at. The rows predate DF-CONSENSUS-077, when a
+// go_native call returned a success string without invoking anything; now an
+// unregistered handler_ref FAILS the request (fail-closed), so the gate tests
+// need a real handler to reach a 'completed' request.
+func registerApprovalGateHandler(handlerRef string) {
+	tools.RegisterNativeHandler(handlerRef, func(_ context.Context, _ map[string]any, _ string) (string, error) {
+		return "approval-gate handler executed", nil
+	})
+}
 
 // TestApprovalGated_ExecutorParkAndApprove drives the park → approve →
 // execute cycle through the real poll loop.
 func TestApprovalGated_ExecutorParkAndApprove(t *testing.T) {
 	database, cleanup := setupToolExecutorTestDB(t)
 	defer cleanup()
+
+	registerApprovalGateHandler("ApprovalHandler")
 
 	ctx := context.Background()
 	sessionID := "sess-te-01"
@@ -119,6 +134,8 @@ func TestApprovalGated_ExecutorParkAndApprove(t *testing.T) {
 func TestApprovalGated_ExecutorParkAndReject(t *testing.T) {
 	database, cleanup := setupToolExecutorTestDB(t)
 	defer cleanup()
+
+	registerApprovalGateHandler("ApprovalHandler")
 
 	ctx := context.Background()
 	sessionID := "sess-te-01"

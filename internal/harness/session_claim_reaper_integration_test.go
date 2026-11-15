@@ -18,6 +18,7 @@ import (
 
 	"github.com/wojons/consensus/internal/db"
 	"github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/tools"
 )
 
 const sessionClaimBailLog = "planning: session already claimed by another worker, bailing out"
@@ -333,9 +334,15 @@ func readSessionReaperLog(path string) string {
 
 // seedKilledWorkerToolRequest models the DF-CONSENSUS-68 hand-off: the worker
 // claimed a tool request (status 'executing') and died before writing a result.
-// The tool is a go_native stub so a recovered executor can actually run it.
+// The tool is a go_native handler the recovery test registers so a recovered
+// executor can actually run it.
 func seedKilledWorkerToolRequest(t *testing.T, ctx context.Context, database db.DB, sessionID string) string {
 	t.Helper()
+	// DF-CONSENSUS-077: go_native dispatch now requires a registered handler; an
+	// unregistered ref fails the request instead of reporting a successful no-op.
+	tools.RegisterNativeHandler("DF68Handler", func(_ context.Context, params map[string]any, workspace string) (string, error) {
+		return fmt.Sprintf("DF68Handler ran with %d params in %s", len(params), workspace), nil
+	})
 	if err := database.Exec(ctx, `
 		INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
 		VALUES ('df68-recovery-tool', 'df68_recovery_tool', 'DF-CONSENSUS-68 recovery probe', 'external', 'go_native', 'DF68Handler', 1)
