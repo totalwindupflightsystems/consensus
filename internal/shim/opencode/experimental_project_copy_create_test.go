@@ -105,7 +105,11 @@ func assertCreatedWorktree(t *testing.T, label, directory, repo, wantPath string
 	if info, err := os.Stat(directory); err != nil || !info.IsDir() {
 		t.Fatalf("%s: declared directory %q does not exist as a directory: %v", label, directory, err)
 	}
-	if wantPath != "" && filepath.Clean(directory) != filepath.Clean(wantPath) {
+	if wantPath != "" && !sameWorkspaceDirectory(directory, wantPath) {
+		// The handler reports the canonical path after EvalSymlinks. The test
+		// fixture's t.TempDir path may retain the host's symlinked TMPDIR
+		// spelling, so compare the paths' directory identity rather than their
+		// lexical spelling.
 		t.Errorf("%s: directory %q is not the body-produced path %q", label, directory, wantPath)
 	}
 	found := false

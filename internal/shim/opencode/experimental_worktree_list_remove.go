@@ -187,6 +187,20 @@ func (s *Server) handleExperimentalWorktreeRemove(w http.ResponseWriter, r *http
 			fmt.Sprintf("selected workspace %q is not a usable path", workspace))
 		return
 	}
+	// Containment is judged on canonical directory identities, for two reasons:
+	// the caller may submit an unresolved spelling of a path inside the
+	// workspace (a symlinked TMPDIR is the everyday case — the fixture and the
+	// product then disagree lexically but not physically), and a symlink that
+	// sits inside the workspace but points outside it must still be refused
+	// before `git worktree remove` deletes the directory it really names.
+	// A path that cannot be resolved keeps its cleaned spelling, so the
+	// lexical judgement is unchanged for directories that do not exist yet.
+	if resolvedRoot, rootErr := filepath.EvalSymlinks(root); rootErr == nil {
+		root = resolvedRoot
+	}
+	if resolvedAbsolute, absoluteErr := filepath.EvalSymlinks(absolute); absoluteErr == nil {
+		absolute = resolvedAbsolute
+	}
 	relative, err := filepath.Rel(root, absolute)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
 		writeV2InvalidRequest(w, "Query", "directory",
