@@ -482,10 +482,10 @@ func TestToolExecutor_Start_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// PollOnce processes and records results correctly (unregistered tool)
+// PollOnce rejects and records an unregistered tool.
 // ============================================================================
 
-func TestToolExecutor_PollOnce_UnregisteredTool_StillExecutes(t *testing.T) {
+func TestToolExecutor_PollOnce_UnregisteredTool_FailsClosed(t *testing.T) {
 	database, cleanup := setupToolExecutorTestDB(t)
 	defer cleanup()
 
@@ -504,31 +504,86 @@ func TestToolExecutor_PollOnce_UnregisteredTool_StillExecutes(t *testing.T) {
 		t.Errorf("expected 1 processed, got %d", count)
 	}
 
-	// Verify it was completed (unregistered tools get a generic result)
+	// An absent registry entry is an execution failure, never a generic success.
 	tRows, err := database.Query(ctx,
 		`SELECT status, completed_at FROM tool_requests WHERE id = $1`, reqID)
 	if err != nil {
 		t.Fatalf("query: %v", err)
 	}
 	status := toString(tRows[0]["status"])
-	if status != "completed" {
-		t.Errorf("unregistered tool status = %q, want 'completed'", status)
+	if status != "failed" {
+		t.Errorf("unregistered tool status = %q, want 'failed'", status)
+	}
+	if tRows[0]["completed_at"] == nil {
+		t.Error("failed unregistered request should record completed_at")
 	}
 
-	// Verify tool_result was written
+	// The linked error result is the existing persistence contract for failure
+	// reasons; this assertion falsifies the old generic-success behavior.
 	rRows, err := database.Query(ctx,
-		`SELECT output FROM tool_results WHERE request_id = $1`, reqID)
+		`SELECT output, is_error, error_code FROM tool_results WHERE request_id = $1`, reqID)
 	if err != nil {
 		t.Fatalf("query results: %v", err)
 	}
-	if len(rRows) > 0 {
-		output := toString(rRows[0]["output"])
-		if !strings.Contains(output, "unregistered") {
-			t.Logf("unregistered tool output: %s", output)
-		}
+	if len(rRows) != 1 {
+		t.Fatalf("expected one persisted failure result, got %d", len(rRows))
+	}
+	if toInt(rRows[0]["is_error"]) != 1 {
+		t.Error("unregistered tool result must be marked as an error")
+	}
+	if toString(rRows[0]["error_code"]) != "TOOL_ERROR" {
+		t.Errorf("error_code = %q, want TOOL_ERROR", toString(rRows[0]["error_code"]))
+	}
+	if output := toString(rRows[0]["output"]); !strings.Contains(output, "not registered or enabled") {
+		t.Errorf("failure reason = %q, want registry lookup reason", output)
 	}
 
-	t.Log("unregistered tools: gracefully handled with generic result")
+	t.Log("unregistered tools: failed closed with persisted failure reason")
+}
+
+// ch:trace row=DF-CONSENSUS-069 spec=none:product-contract wave=none:serial test=internal/harness/tool_executor_test.go::TestToolExecutor_PollOnce_UnregisteredTool_FailsClosed doc=none:worker-code evidence=none:worker-scratch witness=none:foreman-live-probe verdict=none:foreman-judge commit=none:foreman-integration memory=none:foreman-receipt
+// STATUS: complete
+// TIER: T1
+// EVIDENCE: the committed test file and command output reported to the foreman
+
+func TestToolExecutor_PollOnce_UnsupportedHandlerFailsClosed(t *testing.T) {
+	database, cleanup := setupToolExecutorTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	sessionID := "sess-te-01"
+	toolName := "unsupported_handler_tool"
+	if err := database.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
+		VALUES ('tool-te-unsupported', $1, 'unsupported handler test', 'external', 'not_a_handler', 'noop', 1)`, toolName); err != nil {
+		t.Fatalf("register unsupported tool fixture: %v", err)
+	}
+	reqID := seedPendingToolRequest(t, database, sessionID, toolName)
+
+	executor := NewToolExecutor(database, DefaultToolExecutorConfig())
+	if _, err := executor.PollOnce(ctx); err != nil {
+		t.Fatalf("PollOnce: %v", err)
+	}
+
+	requestRows, err := database.Query(ctx, `SELECT status FROM tool_requests WHERE id = $1`, reqID)
+	if err != nil {
+		t.Fatalf("query tool_request: %v", err)
+	}
+	if got := toString(requestRows[0]["status"]); got != "failed" {
+		t.Fatalf("unsupported handler status = %q, want failed", got)
+	}
+	resultRows, err := database.Query(ctx, `SELECT output, is_error FROM tool_results WHERE request_id = $1`, reqID)
+	if err != nil {
+		t.Fatalf("query tool_result: %v", err)
+	}
+	if len(resultRows) != 1 {
+		t.Fatalf("expected one failure result, got %d", len(resultRows))
+	}
+	if toInt(resultRows[0]["is_error"]) != 1 {
+		t.Fatal("unsupported handler result must be marked as an error")
+	}
+	if reason := toString(resultRows[0]["output"]); !strings.Contains(reason, "unsupported handler_type") {
+		t.Errorf("failure reason = %q, want unsupported handler_type", reason)
+	}
 }
 
 // ============================================================================

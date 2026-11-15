@@ -527,9 +527,11 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		`SELECT name, handler_type, handler_ref, hemisphere FROM tools_registry WHERE name = $1 AND enabled = true`,
 		toolName,
 	)
-	if err != nil || len(toolRows) == 0 {
-		// Tool not in registry — fall back to generic execution
-		return fmt.Sprintf("tool %q executed (unregistered)", toolName), nil
+	if err != nil {
+		return "", fmt.Errorf("tool %q: registry lookup: %w", toolName, err)
+	}
+	if len(toolRows) == 0 {
+		return "", fmt.Errorf("tool %q is not registered or enabled", toolName)
 	}
 
 	handlerType := toString(toolRows[0]["handler_type"])
@@ -564,7 +566,7 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		return e.executeHTTPEndpoint(ctx, toolName, handlerRef, sessionID, row)
 
 	default:
-		return fmt.Sprintf("tool %q executed (unknown handler_type: %s)", toolName, handlerType), nil
+		return "", fmt.Errorf("tool %q: unsupported handler_type %q", toolName, handlerType)
 	}
 }
 
