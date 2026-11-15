@@ -5,9 +5,15 @@ Repository: totalwindupflightsystems/consensus
 Canonical remote: git@github.com:totalwindupflightsystems/consensus.git
 Release remote alias: origin
 Default branch: main
-Certified candidate: beb6bd4a5964897d0d426141b043a44597cda0ca
-Candidate source: origin/main after fetch; detached verification worktree at the certified SHA (tree e362324b7c54ed975cdf84e3d847725f85a165a5, `git status --porcelain` = 0 lines)
-Remote parity at census: 0/0 (local `HEAD` == `origin/main` == beb6bd4a)
+Certified candidate: 704d1acf67ee4804c9c05c3fb1d233fa5228c058
+Candidate source: origin/main after fetch; detached verification worktree at the certified SHA (tree 822e5719964237269363935adc6940f5bc3e3199, `git status --porcelain` = 0 lines)
+Remote parity at census: 0/0 (local `HEAD` == `origin/main` == 704d1acf)
+
+> Re-fire note (pass 2). This tick fired twice. Pass 1 certified `beb6bd4a5964897d0d426141b043a44597cda0ca`
+> (tree `e362324b7c54ed975cdf84e3d847725f85a165a5`); pass 2 re-anchors on `704d1acf67ee4804c9c05c3fb1d233fa5228c058`
+> after one bookkeeping commit. Everything below the "Pass 1 record" marker is the pass-1
+> measurement at `beb6bd4a`, preserved verbatim. Pass 2's fresh readings are in
+> "Re-fire pass 2" at the end of this file.
 
 ## Decision
 
@@ -118,3 +124,87 @@ Why this blocks a cut rather than being advisory:
 Decision: **NO CUT** — authorization absent, toolchain gate open, P0 dogfood promise broken.
 
 Measured 2026-11-15T10:0xZ by the consensus-releng satellite.
+
+## Re-fire pass 2
+
+Same tick id, second fire. Pass 1's decision is **carried**, not re-litigated: the shipped surface is
+byte-identical, and all three gates were re-measured live rather than quoted.
+
+### Material identity
+
+`git ls-tree -r` of the tip and of the pass-1 candidate differs in exactly three paths, all bookkeeping:
+
+| Path | Nature |
+|---|---|
+| `.coding-hermes/board/tasks.jsonl` | board carrier (this row's own history) |
+| `.coding-hermes/board/events.jsonl` | board audit events |
+| `docs/evidence/consensus-releng-2026-11-15-10-07-39-release.md` | this record (absent in pass-1 candidate) |
+
+Top-level entries differ only in `.coding-hermes` and `docs`. Shipped-surface inclusion diff over
+`internal cmd pkg specs demo scripts web .goreleaser.yaml Dockerfile go.mod go.sum VERSION Makefile .github`
+returns **rc 0** between `beb6bd4a` and `704d1acf`. Material movement since the certified candidate: **0**.
+
+Tree objects: candidate pass 1 `e362324b...` → pass 2 `822e5719964237269363935adc6940f5bc3e3199`
+(fingerprint `sha256(tree)` = `01f797bb2112a0d64d6c3dca76877e17b903c75ac0633f28ee86b7e769cae86e`).
+
+Because material movement is 0, the pass-1 semver census, version surfaces, and posture readings carry.
+The range total is unchanged: first cut, no prior tag, so no semver increment applies and the
+BREAKING-confirmation rule is unreachable.
+
+### Fresh readings (pass 2)
+
+- **Exact-SHA CI on the tip `704d1acf`**: run `43707551530`, workflow CI, **completed success**.
+  Job-level: Build & Test, Postgres Integration, GitReins Guard (Tier 1), GoReleaser Config,
+  Docker Build & Push, and the five cross-compile legs (linux/amd64, linux/arm64, darwin/amd64,
+  darwin/arm64, windows/amd64) all **success**. GitReins Evaluator (Tier 2) and E2E (Real LLM)
+  **skipped by design** — not release-grade evidence, still unverified at this candidate.
+  Pass-1 candidate CI `43683729251` on `beb6bd4a` also success (10 jobs green).
+- **Repository preflight re-run this pass** in the clean detached worktree at the tip:
+  `bash scripts/release.sh --dry-run` **exit 0**, 4/4 checks — `[1/4] clean tree`,
+  `[2/4] remote parity 0/0 (HEAD == origin/main at 704d1acf67ee)`,
+  `[3/4] VERSION (0.1.0) matches newest CHANGELOG heading ([0.1.0])`,
+  `[4/4] CI green on HEAD (run 43707551530 succeeded for 704d1acf67ee)`.
+  The driver's own gate set does not cover authorization, vulnerability reachability, or dogfood, so
+  a 4/4 mechanical pass is not a release decision.
+- **Security gate re-measured live** (advisory feed is time-dependent and is never carried):
+  `govulncheck ./...` at the tip **exit 3** — "Your code is affected by 19 vulnerabilities from 1
+  module and the Go standard library." Log sha256
+  `fbb1c41eccdb59208005caa65b317f77e0ed52040597b1025c47e8d0c759b1ac` — **byte-identical** to pass 1's
+  log, which independently confirms neither the pins nor the advisory feed moved between the two fires.
+  `go.mod` still pins `go 1.26.0` / `toolchain go1.26.5`, `golang.org/x/text v0.39.0`.
+  Fixed-in floors: `net/http@go1.26.11`, `crypto/x509@go1.26.10`, `crypto/tls@go1.26.9`,
+  `net/textproto@go1.26.9`, `mime/multipart@go1.26.9`, `crypto/tls@go1.26.6`, `encoding/asn1@go1.26.6`,
+  `encoding/xml@go1.26.6`, `net/url@go1.26.6`, `net/http@go1.26.6`, `golang.org/x/text@v0.41.0`.
+  RELEASE-CONSENSUS-6 remains **pending**, no fix branch.
+- **Dogfood carry verified by construction**: the dogfooded revision `94f0342c` and the tip
+  `704d1acf` have identical product source (`git diff --quiet 94f0342c 704d1acf -- internal cmd pkg
+  specs demo`, rc 0), so DF-CONSENSUS-069 (P0), -070, -072 (P1) are live statements about this
+  candidate, not about an older tree. All six remain `pending`.
+- **Release surface unchanged**: `git ls-remote --tags origin` **0 refs**, 0 local tags,
+  `gh release list` **0 objects**. Forge default branch `main`, visibility `PUBLIC` (re-read via
+  `gh repo view`, not a local symbolic ref).
+
+### Gates (pass 2, all three still red)
+
+1. **Authorization absent.** RELEASE-CONSENSUS-3 is `blocked`. No cut directive names this repository
+   and v0.1.0. A scheduler template that recites cut steps is not authorization, and silence is not
+   authorization — the row's silence default stands: no directive by 2026-11-22T00:00Z means releng
+   re-anchors the proposal again and publishes nothing.
+2. **Toolchain would ship 19 reachable advisories** (re-measured above). Needs `toolchain >= go1.26.11`
+   and `golang.org/x/text >= v0.41.0` before GoReleaser may run.
+3. **Headline promise broken** — DF-CONSENSUS-069 P0 silent false success on the core loop, plus
+   -070/-072 P1, all open on a product tree identical to this candidate.
+
+Gates 2 and 3 are independent of gate 1: an authorization today would still not make this candidate
+publishable.
+
+### Mutation scope (pass 2)
+
+No tag created, no Release object, no asset, no VERSION/CHANGELOG edit, no GoReleaser run, no branch
+or ref force-update. Two writes only: this record's pass-2 section (header re-anchored, pass 1
+preserved above) and the RELEASE-CONSENSUS-3 row refresh. WAVE_BUDGET 2 was not used — a carried
+NO-CUT decision dispatches no workers, and releng verifies rather than develops.
+
+Decision: **NO CUT (carried)** — same three gates, freshly measured at `704d1acf`.
+
+Measured 2026-11-15T15:3xZ by the consensus-releng satellite.
