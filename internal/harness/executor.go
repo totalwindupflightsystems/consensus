@@ -1025,7 +1025,28 @@ func (h *Harness) reapStaleSessionClaims(ctx context.Context) (int, error) {
 				"session_id", sessionID, "error", err)
 			continue
 		}
+
+		// A dead tool-execution worker can leave requests in executing. Requeue
+		// only those requests; awaiting_approval remains parked until a human
+		// decision, and pending requests are already claimable by the executor.
+		if previousStatus == "tool_exec" {
+			if err := h.db.Exec(ctx, `
+				UPDATE tool_requests
+				SET status = 'pending', executed_at = NULL
+				WHERE session_id = $1 AND status = 'executing'
+			`, sessionID); err != nil {
+				// The session is already back in thinking, so still count the
+				// reap and still wake; the next reaper pass retries the requeue.
+				slog.Error("harness: failed to requeue stale tool requests",
+					"session_id", sessionID, "error", err)
+			}
+		}
+
 		reaped++
+		// The reaper normally runs alongside the heartbeat ticker, but a
+		// restart or a long interval can otherwise leave the recovered session
+		// parked until the next tick. Use the existing non-blocking wake path.
+		h.RequestWake(sessionID)
 		slog.Warn("harness: reclaimed stale session claim",
 			"session_id", sessionID,
 			"previous_status", previousStatus,

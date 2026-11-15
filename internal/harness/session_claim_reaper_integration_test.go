@@ -108,6 +108,10 @@ func TestSessionClaimReaperRealBinaryRecoversKilledWorker(t *testing.T) {
 		_ = database.Close()
 		t.Fatalf("model killed worker's tool_exec claim: %v", err)
 	}
+	// DF-CONSENSUS-68: the dead worker had already claimed a tool request and
+	// never wrote its result. Without requeue-on-reap that row rests in
+	// 'executing' forever and the session can never finish the hand-off.
+	staleRequestID := seedKilledWorkerToolRequest(t, ctx, database, sessionID)
 	if err := database.Close(); err != nil {
 		t.Fatalf("close killed worker database: %v", err)
 	}
@@ -135,6 +139,10 @@ func TestSessionClaimReaperRealBinaryRecoversKilledWorker(t *testing.T) {
 	if !strings.Contains(readSessionReaperLog(secondLog), "harness: reclaimed stale session claim") {
 		t.Fatalf("session reached idle without the required reaper transition; second log:\n%s", readSessionReaperLog(secondLog))
 	}
+	// The reaped worker's in-flight tool request must be claimable again: the
+	// tool executor has to pick it up and drive it to a terminal status instead
+	// of leaving 'executing' behind forever.
+	waitKilledWorkerToolRequestSettled(t, dbPath, staleRequestID, 20*time.Second)
 	settledBails := strings.Count(readSessionReaperLog(secondLog), sessionClaimBailLog)
 	time.Sleep(3500 * time.Millisecond) // > three configured heartbeat ticks
 	afterObservationBails := strings.Count(readSessionReaperLog(secondLog), sessionClaimBailLog)
@@ -321,4 +329,65 @@ func readSessionReaperLog(path string) string {
 		return "read log: " + err.Error()
 	}
 	return string(payload)
+}
+
+// seedKilledWorkerToolRequest models the DF-CONSENSUS-68 hand-off: the worker
+// claimed a tool request (status 'executing') and died before writing a result.
+// The tool is a go_native stub so a recovered executor can actually run it.
+func seedKilledWorkerToolRequest(t *testing.T, ctx context.Context, database db.DB, sessionID string) string {
+	t.Helper()
+	if err := database.Exec(ctx, `
+		INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
+		VALUES ('df68-recovery-tool', 'df68_recovery_tool', 'DF-CONSENSUS-68 recovery probe', 'external', 'go_native', 'DF68Handler', 1)
+	`); err != nil {
+		t.Fatalf("seed killed worker tool registry row: %v", err)
+	}
+	rows, err := database.Query(ctx, `
+		INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at, executed_at)
+		VALUES ($1, 0, 'df68_recovery_tool', '{}', 'executing', datetime('now'), $2)
+		RETURNING id
+	`, sessionID, time.Now().Add(-5*time.Minute).UTC().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("seed killed worker tool request: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("seed killed worker tool request returned %d rows, want 1", len(rows))
+	}
+	requestID := toString(rows[0]["id"])
+	if requestID == "" {
+		t.Fatal("seed killed worker tool request returned an empty id")
+	}
+	t.Logf("seeded killed worker tool_request: id=%s session=%s status=executing", requestID, sessionID)
+	return requestID
+}
+
+// waitKilledWorkerToolRequestSettled asserts the recovered tool request left
+// 'executing' because a live executor claimed and ran it.
+func waitKilledWorkerToolRequestSettled(t *testing.T, dbPath, requestID string, budget time.Duration) {
+	t.Helper()
+	ctx := context.Background()
+	database, err := driver.Open(ctx, db.Config{URL: "sqlite://" + dbPath, MaxOpenConns: 1})
+	if err != nil {
+		t.Fatalf("open recovered database: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	deadline := time.Now().Add(budget)
+	var status string
+	for time.Now().Before(deadline) {
+		rows, err := database.Query(ctx, `SELECT status FROM tool_requests WHERE id = $1`, requestID)
+		if err != nil {
+			t.Fatalf("query recovered tool_request: %v", err)
+		}
+		if len(rows) != 1 {
+			t.Fatalf("recovered tool_request rows = %d, want 1", len(rows))
+		}
+		status = toString(rows[0]["status"])
+		if status == "completed" || status == "failed" {
+			t.Logf("PASS: recovered tool_request %s reached terminal status %q", requestID, status)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("recovered tool_request %s status=%q after %v; want a terminal status (pre-fix it rests at 'executing' forever)", requestID, status, budget)
 }
