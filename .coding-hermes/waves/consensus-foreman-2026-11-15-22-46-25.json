@@ -1,0 +1,19 @@
+{
+  "tick_id": "consensus-foreman-2026-11-15-22-46-25",
+  "wave_type": "p1-parallel-unblock",
+  "tasks": ["DF-CONSENSUS-078", "DF-CONSENSUS-077"],
+  "base_commit": "950542bf13315321fb5cdb254cdf02adb6540401",
+  "worktrees": {
+    "DF-CONSENSUS-078": "/home/kara/worktrees/consensus-DF-CONSENSUS-078",
+    "DF-CONSENSUS-077": "/home/kara/worktrees/consensus-DF-CONSENSUS-077"
+  },
+  "branches": {
+    "DF-CONSENSUS-078": "wt/DF-CONSENSUS-078",
+    "DF-CONSENSUS-077": "wt/DF-CONSENSUS-077"
+  },
+  "independence": "078 touches internal/shim/opencode/** only; 077 touches internal/harness/** + internal/tools/** only; no depends_on edges between the rows.",
+  "worker_model": "openai/gpt-6.1-terra",
+  "worker_provider": "xkiro",
+  "status": "dispatching",
+  "created_at": "2026-11-15T22:52:00Z"
+}
