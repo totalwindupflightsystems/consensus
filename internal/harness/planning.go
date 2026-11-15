@@ -265,6 +265,13 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("planning: initial context: %w", err)
 	}
 
+	// DF-CONSENSUS-070: a turn that follows a tool hand-off must SEE what the
+	// tool returned, or it can only re-issue the call and the session ends
+	// with no assistant reply. Read the completed results once, before the
+	// loop starts writing through the iteration transaction (this read rides a
+	// pool connection and must not contend with the tx's write lock).
+	toolResultContext := h.formatToolResultsForTurn(ctx, sessionID)
+
 	// Main planning loop
 	for turn := 1; turn <= config.MaxTurns; turn++ {
 		// Check timeout
@@ -284,6 +291,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 
 		// Format turn context and call LLM
 		turnContext := h.formatTurnContextV2(ic, buffer, turn, config, memoryStateChanges)
+		turnContext += toolResultContext
 
 		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext)
 
@@ -1294,6 +1302,78 @@ func (h *Harness) planHasGatedTools(ctx context.Context, sessionID string, plan 
 // ============================================================================
 // Context Formatting (SPEC-020 §6)
 // ============================================================================
+
+// ============================================================================
+// Tool Result Context (DF-CONSENSUS-070)
+// ============================================================================
+
+// toolResultsInTurnContextLimit bounds how many completed tool results one
+// planning turn folds into its prompt: a session can run many tool batches, and
+// the most recent ones are the ones the continuation turn is answering.
+const toolResultsInTurnContextLimit = 10
+
+// toolResultOutputInPromptLimit bounds one tool output inside the turn context
+// (tool_results stores up to 10000 bytes per row — too much for a prompt).
+const toolResultOutputInPromptLimit = 2000
+
+// formatToolResultsForTurn renders the session's most recent completed tool
+// results as a planning turn-context section.
+//
+// DF-CONSENSUS-070: after a tool_request completes the session is handed back
+// to planning (tool_executor PollOnce step 5). That continuation turn must see
+// what the tool returned — without it the model can only re-issue the call and
+// the session reaches idle with no assistant reply. Errors are rendered too: a
+// failed tool is context the model has to reason about.
+//
+// Fail-soft by design: an unreadable tool_results table degrades to the
+// pre-existing prompt (no section) instead of failing the turn.
+func (h *Harness) formatToolResultsForTurn(ctx context.Context, sessionID string) string {
+	if h.db == nil {
+		return ""
+	}
+
+	rows, err := h.db.Query(ctx, `
+		SELECT tr.tool_name, COALESCE(r.output, '') AS output,
+		       COALESCE(r.is_error, 0) AS is_error,
+		       COALESCE(r.error_code, '') AS error_code
+		FROM tool_results r
+		JOIN tool_requests tr ON tr.id = r.request_id
+		WHERE r.session_id = $1
+		ORDER BY r.id DESC
+		LIMIT $2
+	`, sessionID, toolResultsInTurnContextLimit)
+	if err != nil {
+		slog.Warn("planning: tool results unavailable for turn context",
+			"session_id", sessionID, "error", err)
+		return ""
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n## Tool Results\n")
+	sb.WriteString("Output of the tool calls you made in earlier turns (oldest first):\n")
+	// Query is newest-first so LIMIT keeps the most relevant batch; render
+	// oldest-first so the model reads the trajectory in order.
+	for i := len(rows) - 1; i >= 0; i-- {
+		row := rows[i]
+		status := "ok"
+		if toInt(row["is_error"]) != 0 {
+			status = "error"
+			if code := toString(row["error_code"]); code != "" {
+				status = "error " + code
+			}
+		}
+		output := toString(row["output"])
+		if runes := []rune(output); len(runes) > toolResultOutputInPromptLimit {
+			output = string(runes[:toolResultOutputInPromptLimit]) + "…(truncated)"
+		}
+		fmt.Fprintf(&sb, "\n### %s (%s)\n```\n%s\n```\n", toString(row["tool_name"]), status, output)
+	}
+
+	return sb.String()
+}
 
 func (h *Harness) formatTurnContextV2(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, memoryStateChanges []string) string {
 	var memSection string

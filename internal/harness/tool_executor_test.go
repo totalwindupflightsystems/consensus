@@ -303,7 +303,10 @@ func TestToolExecutor_SessionWakes_AfterAllToolsDone(t *testing.T) {
 		t.Fatalf("PollOnce: %v", err)
 	}
 
-	// Verify session woke up (status → idle)
+	// Verify the session was handed back to the planner (DF-CONSENSUS-070).
+	// 'thinking' is what the heartbeat scans for and RunInteractivePlanning
+	// claims, so the continuation turn runs with the tool result in context.
+	// Pre-fix this flipped to 'idle' and the turn ended with no assistant reply.
 	sRows, err := database.Query(ctx, `SELECT status FROM sessions WHERE id = $1`, sessionID)
 	if err != nil {
 		t.Fatalf("query sessions: %v", err)
@@ -312,11 +315,11 @@ func TestToolExecutor_SessionWakes_AfterAllToolsDone(t *testing.T) {
 		t.Fatal("session not found")
 	}
 	status := toString(sRows[0]["status"])
-	if status != "idle" {
-		t.Errorf("session status = %q, want 'idle' (should wake after all tools done)", status)
+	if status != "thinking" {
+		t.Errorf("session status = %q, want 'thinking' (must queue a continuation turn after all tools are done)", status)
 	}
 
-	t.Logf("session %s woke from tool_exec → %s", sessionID, status)
+	t.Logf("session %s went from tool_exec → %s", sessionID, status)
 }
 
 // ============================================================================
@@ -722,18 +725,20 @@ func TestToolExecutor_Integration_ProcessesHarnessProducedRequests(t *testing.T)
 		t.Fatal("no tool_result row after PollOnce")
 	}
 
-	// Verify session woke
+	// Verify the session was handed back to the planner (DF-CONSENSUS-070):
+	// reaching 'idle' straight from tool_exec is exactly the defect — the turn
+	// must be continued so an assistant reply is persisted.
 	sRows, err := th.conn.Query(th.ctx,
 		`SELECT status FROM sessions WHERE id = $1`, sessionID)
 	if err != nil {
 		t.Fatalf("query sessions: %v", err)
 	}
 	sessStatus := toString(sRows[0]["status"])
-	if sessStatus != "idle" {
-		t.Errorf("session status after PollOnce = %q, want 'idle'", sessStatus)
+	if sessStatus != "thinking" {
+		t.Errorf("session status after PollOnce = %q, want 'thinking' (continuation turn queued)", sessStatus)
 	}
 
-	t.Logf("AC-HARDEN-05 integration PASS: iteration → tool_request → PollOnce → completed → tool_result → session idle")
+	t.Logf("AC-HARDEN-05 integration PASS: iteration → tool_request → PollOnce → completed → tool_result → session queued for continuation turn")
 }
 
 // ============================================================================

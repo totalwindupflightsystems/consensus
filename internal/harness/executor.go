@@ -841,8 +841,12 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 						// that one).
 						h.publishStatus(sessionID, result.NextStatus, result.AuditEntry.Iteration)
 					}
-					// Persist the monologue (LLM response text) so H3 clients can retrieve it
-					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" {
+					// Persist the monologue (LLM response text) so H3 clients can retrieve it.
+					// DF-CONSENSUS-070: a 'responded' iteration already persisted the
+					// durable assistant reply (handleRespond's text_block); writing the
+					// PRIVATE monologue afterwards made last_message return the agent's
+					// internal reasoning instead of the reply the user actually got.
+					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" && result.AuditEntry.Result != "responded" {
 						if insErr := h.db.Exec(ctx,
 							`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
 							 VALUES ('text_block', $1, $2, 0, CURRENT_TIMESTAMP)`,
