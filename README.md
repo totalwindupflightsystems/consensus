@@ -441,7 +441,7 @@ services:
       retries: 5
       start_period: 10s
     ports:
-      - "127.0.0.1:5432:5432"   # local-only; don't expose to network
+      - "127.0.0.1:${CONSENSUS_PG_PORT:-5432}:5432"   # local-only; don't expose to network; host port overridable so a local postgres on 5432 does not block the stack
     networks:
       - consensus-net
 
@@ -500,6 +500,16 @@ networks:
 > integration tests (Makefile `test-pg*` targets, `internal/migrate/postgres_full_test.go`),
 > not the Consensus server. For a full Consensus + PostgreSQL stack use
 > `docker compose -f docker-compose.prod.yml up -d`.
+>
+> Both compose files publish the PostgreSQL container on host port **5432** by
+> default. If something already listens on `127.0.0.1:5432` (a local `postgres`
+> service is common), the stack fails to start with
+> `Bind for 127.0.0.1:5432 failed: port is already allocated`. Move the host side
+> with `CONSENSUS_PG_PORT` — the container port stays 5432:
+>
+> ```bash
+> CONSENSUS_PG_PORT=15432 docker compose -f docker-compose.prod.yml up -d --wait
+> ```
 
 ---
 

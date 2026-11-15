@@ -31,7 +31,7 @@ services:
       retries: 5
       start_period: 10s
     ports:
-      - "127.0.0.1:5432:5432"   # local-only; don't expose to network
+      - "127.0.0.1:${CONSENSUS_PG_PORT:-5432}:5432"   # local-only; don't expose to network; host port overridable so a local postgres on 5432 does not block the stack
     networks:
       - consensus-net
 

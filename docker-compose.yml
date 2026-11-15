@@ -15,7 +15,9 @@ services:
       POSTGRES_PASSWORD: consensus
       POSTGRES_DB: consensus
     ports:
-      - "5432:5432"
+      # Host port is configurable so this stack can coexist with a local
+      # postgres already bound to 5432 (dev boxes, shared hosts).
+      - "${CONSENSUS_PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
