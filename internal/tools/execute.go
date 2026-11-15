@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -91,13 +92,10 @@ func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest)
 		return executeSQLFunction(ctx, database, req, handlerRef)
 
 	case "subprocess":
-		return executeSubprocess(ctx, req, handlerRef)
+		return executeSubprocess(ctx, database, req, handlerRef)
 
 	case "go_native":
-		return &ToolExecutionResult{
-			RequestID: req.ID,
-			Output:    fmt.Sprintf("tool %q executed (go_native stub: %s)", req.ToolName, handlerRef),
-		}, nil
+		return executeGoNative(ctx, database, req, handlerRef)
 
 	case "http_endpoint":
 		return executeHTTPEndpoint(ctx, database, req, handlerRef)
@@ -142,7 +140,13 @@ func executeSQLFunction(ctx context.Context, database db.DB, req *ToolExecutionR
 // Subprocess Execution
 // ============================================================================
 
-func executeSubprocess(ctx context.Context, req *ToolExecutionRequest, handlerRef string) (*ToolExecutionResult, error) {
+// executeSubprocess runs a subprocess tool in the SESSION WORKSPACE and hands it
+// the request payload (the decoded model parameters as JSON on stdin).
+//
+// DF-CONSENSUS-077: pre-fix this used a throwaway temp dir and dropped the
+// parameters, so a registered subprocess tool could never act on the workspace
+// and never saw its arguments.
+func executeSubprocess(ctx context.Context, database db.DB, req *ToolExecutionRequest, handlerRef string) (*ToolExecutionResult, error) {
 	startTime := time.Now()
 
 	// Build config from request
@@ -152,6 +156,21 @@ func executeSubprocess(ctx context.Context, req *ToolExecutionRequest, handlerRe
 	if req.TimeoutMS > 0 {
 		cfg.Timeout = time.Duration(req.TimeoutMS) * time.Millisecond
 	}
+
+	// The tool acts on the session workspace, not a throwaway directory.
+	workspace, err := ResolveWorkspace(ctx, database, req.SessionID)
+	if err != nil {
+		return errorResult(req.ID, err.Error(), startTime), nil
+	}
+	cfg.WorkDir = workspace
+
+	// Payload: the model's parameters, JSON, on stdin. Always a JSON object so a
+	// handler can parse unconditionally.
+	payload, err := json.Marshal(nonNilParams(req.Parameters))
+	if err != nil {
+		return errorResult(req.ID, fmt.Sprintf("marshal params: %v", err), startTime), nil
+	}
+	cfg.Stdin = payload
 
 	// Parse the executable and args from handlerRef.
 	// handlerRef can be:
@@ -185,6 +204,42 @@ func executeSubprocess(ctx context.Context, req *ToolExecutionRequest, handlerRe
 	}
 
 	return execResult, nil
+}
+
+// executeGoNative dispatches a go_native tool through the handler registry
+// (DF-CONSENSUS-077).
+//
+// The two failure shapes are deliberately distinct:
+//   - an unregistered handler_ref returns a non-nil error and a nil result: no
+//     effect happened, so nothing may be reported as a successful execution
+//     (fail-closed — the pre-fix stub returned a success string here);
+//   - a handler that ran and failed returns an error RESULT (IsError=true), the
+//     same shape executeSubprocess uses, so the reason reaches the caller.
+func executeGoNative(ctx context.Context, database db.DB, req *ToolExecutionRequest, handlerRef string) (*ToolExecutionResult, error) {
+	startTime := time.Now()
+
+	output, err := RunNativeTool(ctx, database, req.SessionID, req.ToolName, handlerRef, req.Parameters)
+	if err != nil {
+		if errors.Is(err, ErrNativeHandlerNotRegistered) {
+			return nil, fmt.Errorf("execute_tool: %w", err)
+		}
+		return errorResult(req.ID, err.Error(), startTime), nil
+	}
+
+	return &ToolExecutionResult{
+		RequestID:  req.ID,
+		Output:     output,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	}, nil
+}
+
+// nonNilParams returns params, or an empty object when it is nil, so a handler
+// always receives a JSON object.
+func nonNilParams(params map[string]any) map[string]any {
+	if params == nil {
+		return map[string]any{}
+	}
+	return params
 }
 
 // ============================================================================

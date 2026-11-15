@@ -539,9 +539,17 @@ func RejectToolRequestsForApproval(ctx context.Context, database db.DB, approval
 //
 // Resolves tools from tools_registry and dispatches based on handler_type:
 //   - sql_function: executes SQL function via the database
-//   - subprocess: WI-005: sandboxed subprocess via tools.ExecuteExternalTool()
-//   - go_native: stubbed — requires registered Go function map
-//   - http_endpoint: stubbed — requires HTTP client
+//   - subprocess: WI-005: sandboxed subprocess via tools.ExecuteExternalTool(),
+//     run in the SESSION WORKSPACE with the parameters as its stdin payload
+//   - go_native: tools.RunNativeTool() — the Go handler registered under
+//     handler_ref, receiving the decoded parameters and the session workspace
+//   - http_endpoint: HTTP client against handler_ref
+//
+// DF-CONSENSUS-077: go_native used to be a stub that returned a success string
+// without calling anything, and subprocess ran in a throwaway temp dir with no
+// parameters. Both are real dispatches now, and an unregistered go_native
+// handler_ref FAILS the request instead of reporting a no-op as success
+// (fail-closed, DF-CONSENSUS-069).
 //
 // WI-005: Rate limiting is enforced before execution.
 func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row db.Row) (string, error) {
@@ -583,8 +591,13 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		return string(b), nil
 
 	case "go_native":
-		// Go native handlers require a function registry — not yet implemented
-		return fmt.Sprintf("tool %q executed (go_native stub: %s)", toolName, handlerRef), nil
+		// Real dispatch: the Go handler registered under handler_ref receives the
+		// decoded parameters and the session workspace.
+		params, perr := decodeToolParameters(row)
+		if perr != nil {
+			return "", fmt.Errorf("go_native %q: %w", toolName, perr)
+		}
+		return tools.RunNativeTool(ctx, e.database, sessionID, toolName, handlerRef, params)
 
 	case "subprocess":
 		// WI-005: Real sandboxed subprocess execution
@@ -601,11 +614,18 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 // executeSubprocessTool dispatches a subprocess tool call to the sandbox.
 //
 // Uses tools.ExecuteExternalTool() with sandbox isolation:
-//   - Temp working directory
+//   - Working directory: the SESSION WORKSPACE (tools.ResolveWorkspace), so the
+//     tool acts where the agent works instead of a throwaway temp dir
+//   - Payload: the request parameters as JSON on stdin, so the handler receives
+//     what the model asked for
 //   - Timeout from tool_request or default 30s
 //   - 1MB output limit
 //   - Environment whitelist
 //   - Network disabled by default
+//
+// DF-CONSENSUS-077: pre-fix this ran every subprocess tool in a fresh temp dir
+// and never passed row["parameters"], so a correctly registered subprocess tool
+// could neither write into the workspace nor see its arguments.
 func (e *ToolExecutorImpl) executeSubprocessTool(ctx context.Context, toolName, handlerRef string, row db.Row) (string, error) {
 	// Parse timeout from tool_request
 	timeoutMS := 0
@@ -618,6 +638,25 @@ func (e *ToolExecutorImpl) executeSubprocessTool(ctx context.Context, toolName, 
 	if timeoutMS > 0 {
 		cfg.Timeout = time.Duration(timeoutMS) * time.Millisecond
 	}
+
+	// Run in the session workspace (documented temp fallback when it has none).
+	sessionID := toString(row["session_id"])
+	workspace, werr := tools.ResolveWorkspace(ctx, e.database, sessionID)
+	if werr != nil {
+		return "", fmt.Errorf("subprocess %q: %w", toolName, werr)
+	}
+	cfg.WorkDir = workspace
+
+	// Payload: the decoded model parameters as JSON on stdin.
+	params, perr := decodeToolParameters(row)
+	if perr != nil {
+		return "", fmt.Errorf("subprocess %q: %w", toolName, perr)
+	}
+	payload, merr := json.Marshal(params)
+	if merr != nil {
+		return "", fmt.Errorf("subprocess %q: marshal parameters: %w", toolName, merr)
+	}
+	cfg.Stdin = payload
 
 	// Parse handlerRef into executable + args
 	// handlerRef format: "executable" or "executable arg1 arg2" or "/path/to/exe"
@@ -633,6 +672,7 @@ func (e *ToolExecutorImpl) executeSubprocessTool(ctx context.Context, toolName, 
 		"tool", toolName,
 		"executable", executable,
 		"args", args,
+		"workspace", workspace,
 		"timeout", cfg.Timeout,
 	)
 	result, err := tools.ExecuteExternalTool(ctx, executable, args, cfg)
@@ -655,6 +695,45 @@ func (e *ToolExecutorImpl) executeSubprocessTool(ctx context.Context, toolName, 
 	)
 
 	return output, nil
+}
+
+// decodeToolParameters decodes a tool_request's parameters column into the map a
+// handler receives.
+//
+// The column is JSON text in the shipped schema, but a caller may already have
+// decoded it (db.Row values are driver-dependent), so all three shapes are
+// accepted. A malformed document is an ERROR: silently substituting an empty map
+// would make a handler run without its arguments and report a wrong result
+// (DF-CONSENSUS-077).
+func decodeToolParameters(row db.Row) (map[string]any, error) {
+	params := make(map[string]any)
+	raw, ok := row["parameters"]
+	if !ok || raw == nil {
+		return params, nil
+	}
+
+	switch v := raw.(type) {
+	case map[string]any:
+		return v, nil
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return params, nil
+		}
+		if err := json.Unmarshal([]byte(v), &params); err != nil {
+			return nil, fmt.Errorf("decode parameters: %w", err)
+		}
+		return params, nil
+	case []byte:
+		if len(v) == 0 {
+			return params, nil
+		}
+		if err := json.Unmarshal(v, &params); err != nil {
+			return nil, fmt.Errorf("decode parameters: %w", err)
+		}
+		return params, nil
+	default:
+		return nil, fmt.Errorf("decode parameters: unsupported column type %T", raw)
+	}
 }
 
 // splitToolCommand splits a handler_ref string into executable and args.

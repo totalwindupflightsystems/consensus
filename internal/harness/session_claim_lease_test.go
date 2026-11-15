@@ -2,8 +2,12 @@
 package harness
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/wojons/consensus/internal/tools"
 )
 
 func seedClaimedSession(t *testing.T, th *testHarness, status string, heartbeat time.Time) string {
@@ -92,6 +96,11 @@ func TestSessionClaimExpiryRequeuesToolAndWakesDispatcher(t *testing.T) {
 	th.HeartbeatConfig.ClaimVisibilityTimeout = 100 * time.Millisecond
 
 	sessionID := seedClaimedSession(t, th, "tool_exec", time.Now().Add(-5*time.Minute))
+	// DF-CONSENSUS-077: a go_native tool only completes if its handler_ref is
+	// registered — the dispatch fails closed otherwise.
+	tools.RegisterNativeHandler("RecoveryHandler", func(_ context.Context, params map[string]any, workspace string) (string, error) {
+		return fmt.Sprintf("RecoveryHandler ran with %d params in %s", len(params), workspace), nil
+	})
 	if err := th.conn.Exec(th.ctx, `
 		INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
 		VALUES ('recovery-tool', 'recovery_tool', 'claim expiry recovery tool', 'external', 'go_native', 'RecoveryHandler', 1)

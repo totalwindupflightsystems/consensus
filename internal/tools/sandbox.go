@@ -67,6 +67,17 @@ type ExternalToolConfig struct {
 	// ExecutableOverride overrides the executable to run.
 	// If empty, the handler_ref from tools_registry is used.
 	ExecutableOverride string
+
+	// WorkDir is the working directory the tool runs in. Empty keeps the
+	// isolated temp dir that is removed after the call; a caller that needs the
+	// tool to act on the session workspace sets it to that directory
+	// (DF-CONSENSUS-077), which is created if missing and never deleted here.
+	WorkDir string
+
+	// Stdin, when non-empty, is written to the tool's standard input. It is how
+	// a subprocess tool receives the request payload: the decoded model
+	// parameters as JSON.
+	Stdin []byte
 }
 
 // DefaultExternalToolConfig returns a safe default configuration.
@@ -125,6 +136,21 @@ func createTempWorkDir(toolName string) (string, func(), error) {
 		return "", nil, fmt.Errorf("sandbox: create temp dir: %w", err)
 	}
 	return dir, func() { _ = os.RemoveAll(dir) }, nil
+}
+
+// resolveWorkDir picks the directory the tool runs in.
+//
+// An explicitly configured WorkDir (the session workspace, DF-CONSENSUS-077) is
+// used as-is and never removed — the whole point is that the tool's writes
+// survive. Without one, execution stays in a throwaway temp dir.
+func resolveWorkDir(explicit, toolName string) (string, func(), error) {
+	if dir := strings.TrimSpace(explicit); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", nil, fmt.Errorf("work dir %q: %w", dir, err)
+		}
+		return dir, func() {}, nil
+	}
+	return createTempWorkDir(toolName)
 }
 
 // sanitizeName makes a tool name safe for filesystem use.
@@ -231,8 +257,8 @@ func ExecuteExternalTool(ctx context.Context, executable string, args []string, 
 		"no_network", cfg.NoNetwork,
 	)
 
-	// Create temp working directory
-	workDir, cleanup, err := createTempWorkDir(filepath.Base(executable))
+	// Create the working directory: the caller's (session workspace) or a temp one.
+	workDir, cleanup, err := resolveWorkDir(cfg.WorkDir, filepath.Base(executable))
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: %w", err)
 	}
@@ -250,6 +276,9 @@ func ExecuteExternalTool(ctx context.Context, executable string, args []string, 
 	cmd := exec.CommandContext(execCtx, executable, args...)
 	cmd.Dir = workDir
 	cmd.Env = buildSandboxEnv(cfg)
+	if len(cfg.Stdin) > 0 {
+		cmd.Stdin = bytes.NewReader(cfg.Stdin)
+	}
 
 	// Capture stdout and stderr via limited writer (prevent OOM from large output)
 	var outputBuf bytes.Buffer

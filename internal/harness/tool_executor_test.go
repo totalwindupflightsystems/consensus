@@ -10,12 +10,14 @@ package harness
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/wojons/consensus/internal/db"
 	"github.com/wojons/consensus/internal/db/driver"
+	"github.com/wojons/consensus/internal/tools"
 )
 
 // ============================================================================
@@ -133,6 +135,13 @@ func setupToolExecutorTestDB(t *testing.T) (db.DB, func()) {
 	// Register a test tool in tools_registry
 	_ = database.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
 		VALUES ('tool-te-01', 'test_tool_exec', 'A test tool for executor testing', 'external', 'go_native', 'TestHandler', 1)`)
+
+	// DF-CONSENSUS-077: go_native dispatch is real now — a registry row whose
+	// handler_ref has no Go function fails the request by design, so the fixture
+	// tool registers one.
+	tools.RegisterNativeHandler("TestHandler", func(_ context.Context, params map[string]any, workspace string) (string, error) {
+		return fmt.Sprintf("TestHandler ran with %d params in %s", len(params), workspace), nil
+	})
 
 	// Register a SQL function tool for real execution
 	_ = database.Exec(ctx, `INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)

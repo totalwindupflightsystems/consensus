@@ -18,6 +18,7 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/wojons/consensus/internal/api"
+	"github.com/wojons/consensus/internal/tools"
 )
 
 // toolContinuationLLM replays a scripted list of outputs and records the exact
@@ -117,8 +119,13 @@ func TestToolResultContinuesTurnAndPersistsAssistantReply(t *testing.T) {
 	// tick calls); a tiny interval only keeps StartHeartbeatLoop out of the way.
 	h.HeartbeatConfig.Interval = 2 * time.Minute
 
-	// Register the tool the plan will call: go_native is a deterministic stub,
-	// so the tool output is known without a subprocess or sandbox.
+	// Register the tool the plan will call. DF-CONSENSUS-077: go_native dispatch
+	// now calls a registered Go handler (an unregistered ref fails the request),
+	// so the output is deterministic without a subprocess or sandbox — and it
+	// still carries the handler ref the continuation assertions look for.
+	tools.RegisterNativeHandler(handlerRef, func(_ context.Context, params map[string]any, workspace string) (string, error) {
+		return fmt.Sprintf("%s: build is green (params=%v, workspace=%s)", handlerRef, params, workspace), nil
+	})
 	if err := th.conn.Exec(th.ctx,
 		`INSERT INTO tools_registry (id, name, description, hemisphere, handler_type, handler_ref, enabled)
 		 VALUES ('tool-070-01', $1, 'DF-CONSENSUS-070 probe tool', 'external', 'go_native', $2, 1)`,
