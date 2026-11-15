@@ -151,7 +151,10 @@ func TestProjectCurrentServesDeclared200(t *testing.T) {
 				t.Errorf("project is missing the required field %q: %v", field, body.project)
 			}
 		}
-		if got, _ := body.project["worktree"].(string); got != dir {
+		if got, _ := body.project["worktree"].(string); !sameWorkspaceDirectory(got, dir) {
+			// The handler reports the canonical path after EvalSymlinks. The
+			// fixture's t.TempDir path may retain the host's symlinked TMPDIR
+			// spelling, so compare directory identity rather than lexical spelling.
 			t.Errorf("worktree = %q, want the git toplevel %q", got, dir)
 		}
 		if got, _ := body.project["name"].(string); got != filepath.Base(dir) {
@@ -274,7 +277,9 @@ func TestProjectCurrentServesDeclared200(t *testing.T) {
 		if err := json.Unmarshal(data, &project); err != nil {
 			t.Fatalf("body not JSON: %v (%s)", err, data)
 		}
-		if got, _ := project["worktree"].(string); got != other {
+		if got, _ := project["worktree"].(string); !sameWorkspaceDirectory(got, other) {
+			// The handler reports the canonical path after EvalSymlinks; the
+			// header fixture can retain the symlinked TMPDIR spelling.
 			t.Errorf("worktree = %q, want the header workspace %q", got, other)
 		}
 		_ = conn

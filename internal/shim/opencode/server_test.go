@@ -2745,11 +2745,13 @@ func TestVCSReadCompatibilityEndpoints(t *testing.T) {
 	if err := json.NewDecoder(paths.Body).Decode(&pathInfo); err != nil {
 		t.Fatalf("GET /path not JSON: %v", err)
 	}
-	if got := pathInfo["directory"]; got != repo {
-		t.Errorf("directory = %v, want %q", got, repo)
+	if got, _ := pathInfo["directory"].(string); !sameWorkspaceDirectory(got, repo) {
+		// The handler reports the canonical path after EvalSymlinks; the fixture
+		// path can retain the host's symlinked TMPDIR spelling.
+		t.Errorf("directory = %v, want %q", pathInfo["directory"], repo)
 	}
-	if got := pathInfo["worktree"]; got != repo {
-		t.Errorf("worktree = %v, want %q", got, repo)
+	if got, _ := pathInfo["worktree"].(string); !sameWorkspaceDirectory(got, repo) {
+		t.Errorf("worktree = %v, want %q", pathInfo["worktree"], repo)
 	}
 
 	// GET /vcs → 200 {branch} (upstream Vcs.Info).
