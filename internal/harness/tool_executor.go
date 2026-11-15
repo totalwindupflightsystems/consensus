@@ -283,19 +283,47 @@ func (e *ToolExecutorImpl) PollOnce(ctx context.Context) (int, error) {
 
 	e.processed.Add(int64(processed))
 
-	// Step 5: Wake sessions whose tools are all done
+	// Step 5: Hand sessions whose tools are all done back to the planner.
+	//
+	// DF-CONSENSUS-070: this block used to flip the session straight to
+	// 'idle', which ended the turn with the tool output dropped on the floor.
+	// Nothing re-entered planning with the result, so no assistant message was
+	// ever written: GET /api/v1/sessions/{id} returned last_message = null
+	// while docs/API.md §5 promises "the durable assistant reply is then
+	// available in last_message".
+	//
+	// 'thinking' is the status the heartbeat scans for (findActiveSessions) and
+	// the status RunInteractivePlanning atomically claims
+	// ('thinking' → 'planning'), so the next heartbeat tick runs the
+	// CONTINUATION turn — whose context carries the completed tool results
+	// (formatToolResultsForTurn) — and that turn persists the assistant reply
+	// before the session returns to idle.
+	woken := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		sessionID := toString(row["session_id"])
+		if sessionID == "" || woken[sessionID] {
+			continue
+		}
 		// Check if any pending OR executing OR awaiting_approval requests remain
 		pendingRows, _ := e.database.Query(ctx,
 			`SELECT COUNT(*) as cnt FROM tool_requests WHERE session_id = $1 AND status IN ('pending', 'executing', 'awaiting_approval')`,
 			sessionID,
 		)
 		if len(pendingRows) > 0 && toInt(pendingRows[0]["cnt"]) == 0 {
-			// All tools done — wake the session
-			_ = e.database.Exec(ctx, `UPDATE sessions SET status = 'idle', heartbeat_at = $1 WHERE id = $2 AND status = 'tool_exec'`,
+			// All tools done — hand the session back for the continuation turn.
+			// The 'tool_exec' guard keeps a session that moved on (paused by an
+			// approval gate or the budget) out of the planning queue.
+			woken[sessionID] = true
+			if err := e.database.Exec(ctx,
+				`UPDATE sessions SET status = 'thinking', heartbeat_at = $1 WHERE id = $2 AND status = 'tool_exec'`,
 				time.Now(), sessionID,
-			)
+			); err != nil {
+				slog.Error("tool_executor: failed to hand session back to planning",
+					"session_id", sessionID, "error", err)
+				continue
+			}
+			slog.Info("tool_executor: tools complete, session queued for continuation turn",
+				"session_id", sessionID)
 		}
 	}
 

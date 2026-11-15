@@ -50,14 +50,21 @@ func TestDF65ToolCallHandoffRealBinary(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/models":
 			_, _ = io.WriteString(w, `{"data":[{"id":"df65-model"}]}`)
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions":
-			llmCalls.Add(1)
+			// DF-CONSENSUS-070: the first turn asks for the tool; the
+			// continuation turn (dispatched after the executor completes it)
+			// must answer, otherwise this fixture models a model that never
+			// reads its own tool output and the session would keep looping.
+			content := `{"internal_monologue":"request the registered read-only tool","memory_state_changes":[],"system_actions":[],"tool_requests":[{"tool_name":"list_sessions","parameters":{}}],"sub_agent_spawns":[]}`
+			if llmCalls.Add(1) > 1 {
+				content = `{"internal_monologue":"the tool answered, so reply","memory_state_changes":[],"system_actions":["respond"],"message_to_user":"Called list_sessions once.","tool_requests":[],"sub_agent_spawns":[]}`
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"id":    "df65-llm-response",
 				"model": "df65-model",
 				"choices": []map[string]any{{
 					"message": map[string]any{
 						"role":    "assistant",
-						"content": `{"internal_monologue":"request the registered read-only tool","memory_state_changes":[],"system_actions":[],"tool_requests":[{"tool_name":"list_sessions","parameters":{}}],"sub_agent_spawns":[]}`,
+						"content": content,
 					},
 				}},
 				"usage": map[string]int64{"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
@@ -208,7 +215,34 @@ progressed:
 	if len(resultRows) != 1 {
 		t.Fatalf("tool_results rows = %d, want 1", len(resultRows))
 	}
-	t.Logf("DF-CONSENSUS-65: real binary session=%s status=%s tool_request=completed tool_results=1", created.ID, lastStatus)
+
+	// DF-CONSENSUS-070 end to end: after the tool result the harness must run a
+	// continuation turn and persist the assistant reply, so the documented
+	// "poll until idle, read last_message" path (docs/API.md §5) works.
+	final := df65APIRequest(t, client, http.MethodGet, baseURL+"/api/v1/sessions/"+created.ID, adminKey, nil)
+	if final.StatusCode != http.StatusOK {
+		t.Fatalf("final session poll: HTTP %d: %s", final.StatusCode, final.Body)
+	}
+	var replied struct {
+		Status      string  `json:"status"`
+		LastMessage *string `json:"last_message"`
+	}
+	if err := json.Unmarshal(final.Body, &replied); err != nil {
+		t.Fatalf("decode final session: %v: %s", err, final.Body)
+	}
+	if replied.Status != "idle" && replied.Status != "completed" {
+		t.Fatalf("final session status = %q, want idle (turn finished)", replied.Status)
+	}
+	if replied.LastMessage == nil || *replied.LastMessage == "" {
+		t.Fatalf("last_message is empty after the tool completed (status=%q): no continuation turn persisted a reply\n%s",
+			replied.Status, df65ReadLog(logPath))
+	}
+	if llmCalls.Load() < 2 {
+		t.Errorf("LLM calls = %d, want >= 2 (planning + continuation turn)", llmCalls.Load())
+	}
+
+	t.Logf("DF-CONSENSUS-65/070: real binary session=%s status=%s last_message=%q tool_request=completed tool_results=1 llm_calls=%d",
+		created.ID, replied.Status, *replied.LastMessage, llmCalls.Load())
 }
 
 type df65HTTPResponse struct {

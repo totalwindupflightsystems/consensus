@@ -118,11 +118,15 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 
-	// Populate last assistant message from memory_events
+	// Populate last assistant message from memory_events.
+	// DF-CONSENSUS-070: created_at is second-granular, so two blocks written in
+	// the same turn tie and ORDER BY created_at alone returned an arbitrary one
+	// (in practice the private monologue instead of the reply). id DESC breaks
+	// the tie by insertion order — the durable reply is the newest block.
 	row, lmErr := s.db.QueryRow(r.Context(),
 		`SELECT content FROM memory_events
 		 WHERE session_id = $1 AND type = 'text_block'
-		 ORDER BY created_at DESC LIMIT 1`, id)
+		 ORDER BY created_at DESC, id DESC LIMIT 1`, id)
 	if lmErr == nil && row != nil {
 		if content := toString(row["content"]); content != "" {
 			resp.LastMessage = &content

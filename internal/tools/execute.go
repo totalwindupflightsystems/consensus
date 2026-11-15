@@ -80,11 +80,7 @@ func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest)
 	}
 
 	if len(rows) == 0 {
-		// Tool not in registry — return a generic result
-		return &ToolExecutionResult{
-			RequestID: req.ID,
-			Output:    fmt.Sprintf("tool %q executed (unregistered)", req.ToolName),
-		}, nil
+		return nil, fmt.Errorf("execute_tool: tool %q is not registered or enabled", req.ToolName)
 	}
 
 	handlerType := toString(rows[0]["handler_type"])
@@ -107,10 +103,7 @@ func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest)
 		return executeHTTPEndpoint(ctx, database, req, handlerRef)
 
 	default:
-		return &ToolExecutionResult{
-			RequestID: req.ID,
-			Output:    fmt.Sprintf("tool %q executed (unknown handler_type: %s)", req.ToolName, handlerType),
-		}, nil
+		return nil, fmt.Errorf("execute_tool: unsupported handler_type %q for tool %q", handlerType, req.ToolName)
 	}
 }
 
