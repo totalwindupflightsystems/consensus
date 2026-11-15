@@ -207,4 +207,22 @@ NO-CUT decision dispatches no workers, and releng verifies rather than develops.
 
 Decision: **NO CUT (carried)** — same three gates, freshly measured at `704d1acf`.
 
-Measured 2026-11-15T15:3xZ by the consensus-releng satellite.
+### Publication of this record (pass 2)
+
+| Step | Commit | Receipt |
+|---|---|---|
+| Evidence artifact written (header re-anchored, pass 1 preserved) | `2e39a1033914733cac5c4ddfe8ae2b950dce12db` | — |
+| Board carrier, `RELEASE-CONSENSUS-3` refresh | `7fbed7d3f2ead9e2cd723430eed5efb90a7b447d` | CI run `43709569732` on that exact SHA — **completed success** |
+| Pushed to `origin/main` | parity `0 0` (`git rev-list --left-right --count`) | 0 tags local, 0 tags remote, 0 Release objects |
+
+Concurrency note: the sibling `consensus-qa-2026-11-15-10-07-39` tick wrote `QA-CONSENSUS-36..38`
+into this shared checkout while pass 2 was in flight and committed them as `ad4863ad`. That commit
+landed between this record's evidence commit and its board carrier, so the carrier's diff is one row
+plus one audit event — row count 502 before and after, zero rows added or removed, no sibling work
+carried or clobbered.
+
+Boundary: the carrier commit's own CI receipt is `43709569732`. Successor receipts after this point
+are reported to the releng delivery thread rather than chased back into this file, which would make
+every write invalidate its own stated hash.
+
+Measured 2026-11-15T11:4xZ by the consensus-releng satellite.
