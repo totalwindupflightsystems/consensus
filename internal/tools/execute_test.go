@@ -5,13 +5,81 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/wojons/consensus/internal/db"
 )
+
+type executeToolTestDB struct {
+	rows []db.Row
+}
+
+func (m *executeToolTestDB) BeginTx(context.Context) (db.Tx, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *executeToolTestDB) Exec(context.Context, string, ...any) error { return nil }
+func (m *executeToolTestDB) Query(context.Context, string, ...any) ([]db.Row, error) {
+	return m.rows, nil
+}
+func (m *executeToolTestDB) QueryRow(context.Context, string, ...any) (db.Row, error) {
+	if len(m.rows) == 0 {
+		return nil, nil
+	}
+	return m.rows[0], nil
+}
+func (m *executeToolTestDB) Backend() db.Backend { return db.BackendSQLite }
+func (m *executeToolTestDB) Close() error        { return nil }
+
+// ch:trace row=DF-CONSENSUS-069-R1 spec=none:product-contract wave=none:serial test=internal/tools/execute_test.go::TestExecuteTool_FailsClosed doc=none:worker-code evidence=none:worker-scratch witness=none:foreman-live-probe verdict=none:foreman-judge commit=none:foreman-integration memory=none:foreman-receipt
+// STATUS: complete
+// TIER: T1
+// EVIDENCE: the committed test file and command output reported to the foreman.
+
+func TestExecuteTool_FailsClosed(t *testing.T) {
+	tests := []struct {
+		name string
+		db   *executeToolTestDB
+		want string
+	}{
+		{
+			name: "absent registry entry",
+			db:   &executeToolTestDB{},
+			want: "not registered or enabled",
+		},
+		{
+			name: "unsupported handler type",
+			db: &executeToolTestDB{rows: []db.Row{{
+				"handler_type": "unsupported_handler",
+				"handler_ref":  "unused",
+			}}},
+			want: "unsupported handler_type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExecuteTool(context.Background(), tt.db, &ToolExecutionRequest{
+				ID:       "request-1",
+				ToolName: "missing-or-invalid",
+			})
+			if err == nil {
+				t.Fatal("ExecuteTool returned nil error for a failed dispatch")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error = %q, want substring %q", err, tt.want)
+			}
+			if result != nil {
+				t.Fatalf("result = %#v, want nil for failed dispatch", result)
+			}
+		})
+	}
+}
 
 // ============================================================================
 // ExecuteExternalTool — Success Path
