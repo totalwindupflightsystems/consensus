@@ -13,7 +13,7 @@ import (
 )
 
 // ch:trace row=DF-CONSENSUS-66 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go,internal/harness/tool_executor_native_test.go evidence=fresh-init-probe:5of5-seeded+go-test-green verdict=none:pending-tier2 commit=2523cba0 memory=none:pending
-// ch:trace row=DF-CONSENSUS-79 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=upgrade-probe:pre033-and-at033-converge+go-test-green verdict=none:pending-tier2 commit=pending memory=none:pending
+// ch:trace row=DF-CONSENSUS-79 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=upgrade-probe:pre033-and-at033-converge+repaired-bash-dispatches-on-upgraded-db+falsification:034-noop-red+go-test-green verdict=tier2:changes_required-then-fixed commit=pending memory=none:pending
 // STATUS: implemented
 // TIER: T1
 // EVIDENCE: fresh `consensus init` on an empty DB seeds read/write/edit/glob/bash as enabled active go_native rows with registered handler_refs; async ToolExecutor tests assert real filesystem effects.
@@ -113,6 +113,8 @@ func TestMigrationRepairsStaleFilesystemBuiltinTools(t *testing.T) {
 		name := toString(row["name"])
 		if got := toString(row["handler_ref"]); got != wantRefs[name] {
 			t.Errorf("%s handler_ref = %q, want %q", name, got, wantRefs[name])
+		} else if _, registered := tools.NativeHandlerFor(got); !registered {
+			t.Errorf("%s handler_ref %q is not a registered native handler", name, got)
 		}
 		if toString(row["handler_type"]) != "go_native" || toString(row["status"]) != "active" || toInt(row["enabled"]) == 0 {
 			t.Errorf("%s row = %#v, want active enabled go_native", name, row)
@@ -177,6 +179,8 @@ func TestMigrationRepairsInstallsAlreadyAt033(t *testing.T) {
 		name := toString(row["name"])
 		if got := toString(row["handler_ref"]); got != wantRefs[name] {
 			t.Errorf("%s handler_ref = %q, want %q", name, got, wantRefs[name])
+		} else if _, registered := tools.NativeHandlerFor(got); !registered {
+			t.Errorf("%s handler_ref %q is not a registered native handler", name, got)
 		}
 		if toString(row["handler_type"]) != "go_native" || toString(row["status"]) != "active" || toInt(row["enabled"]) == 0 {
 			t.Errorf("%s row = %#v, want active enabled go_native", name, row)
@@ -230,6 +234,60 @@ func TestUpgradedFilesystemBashRunsThroughToolExecutor(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(workspace, "bash-upgrade.txt"))
 	if err != nil || string(content) != "upgraded" {
 		t.Fatalf("bash workspace effect: content=%q err=%v", content, err)
+	}
+}
+
+// TestRepairedBashDispatchesOnUpgradedInstall proves the repaired row actually
+// dispatches: the bash request runs against the SAME database that went through
+// stale-seed -> 033 -> 034 repair, not a freshly migrated one. A row that points
+// at an unregistered handler_ref would pass column assertions yet fail here.
+func TestRepairedBashDispatchesOnUpgradedInstall(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	applyMigrationsRange(t, database, 1, 32)
+	for _, name := range []string{"read", "write", "edit", "glob", "bash"} {
+		if err := database.Exec(ctx, `INSERT INTO tools_registry (name, description, hemisphere, parameter_schema, handler_type, handler_ref, status, enabled, requires_approval) VALUES ($1, 'operator-owned', 'external', '{}', 'subprocess', 'legacy_stub', 'disabled', false, false)`, name); err != nil {
+			t.Fatalf("seed stale %s: %v", name, err)
+		}
+	}
+	applyMigrationsRange(t, database, 33, 33)
+
+	if _, err := New(database).AutoMigrate(ctx); err != nil {
+		t.Fatalf("upgrade AutoMigrate: %v", err)
+	}
+	repaired, err := database.Query(ctx, `SELECT handler_ref, status, enabled FROM tools_registry WHERE name = 'bash'`)
+	if err != nil || len(repaired) != 1 {
+		t.Fatalf("query repaired bash row: rows=%#v err=%v", repaired, err)
+	}
+	handlerRef := toString(repaired[0]["handler_ref"])
+	if _, registered := tools.NativeHandlerFor(handlerRef); !registered {
+		t.Fatalf("repaired bash handler_ref %q is not registered", handlerRef)
+	}
+
+	workspace := t.TempDir()
+	t.Setenv(tools.WorkspaceEnvVar, workspace)
+	if err := database.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status) VALUES ('repaired-bash-session', 'test', 'test-model', 'idle')`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	requested, err := database.Query(ctx, `INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at) VALUES ('repaired-bash-session', 0, 'bash', '{"command":"printf repaired > bash-repaired.txt"}', 'pending', datetime('now')) RETURNING id`)
+	if err != nil || len(requested) != 1 {
+		t.Fatalf("seed bash request: rows=%#v err=%v", requested, err)
+	}
+
+	executor := harness.NewToolExecutor(database, harness.DefaultToolExecutorConfig())
+	if processed, err := executor.PollOnce(ctx); err != nil || processed != 1 {
+		t.Fatalf("PollOnce on upgraded install: processed=%d err=%v", processed, err)
+	}
+	requestID := toString(requested[0]["id"])
+	outcome, err := database.Query(ctx, `SELECT tr.status, r.output, r.is_error FROM tool_requests tr JOIN tool_results r ON r.request_id = tr.id WHERE tr.id = $1`, requestID)
+	if err != nil || len(outcome) != 1 || toString(outcome[0]["status"]) != "completed" || toInt(outcome[0]["is_error"]) != 0 {
+		t.Fatalf("repaired bash outcome: rows=%#v err=%v", outcome, err)
+	}
+	content, err := os.ReadFile(filepath.Join(workspace, "bash-repaired.txt"))
+	if err != nil || string(content) != "repaired" {
+		t.Fatalf("repaired bash workspace effect: content=%q err=%v", content, err)
 	}
 }
 
