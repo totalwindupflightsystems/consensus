@@ -390,7 +390,7 @@ func nativeEditFile(_ context.Context, params map[string]any, workspace string) 
 	if matches > 1 && !replaceAll {
 		return "", fmt.Errorf("edit_file: old_string occurs %d times; pass replace_all=true", matches)
 	}
-	updated := strings.Replace(string(content), old, newText, -1)
+	updated := strings.ReplaceAll(string(content), old, newText)
 	if !replaceAll {
 		updated = strings.Replace(string(content), old, newText, 1)
 	}
