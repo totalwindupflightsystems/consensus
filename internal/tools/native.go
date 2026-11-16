@@ -355,6 +355,114 @@ func nativeReadFile(_ context.Context, params map[string]any, workspace string) 
 	return string(content), nil
 }
 
+// nativeEditFile replaces an exact text fragment in a workspace file. By
+// default the fragment must be unique; callers that intentionally replace all
+// occurrences can pass replace_all=true.
+func nativeEditFile(_ context.Context, params map[string]any, workspace string) (string, error) {
+	full, err := requiredPathParam(params, workspace, "edit_file")
+	if err != nil {
+		return "", err
+	}
+	old, present, err := nativeTextParam(params, "old_string", "old", "find")
+	if err != nil {
+		return "", fmt.Errorf("edit_file: %w", err)
+	}
+	if !present {
+		return "", fmt.Errorf("edit_file: parameter %q is required", "old_string")
+	}
+	newText, present, err := nativeTextParam(params, "new_string", "new", "replace")
+	if err != nil {
+		return "", fmt.Errorf("edit_file: %w", err)
+	}
+	if !present {
+		return "", fmt.Errorf("edit_file: parameter %q is required", "new_string")
+	}
+
+	content, err := os.ReadFile(full)
+	if err != nil {
+		return "", fmt.Errorf("edit_file: read %q: %w", full, err)
+	}
+	matches := strings.Count(string(content), old)
+	if matches == 0 {
+		return "", fmt.Errorf("edit_file: old_string not found in %q", filepath.ToSlash(filepath.Base(full)))
+	}
+	replaceAll, _ := params["replace_all"].(bool)
+	if matches > 1 && !replaceAll {
+		return "", fmt.Errorf("edit_file: old_string occurs %d times; pass replace_all=true", matches)
+	}
+	updated := strings.ReplaceAll(string(content), old, newText)
+	if !replaceAll {
+		updated = strings.Replace(string(content), old, newText, 1)
+	}
+	if err := os.WriteFile(full, []byte(updated), 0o644); err != nil {
+		return "", fmt.Errorf("edit_file: write %q: %w", full, err)
+	}
+	return fmt.Sprintf("edited %d occurrence(s) in %s", matches, filepath.ToSlash(filepath.Base(full))), nil
+}
+
+// resolveWorkspacePattern validates a model-supplied glob before joining it to
+// the workspace. It applies the same traversal boundary as file tools while
+// allowing filepath metacharacters in individual path components.
+func resolveWorkspacePattern(workspace, pattern string) (string, error) {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return "", fmt.Errorf("glob: parameter %q is required", "pattern")
+	}
+	if strings.ContainsRune(pattern, 0) {
+		return "", fmt.Errorf("glob: pattern contains a NUL byte")
+	}
+	if filepath.IsAbs(pattern) || strings.HasPrefix(pattern, "/") || strings.HasPrefix(pattern, `\\`) ||
+		(len(pattern) > 1 && pattern[1] == ':') || pattern == "~" || strings.HasPrefix(pattern, "~/") {
+		return "", fmt.Errorf("glob: pattern %q must be relative to the session workspace", pattern)
+	}
+	cleaned := filepath.Clean(filepath.FromSlash(pattern))
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("glob: pattern %q escapes the session workspace", pattern)
+	}
+	root, err := filepath.Abs(workspace)
+	if err != nil {
+		return "", fmt.Errorf("glob: workspace %q: %w", workspace, err)
+	}
+	full := filepath.Join(root, cleaned)
+	if full != root && !strings.HasPrefix(full, root+string(filepath.Separator)) {
+		return "", fmt.Errorf("glob: pattern %q escapes the session workspace", pattern)
+	}
+	return full, nil
+}
+
+// nativeGlob lists workspace-relative paths matching a model-supplied glob.
+func nativeGlob(_ context.Context, params map[string]any, workspace string) (string, error) {
+	pattern, present, err := nativeTextParam(params, "pattern", "path", "glob")
+	if err != nil {
+		return "", fmt.Errorf("glob: %w", err)
+	}
+	if !present {
+		return "", fmt.Errorf("glob: parameter %q is required", "pattern")
+	}
+	fullPattern, err := resolveWorkspacePattern(workspace, pattern)
+	if err != nil {
+		return "", err
+	}
+	matches, err := filepath.Glob(fullPattern)
+	if err != nil {
+		return "", fmt.Errorf("glob: invalid pattern: %w", err)
+	}
+	root, _ := filepath.Abs(workspace)
+	relative := make([]string, 0, len(matches))
+	for _, match := range matches {
+		rel, relErr := filepath.Rel(root, match)
+		if relErr != nil {
+			return "", fmt.Errorf("glob: resolve result %q: %w", match, relErr)
+		}
+		relative = append(relative, filepath.ToSlash(rel))
+	}
+	encoded, err := json.Marshal(relative)
+	if err != nil {
+		return "", fmt.Errorf("glob: encode results: %w", err)
+	}
+	return string(encoded), nil
+}
+
 // nativeShell runs a shell command with the workspace as its working directory
 // and returns the combined stdout/stderr.
 //
@@ -437,6 +545,11 @@ func init() {
 
 	RegisterNativeHandler("read_file", nativeReadFile)
 	RegisterNativeHandler("file_read", nativeReadFile)
+	RegisterNativeHandler("read", nativeReadFile)
+
+	RegisterNativeHandler("edit", nativeEditFile)
+	RegisterNativeHandler("edit_file", nativeEditFile)
+	RegisterNativeHandler("glob", nativeGlob)
 
 	RegisterNativeHandler("shell", nativeShell)
 	RegisterNativeHandler("bash", nativeShell)
