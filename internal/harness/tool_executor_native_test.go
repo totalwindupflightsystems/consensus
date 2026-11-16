@@ -76,6 +76,73 @@ func requestOutcome(t *testing.T, database db.DB, reqID string) (status, output 
 // go_native write_file — the capability the measured repro could not reach
 // ============================================================================
 
+func TestToolExecutor_FreshFilesystemBuiltinsExecuteRealEffects(t *testing.T) {
+	database, cleanup := setupToolExecutorTestDB(t)
+	defer cleanup()
+
+	workspace := t.TempDir()
+	t.Setenv(tools.WorkspaceEnvVar, workspace)
+	fixture := filepath.Join(workspace, "fixture.txt")
+	if err := os.WriteFile(fixture, []byte("before\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	ctx := context.Background()
+	executor := NewToolExecutor(database, DefaultToolExecutorConfig())
+	poll := func(name, handlerRef, params string) string {
+		t.Helper()
+		requestID := seedWorkspaceToolRequest(t, database, "sess-te-01", name, "go_native", handlerRef, params)
+		count, err := executor.PollOnce(ctx)
+		if err != nil || count != 1 {
+			t.Fatalf("PollOnce %s: count=%d err=%v", name, count, err)
+		}
+		status, output, isError := requestOutcome(t, database, requestID)
+		if status != "completed" || isError != 0 {
+			t.Fatalf("%s: status=%q is_error=%d output=%q; real handler must execute", name, status, isError, output)
+		}
+		if strings.Contains(output, "go_native stub") {
+			t.Fatalf("%s: output contains the removed stub success marker: %q", name, output)
+		}
+		return output
+	}
+
+	writeOutput := poll("write", "write_file", `{"path":"nested/hello.py","content":"print(\"Hello, bakeoff!\")\n"}`)
+	if !strings.Contains(writeOutput, "wrote") {
+		t.Errorf("write output = %q, want write confirmation", writeOutput)
+	}
+	editOutput := poll("edit", "edit", `{"path":"fixture.txt","old_string":"before","new_string":"after"}`)
+	if !strings.Contains(editOutput, "edited") {
+		t.Errorf("edit output = %q, want edit confirmation", editOutput)
+	}
+	readOutput := poll("read", "read_file", `{"path":"fixture.txt"}`)
+	if !strings.Contains(readOutput, "after") {
+		t.Errorf("read output = %q, want edited fixture body", readOutput)
+	}
+	globOutput := poll("glob", "glob", `{"pattern":"nested/*.py"}`)
+	if !strings.Contains(globOutput, "nested/hello.py") {
+		t.Errorf("glob output = %q, want the written Python file", globOutput)
+	}
+	bashOutput := poll("bash", "bash", `{"command":"printf 'Hello, bakeoff!'"}`)
+	if !strings.Contains(bashOutput, "Hello, bakeoff!") {
+		t.Errorf("bash output = %q, want command stdout", bashOutput)
+	}
+
+	written, err := os.ReadFile(filepath.Join(workspace, "nested", "hello.py"))
+	if err != nil {
+		t.Fatalf("write did not create hello.py: %v", err)
+	}
+	if string(written) != "print(\"Hello, bakeoff!\")\n" {
+		t.Errorf("hello.py = %q, want bakeoff fixture", string(written))
+	}
+	edited, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatalf("read edited fixture: %v", err)
+	}
+	if string(edited) != "after\n" {
+		t.Errorf("edited fixture = %q, want after", string(edited))
+	}
+}
+
 func TestToolExecutor_GoNativeWriteFile_CreatesFileInWorkspace(t *testing.T) {
 	database, cleanup := setupToolExecutorTestDB(t)
 	defer cleanup()
