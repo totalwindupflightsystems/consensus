@@ -5,8 +5,11 @@
 -- and shell capabilities. These registry names are the public builtin surface;
 -- handler_ref names are the proven native handlers in internal/tools/native.go.
 --
--- This is a data-only, idempotent migration. Existing operator registrations
--- are left untouched by ON CONFLICT (name) DO NOTHING.
+-- This is a data-only, idempotent migration. Builtin names are reserved by
+-- this migration: an existing row is repaired only in the dispatch fields below
+-- (handler type/ref, lifecycle status, and enabled flag). Operator-owned metadata
+-- such as description, parameter schema, ownership, and rate limits is preserved.
+-- Unrelated tool names are never touched.
 -- ============================================================================
 
 BEGIN;
@@ -60,6 +63,11 @@ VALUES
      'active',
      true,
      false)
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (name) DO UPDATE SET
+    handler_type = EXCLUDED.handler_type,
+    handler_ref = EXCLUDED.handler_ref,
+    status = EXCLUDED.status,
+    enabled = EXCLUDED.enabled,
+    updated_at = CURRENT_TIMESTAMP;
 
 COMMIT;
