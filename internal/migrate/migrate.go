@@ -282,6 +282,18 @@ func (r *Runner) Up(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
+	// Normalize accepted legacy checksums before deciding whether drift blocks
+	// pending migrations. This preserves the old-install upgrade path while
+	// leaving genuinely mismatched checksums for GetState to reject.
+	if state.DriftDetected && len(state.PendingMigrations) > 0 {
+		if err := r.normalizeLegacyChecksums(ctx); err != nil {
+			return nil, err
+		}
+		state, err = r.GetState(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if state.DriftDetected && len(state.PendingMigrations) > 0 {
 		return nil, fmt.Errorf("migrate: schema drift detected; cannot apply new migrations until drift is resolved:\n%s", state.DriftDetails)
 	}

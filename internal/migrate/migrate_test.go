@@ -1137,6 +1137,88 @@ func TestRepairCircuitBreakerColumns(t *testing.T) {
 	_ = drifted
 }
 
+// ch:trace row=DF-CONSENSUS-080 spec=internal/migrate/migrate.go#checksum wave=none:serial test=internal/migrate/migrate_test.go::TestLegacyChecksumUpgradeWithPendingMigrations doc=none prompt=/home/kara/.hermes/cache/scratch/consensus-foreman-2026-11-16-10-04-27-DF-CONSENSUS-080-brief.txt evidence=go test ./internal/migrate -run TestLegacyChecksumUpgradeWithPendingMigrations -count=1 witness=local:legacy-install-upgrade verdict=none:worker-foreman-closeout commit=none:worker-commit memory=none:foreman-closeout
+// STATUS: partial
+// TIER: T1
+// EVIDENCE: pending foreman verification
+func TestLegacyChecksumUpgradeWithPendingMigrations(t *testing.T) {
+	ctx := context.Background()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Build a real schema through version 23, then load the complete ladder so
+	// Up has pending migrations to apply. This models an old install without
+	// requiring a separate database fixture or external provider.
+	legacyRunner := New(database)
+	if err := legacyRunner.LoadMigrations(); err != nil {
+		t.Fatalf("LoadMigrations: %v", err)
+	}
+	allMigrations := append([]Migration(nil), legacyRunner.migrations...)
+	var through23 []Migration
+	for _, migration := range allMigrations {
+		if migration.Version <= 23 {
+			through23 = append(through23, migration)
+		}
+	}
+	legacyRunner.migrations = through23
+	if err := legacyRunner.Bootstrap(ctx); err != nil {
+		t.Fatalf("Bootstrap through version 23 failed: %v", err)
+	}
+	if _, err := legacyRunner.Up(ctx); err != nil {
+		t.Fatalf("Up through version 23 failed: %v", err)
+	}
+
+	// Restore the complete migration list after creating the old schema. The
+	// upgrade runner must see migrations 024 and later as pending.
+	runner := New(database)
+	runner.migrations = allMigrations
+
+	// An old install recorded the pre-content-hash length checksum. It is a
+	// valid legacy checksum, but the upgrade path must normalize it before
+	// checksum drift blocks pending migrations.
+	var sql003 string
+	for _, migration := range allMigrations {
+		if migration.Version == 3 {
+			sql003 = migration.SQL
+			break
+		}
+	}
+	if sql003 == "" || len(sql003) < 2 {
+		t.Fatal("test premise: migration 003 must have at least two SQL bytes")
+	}
+	// Migration 003 was 672 bytes in the legacy install (2a0 in hex),
+	// compared with 743 bytes in the current embedded SQL (2e7).
+	oldInstallChecksum := "2a0"
+	if oldInstallChecksum == legacyChecksum(sql003) {
+		t.Fatal("test premise: simulated old checksum must differ from current SQL length")
+	}
+	if err := database.Exec(ctx,
+		`UPDATE schema_versions SET checksum = $1 WHERE version = 3`, oldInstallChecksum); err != nil {
+		t.Fatalf("simulate old v3 checksum: %v", err)
+	}
+
+	upgradeRunner := runner
+	state, err := upgradeRunner.GetState(ctx)
+	if err != nil {
+		t.Fatalf("GetState before upgrade: %v", err)
+	}
+	if len(state.PendingMigrations) == 0 {
+		t.Fatal("test premise: legacy install must have pending migrations")
+	}
+	if _, err := upgradeRunner.Up(ctx); err != nil {
+		t.Fatalf("legacy-checksum upgrade should succeed with pending migrations: %v", err)
+	}
+
+	rows, err := database.Query(ctx, `SELECT checksum FROM schema_versions WHERE version = 3`)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("query normalized v3 checksum: %v (rows=%d)", err, len(rows))
+	}
+	got, _ := rows[0]["checksum"].(string)
+	if !strings.EqualFold(got, migrationChecksum(sql003)) {
+		t.Fatalf("legacy v3 checksum was not normalized: got %q want %q", got, migrationChecksum(sql003))
+	}
+}
+
 func TestChecksumLegacyNormalization(t *testing.T) {
 	// After a full AutoMigrate, simulate an old install by overwriting the v3
 	// checksum with the legacy length-based hex. GetState/CheckDrift must NOT
