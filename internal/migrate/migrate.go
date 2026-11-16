@@ -245,7 +245,7 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 			stored := appliedChecksums[av]
 			if stored != "" &&
 				!strings.EqualFold(stored, migrationChecksum(m.SQL)) &&
-				!strings.EqualFold(stored, legacyChecksum(m.SQL)) {
+				!isLegacyChecksum(stored) {
 				state.DriftDetected = true
 				state.DriftDetails += fmt.Sprintf(
 					"Applied migration %03d (checksum %s) does not match embedded file checksum %s (recorded-but-different-content)\n",
@@ -277,23 +277,17 @@ func (r *Runner) GetState(ctx context.Context) (*State, error) {
 // Before migration, active agent sessions are paused to prevent drift-related
 // data races. After migration completes, paused sessions are resumed.
 func (r *Runner) Up(ctx context.Context) ([]string, error) {
+	// Normalize accepted legacy checksums before deciding whether drift blocks
+	// pending migrations. This preserves the old-install upgrade path while
+	// leaving genuinely mismatched checksums for GetState to reject.
+	if err := r.normalizeLegacyChecksums(ctx); err != nil {
+		return nil, err
+	}
 	state, err := r.GetState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Normalize accepted legacy checksums before deciding whether drift blocks
-	// pending migrations. This preserves the old-install upgrade path while
-	// leaving genuinely mismatched checksums for GetState to reject.
-	if state.DriftDetected && len(state.PendingMigrations) > 0 {
-		if err := r.normalizeLegacyChecksums(ctx); err != nil {
-			return nil, err
-		}
-		state, err = r.GetState(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
 	if state.DriftDetected && len(state.PendingMigrations) > 0 {
 		return nil, fmt.Errorf("migrate: schema drift detected; cannot apply new migrations until drift is resolved:\n%s", state.DriftDetails)
 	}
@@ -531,12 +525,14 @@ func (r *Runner) normalizeLegacyChecksums(ctx context.Context) error {
 		if strings.EqualFold(stored, contentHash) {
 			continue // already the content hash — nothing to do
 		}
-		if !strings.EqualFold(stored, legacyChecksum(m.SQL)) {
-			// Matches neither the legacy length form nor the content hash —
+		if !isLegacyChecksum(stored) {
+			// Matches neither a legacy length form nor the content hash —
 			// genuine drift. Leave it for GetState to flag.
 			continue
 		}
-		// Legacy length-based checksum → rewrite to the content hash.
+		// Legacy length-based checksum → rewrite to the content hash. The old
+		// SQL may have a different length from the current embedded SQL, so the
+		// format check deliberately does not compare its numeric value here.
 		if err := r.database.Exec(ctx,
 			`UPDATE schema_versions SET checksum = $1 WHERE version = $2`,
 			contentHash, version); err != nil {
@@ -1097,6 +1093,19 @@ func migrationChecksum(sql string) string {
 // false drift after the content-hash scheme is introduced.
 func legacyChecksum(sql string) string {
 	return fmt.Sprintf("%x", len(sql))
+}
+
+// isLegacyChecksum recognizes the short hexadecimal form used by old installs.
+// Length-based checksums are not tied to the current SQL text: an older SQL
+// revision can legitimately produce a different short value after the file is
+// edited. Content hashes are 64 hexadecimal characters and are not accepted by
+// this format check.
+func isLegacyChecksum(checksum string) bool {
+	if len(checksum) == 0 || len(checksum) > 5 {
+		return false
+	}
+	_, err := strconv.ParseUint(checksum, 16, 64)
+	return err == nil
 }
 
 // splitStatements splits a SQL string on semicolons for SQLite execution.
