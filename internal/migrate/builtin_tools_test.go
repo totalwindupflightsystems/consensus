@@ -8,10 +8,10 @@ import (
 	"github.com/wojons/consensus/internal/tools"
 )
 
-// ch:trace row=DF-CONSENSUS-66 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/harness/tool_executor_native_test.go evidence=worker-local-pending verdict=none:foreman-pending commit=worker-pending memory=none:foreman-pending
-// STATUS: partial
+// ch:trace row=DF-CONSENSUS-66 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go,internal/harness/tool_executor_native_test.go evidence=fresh-init-probe:5of5-seeded+go-test-green verdict=none:pending-tier2 commit=2523cba0 memory=none:pending
+// STATUS: implemented
 // TIER: T1
-// EVIDENCE: worker test output pending
+// EVIDENCE: fresh `consensus init` on an empty DB seeds read/write/edit/glob/bash as enabled active go_native rows with registered handler_refs; async ToolExecutor tests assert real filesystem effects.
 
 func TestFreshMigrationSeedsFilesystemBuiltinTools(t *testing.T) {
 	database, cleanup := setupTestDB(t)
