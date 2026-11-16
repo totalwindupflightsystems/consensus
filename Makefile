@@ -7,7 +7,7 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build fresh dev dev-pg test test-short test-opencode-upstream smoke fmt-check lint clean run docker
+.PHONY: build fresh dev dev-pg test test-short test-df65-tool-handoff test-opencode-upstream smoke fmt-check lint clean run docker
 
 # --- Build ---
 
@@ -36,6 +36,25 @@ test:
 
 test-short:
 	$(CGO_FLAGS) $(GO) test $(PKG) -v -short -count=1
+
+# DF-CONSENSUS-65 real-binary regression gate.
+#
+# TestDF65ToolCallHandoffRealBinary is the ONLY regression test for the P0 wedge
+# fixed in 73d3c972 (the planning path must persist tool_requests atomically
+# before switching the session to tool_exec). It opens with a `testing.Short()`
+# skip, so `make test-short` — CI's fast path — never executes it and a revert of
+# the fix would leave CI green. This target runs that test NON-short (never add
+# -short here) so the fix cannot silently regress.
+#
+# Cheap and hermetic: no API key, no Postgres, no network egress. The test builds
+# ./cmd/consensus itself, serves the real binary on a loopback port against a
+# throwaway SQLite DB, and points it at an in-process fake OpenAI-compatible
+# upstream, then asserts the durable tool_requests/tool_results rows.
+#
+# `make test` (non-short, ./...) already covers this test, so it is deliberately
+# not duplicated there.
+test-df65-tool-handoff:
+	$(CGO_FLAGS) $(GO) test ./internal/api/ -run 'TestDF65ToolCallHandoffRealBinary' -count=1 -v
 
 # Opt-in direct execution of the pinned upstream OpenCode TypeScript suites.
 # Requires a running Consensus opencode shim and a live base URL; unlike the

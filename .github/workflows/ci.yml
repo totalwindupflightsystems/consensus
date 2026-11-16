@@ -24,6 +24,15 @@ jobs:
       - name: Test (short)
         run: make test-short
 
+      # DF-CONSENSUS-65 regression gate. TestDF65ToolCallHandoffRealBinary skips
+      # under -short, so `make test-short` above never runs it and a revert of
+      # 73d3c972 would leave this job green. This step runs it non-short and
+      # fails the job on failure. Hermetic: the test builds ./cmd/consensus
+      # itself and uses SQLite plus an in-process fake LLM upstream — no
+      # secrets, no Postgres, no network egress.
+      - name: Test (DF-CONSENSUS-65 real-binary tool handoff)
+        run: make test-df65-tool-handoff
+
       - name: Vet
         run: go vet ./...
 
