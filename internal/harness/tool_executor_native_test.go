@@ -106,7 +106,7 @@ func TestToolExecutor_FreshFilesystemBuiltinsExecuteRealEffects(t *testing.T) {
 		return output
 	}
 
-	writeOutput := poll("write", "write_file", `{"path":"nested/hello.py","content":"print(\"Hello, bakeoff!\")\n"}`)
+	writeOutput := poll("write", "write_file", `{"path":"nested/hello.py","content":"def greet():\n    return \"Hello, bakeoff!\"\n\n\nprint(greet())\n"}`)
 	if !strings.Contains(writeOutput, "wrote") {
 		t.Errorf("write output = %q, want write confirmation", writeOutput)
 	}
@@ -122,17 +122,17 @@ func TestToolExecutor_FreshFilesystemBuiltinsExecuteRealEffects(t *testing.T) {
 	if !strings.Contains(globOutput, "nested/hello.py") {
 		t.Errorf("glob output = %q, want the written Python file", globOutput)
 	}
-	bashOutput := poll("bash", "bash", `{"command":"printf 'Hello, bakeoff!'"}`)
+	bashOutput := poll("bash", "bash", `{"command":"python3 nested/hello.py"}`)
 	if !strings.Contains(bashOutput, "Hello, bakeoff!") {
-		t.Errorf("bash output = %q, want command stdout", bashOutput)
+		t.Errorf("bash output = %q, want the executed script's stdout", bashOutput)
 	}
 
 	written, err := os.ReadFile(filepath.Join(workspace, "nested", "hello.py"))
 	if err != nil {
 		t.Fatalf("write did not create hello.py: %v", err)
 	}
-	if string(written) != "print(\"Hello, bakeoff!\")\n" {
-		t.Errorf("hello.py = %q, want bakeoff fixture", string(written))
+	if !strings.Contains(string(written), "def greet()") {
+		t.Errorf("hello.py = %q, want a greet() function in the bakeoff fixture", string(written))
 	}
 	edited, err := os.ReadFile(fixture)
 	if err != nil {
