@@ -101,6 +101,43 @@ type CreateToolRequest struct {
 	RateLimitPerMin  *int            `json:"rate_limit_per_min,omitempty"`
 }
 
+// CreateSkillRequest registers a bundle in skills_registry. LinkedToolIDs are
+// tool registry IDs, matching the existing skill read response.
+type CreateSkillRequest struct {
+	Name          string   `json:"name"`
+	Description   string   `json:"description,omitempty"`
+	Instructions  string   `json:"instructions"`
+	LinkedToolIDs []string `json:"linked_tool_ids,omitempty"`
+	Enabled       *bool    `json:"enabled,omitempty"`
+}
+
+// CreateProjectRequest registers a project returned by the OpenCode shim.
+type CreateProjectRequest struct {
+	Name string `json:"name"`
+}
+
+// CreateRoutingRuleRequest registers an external-event routing rule. Empty
+// patterns match every value for that dimension; at least one is required.
+type CreateRoutingRuleRequest struct {
+	Name             string `json:"name"`
+	SourcePattern    string `json:"source_pattern,omitempty"`
+	EventTypePattern string `json:"event_type_pattern,omitempty"`
+	PayloadPattern   string `json:"payload_pattern,omitempty"`
+	TargetSessionID  string `json:"target_session_id"`
+	TargetWorkflowID string `json:"target_workflow_id,omitempty"`
+	Priority         int    `json:"priority,omitempty"`
+	Enabled          *bool  `json:"enabled,omitempty"`
+}
+
+// CreateMemoryPageRequest registers a page that the harness resolves into the
+// agent's active context. TargetIDs identify memory_events in the same session.
+type CreateMemoryPageRequest struct {
+	SessionID     string  `json:"session_id"`
+	Name          string  `json:"name"`
+	TargetIDs     []int64 `json:"target_ids,omitempty"`
+	LinkedPageIDs []int64 `json:"linked_page_ids,omitempty"`
+}
+
 // SkillResponse is the response body for GET /api/v1/skills.
 type SkillResponse struct {
 	ID       string `json:"id"`

@@ -25,6 +25,41 @@ skills:
       "500":
         $ref: "../components/responses.yaml#/InternalError"
 
+  # POST /api/v1/skills — DF-CONSENSUS-67 production writer.
+  post:
+    tags: [Tools]
+    summary: Register a skill
+    operationId: createSkill
+    description: |
+      Registers an enabled or disabled skill in `skills_registry`. Registered
+      rows are returned by this API, the OpenCode skill list, and the harness's
+      skill metadata reader. Requires an **admin** key.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateSkillRequest"
+    responses:
+      "201":
+        description: Skill registered.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/SkillDetail"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
 # GET /api/v1/skills/{skillName}
 skill:
   get:

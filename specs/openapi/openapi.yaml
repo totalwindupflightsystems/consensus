@@ -61,6 +61,8 @@ tags:
     description: API key management
   - name: Webhooks
     description: HMAC-authenticated external event ingestion
+  - name: Projects
+    description: Project registration and shim integration
   - name: Events
     description: Real-time Server-Sent Events stream (DF-CONSENSUS-30)
   - name: Quarantine
@@ -122,6 +124,14 @@ paths:
     $ref: "./paths/skills.yaml#/skills"
   /api/v1/skills/{skillName}:
     $ref: "./paths/skills.yaml#/skill"
+
+  # ── DF-CONSENSUS-67 store registration ──
+  /api/v1/projects:
+    $ref: "./paths/registries.yaml#/projects"
+  /api/v1/routing-rules:
+    $ref: "./paths/registries.yaml#/routingRules"
+  /api/v1/memory-pages:
+    $ref: "./paths/registries.yaml#/memoryPages"
 
   # ── Approvals (SPEC-015 §3.5) ──
   /api/v1/approvals:

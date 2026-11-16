@@ -58,6 +58,8 @@ tags:
     description: API key management
   - name: Webhooks
     description: HMAC-authenticated external event ingestion
+  - name: Projects
+    description: Project registration and shim integration
   - name: Events
     description: Real-time Server-Sent Events stream (DF-CONSENSUS-30)
   - name: Quarantine
@@ -782,6 +784,40 @@ paths:
                   $ref: '#/components/schemas/Skill'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Tools
+      summary: Register a skill
+      operationId: createSkill
+      description: |
+        Registers an enabled or disabled skill in `skills_registry`. Registered
+        rows are returned by this API, the OpenCode skill list, and the harness's
+        skill metadata reader. Requires an **admin** key.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSkillRequest'
+      responses:
+        '201':
+          description: Skill registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/skills/{skillName}:
     get:
       tags:
@@ -805,6 +841,106 @@ paths:
                 $ref: '#/components/schemas/SkillDetail'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/projects:
+    post:
+      tags:
+        - Projects
+      summary: Register a project
+      operationId: createProject
+      description: |
+        Registers a project in `projects`; the OpenCode `GET /project` read path
+        returns the new row. Requires an **admin** key.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRegistration'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/routing-rules:
+    post:
+      tags:
+        - Webhooks
+      summary: Register an external-event routing rule
+      operationId: createRoutingRule
+      description: |
+        Registers a rule in `routing_rules`. The existing webhook router evaluates
+        enabled rules by ascending priority and routes matching events to the
+        target session. At least one pattern is required. Requires an **admin** key.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoutingRuleRequest'
+      responses:
+        '201':
+          description: Routing rule registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutingRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/memory-pages:
+    post:
+      tags:
+        - Memory
+      summary: Register a memory page
+      operationId: createMemoryPage
+      description: |
+        Registers a named group of memory event IDs in `memory_pages`. The harness
+        resolves the page while assembling the session's active context. Target
+        events must belong to the same session. Requires an **admin** key.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMemoryPageRequest'
+      responses:
+        '201':
+          description: Memory page registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/approvals:
@@ -3471,6 +3607,31 @@ components:
           description: Lightweight skill metadata (~100 tokens).
         enabled:
           type: boolean
+    CreateSkillRequest:
+      type: object
+      required:
+        - name
+        - instructions
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          description: Unique skill name.
+        description:
+          type: string
+          description: Short description stored in the skill metadata document.
+        instructions:
+          type: string
+          description: Full bundle text returned to agents and the OpenCode shim.
+        linked_tool_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default: []
+        enabled:
+          type: boolean
+          default: true
     SkillDetail:
       type: object
       required:
@@ -3497,6 +3658,151 @@ components:
           description: IDs of tools this skill depends on.
         enabled:
           type: boolean
+    CreateProjectRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 200
+    ProjectRegistration:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+          description: Creation time as Unix seconds.
+    CreateRoutingRuleRequest:
+      type: object
+      required:
+        - name
+        - target_session_id
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        source_pattern:
+          type: string
+          description: Substring required in the event source.
+        event_type_pattern:
+          type: string
+          description: Substring required in the event type.
+        payload_pattern:
+          type: string
+          description: Substring required in the JSON payload.
+        target_session_id:
+          type: string
+          format: uuid
+        target_workflow_id:
+          type: string
+        priority:
+          type: integer
+          default: 0
+        enabled:
+          type: boolean
+          default: true
+      description: At least one source, event-type, or payload pattern is required.
+    RoutingRule:
+      type: object
+      required:
+        - id
+        - name
+        - target_session_id
+        - priority
+        - enabled
+        - created_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        source_pattern:
+          type: string
+        event_type_pattern:
+          type: string
+        payload_pattern:
+          type: string
+        target_session_id:
+          type: string
+          format: uuid
+        target_workflow_id:
+          type: string
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    CreateMemoryPageRequest:
+      type: object
+      required:
+        - session_id
+        - name
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 200
+        target_ids:
+          type: array
+          maxItems: 1000
+          items:
+            type: integer
+            format: int64
+            minimum: 1
+          default: []
+        linked_page_ids:
+          type: array
+          maxItems: 1000
+          items:
+            type: integer
+            format: int64
+            minimum: 1
+          default: []
+    MemoryPage:
+      type: object
+      required:
+        - id
+        - session_id
+        - name
+        - target_ids
+        - linked_page_ids
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        target_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        linked_page_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        created_at:
+          type: string
+          format: date-time
     Approval:
       type: object
       required:

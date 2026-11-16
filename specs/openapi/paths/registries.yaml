@@ -1,0 +1,101 @@
+# DF-CONSENSUS-67 production registration verbs for formerly read-only stores.
+
+projects:
+  post:
+    tags: [Projects]
+    summary: Register a project
+    operationId: createProject
+    description: |
+      Registers a project in `projects`; the OpenCode `GET /project` read path
+      returns the new row. Requires an **admin** key.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateProjectRequest"
+    responses:
+      "201":
+        description: Project registered.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/ProjectRegistration"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+routingRules:
+  post:
+    tags: [Webhooks]
+    summary: Register an external-event routing rule
+    operationId: createRoutingRule
+    description: |
+      Registers a rule in `routing_rules`. The existing webhook router evaluates
+      enabled rules by ascending priority and routes matching events to the
+      target session. At least one pattern is required. Requires an **admin** key.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateRoutingRuleRequest"
+    responses:
+      "201":
+        description: Routing rule registered.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/RoutingRule"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"
+
+memoryPages:
+  post:
+    tags: [Memory]
+    summary: Register a memory page
+    operationId: createMemoryPage
+    description: |
+      Registers a named group of memory event IDs in `memory_pages`. The harness
+      resolves the page while assembling the session's active context. Target
+      events must belong to the same session. Requires an **admin** key.
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/CreateMemoryPageRequest"
+    responses:
+      "201":
+        description: Memory page registered.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/MemoryPage"
+      "400":
+        $ref: "../components/responses.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "409":
+        $ref: "../components/responses.yaml#/Conflict"
+      "500":
+        $ref: "../components/responses.yaml#/InternalError"

@@ -200,6 +200,13 @@ func NewServer(cfg ServerConfig) *Server {
 		r.Get("/api/v1/skills/{skillName}", extractSkillName(s.handleGetSkill))
 		r.Post("/api/v1/tools/{toolName}/execute", extractToolName(s.handleExecuteTool))
 
+		// DF-CONSENSUS-67: production writers for stores whose read surfaces
+		// previously could only ever be empty on a fresh installation.
+		r.Post("/api/v1/skills", s.handleCreateSkill)
+		r.Post("/api/v1/projects", s.handleCreateProject)
+		r.Post("/api/v1/routing-rules", s.handleCreateRoutingRule)
+		r.Post("/api/v1/memory-pages", s.handleCreateMemoryPage)
+
 		// Approvals
 		r.Get("/api/v1/approvals", s.handleListApprovals)
 		r.Get("/api/v1/approvals/{approvalID}", extractApprovalID(s.handleGetApproval))

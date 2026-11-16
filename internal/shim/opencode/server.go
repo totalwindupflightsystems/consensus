@@ -3083,7 +3083,12 @@ func projectTimeSeconds(v any) int64 {
 		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
 			return parsed
 		}
+		if parsed, err := time.Parse(time.RFC3339Nano, trimmed); err == nil {
+			return parsed.Unix()
+		}
 		return 0
+	case time.Time:
+		return n.Unix()
 	default:
 		return 0
 	}
