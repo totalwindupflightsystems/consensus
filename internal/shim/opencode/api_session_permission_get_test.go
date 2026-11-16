@@ -12,7 +12,6 @@ import (
 
 func TestApiSessionPermissionGetDeclaredArms(t *testing.T) {
 	const sessionID = "ses_permission"
-	const requestID = "per_request"
 	contextJSON := `{"protocol_id":"per_request","action":"run","resources":["tool:git"],"save":["always"],"metadata":{"source":"test"}}`
 
 	tests := []struct {

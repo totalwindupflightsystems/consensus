@@ -64,7 +64,11 @@ fmt-check:
 # --- Lint ---
 
 lint:
-	golangci-lint run $(PKG) || echo "golangci-lint not installed — skipping"
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "ERROR: golangci-lint is required for make lint; install it from https://golangci-lint.run/docs/welcome/install/" >&2; \
+		exit 1; \
+	fi
+	golangci-lint run $(PKG)
 
 # --- Clean ---
 

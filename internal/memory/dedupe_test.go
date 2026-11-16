@@ -173,7 +173,6 @@ func TestSkipDuplicateUserMessage(t *testing.T) {
 	}
 
 	// A broken database degrades to deliver-anyway, never to drop.
-	got = SkipDuplicateUserMessage(ctx, database, "sess-1", "hello")
 	_ = database.Close()
 	got = SkipDuplicateUserMessage(ctx, database, "sess-1", "hello after close")
 	if got {

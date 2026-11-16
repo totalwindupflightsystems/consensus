@@ -48,7 +48,7 @@ func TestSessionInterrupt_ForeignSessionKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("foreign session key: got %d, want 403", resp.StatusCode)
 	}
