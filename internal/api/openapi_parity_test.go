@@ -197,7 +197,7 @@ func loadDeclaredParity(t *testing.T, specRoot string) parityDeclared {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || !(strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")) {
+		if entry.IsDir() || (!strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml")) {
 			continue
 		}
 		rel := "paths/" + name

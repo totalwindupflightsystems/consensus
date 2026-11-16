@@ -30,6 +30,23 @@ jobs:
       - name: Check Go formatting
         run: make fmt-check
 
+  # ── GolangCI-Lint (pinned, fail-closed) ─────────────────────────
+  lint:
+    name: GolangCI-Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.15.0
+          args: ./...
+
   # ── Cross-Platform Build Matrix ─────────────────────────────────
   cross-build:
     name: Build (${{ matrix.os }}/${{ matrix.arch }})
