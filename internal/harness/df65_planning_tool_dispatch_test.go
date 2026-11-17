@@ -281,8 +281,10 @@ func TestDF65PlanningHandoffPersistsPendingRequestsOutsideRolledBackTx(t *testin
 		if got := toString(row["status"]); got != "pending" {
 			t.Errorf("tool_request %s status = %q, want 'pending' (the executor claims 'pending')", name, got)
 		}
-		if got := toInt64(row["iteration_id"]); got != 1 {
-			t.Errorf("tool_request %s iteration_id = %d, want 1 (the hand-off turn)", name, got)
+		if got := toInt64(row["iteration_id"]); got != 0 {
+			t.Errorf("tool_request %s iteration_id = %d, want 0 (the SESSION iteration that issued the request, "+
+				"docs/API.md §ToolRequest — s0 is the first planning iteration); SCN-CONSENSUS-010 moved this off the "+
+				"planning-loop turn number, which restarts at 1 on every continuation", name, got)
 		}
 	}
 	for _, name := range []string{toolA, toolB} {
