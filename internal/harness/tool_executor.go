@@ -551,6 +551,12 @@ func RejectToolRequestsForApproval(ctx context.Context, database db.DB, approval
 // handler_ref FAILS the request instead of reporting a no-op as success
 // (fail-closed, DF-CONSENSUS-069).
 //
+// SCN-CONSENSUS-009: the registry lookup resolves the tool NAME first and its
+// handler_ref second (tools.ResolveToolRegistryRow), so the model's
+// read_file/write_file vocabulary reaches the rows registered as read/write.
+// Everything name-scoped below (approval, rate limits, handler dispatch, error
+// messages) then keys on the RESOLVED registry name.
+//
 // WI-005: Rate limiting is enforced before execution.
 func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row db.Row) (string, error) {
 	slog.Debug("tool_executor: executing tool",
@@ -558,24 +564,30 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		"params", fmt.Sprintf("%v", row["parameters"]),
 	)
 
-	// Look up tool in tools_registry
-	toolRows, err := e.database.Query(ctx,
-		`SELECT name, handler_type, handler_ref, hemisphere FROM tools_registry WHERE name = $1 AND enabled = true`,
-		toolName,
-	)
+	// Resolve the tool in tools_registry: exact registry name, then the
+	// handler_ref alias arm.
+	toolRow, alias, err := tools.ResolveToolRegistryRow(ctx, e.database, toolName)
 	if err != nil {
-		return "", fmt.Errorf("tool %q: registry lookup: %w", toolName, err)
-	}
-	if len(toolRows) == 0 {
-		return "", fmt.Errorf("tool %q is not registered or enabled", toolName)
+		return "", err
 	}
 
-	handlerType := toString(toolRows[0]["handler_type"])
-	handlerRef := toString(toolRows[0]["handler_ref"])
+	resolvedTool := toString(toolRow["name"])
+	if alias {
+		slog.Debug(fmt.Sprintf("tool_executor: alias %s -> %s", toolName, resolvedTool),
+			"handler_ref", toString(toolRow["handler_ref"]))
+		if err := e.rejectGatedAlias(ctx, toolName, resolvedTool); err != nil {
+			return "", err
+		}
+	}
 
-	// WI-005: Check rate limit before execution (Go-level enforcement)
+	handlerType := toString(toolRow["handler_type"])
+	handlerRef := toString(toolRow["handler_ref"])
+
+	// WI-005: Check rate limit before execution (Go-level enforcement).
+	// The RESOLVED name is what carries the registry's limit; keying on the
+	// requested string would silently skip the limit for an aliased call.
 	sessionID := toString(row["session_id"])
-	if err := tools.CheckToolRateLimit(ctx, e.database, toolName, sessionID); err != nil {
+	if err := tools.CheckToolRateLimit(ctx, e.database, resolvedTool, sessionID); err != nil {
 		return "", fmt.Errorf("rate_limit: %w", err)
 	}
 
@@ -595,20 +607,51 @@ func (e *ToolExecutorImpl) executeTool(ctx context.Context, toolName string, row
 		// decoded parameters and the session workspace.
 		params, perr := decodeToolParameters(row)
 		if perr != nil {
-			return "", fmt.Errorf("go_native %q: %w", toolName, perr)
+			return "", fmt.Errorf("go_native %q: %w", resolvedTool, perr)
 		}
-		return tools.RunNativeTool(ctx, e.database, sessionID, toolName, handlerRef, params)
+		return tools.RunNativeTool(ctx, e.database, sessionID, resolvedTool, handlerRef, params)
 
 	case "subprocess":
 		// WI-005: Real sandboxed subprocess execution
-		return e.executeSubprocessTool(ctx, toolName, handlerRef, row)
+		return e.executeSubprocessTool(ctx, resolvedTool, handlerRef, row)
 
 	case "http_endpoint":
-		return e.executeHTTPEndpoint(ctx, toolName, handlerRef, sessionID, row)
+		return e.executeHTTPEndpoint(ctx, resolvedTool, handlerRef, sessionID, row)
 
 	default:
-		return "", fmt.Errorf("tool %q: unsupported handler_type %q", toolName, handlerType)
+		return "", fmt.Errorf("tool %q: unsupported handler_type %q", resolvedTool, handlerType)
 	}
+}
+
+// rejectGatedAlias keeps alias resolution from becoming an approval bypass.
+//
+// handleApprovalGated parks pending requests by REGISTRY NAME
+// (tools_registry.name = tool_requests.tool_name), so a request that arrives
+// under a handler_ref never met the gate. Executing a requires_approval tool
+// with no human decision would be the §4.1 defect class, so a gated row reached
+// by ALIAS fails closed and names the registry name the caller must use.
+//
+// A query error also fails closed: if the gate state cannot be read, the tool
+// must not run.
+func (e *ToolExecutorImpl) rejectGatedAlias(ctx context.Context, requested, resolved string) error {
+	// The predicate lives in SQL (the same `requires_approval = true` spelling
+	// handleApprovalGated uses) so no value-typed conversion can read a gated
+	// row as ungated.
+	rows, err := e.database.Query(ctx, `
+		SELECT name
+		FROM tools_registry
+		WHERE name = $1 AND enabled = true AND requires_approval = true
+		LIMIT 1
+	`, resolved)
+	if err != nil {
+		return fmt.Errorf("approval gate: alias %q -> %q: %w", requested, resolved, err)
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return fmt.Errorf("approval gate: tool %q resolves to registry tool %q by handler_ref, "+
+		"which requires approval; request %q by its registry name so the approval gate can park it",
+		requested, resolved, resolved)
 }
 
 // executeSubprocessTool dispatches a subprocess tool call to the sandbox.
