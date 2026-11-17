@@ -34,7 +34,27 @@ the real HTTP API with a real provider, and asserts on the filesystem + DB — i
 what `harness-action/test/e2e/run.mjs` does for opencode. That is why "write a file" could be
 broken for days while `go test ./...` stayed green.
 
+## Runner result — 2026-11-16 23:10 run (origin/main, deepseek-flash, fresh SQLite)
+
+```
+s1_write_file=PASS        file landed with expected content
+s2_read_file=PASS         read tool returned seeded content
+s3_bash=FAIL              timeout/non-idle: identical bash command re-issued 16x, iteration stuck at 1
+s4_conversation_loop=FAIL turn1 timeout: thinking (same loop shape)
+s5_containment=PASS       no file escaped the session workspace
+failures: 2
+```
+
+Both failures share one root cause — continuation re-plans without the prior tool
+result, and the iteration counter never advances (so `max_turns=10` cannot trip).
+Filed as SCN-CONSENSUS-010. Also caught: the model calls `write_file`/`read_file`
+while the registry seeds `write`/`read` → fail-closed lookup burns a turn
+(SCN-CONSENSUS-009).
+
+State kept for forensics: `/mnt/ssd/tmp/consensus-scn.zBTKlT`.
+
 ## The runner
+
 
 `scripts/e2e/harness-scenarios.sh` — boots a throwaway server (temp SQLite DB, spare port,
 real provider), runs the live scenarios, asserts on disk + `tool_requests`/`tool_results`,
