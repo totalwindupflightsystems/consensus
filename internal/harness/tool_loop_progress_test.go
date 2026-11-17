@@ -11,10 +11,10 @@
 //
 // The two mechanisms pinned here:
 //
-//	1. the continuation turn carries the prior assistant tool call AND its
-//	   result (a transcript of what happened), not just a results blob;
-//	2. a tool hand-off advances sessions.iteration, so a session can spend its
-//	   declared iteration budget and a repeat can be bounded at all.
+//  1. the continuation turn carries the prior assistant tool call AND its
+//     result (a transcript of what happened), not just a results blob;
+//  2. a tool hand-off advances sessions.iteration, so a session can spend its
+//     declared iteration budget and a repeat can be bounded at all.
 //
 // The scripted LLM below is a faithful stand-in for the live model: it asks for
 // the same bash command until the prompt proves that command already ran. On
@@ -191,7 +191,7 @@ func scn010DriveSteps(t *testing.T, th *testHarness, executor *ToolExecutorImpl,
 		case "idle", "failed":
 			return
 		case "thinking", "planning":
-			if _, err := th.Harness.RunInteractivePlanning(th.ctx, sessionID, DefaultPlanningConfig()); err != nil {
+			if _, err := th.RunInteractivePlanning(th.ctx, sessionID, DefaultPlanningConfig()); err != nil {
 				t.Fatalf("planning step %d: %v", step, err)
 			}
 		case "tool_exec":
