@@ -336,11 +336,11 @@ func TestBuildPlanningMessagesProjectsPendingOnEveryTurn(t *testing.T) {
 		},
 	}
 	cfg := DefaultPlanningConfig()
-	first := h.buildPlanningMessages(ic, &StagingBuffer{}, 1, cfg, "context")
+	first := h.buildPlanningMessages(ic, &StagingBuffer{}, 1, cfg, "context", nil)
 	if len(first) != 4 || first[2].Content != "first" || first[3].Content != "second" {
 		t.Fatalf("first-turn messages = %#v, want ordered pending user turns", first)
 	}
-	second := h.buildPlanningMessages(ic, &StagingBuffer{}, 2, cfg, "context")
+	second := h.buildPlanningMessages(ic, &StagingBuffer{}, 2, cfg, "context", nil)
 	if len(second) != 4 || second[2].Content != "first" || second[3].Content != "second" {
 		t.Fatalf("second-turn messages = %#v, want the same ordered user turns", second)
 	}

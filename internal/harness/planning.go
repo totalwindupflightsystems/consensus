@@ -265,12 +265,18 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("planning: initial context: %w", err)
 	}
 
-	// DF-CONSENSUS-070: a turn that follows a tool hand-off must SEE what the
-	// tool returned, or it can only re-issue the call and the session ends
-	// with no assistant reply. Read the completed results once, before the
-	// loop starts writing through the iteration transaction (this read rides a
-	// pool connection and must not contend with the tx's write lock).
-	toolResultContext := h.formatToolResultsForTurn(ctx, sessionID)
+	// DF-CONSENSUS-070 / SCN-CONSENSUS-010: a turn that follows a tool
+	// hand-off must SEE both the call it made and what the tool returned.
+	// DF-070 injected only the output blob, which the model read as context
+	// but not as an action it had already taken — so it re-issued the call and
+	// the session looped until the scenario runner timed out (16 identical
+	// bash requests, iteration stuck at 1). The continuation now carries the
+	// assistant turn (the tool call, verbatim in the protocol the model emits)
+	// followed by the tool result: a real transcript, not a results blob.
+	// Read once, before the loop starts writing through the iteration
+	// transaction (this read rides a pool connection and must not contend with
+	// the tx's write lock).
+	toolExchanges := h.formatToolExchangesForTurn(ctx, sessionID)
 
 	// Main planning loop
 	for turn := 1; turn <= config.MaxTurns; turn++ {
@@ -291,9 +297,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 
 		// Format turn context and call LLM
 		turnContext := h.formatTurnContextV2(ic, buffer, turn, config, memoryStateChanges)
-		turnContext += toolResultContext
-
-		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext)
+		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext, toolExchanges)
 
 		output, err := h.LLMClient.Call(ctx, messages)
 		if err != nil {
@@ -444,7 +448,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 			// inside the planning tx destroyed them with its rollback
 			// (handleToolCallDuringPlanning), leaving suspended sessions
 			// with an empty hand-off (H3 E2E, 2026-09-12).
-			result, err := h.handleToolCallDuringPlanning(ctx, tx, sessionID, plan, turn)
+			result, err := h.handleToolCallDuringPlanning(ctx, tx, sessionID, plan, turn, ic.Iteration, ic.MaxIterations)
 			if err != nil {
 				return nil, err
 			}
@@ -808,7 +812,7 @@ func (h *Harness) handleRespond(ctx context.Context, tx db.Tx, sessionID string,
 	}, nil
 }
 
-func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, turnContext string) []Message {
+func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, turnContext string, toolExchanges []Message) []Message {
 	messages := []Message{
 		{Role: "system", Content: h.formatPlanningSystemPromptV2(ic, buffer, turn, config)},
 		{Role: "user", Content: turnContext},
@@ -818,6 +822,11 @@ func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuf
 	for _, pending := range ic.PendingUserMessages {
 		messages = append(messages, Message{Role: "user", Content: pending.Content})
 	}
+	// SCN-CONSENSUS-010: replay the tool exchange (assistant tool call, then
+	// the tool's result) AFTER the user turn that asked for it, so a
+	// continuation turn reads as a transcript of what already happened
+	// instead of a fresh question plus a detached results blob.
+	messages = append(messages, toolExchanges...)
 	return messages
 }
 
@@ -1152,7 +1161,19 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 	}, nil
 }
 
-func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int) (*IterationResult, error) {
+func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int, iteration int64, maxIterations int) (*IterationResult, error) {
+	// SCN-CONSENSUS-010: bound the loop BEFORE anything is handed off.
+	// Two independent escapes let this session re-issue one bash call 16x:
+	//   - the hand-off did not advance sessions.iteration, so the session had
+	//     no way to reach the declared iteration budget (`max_turns`);
+	//   - nothing noticed that the SAME call was being handed off again and
+	//     again, so each continuation executed it as new work.
+	// Both are refused here, visibly: the turn fails with a named error and an
+	// audit_logs row (handlePlanningError), never a silent 'completed'.
+	if err := h.checkToolHandoffBudget(ctx, tx, sessionID, plan, iteration, maxIterations); err != nil {
+		return h.handlePlanningError(ctx, tx, sessionID, err)
+	}
+
 	// DF-CONSENSUS-65: the executor can only claim committed tool_requests.
 	// Close the planning transaction first because it holds the SQLite write
 	// lock, then persist every request and the tool_exec status in one atomic
@@ -1173,20 +1194,36 @@ func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, se
 		if err != nil {
 			return nil, fmt.Errorf("marshal tool request %s parameters: %w", toolReq.ToolName, err)
 		}
+		// iteration_id is the SESSION iteration that issued the request
+		// (docs/API.md §ToolRequest, and what the legacy enqueue path writes),
+		// not the planning-loop turn number: the turn restarts at 1 on every
+		// continuation and would make the two indistinguishable in reporting.
 		if err := handoffTx.Exec(ctx, `
 			INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at)
 			VALUES ($1, $2, $3, $4, 'pending', CURRENT_TIMESTAMP)
-		`, sessionID, turn, toolReq.ToolName, string(paramsJSON)); err != nil {
+		`, sessionID, iteration, toolReq.ToolName, string(paramsJSON)); err != nil {
 			return nil, fmt.Errorf("persist tool request %s: %w", toolReq.ToolName, err)
 		}
 	}
-	if err := handoffTx.Exec(ctx, `UPDATE sessions SET status = 'tool_exec', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`, sessionID); err != nil {
+	// SCN-CONSENSUS-010: a tool hand-off IS a completed planning iteration —
+	// the model reasoned, acted and is now waiting on the world. Advancing the
+	// session iteration here is what makes the continuation turn report
+	// Iteration: N+1 (instead of forever N), lets /api/v1/sessions/{id} show
+	// real progress, and makes the declared iteration budget reachable at all:
+	// before this, iteration stayed 1 while the session re-planned without
+	// limit, so `max_turns` could never trip and each continuation restarted
+	// its own turn counter at 1.
+	if err := handoffTx.Exec(ctx, `
+		UPDATE sessions SET status = 'tool_exec', heartbeat_at = CURRENT_TIMESTAMP,
+		       iteration = iteration + 1
+		WHERE id = $1`, sessionID); err != nil {
 		return nil, fmt.Errorf("update session status to tool_exec: %w", err)
 	}
 	if err := handoffTx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit tool handoff: %w", err)
 	}
-	slog.Info("planning: tool requests handed off", "session_id", sessionID, "turn", turn, "tools", len(plan.ToolRequests))
+	slog.Info("planning: tool requests handed off",
+		"session_id", sessionID, "turn", turn, "iteration", iteration+1, "tools", len(plan.ToolRequests))
 
 	return &IterationResult{
 		Status:     "success",
@@ -1197,6 +1234,140 @@ func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, se
 			Result:    "tool_exec_requested",
 		},
 	}, nil
+}
+
+// ============================================================================
+// SCN-CONSENSUS-010 — tool hand-off bounds
+// ============================================================================
+
+// maxIdenticalToolHandoffs bounds how many times the SAME sequence of tool
+// calls (same tool names, same canonical parameters, same order) may be handed
+// to the executor back-to-back in one session.
+//
+// This is the loop bound, not a general retry policy: the first hand-off and
+// ONE identical repeat execute (a retry after a tool error, or a re-check after
+// the model learned nothing new); a THIRD identical hand-off is refused with a
+// visible failure. The structural fix is what should stop re-issuing in the
+// first place — the continuation turn now replays the assistant tool call and
+// its result (formatToolExchangesForTurn) and the session iteration advances
+// per hand-off — but a model that ignores both must not be able to execute the
+// same call forever: the live defect ran 16 identical bash calls in ~60s and
+// would have kept going until the scenario timeout.
+const maxIdenticalToolHandoffs = 2
+
+// toolCallSignature identifies one requested tool call: the name the model
+// asked for plus its parameters in canonical JSON (json.Marshal sorts map keys,
+// and the hand-off stores exactly that encoding, so equal parameters always
+// produce equal strings).
+type toolCallSignature struct {
+	ToolName   string
+	Parameters string
+}
+
+// toolCallSignatures returns the ordered signatures of a plan's tool calls.
+func toolCallSignatures(plan TurnPlan) []toolCallSignature {
+	sigs := make([]toolCallSignature, 0, len(plan.ToolRequests))
+	for _, tr := range plan.ToolRequests {
+		params, err := json.Marshal(tr.Parameters)
+		if err != nil {
+			// An unmarshalable parameter map cannot be compared for identity;
+			// a unique marker keeps it from ever matching a stored row.
+			params = []byte(fmt.Sprintf("%q", fmt.Sprintf("%v", tr.Parameters)))
+		}
+		sigs = append(sigs, toolCallSignature{ToolName: tr.ToolName, Parameters: string(params)})
+	}
+	return sigs
+}
+
+// checkToolHandoffBudget refuses a hand-off that would either exceed the
+// session's declared iteration budget or repeat an identical tool call past
+// maxIdenticalToolHandoffs.
+//
+// Reads through the caller's transaction: the planning tx holds SQLite's write
+// lock, so a pool-level read here would race it (the hand-off can only be
+// decided from inside the turn that produced the plan). A failed history read
+// fails closed — a session whose repetition history is unreadable must not be
+// allowed to execute unbounded work on the strength of that gap.
+func (h *Harness) checkToolHandoffBudget(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, iteration int64, maxIterations int) error {
+	if len(plan.ToolRequests) == 0 {
+		return nil
+	}
+
+	// 1. Session iteration budget. A hand-off spends one iteration (see the
+	//    increment below), so this is where `max_turns`/planning_max_turns stops
+	//    being decorative: before SCN-CONSENSUS-010 the counter never advanced
+	//    on the tool path and every continuation restarted at turn 1.
+	if maxIterations > 0 && iteration >= int64(maxIterations) {
+		slog.Error("planning: tool hand-off refused — iteration budget exhausted",
+			"session_id", sessionID, "iteration", iteration, "max_iterations", maxIterations,
+			"tools", len(plan.ToolRequests))
+		return fmt.Errorf(
+			"planning: tool hand-off refused: session iteration budget exhausted (%d/%d) — answer the user or commit instead of requesting %s",
+			iteration, maxIterations, plan.ToolRequests[0].ToolName)
+	}
+
+	// 2. Identical repeat guard. Read the most recent hand-offs newest-first
+	//    (only as many rows as a repeat of this whole plan could occupy).
+	wanted := len(plan.ToolRequests) * maxIdenticalToolHandoffs
+	rows, err := tx.Query(ctx, `
+		SELECT tool_name, COALESCE(parameters, '{}') AS parameters
+		FROM tool_requests
+		WHERE session_id = $1
+		ORDER BY id DESC
+		LIMIT $2
+	`, sessionID, wanted)
+	if err != nil {
+		slog.Error("planning: tool repeat guard could not read hand-off history",
+			"session_id", sessionID, "error", err)
+		return fmt.Errorf("planning: tool repeat guard unavailable: %w", err)
+	}
+
+	prior := make([]toolCallSignature, 0, len(rows))
+	for _, row := range rows {
+		prior = append(prior, toolCallSignature{
+			ToolName:   toString(row["tool_name"]),
+			Parameters: toString(row["parameters"]),
+		})
+	}
+
+	if cycles := countIdenticalHandoffCycles(toolCallSignatures(plan), prior); cycles >= maxIdenticalToolHandoffs {
+		slog.Error("planning: tool hand-off refused — identical call repeated",
+			"session_id", sessionID, "iteration", iteration,
+			"tool", plan.ToolRequests[0].ToolName, "identical_handoffs", cycles,
+			"limit", maxIdenticalToolHandoffs)
+		return fmt.Errorf(
+			"planning: tool hand-off refused: the identical call %s (same parameters) was already handed off %d times back-to-back (limit %d) — it has run; answer the user or take a different step",
+			plan.ToolRequests[0].ToolName, cycles, maxIdenticalToolHandoffs)
+	}
+
+	return nil
+}
+
+// countIdenticalHandoffCycles counts how many complete, identical replays of
+// `calls` immediately precede this hand-off. `prior` is newest-first, exactly
+// as read from tool_requests (ORDER BY id DESC).
+//
+// A batch hand-off stores one row per call in plan order, so "the previous
+// hand-off" is the rows for the whole plan in reverse. A partial match ends the
+// count: only a fully-repeated plan is a loop.
+func countIdenticalHandoffCycles(calls, prior []toolCallSignature) int {
+	if len(calls) == 0 {
+		return 0
+	}
+	cycles := 0
+	pos := len(calls) - 1 // expect the plan's LAST call first when reading newest-first
+	for i := 0; i < len(prior); i++ {
+		if prior[i] != calls[pos] {
+			return cycles
+		}
+		if pos == 0 {
+			cycles++
+			pos = len(calls) - 1
+			continue
+		}
+		pos--
+	}
+	return cycles
 }
 
 // ============================================================================
@@ -1316,24 +1487,38 @@ const toolResultsInTurnContextLimit = 10
 // (tool_results stores up to 10000 bytes per row — too much for a prompt).
 const toolResultOutputInPromptLimit = 2000
 
-// formatToolResultsForTurn renders the session's most recent completed tool
-// results as a planning turn-context section.
+// toolResultReminder closes every replayed tool exchange. The transcript
+// already shows the call ran; this sentence removes the last excuse for
+// re-issuing it (SCN-CONSENSUS-010: the failing session re-issued the
+// identical bash call 16x because nothing told it the call was spent).
+const toolResultReminder = "This tool call has already executed in this session — the output above is its " +
+	"result, and the harness will not treat a repeat of the identical call as new work. " +
+	"Use the result to answer the user or take the next step."
+
+// formatToolExchangesForTurn renders the session's most recent completed tool
+// calls as planning messages: one assistant turn carrying the tool call the
+// model asked for, followed by the tool result that answers it.
 //
-// DF-CONSENSUS-070: after a tool_request completes the session is handed back
-// to planning (tool_executor PollOnce step 5). That continuation turn must see
-// what the tool returned — without it the model can only re-issue the call and
-// the session reaches idle with no assistant reply. Errors are rendered too: a
-// failed tool is context the model has to reason about.
+// DF-CONSENSUS-070 established that the continuation turn must see the tool
+// output (it re-enters planning from tool_executor's hand-back). SCN-CONSENSUS-010
+// established that seeing the OUTPUT is not enough: the model needs the
+// assistant CALL in the transcript too, otherwise each continuation looks like
+// a fresh question it has never acted on and it re-issues the same call. So this
+// renders the exchange pair — the assistant turn verbatim in the JSON protocol
+// the model emits (`{"action":"tool_call","tool_requests":[...]}`), then the
+// result as the next user turn.
 //
-// Fail-soft by design: an unreadable tool_results table degrades to the
-// pre-existing prompt (no section) instead of failing the turn.
-func (h *Harness) formatToolResultsForTurn(ctx context.Context, sessionID string) string {
+// Errors are replayed too: a failed tool is context the model has to reason
+// about. Fail-soft by design: an unreadable tool_results table degrades to the
+// pre-existing prompt (no replay) instead of failing the turn.
+func (h *Harness) formatToolExchangesForTurn(ctx context.Context, sessionID string) []Message {
 	if h.db == nil {
-		return ""
+		return nil
 	}
 
 	rows, err := h.db.Query(ctx, `
-		SELECT tr.tool_name, COALESCE(r.output, '') AS output,
+		SELECT tr.tool_name, COALESCE(tr.parameters, '{}') AS parameters,
+		       COALESCE(r.output, '') AS output,
 		       COALESCE(r.is_error, 0) AS is_error,
 		       COALESCE(r.error_code, '') AS error_code
 		FROM tool_results r
@@ -1345,19 +1530,18 @@ func (h *Harness) formatToolResultsForTurn(ctx context.Context, sessionID string
 	if err != nil {
 		slog.Warn("planning: tool results unavailable for turn context",
 			"session_id", sessionID, "error", err)
-		return ""
+		return nil
 	}
 	if len(rows) == 0 {
-		return ""
+		return nil
 	}
 
-	var sb strings.Builder
-	sb.WriteString("\n## Tool Results\n")
-	sb.WriteString("Output of the tool calls you made in earlier turns (oldest first):\n")
 	// Query is newest-first so LIMIT keeps the most relevant batch; render
 	// oldest-first so the model reads the trajectory in order.
+	messages := make([]Message, 0, len(rows)*2)
 	for i := len(rows) - 1; i >= 0; i-- {
 		row := rows[i]
+		toolName := toString(row["tool_name"])
 		status := "ok"
 		if toInt(row["is_error"]) != 0 {
 			status = "error"
@@ -1369,10 +1553,41 @@ func (h *Harness) formatToolResultsForTurn(ctx context.Context, sessionID string
 		if runes := []rune(output); len(runes) > toolResultOutputInPromptLimit {
 			output = string(runes[:toolResultOutputInPromptLimit]) + "…(truncated)"
 		}
-		fmt.Fprintf(&sb, "\n### %s (%s)\n```\n%s\n```\n", toString(row["tool_name"]), status, output)
-	}
 
-	return sb.String()
+		messages = append(messages,
+			Message{Role: "assistant", Content: renderToolCallEcho(toolName, toString(row["parameters"]))},
+			Message{Role: "user", Content: fmt.Sprintf(
+				"Tool result — %s (%s):\n```\n%s\n```\n\n%s", toolName, status, output, toolResultReminder)},
+		)
+	}
+	return messages
+}
+
+// renderToolCallEcho rebuilds the assistant turn that requested one tool call,
+// in the same JSON protocol the planning prompt asks the model to emit. The
+// stored parameters are already canonical JSON (json.Marshal of the request
+// map), so echoing them back is a faithful replay of the call.
+func renderToolCallEcho(toolName, parameters string) string {
+	params := json.RawMessage(parameters)
+	if len(params) == 0 || !json.Valid(params) {
+		params = json.RawMessage(`{}`)
+	}
+	echo := struct {
+		Action       string            `json:"action"`
+		ToolRequests []json.RawMessage `json:"tool_requests"`
+	}{
+		Action: "tool_call",
+		ToolRequests: []json.RawMessage{
+			json.RawMessage(fmt.Sprintf(`{"tool_name":%q,"parameters":%s}`, toolName, string(params))),
+		},
+	}
+	encoded, err := json.Marshal(echo)
+	if err != nil {
+		// Invalid parameters were already replaced above; this is unreachable
+		// but a malformed echo must never take the turn down.
+		return fmt.Sprintf(`{"action":"tool_call","tool_requests":[{"tool_name":%q,"parameters":{}}]}`, toolName)
+	}
+	return string(encoded)
 }
 
 func (h *Harness) formatTurnContextV2(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, memoryStateChanges []string) string {
