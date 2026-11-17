@@ -125,6 +125,28 @@ roll back; the test does not claim that
 uncommitted work or every paid token survives. Vector-validated compression
 uses a cosine similarity ≥0.85 acceptance threshold.
 
+### M0 frontdoor gate
+
+```bash
+make test-e2e-frontdoor
+```
+
+This opt-in gate builds the checkout into a scratch directory, starts a fresh
+loopback server and database on a free port, and uses a real DeepSeek provider
+to write and read back `df_probe.txt`. It then kills the server while that
+write claim is executing, restarts with an expired lease, and requires the
+same request to recover. The run fails on a paused/failed or non-terminal
+session, a stub or abandoned tool request, missing provider billing, wrong
+file bytes, or a leaked server listener.
+
+Set `DEEPSEEK_API_KEY` (or `FRONTDOOR_API_KEY`). On Hermes hosts the script can
+also read `DEEPSEEK_API_KEY` from `$HOME/.hermes/.env`; it never falls back to
+the mock provider. Defaults are `deepseek-flash` and
+`https://api.deepseek.com/v1`; override them with `FRONTDOOR_LLM_MODEL` and
+`FRONTDOOR_LLM_BASE_URL`. `FRONTDOOR_TIMEOUT_SECONDS` bounds each provider/
+recovery phase (default 420). Failure artifacts are retained;
+`FRONTDOOR_KEEP_ARTIFACTS=1` also retains them after a pass.
+
 ---
 
 ## 5-Minute Setup

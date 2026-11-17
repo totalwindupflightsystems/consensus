@@ -37,6 +37,12 @@ test:
 test-short:
 	$(CGO_FLAGS) $(GO) test $(PKG) -v -short -count=1
 
+# M0 frontdoor: real provider, exact file write/read, and DF-68 claim recovery.
+# Requires DEEPSEEK_API_KEY (the script also reads the standard Hermes env file).
+.PHONY: test-e2e-frontdoor
+test-e2e-frontdoor:
+	bash scripts/e2e/frontdoor.sh
+
 # DF-CONSENSUS-65 real-binary regression gate.
 #
 # TestDF65ToolCallHandoffRealBinary is the ONLY regression test for the P0 wedge
