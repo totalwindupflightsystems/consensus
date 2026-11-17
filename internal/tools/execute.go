@@ -17,6 +17,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,13 +49,122 @@ type ToolExecutionResult struct {
 }
 
 // ============================================================================
-// Registry Lookup + Execution Dispatch
+// Registry Resolution — exact name, then handler_ref alias
+// ============================================================================
+
+// toolRegistryLookupColumns is the column set the dispatchers need from
+// tools_registry. It is kept minimal on purpose: a deployment (or test schema)
+// without requires_approval/rate_limit_per_min must still resolve a tool.
+const toolRegistryLookupColumns = `name, handler_type, handler_ref`
+
+// ErrToolNotRegistered reports a requested tool name that matches no enabled
+// tools_registry row — neither by registry name nor by handler_ref.
+var ErrToolNotRegistered = errors.New("tool is not registered or enabled")
+
+// ErrToolAliasAmbiguous reports a requested name that matched MORE THAN ONE
+// enabled registry row by handler_ref. Dispatch refuses to guess in that case.
+var ErrToolAliasAmbiguous = errors.New("tool name is ambiguous")
+
+// ToolResolveError is the fail-closed outcome of ResolveToolRegistryRow.
+//
+// Matches is empty for an unknown name; for an ambiguous alias it holds the
+// SORTED registry names of every enabled row that carried the requested string
+// as its handler_ref, so the operator sees exactly which rows collide.
+type ToolResolveError struct {
+	Requested string
+	Matches   []string
+}
+
+func (e *ToolResolveError) Error() string {
+	if len(e.Matches) == 0 {
+		return fmt.Sprintf("tool %q is not registered or enabled", e.Requested)
+	}
+	return fmt.Sprintf("tool %q is ambiguous: matches registry names %v by handler_ref", e.Requested, e.Matches)
+}
+
+// Unwrap exposes the sentinel error so callers can classify with errors.Is.
+func (e *ToolResolveError) Unwrap() error {
+	if len(e.Matches) == 0 {
+		return ErrToolNotRegistered
+	}
+	return ErrToolAliasAmbiguous
+}
+
+// ResolveToolRegistryRow maps a requested tool name to the enabled
+// tools_registry row that must handle it (SCN-CONSENSUS-009).
+//
+// Resolution order:
+//  1. EXACT registry name. An exact match always wins — even when other enabled
+//     rows carry the requested string as their handler_ref.
+//  2. handler_ref ALIAS. The model calls tools by their handler names
+//     (read_file/write_file) because that is the conventional agent
+//     vocabulary, while migrations 033/034 seed the public names read/write
+//     with handler_ref read_file/write_file. Before this arm every such call
+//     was rejected as unregistered.
+//
+// The alias arm resolves only when EXACTLY ONE enabled row carries that
+// handler_ref. Zero rows is "not registered" and several rows is "ambiguous";
+// both fail closed (DF-CONSENSUS-069) instead of guessing. A disabled row is
+// never resolved, by name or by alias.
+//
+// The bool result reports that the row was found by ALIAS, so a caller can log
+// the mapping and key name-scoped policy (approval, rate limits, dispatch
+// errors) on the resolved registry name rather than the requested string.
+func ResolveToolRegistryRow(ctx context.Context, database db.DB, requested string) (db.Row, bool, error) {
+	if database == nil {
+		return nil, false, fmt.Errorf("no database configured")
+	}
+
+	rows, err := database.Query(ctx, `
+		SELECT `+toolRegistryLookupColumns+`
+		FROM tools_registry
+		WHERE name = $1 AND enabled = true
+		LIMIT 1
+	`, requested)
+	if err != nil {
+		return nil, false, fmt.Errorf("lookup %q: %w", requested, err)
+	}
+	if len(rows) > 0 {
+		return rows[0], false, nil
+	}
+
+	// Alias arm: no row is NAMED `requested`, so the string may name a HANDLER.
+	// No LIMIT: the count decides between "resolved" and "ambiguous".
+	aliasRows, err := database.Query(ctx, `
+		SELECT `+toolRegistryLookupColumns+`
+		FROM tools_registry
+		WHERE handler_ref = $1 AND enabled = true
+	`, requested)
+	if err != nil {
+		return nil, false, fmt.Errorf("alias lookup %q: %w", requested, err)
+	}
+
+	switch len(aliasRows) {
+	case 0:
+		return nil, false, &ToolResolveError{Requested: requested}
+	case 1:
+		return aliasRows[0], true, nil
+	default:
+		matches := make([]string, 0, len(aliasRows))
+		for _, row := range aliasRows {
+			matches = append(matches, toString(row["name"]))
+		}
+		sort.Strings(matches)
+		return nil, false, &ToolResolveError{Requested: requested, Matches: matches}
+	}
+}
+
+// ============================================================================
+// Execution Dispatch
 // ============================================================================
 
 // ExecuteTool looks up a tool in the registry and dispatches it to the
 // correct handler type (sql_function, subprocess, go_native, http_endpoint).
 //
 // This is the main dispatch function called by the harness tool executor.
+// The lookup resolves the registry name first and the handler_ref alias second
+// (ResolveToolRegistryRow), so a model asking for read_file/write_file reaches
+// the row registered as read/write.
 func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest) (*ToolExecutionResult, error) {
 	if database == nil {
 		return nil, fmt.Errorf("execute_tool: no database configured")
@@ -69,39 +179,42 @@ func ExecuteTool(ctx context.Context, database db.DB, req *ToolExecutionRequest)
 		"request_id", req.ID,
 	)
 
-	// Look up the tool in tools_registry
-	rows, err := database.Query(ctx, `
-		SELECT name, handler_type, handler_ref, hemisphere, requires_approval, rate_limit_per_min
-		FROM tools_registry
-		WHERE name = $1 AND enabled = true
-		LIMIT 1
-	`, req.ToolName)
+	row, alias, err := ResolveToolRegistryRow(ctx, database, req.ToolName)
 	if err != nil {
-		return nil, fmt.Errorf("execute_tool: lookup %q: %w", req.ToolName, err)
+		return nil, fmt.Errorf("execute_tool: %w", err)
 	}
 
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("execute_tool: tool %q is not registered or enabled", req.ToolName)
+	resolvedName := toString(row["name"])
+	if alias {
+		slog.Debug(fmt.Sprintf("execute_tool: alias %s -> %s", req.ToolName, resolvedName),
+			"handler_ref", toString(row["handler_ref"]))
 	}
 
-	handlerType := toString(rows[0]["handler_type"])
-	handlerRef := toString(rows[0]["handler_ref"])
+	// Dispatch under the RESOLVED identity: the handler metadata comes from the
+	// row that won, and name-keyed paths downstream (http_endpoint's method
+	// inference, handler error messages) then describe the registered tool
+	// instead of the alias that was requested.
+	dispatchReq := *req
+	dispatchReq.ToolName = resolvedName
+
+	handlerType := toString(row["handler_type"])
+	handlerRef := toString(row["handler_ref"])
 
 	switch handlerType {
 	case "sql_function":
-		return executeSQLFunction(ctx, database, req, handlerRef)
+		return executeSQLFunction(ctx, database, &dispatchReq, handlerRef)
 
 	case "subprocess":
-		return executeSubprocess(ctx, database, req, handlerRef)
+		return executeSubprocess(ctx, database, &dispatchReq, handlerRef)
 
 	case "go_native":
-		return executeGoNative(ctx, database, req, handlerRef)
+		return executeGoNative(ctx, database, &dispatchReq, handlerRef)
 
 	case "http_endpoint":
-		return executeHTTPEndpoint(ctx, database, req, handlerRef)
+		return executeHTTPEndpoint(ctx, database, &dispatchReq, handlerRef)
 
 	default:
-		return nil, fmt.Errorf("execute_tool: unsupported handler_type %q for tool %q", handlerType, req.ToolName)
+		return nil, fmt.Errorf("execute_tool: unsupported handler_type %q for tool %q", handlerType, resolvedName)
 	}
 }
 
