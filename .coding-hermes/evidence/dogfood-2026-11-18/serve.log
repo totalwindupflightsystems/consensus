@@ -1,0 +1,85 @@
+time=2026-11-17T20:02:35.794-05:00 level=WARN msg="LLM API key: using DEEPSEEK_API_KEY from environment (overrides config file value)"
+time=2026-11-17T20:02:35.794-05:00 level=WARN msg="consensus: Compression worker DISABLED — provider DeepSeek has no embeddings endpoint (set compression.enabled=false or configure an OpenAI-compatible embeddings provider)"
+consensus: first_admin_key created=false key_prefix=cs_ak_cb id=5cf22e5c-25a3-4656-92bf-59a112d48ca7 created_at=2026-11-18T00:56:46Z
+time=2026-11-17T20:02:36.242-05:00 level=INFO msg="llm key probe ok (...efc1)" provider=openai base_url=https://api.deepseek.com/v1
+time=2026-11-17T20:02:36.242-05:00 level=INFO msg="tool_executor: started" poll_ms=500 timeout=30s
+time=2026-11-17T20:02:36.242-05:00 level=INFO msg="harness: heartbeat loop started" interval=5s
+time=2026-11-17T20:02:36.242-05:00 level=INFO msg="pprof: debug listener started (loopback only)" addr=127.0.0.1:18090 endpoints="/debug/pprof/, /debug/pprof/heap, /debug/pprof/goroutine?debug=2"
+time=2026-11-17T20:02:36.244-05:00 level=INFO msg="webhook: starting event routing loop" interval=5s
+time=2026-11-17T20:02:36.271-05:00 level=INFO msg="consensus: HITL manager started" expiry_interval=5m
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="events: SQLite poller started" interval=1s
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="consensus: SQLite event polling started"
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="consensus: opencode shim enabled"
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="consensus: H3 shim enabled"
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="consensus: starting" addr=127.0.0.1:18461 backend=sqlite
+time=2026-11-17T20:02:36.272-05:00 level=INFO msg="api: starting" addr=127.0.0.1:18461
+time=2026-11-17T20:03:46.096-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:03:46.096-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:03:46.113-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=4
+time=2026-11-17T20:03:48.942-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2828 prompt_tokens=1746 completion_tokens=384 cached_tokens=0 reasoning_promoted=false
+time=2026-11-17T20:03:48.942-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-11-17T20:03:48.961-05:00 level=INFO msg="planning: tool requests handed off" session_id=933db6f9-7520-43e9-8143-581b9d3718ae turn=1 iteration=3 tools=1
+time=2026-11-17T20:03:49.082-05:00 level=ERROR msg="tool_executor: tool failed" tool=shell_exec session_id=933db6f9-7520-43e9-8143-581b9d3718ae error="tool \"shell_exec\" is not registered or enabled"
+time=2026-11-17T20:03:49.111-05:00 level=INFO msg="tool_executor: tools complete, session queued for continuation turn" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:03:51.243-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:03:51.243-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:03:51.253-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=6
+time=2026-11-17T20:03:56.316-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=5062 prompt_tokens=1879 completion_tokens=544 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:03:56.316-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=933db6f9-7520-43e9-8143-581b9d3718ae attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:03:56.326-05:00 level=INFO msg="planning: responding to user" turn=1
+time=2026-11-17T20:05:34.603-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:05:34.603-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:05:34.608-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=5
+time=2026-11-17T20:05:36.831-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2222 prompt_tokens=1875 completion_tokens=226 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:05:36.831-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-11-17T20:05:36.836-05:00 level=INFO msg="planning: tool requests handed off" session_id=933db6f9-7520-43e9-8143-581b9d3718ae turn=1 iteration=6 tools=1
+time=2026-11-17T20:05:37.622-05:00 level=INFO msg="tool_executor: tools complete, session queued for continuation turn" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:05:41.243-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:05:41.243-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:05:41.252-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=7
+time=2026-11-17T20:05:43.724-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2472 prompt_tokens=2001 completion_tokens=348 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:05:43.724-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=933db6f9-7520-43e9-8143-581b9d3718ae attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:05:43.735-05:00 level=INFO msg="planning: committing" turn=1
+time=2026-11-17T20:11:10.522-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:11:10.522-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:11:10.528-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=7
+time=2026-11-17T20:11:13.574-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=3045 prompt_tokens=1959 completion_tokens=557 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:11:13.574-05:00 level=INFO msg="planning: responding to user" turn=1
+time=2026-11-17T20:12:35.940-05:00 level=WARN msg="api: error" method=GET path=/api/v1/sessions status=401 code=UNAUTHENTICATED
+time=2026-11-17T20:12:35.950-05:00 level=WARN msg="api: error" method=GET path=/api/v1/tools status=401 code=UNAUTHENTICATED
+time=2026-11-17T20:12:50.057-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:12:50.057-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:12:50.062-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=7
+time=2026-11-17T20:12:53.706-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=3643 prompt_tokens=1961 completion_tokens=556 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:12:53.706-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=933db6f9-7520-43e9-8143-581b9d3718ae attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:12:53.716-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-11-17T20:12:53.716-05:00 level=ERROR msg="planning: tool hand-off refused — iteration budget exhausted" session_id=933db6f9-7520-43e9-8143-581b9d3718ae iteration=10 max_iterations=10 tools=1
+time=2026-11-17T20:12:53.716-05:00 level=ERROR msg="planning: error" error="planning: tool hand-off refused: session iteration budget exhausted (10/10) — answer the user or commit instead of requesting bash"
+time=2026-11-17T20:13:06.339-05:00 level=INFO msg="harness: found active session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae
+time=2026-11-17T20:13:06.339-05:00 level=INFO msg="planning: starting interactive session" session_id=933db6f9-7520-43e9-8143-581b9d3718ae max_turns=10 timeout=3m0s
+time=2026-11-17T20:13:06.343-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=8
+time=2026-11-17T20:13:07.975-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=1631 prompt_tokens=1988 completion_tokens=170 cached_tokens=1408 reasoning_promoted=false
+time=2026-11-17T20:13:07.975-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=933db6f9-7520-43e9-8143-581b9d3718ae attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:13:07.986-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-11-17T20:13:07.986-05:00 level=ERROR msg="planning: tool hand-off refused — iteration budget exhausted" session_id=933db6f9-7520-43e9-8143-581b9d3718ae iteration=11 max_iterations=10 tools=1
+time=2026-11-17T20:13:07.986-05:00 level=ERROR msg="planning: error" error="planning: tool hand-off refused: session iteration budget exhausted (11/10) — answer the user or commit instead of requesting bash"
+time=2026-11-17T20:14:46.649-05:00 level=WARN msg="api: error" method=PATCH path=/api/v1/sessions/933db6f9-7520-43e9-8143-581b9d3718ae status=400 code=INVALID_REQUEST
+time=2026-11-17T20:15:10.342-05:00 level=INFO msg="harness: found active session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835
+time=2026-11-17T20:15:10.342-05:00 level=INFO msg="planning: starting interactive session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 max_turns=10 timeout=3m0s
+time=2026-11-17T20:15:10.347-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=3
+time=2026-11-17T20:15:12.686-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2339 prompt_tokens=1665 completion_tokens=323 cached_tokens=0 reasoning_promoted=false
+time=2026-11-17T20:15:12.686-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:15:12.697-05:00 level=INFO msg="planning: tool call requested" turn=1 tools=1
+time=2026-11-17T20:15:12.704-05:00 level=INFO msg="planning: tool requests handed off" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 turn=1 iteration=2 tools=1
+time=2026-11-17T20:15:12.968-05:00 level=INFO msg="tool_executor: tools complete, session queued for continuation turn" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835
+time=2026-11-17T20:15:16.243-05:00 level=INFO msg="harness: found active session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835
+time=2026-11-17T20:15:16.243-05:00 level=INFO msg="planning: starting interactive session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 max_turns=10 timeout=3m0s
+time=2026-11-17T20:15:16.250-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=6
+time=2026-11-17T20:15:19.031-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2781 prompt_tokens=1764 completion_tokens=311 cached_tokens=1280 reasoning_promoted=false
+time=2026-11-17T20:15:19.031-05:00 level=WARN msg="planning: retrying user-message consumption after sqlite busy" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 attempt=1 backoff=10ms error="sqlite tx: exec: database is locked (517)"
+time=2026-11-17T20:15:19.042-05:00 level=INFO msg="planning: committing" turn=1
+time=2026-11-17T20:19:50.040-05:00 level=INFO msg="harness: found active session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835
+time=2026-11-17T20:19:50.040-05:00 level=INFO msg="planning: starting interactive session" session_id=a238a831-e1b9-4dd1-b22a-eb8126097835 max_turns=10 timeout=3m0s
+time=2026-11-17T20:19:50.045-05:00 level=INFO msg="llm: calling provider" url=https://api.deepseek.com/v1/chat/completions model=deepseek-v4-flash messages=5
+time=2026-11-17T20:19:52.773-05:00 level=INFO msg="llm: response received" model=deepseek-flash elapsed_ms=2727 prompt_tokens=1743 completion_tokens=307 cached_tokens=1280 reasoning_promoted=false
+time=2026-11-17T20:19:52.773-05:00 level=INFO msg="planning: responding to user" turn=1
