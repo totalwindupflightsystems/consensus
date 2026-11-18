@@ -47,6 +47,7 @@ type SessionResponse struct {
 	TokensUsedIn     int64   `json:"tokens_used_in"`
 	TokensUsedOut    int64   `json:"tokens_used_out"`
 	Iteration        int64   `json:"iteration"`
+	PlanningMaxTurns int     `json:"planning_max_turns"` // per-planning-run turn budget (DF-CONSENSUS-083)
 	ProjectID        *string `json:"project_id,omitempty"`
 	HeartbeatAt      string  `json:"heartbeat_at"`
 	CreatedAt        string  `json:"created_at"`
@@ -56,8 +57,12 @@ type SessionResponse struct {
 }
 
 // UpdateSessionRequest is the request body for PATCH /api/v1/sessions/:id.
+// At least one of Status or PlanningMaxTurns must be present
+// (DF-CONSENSUS-083: PlanningMaxTurns raises/lowers the session's
+// per-planning-run turn budget, including on a failed session).
 type UpdateSessionRequest struct {
-	Status *string `json:"status,omitempty"` // "pause", "resume", "cancel"
+	Status           *string `json:"status,omitempty"`             // "pause", "resume", "cancel"
+	PlanningMaxTurns *int    `json:"planning_max_turns,omitempty"` // 1..1000; per-planning-run turn budget
 }
 
 // SendMessageRequest is the request body for POST /api/v1/sessions/:id/message.

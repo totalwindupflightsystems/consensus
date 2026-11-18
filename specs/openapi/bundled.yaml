@@ -2974,6 +2974,13 @@ components:
           type: integer
           format: int64
           description: Current iteration counter.
+        planning_max_turns:
+          type: integer
+          description: |
+            Per-planning-run turn budget (DF-CONSENSUS-083). A planning run stops
+            after this many provider calls; the counter restarts on every new user
+            message, so multi-turn sessions never accumulate against it. Patchable
+            via PATCH /api/v1/sessions/{id}.
         heartbeat_at:
           type: string
           format: date-time
@@ -3063,8 +3070,10 @@ components:
           description: Creation timestamp.
     UpdateSessionRequest:
       type: object
-      required:
-        - status
+      description: |
+        At least one of `status` or `planning_max_turns` is required
+        (DF-CONSENSUS-083). A settings-only PATCH (planning_max_turns without a
+        status action) works on a session in any state, failed included.
       properties:
         status:
           type: string
@@ -3077,6 +3086,14 @@ components:
             - pause — pauses the session (must be in active state)
             - resume — resumes a paused session
             - cancel — fails the session immediately
+        planning_max_turns:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: |
+            Raise or lower the session's per-planning-run turn budget
+            (sessions.planning_max_turns). Honored on the session's next planning
+            run; the lifetime `iteration` counter (billing/progress) is unaffected.
     SendMessageRequest:
       type: object
       required:

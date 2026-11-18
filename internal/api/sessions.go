@@ -155,8 +155,54 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 
+	// DF-CONSENSUS-083: a PATCH may act on status, on planning_max_turns, or
+	// on both. planning_max_turns is the session's PER-PLANNING-RUN turn
+	// budget (sessions.planning_max_turns) — the operator remedy for a
+	// session whose planning runs need more turns than the creation default.
+	if req.Status == nil && req.PlanningMaxTurns == nil {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "status or planning_max_turns field is required")
+		return
+	}
+	if req.PlanningMaxTurns != nil && (*req.PlanningMaxTurns < 1 || *req.PlanningMaxTurns > 1000) {
+		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "planning_max_turns must be between 1 and 1000")
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get current status (and the current turn budget). A soft-deleted
+	// (tombstoned) session is API-gone: it must not be pause/resume/candidate,
+	// so 404 like a missing id (SPEC-015 §3.1).
+	row, err := s.db.QueryRow(ctx, `SELECT status FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
+		return
+	}
+	currentStatus := toString(row["status"])
+
+	// DF-CONSENSUS-083: a settings-only PATCH (planning_max_turns without a
+	// status action) works on a session in ANY state — including a failed
+	// one — so an operator can raise the budget and then resume.
 	if req.Status == nil {
-		writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "status field is required")
+		if execErr := s.db.Exec(ctx,
+			`UPDATE sessions SET planning_max_turns = $1, heartbeat_at = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL`,
+			*req.PlanningMaxTurns, id); execErr != nil {
+			slog.Error("api: failed to update session planning_max_turns", "error", execErr)
+			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update session")
+			return
+		}
+		s.events.PublishSessionUpdate(id, currentStatus, 0)
+		row, rerr := s.db.QueryRow(ctx,
+			`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget, budget_limit_cents,
+			        planning_max_turns, tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
+			 FROM sessions WHERE id = $1`, id)
+		if rerr == nil {
+			writeJSON(w, rowToSessionResponse(row))
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"updated"}`))
+		}
 		return
 	}
 
@@ -170,18 +216,6 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 		"idle":   {"thinking", "planning"},                                                  // sent by harness
 		"failed": {"idle", "thinking", "planning", "tool_exec", "executing", "waiting_sub"}, // sent by harness
 	}
-
-	ctx := r.Context()
-
-	// Get current status. A soft-deleted (tombstoned) session is API-gone:
-	// it must not be pause/resume/candidate, so 404 like a missing id
-	// (SPEC-015 §3.1).
-	row, err := s.db.QueryRow(ctx, `SELECT status FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
-	if err != nil {
-		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "session not found")
-		return
-	}
-	currentStatus := toString(row["status"])
 
 	// Handle special transitions
 	var targetStatus string
@@ -237,15 +271,25 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 		completedAt = &now
 	}
 
+	// DF-CONSENSUS-083: a PATCH that carries BOTH fields applies the turn
+	// budget in the same UPDATE; COALESCE keeps planning_max_turns untouched
+	// when the body omits it.
+	var planningTurns any
+	if req.PlanningMaxTurns != nil {
+		planningTurns = *req.PlanningMaxTurns
+	}
+
 	var execErr error
 	if completedAt != nil {
 		execErr = s.db.Exec(ctx,
-			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = $3 WHERE id = $4`,
-			targetStatus, now, *completedAt, id)
+			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = $3,
+			        planning_max_turns = COALESCE($4, planning_max_turns) WHERE id = $5`,
+			targetStatus, now, *completedAt, planningTurns, id)
 	} else {
 		execErr = s.db.Exec(ctx,
-			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = NULL WHERE id = $3`,
-			targetStatus, now, id)
+			`UPDATE sessions SET status = $1, heartbeat_at = $2, completed_at = NULL,
+			        planning_max_turns = COALESCE($3, planning_max_turns) WHERE id = $4`,
+			targetStatus, now, planningTurns, id)
 	}
 
 	if execErr != nil {
@@ -259,8 +303,8 @@ func (s *Server) handleUpdateSession(w http.ResponseWriter, r *http.Request, id 
 
 	// Return updated session
 	row, err = s.db.QueryRow(ctx,
-		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget,
-		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
+		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget, budget_limit_cents,
+		        planning_max_turns, tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1`, id)
 	if err == nil {
 		writeJSON(w, rowToSessionResponse(row))
@@ -592,6 +636,7 @@ func rowToSessionResponse(row db.Row) SessionResponse {
 		TokensUsedIn:     toInt64(row["tokens_used_in"]),
 		TokensUsedOut:    toInt64(row["tokens_used_out"]),
 		Iteration:        toInt64(row["iteration"]),
+		PlanningMaxTurns: toInt(row["planning_max_turns"]),
 		HeartbeatAt:      toString(row["heartbeat_at"]),
 		CreatedAt:        toString(row["created_at"]),
 	}
