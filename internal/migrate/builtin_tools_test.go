@@ -2,6 +2,8 @@ package migrate
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +16,7 @@ import (
 
 // ch:trace row=DF-CONSENSUS-66 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go,internal/harness/tool_executor_native_test.go evidence=fresh-init-probe:5of5-seeded+go-test-green verdict=none:pending-tier2 commit=2523cba0 memory=none:pending
 // ch:trace row=DF-CONSENSUS-79 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=upgrade-probe:pre033-and-at033-converge+repaired-bash-dispatches-on-upgraded-db+falsification:034-noop-red+go-test-green verdict=tier2:changes_required-then-fixed commit=pending memory=none:pending
+// ch:trace row=DF-CONSENSUS-085 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=fresh-init-probe:shell-aliases-resolve-first-attempt+operator-row-preserved+go-test-green verdict=none:pending-tier2 commit=pending memory=none:pending
 // STATUS: implemented
 // TIER: T1
 // EVIDENCE: fresh `consensus init` on an empty DB seeds read/write/edit/glob/bash as enabled active go_native rows with registered handler_refs; async ToolExecutor tests assert real filesystem effects.
@@ -307,5 +310,151 @@ func TestFreshMigrationSeedIsIdempotent(t *testing.T) {
 	rows, err := database.Query(ctx, `SELECT description FROM tools_registry WHERE name = 'read'`)
 	if err != nil || len(rows) != 1 || !strings.Contains(toString(rows[0]["description"]), "operator-owned") {
 		t.Fatalf("read row was unexpectedly overwritten: rows=%#v err=%v", rows, err)
+	}
+}
+
+// shellAliasNames are the natural shell tool names a model reaches for on a
+// fresh install. Each is seeded by migration 035 as its OWN registry row whose
+// handler_ref points at the proven native bash handler, so the EXACT-name arm
+// of ResolveToolRegistryRow resolves it on the first attempt (DF-CONSENSUS-085).
+var shellAliasNames = []string{"shell_exec", "shell", "shell_execute", "run_shell", "run_command"}
+
+// TestFreshMigrationSeedsShellAliases proves that a fresh install seeds every
+// shell alias as an enabled active go_native row pointing at the bash handler,
+// that each resolves by its exact registry name (the alias arm is NOT involved),
+// and that fail-closed behavior for names matching nothing is preserved
+// (DF-CONSENSUS-069 contract).
+func TestFreshMigrationSeedsShellAliases(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	if _, err := New(database).AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+
+	if _, ok := tools.NativeHandlerFor("bash"); !ok {
+		t.Fatalf("bash native handler is not registered; the alias seeds would point at nothing")
+	}
+
+	placeholders := make([]string, len(shellAliasNames))
+	args := make([]any, len(shellAliasNames))
+	for i, name := range shellAliasNames {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = name
+	}
+	query := `SELECT name, handler_type, handler_ref, enabled, status FROM tools_registry WHERE name IN (` +
+		strings.Join(placeholders, ", ") + `) ORDER BY name`
+	rows, err := database.Query(ctx, query, args...)
+	if err != nil {
+		t.Fatalf("query alias rows: %v", err)
+	}
+	if len(rows) != len(shellAliasNames) {
+		t.Fatalf("seeded shell alias rows = %d, want %d", len(rows), len(shellAliasNames))
+	}
+	for _, row := range rows {
+		name := toString(row["name"])
+		if toString(row["handler_type"]) != "go_native" || toString(row["handler_ref"]) != "bash" ||
+			toString(row["status"]) != "active" || toInt(row["enabled"]) == 0 {
+			t.Errorf("%s alias row = %#v, want active enabled go_native with handler_ref bash", name, row)
+			continue
+		}
+		// The EXACT-name arm must win: resolved directly, not via the
+		// handler_ref fallback, so name-keyed policy stays on the alias row.
+		resolved, alias, err := tools.ResolveToolRegistryRow(ctx, database, name)
+		if err != nil {
+			t.Errorf("resolve %q: %v", name, err)
+			continue
+		}
+		if alias {
+			t.Errorf("resolve %q reported an alias match; the seeded row must resolve by exact name", name)
+		}
+		if got := toString(resolved["handler_ref"]); got != "bash" {
+			t.Errorf("resolve %q handler_ref = %q, want bash", name, got)
+		}
+	}
+
+	// Fail-closed contract (DF-CONSENSUS-069) is intact on the seeded registry:
+	// a shell-like name that matches nothing still fails closed.
+	_, _, err = tools.ResolveToolRegistryRow(ctx, database, "exec_shell")
+	if !errors.Is(err, tools.ErrToolNotRegistered) {
+		t.Errorf("resolve exec_shell = err %v, want ErrToolNotRegistered", err)
+	}
+}
+
+// TestFreshInstallShellAliasDispatchesFirstAttempt is the acceptance probe for
+// DF-CONSENSUS-085: on a fresh sqlite install, a model turn requesting
+// shell_exec (the natural first name) resolves to the bash tool and COMPLETES
+// on the FIRST attempt — tool_requests status=completed, no TOOL_ERROR, real
+// workspace effect — without anyone naming `bash` exactly.
+func TestFreshInstallShellAliasDispatchesFirstAttempt(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	if _, err := New(database).AutoMigrate(ctx); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+
+	workspace := t.TempDir()
+	t.Setenv(tools.WorkspaceEnvVar, workspace)
+	if err := database.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status) VALUES ('fresh-shell-alias-session', 'test', 'test-model', 'idle')`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+	rows, err := database.Query(ctx, `INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, created_at) VALUES ('fresh-shell-alias-session', 0, 'shell_exec', '{"command":"printf aliased > shell-alias.txt"}', 'pending', datetime('now')) RETURNING id`)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("seed shell_exec request: rows=%#v err=%v", rows, err)
+	}
+
+	executor := harness.NewToolExecutor(database, harness.DefaultToolExecutorConfig())
+	if processed, err := executor.PollOnce(ctx); err != nil || processed != 1 {
+		t.Fatalf("PollOnce on fresh install: processed=%d err=%v", processed, err)
+	}
+	requestID := toString(rows[0]["id"])
+	outcome, err := database.Query(ctx, `SELECT tr.status, r.output, r.is_error FROM tool_requests tr JOIN tool_results r ON r.request_id = tr.id WHERE tr.id = $1`, requestID)
+	if err != nil || len(outcome) != 1 || toString(outcome[0]["status"]) != "completed" || toInt(outcome[0]["is_error"]) != 0 {
+		t.Fatalf("shell_exec first attempt outcome: rows=%#v err=%v", outcome, err)
+	}
+	content, err := os.ReadFile(filepath.Join(workspace, "shell-alias.txt"))
+	if err != nil || string(content) != "aliased" {
+		t.Fatalf("shell_exec workspace effect: content=%q err=%v", content, err)
+	}
+}
+
+// TestShellAliasSeedRespectsOperatorRows covers the upgrade population: an
+// install already past 034 that carries an operator-owned row named like one
+// of the aliases (here a disabled, differently-wired `shell`) must be left
+// untouched by 035, and re-running the migration stays idempotent.
+func TestShellAliasSeedRespectsOperatorRows(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	applyMigrationsRange(t, database, 1, 34)
+	if err := database.Exec(ctx, `INSERT INTO tools_registry (name, description, hemisphere, parameter_schema, handler_type, handler_ref, status, enabled, requires_approval) VALUES ('shell', 'operator-owned shell', 'internal', '{}', 'subprocess', 'operator_shell', 'disabled', false, false)`); err != nil {
+		t.Fatalf("seed operator shell row: %v", err)
+	}
+
+	runner := New(database)
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("upgrade AutoMigrate: %v", err)
+	}
+
+	operator, err := database.Query(ctx, `SELECT handler_type, handler_ref, status, enabled, description FROM tools_registry WHERE name = 'shell'`)
+	if err != nil || len(operator) != 1 {
+		t.Fatalf("query operator shell row: rows=%#v err=%v", operator, err)
+	}
+	if toString(operator[0]["handler_ref"]) != "operator_shell" || toString(operator[0]["status"]) != "disabled" ||
+		toInt(operator[0]["enabled"]) != 0 || toString(operator[0]["description"]) != "operator-owned shell" {
+		t.Errorf("operator shell row = %#v, want preserved operator-owned metadata and dispatch", operator[0])
+	}
+
+	// The remaining aliases were still seeded on the upgraded install.
+	aliased, err := database.Query(ctx, `SELECT COUNT(*) AS cnt FROM tools_registry WHERE name IN ($1, $2, $3, $4) AND handler_ref = 'bash' AND enabled = 1`, "shell_exec", "shell_execute", "run_shell", "run_command")
+	if err != nil || len(aliased) != 1 || toInt(aliased[0]["cnt"]) != 4 {
+		t.Fatalf("seeded aliases on upgraded install: rows=%#v err=%v", aliased, err)
+	}
+
+	// Re-running the migration is a no-op and keeps the operator row intact.
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("second AutoMigrate: %v", err)
 	}
 }
