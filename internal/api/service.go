@@ -203,7 +203,7 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string, sessionID string, scope string) ([]SessionResponse, error) {
 	if scope == "session" && sessionID != "" {
 		rows, err := svc.db.Query(ctx,
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, planning_max_turns, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions WHERE id = $1 AND deleted_at IS NULL`, sessionID)
 		if err != nil {
 			return nil, err
@@ -223,13 +223,13 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 			args[i] = strings.TrimSpace(s)
 		}
 		query := fmt.Sprintf(
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, planning_max_turns, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions WHERE status IN (%s) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50`,
 			strings.Join(placeholders, ","))
 		rows, err = svc.db.Query(ctx, query, args...)
 	} else {
 		rows, err = svc.db.Query(ctx,
-			`SELECT id, agent_name, model_id, status, goal, iteration, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
+			`SELECT id, agent_name, model_id, status, goal, iteration, planning_max_turns, tokens_used_in, tokens_used_out, project_id, heartbeat_at, created_at
 			 FROM sessions WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 50`)
 	}
 	if err != nil {
@@ -244,7 +244,7 @@ func (svc *SessionService) ListSessions(ctx context.Context, statusFilter string
 func (svc *SessionService) GetSession(ctx context.Context, id string) (*SessionResponse, error) {
 	row, err := svc.db.QueryRow(ctx,
 		`SELECT id, parent_id, agent_name, model_id, status, goal, context_budget, budget_limit_cents,
-		        tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
+		        planning_max_turns, tokens_used_in, tokens_used_out, iteration, project_id, heartbeat_at, created_at, completed_at
 		 FROM sessions WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil || row == nil {
 		return nil, fmt.Errorf("session not found")

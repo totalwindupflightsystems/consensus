@@ -341,6 +341,9 @@ func newCommandStoreTestServer(t *testing.T) (*Server, *httptest.Server, db.DB) 
 			tokens_used_in INTEGER NOT NULL DEFAULT 0,
 			tokens_used_out INTEGER NOT NULL DEFAULT 0,
 			iteration INTEGER NOT NULL DEFAULT 0,
+			-- mirrors migrations/001: the native service reads this column in
+			-- GetSession/ListSessions (DF-CONSENSUS-083).
+			planning_max_turns INTEGER NOT NULL DEFAULT 10,
 			heartbeat_at TEXT,
 			created_at TEXT NOT NULL,
 			completed_at TEXT,

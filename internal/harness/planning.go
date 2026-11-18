@@ -265,6 +265,30 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("planning: initial context: %w", err)
 	}
 
+	// DF-CONSENSUS-083: sessions.planning_max_turns is the PER-PLANNING-RUN
+	// turn budget, not a lifetime counter. Copy the caller's config first so
+	// the override below never mutates the caller's struct (tests reuse
+	// config structs across runs). The session row governs a run ONLY when
+	// the caller left the spec default in place — production dispatch passes
+	// h.planningConfig() (the default), so the session knob is what
+	// production runs honor; a caller that explicitly customized MaxTurns
+	// (executor tests cap runs at 1-2 turns) keeps its bound. `turn` restarts
+	// at 1 on every new user message, so ordinary multi-turn chat never
+	// accumulates against the budget, while a single run is hard capped at
+	// planning_max_turns provider calls (the max-turns path below). The old
+	// lifetime comparison — `sessions.iteration >= planning_max_turns` in
+	// checkToolHandoffBudget — refused every tool hand-off after ~10 ordinary
+	// messages and had no operator remedy. sessions.iteration keeps advancing
+	// for billing and progress reporting; it no longer gates tool hand-offs.
+	runCfg := *config
+	config = &runCfg
+	if ic.MaxIterations > 0 && ic.MaxIterations != config.MaxTurns &&
+		config.MaxTurns == DefaultPlanningConfig().MaxTurns {
+		slog.Info("planning: applying the session's turn budget to this planning run",
+			"session_id", sessionID, "planning_max_turns", ic.MaxIterations)
+		config.MaxTurns = ic.MaxIterations
+	}
+
 	// DF-CONSENSUS-070 / SCN-CONSENSUS-010: a turn that follows a tool
 	// hand-off must SEE both the call it made and what the tool returned.
 	// DF-070 injected only the output blob, which the model read as context
@@ -1162,15 +1186,23 @@ func (h *Harness) handlePlanningError(ctx context.Context, tx db.Tx, sessionID s
 }
 
 func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int, iteration int64, maxIterations int) (*IterationResult, error) {
-	// SCN-CONSENSUS-010: bound the loop BEFORE anything is handed off.
-	// Two independent escapes let this session re-issue one bash call 16x:
+	// SCN-CONSENSUS-010, narrowed by DF-CONSENSUS-083: bound the loop BEFORE
+	// anything is handed off. Two escapes once let this session re-issue one
+	// bash call 16x:
 	//   - the hand-off did not advance sessions.iteration, so the session had
 	//     no way to reach the declared iteration budget (`max_turns`);
 	//   - nothing noticed that the SAME call was being handed off again and
 	//     again, so each continuation executed it as new work.
-	// Both are refused here, visibly: the turn fails with a named error and an
+	// The hand-off still advances sessions.iteration (billing/progress
+	// accounting), but the LIFETIME budget comparison is gone
+	// (DF-CONSENSUS-083: it refused every hand-off after ~10 ordinary
+	// multi-turn messages, with no remedy); the single-run cap is the
+	// planning loop itself, capped at the session's planning_max_turns
+	// (`maxIterations` — enforced by RunInteractivePlanning, and surfaced in
+	// the hand-off log below). What remains here is the identical-repeat
+	// guard, refused visibly: the turn fails with a named error and an
 	// audit_logs row (handlePlanningError), never a silent 'completed'.
-	if err := h.checkToolHandoffBudget(ctx, tx, sessionID, plan, iteration, maxIterations); err != nil {
+	if err := h.checkToolHandoffBudget(ctx, tx, sessionID, plan); err != nil {
 		return h.handlePlanningError(ctx, tx, sessionID, err)
 	}
 
@@ -1223,7 +1255,8 @@ func (h *Harness) handleToolCallDuringPlanning(ctx context.Context, tx db.Tx, se
 		return nil, fmt.Errorf("commit tool handoff: %w", err)
 	}
 	slog.Info("planning: tool requests handed off",
-		"session_id", sessionID, "turn", turn, "iteration", iteration+1, "tools", len(plan.ToolRequests))
+		"session_id", sessionID, "turn", turn, "iteration", iteration+1,
+		"planning_max_turns", maxIterations, "tools", len(plan.ToolRequests))
 
 	return &IterationResult{
 		Status:     "success",
@@ -1279,35 +1312,33 @@ func toolCallSignatures(plan TurnPlan) []toolCallSignature {
 	return sigs
 }
 
-// checkToolHandoffBudget refuses a hand-off that would either exceed the
-// session's declared iteration budget or repeat an identical tool call past
-// maxIdenticalToolHandoffs.
+// checkToolHandoffBudget refuses a hand-off that repeats an identical tool
+// call past maxIdenticalToolHandoffs.
+//
+// DF-CONSENSUS-083: the LIFETIME iteration-budget check that lived here
+// (`sessions.iteration >= planning_max_turns`) is gone. sessions.iteration is
+// bumped by EVERY provider call across ALL turns of a session, so after ~10
+// ordinary multi-turn messages every later tool hand-off was refused with
+// "session iteration budget exhausted (10/10)" and the session failed, with
+// no remedy. The single-run cap now lives in the planning loop itself:
+// RunInteractivePlanning stops after the session's planning_max_turns turns
+// (see the budget wiring there) and `turn` restarts at 1 on every new user
+// message, so multi-turn chat never accumulates against the budget.
+// sessions.iteration keeps advancing for billing and progress reporting —
+// it just no longer gates tool hand-offs.
 //
 // Reads through the caller's transaction: the planning tx holds SQLite's write
 // lock, so a pool-level read here would race it (the hand-off can only be
 // decided from inside the turn that produced the plan). A failed history read
 // fails closed — a session whose repetition history is unreadable must not be
 // allowed to execute unbounded work on the strength of that gap.
-func (h *Harness) checkToolHandoffBudget(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, iteration int64, maxIterations int) error {
+func (h *Harness) checkToolHandoffBudget(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan) error {
 	if len(plan.ToolRequests) == 0 {
 		return nil
 	}
 
-	// 1. Session iteration budget. A hand-off spends one iteration (see the
-	//    increment below), so this is where `max_turns`/planning_max_turns stops
-	//    being decorative: before SCN-CONSENSUS-010 the counter never advanced
-	//    on the tool path and every continuation restarted at turn 1.
-	if maxIterations > 0 && iteration >= int64(maxIterations) {
-		slog.Error("planning: tool hand-off refused — iteration budget exhausted",
-			"session_id", sessionID, "iteration", iteration, "max_iterations", maxIterations,
-			"tools", len(plan.ToolRequests))
-		return fmt.Errorf(
-			"planning: tool hand-off refused: session iteration budget exhausted (%d/%d) — answer the user or commit instead of requesting %s",
-			iteration, maxIterations, plan.ToolRequests[0].ToolName)
-	}
-
-	// 2. Identical repeat guard. Read the most recent hand-offs newest-first
-	//    (only as many rows as a repeat of this whole plan could occupy).
+	// Identical repeat guard. Read the most recent hand-offs newest-first
+	// (only as many rows as a repeat of this whole plan could occupy).
 	wanted := len(plan.ToolRequests) * maxIdenticalToolHandoffs
 	rows, err := tx.Query(ctx, `
 		SELECT tool_name, COALESCE(parameters, '{}') AS parameters
@@ -1332,7 +1363,7 @@ func (h *Harness) checkToolHandoffBudget(ctx context.Context, tx db.Tx, sessionI
 
 	if cycles := countIdenticalHandoffCycles(toolCallSignatures(plan), prior); cycles >= maxIdenticalToolHandoffs {
 		slog.Error("planning: tool hand-off refused — identical call repeated",
-			"session_id", sessionID, "iteration", iteration,
+			"session_id", sessionID,
 			"tool", plan.ToolRequests[0].ToolName, "identical_handoffs", cycles,
 			"limit", maxIdenticalToolHandoffs)
 		return fmt.Errorf(

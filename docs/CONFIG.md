@@ -199,10 +199,14 @@ Sample file sets `heartbeat_interval_seconds: 5`, `max_consecutive_errors: 3` an
 
 **Not in this section, by design:** the per-run turn cap and the spend cap are *session*
 state, set when the session is created — `sessions.planning_max_turns`
-(default `3`, `internal/harness/context.go:506-532`) and `sessions.budget_limit_cents`
+(default `10`, `migrations/001_initial_schema.sql`; the harness reads it at
+`internal/harness/context.go:506-532`) and `sessions.budget_limit_cents`
 (migration 022, `0` = no limit). A process-wide YAML key for either would be a second
 source of truth, so `harness.max_iterations` and `harness.budget_limit_cents` were removed
 (§6) rather than wired to a value the harness would have to prefer over the session row.
+`planning_max_turns` is the PER-PLANNING-RUN turn budget: the counter restarts on every
+new user message, and PATCH `/api/v1/sessions/{id}` accepts `planning_max_turns`
+(DF-CONSENSUS-083) so an operator can raise it on a live session.
 
 ### 5.4 `database`
 
@@ -328,7 +332,7 @@ below. Two consequences worth knowing:
 
 | Removed key | Was defaulted to | Where the effective value actually comes from |
 |---|---|---|
-| `harness.max_iterations` | `100` | `sessions.planning_max_turns`, `COALESCE`d to `3` (`internal/harness/context.go:506-532`) — per-session state set at creation. |
+| `harness.max_iterations` | `100` | `sessions.planning_max_turns`, `COALESCE`d to `3` (`internal/harness/context.go:506-532`) — per-session state set at creation; per-planning-run turn budget, patchable via PATCH `/api/v1/sessions/{id}` (DF-CONSENSUS-083). |
 | `harness.budget_limit_cents` | `1000` | `sessions.budget_limit_cents` (migration 022; `0` = no limit), set at session creation and enforced per LLM call in `internal/harness/executor.go`. |
 | `harness.transaction_timeout_ms` | `60000` | No second policy: the SQLite lock wait is `database.busy_timeout_ms` → `PRAGMA busy_timeout` (`internal/db/sqlite/sqlite.go:49-77`). |
 | `llm.max_context_tokens` | `128000` | Session `context_budget` (per-creation), and `model_registry.max_context` for the model's real window. |

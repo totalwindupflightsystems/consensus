@@ -179,14 +179,28 @@ curl http://localhost:8090/api/v1/sessions/<session-uuid> \
 
 ### `PATCH /api/v1/sessions/{id}` — update a session
 
-Update status (`pause`, `resume`, `cancel`) or settings:
+Update status (`pause`, `resume`, `cancel`) and/or the per-planning-run turn
+budget (`planning_max_turns`); at least one field is required:
 
 ```bash
 curl -X PATCH http://localhost:8090/api/v1/sessions/<session-uuid> \
   -H "Authorization: Bearer cs_ak_your_secret_key" \
   -H "Content-Type: application/json" \
   -d '{"status":"pause"}'
+
+# raise the turn budget without touching status (works on a failed session too)
+curl -X PATCH http://localhost:8090/api/v1/sessions/<session-uuid> \
+  -H "Authorization: Bearer cs_ak_your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{"planning_max_turns":50}'
 ```
+
+`planning_max_turns` is the PER-PLANNING-RUN turn budget
+(`sessions.planning_max_turns`, default `10`): a planning run stops after that
+many provider calls, and the counter restarts on every new user message —
+ordinary multi-turn sessions never accumulate against it
+(DF-CONSENSUS-083). The lifetime `iteration` counter keeps advancing for
+billing and progress reporting and does not gate tool hand-offs.
 
 ### `DELETE /api/v1/sessions/{id}` — delete a session
 
