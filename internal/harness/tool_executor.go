@@ -46,6 +46,17 @@ type ToolExecutorImpl struct {
 	processed atomic.Int64
 	lastError atomic.Value // stores error string
 	wg        sync.WaitGroup
+
+	// wake is the buffered, non-blocking "claim now" signal (DF-CONSENSUS-68).
+	// The claim reaper fires it when an expired session still owns outstanding
+	// tool work, so recovery does not wait out the poll interval.
+	wake chan struct{}
+
+	// sessionWake, when set, is called after the executor hands a session back
+	// to the planner (all of its tool work is terminal) so the continuation
+	// turn is dispatched instead of waiting for the next heartbeat tick.
+	// Set it before Start; it is read from the poll goroutine.
+	sessionWake func(sessionID string)
 }
 
 // ToolExecutorConfig configures the async tool executor.
@@ -81,6 +92,7 @@ func NewToolExecutor(database db.DB, cfg ToolExecutorConfig) *ToolExecutorImpl {
 		pollMS:   cfg.PollMS,
 		timeout:  cfg.Timeout,
 		shutdown: make(chan struct{}),
+		wake:     make(chan struct{}, 1),
 	}
 }
 
@@ -123,6 +135,27 @@ func (e *ToolExecutorImpl) IsRunning() bool {
 	return e.running.Load()
 }
 
+// Wake asks the polling loop to run PollOnce immediately (DF-CONSENSUS-68).
+// Non-blocking by contract, mirroring Harness.RequestWake: a buffered signal
+// is enough (one poll drains every pending request up to the batch limit) and
+// a full buffer simply means a poll is already due.
+func (e *ToolExecutorImpl) Wake() {
+	if e.wake == nil {
+		return
+	}
+	select {
+	case e.wake <- struct{}{}:
+	default:
+	}
+}
+
+// SetSessionWake installs the callback invoked when the executor hands a
+// session back to the planner after finishing all of its tool work
+// (DF-CONSENSUS-68). Set it before Start.
+func (e *ToolExecutorImpl) SetSessionWake(fn func(sessionID string)) {
+	e.sessionWake = fn
+}
+
 // ProcessedCount returns the total number of tool requests processed.
 func (e *ToolExecutorImpl) ProcessedCount() int64 {
 	return e.processed.Load()
@@ -144,6 +177,11 @@ func (e *ToolExecutorImpl) LastError() string {
 func (e *ToolExecutorImpl) pollLoop(ctx context.Context) {
 	defer e.wg.Done()
 
+	interval := func() time.Duration {
+		jitter := time.Duration(rand.Intn(e.pollMS/2)) * time.Millisecond
+		return time.Duration(e.pollMS)*time.Millisecond + jitter
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -152,10 +190,24 @@ func (e *ToolExecutorImpl) pollLoop(ctx context.Context) {
 		case <-e.shutdown:
 			return
 		default:
-			_, _ = e.PollOnce(ctx)
-			// Jittered sleep
-			jitter := time.Duration(rand.Intn(e.pollMS/2)) * time.Millisecond
-			time.Sleep(time.Duration(e.pollMS)*time.Millisecond + jitter)
+		}
+		_, _ = e.PollOnce(ctx)
+
+		// Sleep out the poll interval, but let a Wake() cut it short so a
+		// recovered session's tool work is claimed immediately
+		// (DF-CONSENSUS-68) instead of waiting up to pollMS.
+		timer := time.NewTimer(interval())
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			slog.Info("tool_executor: context cancelled")
+			return
+		case <-e.shutdown:
+			timer.Stop()
+			return
+		case <-e.wake:
+			timer.Stop()
+		case <-timer.C:
 		}
 	}
 }
@@ -314,13 +366,29 @@ func (e *ToolExecutorImpl) PollOnce(ctx context.Context) (int, error) {
 			// The 'tool_exec' guard keeps a session that moved on (paused by an
 			// approval gate or the budget) out of the planning queue.
 			woken[sessionID] = true
-			if err := e.database.Exec(ctx,
-				`UPDATE sessions SET status = 'thinking', heartbeat_at = $1 WHERE id = $2 AND status = 'tool_exec'`,
+			handedBack, err := e.database.Query(ctx,
+				`UPDATE sessions SET status = 'thinking', heartbeat_at = $1
+				 WHERE id = $2 AND status = 'tool_exec'
+				 RETURNING id`,
 				time.Now(), sessionID,
-			); err != nil {
+			)
+			if err != nil {
 				slog.Error("tool_executor: failed to hand session back to planning",
 					"session_id", sessionID, "error", err)
 				continue
+			}
+			if len(handedBack) == 0 {
+				// The session left tool_exec while the tool ran (reaped,
+				// paused, cancelled) — its continuation is not ours to start.
+				slog.Debug("tool_executor: session left tool_exec before hand-back",
+					"session_id", sessionID)
+				continue
+			}
+			// DF-CONSENSUS-68: the hand-back is the last hop of recovery — wake
+			// the planner now instead of waiting for the next heartbeat tick,
+			// so a recovered session finishes its turn promptly.
+			if e.sessionWake != nil {
+				e.sessionWake(sessionID)
 			}
 			slog.Info("tool_executor: tools complete, session queued for continuation turn",
 				"session_id", sessionID)

@@ -304,6 +304,11 @@ type ToolExecutor interface {
 	Start(ctx context.Context)
 	// Stop gracefully shuts down the executor.
 	Stop()
+	// Wake asks the polling loop to claim pending requests immediately
+	// instead of waiting out the poll interval (DF-CONSENSUS-68). Never
+	// blocks: a full signal buffer is dropped and the next poll picks the
+	// work up anyway.
+	Wake()
 }
 
 // HeartbeatConfig controls the background task polling loop.

@@ -650,6 +650,15 @@ const claimReaperInterval = 30 * time.Second
 // when HeartbeatConfig.ClaimVisibilityTimeout is zero (REVIEW-CONSENSUS-1).
 const defaultClaimVisibilityTimeout = 5 * time.Minute
 
+// stuckToolRequestRecoveryWindow bounds how long the reaper keeps handing a
+// reaped tool_exec session back to the executor before it parks the session
+// for an operator. Recovery must not spin forever at the lease cadence: after
+// this window an outstanding tool request is presumed unclaimable (no live
+// executor, a registry row nothing can dispatch) and the session is paused
+// instead of being re-armed, which is the pre-DF-CONSENSUS-68 parking
+// behaviour with a visible log line rather than a silent wedge.
+const stuckToolRequestRecoveryWindow = 30 * time.Minute
+
 // RequestWake signals the heartbeat loop to dispatch the given session as
 // soon as possible instead of waiting for the next tick (PERF-CONSENSUS-11
 // fire-on-message wake). Safe for concurrent use and never blocks: if the
@@ -660,6 +669,18 @@ func (h *Harness) RequestWake(sessionID string) {
 	case h.wakeCh <- sessionID:
 	default:
 	}
+}
+
+// requestToolWake asks the async ToolExecutor to claim pending tool_requests
+// now instead of waiting out its poll interval (DF-CONSENSUS-68). Used by the
+// claim reaper when an expired session's tool work — not the planner — owns
+// the next step. Nil-safe: callers without an executor (tests, one-shot
+// commands) simply leave the work to the normal poll.
+func (h *Harness) requestToolWake() {
+	if h.ToolExecutor == nil {
+		return
+	}
+	h.ToolExecutor.Wake()
 }
 
 // drainWake removes up to max wake signals, coalescing duplicates. Returns
@@ -979,6 +1000,27 @@ func (h *Harness) reapStaleClaims(ctx context.Context) (int, error) {
 // stopped. Resetting the row to thinking lets the normal dispatcher retry it;
 // without this pass a killed worker leaves findActiveSessions rediscovering the
 // same claim forever.
+//
+// DF-CONSENSUS-68 (last hop): a reaped session used to be handed straight to
+// the planner no matter what work the dead worker left behind. When the
+// hand-off rows are still outstanding that is exactly backwards — the planner
+// runs a CONTINUATION turn with no tool result, claims the session to
+// 'planning', and the executor's hand-back guard (WHERE status = 'tool_exec')
+// then no-ops when the tool finally finishes. Live shape: session rests in
+// 'paused'/'thinking' at iteration 1, the queued tool request is never
+// resumed, and the requested file is never created. The reaper now decides the
+// owner from the work that remains:
+//
+//   - outstanding tool requests (pending/executing/awaiting_approval) → the
+//     session stays/returns to 'tool_exec', the state the executor owns, and
+//     the EXECUTOR is woken. Anything the dead worker had already claimed is
+//     requeued to 'pending' in the same pass so it is claimable again.
+//   - nothing outstanding (the result landed before the death, or the rows are
+//     terminal) → 'thinking' as before, and the planner is woken: its
+//     continuation turn carries the tool results.
+//   - outstanding but older than stuckToolRequestRecoveryWindow → 'paused': a
+//     request nothing can claim must not re-arm the session at the lease
+//     cadence forever.
 func (h *Harness) reapStaleSessionClaims(ctx context.Context) (int, error) {
 	rows, err := h.db.Query(ctx, `
 		SELECT id, status, heartbeat_at
@@ -1014,47 +1056,130 @@ func (h *Harness) reapStaleSessionClaims(ctx context.Context) (int, error) {
 
 		sessionID := toString(r["id"])
 		previousStatus := toString(r["status"])
+
+		// DF-CONSENSUS-68: who owns the session after recovery is decided by
+		// the work the dead worker left behind, not by the status alone. A
+		// crashed planning turn normally leaves no hand-off rows (the producer
+		// commits them together with the tool_exec switch), but if it was
+		// re-dispatched with a tool still owed, the executor — not the planner
+		// — must own the next step.
+		outstanding, oldestRequest, reqErr := h.outstandingToolRequests(ctx, sessionID)
+		if reqErr != nil {
+			slog.Error("harness: claim reaper could not read outstanding tool requests",
+				"session_id", sessionID, "error", reqErr)
+			continue
+		}
+		targetStatus := "thinking"
+		if outstanding > 0 {
+			targetStatus = "tool_exec"
+			if !oldestRequest.IsZero() && now.Sub(oldestRequest) > stuckToolRequestRecoveryWindow {
+				targetStatus = "paused"
+			}
+		}
+
 		// Compare the heartbeat in the UPDATE so a worker that renewed its
-		// lease after our SELECT is never reset by this reaper pass.
-		if err := h.db.Exec(ctx, `
+		// lease after our SELECT is never reset by this reaper pass, and read
+		// the affected row back (RETURNING) so a no-op write is never reported
+		// as a reclaim — the reaper used to count and wake on a write that
+		// could match zero rows.
+		applied, err := h.db.Query(ctx, `
 			UPDATE sessions
-			SET status = 'thinking', heartbeat_at = CURRENT_TIMESTAMP
-			WHERE id = $1 AND status = $2 AND heartbeat_at = $3
-		`, sessionID, previousStatus, r["heartbeat_at"]); err != nil {
+			SET status = $1, heartbeat_at = CURRENT_TIMESTAMP
+			WHERE id = $2 AND status = $3 AND heartbeat_at = $4
+			RETURNING id
+		`, targetStatus, sessionID, previousStatus, r["heartbeat_at"])
+		if err != nil {
 			slog.Error("harness: claim reaper failed to reclaim session",
 				"session_id", sessionID, "error", err)
 			continue
 		}
+		if len(applied) == 0 {
+			slog.Debug("harness: claim reaper skipped renewed session claim",
+				"session_id", sessionID, "previous_status", previousStatus)
+			continue
+		}
 
-		// A dead tool-execution worker can leave requests in executing. Requeue
-		// only those requests; awaiting_approval remains parked until a human
-		// decision, and pending requests are already claimable by the executor.
-		if previousStatus == "tool_exec" {
+		// The session is ours now: make the dead worker's in-flight tool work
+		// claimable again (executing → pending, executed_at cleared). Pending
+		// rows are already claimable and are left alone; awaiting_approval
+		// rows keep their human decision.
+		if targetStatus == "tool_exec" {
 			if err := h.db.Exec(ctx, `
 				UPDATE tool_requests
 				SET status = 'pending', executed_at = NULL
 				WHERE session_id = $1 AND status = 'executing'
 			`, sessionID); err != nil {
-				// The session is already back in thinking, so still count the
-				// reap and still wake; the next reaper pass retries the requeue.
+				// The session is already armed for the executor, so still
+				// count the reap and still wake; the next reaper pass retries
+				// the requeue.
 				slog.Error("harness: failed to requeue stale tool requests",
 					"session_id", sessionID, "error", err)
 			}
 		}
 
 		reaped++
-		// The reaper normally runs alongside the heartbeat ticker, but a
-		// restart or a long interval can otherwise leave the recovered session
-		// parked until the next tick. Use the existing non-blocking wake path.
-		h.RequestWake(sessionID)
+		// Wake the owner of the state we just wrote. The planner must not be
+		// dispatched while tool work is outstanding (it would run a
+		// continuation turn with no result); the executor must not be waited
+		// on when there is nothing for it to run; a parked session has no
+		// dispatchable owner at all.
+		switch targetStatus {
+		case "tool_exec":
+			h.requestToolWake()
+		case "thinking":
+			h.RequestWake(sessionID)
+		}
+		if targetStatus == "paused" {
+			slog.Warn("harness: parked stale session with unclaimable tool work",
+				"session_id", sessionID,
+				"previous_status", previousStatus,
+				"outstanding_tool_requests", outstanding,
+				"oldest_request_age", now.Sub(oldestRequest).Round(time.Second),
+				"recovery_window", stuckToolRequestRecoveryWindow,
+			)
+		}
 		slog.Warn("harness: reclaimed stale session claim",
 			"session_id", sessionID,
 			"previous_status", previousStatus,
+			"resume_status", targetStatus,
+			"outstanding_tool_requests", outstanding,
 			"held_for", held.Round(time.Second),
 			"visibility_timeout", h.claimVisibilityTimeout(),
 		)
 	}
 	return reaped, nil
+}
+
+// outstandingToolRequests counts the tool requests that still owe the session
+// a result (pending, executing, awaiting_approval) and reports the creation
+// time of the oldest one. Any error means the reaper cannot tell whether the
+// session has unfinished work, so the caller leaves the claim alone.
+func (h *Harness) outstandingToolRequests(ctx context.Context, sessionID string) (int, time.Time, error) {
+	rows, err := h.db.Query(ctx, `
+		SELECT created_at FROM tool_requests
+		WHERE session_id = $1
+		  AND status IN ('pending', 'executing', 'awaiting_approval')
+	`, sessionID)
+	if err != nil {
+		return 0, time.Time{}, fmt.Errorf("select outstanding tool requests: %w", err)
+	}
+	var oldest time.Time
+	for _, r := range rows {
+		createdAt, ok := r["created_at"].(time.Time)
+		if !ok {
+			parsed, parsedOK := parseClaimedAt(toString(r["created_at"]))
+			if !parsedOK {
+				// An unparseable timestamp must not park a session: treat the
+				// request as fresh and let recovery run.
+				continue
+			}
+			createdAt = parsed
+		}
+		if oldest.IsZero() || createdAt.Before(oldest) {
+			oldest = createdAt
+		}
+	}
+	return len(rows), oldest, nil
 }
 
 // parseClaimedAt parses the tasks.claimed_at timestamp. SQLite stores it as
