@@ -170,6 +170,7 @@ func TestPostgresFullIntegration(t *testing.T) {
 			"idx_audit_session",
 			"idx_messages_target",
 			"idx_memory_session",
+			"idx_memory_events_session_order",
 			"idx_tasks_session_status",
 			"idx_tasks_locked_by",
 			"idx_tool_req_pending",

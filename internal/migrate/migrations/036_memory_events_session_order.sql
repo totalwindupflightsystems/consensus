@@ -1,0 +1,36 @@
+-- ============================================================================
+-- Consensus — 036_memory_events_session_order.sql
+-- ============================================================================
+-- PERF-CONSENSUS-013: the shim's message-history read path orders by
+-- memory_events.id within one session:
+--
+--   SELECT me.id, me.type, me.content, me.session_id, me.iteration_created,
+--          me.created_at
+--     FROM memory_events me WHERE me.session_id = $1
+--    ORDER BY me.id DESC LIMIT $2            -- internal/shim/opencode/server.go
+--
+--   ... WHERE me.session_id = ? ORDER BY me.id ASC LIMIT 51
+--                                           -- api_session_history.go
+--
+-- The only usable index was idx_memory_session(session_id, iteration_created)
+-- (001_initial_schema.sql), which cannot satisfy ORDER BY me.id, so SQLite
+-- fetched every row of the session and built a temp B-tree over it:
+--
+--     SEARCH me USING INDEX idx_memory_session (session_id=?)
+--     USE TEMP B-TREE FOR ORDER BY
+--
+-- This composite index makes (session_id, id) a covering range for the filter
+-- + ordering, so the planner walks the index backwards for DESC and stops
+-- after LIMIT rows. Measured on this repo's SQLite schema with 105,000 events
+-- (30,000 of them in the queried session), 40 runs each, median / p95:
+--   listMessages   11.752ms / 13.543ms  ->  0.035ms / 0.092ms  (temp B-tree gone)
+--   sessionHistory  1.657ms /  1.924ms  ->  0.031ms / 0.033ms  (temp B-tree gone)
+-- The cost is one extra B-tree on write per memory_events insert.
+--
+-- Portable name (no _sqlite_/_postgres_ token): the migration runner applies
+-- every file without those tokens to BOTH backends (migrate.go:100-115), and
+-- `CREATE INDEX IF NOT EXISTS` is valid on SQLite and Postgres alike, so the
+-- single statement is idempotent on re-run.
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_memory_events_session_order ON memory_events(session_id, id);
