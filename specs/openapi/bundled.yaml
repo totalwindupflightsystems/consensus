@@ -387,12 +387,20 @@ paths:
     get:
       tags:
         - Memory
-      summary: List iteration commits
+      summary: List per-iteration history
       operationId: listIterations
       description: |
-        Lists iteration commits for a session — each commit records the active
-        memory pointers, display rules, LLM response, and SQL executed at that
-        point in time.
+        Lists a session's per-iteration history, newest first. An entry is
+        assembled from every store that recorded that iteration: `iteration_commits`
+        (the SQL-executor loop's snapshot — active memory pointers, display rules,
+        LLM response, SQL executed) and `agent_billing` (the conversational
+        planning loop's per-LLM-call token/cost accounting, aggregated per
+        iteration). `sources` on each entry names which stores contributed.
+
+        An empty array means the session recorded no per-iteration state at all:
+        no `iteration_commits` snapshot and no billed LLM call. Sessions whose
+        `GET /api/v1/sessions/{id}` reports `iteration > 0` therefore report one
+        entry per iteration that produced a snapshot or an `agent_billing` row.
       security:
         - BearerAuth: []
       parameters:
@@ -3208,25 +3216,55 @@ components:
             - hidden → null
     IterationCommit:
       type: object
+      description: |
+        One entry of a session's per-iteration history. A session's per-iteration
+        state has two independent writers, so an entry is assembled from either or
+        both: `iteration_commits` (the SQL-executor loop's snapshot — active memory
+        pointers, display rules, LLM response, SQL executed) and `agent_billing`
+        (the conversational planning loop's per-LLM-call token/cost accounting,
+        aggregated per iteration). `sources` names which writers contributed; an
+        entry exists for every iteration number the store recorded, and `[]` means
+        the session recorded no iterations at all.
       required:
         - iteration_id
+        - iteration
         - session_id
+        - sources
         - active_pointers
         - rows_affected
         - created_at
+        - llm_calls
+        - prompt_tokens
+        - completion_tokens
+        - cache_read_tokens
+        - cache_write_tokens
+        - cost_usd
       properties:
         iteration_id:
           type: integer
           format: int64
+          description: Row identity for the iteration; the harness keys iteration_commits rows by iteration number, so it equals `iteration`.
+        iteration:
+          type: integer
+          format: int64
+          description: Iteration number within the session (1-based), the join key shared by both writers.
         session_id:
           type: string
           format: uuid
+        sources:
+          type: array
+          items:
+            type: string
+            enum:
+              - iteration_commit
+              - agent_billing
+          description: Which stores contributed to this entry.
         active_pointers:
           type: array
           items:
             type: integer
             format: int64
-          description: IDs of memory events active in this iteration.
+          description: IDs of memory events active in this iteration (empty for billing-only iterations).
         display_rules:
           description: Display rules for the iteration.
         llm_response:
@@ -3242,6 +3280,28 @@ components:
         created_at:
           type: string
           format: date-time
+          description: Snapshot creation time, or the first billed LLM call of the iteration when there is no snapshot.
+        llm_calls:
+          type: integer
+          description: Number of billed LLM calls recorded for this iteration.
+        model_id:
+          type: string
+          description: Present only when every billed call of the iteration used one model.
+        prompt_tokens:
+          type: integer
+          format: int64
+        completion_tokens:
+          type: integer
+          format: int64
+        cache_read_tokens:
+          type: integer
+          format: int64
+        cache_write_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
     Task:
       type: object
       required:

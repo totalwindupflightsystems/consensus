@@ -102,12 +102,20 @@ context:
 iterations:
   get:
     tags: [Memory]
-    summary: List iteration commits
+    summary: List per-iteration history
     operationId: listIterations
     description: |
-      Lists iteration commits for a session — each commit records the active
-      memory pointers, display rules, LLM response, and SQL executed at that
-      point in time.
+      Lists a session's per-iteration history, newest first. An entry is
+      assembled from every store that recorded that iteration: `iteration_commits`
+      (the SQL-executor loop's snapshot — active memory pointers, display rules,
+      LLM response, SQL executed) and `agent_billing` (the conversational
+      planning loop's per-LLM-call token/cost accounting, aggregated per
+      iteration). `sources` on each entry names which stores contributed.
+
+      An empty array means the session recorded no per-iteration state at all:
+      no `iteration_commits` snapshot and no billed LLM call. Sessions whose
+      `GET /api/v1/sessions/{id}` reports `iteration > 0` therefore report one
+      entry per iteration that produced a snapshot or an `agent_billing` row.
     security:
       - BearerAuth: []
     parameters:

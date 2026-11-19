@@ -635,3 +635,180 @@ func TestListMemory_WithDisplayMode(t *testing.T) {
 // ============================================================================
 // Admin vs Readonly Access Tests
 // ============================================================================
+
+// ============================================================================
+// DF-CONSENSUS-073-R2 regression — sessions driven by the conversational
+// planning loop record per-iteration state in agent_billing, NOT in
+// iteration_commits. The endpoint used to return [] for them.
+// ============================================================================
+
+// listIterationsFor drives GET /api/v1/sessions/{id}/iterations with the admin
+// key and decodes the response.
+func listIterationsFor(t *testing.T, srv *integrationServer, sessionID, query string) []IterationCommitResponse {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sessionID+"/iterations"+query, nil)
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var iterations []IterationCommitResponse
+	if err := json.NewDecoder(w.Body).Decode(&iterations); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return iterations
+}
+
+// TestListIterations_PlanningLoopSessionReportsBillingIterations is the
+// DF-CONSENSUS-073 defect: a session with iteration >= 4 whose only
+// per-iteration records are agent_billing rows (the planning loop never writes
+// iteration_commits) must not answer [].
+func TestListIterations_PlanningLoopSessionReportsBillingIterations(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339)
+	const sessionID = "sess-planning-loop"
+
+	// iteration 4 with ZERO iteration_commits rows — the live shape of the
+	// sessions named in the defect report (a238a831, 933db6f9).
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at) VALUES ($1, 'dogfood-agent', 'gpt-4o', 'completed', 'goal', 4, $2, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cache_read_tokens, cache_write_tokens, cost_usd, recorded_at) VALUES ($1, 1, 'gpt-4o', 'cognition', 1000, 100, 10, 5, 0.001500, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 1: %v", err)
+	}
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cache_read_tokens, cache_write_tokens, cost_usd, recorded_at) VALUES ($1, 2, 'gpt-4o', 'cognition', 2000, 200, 20, 10, 0.003000, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 2: %v", err)
+	}
+	// Two LLM calls inside iteration 3 — they must aggregate into ONE entry.
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cache_read_tokens, cache_write_tokens, cost_usd, recorded_at) VALUES ($1, 3, 'gpt-4o', 'cognition', 3000, 300, 30, 15, 0.004500, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 3a: %v", err)
+	}
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cache_read_tokens, cache_write_tokens, cost_usd, recorded_at) VALUES ($1, 3, 'gpt-4o', 'tool_call', 4000, 400, 40, 20, 0.006000, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 3b: %v", err)
+	}
+
+	iterations := listIterationsFor(t, srv, sessionID, "")
+
+	if len(iterations) != 3 {
+		t.Fatalf("expected 3 iterations (one per billed iteration), got %d: %s", len(iterations), fmt.Sprintf("%+v", iterations))
+	}
+
+	// Newest first, matching the pre-existing iteration_id DESC contract.
+	for i, want := range []int64{3, 2, 1} {
+		if iterations[i].Iteration != want {
+			t.Fatalf("iterations[%d].iteration = %d, want %d", i, iterations[i].Iteration, want)
+		}
+		if iterations[i].IterationID != want {
+			t.Errorf("iterations[%d].iteration_id = %d, want %d (the iteration number)", i, iterations[i].IterationID, want)
+		}
+		if len(iterations[i].Sources) != 1 || iterations[i].Sources[0] != "agent_billing" {
+			t.Errorf("iterations[%d].sources = %v, want [agent_billing]", i, iterations[i].Sources)
+		}
+		if len(iterations[i].ActivePointers) != 0 || iterations[i].ActivePointers == nil {
+			t.Errorf("iterations[%d].active_pointers = %v, want empty (non-nil) array", i, iterations[i].ActivePointers)
+		}
+		if iterations[i].CreatedAt == "" {
+			t.Errorf("iterations[%d].created_at is empty", i)
+		}
+	}
+
+	// Aggregation: iteration 3 folds both LLM calls.
+	latest := iterations[0]
+	if latest.LLMCalls != 2 {
+		t.Errorf("iteration 3 llm_calls = %d, want 2", latest.LLMCalls)
+	}
+	if latest.PromptTokens != 7000 || latest.CompletionTokens != 700 {
+		t.Errorf("iteration 3 tokens = %d/%d, want 7000/700", latest.PromptTokens, latest.CompletionTokens)
+	}
+	if latest.CacheReadTokens != 70 || latest.CacheWriteTokens != 35 {
+		t.Errorf("iteration 3 cache tokens = %d/%d, want 70/35", latest.CacheReadTokens, latest.CacheWriteTokens)
+	}
+	if diff := latest.CostUSD - 0.0105; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("iteration 3 cost_usd = %v, want 0.0105", latest.CostUSD)
+	}
+	if latest.ModelID != "gpt-4o" {
+		t.Errorf("iteration 3 model_id = %q, want gpt-4o", latest.ModelID)
+	}
+
+	// The limit must bound the merged view, not the underlying queries.
+	limited := listIterationsFor(t, srv, sessionID, "?limit=2")
+	if len(limited) != 2 {
+		t.Fatalf("expected 2 iterations with limit=2, got %d", len(limited))
+	}
+	if limited[0].Iteration != 3 || limited[1].Iteration != 2 {
+		t.Errorf("limit=2 returned iterations %d,%d, want 3,2", limited[0].Iteration, limited[1].Iteration)
+	}
+}
+
+// TestListIterations_MergesSnapshotAndBilling covers the session shape that has
+// BOTH stores populated (the SQL-executor loop): one entry per iteration, with
+// the snapshot's structural fields and the billing aggregate on the same row.
+func TestListIterations_MergesSnapshotAndBilling(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339)
+	const sessionID = "sess-merged"
+
+	if err := srv.conn.Exec(ctx, `INSERT INTO sessions (id, agent_name, model_id, status, goal, iteration, created_at, heartbeat_at) VALUES ($1, 'test', 'gpt-4o', 'idle', 'goal', 2, $2, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	// A snapshot written by WriteIterationSnapshot keys its row by iteration.
+	if err := srv.conn.Exec(ctx, `INSERT INTO iteration_commits (session_id, iteration_id, active_pointers, display_rules, llm_response, sql_executed, rows_affected, created_at) VALUES ($1, 2, '[7,8]', '{}', '{"thought":"ok"}', '["INSERT INTO memory_events VALUES (1)"]', 1, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert iteration commit: %v", err)
+	}
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cost_usd, recorded_at) VALUES ($1, 1, 'gpt-4o', 'cognition', 500, 50, 0.000500, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 1: %v", err)
+	}
+	if err := srv.conn.Exec(ctx, `INSERT INTO agent_billing (session_id, iteration, model_id, category, prompt_tokens, completion_tokens, cost_usd, recorded_at) VALUES ($1, 2, 'gpt-4o', 'cognition', 1500, 150, 0.002000, $2)`, sessionID, now); err != nil {
+		t.Fatalf("insert billing 2: %v", err)
+	}
+
+	iterations := listIterationsFor(t, srv, sessionID, "")
+	if len(iterations) != 2 {
+		t.Fatalf("expected 2 iterations, got %d", len(iterations))
+	}
+
+	merged := iterations[0] // iteration 2: snapshot + billing
+	if merged.Iteration != 2 {
+		t.Fatalf("iterations[0].iteration = %d, want 2", merged.Iteration)
+	}
+	if len(merged.Sources) != 2 || merged.Sources[0] != "iteration_commit" || merged.Sources[1] != "agent_billing" {
+		t.Errorf("iteration 2 sources = %v, want [iteration_commit agent_billing]", merged.Sources)
+	}
+	// Snapshot fields survive the merge.
+	if merged.RowsAffected != 1 {
+		t.Errorf("iteration 2 rows_affected = %d, want 1", merged.RowsAffected)
+	}
+	if merged.LLMResponse == nil {
+		t.Error("iteration 2 llm_response is nil, want the snapshot value")
+	}
+	if len(merged.ActivePointers) != 2 {
+		t.Errorf("iteration 2 active_pointers = %v, want 2 elements", merged.ActivePointers)
+	}
+	if len(merged.SQLExecuted) != 1 {
+		t.Errorf("iteration 2 sql_executed = %v, want 1 statement", merged.SQLExecuted)
+	}
+	// Billing aggregate lands on the same entry.
+	if merged.PromptTokens != 1500 || merged.CompletionTokens != 150 {
+		t.Errorf("iteration 2 tokens = %d/%d, want 1500/150", merged.PromptTokens, merged.CompletionTokens)
+	}
+	if diff := merged.CostUSD - 0.002; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("iteration 2 cost_usd = %v, want 0.002", merged.CostUSD)
+	}
+
+	billingOnly := iterations[1] // iteration 1: billing only
+	if len(billingOnly.Sources) != 1 || billingOnly.Sources[0] != "agent_billing" {
+		t.Errorf("iteration 1 sources = %v, want [agent_billing]", billingOnly.Sources)
+	}
+	if billingOnly.PromptTokens != 500 {
+		t.Errorf("iteration 1 prompt_tokens = %d, want 500", billingOnly.PromptTokens)
+	}
+}

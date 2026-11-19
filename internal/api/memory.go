@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/wojons/consensus/internal/db"
@@ -167,8 +168,12 @@ func (s *Server) handleGetActiveContext(w http.ResponseWriter, r *http.Request, 
 }
 
 // ============================================================================
-// GET /api/v1/sessions/{id}/iterations — List iteration commits
+// GET /api/v1/sessions/{id}/iterations — List per-iteration history
 // ============================================================================
+
+// listIterationsLimitMax bounds the `limit` query parameter (declared maximum
+// in specs/openapi/paths/memory.yaml).
+const listIterationsLimitMax = 200
 
 func (s *Server) handleListIterations(w http.ResponseWriter, r *http.Request, sessionID string) {
 	if !s.checkSessionAccess(w, r, sessionID) {
@@ -179,12 +184,32 @@ func (s *Server) handleListIterations(w http.ResponseWriter, r *http.Request, se
 	limitStr := r.URL.Query().Get("limit")
 	limit := 50
 	if limitStr != "" {
-		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 && n <= 200 {
+		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 && n <= listIterationsLimitMax {
 			limit = n
 		}
 	}
 
-	rows, err := s.db.Query(ctx,
+	// Two stores hold per-iteration state for a session, and they have
+	// DIFFERENT writers — reading only the first is DF-CONSENSUS-073:
+	//
+	//   - iteration_commits: written by the SQL-executor loop via
+	//     harness.FinalizeIteration -> WriteIterationSnapshot
+	//     (internal/harness/executor.go:214 is its only production caller).
+	//     It carries active memory pointers, display rules, the LLM response
+	//     and the SQL executed.
+	//   - agent_billing: written once per LLM call by the conversational
+	//     planning loop (harness.flushPendingUsage, internal/harness/planning.go),
+	//     which advances sessions.iteration but NEVER writes an
+	//     iteration_commits row. It carries the token/cost accounting, keyed by
+	//     the iteration number.
+	//
+	// The planning loop is the path modern agent sessions take, so those
+	// sessions used to answer `[]` here while GET /sessions/{id} reported
+	// iteration >= 4 and agent_billing held a row per iteration. We now merge
+	// both, one entry per iteration number, so the endpoint reports what the
+	// store actually recorded instead of pretending the session has no
+	// iterations.
+	commitRows, err := s.db.Query(ctx,
 		`SELECT iteration_id, session_id, active_pointers, display_rules,
 		        llm_response, sql_executed, rows_affected, created_at
 		 FROM iteration_commits
@@ -194,14 +219,99 @@ func (s *Server) handleListIterations(w http.ResponseWriter, r *http.Request, se
 		sessionID, limit,
 	)
 	if err != nil {
-		slog.Error("api: failed to list iterations", "error", err, "session", sessionID)
+		slog.Error("api: failed to list iteration commits", "error", err, "session", sessionID)
 		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list iterations")
 		return
 	}
 
-	results := make([]IterationCommitResponse, 0, len(rows))
-	for _, row := range rows {
-		results = append(results, rowToIterationCommitResponse(row))
+	// Per-iteration billing aggregate. SUMs stay in SQL so a session with many
+	// LLM calls per iteration returns one row per iteration, not one per call.
+	// MIN(model_id)/COUNT(DISTINCT model_id) let a caller tell a single-model
+	// iteration from a mixed one without a second request.
+	billingRows, err := s.db.Query(ctx,
+		`SELECT iteration,
+		        COUNT(*)                        AS llm_calls,
+		        SUM(prompt_tokens)              AS prompt_tokens,
+		        SUM(completion_tokens)          AS completion_tokens,
+		        SUM(cache_read_tokens)          AS cache_read_tokens,
+		        SUM(cache_write_tokens)         AS cache_write_tokens,
+		        SUM(cost_usd)                   AS cost_usd,
+		        MIN(model_id)                   AS model_id,
+		        COUNT(DISTINCT model_id)        AS model_count,
+		        MIN(recorded_at)                AS first_recorded_at
+		 FROM agent_billing
+		 WHERE session_id = $1
+		 GROUP BY iteration
+		 ORDER BY iteration DESC
+		 LIMIT $2`,
+		sessionID, limit,
+	)
+	if err != nil {
+		slog.Error("api: failed to list iteration billing", "error", err, "session", sessionID)
+		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list iterations")
+		return
+	}
+
+	merged := make(map[int64]*IterationCommitResponse, len(commitRows)+len(billingRows))
+	order := make([]int64, 0, len(commitRows)+len(billingRows))
+	entry := func(iteration int64) *IterationCommitResponse {
+		if resp, ok := merged[iteration]; ok {
+			return resp
+		}
+		resp := &IterationCommitResponse{
+			IterationID:    iteration,
+			Iteration:      iteration,
+			SessionID:      sessionID,
+			Sources:        make([]string, 0, 2),
+			ActivePointers: []int64{},
+		}
+		merged[iteration] = resp
+		order = append(order, iteration)
+		return resp
+	}
+
+	// Snapshots first: a snapshot owns the structural fields, so billing
+	// aggregates are layered onto it rather than overwriting it.
+	for _, row := range commitRows {
+		resp := rowToIterationCommitResponse(row)
+		iteration := resp.IterationID
+		target := entry(iteration)
+		*target = resp
+		target.Iteration = iteration
+		target.Sources = []string{"iteration_commit"}
+	}
+
+	for _, row := range billingRows {
+		iteration := toInt64(row["iteration"])
+		resp := entry(iteration)
+		resp.Sources = append(resp.Sources, "agent_billing")
+		resp.LLMCalls = toInt(row["llm_calls"])
+		resp.PromptTokens = toInt64(row["prompt_tokens"])
+		resp.CompletionTokens = toInt64(row["completion_tokens"])
+		resp.CacheReadTokens = toInt64(row["cache_read_tokens"])
+		resp.CacheWriteTokens = toInt64(row["cache_write_tokens"])
+		resp.CostUSD = toFloat64(row["cost_usd"])
+		// Only name a model when the whole iteration used exactly one; a
+		// mixed-model iteration must not be labelled with an arbitrary pick.
+		if toInt64(row["model_count"]) == 1 {
+			resp.ModelID = toString(row["model_id"])
+		}
+		// created_at means "when this iteration's record started": the
+		// snapshot's creation time when there is one, otherwise the first
+		// billed call of the iteration.
+		if resp.CreatedAt == "" {
+			resp.CreatedAt = toString(row["first_recorded_at"])
+		}
+	}
+
+	sort.Slice(order, func(i, j int) bool { return order[i] > order[j] })
+	if len(order) > limit {
+		order = order[:limit]
+	}
+
+	results := make([]IterationCommitResponse, 0, len(order))
+	for _, iteration := range order {
+		results = append(results, *merged[iteration])
 	}
 
 	w.Header().Set("Content-Type", "application/json")

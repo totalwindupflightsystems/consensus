@@ -243,7 +243,7 @@ returns to `idle`; the durable assistant reply is then available in
 | `GET /api/v1/sessions/{id}/memory` | List memory events for the session |
 | `GET /api/v1/sessions/{id}/memory/{memoryID}` | Fetch one memory event |
 | `GET /api/v1/sessions/{id}/context` | Active context view (live SQL view) |
-| `GET /api/v1/sessions/{id}/iterations` | Iteration history |
+| `GET /api/v1/sessions/{id}/iterations` | Per-iteration history (merged from `iteration_commits` snapshots and per-iteration `agent_billing` aggregates; `sources` names which stores contributed) |
 | `GET /api/v1/sessions/{id}/tool-calls` | Merged tool-call lifecycle history |
 | `GET /api/v1/sessions/{id}/tasks` | Tasks spawned by the session |
 | `POST /api/v1/sessions/{id}/tasks` | Create a task |
