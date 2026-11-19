@@ -541,6 +541,8 @@ networks:
 - **[Integration Guide](docs/INTEGRATION.md)** — connect external systems: MCP clients (SSE + stdio) and the H3 brain-swap adapter, with worked examples
 - **[Configuration Reference](docs/CONFIG.md)** — YAML configuration reference: every key with its type, compiled default, environment override, and the code that consumes it
 - **[CLI Exit Codes](docs/CLI-EXIT-CODES.md)** — per-verb exit-code table (0/1/2 + 3–7), the scriptable-CLI rationale, and `set -e`-safe usage examples
+- **[Tools & Skills](docs/TOOLS.md)** — the tool and skill registry: the two seeded built-in tools, registering and executing tools, approval-gated execution, and installing skills — through the HTTP API and the CLI
+- **[Traceability Doctrine](docs/traceability-doctrine.md)** — the repository-local `ch:trace` contract for board claims: required fields, evidence tiers, witness rules, and close-out requirements
 - **[Testing and QA](docs/testing/README.md)** — canonical test plan, machine manifest, quorum verdicts, evidence layout, and executable battery guards
 - **[Runbooks](docs/runbooks/)** — operational procedures: deployment, backup/restore, failure-modes, troubleshooting, admin key rotation, and adapter setup
 
@@ -559,6 +561,7 @@ networks:
   ```
 
 - **[Quickstart (cross-platform)](docs/quickstart-cross-platform.md)** — Docker, macOS, Linux, WSL2
+- **[Cross-platform gotchas](docs/cross-platform-gotchas.md)** — the footnotes to that quickstart: macOS and Windows (WSL2) specifics, platform-independent traps, and a verification matrix
 - **[OpenAPI spec](specs/018-openapi-contract.md)** — the REST contract is served at `/openapi.json` and `/openapi.yaml`, with its Swagger UI at `/doc/api`; the opencode-compatible shim contract is served separately at `/doc` (all are embedded in the binary and available from any working directory and in the Docker image)
 - **[Muster client generation](docs/MUSTER.md)** — generate a CLI, MCP server, and Go library from the served spec with [muster](https://github.com/wojons/muster): `openapi-cli generate http://localhost:8090/openapi.json` (no hand-written glue; the muster-facing contract is pinned by tests)
 - **[Dogfood reports](docs/dogfood/)** — real-use integration reports (findings + per-item resolution status)
