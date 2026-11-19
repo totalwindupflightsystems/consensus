@@ -159,16 +159,32 @@ type ActiveContextResponse struct {
 	RenderedText     *string `json:"rendered_text,omitempty"`
 }
 
-// IterationCommitResponse is the response body for GET /api/v1/sessions/:id/iterations.
+// IterationCommitResponse is one entry of GET /api/v1/sessions/:id/iterations.
+//
+// A session's per-iteration state has two independent writers, so an entry is
+// assembled from either or both: iteration_commits (the SQL-executor loop's
+// snapshot: memory pointers, display rules, LLM response, SQL executed) and
+// agent_billing (the conversational planning loop's per-LLM-call token/cost
+// accounting, which never writes an iteration_commits row). Sources names
+// which writers contributed; Iteration is the iteration number in both stores.
 type IterationCommitResponse struct {
-	IterationID    int64    `json:"iteration_id"`
-	SessionID      string   `json:"session_id"`
-	ActivePointers []int64  `json:"active_pointers"`
-	DisplayRules   any      `json:"display_rules"`
-	LLMResponse    any      `json:"llm_response,omitempty"`
-	SQLExecuted    []string `json:"sql_executed,omitempty"`
-	RowsAffected   int      `json:"rows_affected"`
-	CreatedAt      string   `json:"created_at"`
+	IterationID      int64    `json:"iteration_id"`
+	Iteration        int64    `json:"iteration"`
+	SessionID        string   `json:"session_id"`
+	Sources          []string `json:"sources"`
+	ActivePointers   []int64  `json:"active_pointers"`
+	DisplayRules     any      `json:"display_rules"`
+	LLMResponse      any      `json:"llm_response,omitempty"`
+	SQLExecuted      []string `json:"sql_executed,omitempty"`
+	RowsAffected     int      `json:"rows_affected"`
+	CreatedAt        string   `json:"created_at"`
+	LLMCalls         int      `json:"llm_calls"`
+	ModelID          string   `json:"model_id,omitempty"`
+	PromptTokens     int64    `json:"prompt_tokens"`
+	CompletionTokens int64    `json:"completion_tokens"`
+	CacheReadTokens  int64    `json:"cache_read_tokens"`
+	CacheWriteTokens int64    `json:"cache_write_tokens"`
+	CostUSD          float64  `json:"cost_usd"`
 }
 
 // ============================================================================
