@@ -200,13 +200,22 @@ func runServer() {
 	if cfg.Harness.PlanningTimeoutSec > 0 {
 		h.PlanningTimeout = time.Duration(cfg.Harness.PlanningTimeoutSec) * time.Second
 	}
-	go h.StartHeartbeatLoop(ctx)
-
 	// DF-CONSENSUS-48: the async ToolExecutor must run in production, not just
 	// in probes — without it, agent-issued tool_requests sit pending forever
 	// (SPEC-006 §Two-Phase Execution Phase 2). Polls tool_requests every 500ms
 	// and executes them with sandbox isolation (WI-005).
+	//
+	// DF-CONSENSUS-68: it is constructed BEFORE the heartbeat loop because the
+	// claim reaper needs it in both directions — it wakes the executor when a
+	// recovered session still owns outstanding tool work, and the executor
+	// wakes the planner when the last tool result lands. h.ToolExecutor was a
+	// declared-but-unwired field until now, so the reaper's executor wake had
+	// no consumer.
 	toolExecutor := harness.NewToolExecutor(database, harness.DefaultToolExecutorConfig())
+	toolExecutor.SetSessionWake(h.RequestWake)
+	h.ToolExecutor = toolExecutor
+
+	go h.StartHeartbeatLoop(ctx)
 	toolExecutor.Start(ctx)
 	defer toolExecutor.Stop()
 
