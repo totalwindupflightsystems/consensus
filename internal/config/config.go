@@ -559,10 +559,17 @@ func (cfg *Config) ApplyStartupValidations() ([]string, error) {
 	// DF-CONSENSUS-58: on non-mock providers, an empty or unresolved key
 	// means every LLM call 401s and the harness burns auth-fail iterations
 	// before PAUSE fires. Fail fast — refuse to start.
+	//
+	// DOC-29: the mock path is a TWO-part recipe — llm.provider=mock alone is
+	// not enough, because internal/llm/client.go refuses to construct the mock
+	// client unless CONSENSUS_MOCK_LLM=1 is set (production-safety guard). The
+	// hint must state both or a user following it is sent straight into a
+	// second confusing startup failure.
 	if !isMockProviderName(cfg.LLM.Provider) {
 		if cfg.LLM.APIKey == "" || strings.HasPrefix(cfg.LLM.APIKey, "${") {
 			return warns, fmt.Errorf("LLM API key not configured (set DEEPSEEK_API_KEY, CONSENSUS_API_KEY, " +
-				"or set llm.provider=mock); an empty key silently burns auth-fail iterations before the harness PAUSE")
+				"or set llm.provider=mock together with the CONSENSUS_MOCK_LLM=1 env var); " +
+				"an empty key silently burns auth-fail iterations before the harness PAUSE")
 		}
 	}
 

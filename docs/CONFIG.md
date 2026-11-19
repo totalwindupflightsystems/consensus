@@ -148,6 +148,12 @@ probed once with a 10-second bounded deadline (`cmd/consensus/keyprobe_startup.g
 Skipped entirely for `llm.provider: mock` and under `go test`. No key at all never reaches
 the probe — §4.2 already exited the process.
 
+**The mock path is a two-part recipe.** The keyless-startup refusal tells you to set
+`llm.provider: mock`, but that alone is not enough: `internal/llm/client.go` refuses to
+build the mock client unless `CONSENSUS_MOCK_LLM=1` is also set in the environment (a
+production-safety guard). Set both — `llm.provider: mock` **and** `CONSENSUS_MOCK_LLM=1` —
+or the process exits on the next line with `llm: mock provider requires CONSENSUS_MOCK_LLM=1`.
+
 **What is not validated:** a provider/model mismatch is only caught for the two cases above
 (a keyless configuration, and compression-on-DeepSeek). An embeddings model pointed at a
 provider without an embeddings endpoint is accepted as long as `compression.enabled` is

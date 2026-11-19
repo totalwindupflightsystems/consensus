@@ -176,6 +176,26 @@ func TestApplyStartupValidations_TemplateAPIKeyReturnsError(t *testing.T) {
 	}
 }
 
+// DOC-29: the keyless-startup hint must advertise the COMPLETE mock recipe.
+// `llm.provider=mock` alone is not enough — internal/llm/client.go refuses to build the
+// mock client unless CONSENSUS_MOCK_LLM=1 is set, so a hint naming only the provider
+// sends the user into a second confusing startup failure.
+func TestApplyStartupValidations_KeylessHintNamesBothMockTokens(t *testing.T) {
+	cfg := Defaults() // openai + no key
+	cfg.LLM.APIKey = ""
+
+	_, err := cfg.ApplyStartupValidations()
+	if err == nil {
+		t.Fatal("expected error for empty API key")
+	}
+	msg := err.Error()
+	for _, token := range []string{"llm.provider=mock", "CONSENSUS_MOCK_LLM=1"} {
+		if !strings.Contains(msg, token) {
+			t.Fatalf("keyless hint must name %q so the mock recipe is complete; got: %v", token, err)
+		}
+	}
+}
+
 // DF-CONSENSUS-58/109: mock provider with no key must NOT error.
 // Non-mock providers return an error (not a warning) for empty keys.
 func TestApplyStartupValidations_MockProviderNoKeyNoError(t *testing.T) {
