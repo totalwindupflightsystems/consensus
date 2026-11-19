@@ -112,9 +112,10 @@ iterations:
       planning loop's per-LLM-call token/cost accounting, aggregated per
       iteration). `sources` on each entry names which stores contributed.
 
-      An empty array means the session recorded no per-iteration state at all;
-      a session whose `GET /api/v1/sessions/{id}` reports `iteration > 0` always
-      has at least one entry here.
+      An empty array means the session recorded no per-iteration state at all:
+      no `iteration_commits` snapshot and no billed LLM call. Sessions whose
+      `GET /api/v1/sessions/{id}` reports `iteration > 0` therefore report one
+      entry per iteration that produced a snapshot or an `agent_billing` row.
     security:
       - BearerAuth: []
     parameters:
