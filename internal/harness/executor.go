@@ -862,18 +862,26 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 						// that one).
 						h.publishStatus(sessionID, result.NextStatus, result.AuditEntry.Iteration)
 					}
-					// Persist the monologue (LLM response text) so H3 clients can retrieve it.
-					// DF-CONSENSUS-070: a 'responded' iteration already persisted the
-					// durable assistant reply (handleRespond's text_block); writing the
-					// PRIVATE monologue afterwards made last_message return the agent's
-					// internal reasoning instead of the reply the user actually got.
-					if result.AuditEntry.Monologue != "" && result.NextStatus == "idle" && result.AuditEntry.Result != "responded" {
-						if insErr := h.db.Exec(ctx,
-							`INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
-							 VALUES ('text_block', $1, $2, 0, CURRENT_TIMESTAMP)`,
-							result.AuditEntry.Monologue, sessionID); insErr != nil {
-							slog.Warn("harness: failed to persist monologue", "session_id", sessionID, "error", insErr)
+					// DF-CONSENSUS-072: memory_events.type='text_block' is the
+					// USER-FACING assistant channel — GET /api/v1/sessions/{id}
+					// serves its newest row as last_message, and handleRespond is
+					// the only writer that belongs there. The planner's private
+					// reasoning (internal_monologue) must never be persisted into
+					// it: the pre-DF-070 fallback that used to live here wrote it
+					// there for every 'idle' transition that was not a respond,
+					// which is how last_message came back holding the agent's
+					// chain of thought instead of a reply. Reasoning stays on the
+					// debug surface — the log, scrubbed of secrets.
+					if result.AuditEntry.Monologue != "" {
+						monologue := result.AuditEntry.Monologue
+						if h.secretStore != nil {
+							monologue = h.secretStore.Scrub(monologue)
 						}
+						slog.Debug("harness: planner reasoning (debug surface, never user-facing)",
+							"session_id", sessionID,
+							"result", result.AuditEntry.Result,
+							"next_status", result.NextStatus,
+							"monologue", monologue)
 					}
 				}
 			}(sid)

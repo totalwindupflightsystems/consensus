@@ -1830,6 +1830,23 @@ func (h *Harness) outputToTurnPlanV2(output *AgentOutput) TurnPlan {
 		plan.MemoryStateChanges = nil // we converted them to staged commands
 	}
 
+	// DF-CONSENSUS-072: a turn whose only output is a user-facing message IS a
+	// reply. Before this, a model that answered the question but omitted the
+	// `respond` action (or any action at all) had its message_to_user silently
+	// discarded: the loop ran to max turns, the session settled 'idle', and the
+	// polled last_message was null — "a plain chat turn never yields an
+	// assistant reply". The alternative fallback (persisting the private
+	// internal_monologue as the assistant message) is what leaked planner
+	// reasoning into last_message; that fallback is gone, so the reply the model
+	// actually addressed to the user is the only text allowed to reach it.
+	//
+	// Narrow by construction: only a turn that asks for nothing else — no tool
+	// requests, no system action, no SQL to stage — is promoted, so commit /
+	// rollback / tool_call / stage semantics are untouched.
+	if plan.Action == ActionNoOp && strings.TrimSpace(plan.MessageToUser) != "" {
+		plan.Action = ActionRespond
+	}
+
 	return plan
 }
 

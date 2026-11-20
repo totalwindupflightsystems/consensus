@@ -340,6 +340,92 @@ func TestOutputToTurnPlanV2_NoOp(t *testing.T) {
 	}
 }
 
+// DF-CONSENSUS-072: a plain conversational turn answers with message_to_user.
+// The model is not obliged to also emit the `respond` action — when it does not,
+// dropping the message made the polled session serve last_message = null (the
+// loop burned its turn budget and settled idle with nothing to show). A turn
+// that asks for nothing else is a reply.
+func TestOutputToTurnPlanV2_SpokenNoActionIsRespond(t *testing.T) {
+	var h Harness
+	output := &AgentOutput{
+		InternalMonologue: "The user wants a one-word answer; PINE.",
+		MessageToUser:     "PINE",
+	}
+
+	plan := h.outputToTurnPlanV2(output)
+	if plan.Action != ActionRespond {
+		t.Fatalf("action = %s, want respond: a user-facing message with no other action is a reply, "+
+			"not a no-op (DF-CONSENSUS-072)", plan.Action)
+	}
+	if plan.MessageToUser != "PINE" {
+		t.Errorf("message_to_user = %q, want %q", plan.MessageToUser, "PINE")
+	}
+	if plan.Monologue != output.InternalMonologue {
+		t.Errorf("monologue = %q, want the private reasoning left untouched", plan.Monologue)
+	}
+}
+
+// Whitespace-only speech is not a reply: it must not promote a silent turn.
+func TestOutputToTurnPlanV2_BlankMessageStaysNoOp(t *testing.T) {
+	var h Harness
+	output := &AgentOutput{
+		InternalMonologue: "still thinking",
+		MessageToUser:     "   \n	 ",
+	}
+
+	plan := h.outputToTurnPlanV2(output)
+	if plan.Action != ActionNoOp {
+		t.Errorf("action = %s, want no_op for a blank message", plan.Action)
+	}
+}
+
+// The promotion is the LAST resort: any explicit intent keeps its meaning.
+func TestOutputToTurnPlanV2_SpokenTurnDoesNotOverrideExplicitActions(t *testing.T) {
+	var h Harness
+	cases := []struct {
+		name   string
+		output *AgentOutput
+		want   PlanAction
+	}{
+		{
+			name: "commit wins over speech",
+			output: &AgentOutput{
+				InternalMonologue: "done",
+				SystemActions:     []string{"commit"},
+				MessageToUser:     "Finished.",
+			},
+			want: ActionCommit,
+		},
+		{
+			name: "tool call wins over speech",
+			output: &AgentOutput{
+				InternalMonologue: "need the file",
+				ToolRequests:      []ToolRequest{{ToolName: "read_file", Parameters: map[string]any{"path": "x"}}},
+				MessageToUser:     "Reading the file now.",
+			},
+			want: ActionToolCall,
+		},
+		{
+			name: "staged SQL wins over speech",
+			output: &AgentOutput{
+				InternalMonologue:  "record it",
+				MemoryStateChanges: []string{"INSERT INTO memory_events (type, content) VALUES ('text_block', 'x')"},
+				MessageToUser:      "Recording that.",
+			},
+			want: ActionStageExec,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := h.outputToTurnPlanV2(tc.output)
+			if plan.Action != tc.want {
+				t.Errorf("action = %s, want %s", plan.Action, tc.want)
+			}
+		})
+	}
+}
+
 // ============================================================================
 // Default Planning Config Tests (SPEC-020 §11)
 // ============================================================================
