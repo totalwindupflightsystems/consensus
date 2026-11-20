@@ -1157,3 +1157,4 @@
 {"id":1153,"timestamp":"2026-11-20 10:28:55","event_type":"task_completed","task_id":"WIRE-CONSENSUS-3","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
 {"id":1154,"timestamp":"2026-11-20 10:30:30","event_type":"task_completed","task_id":"SCN-CONSENSUS-010","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
 {"id":1155,"timestamp":"2026-11-20 10:37:18","event_type":"task_completed","task_id":"DF-CONSENSUS-072","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
+{"id":1156,"timestamp":"2026-11-20 14:45:49","event_type":"task_evidence","task_id":"SCN-CONSENSUS-013","actor":"boardctl","detail":"{\"existing_task_id\":\"SCN-CONSENSUS-013\",\"new_id_attempted\":\"SCN-CONSENSUS-017\",\"fingerprint\":\"36cfab739d868ce7f0600b678d186ba6059a24231cdfa638ee7dca9b90b83f42\",\"evidence\":{\"ts\":\"2026-11-20T14:45:49.702995+00:00\"}}","tick_number":null}
