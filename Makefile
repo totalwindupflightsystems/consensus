@@ -7,7 +7,7 @@ PKG       := ./...
 GO        := go
 CGO_FLAGS := CGO_ENABLED=0
 
-.PHONY: build fresh dev dev-pg test test-short test-df65-tool-handoff test-opencode-upstream smoke fmt-check lint clean run docker
+.PHONY: build fresh dev dev-pg test test-short test-df65-tool-handoff audit-wire test-opencode-upstream smoke fmt-check lint clean run docker
 
 # --- Build ---
 
@@ -61,6 +61,25 @@ test-e2e-frontdoor:
 # not duplicated there.
 test-df65-tool-handoff:
 	$(CGO_FLAGS) $(GO) test ./internal/api/ -run 'TestDF65ToolCallHandoffRealBinary' -count=1 -v
+
+# Static wiring gate (WIRE-CONSENSUS-3).
+#
+# wirecheck's TABLE-PAIR section fails when a table that production code READS
+# has zero production writers — the class that let memory_pages, projects and
+# routing_rules answer every request correctly while nothing could ever
+# populate them (a route-coverage artifact counts those as served). The four
+# writers now live in internal/api/registries.go; this target is what stops
+# the next one from rotting silently.
+#
+# The checker's own tests run FIRST: a gate that cannot be shown to fail must
+# not be trusted to pass. `--only=table-pair` scopes the exit code to this
+# section so the separately-tracked STUB debt (see the full report) does not
+# leave the target permanently red.
+#
+# Cheap and hermetic: stdlib Python, no keys, no database, no egress.
+audit-wire:
+	python3 scripts/audit/test_wirecheck.py
+	python3 scripts/audit/wirecheck.py . --only=table-pair
 
 # Opt-in direct execution of the pinned upstream OpenCode TypeScript suites.
 # Requires a running Consensus opencode shim and a live base URL; unlike the
