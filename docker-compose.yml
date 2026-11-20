@@ -1,5 +1,7 @@
 # Consensus — PostgreSQL test container
 # Start: docker compose up -d
+#        (host port 5432 already bound? pick another host port and keep the
+#         container port at 5432: CONSENSUS_PG_PORT=15433 docker compose up -d)
 # Stop:  docker compose down -v
 #
 # axiom:trace work_item=WI-postgres-full-integration
