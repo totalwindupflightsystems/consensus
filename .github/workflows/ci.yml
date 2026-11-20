@@ -39,6 +39,16 @@ jobs:
       - name: Check Go formatting
         run: make fmt-check
 
+      # Static wiring gate (WIRE-CONSENSUS-3). `make test-short` proves the
+      # routes ANSWER; it cannot see that a table read by production code has
+      # no writer, which is how memory_pages/projects/routing_rules shipped an
+      # empty set forever while counting as served. wirecheck TABLE-PAIR is
+      # that measurement; --only scopes the exit code to it because the
+      # separately-tracked STUB section (23 findings today) is not this gate's
+      # debt. hermetic: stdlib Python only.
+      - name: Static wiring audit (wirecheck table-pair)
+        run: make audit-wire
+
   # ── GolangCI-Lint (pinned, fail-closed) ─────────────────────────
   lint:
     name: GolangCI-Lint

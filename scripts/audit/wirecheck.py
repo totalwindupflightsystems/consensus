@@ -7,8 +7,16 @@ Hilo answers "what depends on this file". This answers:
   3 TEST-SEAM    does a test CREATE/INSERT what production is supposed to produce?
   4 DDL-DRIFT    does a test fixture declare a kinder schema than the migration?
 
-Usage: wirecheck.py <repo-root> [--json]
-Exit 1 if any TABLE-PAIR or STUB finding is present (gate-able).
+Usage: wirecheck.py <repo-root> [--json] [--only=table-pair,stub,test-seam,ddl-drift]
+
+--only selects the sections to run AND to judge: with --only=table-pair the
+exit code reflects orphan reads only, so a CI gate can enforce the table-pair
+class while the separately-tracked STUB/TEST-SEAM debt is still printed.
+Without --only every section runs and the run fails on any TABLE-PAIR or STUB
+finding (unchanged behaviour).
+
+Exit 1 if any selected TABLE-PAIR or STUB finding is present (gate-able), 2 on
+usage errors.
 """
 import json
 import os
@@ -25,6 +33,10 @@ RE_FUNC   = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Za-z0-9_]+)\s*\(")
 
 SKIP_DIRS = {"wt", ".git", "vendor", "node_modules", ".vfs", "dist", "build"}
 
+# Every section the script can run. --only picks a subset; the exit code is
+# computed from the selected sections only (see main()).
+ALL_CHECKS = ("table-pair", "stub", "test-seam", "ddl-drift")
+
 
 def go_files(root):
     prod, test = [], []
@@ -38,8 +50,12 @@ def go_files(root):
     return prod, test
 
 
-def scan(files):
-    """table -> {'write': set(files), 'read': set(files)}"""
+def scan(root, files):
+    """table -> {'write': set(files), 'read': set(files)}
+
+    File paths are reported relative to the scanned ROOT (not to the caller's
+    CWD) so a report is meaningful no matter where the script was invoked from.
+    """
     uses = {}
 
     def ent(t):
@@ -50,7 +66,7 @@ def scan(files):
             s = open(f, encoding="utf-8", errors="ignore").read()
         except OSError:
             continue
-        rel = os.path.relpath(f)
+        rel = os.path.relpath(f, root)
         for rx in (RE_INSERT, RE_UPDATE, RE_DELETE):
             for m in rx.findall(s):
                 ent(m.lower())["write"].add(rel)
@@ -74,7 +90,7 @@ def schema_tables(root):
 
 
 def check_table_pair(root, prod, schema, report):
-    uses = scan(prod)
+    uses = scan(root, prod)
     orphans, sinks = [], []
     for t in sorted(uses):
         if t not in schema:
@@ -90,6 +106,13 @@ def check_table_pair(root, prod, schema, report):
     if orphans:
         for t, r in orphans:
             print(f"   !! {t:<26} read by {r} file(s), written by 0 production file(s)")
+            # Name the readers: "which file reads it" is the first thing a
+            # resolver needs, and the report must be actionable on its own.
+            for reader in sorted(uses[t]["read"])[:3]:
+                print(f"        reader: {reader}")
+            extra = len(uses[t]["read"]) - 3
+            if extra > 0:
+                print(f"        ... and {extra} more reader(s)")
     else:
         print("   none")
     if sinks:
@@ -198,29 +221,95 @@ def check_ddl_drift(root, test, schema, report):
     print()
 
 
+def parse_only(argv):
+    """Return the selected check names, or None for "run everything".
+
+    Accepts --only=a,b and --only a,b (the second form keeps the pre-existing
+    bare-root calling convention comfortable).
+    """
+    raw = None
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg.startswith("--only="):
+            raw = arg.split("=", 1)[1]
+            i += 1
+        elif arg == "--only":
+            if i + 1 >= len(argv):
+                raise ValueError("--only requires a comma-separated list of sections")
+            raw = argv[i + 1]
+            i += 2
+        else:
+            i += 1
+    if raw is None:
+        return None
+    selected = [s.strip() for s in raw.split(",") if s.strip()]
+    unknown = [s for s in selected if s not in ALL_CHECKS]
+    if unknown or not selected:
+        raise ValueError(
+            "unknown section name(s): %s (valid: %s)"
+            % (", ".join(unknown) or "(empty)", ", ".join(ALL_CHECKS))
+        )
+    return selected
+
+
 def main():
-    if len(sys.argv) < 2:
+    args = list(sys.argv[1:])
+    try:
+        only = parse_only(args)
+    except ValueError as exc:
+        print(f"wirecheck: {exc}", file=sys.stderr)
+        return 2
+    # --only VALUE consumes a positional-looking token; drop the flag (and its
+    # value, when it was passed space-separated) before picking the root.
+    cleaned, skip_next = [], False
+    for arg in args:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--only":
+            skip_next = True
+            continue
+        if arg.startswith("--only="):
+            continue
+        cleaned.append(arg)
+    positional = [a for a in cleaned if not a.startswith("--")]
+    if not positional:
         print(__doc__)
         return 2
-    root = os.path.abspath(sys.argv[1])
-    as_json = "--json" in sys.argv
+    root = os.path.abspath(positional[0])
+    as_json = "--json" in args
     prod, test = go_files(root)
     schema = schema_tables(root)
-    prod_uses = scan(prod)
+    prod_uses = scan(root, prod)
+    selected = set(only or ALL_CHECKS)
     report = {"root": root, "prod_files": len(prod), "test_files": len(test)}
+    if only is not None:
+        report["only"] = sorted(selected)
 
     if not as_json:
         print(f"wirecheck  root={root}")
-        print(f"           prod={len(prod)} go files, test={len(test)} go files\n")
-    check_table_pair(root, prod, schema, report)
-    check_stubs(root, prod, report)
-    check_test_seam(root, test, prod_uses, report)
-    check_ddl_drift(root, test, schema, report)
+        print(f"           prod={len(prod)} go files, test={len(test)} go files")
+        if only is not None:
+            print(f"           sections: {', '.join(sorted(selected))}")
+        print()
+    if "table-pair" in selected:
+        check_table_pair(root, prod, schema, report)
+    if "stub" in selected:
+        check_stubs(root, prod, report)
+    if "test-seam" in selected:
+        check_test_seam(root, test, prod_uses, report)
+    if "ddl-drift" in selected:
+        check_ddl_drift(root, test, schema, report)
 
     if as_json:
         print(json.dumps(report, indent=2))
 
-    fail = bool(report.get("table_pair", {}).get("orphan_reads") or report.get("stubs"))
+    fail = False
+    if "table-pair" in selected:
+        fail = fail or bool(report.get("table_pair", {}).get("orphan_reads"))
+    if "stub" in selected:
+        fail = fail or bool(report.get("stubs"))
     if not as_json:
         print("RESULT:", "FAIL (wiring gaps present)" if fail else "PASS")
     return 1 if fail else 0
