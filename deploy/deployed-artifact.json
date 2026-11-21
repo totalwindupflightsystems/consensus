@@ -2,33 +2,56 @@
   "artifact": "dexdat-consensus sidecar container (live, docker compose project dexdat-core)",
   "container": "dexdat-core-consensus-1",
   "image": "dexdat-core-consensus:latest",
-  "image_id": "sha256:e8ec957ceea7cc627e63fa7a05892968d988466f025edb50b034fca2487882a5",
-  "image_created": "2026-10-13T20:44:30.367365821-05:00",
+  "image_id": "sha256:457d36f5d0bb0296885101eefdb2603a9773c84622d51b0586facaa11aaa7bc7",
+  "image_created": "2026-11-17T13:20:45.664049152-05:00",
   "upstream_repo": "https://github.com/totalwindupflightsystems/consensus",
-  "upstream_commit": "52bc66087b9e0fdf9d850c966e4e3b92ac274e12",
-  "upstream_commit_short": "52bc660",
+  "upstream_commit": "bcf2338a07a25c8af1332d45d964689123da1833",
+  "upstream_commit_short": "bcf2338",
   "policy": "equal",
-  "deployed_at": "2026-10-14T01:45:50Z",
-  "deployed_by": "coding-hermes worker, board row DEPLOY-CONSENSUS-1",
-  "built_by": "dexdat-core@fde0394 consensus-sidecar/Dockerfile.quickstart (ARG UPSTREAM_SHA)",
-  "previous": {
-    "upstream_commit": "ae076ea3a21251b6fcdd7e61fec8a45a4008bed2",
-    "upstream_commit_short": "ae076ea",
-    "image_id": "sha256:ce01fc15cc4cf3d4fafc14e076b7084793bd1e96102eda5687aa58037841ce9a",
-    "image_created": "2026-10-13T05:27:05-05:00",
-    "note": "pre-bump artifact: carried no revision stamp; 74 commits behind 52bc660"
+  "deployed_at": "image built 2026-11-17T18:20:45Z; the compose deploy itself was not timestamped by anyone, so this record states the image build time, which bounds it",
+  "deployed_by": "dexdat-core@e3548b91 (SC-SHIM-RESPONSE-TIMEOUT) — that commit bumped consensus-sidecar/Dockerfile.quickstart ARG UPSTREAM_SHA from 52bc660 to bcf2338 and the dexdat-core stack was rebuilt from it; the consensus-side record was NOT updated at the time (found and corrected by the consensus-ops tick of 2026-11-21)",
+  "built_by": "dexdat-core@e3548b91 consensus-sidecar/Dockerfile.quickstart (ARG UPSTREAM_SHA)",
+  "measurements": {
+    "measured_at": "2026-11-21T09:0x Z (consensus-ops tick)",
+    "live_stamp": "bcf2338a07a25c8af1332d45d964689123da1833",
+    "stamp_source": "image-label:org.opencontainers.image.revision",
+    "container_status": "running",
+    "origin_main_at_measurement": "f160ba7cec962791c37d8d1ae7b78b9c6924edc2",
+    "commits_behind_origin_main": 194,
+    "origin_master_at_measurement": "a3da94eb0d0134dec4ab271577e95f8002ae9678",
+    "origin_main_ahead_of_origin_master": 432,
+    "note": "deployed bcf2338 (2026-11-02) is an ANCESTOR of the stale GitHub default branch origin/master a3da94e, so the drift arm's distance was 0 while the artifact was 194 commits behind the integration branch origin/main. See verification.gate_2026_11_21."
   },
+  "previous": [
+    {
+      "upstream_commit": "52bc66087b9e0fdf9d850c966e4e3b92ac274e12",
+      "upstream_commit_short": "52bc660",
+      "image_id": "sha256:e8ec957ceea7cc627e63fa7a05892968d988466f025edb50b034fca2487882a5",
+      "image_created": "2026-10-13T20:44:30.367365821-05:00",
+      "deployed_at": "2026-10-14T01:45:50Z",
+      "note": "recorded by DEPLOY-CONSENSUS-1; superseded by the 2026-11-17 pin bump to bcf2338"
+    },
+    {
+      "upstream_commit": "ae076ea3a21251b6fcdd7e61fec8a45a4008bed2",
+      "upstream_commit_short": "ae076ea",
+      "image_id": "sha256:ce01fc15cc4cf3d4fafc14e076b7084793bd1e96102eda5687aa58037841ce9a",
+      "image_created": "2026-10-13T05:27:05-05:00",
+      "note": "pre-bump artifact: carried no revision stamp; 74 commits behind 52bc660"
+    }
+  ],
   "drift_repair": {
     "commit": "7df0a3272962b30ef84c8aaa96d353397f866b4c",
     "present_in_deployed_binary": true,
     "sentinel": "add budget_limit_cents",
-    "note": "internal/migrate/migrate.go repairBudgetLimitCents(); absent at the pre-2026-09-27 pin 576dc07, present at ae076ea and 52bc660"
+    "note": "internal/migrate/migrate.go repairBudgetLimitCents(); absent at the pre-2026-09-27 pin 576dc07, present at ae076ea, 52bc660 and bcf2338"
   },
+  "recording_contract": "Any change to ARG UPSTREAM_SHA in dexdat-core's consensus-sidecar/Dockerfile.quickstart is a redeploy of THIS artifact: the same change must update upstream_commit, upstream_commit_short, image_id, image_created and deployed_at here. The 2026-11-17 bump to bcf2338 went unrecorded for four days; the identity arm of scripts/check-deployed-artifact.sh was the only thing that noticed.",
   "verification": {
-    "gate": "GREEN (scripts/check-deployed-artifact.sh, exit 0): stamp == recorded == master, repair present in the deployed binary",
+    "gate": "RED (expected, and honest) — scripts/check-deployed-artifact.sh measures identity GREEN after this record update, drift RED because bcf2338 is 194 commits behind the integration branch origin/main f160ba7 under policy=equal",
+    "gate_2026_11_21": "before this record update: RED, reasons 'identity mismatch: live artifact stamp bcf2338 != recorded 52bc660' and 'drift ... 0 commits behind master a3da94e'. Root cause of the second reason: the gate resolved its comparison ref as origin/master first, and origin/master is 432 commits behind origin/main, so drift against the real integration branch was invisible. Fixed in the same tick (ref now resolves from HEAD's upstream, then origin/main, then main, then origin/master, then master).",
+    "self_proof": "scripts/battery/deploy_artifact_check_selfproof.sh — re-run 2026-11-21 after the ref-resolution change",
     "gate_on_pre_bump_artifact": "RED (exit 1): the pre-bump image carries no revision stamp",
-    "self_proof": "scripts/battery/deploy_artifact_check_selfproof.sh — 14 arms passed, 0 failed",
-    "live_session": "03642880-6401-40a1-8366-e04bdf3dd2f0 planned on the redeployed artifact (iteration 3, message in memory_events); 0 x SQLSTATE 42703 across the container lifetime, 230 log lines of traffic in the session window",
+    "live_session": "03642880-6401-40a1-8366-e04bdf3dd2f0 planned on the 52bc660 artifact (iteration 3, message in memory_events); 0 x SQLSTATE 42703 across the container lifetime, 230 log lines of traffic in the session window",
     "scratch_drift_drill": "deployed artifact re-added sessions.budget_limit_cents on a drifted scratch DB (column dropped, v22 recorded); the pre-fix pin 576dc07 did not; the pre-fix pin also reproduced the original drift on a FRESH DB"
   },
   "evidence": {

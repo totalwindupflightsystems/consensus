@@ -14,8 +14,15 @@
 # /usr/local/share/consensus-upstream-sha — then:
 #
 #   1. IDENTITY  the stamp equals the deploy recorded in deploy/deployed-artifact.json
-#   2. DRIFT     the stamp equals master HEAD (policy equal) or is an ancestor
-#                of it (policy ancestor, drift reported with its distance)
+#   2. DRIFT     the stamp equals the integration ref HEAD (policy equal) or is
+#                an ancestor of it (policy ancestor, drift reported with its
+#                distance). The ref is resolved from HEAD's upstream, then
+#                origin/main, then main, then origin/master, then master — NOT
+#                origin/master first: on this repo the GitHub default branch
+#                drifts days behind the branch work actually lands on, and a
+#                distance measured against it can read 0 while the live artifact
+#                is hundreds of commits behind (measured 2026-11-21: 0 behind
+#                origin/master, 194 behind origin/main). --master overrides.
 #   3. REPAIR    the deployed BINARY contains the Postgres budget-column drift
 #                repair (`add budget_limit_cents`), i.e. the artifact really
 #                carries the fix this deployment exists to ship. An artifact
@@ -80,6 +87,7 @@ STAMP=""
 STAMP_SOURCE="none"
 RECORDED=""
 MASTER=""
+REF_USED=""
 DISTANCE=""
 REPAIR="not-checked"
 
@@ -148,9 +156,17 @@ if [ -z "$VOID_REASON" ] && [ -n "$STAMP" ]; then
     if [ -n "$MASTER_REF" ]; then
         MASTER="$(git -C "$ROOT" rev-parse --verify --quiet "${MASTER_REF}^{commit}" 2>/dev/null || true)"
     else
-        for ref in origin/master master main; do
+        # Ref preference order matters more than it looks: `origin/master` used
+        # to be first, and on this repo origin/master is the stale GitHub default
+        # branch (432 commits behind origin/main on 2026-11-21, board rows
+        # DF-CONSENSUS-57/57-R2). The gate then reported "0 commits behind
+        # master" for an artifact that was 194 commits behind origin/main —
+        # a measurement of the wrong ref, i.e. no measurement at all. Resolve
+        # from what this checkout integrates with (HEAD's upstream), then the
+        # integration branch, and only then the default branch.
+        for ref in '@{upstream}' origin/main main origin/master master; do
             MASTER="$(git -C "$ROOT" rev-parse --verify --quiet "${ref}^{commit}" 2>/dev/null || true)"
-            [ -n "$MASTER" ] && break
+            if [ -n "$MASTER" ]; then REF_USED="$ref"; break; fi
         done
     fi
     if [ -z "$MASTER" ]; then
@@ -207,7 +223,7 @@ else
     echo "image                 : ${IMAGE_ID:-unknown} (created ${IMAGE_CREATED:-unknown})"
     echo "deployed stamp        : ${STAMP:-<none>}  [source: $STAMP_SOURCE]"
     echo "recorded deployment   : ${RECORDED:-<none>}  ($RECORD)"
-    echo "master                : ${MASTER:-<unresolved>}  (policy: $POLICY)"
+    echo "master                : ${MASTER:-<unresolved>}  (policy: $POLICY, ref: ${REF_USED:-${MASTER_REF:-<unresolved>}})"
     echo "commits behind master : ${DISTANCE:-n/a}"
     echo "drift repair in image : $REPAIR"
     echo "verdict               : $V"
