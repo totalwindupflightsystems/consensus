@@ -260,19 +260,11 @@ release-dry:
 .PHONY: gitreins-install gitreins-guard gitreins-eval gitreins
 
 # Install the pre-commit hook and verify setup
+# Delegates to scripts/install-hooks.sh: writes the COMMON hooks dir (works from a
+# linked worktree), refuses a relative core.hooksPath, and is idempotent.
 gitreins-install:
 	@echo "==> Installing GitReins pre-commit hook..."
-	@if [ ! -f .git/hooks/pre-commit ]; then \
-		cp .gitreins/pre-commit .git/hooks/pre-commit && \
-		chmod +x .git/hooks/pre-commit && \
-		echo "✓ Hook installed — GitReins Tier 1 will run on every commit"; \
-	elif diff .gitreins/pre-commit .git/hooks/pre-commit > /dev/null 2>&1; then \
-		echo "✓ Hook already installed and up to date"; \
-	else \
-		cp .gitreins/pre-commit .git/hooks/pre-commit && \
-		chmod +x .git/hooks/pre-commit && \
-		echo "✓ Hook updated to latest version"; \
-	fi
+	@bash scripts/install-hooks.sh
 	@if [ -z "$$GITREINS_LLM_API_KEY" ]; then \
 		echo "⚠ GITREINS_LLM_API_KEY not set — Tier 2 evaluator won't run"; \
 		echo "  Set it in ~/.hermes/.env or export it for Tier 2"; \
@@ -294,13 +286,13 @@ gitreins-eval:
 		git clone https://github.com/totalwindupflightsystems/gitreins.git ~/gitreins-poc; \
 	fi
 	@if [ "$(TASK)" = "all" ]; then \
-		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all "$(BUDGET)"; \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 "$(CURDIR)/.gitreins/eval-runner.py" --all "$(BUDGET)"; \
 	else \
-		cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py $(TASK) "$(BUDGET)"; \
+		cd ~/gitreins-poc && PYTHONPATH=. python3 "$(CURDIR)/.gitreins/eval-runner.py" $(TASK) "$(BUDGET)"; \
 	fi
 
 # Full pipeline: guard first, then evaluate
 gitreins: gitreins-guard
 	@echo ""
 	@echo "━━━ GitReins Tier 2: Agentic Evaluator (all tasks) ━━━"
-	@cd ~/gitreins-poc && PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py --all
+	@cd ~/gitreins-poc && PYTHONPATH=. python3 "$(CURDIR)/.gitreins/eval-runner.py" --all
