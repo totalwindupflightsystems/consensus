@@ -11,6 +11,7 @@
   "deployed_at": "image built 2026-11-17T18:20:45Z; the compose deploy itself was not timestamped by anyone, so this record states the image build time, which bounds it",
   "deployed_by": "dexdat-core@e3548b91 (SC-SHIM-RESPONSE-TIMEOUT) — that commit bumped consensus-sidecar/Dockerfile.quickstart ARG UPSTREAM_SHA from 52bc660 to bcf2338 and the dexdat-core stack was rebuilt from it; the consensus-side record was NOT updated at the time (found and corrected by the consensus-ops tick of 2026-11-21)",
   "built_by": "dexdat-core@e3548b91 consensus-sidecar/Dockerfile.quickstart (ARG UPSTREAM_SHA)",
+  "sibling_stacks": "a second compose project with the same working_dir (/home/kara/dexdat/dexdat-core) also serves consensus: df1120-consensus-1, image df1120-consensus sha256:cf310f63a55f (built 2026-11-20T11:50Z), revision label bcf2338 — the same upstream pin as this record, so identity holds for both, but a redeploy must recreate BOTH projects or state which one takes traffic; this gate measures dexdat-core-consensus-1 only",
   "measurements": {
     "measured_at": "2026-11-21T09:05Z-09:10Z (consensus-ops tick 956; live probes and gate runs)",
     "live_stamp": "bcf2338a07a25c8af1332d45d964689123da1833",
