@@ -12,7 +12,7 @@
   "deployed_by": "dexdat-core@e3548b91 (SC-SHIM-RESPONSE-TIMEOUT) — that commit bumped consensus-sidecar/Dockerfile.quickstart ARG UPSTREAM_SHA from 52bc660 to bcf2338 and the dexdat-core stack was rebuilt from it; the consensus-side record was NOT updated at the time (found and corrected by the consensus-ops tick of 2026-11-21)",
   "built_by": "dexdat-core@e3548b91 consensus-sidecar/Dockerfile.quickstart (ARG UPSTREAM_SHA)",
   "measurements": {
-    "measured_at": "2026-11-21T09:0x Z (consensus-ops tick)",
+    "measured_at": "2026-11-21T09:05Z-09:10Z (consensus-ops tick 956; live probes and gate runs)",
     "live_stamp": "bcf2338a07a25c8af1332d45d964689123da1833",
     "stamp_source": "image-label:org.opencontainers.image.revision",
     "container_status": "running",
@@ -49,9 +49,10 @@
   "verification": {
     "gate": "RED (expected, and honest) — scripts/check-deployed-artifact.sh measures identity GREEN after this record update, drift RED because bcf2338 is 194 commits behind the integration branch origin/main f160ba7 under policy=equal",
     "gate_2026_11_21": "before this record update: RED, reasons 'identity mismatch: live artifact stamp bcf2338 != recorded 52bc660' and 'drift ... 0 commits behind master a3da94e'. Root cause of the second reason: the gate resolved its comparison ref as origin/master first, and origin/master is 432 commits behind origin/main, so drift against the real integration branch was invisible. Fixed in the same tick (ref now resolves from HEAD's upstream, then origin/main, then main, then origin/master, then master).",
-    "self_proof": "scripts/battery/deploy_artifact_check_selfproof.sh — re-run 2026-11-21 after the ref-resolution change",
+    "self_proof": "scripts/battery/deploy_artifact_check_selfproof.sh — 14 passed, 0 failed, run 2026-11-21 after the ref-resolution change",
     "gate_on_pre_bump_artifact": "RED (exit 1): the pre-bump image carries no revision stamp",
-    "live_session": "03642880-6401-40a1-8366-e04bdf3dd2f0 planned on the 52bc660 artifact (iteration 3, message in memory_events); 0 x SQLSTATE 42703 across the container lifetime, 230 log lines of traffic in the session window",
+    "live_session": "measured on the deployed bcf2338 artifact (2026-11-21): `docker logs --since 2026-11-17T18:20:00Z dexdat-core-consensus-1` = 36,285 lines, 0 x SQLSTATE 42703; RestartCount=1, State.StartedAt 2026-11-21T00:54:16Z, health=healthy",
+    "live_session_52bc660": "the pre-bump artifact was exercised deliberately: session 03642880-6401-40a1-8366-e04bdf3dd2f0 planned on it (iteration 3, message in memory_events), 0 x SQLSTATE 42703 across the container lifetime, 230 log lines of traffic in the session window",
     "scratch_drift_drill": "deployed artifact re-added sessions.budget_limit_cents on a drifted scratch DB (column dropped, v22 recorded); the pre-fix pin 576dc07 did not; the pre-fix pin also reproduced the original drift on a FRESH DB"
   },
   "evidence": {
