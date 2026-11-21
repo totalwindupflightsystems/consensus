@@ -8,8 +8,11 @@
 # Usage:  scripts/e2e/harness-scenarios.sh [--keep] [--scenarios s1,s3,s4]
 # Exit:   0 = every selected scenario passed, 1 = at least one failed.
 #
-# Env:    CONSENSUS_MODEL (optional model pin), DEEPSEEK_API_KEY (else read from
-#         ~/.hermes/.env), PORT (default 18460).
+# Env:    HARNESS_PROVIDER_KEY (otherwise read DEEPSEEK_API_KEY from ~/.hermes/.env),
+#         HARNESS_PROVIDER_BASE_URL (optional OpenAI-compatible endpoint),
+#         HARNESS_MODEL (model pin; takes precedence over CONSENSUS_MODEL),
+#         CONSENSUS_MODEL (optional model pin), PORT (default 18460). When the
+#         fallback file is used, DEEPSEEK_API_KEY supplies the provider key.
 
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -50,9 +53,20 @@ if ! ( cd "$ROOT" && CGO_ENABLED=0 go build -o "$BIN" ./cmd/consensus ); then
 fi
 
 # ---------- boot ----------
-DK=$(grep -m1 -oP '^DEEPSEEK_API_KEY=\K.*' "$HOME/.hermes/.env" 2>/dev/null)
-[ -n "$DK" ] || { emit boot fail "no DEEPSEEK_API_KEY"; exit 1; }
-DEEPSEEK_API_KEY="$DK" \
+DK=${HARNESS_PROVIDER_KEY:-}
+if [ -z "$DK" ]; then
+  DK=$(grep -m1 -oP '^DEEPSEEK_API_KEY=\K.*' "$HOME/.hermes/.env" 2>/dev/null)
+fi
+[ -n "$DK" ] || { emit boot fail "no provider key: set HARNESS_PROVIDER_KEY (or DEEPSEEK_API_KEY)"; exit 1; }
+if [ -n "${HARNESS_PROVIDER_BASE_URL:-}" ]; then
+  export CONSENSUS_LLM_BASE_URL="$HARNESS_PROVIDER_BASE_URL"
+fi
+if [ -n "${HARNESS_MODEL:-${CONSENSUS_MODEL:-}}" ]; then
+  export CONSENSUS_LLM_MODEL="${HARNESS_MODEL:-$CONSENSUS_MODEL}"
+fi
+# CONSENSUS_API_KEY outranks inherited provider-specific keys in config resolution.
+unset OPENROUTER_API_KEY
+CONSENSUS_API_KEY="$DK" DEEPSEEK_API_KEY="$DK" \
 CONSENSUS_DB_URL="sqlite://$STATE/db.sqlite" \
   "$BIN" serve --hostname 127.0.0.1 --port "$PORT" --log-level info >"$LOG" 2>&1 &
 SRV_PID=$!
