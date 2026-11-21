@@ -6,52 +6,11 @@ All notable changes to this project are documented here.
 
 ## [0.1.0] — 2026-10-27
 
-### Added
-
-- **Tool registration on-ramp (DF-CONSENSUS-62)** — `POST /api/v1/tools`
-  (admin key) and `consensus tool register <name>` create `tools_registry`
-  rows, and migration `032_seed_builtin_tools.sql` ships two built-in tools on
-  a fresh install (`list_sessions`, plus `demo_approval_gate` with
-  `requires_approval=true`). The HITL approval gate was previously reachable
-  only by writing SQL by hand: the registry shipped empty, the CLI `tool` verb
-  was inspect-only, and no REST create route existed.
-
-### Fixed
-
-- **External tool execution could not enqueue (DF-CONSENSUS-62)** —
-  `POST /api/v1/tools/{name}/execute` now records
-  `tool_requests.iteration_id` (NOT NULL with no column default on both
-  backends), so requests for `http_endpoint`/`subprocess` tools reach the
-  executor instead of failing with `500 INTERNAL_ERROR: failed to enqueue
-  tool`. The test fixture had a `DEFAULT 0` the production schema does not
-  have, which is why the bug was invisible to the suite; the fixture now
-  matches the production column.
-- **Install frictions (DF-CONSENSUS-9)** — README documents the Go 1.26
-  prerequisite with exact bare-Debian/Ubuntu tarball commands (and
-  `docs/quickstart-cross-platform.md` no longer recommends the outdated
-  `apt install golang-go`); a new "Bunker environment" section explains that
-  rootless dockerd is already running and how to discover its socket
-  (`DOCKER_HOST`, `/run/user/<uid>/docker.sock`) instead of deadlocking
-  `systemctl --user start docker` against the held RootlessKit lock; the
-  create-session model contract is documented as config-only runtime
-  selection (`model_id` is stored/echoed but does not switch execution;
-  there is no `model` field), pinned by tests.
-- **Duplicate `user_message` rows (DF-CONSENSUS-9)** — an identical re-send
-  to the same session within a 5-second window is dropped instead of
-  double-stored (send racing the heartbeat-driven auto-resume, or a client
-  retry without its `Idempotency-Key`). Wired into all three API-surface
-  message paths (send, idempotent send, `Service.SendMessage`); duplicates
-  return the same `200` shape as the original.
-- **worktree.remove does not implement the declared input contract (DF-CONSENSUS-63)** —
-  the request body field `directory` was silently ignored; the fix reads
-  `WorktreeRemoveInput.directory` as the body-only target while retaining
-  the query selector, and resolves remove/reset workspaces using the
-  SPEC-017 fixed workspace precedence so servers launched outside a
-  repository can operate on explicitly selected worktrees.
-
-First release of Consensus: a database-native cognitive architecture for AI
-agents. One Go binary (`cmd/consensus`) carrying the full runtime against
-either SQLite or PostgreSQL.
+First public release. Consensus is a database-native cognitive architecture for
+AI agents: one Go binary (`cmd/consensus`) carrying the full runtime against
+either SQLite or PostgreSQL. This is the first cut, so there is no prior tag to
+upgrade from — see `docs/release/v0.1.0-notes.md` for the verified install
+paths and the gaps that are still open at cut time.
 
 ### Added
 
@@ -86,9 +45,49 @@ either SQLite or PostgreSQL.
   with an expiry cron for stale pending approvals.
 - **Dashboards** — web admin UI at `/ui/` and the Chronicle investigation
   workbench at `/chronicle/`, both served by the same binary.
+- **Tool registration on-ramp (DF-CONSENSUS-62)** — `POST /api/v1/tools`
+  (admin key) and `consensus tool register <name>` create `tools_registry`
+  rows, and migration `032_seed_builtin_tools.sql` ships two built-in tools on
+  a fresh install (`list_sessions`, plus `demo_approval_gate` with
+  `requires_approval=true`). The HITL approval gate was previously reachable
+  only by writing SQL by hand: the registry shipped empty, the CLI `tool` verb
+  was inspect-only, and no REST create route existed.
 - **Release plumbing** — tag-triggered GitHub Actions release workflow
   (GoReleaser on v* tags: build matrix, archives, checksums, release
   assets); goreleaser build stamps (version/commit/date) observable via
   `consensus --version` and `consensus version`.
+
+### Fixed
+
+- **External tool execution could not enqueue (DF-CONSENSUS-62)** —
+  `POST /api/v1/tools/{name}/execute` now records
+  `tool_requests.iteration_id` (NOT NULL with no column default on both
+  backends), so requests for `http_endpoint`/`subprocess` tools reach the
+  executor instead of failing with `500 INTERNAL_ERROR: failed to enqueue
+  tool`. The test fixture had a `DEFAULT 0` the production schema does not
+  have, which is why the bug was invisible to the suite; the fixture now
+  matches the production column.
+- **Install frictions (DF-CONSENSUS-9)** — README documents the Go 1.26
+  prerequisite with exact bare-Debian/Ubuntu tarball commands (and
+  `docs/quickstart-cross-platform.md` no longer recommends the outdated
+  `apt install golang-go`); a new "Bunker environment" section explains that
+  rootless dockerd is already running and how to discover its socket
+  (`DOCKER_HOST`, `/run/user/<uid>/docker.sock`) instead of deadlocking
+  `systemctl --user start docker` against the held RootlessKit lock; the
+  create-session model contract is documented as config-only runtime
+  selection (`model_id` is stored/echoed but does not switch execution;
+  there is no `model` field), pinned by tests.
+- **Duplicate `user_message` rows (DF-CONSENSUS-9)** — an identical re-send
+  to the same session within a 5-second window is dropped instead of
+  double-stored (send racing the heartbeat-driven auto-resume, or a client
+  retry without its `Idempotency-Key`). Wired into all three API-surface
+  message paths (send, idempotent send, `Service.SendMessage`); duplicates
+  return the same `200` shape as the original.
+- **worktree.remove does not implement the declared input contract (DF-CONSENSUS-63)** —
+  the request body field `directory` was silently ignored; the fix reads
+  `WorktreeRemoveInput.directory` as the body-only target while retaining
+  the query selector, and resolves remove/reset workspaces using the
+  SPEC-017 fixed workspace precedence so servers launched outside a
+  repository can operate on explicitly selected worktrees.
 
 ---
