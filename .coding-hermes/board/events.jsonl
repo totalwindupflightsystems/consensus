@@ -1180,3 +1180,4 @@
 {"id": 1167, "timestamp": "2026-11-21T04:44:36", "event_type": "task_created", "task_id": "QA-CONSENSUS-041", "actor": "foreman", "detail": "{\"id\":\"QA-CONSENSUS-041\",\"status\":\"pending\"}", "tick_number": null}
 {"id": 1168, "timestamp": "2026-11-21T05:10:32", "event_type": "task_updated", "task_id": "QA-CONSENSUS-35", "actor": "foreman", "detail": "{\"status\":\"pending\"}", "tick_number": null}
 {"id": 1169, "timestamp": "2026-11-21T05:10:33", "event_type": "task_updated", "task_id": "QA-CONSENSUS-36", "actor": "foreman", "detail": "{\"status\":\"pending\"}", "tick_number": null}
+{"id":1174,"timestamp":"2026-11-21 04:09:53.236422","event_type":"task_created","task_id":"OPS-CONSENSUS-2","actor":"foreman","detail":"{\"source\": \"consensus-ops-2026-11-21-08-54-21\", \"tick\": 956}","tick_number":956}
