@@ -1,13 +1,103 @@
 #!/usr/bin/env bash
-# GitReins Tier 1 — Pre-Commit Hook for Consensus (Go)
-# 
+# GitReins pre-commit guard — Consensus
+#
+# Resolution rule (this is the whole point of this file's shape):
+#   repo root        git rev-parse --show-toplevel        (the worktree doing the commit)
+#   common hooks dir git rev-parse --git-path hooks       (absolute inside a linked worktree)
+#   board root       <repo root>/.coding-hermes/board
+# Nothing here may hardcode a checkout path. In a linked worktree `.git` is a FILE
+# (a gitdir pointer), so a relative `core.hooksPath=.git/hooks` resolves to a path
+# that does not exist, git finds no hook, and this guard is silently disarmed
+# exactly where fleet workers commit. Install with scripts/install-hooks.sh —
+# never `cp .gitreins/pre-commit .git/hooks/pre-commit` (see docs/release.md).
+#
+# Stage 0: board-lint (JSONL board integrity) — warn-only / skip (managed block)
 # Stage 1: Secrets scan — BLOCKING (no secret keys in commits, ever)
 # Stage 2: Go vet — non-blocking warning
 # Stage 3: Go test -short — non-blocking warning
+# Stage 4: Tier 2 evaluator — opt-in (GITREINS_EVAL=1)
 #
-# Install: cp .gitreins/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# The board-lint block below is still the boardctl-managed block
+# (`boardctl install` replaces it between its markers); it keeps boardctl's
+# semantics — a slow, missing or wedged boardctl SKIPS and never blocks a
+# commit — but derives the board root at runtime instead of pinning a checkout.
+# Re-run scripts/install-hooks.sh after any `boardctl install`, which rewrites
+# this block with an install-time absolute board_root.
+
+# >>> boardctl board-lint managed block (boardctl install; replaced on re-install) >>>
+boardctl_bin="${BOARDCTL_BIN:-$HOME/.local/bin/boardctl}"
+# board_root is derived inside boardctl_lint_main(): never hardcode a checkout.
+board_root=""
+boardctl_timeout=30
+boardctl_lint_mode="warn"
+boardctl_lint_status=0
+boardctl_lint_main() {
+# board-lint: guard commits that break the JSONL board
+# (duplicate ids; dangling depends_on via --fail-on dangling-dep).
+# Installed by boardctl install; board_root kept dynamic (see docs/release.md).
+# A slow/missing/wedged boardctl SKIPS (no block) — it must never wedge commits.
+board_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$board_root" ]; then
+	echo "board-lint: skipped (not inside a git work tree)" >&2
+	return 0
+fi
+if [ -d "$board_root/.coding-hermes/board" ]; then
+	if [ -x "$boardctl_bin" ]; then
+		lint_bin="$boardctl_bin"
+	elif command -v boardctl >/dev/null 2>&1; then
+		lint_bin="$(command -v boardctl)"
+	fi
+	if [ -n "${lint_bin:-}" ] && command -v timeout >/dev/null 2>&1; then
+		lint_out="$(timeout "$boardctl_timeout" "$lint_bin" validate -C "$board_root" --fail-on dangling-dep 2>&1)"
+		lint_status=$?
+		case "$lint_status" in
+			0)
+				echo "board-lint: ok ($board_root/.coding-hermes/board)" >&2
+				return 0
+				;;
+			124)
+				echo "board-lint: skipped (timeout)" >&2
+				;;
+			2)
+				echo "board-lint: skipped (no board found under $board_root)" >&2
+				;;
+			*)
+				if [ "$boardctl_lint_mode" = "warn" ]; then
+					echo "board-lint: WARN-ONLY — commit allowed (boardctl validate failed)" >&2
+					echo "$lint_out" >&2
+				else
+					echo "board-lint: commit rejected (boardctl validate failed)" >&2
+					echo "$lint_out" >&2
+				fi
+				;;
+		esac
+	elif [ -z "${lint_bin:-}" ]; then
+		echo "board-lint: skipped (boardctl binary not found)" >&2
+	else
+		echo "board-lint: skipped (timeout(1) unavailable)" >&2
+	fi
+else
+	echo "board-lint: skipped (no board at $board_root/.coding-hermes/board)" >&2
+fi
+}
+# <<< boardctl board-lint managed block <<<
+# The Tier-1 body runs inside a subshell: its bare `exit` statements only leave
+# the subshell, so board-lint above/below still runs. Its nonzero status still
+# propagates (the epilogue exits with it when board-lint passes). BT-054-R.
+(
+# GitReins Tier 1 — Pre-Commit Hook for Consensus (Go)
+# Install: scripts/install-hooks.sh  (writes the COMMON hooks dir, refuses a
+# relative core.hooksPath, idempotent — see docs/release.md)
+#
+# Every path below is derived from the repository git hands us, so the hook
+# behaves identically in the primary checkout and in any linked worktree.
+if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || [ -z "$repo_root" ]; then
+  echo "⚠ GitReins: not inside a git work tree — nothing to check" >&2
+  exit 0
+fi
+cd "$repo_root"
+echo "▸ GitReins pre-commit — repo: $repo_root"
 set -e
-cd "$(git rev-parse --show-toplevel)"
 STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 [ -z "$STAGED" ] && exit 0
 
@@ -20,6 +110,8 @@ SECRET_PATTERNS='\bsk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC
 while IFS= read -r file; do
   [ ! -f "$file" ] && continue
   git check-ignore -q "$file" 2>/dev/null && continue
+  # Skip spec files, docs, and markdown (documentation only)
+  case "$file" in specs/*|docs/*|*.md) continue ;; esac
   if grep -Pn "$SECRET_PATTERNS" "$file" 2>/dev/null; then
     echo "╔══════════════════════════════════════════════════════════╗" >&2
     echo "║  SECRET DETECTED in $file" >&2
@@ -62,17 +154,31 @@ fi
 if [ "${GITREINS_EVAL:-0}" = "1" ]; then
   echo ""
   echo "━━━ GitReins Tier 2: Agentic Evaluator ━━━"
-  if [ ! -d ~/gitreins-poc ]; then
-    echo "⚠ GitReins: Tier 2 — SKIP (gitreins-poc not found at ~/gitreins-poc)"
+  # Both roots are derived, never hardcoded: the evaluator runner lives in THIS
+  # checkout, and the engine package defaults to $HOME/gitreins-poc
+  # (override with GITREINS_EVAL_PKG).
+  tier2_pkg="${GITREINS_EVAL_PKG:-$HOME/gitreins-poc}"
+  tier2_runner="$repo_root/.gitreins/eval-runner.py"
+  if [ ! -d "$tier2_pkg" ]; then
+    echo "⚠ GitReins: Tier 2 — SKIP (missing $tier2_pkg)"
+  elif [ ! -f "$tier2_runner" ]; then
+    echo "⚠ GitReins: Tier 2 — SKIP (missing $tier2_runner)"
   elif [ -z "${GITREINS_LLM_API_KEY:-}" ]; then
     echo "⚠ GitReins: Tier 2 — SKIP (GITREINS_LLM_API_KEY not set)"
   else
-    cd ~/gitreins-poc
-    PYTHONPATH=. python3 ~/consensus/.gitreins/eval-runner.py build-gate || {
+    ( cd "$tier2_pkg" && PYTHONPATH=. python3 "$tier2_runner" build-gate ) || {
       echo ""
       echo "⚠ GitReins Tier 2: build-gate FAILED (non-blocking)"
       echo "   Run 'make gitreins-eval TASK=build-gate' for details"
     }
-    cd - > /dev/null
   fi
 fi
+)
+boardctl_lint_existing_status=$?
+# board-lint epilogue (managed by boardctl install): board-lint runs
+# AFTER the existing hook body; both statuses are honored.
+boardctl_lint_main || boardctl_lint_status=1
+if [ "$boardctl_lint_status" -ne 0 ]; then
+	exit "$boardctl_lint_status"
+fi
+exit "$boardctl_lint_existing_status"
