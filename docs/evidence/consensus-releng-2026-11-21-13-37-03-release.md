@@ -214,3 +214,75 @@ tag remote + local — nothing consumes releases yet, so rollback stays complete
 **Precondition on the owner directive:** if it names v0.1.0 at a newer candidate than
 7a618fd9, this certification does not carry — re-run the preflight at the named SHA, because
 CI green on this SHA is not CI green on that one.
+
+---
+
+## Pass 13 addendum — readiness gap closed, cut still withheld (2026-11-21 14:31Z)
+
+**Decision: still NO CUT.** The withholding reason did not weaken; the *mechanics* did change.
+
+### What changed this pass
+
+RELEASE-CONSENSUS-007 (the only board-authorized row this satellite could execute) landed a
+v0.1.0 readiness package as `4390b3e2`, fast-forwarded onto `main` and pushed (parity `0/0`).
+
+| Item | Before | After |
+|---|---|---|
+| `docs/release/v0.1.0-notes.md` | absent | 239 lines on `main` |
+| `CHANGELOG.md` | unreleased section only, `[0.1.0]` dated 2026-10-27 | unreleased → `[0.1.0]` promotion, original 2026-10-27 facts preserved word-for-word |
+| `VERSION` | `0.1.0` | `0.1.0` (correctly untouched — already correct) |
+| Repo preflight | 4/4 only in a hand-made detached worktree | 4/4 `exit 0` on the landed tree `4390b3e2` |
+
+### Gate evidence at `4390b3e2` (foreman-run, not worker-reported)
+
+| # | Gate | Result |
+|---|---|---|
+| 1 | `bash scripts/release.sh --dry-run` in a clean detached worktree | `exit 0` — 4/4 OK |
+| 2 | `go build ./...` | `exit 0` |
+| 3 | `go vet ./...` | `exit 0` |
+| 4 | `go test ./... -count=1` | `exit 0` — 40 packages, 37 `ok`, 3 no-test-files |
+| 5 | `python3 scripts/audit/wirecheck.py .` | `RESULT: PASS` |
+| 6 | CI on `4390b3e2` | run `44914197925` → success |
+
+The script printed `release v0.1.0 is ready to cut`, emitted the exact tag command, and created
+nothing. Tag count: 0 local, 0 remote. GitHub Releases: 0.
+
+### Stale row closed
+
+`DF-CONSENSUS-073` (iterations endpoint answering `[]`) was still `pending` and had already been
+fixed by its own recurrence row `DF-CONSENSUS-073-R2`. Verified rather than assumed:
+`git merge-base --is-ancestor 869bcaef origin/main` → true; R2 commit `363a39c4`; tier-2 run
+`d90c4149` all-PASS. Closed as superseded so the board stops re-dispatching fixed work.
+
+### New row filed
+
+`RELEASE-CONSENSUS-009` (P1, CI-integrity): repo-local `core.hooksPath=.git/hooks` is **relative**,
+and inside a linked worktree `git` reports `.git/hooks` while `.git` there is a *file*
+(`gitdir: .../worktrees/<name>`), so `ls .git/hooks` is `Not a directory` and the pre-commit Tier-1
+guard never executes. Every fleet worker commits from a worktree, and `guards.allow_skips: true`,
+so nothing re-imposes the gate until `gitreins task complete`.
+
+### Dispatch disclosure (seat truth, not label)
+
+The tick's authoritative worker lane `openai/gpt-6.1-terra` via `xkiro` returned
+`503 model_maintenance` until **2026-11-24T08:34Z** (same for `gpt-6-luna`), and the fallback
+`9router :20128` was refused outright (`curl` exit 7). `deepseek-v4-pro` via `deepseek` was then
+refused for credits, so the worker ran on `accounts/fireworks/models/deepseek-v4p1-flash-1017-spot`
+via `fireworks` — confirmed from `agent.log` `API call #N: model=...` lines and `state.db`
+`session_model_usage`, not from the dispatch label. One earlier `-z` attempt (session `local-777ece`)
+silently fell back to `zai-org/GLM-4.7-Flash` mid-run; its process tree was killed before it could
+write, and the worktree was verified clean (`dirty=0`) before the successful dispatch.
+
+### Why the cut is still withheld
+
+1. **Authorization is still absent (decisive).** `RELEASE-CONSENSUS-3` remains `blocked` with
+   `blocked_on: owner:release-cut-authorization`. A readiness row landing is not a cut order.
+2. **`DF-CONSENSUS-084` (P1) remains open** — a continuation reply billed to the provider but never
+   persisted on the successful-tool path: data loss on the accounting path, not a release mechanical.
+
+The cut is now exactly one authorized command away, and the command is printed in
+`docs/release/v0.1.0-notes.md`. On an owner directive naming this SHA:
+`git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0`, then `gh release create v0.1.0
+--notes-file docs/release/v0.1.0-notes.md --verify-tag`, then confirm `gh release view v0.1.0` and
+the release workflow green on the tagged SHA. If the directive names a newer candidate, this
+certification does not carry.
