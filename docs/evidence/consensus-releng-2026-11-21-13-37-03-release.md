@@ -286,3 +286,69 @@ The cut is now exactly one authorized command away, and the command is printed i
 --notes-file docs/release/v0.1.0-notes.md --verify-tag`, then confirm `gh release view v0.1.0` and
 the release workflow green on the tagged SHA. If the directive names a newer candidate, this
 certification does not carry.
+
+## Fire 4, pass 5 — steward re-measure (2026-11-21T15:18Z / 10:18 local)
+
+Same tick (`consensus-releng-2026-11-21-13-37-03`), fifth fire of the family: passes 1-4 are in the
+ledger at `/releng/2026-11-21/tick-1337-v010-readiness*`. Steward rules applied: re-measure only the
+decisive facts, carry the rest with its timestamp, append a delta instead of rewriting the lineage.
+
+### Identity check (passed)
+
+The candidate certified by passes 1-2 is unchanged as a *product* tree. The tip moved by one
+bookkeeping commit after pass 4:
+
+| fact | value |
+|---|---|
+| certified candidate | `7a618fd9` |
+| tip now | `6746b0bc` (2026-11-21T10:05:25-05:00, "board: RELEASE-CONSENSUS-009 verification evidence (releng fire 3)") |
+| product-path diff, candidate..tip | **0 files** |
+| changed paths, candidate..tip | `.coding-hermes/board/tasks.jsonl`, `.coding-hermes/board/events.jsonl`, `CHANGELOG.md`, `docs/evidence/consensus-releng-2026-11-21-13-37-03-release.md`, `docs/release/v0.1.0-notes.md` |
+| tags | 0 local, 0 remote |
+| GitHub Releases | 0 (`gh release list` empty) |
+
+### Exact-tip CI: discharged
+
+The in-flight leg pass 4 left behind is closed. `6746b0bc` check-runs are terminal:
+**11 success, 2 skipped, 0 failed** — CI push run `44917309229` (run_number 1054) green.
+
+### Gitreins verdicts
+
+0 of the repo's verdicts name `7a618fd9` or `6746b0bc`. Today's three verdicts (`06433492`,
+`8700c114`, `ef3b2bd1`) grade `0bd9d862` and `39eee99e` — neither is the candidate. Unchanged from
+pass 4: there is no external verdict on the release candidate, so this leg stays "None issued".
+
+### Blockers re-checked (all still stand)
+
+| item | state at 15:18Z |
+|---|---|
+| `RELEASE-CONSENSUS-3` | `blocked`, `blocked_on: owner:release-cut-authorization` — no authorization appeared |
+| `DF-CONSENSUS-084` | P1 `pending` — continuation reply billed but not persisted |
+| `RELEASE-CONSENSUS-008` | `pending` — clean-tree gate still broken **in the primary checkout**: `M .vfs/graph/.symbols_cache.json` tracked, plus untracked `.gitreins/review-state.json` / `.lock` |
+| `RELEASE-CONSENSUS-009` | `pending` — branch `rel009-worktree-hooks` @ `a0a3727d` is pushed but **not an ancestor of main**; docs clause + merge + post-merge re-run outstanding |
+
+### Carried, not re-measured
+
+`govulncheck`, `go build`/`vet`, `wirecheck`, the dogfood run, and the 4/4 preflight all carry from
+passes 1-2 at the same product tree. The only drift-prone preflight leg — gate [1/4] clean-tree — is
+re-verified dirty above and is owned by `RELEASE-CONSENSUS-008`.
+
+### Delta action: one wave worker on RELEASE-008
+
+`WAVE_BUDGET: 2`, one worker used (the second slot is deliberately held: `RELEASE-009`'s remaining
+work is a merge of already-verified code plus a docs clause — foreman acceptance, not worker authoring).
+
+Seat disclosure (authoritative lane unavailable, brief's own escape clause invoked): `openai/gpt-6.1-terra`
+via `xkiro` returned `503` twice — `agent.log` 10:09:17 (`local-a4ad824a`) and 10:14:59
+(`20261121_101457_499c87`), message `Model "openai/gpt-6.1-terra" is tempora…`, both followed by
+`Retrying API call in 600.0s`. `--provider 9router` was **not honored** — the client was still built
+with `provider=xkiro` — so the 9router terra lane could not be reached by flag; no retry spent on it.
+Both failing process trees were killed and the worktree verified clean (`git status` empty, HEAD still
+`6746b0bc`) before re-dispatch. Worker ran on `accounts/fireworks/models/deepseek-v4p1-flash-1017-spot`
+via `fireworks` — the same disclosed substitute pass 4 used.
+
+### Decision: NO CUT (unchanged)
+
+The readiness verdict does not move: authorization is absent and there are zero tags, so no release
+may be created. The cut remains one authorized command chain away on candidate `7a618fd9`, printed in
+`docs/release/v0.1.0-notes.md`.
