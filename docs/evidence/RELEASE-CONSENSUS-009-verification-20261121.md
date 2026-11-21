@@ -226,7 +226,30 @@ timeout subshell and never returns non-zero to the caller.
 `wirecheck` printed 24 `!! … fixture supplies one` notes (production NOT NULL
 columns populated by the fixture) and finished `RESULT: PASS` with exit 0.
 
-GATETEST_PLACEHOLDER
+`go test ./... -count=1`: **37 packages `ok`**, 3 `[no test files]`, no `FAIL`,
+`gate3_test_rc=0`, completed in well under the 15-minute limit; the tail:
+
+```
+ok   github.com/wojons/consensus/internal/tools      0.286s
+ok   github.com/wojons/consensus/internal/web        0.010s
+ok   github.com/wojons/consensus/internal/webhook    0.480s
+ok   github.com/wojons/consensus/pkg/client          0.022s
+ok   github.com/wojons/consensus/scripts/loadprobe   0.018s
+?    github.com/wojons/consensus/specs              [no test files]
+gate3_test_rc=0
+```
+
+The guards also fired on the commits made *from this worktree* while the row was
+being closed — the arm/dismount pair proving acceptance 1 in one transcript:
+
+```
+$ git commit -F /tmp/rel009-msg-20261121b.txt
+▸ GitReins pre-commit — repo: /home/kara/.hermes/cache/scratch/wt-rel009-1337
+✓ GitReins: Secrets scan — PASS
+✓ GitReins: Go vet — SKIP (no Go changes)
+✓ GitReins: Go test -short — SKIP (no Go changes)
+board-lint: ok (/home/kara/.hermes/cache/scratch/wt-rel009-1337/.coding-hermes/board)
+```
 
 ## 7. Scope honored
 
