@@ -352,3 +352,86 @@ via `fireworks` — the same disclosed substitute pass 4 used.
 The readiness verdict does not move: authorization is absent and there are zero tags, so no release
 may be created. The cut remains one authorized command chain away on candidate `7a618fd9`, printed in
 `docs/release/v0.1.0-notes.md`.
+
+---
+
+## Fire 5, pass 6 — RELEASE-CONSENSUS-008 landed; preflight 4/4 (2026-11-21T15:55Z)
+
+### What changed since pass 5
+
+Pass 5 closed with `75fa94e4` (untrack `.vfs/graph/.symbols_cache.json`) judged
+**necessary but not sufficient**: six other generated artifacts stayed tracked and
+one `hilo graph search` still dirtied them. Wave worker 2 (`41cad9af`, branch
+`rel008b-vfs-untrack`, worktree `wt-rel008b-1337`) untracked the remaining
+generated set. Both commits are now on `main`.
+
+    main: 6746b0bc..41cad9af (fast-forward, 2 commits) then 4654ff78 (board + evidence)
+
+`git ls-tree -r origin/main -- .vfs` → `.vfs/manifest.yaml` only.
+
+### Independent proof (releng probe, not the worker's self-report)
+
+| Step | Command | Result |
+|---|---|---|
+| 1 | delete every `.vfs/graph/*` artifact, confirm tree clean | `git status --porcelain -uall` empty |
+| 2 | `hilo graph warm` | 6194 edges / 492 files / 515 files coverage, rc=0 |
+| 3 | `git status --porcelain -uall` after regeneration | **empty** — no tracked artifact moved |
+| 4 | `git ls-files .vfs` | `.vfs/manifest.yaml` (1 path) |
+| 5 | `git push origin main` | `6746b0bc..4654ff78`, HEAD == origin/main |
+| 6 | `bash scripts/release.sh --dry-run` | **4/4 OK** |
+
+### Preflight on `main` @ 4654ff78 (native tooling, unmodified)
+
+    OK  [1/4] clean tree
+    OK  [2/4] remote parity 0/0 (HEAD == origin/main at 4654ff787c1e)
+    OK  [3/4] VERSION (0.1.0) matches newest CHANGELOG heading ([0.1.0])
+    OK  [4/4] CI green on HEAD (run 44920879369 succeeded for 4654ff787c1e)
+
+    Preflight passed for totalwindupflightsystems/consensus @ 4654ff787c1e — release v0.1.0 is ready to cut.
+
+CI on the exact tip: 11 success, 2 skipped, 0 failed (workflow `CI`, run 1055,
+`https://github.com/totalwindupflightsystems/consensus/actions/runs/44920879369`).
+
+Note on check 4: the first dry-run refused with "no successful ci.yml run found"
+while `gh api .../check-runs` already showed all 11 checks green — `gh run list
+--status success` lags check-run completion by seconds. The gate is correct; it
+is not racy in the wrong direction (it never passes on red).
+
+### RELEASE-CONSENSUS-008 — closed complete
+
+Row fields written: `status=complete`, `worker_status=complete`,
+`commit_hash=41cad9af`, `branch=rel008b-vfs-untrack`,
+`ci_result=success (11/2, run 44920879369 on 4654ff78)`,
+`guard_result=PASS`, `detail` → this file.
+Events: `1191 task_completed`, `1192 audit` (tick 956). Header `ticks_total=956`,
+`last_commit=4654ff78`.
+
+**Documented deviation.** The row's literal criterion `git ls-files .vfs == 0` is
+not met — `.vfs/manifest.yaml` deliberately stays tracked. It is authored
+configuration (fuse/ninep/cli/mcp interfaces, ports, mount points) and `hilo init`
+never overwrites an existing manifest, so untracking it would ship a checkout
+without project config. The criterion's intent — a cache refresh never dirties
+the tree — is proven by steps 1–3 above.
+
+### Release decision: NO CUT (unchanged), now one authorized command from the cut
+
+- Authorization row `RELEASE-CONSENSUS-3` is still `blocked` on
+  `owner:release-cut-authorization`. The satellite verifies; it does not execute
+  an unauthorized cut.
+- Repo state: 0 local tags, 0 remote tags, 0 GitHub Releases. `v0.1.0` would be
+  the first release.
+- Once authorized, the native script performs the cut unsupervised:
+  `bash scripts/release.sh` (creates annotated `v0.1.0`, `release.yml` takes over
+  on `git push origin v0.1.0`).
+- If any commit lands first (e.g. the `RELEASE-CONSENSUS-009` worktree-hooks
+  branch), HEAD moves and `VERSION`/`CHANGELOG`/CI on the new SHA must be
+  re-proven — the gate will refuse otherwise, by design.
+
+### Board state after this pass
+
+| Row | Status | Note |
+|---|---|---|
+| RELEASE-CONSENSUS-008 | **complete** | landed 75fa94e4 + 41cad9af, 4/4 preflight |
+| RELEASE-CONSENSUS-009 | pending | branch `rel009-worktree-hooks` @ a0a3727d pushed, **not an ancestor of main**; docs clause + merge + post-merge re-run outstanding |
+| RELEASE-CONSENSUS-3 | blocked | `owner:release-cut-authorization` |
+| DF-CONSENSUS-084 | pending (P1) | continuation reply billed but not persisted |
