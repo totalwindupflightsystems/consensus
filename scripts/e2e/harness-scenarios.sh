@@ -6,7 +6,16 @@
 # Unit tests prove internals; THIS proves the assembled system.
 #
 # Usage:  scripts/e2e/harness-scenarios.sh [--keep] [--scenarios s1,s3,s4]
-# Exit:   0 = every selected scenario passed, 1 = at least one failed.
+#         scripts/e2e/harness-scenarios.sh --scenarios s1 --dry-run
+# Exit:   0 = every selected scenario passed, 1 = at least one failed,
+#         2 = bad invocation (unknown arg, or a selector that names no known
+#             scenario — a selector must never match nothing silently).
+#
+# --scenarios accepts a bare prefix (s1) or a full scenario id (s1_write_file),
+# comma-separated. An unknown token, or a selector that ends up executing zero
+# scenarios, is a hard error — never a green "failures: 0".
+# --dry-run validates the selector and prints the selected scenario ids
+# (`scenario: <fn>`, one per line) without building or booting anything.
 #
 # Env:    HARNESS_PROVIDER_KEY (otherwise read DEEPSEEK_API_KEY from ~/.hermes/.env),
 #         HARNESS_PROVIDER_BASE_URL (optional OpenAI-compatible endpoint),
@@ -18,15 +27,76 @@ set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 PORT=${PORT:-18460}
 KEEP=0
+DRY_RUN=0
 ONLY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=1 ;;
     --scenarios) shift; ONLY="${1:-}" ;;
+    --dry-run) DRY_RUN=1 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+log()  { printf '%s\n' "$*" >&2; }
+emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
+
+# ---------- scenario registry + selector (validated before anything boots) ----------
+ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment"
+
+scenario_matches() { # $1=fn $2=selector token -> 0 when the token names this scenario
+  local fn="$1" tok="$2"
+  [ "$tok" = "${fn%%_*}" ] || [ "$tok" = "$fn" ]
+}
+
+known_scenarios() { # both accepted spellings, for the error message
+  local fn out=""
+  for fn in $ALL; do out="$out, ${fn%%_*}|$fn"; done
+  printf '%s' "${out#, }"
+}
+
+scenario_selected() { # $1=fn -> 0 when no selector was given, or when a token names it
+  local fn="$1" tok
+  [ -n "$ONLY" ] || return 0
+  for tok in "${SCEN_TOKENS[@]}"; do
+    scenario_matches "$fn" "$tok" && return 0
+  done
+  return 1
+}
+
+# Split the selector once, trimming whitespace and dropping empty tokens
+# (",," / a trailing comma is tolerated; a selector with no token at all is not).
+SCEN_TOKENS=()
+if [ -n "$ONLY" ]; then
+  _ifs="$IFS"; IFS=','
+  for _tok in $ONLY; do
+    _tok=$(printf '%s' "$_tok" | tr -d '[:space:]')
+    [ -n "$_tok" ] && SCEN_TOKENS+=("$_tok")
+  done
+  IFS="$_ifs"
+  if [ "${#SCEN_TOKENS[@]}" -eq 0 ]; then
+    log "error: --scenarios '$ONLY' names no scenario"
+    log "known: $(known_scenarios)"
+    exit 2
+  fi
+  for _tok in "${SCEN_TOKENS[@]}"; do
+    _hit=0
+    for _fn in $ALL; do scenario_matches "$_fn" "$_tok" && { _hit=1; break; }; done
+    if [ "$_hit" -eq 0 ]; then
+      log "error: unknown scenario '$_tok' (from --scenarios '$ONLY')"
+      log "known: $(known_scenarios)"
+      exit 2
+    fi
+  done
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  for _fn in $ALL; do
+    scenario_selected "$_fn" && printf 'scenario: %s\n' "$_fn"
+  done
+  exit 0
+fi
 
 STATE=$(mktemp -d "${TMPDIR:-/tmp}/consensus-scn.XXXXXX") || exit 1
 export TMPDIR="$STATE/tmp"; mkdir -p "$TMPDIR"
@@ -34,6 +104,7 @@ LOG="$STATE/serve.log"
 SRV_PID=""
 RESULTS=()
 FAILS=0
+RAN=0
 
 cleanup() {
   [ -n "$SRV_PID" ] && kill "$SRV_PID" 2>/dev/null
@@ -41,9 +112,6 @@ cleanup() {
   if [ "$KEEP" -eq 1 ]; then echo "state kept: $STATE"; else rm -rf "$STATE"; fi
 }
 trap cleanup EXIT
-
-log()  { printf '%s\n' "$*" >&2; }
-emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
 
 # ---------- build ----------
 BIN="$STATE/consensus"
@@ -163,20 +231,29 @@ s5_containment() {
   return 0
 }
 
-ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment"
 run_one() {
   local fn="$1"
-  if [ -n "$ONLY" ]; then
-    local id="${fn%%_*}"
-    case ",$ONLY," in *",$id,"*) ;; *) return 0 ;; esac
+  if ! scenario_selected "$fn"; then
+    log "--- $fn (not selected)"
+    return 0
   fi
   log "--- $fn"
+  RAN=$((RAN+1))
   if "$fn"; then RESULTS+=("$fn=PASS"); else RESULTS+=("$fn=FAIL"); FAILS=$((FAILS+1)); fi
 }
 
 for fn in $ALL; do run_one "$fn"; done
 
+# A selector that executed nothing must never present as green.
+if [ "$RAN" -eq 0 ]; then
+  emit selection fail "selector '$ONLY' matched no scenario (0 executed)"
+  log "known: $(known_scenarios)"
+  log "failures: n/a — no scenario was executed"
+  exit 2
+fi
+
 log "=== summary ==="
 printf '%s\n' "${RESULTS[@]}" >&2
+log "scenarios run: $RAN"
 log "failures: $FAILS"
 [ "$FAILS" -eq 0 ]
