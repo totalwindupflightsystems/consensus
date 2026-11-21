@@ -86,6 +86,81 @@ def build_fixture_repo(root, with_writer):
         )
 
 
+def build_refusal_fixture_repo(root):
+    """The two shapes WIRE-CONSENSUS-2 established as legal, and nothing else.
+
+    (1) a marker handed to an explicit failure writer — the caller receives 501;
+    (2) a marker that is provably not a dispatch return — the served UI's HTML
+        placeholder attribute, allowlisted by exact file + exact string.
+    """
+    build_fixture_repo(root, with_writer=True)
+    write(
+        os.path.join(root, "internal", "shim", "opencode", "server.go"),
+        """
+        package opencode
+
+        import (
+        \t"encoding/json"
+        \t"net/http"
+        )
+
+        func writeNotImplemented(w http.ResponseWriter, operation string) {
+        \tw.WriteHeader(http.StatusNotImplemented)
+        \tdata, _ := json.Marshal(map[string]string{"error": "not_implemented", "operation": operation})
+        \t_, _ = w.Write(data)
+        }
+
+        func handlePty(w http.ResponseWriter, r *http.Request) {
+        \twriteNotImplemented(w, "pty.create is not implemented")
+        \t_, _ = w, r
+        }
+        """,
+    )
+    write(
+        os.path.join(root, "internal", "web", "server.go"),
+        """
+        package web
+
+        const sessionsPage = `<input id="ca" placeholder="researcher"/>`
+        """,
+    )
+
+
+def build_allowlist_scope_fixture_repo(root):
+    """The allowlisted STRING in a file the allowlist does not name.
+
+    Proves the exemption is scoped to (file, string): moving the same HTML
+    attribute into a sibling file must fail the run, otherwise the allowlist
+    would be a blanket word-ban rather than a narrow, auditable exemption.
+    """
+    build_fixture_repo(root, with_writer=True)
+    write(
+        os.path.join(root, "internal", "web", "other.go"),
+        """
+        package web
+
+        const memoryPage = `<input id="m" placeholder="search memory"/>`
+        """,
+    )
+
+
+def build_unclassified_text_fixture_repo(root):
+    """A marker in plain text nobody classifies — neither refusal nor return.
+
+    The section must not pass it: an unclassifiable marker is a finding until a
+    human proves what it is (refusal) or allowlists it with a reason.
+    """
+    build_fixture_repo(root, with_writer=True)
+    write(
+        os.path.join(root, "internal", "store", "codes.go"),
+        """
+        package store
+
+        const envelopeCode = "not_implemented"
+        """,
+    )
+
+
 def build_stub_fixture_repo(root):
     """A healthy table pair plus an unrelated dispatch-path STUB finding."""
     build_fixture_repo(root, with_writer=True)
@@ -99,6 +174,60 @@ def build_stub_fixture_repo(root):
         }
         """,
     )
+
+
+class WirecheckStubSectionTest(unittest.TestCase):
+    """WIRE-CONSENSUS-2: the law is 'never a success for work not done'.
+
+    The STUB section must pass a marker that hands the caller an error status
+    (a refusal) and fail one that can reach a caller as a return, while the
+    allowlist stays narrow enough that the same string in another file still
+    fails.
+    """
+
+    def test_refusal_and_allowlisted_marker_pass(self):
+        with tempfile.TemporaryDirectory() as root:
+            build_refusal_fixture_repo(root)
+            code, out = run_wirecheck(root, "--only=stub")
+            self.assertEqual(code, 0, out)
+            self.assertIn("refusals: 2", out)
+            self.assertIn("allowlisted: 1", out)
+            self.assertIn(os.path.join("internal", "web", "server.go"), out)
+            self.assertIn("RESULT: PASS", out)
+
+    def test_returned_marker_fails(self):
+        with tempfile.TemporaryDirectory() as root:
+            build_stub_fixture_repo(root)
+            code, out = run_wirecheck(root, "--only=stub")
+            self.assertEqual(code, 1, out)
+            self.assertIn("!! placeholderDispatch", out)
+            self.assertIn("RESULT: FAIL", out)
+
+    def test_unclassified_marker_text_fails(self):
+        with tempfile.TemporaryDirectory() as root:
+            build_unclassified_text_fixture_repo(root)
+            code, out = run_wirecheck(root, "--only=stub")
+            self.assertEqual(code, 1, out)
+            self.assertIn('"not_implemented"', out)
+            self.assertIn("RESULT: FAIL", out)
+
+    def test_allowlist_is_scoped_to_the_named_file(self):
+        # The exact allowlisted string, one file over: still a finding. This is
+        # what stops the allowlist from decaying into a blanket word-ban.
+        with tempfile.TemporaryDirectory() as root:
+            build_allowlist_scope_fixture_repo(root)
+            code, out = run_wirecheck(root, "--only=stub")
+            self.assertEqual(code, 1, out)
+            self.assertIn(os.path.join("internal", "web", "other.go"), out)
+            self.assertIn("RESULT: FAIL", out)
+
+    def test_this_tree_has_no_returned_stub_marker(self):
+        # Regression guard on the real repository: every surviving marker is a
+        # refusal or a justified allowlist entry. A new handler that returns a
+        # marker string puts its file and line in this failure message.
+        code, out = run_wirecheck(REPO_ROOT, "--only=stub")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("!!", out)
 
 
 class WirecheckTablePairTest(unittest.TestCase):

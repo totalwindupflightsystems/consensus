@@ -410,12 +410,17 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	}
 	servedPaths := specPaths(t, doc)
 
-	// Snapshot: 72 paths total = 34 native + 0 doc-serving + 38 non-native.
+	// Snapshot: 75 paths total = 34 native + 0 doc-serving + 41 non-native.
 	// DF-CONSENSUS-49 added the three tool-call visibility paths; the non-native
 	// set remains 36 MCP/shim + /webhooks/{source} + /vcs/diff. DF-CONSENSUS-67
 	// added the project, routing-rule, and memory-page registration paths.
-	if got := len(servedPaths); got != 72 {
-		t.Fatalf("served spec has %d paths, want 72 (34 native + 0 doc + 38 MCP/shim+webhooks)", got)
+	// 2026-11-20 (WIRE-CONSENSUS-2): +3 non-native paths — /pty and /api/pty
+	// (the declared 501 narrowings pty.create / v2.pty.create, previously
+	// served without any contract entry) and /api/session (the bare v2
+	// surface: implemented list + implemented create) → 75 total = 34 native
+	// + 41 non-native.
+	if got := len(servedPaths); got != 75 {
+		t.Fatalf("served spec has %d paths, want 75 (34 native + 0 doc + 41 MCP/shim+webhooks)", got)
 	}
 	native, shim := 0, 0
 	for p := range servedPaths {
@@ -429,8 +434,8 @@ func TestOpenAPIRoutesReconciledWithServedSpec(t *testing.T) {
 	if native != 34 {
 		t.Errorf("native (/api/v1/*) path count = %d, want 34 (31-path baseline + three DF-CONSENSUS-67 registration paths)", native)
 	}
-	if shim != 38 {
-		t.Errorf("MCP/shim path count = %d, want 38 (36 baseline + /webhooks/{source} 2026-09-26 + /vcs/diff DF-CONSENSUS-38)", shim)
+	if shim != 41 {
+		t.Errorf("MCP/shim path count = %d, want 41 (36 baseline + /webhooks/{source} 2026-09-26 + /vcs/diff DF-CONSENSUS-38 + /pty, /api/pty, /api/session WIRE-CONSENSUS-2)", shim)
 	}
 
 	// Every chi route pattern (native + 4 doc routes) must exist in the

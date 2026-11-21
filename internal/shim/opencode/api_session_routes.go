@@ -102,19 +102,17 @@ import (
 // file doc comment for the arm-by-arm contract and for why the declared 200
 // carries an empty data array.
 //
-// POST is the declared sibling operation v2.session.create (ROUTE-ADD-038): it
-// reaches this handler because the exact path is registered, and answers the
-// typed not_implemented envelope naming that operation rather than a lying
-// success (SHIM-GAP-002). Every method the document does not declare on this
-// path keeps the METHOD_NOT_ALLOWED envelope.
+// POST is the declared sibling operation v2.session.create (ROUTE-ADD-038),
+// which the mux entry for the exact /api/session path dispatches to
+// handleApiSessionCreate (server.go) BEFORE this handler runs — that route
+// serves the create contract for real. This handler therefore never sees a
+// POST: the typed not_implemented arm it used to carry was unreachable dead
+// code, and WIRE-CONSENSUS-2 removed it rather than leave a 501 stub in the
+// tree that no request can reach (the law: never answer — or pretend to be
+// able to answer — a success for work that did not happen). Every method the
+// document does not declare on this path keeps the METHOD_NOT_ALLOWED
+// envelope answered by apiV2RequireGet below.
 func (s *Server) handleApiSessionList(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		writeNotImplemented(w, r, "v2.session.create",
-			"the Consensus shim serves no session-create contract: it does not "+
-				"own the opencode session lifecycle (v2.session.create is its own "+
-				"board row)")
-		return
-	}
 	if !apiV2RequireGet(w, r) {
 		return
 	}

@@ -248,6 +248,15 @@ paths:
     $ref: "./paths/shim.yaml#/instanceVCS"
   /instance/vcs/diff:
     $ref: "./paths/shim.yaml#/instanceVCSDiff"
+  # WIRE-CONSENSUS-2: the declared 501 narrowings (pty.create / v2.pty.create)
+  # and the bare v2 session surface must be describeable from the served
+  # document, not only from the handlers.
+  /pty:
+    $ref: "./paths/shim.yaml#/pty"
+  /api/pty:
+    $ref: "./paths/shim.yaml#/apiPty"
+  /api/session:
+    $ref: "./paths/shim.yaml#/apiSession"
 
 components:
   securitySchemes:

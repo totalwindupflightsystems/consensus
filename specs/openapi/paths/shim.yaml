@@ -200,6 +200,15 @@ sessionItem:
         $ref: "../components/responses.yaml#/Unauthorized"
       "500":
         $ref: "../components/responses.yaml#/InternalError"
+  # WIRE-CONSENSUS-2: the declared session operations are GET/PUT/DELETE on the
+  # item itself (and the sub-paths above have their own items). Any OTHER
+  # method or sub-path the shim mounts on this template answers the typed 501
+  # NOT_IMPLEMENTED envelope (session.prompt_async, session.revert,
+  # session.summarize, POST .../diff, PUT .../fork, ...) instead of a 200
+  # describing work it did not do. Declared on the PATH ITEM because those
+  # shapes are not upstream-declared operations and therefore have no
+  # operation to hang a 501 response on.
+  x-undeclared-methods: 501 NOT_IMPLEMENTED (SPEC-017 §3.9; measured at HEAD, WIRE-CONSENSUS-2)
 
 sessionAbort:
   post:
@@ -677,6 +686,12 @@ findSymbol:
         $ref: "../components/responses.yaml#/BadRequest"
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
+  # WIRE-CONSENSUS-2: GET is the only declared method. Any other method the
+  # shim mounts here (POST /find/symbol -> find.symbols) answers the typed 501
+  # NOT_IMPLEMENTED envelope pointing at the GET form, never a 200. That shape
+  # is not an upstream-declared operation, so the refusal is recorded on the
+  # path item.
+  x-undeclared-methods: 501 NOT_IMPLEMENTED for non-GET (measured at HEAD, WIRE-CONSENSUS-2)
 
 fileContent:
   get:
@@ -832,18 +847,22 @@ permissionResolve:
 
 # ── TUI / LSP / MCP ──
 tuiAction:
-  # MUSTER-INT-001 (live-probed against a scratch instance 2026-10-09):
-  # GET /tui/{action} answers 404 NOT_FOUND for unknown actions and 405
-  # METHOD_NOT_ALLOWED for POST-only actions named without a body (clear-prompt,
-  # show-toast, append-prompt — each serves its own POST contract); it never
-  # answers 501. POST /tui/{action} is REAL for the actions the shim serves:
+  # MUSTER-INT-001 (live-probed against a scratch instance 2026-10-09) and
+  # re-probed at HEAD for WIRE-CONSENSUS-2: GET /tui/{action} answers 404
+  # NOT_FOUND for unknown actions, 405 METHOD_NOT_ALLOWED for POST-only actions
+  # named without a body (clear-prompt, show-toast, append-prompt — each serves
+  # its own POST contract), and 501 NOT_IMPLEMENTED for the actions this shim
+  # does not implement at all — submit-prompt on every method (GET and POST
+  # both answer 501; the corpus probe that pinned this row measured GET
+  # /tui/submit-prompt -> 501 with the typed message "TUI control
+  # \"submit-prompt\" is not implemented in this shim"), and execute-command
+  # on POST. POST /tui/{action} is REAL for the actions the shim serves:
   # clear-prompt, append-prompt, control/response, open-help, open-models,
   # open-sessions, open-themes, publish, show-toast all validate their body and
   # answer the declared boolean 200 (the shim has no TUI process, so the
-  # truthful boolean is false); submit-prompt and execute-command keep the
-  # 501 NOT_IMPLEMENTED answer (shim-only, use opencode's built-in TUI). The
-  # declared 400 arm carries the opencode NamedError BadRequest envelope
-  # (writeOpencodeBadRequest: {name: BadRequest, data: {kind, message}}).
+  # truthful boolean is false). The declared 400 arm carries the opencode
+  # NamedError BadRequest envelope (writeOpencodeBadRequest: {name:
+  # BadRequest, data: {kind, message}}).
   get:
     tags: [Opencode Shim]
     summary: TUI action status
@@ -851,7 +870,9 @@ tuiAction:
     description: |
       TUI action lookup. POST-only actions named without a body answer 405
       METHOD_NOT_ALLOWED naming the POST contract; unknown actions answer
-      404 NOT_FOUND ("unknown TUI action").
+      404 NOT_FOUND ("unknown TUI action"); an action this shim does not
+      implement (submit-prompt) answers 501 NOT_IMPLEMENTED — never a 200
+      describing work that did not happen.
     parameters:
       - name: action
         in: path
@@ -867,6 +888,8 @@ tuiAction:
         $ref: "../components/responses.yaml#/MethodNotAllowed"
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
   post:
     tags: [Opencode Shim]
     summary: Execute a TUI action
@@ -971,6 +994,12 @@ mcp:
           text/event-stream:
             schema:
               type: string
+      # Bare deployments without the API-level MCP mount answer 501
+      # NOT_IMPLEMENTED with the shim stub's NOT_IMPLEMENTED error envelope —
+      # the same arm the POST operation declares below. Mount consensus serve
+      # to reach the real surface.
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
   post:
     tags: [MCP]
     summary: MCP streamable-HTTP JSON-RPC endpoint
@@ -1389,6 +1418,13 @@ instance:
               type: array
               items:
                 $ref: "../components/schemas.yaml#/InstanceInfo"
+  # WIRE-CONSENSUS-2: the declared /instance operations are GET on this item and
+  # on /instance/path, /instance/vcs, /instance/vcs/diff. Every other sub-path
+  # the shim mounts under /instance answers the typed 501 NOT_IMPLEMENTED
+  # envelope (measured at HEAD: GET /instance/command, GET /instance/vcs/status,
+  # ...) and unknown sub-paths answer 404 — never a 200 describing work it did
+  # not do.
+  x-undeclared-methods: 501 NOT_IMPLEMENTED for undeclared sub-paths (SPEC-017 §3.10; measured at HEAD, WIRE-CONSENSUS-2)
 
 instancePath:
   get:
@@ -1441,6 +1477,179 @@ instanceVCSDiff:
               type: array
               items:
                 $ref: "../components/schemas.yaml#/VcsFileDiff"
+
+# ── PTY + v2 PTY/session (WIRE-CONSENSUS-2: the 501s are declared here) ──
+pty:
+  # ROUTE-ADD-102 / ROUTE-ADD-103: bare /pty serves the declared pty.list (GET)
+  # and the intentionally narrowed pty.create (POST). GET is served truthfully
+  # (an empty array: this runtime keeps no pty registry, so there is nothing to
+  # fabricate). POST is pty.create: spawning pseudo-terminals is
+  # opencode-specific, so it answers 501 NOT_IMPLEMENTED with the typed
+  # {error, operation, detail} envelope naming pty.create. WIRE-CONSENSUS-2
+  # declared that 501 here so a spec-driven client can see, before it calls,
+  # that the operation cannot succeed — the served contract and the served
+  # behaviour now agree. The sibling /pty/{ptyID} family (pty.get, pty.update,
+  # pty.remove, pty.connect, pty.connectToken) is served on its own paths and
+  # is not covered by this path item.
+  get:
+    tags: [Opencode Shim]
+    summary: List PTY sessions
+    operationId: shimPtyList
+    description: |
+      Declared pty.list. This runtime keeps no pseudo-terminal registry, so
+      the truthful answer is the empty array — never null, never a fabricated
+      Pty entry. A real PTY surface is opencode's own TUI/server, not the
+      Consensus shim.
+    responses:
+      "200":
+        description: Empty array — this runtime keeps no pty registry.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+  post:
+    tags: [Opencode Shim]
+    summary: Create PTY (intentionally not implemented)
+    operationId: shimPtyCreate
+    description: |
+      Declared pty.create. Intentionally not implemented: spawning
+      pseudo-terminals is opencode-specific and this runtime keeps no pty
+      registry, so no 200 Pty object could be true. The answer is 501
+      NOT_IMPLEMENTED with the typed envelope naming pty.create — a caller
+      never receives a success status for a terminal that was not created.
+    responses:
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      # The typed {error: not_implemented, operation: pty.create, detail: ...}
+      # envelope writeNotImplemented emits.
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+apiPty:
+  # v2 sibling of /pty: GET /api/pty is the declared v2.pty.list (served: the
+  # data envelope around the truthful empty list), POST /api/pty is the
+  # declared v2.pty.create — the same intentional narrowing, answered 501
+  # NOT_IMPLEMENTED naming v2.pty.create. The sibling /api/pty/{ptyID} family
+  # (v2.pty.get/update/remove/connect/connectToken) is implemented on its own
+  # paths; this path item covers the bare path only.
+  get:
+    tags: [Opencode Shim]
+    summary: List PTY sessions (v2)
+    operationId: shimApiPtyList
+    description: |
+      Declared v2.pty.list. Served as the v2 data envelope around the empty
+      list: this runtime keeps no pseudo-terminal registry.
+    responses:
+      "200":
+        description: Data envelope carrying the empty pty list and the location block.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/OpencodeBadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+  post:
+    tags: [Opencode Shim]
+    summary: Create PTY (v2, intentionally not implemented)
+    operationId: shimApiPtyCreate
+    description: |
+      Declared v2.pty.create. Intentionally not implemented (same reason as
+      POST /pty): the answer is 501 NOT_IMPLEMENTED with the typed envelope
+      naming v2.pty.create, never a 200 describing a terminal that was not
+      created.
+    responses:
+      "400":
+        $ref: "../components/responses.yaml#/OpencodeBadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      # The typed {error: not_implemented, operation: v2.pty.create, detail: ...}
+      # envelope writeNotImplemented emits.
+      "501":
+        $ref: "../components/responses.yaml#/NotImplemented"
+
+apiSession:
+  # ROUTE-ADD-037 / ROUTE-ADD-038: bare /api/session serves the declared
+  # v2.session.list (GET) and v2.session.create (POST). Both are IMPLEMENTED
+  # — GET lists the runtime's sessions through the v2 data envelope, POST
+  # creates a session through the runtime service and answers the created
+  # identifier. WIRE-CONSENSUS-2 removed the unreachable 501 arm that used to
+  # sit behind handleApiSessionList (the mux dispatches POST to
+  # handleApiSessionCreate first) and declared the create contract here, so
+  # the served document and the served behaviour agree in both directions.
+  get:
+    tags: [Opencode Shim]
+    summary: List sessions (v2)
+    operationId: shimApiSessionList
+    description: |
+      Declared v2.session.list: the v2 data envelope carrying the runtime's
+      session list (empty array when the store holds none), or the declared
+      InvalidRequestError 400 when the store cannot be read.
+    responses:
+      "200":
+        description: Data envelope carrying the session list (possibly empty).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/OpencodeBadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+  post:
+    tags: [Opencode Shim]
+    summary: Create a session (v2)
+    operationId: shimApiSessionCreate
+    description: |
+      Declared v2.session.create: creates a session through the runtime
+      service and answers {data: {id, agent_name, goal, status}} carrying the
+      identifier the service returned. agent_name and goal are required; a
+      blank or missing field answers the declared InvalidRequestError 400.
+      A deployment without the runtime service cannot create a session and
+      answers 400 naming that, never a fabricated id.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+            required: [agent_name, goal]
+            properties:
+              agent_name:
+                type: string
+                description: Agent to bind the session to.
+              goal:
+                type: string
+                description: The session goal.
+              model_id:
+                type: string
+                description: Optional model identifier for the session.
+          examples:
+            create:
+              value:
+                agent_name: "build"
+                goal: "add a health probe"
+    responses:
+      "200":
+        description: Data envelope carrying the created session identifier and creation fields.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        $ref: "../components/responses.yaml#/OpencodeBadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
 
 # ── Shared parameters (shim-local) ──
 parameters:

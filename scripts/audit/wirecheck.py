@@ -31,6 +31,95 @@ RE_CREATE = re.compile(r"(?i)\bCREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+([a-z_]
 RE_STUB   = re.compile(r'(?i)"[^"\n]*\b(stub|not[_ ]implemented|unimplemented|placeholder)\b[^"\n]*"')
 RE_FUNC   = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Za-z0-9_]+)\s*\(")
 
+# ── STUB classification (WIRE-CONSENSUS-2) ──────────────────────────────────
+# RE_STUB only proves a quoted marker exists. The law this section enforces is
+# narrower: a caller must never receive a SUCCESS status for work that did not
+# happen. A marker therefore has exactly two legal shapes, and one illegal one:
+#
+#   refusal   — the marker is handed to an explicit failure writer, so the
+#               caller receives an error status (501 for a declared narrowing,
+#               a documented 4xx for a rejected input) instead of a success
+#               payload describing work that never happened. The 501 narrowings
+#               are declared in the served OpenAPI document (paths/shim.yaml),
+#               so the contract and the wire agree.
+#   allowlist — the marker provably is not a dispatch return at all. Every
+#               entry is an exact (file, marker-prefix) pair carrying a reason
+#               and the board row that justified it, so the list can never
+#               silently rot into a blanket exemption.
+#   returned  — anything else: a marker returned as a handler's outcome, or
+#               text nobody can classify. THIS is the defect.
+#
+# Adding an allowlist entry to silence a real returned stub is exactly the
+# failure this section exists to catch.
+RE_FAILURE_WRITER = re.compile(
+    r"writeNotImplemented\("
+    r"|StatusNotImplemented"
+    r"|writeOpencodeNamedError\("
+    r"|writeOpencodeBadRequest\("
+    r"|writeOpencodeError\("
+    r"|writeV2InvalidRequest\("
+    r"|writeJSONStatus\("
+    r"|http\.Error\("
+)
+# A refusal writer call can wrap the marker several lines below it (the call's
+# argument list spans lines); look back generously and forward a little.
+STUB_WINDOW_BEFORE = 6
+STUB_WINDOW_AFTER = 3
+
+# Narrow, reviewer-visible exemptions. `marker_prefix` must be a PREFIX of the
+# exact quoted text RE_STUB matched in that file — not a regex, not a substring
+# elsewhere — so an exemption cannot drift onto a different string.
+STUB_ALLOWLIST = (
+    {
+        "file": "internal/llm/shim_matrix.go",
+        "marker_prefix": '"SHIM-SUPPORT-004',
+        "reason": "evidence note quoting a board/test id, not a dispatch return",
+        "row": "WIRE-CONSENSUS-2",
+    },
+    {
+        "file": "internal/web/server.go",
+        "marker_prefix": '" placeholder="',
+        "reason": "HTML <input placeholder=...> attribute in the served UI, not a stub return",
+        "row": "WIRE-CONSENSUS-2",
+    },
+)
+
+
+def stub_allowlist_entry(rel_path, text):
+    """Return the STUB_ALLOWLIST entry covering this exact marker, or None.
+
+    Matching is (file, exact string prefix): an entry for one file never
+    excuses the same text in another file, and a prefix that is not at the
+    very start of the matched literal never matches.
+    """
+    for entry in STUB_ALLOWLIST:
+        if entry["file"] == rel_path and text.startswith(entry["marker_prefix"]):
+            return entry
+    return None
+
+
+# Functions whose whole job is to answer a failure status. A marker INSIDE one
+# of these is a refusal by construction — including the envelope constants and
+# the log line that name the refusal shape (writeNotImplemented's own body:
+# w.WriteHeader(http.StatusNotImplemented) then the typed body then a WARN).
+# Kept as an explicit set so the exemption is auditable, not inferred from a
+# naming convention that a future helper could accidentally match.
+REFUSAL_WRITER_FUNCS = frozenset({
+    "writeNotImplemented",
+    "writeOpencodeError",
+    "writeOpencodeNamedError",
+    "writeOpencodeBadRequest",
+    "writeV2InvalidRequest",
+    "writeJSONStatus",
+})
+
+
+def stub_is_refusal(func_name, window):
+    """A marker is a refusal when the caller receives an error status."""
+    if func_name in REFUSAL_WRITER_FUNCS:
+        return True
+    return bool(RE_FAILURE_WRITER.search(window))
+
 SKIP_DIRS = {"wt", ".git", "vendor", "node_modules", ".vfs", "dist", "build"}
 
 # Every section the script can run. --only picks a subset; the exit code is
@@ -122,26 +211,55 @@ def check_table_pair(root, prod, schema, report):
 
 def check_stubs(root, prod, report):
     print("== 2 STUB — dispatch paths returning a marker ==")
-    hits = []
+    violations, safe = [], []
     for f in prod:
         try:
             lines = open(f, encoding="utf-8", errors="ignore").read().splitlines()
         except OSError:
             continue
+        rel = os.path.relpath(f, root)
         for i, ln in enumerate(lines):
             m = RE_STUB.search(ln)
             if not m:
                 continue
+            text = m.group(0)
             fn = "?"
             for j in range(i, -1, -1):
                 fm = RE_FUNC.match(lines[j])
                 if fm:
                     fn = fm.group(1)
                     break
-            hits.append({"func": fn, "file": os.path.relpath(f), "line": i + 1, "marker": m.group(0)[:60]})
-    report["stubs"] = hits
-    if hits:
-        for h in hits:
+            hit = {"func": fn, "file": rel, "line": i + 1, "marker": text[:60]}
+            allowed = stub_allowlist_entry(rel, text)
+            if allowed is not None:
+                hit["kind"] = "allowlisted"
+                hit["reason"] = allowed["reason"]
+                hit["row"] = allowed["row"]
+                safe.append(hit)
+                continue
+            window = "\n".join(lines[max(0, i - STUB_WINDOW_BEFORE):i + STUB_WINDOW_AFTER])
+            if stub_is_refusal(fn, window):
+                # The marker is handed to an explicit failure writer: the
+                # caller receives an error status (501 / documented 4xx), never
+                # a success payload describing work that did not happen.
+                hit["kind"] = "refusal"
+                safe.append(hit)
+                continue
+            hit["kind"] = "returned"
+            violations.append(hit)
+
+    # report["stubs"] is the DEFECT list — main() fails the run on it and
+    # --json consumers have always read that key as "markers to fix".
+    report["stubs"] = violations
+    report["stub_safe"] = safe
+    refusals = [h for h in safe if h["kind"] == "refusal"]
+    allowed = [h for h in safe if h["kind"] == "allowlisted"]
+    print(f"   refusals: {len(refusals)} marker(s) hand the caller a declared failure status")
+    print(f"   allowlisted: {len(allowed)} marker(s) are provably not dispatch returns")
+    for h in allowed:
+        print(f"      ok {h['file']}:{h['line']} — {h['reason']} ({h['row']})")
+    if violations:
+        for h in violations:
             print(f"   !! {h['func']:<42} {h['file']}:{h['line']}")
             print(f"        returns {h['marker']}")
     else:
