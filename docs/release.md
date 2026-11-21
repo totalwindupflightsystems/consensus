@@ -84,6 +84,44 @@ A green `Release / GoReleaser Release` run on the tagged SHA is the expected
 outcome (the tag-validation step refuses any `GITHUB_REF_NAME` that does not
 start with `v[0-9]`).
 
+## Pre-commit guard: install once per clone, never relative
+
+The repo-owned guard is `.gitreins/pre-commit`; it is installed into the
+repository's **common** hooks directory (`.git/hooks`, shared by the primary
+checkout and every linked worktree):
+
+```bash
+scripts/install-hooks.sh          # idempotent; a second run writes nothing
+git rev-parse --git-path hooks    # must be absolute inside a linked worktree
+```
+
+**Never set a relative `core.hooksPath`** (`git config core.hooksPath .git/hooks`).
+In a linked worktree `.git` is a *file* (a gitdir pointer), so `.git/hooks`
+resolves to a path that does not exist, git finds no hook, and the guard is
+silently disarmed — exactly where fleet workers commit. With `core.hooksPath`
+unset, `git rev-parse --git-path hooks` resolves to the common hooks dir
+(absolute in a worktree) and one install covers every worktree of the repo.
+The installer unsets a relative value, refuses to continue if it survives, and
+refuses an absolute value that shadows the common hooks dir.
+
+Hook paths are derived at runtime, never pinned to a checkout:
+
+| what | how |
+|---|---|
+| repo root | `git rev-parse --show-toplevel` (the worktree doing the commit) |
+| hooks dir | `git rev-parse --git-path hooks` |
+| board root | `<repo root>/.coding-hermes/board` |
+
+Stages: board-lint (warn-only; a slow/missing/wedged `boardctl` **SKIPs**, it
+never blocks a commit) → secrets scan (**blocking**) → `go vet` / `go test
+-short` (warn-only) → Tier 2 evaluator, opt-in via `GITREINS_EVAL=1`, which
+prints `SKIP (missing <path>)` when its engine package or runner is absent
+rather than passing silently.
+
+`boardctl install` rewrites the board-lint block with an install-time absolute
+`board_root`; re-run `scripts/install-hooks.sh` afterwards to restore the
+derived form.
+
 ## Three-layer verification
 
 All three must hold before announcing the release:
