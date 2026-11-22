@@ -862,6 +862,17 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 						// that one).
 						h.publishStatus(sessionID, result.NextStatus, result.AuditEntry.Iteration)
 					}
+					// DF-CONSENSUS-084: a message POSTed while this turn was in
+					// flight was stored with no wake and no status change (the
+					// API deliberately leaves a busy session alone), so once
+					// the turn settles idle nothing would ever dispatch the
+					// session again — the message waited silently. The turn
+					// that just settled consumed its own context snapshot;
+					// anything still unconsumed arrived mid-run and gets its
+					// own billed follow-up turn.
+					if result.NextStatus == string(session.StatusIdle) {
+						h.requeueArrivedUserMessages(ctx, sessionID)
+					}
 					// DF-CONSENSUS-072: memory_events.type='text_block' is the
 					// USER-FACING assistant channel — GET /api/v1/sessions/{id}
 					// serves its newest row as last_message, and handleRespond is
@@ -907,6 +918,56 @@ func (h *Harness) pollAndDispatch(ctx context.Context) {
 		slog.Info("harness: dispatched task", "session_id", task.SessionID, "task_id", task.ID)
 		go func() { _, _ = h.RunAgentIteration(ctx, task.SessionID) }()
 	}
+}
+
+// requeueArrivedUserMessages flips an idle session back to 'thinking' when a
+// user message with no consumption record exists (DF-CONSENSUS-084).
+//
+// POST /message stores the ledger row for a BUSY session (thinking / planning /
+// tool_exec) without waking it or touching its status: the in-flight turn's
+// context snapshot predates the insert, so the message is invisible to that
+// turn, and once the turn settles idle nothing re-arms the session — the
+// message waits with no call and no answer. markUserMessagesRead stamps every
+// message a planning run saw into display_modes, so a user_message row without
+// any display_modes row is exactly a mid-run arrival. The status='idle' guard
+// keeps the flip away from sessions another path already owns (the same
+// read-back convention the claim reaper uses), and RequestWake arms the
+// follow-up turn immediately instead of waiting out the tick.
+func (h *Harness) requeueArrivedUserMessages(ctx context.Context, sessionID string) bool {
+	rows, err := h.db.Query(ctx, `
+		SELECT me.id FROM memory_events me
+		WHERE me.session_id = $1
+		  AND me.type = 'user_message'
+		  AND NOT EXISTS (SELECT 1 FROM display_modes dm WHERE dm.memory_id = me.id)
+		LIMIT 1
+	`, sessionID)
+	if err != nil {
+		slog.Error("harness: arrived-message requeue check failed",
+			"session_id", sessionID, "error", err)
+		return false
+	}
+	if len(rows) == 0 {
+		return false // every message was seen (and consumed) by the settling run
+	}
+	applied, err := h.db.Query(ctx, `
+		UPDATE sessions SET status = 'thinking', heartbeat_at = CURRENT_TIMESTAMP
+		WHERE id = $1 AND status = 'idle'
+		RETURNING id
+	`, sessionID)
+	if err != nil {
+		slog.Error("harness: failed to requeue session for an arrived message",
+			"session_id", sessionID, "error", err)
+		return false
+	}
+	if len(applied) == 0 {
+		// Another writer moved the session off idle between the check and the
+		// flip; its owner decides the next step.
+		return false
+	}
+	slog.Info("harness: message arrived while the turn was in flight — session requeued for a follow-up turn",
+		"session_id", sessionID)
+	h.RequestWake(sessionID)
+	return true
 }
 
 // claimVisibilityTimeout resolves the effective claim-lease visibility

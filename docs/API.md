@@ -218,7 +218,18 @@ curl -X POST http://localhost:8090/api/v1/sessions/<session-uuid>/message \
   -d '{"role":"user","content":"Summarize the ledger."}'
 ```
 
-Queues the user turn and returns `200` with `{"status":"message_received",...}`.
+Queues the user turn and returns `200` with
+`{"status":"message_received","session":"...","queued":false}` (the `queued`
+field appears when no `Idempotency-Key` was supplied; keyed responses keep the
+`message_id`-bearing shape so a replay stays byte-identical to the original
+delivery). `queued` says whether the message will be answered by a LATER turn:
+`false` when the send woke the session (idle / booting / failed), `true` when a
+turn was already in flight (`thinking` / `planning` / `tool_exec`) or the
+session is paused — a turn in flight cannot see the new message (its context
+snapshot predates the insert), so the harness requeues the session for a
+follow-up turn as soon as the in-flight one settles (DF-CONSENSUS-084): the
+message is answered by a billed provider call whose reply is persisted, never
+dropped.
 Processing is asynchronous. Poll `GET /api/v1/sessions/{id}` until the session
 returns to `idle`; the durable assistant reply is then available in
 `last_message`, and token totals are exposed as `tokens_used_in` and

@@ -3293,6 +3293,16 @@ components:
           description: |
             ID of the created memory event. Present when Idempotency-Key was
             supplied; retries return the original value.
+        queued:
+          type: boolean
+          description: |
+            Present on the plain path (no Idempotency-Key). True when the message
+            will be answered by a LATER turn: a turn was already in flight
+            (thinking / planning / tool_exec) or the session is paused. The harness
+            requeues the session for a follow-up turn once the in-flight one settles
+            (DF-CONSENSUS-084), so a mid-turn message is answered by a billed
+            provider call, never dropped. Idempotent-keyed responses omit the field
+            so a replay stays byte-identical to the original delivery.
     MemoryEvent:
       type: object
       required:

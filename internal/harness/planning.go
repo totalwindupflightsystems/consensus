@@ -502,7 +502,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 				return h.handlePlanningError(ctx, tx, sessionID, fmt.Errorf("commit: memory state changes: %w", err))
 			}
 
-			return h.handleCommitV2(ctx, tx, sessionID, turn, memoryStateChanges)
+			return h.handleCommitV2(ctx, tx, sessionID, turn, ic.Iteration, memoryStateChanges, plan.MessageToUser)
 
 		case ActionRollback:
 			rollbackCount++
@@ -544,7 +544,10 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		if err := h.applyMemoryStateChanges(ctx, tx, sessionID, ic.TrustLevel, memoryStateChanges); err != nil {
 			return h.handlePlanningError(ctx, tx, sessionID, err)
 		}
-		return h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, memoryStateChanges)
+		// No reply here by construction: a turn with a non-empty
+		// message_to_user is promoted to respond (DF-CONSENSUS-072) and would
+		// have returned before the loop exhausted.
+		return h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, ic.Iteration, memoryStateChanges, "")
 	}
 
 	slog.Warn("planning: max turns reached with no productive work")
@@ -568,7 +571,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		if err := h.applyMemoryStateChanges(ctx, tx, sessionID, ic.TrustLevel, memoryStateChanges); err != nil {
 			return h.handlePlanningError(ctx, tx, sessionID, err)
 		}
-		result, err := h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, memoryStateChanges)
+		result, err := h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, ic.Iteration, memoryStateChanges, "")
 		if err != nil {
 			return result, err
 		}
@@ -768,8 +771,25 @@ func (h *Harness) applyMemoryStateChanges(ctx context.Context, tx db.Tx, session
 // Action Handlers (with tx parameter)
 // ============================================================================
 
-func (h *Harness) handleCommitV2(ctx context.Context, tx db.Tx, sessionID string, turn int, memoryStateChanges []string) (*IterationResult, error) {
+func (h *Harness) handleCommitV2(ctx context.Context, tx db.Tx, sessionID string, turn int, iteration int64, memoryStateChanges []string, replyToUser string) (*IterationResult, error) {
 	slog.Info("planning: committing", "turn", turn)
+
+	// DF-CONSENSUS-084: a turn that finalizes the iteration AND answers the
+	// user used to drop message_to_user here — handleRespond was the only
+	// writer of the durable text_block, so a continuation turn ending with
+	// {"system_actions":["commit"],"message_to_user":"..."} was billed by the
+	// deferred usage flush, consumed its input messages, and left NO reply:
+	// no memory_events text_block, sessions.last_message stayed null. The
+	// reply persists inside the same transaction as the commit, so an
+	// iteration can never settle with a paid answer missing.
+	if strings.TrimSpace(replyToUser) != "" {
+		if err := tx.Exec(ctx, `
+			INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+			VALUES ('text_block', $1, $2, $3, CURRENT_TIMESTAMP)
+		`, replyToUser, sessionID, iteration); err != nil {
+			return nil, fmt.Errorf("commit: persist assistant reply: %w", err)
+		}
+	}
 
 	// Mark all staging entries as committed
 	if err := tx.Exec(ctx, `
@@ -1038,6 +1058,25 @@ func (h *Harness) handleRollbackAndEnd(ctx context.Context, tx db.Tx, sessionID 
 	`, sessionID)
 
 	_ = tx.Rollback()
+
+	// DF-CONSENSUS-084: the same drop as the commit path — messageToUser was
+	// accepted as a parameter and never written, so a billed turn that gave
+	// up with a goodbye left no durable reply. The iteration transaction is
+	// gone (rolled back above), so the reply persists through the pool, keyed
+	// to the session's current iteration. Best-effort, like every other
+	// post-rollback write.
+	if strings.TrimSpace(messageToUser) != "" {
+		iteration := int64(0)
+		if row, qErr := h.db.QueryRow(ctx, `SELECT iteration FROM sessions WHERE id = $1`, sessionID); qErr == nil && row != nil {
+			iteration = toInt64(row["iteration"])
+		}
+		if insErr := h.db.Exec(ctx, `
+			INSERT INTO memory_events (type, content, session_id, iteration_created, created_at)
+			VALUES ('text_block', $1, $2, $3, CURRENT_TIMESTAMP)
+		`, messageToUser, sessionID, iteration); insErr != nil {
+			slog.Error("planning: failed to persist rollback+end reply", "session_id", sessionID, "error", insErr)
+		}
+	}
 
 	return &IterationResult{
 		Status:     "success",

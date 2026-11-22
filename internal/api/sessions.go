@@ -416,6 +416,7 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 		writeJSON(w, map[string]any{
 			"status":  "message_received",
 			"session": id,
+			"queued":  map[string]bool{"thinking": true, "planning": true, "tool_exec": true, "paused": true}[currentStatus],
 		})
 		return
 	}
@@ -432,6 +433,12 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 	// Idle and booting sessions wake normally. A new message also explicitly
 	// recovers a failed session: clear its terminal timestamp and send it through
 	// the same thinking -> planning claim as any other conversational turn.
+	// DF-CONSENSUS-084: busy statuses (thinking / planning / tool_exec) queue
+	// the row silently — the in-flight turn's context snapshot predates this
+	// insert — and the harness requeues the session for a follow-up turn once
+	// the in-flight one settles. `queued` makes that surface explicit instead
+	// of implying the message is being answered right now.
+	queued := false
 	switch currentStatus {
 	case "idle", "booting", "failed":
 		if err := s.db.Exec(ctx,
@@ -451,11 +458,15 @@ func (s *Server) handleSessionMessage(w http.ResponseWriter, r *http.Request, id
 		}
 	case "paused":
 		// Message queues for next iteration, leave paused
+		queued = true
+	default:
+		queued = true
 	}
 
 	writeJSON(w, map[string]any{
 		"status":  "message_received",
 		"session": id,
+		"queued":  queued,
 	})
 }
 
@@ -465,6 +476,13 @@ func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.R
 
 	// Fast replay path. The durable row is the source of truth, so this also
 	// serves retries after a process restart without touching the message ledger.
+	// The replay body is byte-identical to the original delivery (the parity
+	// contract, TestSendMessage_IdempotencyReplaySurvivesServerRestart): no
+	// queued field here, because the original post's queueing state is not
+	// stored and re-deriving it from the CURRENT status would flip when the
+	// wake itself moved the session (idle -> thinking). The explicit queued
+	// surface lives on the plain (no Idempotency-Key) path, which is the path
+	// a raced mid-turn message takes (DF-CONSENSUS-084).
 	if row, err := s.db.QueryRow(ctx,
 		`SELECT response_message_id FROM idempotency_keys WHERE session_id = $1 AND key = $2`, id, key); err == nil {
 		messageID := toInt64(row["response_message_id"])
@@ -614,6 +632,9 @@ func (s *Server) handleIdempotentSessionMessage(w http.ResponseWriter, r *http.R
 			s.wake(id)
 		}
 	}
+	// No queued field on the idempotent path: the replay body must stay
+	// byte-identical to the original delivery, and the original post's
+	// queueing state is not persisted (see the fast-replay note above).
 	writeJSON(w, map[string]any{
 		"status":     "message_received",
 		"session":    id,
