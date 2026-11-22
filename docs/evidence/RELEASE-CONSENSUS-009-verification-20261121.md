@@ -271,3 +271,29 @@ verified above (`sha256 9cbd2a39…` for `scripts/install-hooks.sh` in that comm
 on disk). The documentation and this evidence file land in the follow-up commit
 with the row's required message and `Co-authored-by` trailer; history was not
 rewritten (no force-push).
+
+## 9. Foreman merge re-verification — 2026-11-22T05:2xZ
+
+Rebased onto `main` @ `77ad4d32` (no conflicts; the three commits kept:
+`514e1915`, `a9f72aae`, `523372cc`). Every gate re-run on the rebased head
+`523372cc9f9e07c60fcab4b6cc7275ff4ff1ce58`:
+
+| gate | command | exit | output |
+|---|---|---|---|
+| build | `go build ./...` | 0 | clean |
+| vet | `go vet ./...` | 0 | clean |
+| tests | `go test ./... -count=1` | 0 | all packages ok (`internal/harness` 42.2s, `internal/shim/opencode` 11.9s) |
+| audit | `python3 scripts/audit/wirecheck.py .` | 0 | `RESULT: PASS` |
+| installer | `bash scripts/install-hooks.sh` | 0 | `✓ hook already current — no write`, src=dst `sha256 24c0f5f1…` |
+| hook run | `git hook run pre-commit` **inside the linked worktree** | 0 | `▸ GitReins pre-commit — repo: <worktree>` / `board-lint: ok (<worktree>/.coding-hermes/board)` |
+| no pinned path | `grep -c '/home/kara/consensus' .gitreins/pre-commit` | 0 | — |
+
+The hook-run line proves acceptance 1 and 2 in a single transcript: the hook was
+found through the common hooks dir from inside the linked worktree, and it derived
+its board root from that worktree rather than from a pinned checkout.
+
+Merge-ordering note (v0.1.0 cut, board commit `caa6837e`): `scripts/release.sh`
+checks that `VERSION` matches the newest CHANGELOG heading and that CI is green on
+HEAD. This merge leaves `VERSION` at `0.1.0` and the newest heading at `0.1.0`, so
+nothing needs re-promotion — only a fresh green CI run on the merge SHA, which the
+push triggers. No tag and no release were cut by this row, before or after.
