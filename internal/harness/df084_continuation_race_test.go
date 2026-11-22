@@ -86,7 +86,7 @@ func (l *df084LLM) Call(_ context.Context, messages []Message) (*LLMResponse, er
 	return &LLMResponse{
 		Output:  l.outputs[idx],
 		ModelID: "df084-model",
-		Usage:    LLMUsage{PromptTokens: 100, CompletionTokens: 50},
+		Usage:   LLMUsage{PromptTokens: 100, CompletionTokens: 50},
 	}, nil
 }
 
