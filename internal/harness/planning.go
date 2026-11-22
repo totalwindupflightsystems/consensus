@@ -258,6 +258,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	rollbackCount := 0
 	turnsWithWork := 0
 	memoryStateChanges := make([]string, 0)
+	lastMonologue := "" // BUG-014: kept for the max-turns auto-commit reply
 
 	// Read initial context
 	ic, err := h.ReadActiveContext(ctx, sessionID)
@@ -536,6 +537,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 
 		// Refresh context for next turn
 		ic, _ = h.ReadActiveContext(ctx, sessionID)
+		lastMonologue = plan.Monologue
 	}
 
 	// Max turns reached
@@ -544,10 +546,19 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 		if err := h.applyMemoryStateChanges(ctx, tx, sessionID, ic.TrustLevel, memoryStateChanges); err != nil {
 			return h.handlePlanningError(ctx, tx, sessionID, err)
 		}
-		// No reply here by construction: a turn with a non-empty
-		// message_to_user is promoted to respond (DF-CONSENSUS-072) and would
-		// have returned before the loop exhausted.
-		return h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, ic.Iteration, memoryStateChanges, "")
+		// BUG-014: persist a reply so synchronous waiters can return. A
+		// turn with a non-empty message_to_user is still promoted to
+		// respond (DF-CONSENSUS-072) and returned before the loop
+		// exhausted — this branch only handles turns whose message_to_user
+		// was empty, and it used to settle the iteration with NO response
+		// event, leaving a synchronous waiter no answer to pick up. The
+		// last monologue (fallback: deterministic summary) rides the
+		// existing handleCommitV2 reply-persistence path.
+		reply := strings.TrimSpace(lastMonologue)
+		if reply == "" {
+			reply = "max turns reached; committed staged changes"
+		}
+		return h.handleCommitV2(ctx, tx, sessionID, config.MaxTurns, ic.Iteration, memoryStateChanges, reply)
 	}
 
 	slog.Warn("planning: max turns reached with no productive work")

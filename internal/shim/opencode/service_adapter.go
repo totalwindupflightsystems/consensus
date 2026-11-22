@@ -82,11 +82,18 @@ func (a *ServiceAdapter) DeleteSession(ctx context.Context, id string) error {
 const messageResponsePollInterval = 100 * time.Millisecond
 
 func (a *ServiceAdapter) SendMessage(ctx context.Context, input MessageSendInput) (*MessageSendResult, error) {
-	_, iteration, err := a.svc.Sessions.GetSessionStatus(ctx, input.SessionID)
+	// BUG-014: capture the latest memory_events id present BEFORE the
+	// user_message row is written. Agents are keyed on this watermark, not
+	// on the session's iteration counter: the harness legitimately bumps
+	// the iteration between target capture and the response write (e.g. the
+	// initial-context write while the harness is still booting), so a
+	// turn the LLM did answer never matched a strict
+	// targetIteration == IterationCreated check and every synchronous
+	// POST timed out.
+	watermark, err := a.eventWatermark(ctx, input.SessionID)
 	if err != nil {
 		return nil, err
 	}
-	targetIteration := iteration + 1
 
 	if err := a.svc.Messages.SendMessage(ctx, api.SendMessageInput{
 		SessionID: input.SessionID,
@@ -96,13 +103,34 @@ func (a *ServiceAdapter) SendMessage(ctx context.Context, input MessageSendInput
 		return nil, err
 	}
 
-	return a.waitForMessageResponse(ctx, input.SessionID, targetIteration)
+	return a.waitForMessageResponse(ctx, input.SessionID, watermark)
 }
 
-// waitForMessageResponse returns only output from the iteration assigned to
-// the submitted message. This prevents a late response from an earlier turn
-// from satisfying a newer synchronous request.
-func (a *ServiceAdapter) waitForMessageResponse(ctx context.Context, sessionID string, targetIteration int64) (*MessageSendResult, error) {
+// eventWatermark returns the highest memory_events id currently present for
+// the session (0 when the session has no events; memory_events ids are
+// strictly increasing, so the newest row's id is the max).
+func (a *ServiceAdapter) eventWatermark(ctx context.Context, sessionID string) (int64, error) {
+	events, err := a.svc.Messages.ListMessages(ctx, sessionID, 1)
+	if err != nil {
+		return 0, fmt.Errorf("read event watermark for session %s: %w", sessionID, err)
+	}
+	if len(events) == 0 {
+		return 0, nil
+	}
+	return events[0].ID, nil
+}
+
+// waitForMessageResponse returns only output produced for the submitted
+// message. It is keyed on the event-id watermark captured before the
+// user_message row was written (BUG-014): a response qualifies iff its
+// memory_events id is NEWER than the watermark, i.e. it was created after
+// the message was sent.
+//
+// The watermark preserves the original correctness property that strict
+// iteration-equality provided: a late response from an EARLIER turn was
+// created before this send, so its id is not newer than the watermark and
+// it can never pre-answer a newer request.
+func (a *ServiceAdapter) waitForMessageResponse(ctx context.Context, sessionID string, watermark int64) (*MessageSendResult, error) {
 	ticker := time.NewTicker(messageResponsePollInterval)
 	defer ticker.Stop()
 
@@ -117,7 +145,7 @@ func (a *ServiceAdapter) waitForMessageResponse(ctx context.Context, sessionID s
 		}
 
 		for _, event := range events {
-			if event.IterationCreated != targetIteration || strings.TrimSpace(event.Content) == "" {
+			if event.ID <= watermark || strings.TrimSpace(event.Content) == "" {
 				continue
 			}
 			switch event.Type {
@@ -134,12 +162,12 @@ func (a *ServiceAdapter) waitForMessageResponse(ctx context.Context, sessionID s
 		}
 
 		if status == "failed" {
-			return nil, fmt.Errorf("session %s failed before producing an agent response for iteration %d", sessionID, targetIteration)
+			return nil, fmt.Errorf("session %s failed before producing an agent response", sessionID)
 		}
 
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("waiting for agent response for session %s iteration %d: %w", sessionID, targetIteration, ctx.Err())
+			return nil, fmt.Errorf("waiting for agent response for session %s: %w", sessionID, ctx.Err())
 		case <-ticker.C:
 		}
 	}
