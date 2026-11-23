@@ -43,6 +43,8 @@ the class that let `C-GAP-032-ALPHA` be closed with zero upstream tests executed
   server (build → boot → create → message → settle → audit) and prints `audited_targets` before
   the verdict; FAILs on a non-idle session or zero tokens/cost. `CONTROL_MODE=mock|badkey` are the
   committed red controls; no live key yields an explicit `BLOCKED` artifact (exit 2), never a green.
+- **`scenario_selector_selfproof.sh`** — pins the `harness-scenarios.sh` selector contract: unknown
+  `--scenarios` tokens exit 2, never a vacuous green.
 
 ## Usage
 
