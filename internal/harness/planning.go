@@ -303,6 +303,13 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 	// the tx's write lock).
 	toolExchanges := h.formatToolExchangesForTurn(ctx, sessionID)
 
+	// DF-CONSENSUS-6-R2: replay the session's prior conversational turns (the
+	// exchanges already settled in earlier iterations) the same way — read
+	// once, on the pool connection, before the loop claims the write lock.
+	// The pending user turns are excluded: buildPlanningMessages delivers them
+	// as the current question.
+	priorTurns := h.formatConversationHistoryForTurn(ctx, sessionID, pendingUserMessageIDs(ic))
+
 	// Main planning loop
 	for turn := 1; turn <= config.MaxTurns; turn++ {
 		// Check timeout
@@ -322,7 +329,7 @@ func (h *Harness) RunInteractivePlanning(ctx context.Context, sessionID string, 
 
 		// Format turn context and call LLM
 		turnContext := h.formatTurnContextV2(ic, buffer, turn, config, memoryStateChanges)
-		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext, toolExchanges)
+		messages := h.buildPlanningMessages(ic, buffer, turn, config, turnContext, priorTurns, toolExchanges)
 
 		output, err := h.LLMClient.Call(ctx, messages)
 		if err != nil {
@@ -867,11 +874,93 @@ func (h *Harness) handleRespond(ctx context.Context, tx db.Tx, sessionID string,
 	}, nil
 }
 
-func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, turnContext string, toolExchanges []Message) []Message {
+// conversationHistoryInPromptLimit bounds how many prior conversational turns
+// (user messages + assistant replies) one planning prompt replays: the most
+// recent ones carry the context the current question builds on.
+const conversationHistoryInPromptLimit = 60
+
+// conversationHistoryContentLimit bounds one prior turn inside the prompt
+// (memory_events rows are unbounded in size — too much for one message).
+const conversationHistoryContentLimit = 4000
+
+// pendingUserMessageIDs collects the ledger ids of the user turns the current
+// iteration delivers as its question, so the history replay does not repeat
+// them (buildPlanningMessages appends the pending turns separately).
+func pendingUserMessageIDs(ic *IterationContext) map[int64]bool {
+	ids := make(map[int64]bool, len(ic.PendingUserMessages))
+	for _, pending := range ic.PendingUserMessages {
+		ids[pending.ID] = true
+	}
+	return ids
+}
+
+// formatConversationHistoryForTurn renders the session's prior conversational
+// turns — user_message rows the current iteration is not delivering, and the
+// text_block replies that answered them — as ordered transcript messages.
+//
+// DF-CONSENSUS-6-R2: a second user turn entered a fresh planning run whose
+// prompt held only the new question. The earlier user_message was consumed at
+// its own iteration (display_modes 'hidden') and excluded from every later
+// context read, so the recorded turn-2 provider request lacked the turn-1 text
+// entirely — the chat was stateless and the model could not answer "what did I
+// just say?". Same replay discipline as SCN-CONSENSUS-010's tool exchanges
+// (formatToolExchangesForTurn): read once before the loop on a pool
+// connection (the iteration transaction holds the SQLite WAL write lock from
+// turn 1), render oldest-first, fail soft — an unreadable ledger degrades to
+// the pre-existing prompt instead of failing the turn.
+func (h *Harness) formatConversationHistoryForTurn(ctx context.Context, sessionID string, excludeIDs map[int64]bool) []Message {
+	if h.db == nil {
+		return nil
+	}
+
+	rows, err := h.db.Query(ctx, `
+		SELECT me.id, me.type, COALESCE(me.content, '') AS content
+		FROM memory_events me
+		WHERE me.session_id = $1
+		  AND me.type IN ('user_message', 'text_block')
+		ORDER BY me.id DESC
+		LIMIT $2
+	`, sessionID, conversationHistoryInPromptLimit)
+	if err != nil {
+		slog.Warn("planning: conversation history unavailable for turn context",
+			"session_id", sessionID, "error", err)
+		return nil
+	}
+
+	// Query is newest-first so LIMIT keeps the most recent turns; render
+	// oldest-first so the model reads the conversation in order.
+	messages := make([]Message, 0, len(rows))
+	for i := len(rows) - 1; i >= 0; i-- {
+		row := rows[i]
+		if excludeIDs[toInt64(row["id"])] {
+			continue // the pending question is appended separately
+		}
+		content := toString(row["content"])
+		if content == "" {
+			continue
+		}
+		if runes := []rune(content); len(runes) > conversationHistoryContentLimit {
+			content = string(runes[:conversationHistoryContentLimit]) + "…(truncated)"
+		}
+		role := "user"
+		if toString(row["type"]) == "text_block" {
+			role = "assistant"
+		}
+		messages = append(messages, Message{Role: role, Content: content})
+	}
+	return messages
+}
+
+func (h *Harness) buildPlanningMessages(ic *IterationContext, buffer *StagingBuffer, turn int, config *PlanningConfig, turnContext string, history []Message, toolExchanges []Message) []Message {
 	messages := []Message{
 		{Role: "system", Content: h.formatPlanningSystemPromptV2(ic, buffer, turn, config)},
 		{Role: "user", Content: turnContext},
 	}
+	// DF-CONSENSUS-6-R2: replay the prior conversational turns (earlier user
+	// messages and the assistant replies that answered them) BEFORE the current
+	// question, so a follow-up turn reads as a transcript of the conversation
+	// instead of a fresh question with no history.
+	messages = append(messages, history...)
 	// The pending turns are the question for this iteration, not one-shot
 	// delivery metadata. Include them on every LLM call until iteration rollover.
 	for _, pending := range ic.PendingUserMessages {
