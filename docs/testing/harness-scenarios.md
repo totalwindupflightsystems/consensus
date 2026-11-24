@@ -61,6 +61,15 @@ real provider), runs the live scenarios, asserts on disk + `tool_requests`/`tool
 emits JSON lines + a summary, exits non-zero on any failure. This is the artifact the
 hardening loop (daily cron) executes.
 
+Unattended runs (SCN-CONSENSUS-024): the runner fail-fasts on a session parked at
+status `paused` — the detail reads `paused: approval wall, sid=<id>` and no per-scenario
+timeout is burned waiting for a human. To run the full five-scenario matrix with no
+approver, arm the e2e approval path with `--auto-approve` (or `CONSENSUS_E2E_AUTO_APPROVE=1`):
+the runner seeds `requires_approval=0` on every enabled registry tool right after boot,
+before any scenario creates a session. Seeding at the registry is deliberate: the
+planning-path gate (`planHasGatedTools`) re-reads the registry on every attempt and ignores
+an already-approved approval, so a runtime approve-loop would just re-pause.
+
 ## Ownership
 
 - Implementation rows: `.coding-hermes/board/tasks.jsonl`, family `SCN-CONSENSUS`.

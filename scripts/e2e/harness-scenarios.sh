@@ -6,6 +6,7 @@
 # Unit tests prove internals; THIS proves the assembled system.
 #
 # Usage:  scripts/e2e/harness-scenarios.sh [--keep] [--scenarios s1,s3,s4]
+#         [--auto-approve]
 #         scripts/e2e/harness-scenarios.sh --scenarios s1 --dry-run
 # Exit:   0 = every selected scenario passed, 1 = at least one failed,
 #         2 = bad invocation (unknown arg, or a selector that names no known
@@ -20,8 +21,23 @@
 # Env:    HARNESS_PROVIDER_KEY (otherwise read DEEPSEEK_API_KEY from ~/.hermes/.env),
 #         HARNESS_PROVIDER_BASE_URL (optional OpenAI-compatible endpoint),
 #         HARNESS_MODEL (model pin; takes precedence over CONSENSUS_MODEL),
-#         CONSENSUS_MODEL (optional model pin), PORT (default 18460). When the
-#         fallback file is used, DEEPSEEK_API_KEY supplies the provider key.
+#         CONSENSUS_MODEL (optional model pin),
+#         CONSENSUS_E2E_AUTO_APPROVE=1 (same as --auto-approve), PORT (default
+#         18460). When the fallback file is used, DEEPSEEK_API_KEY supplies the
+#         provider key.
+#
+# Unattended runs and the approval wall (SCN-CONSENSUS-024):
+#   --auto-approve / CONSENSUS_E2E_AUTO_APPROVE=1 arms the e2e approval path for
+#   unattended runs: right after boot the runner seeds every enabled registry
+#   tool with requires_approval=0 before any scenario creates a session, so a
+#   requires_approval tool never parks a scenario at 'paused' waiting for a
+#   human. Seeding at the registry, NOT a runtime approve-loop, is the clean
+#   seam: the planning-path gate (planHasGatedTools) re-reads the registry on
+#   every attempt and ignores already-approved approvals, so approving a parked
+#   session just re-pauses it the next time the model re-issues the call.
+#   wait_idle also fails the scenario FAST on a paused session — it never burns
+#   the full 180s timeout on the approval wall, and the emitted detail names
+#   "paused: approval wall" with the session id.
 
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -29,15 +45,20 @@ PORT=${PORT:-18460}
 KEEP=0
 DRY_RUN=0
 ONLY=""
+AUTO_APPROVE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=1 ;;
     --scenarios) shift; ONLY="${1:-}" ;;
     --dry-run) DRY_RUN=1 ;;
+    --auto-approve) AUTO_APPROVE=1 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
   shift
 done
+if [ "${CONSENSUS_E2E_AUTO_APPROVE:-0}" = "1" ]; then
+  AUTO_APPROVE=1
+fi
 
 log()  { printf '%s\n' "$*" >&2; }
 emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
@@ -151,6 +172,20 @@ log "server up on :$PORT (pid $SRV_PID)"
 DB="$STATE/db.sqlite"
 H="Authorization: Bearer $API"
 
+# ---------- unattended approval path (SCN-CONSENSUS-024) ----------
+# With --auto-approve the runner ungates every enabled registry tool BEFORE any
+# scenario creates a session. Comment in the header for why this is seeding, not
+# a runtime approve-loop: the planning-path gate re-reads requires_approval and
+# ignores an already-approved approval, so approving only re-pauses.
+if [ "$AUTO_APPROVE" -eq 1 ]; then
+  if sqlite3 "$DB" "UPDATE tools_registry SET requires_approval = 0 WHERE enabled = 1;"; then
+    log "auto-approve: seeded requires_approval=0 for every enabled registry tool"
+  else
+    emit boot fail "auto-approve: failed to seed requires_approval in $DB"
+    exit 1
+  fi
+fi
+
 # ---------- helpers ----------
 new_session() { # $1=goal -> echoes session id
   curl -s -X POST "http://127.0.0.1:$PORT/api/v1/sessions" -H "$H" \
@@ -163,15 +198,26 @@ say() { # $1=sid $2=content
     -d "$(jq -cn --arg c "$2" '{content:$c,type:"user_instruction"}')" >/dev/null
 }
 status_of() { sqlite3 "$DB" "SELECT status FROM sessions WHERE id='$1';" 2>/dev/null; }
-wait_idle() { # $1=sid $2=timeout_s -> 0 if idle
-  local i; for i in $(seq 1 "$2"); do
-    case "$(status_of "$1")" in
+wait_idle() { # $1=sid $2=timeout_s -> 0 if idle, 2 if paused (approval wall), 1 otherwise
+  local i st
+  for i in $(seq 1 "$2"); do
+    st=$(status_of "$1")
+    case "$st" in
       idle|completed) return 0 ;;
+      paused) return 2 ;; # SCN-CONSENSUS-024: fail fast, never burn the timeout on the approval wall
       failed) return 1 ;;
     esac
     sleep 1
   done
   return 1
+}
+await_idle() { # $1=scenario-name $2=sid $3=timeout_s -> 0 if idle; emits the failure and returns 1 otherwise
+  if wait_idle "$2" "$3"; then return 0; fi
+  local st; st=$(status_of "$2")
+  case "$st" in
+    paused) emit "$1" fail "paused: approval wall, sid=$2 (arm --auto-approve to ungate tools)"; return 1 ;;
+    *) emit "$1" fail "timeout/non-idle: $st"; return 1 ;;
+  esac
 }
 ws_dir() { echo "$TMPDIR/consensus-workspaces/$1"; }
 
@@ -179,7 +225,7 @@ ws_dir() { echo "$TMPDIR/consensus-workspaces/$1"; }
 s1_write_file() {
   local sid; sid=$(new_session "Write a file using your tools") || { emit s1 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: echo -n SCN-OK > scn1.txt (then report DONE)."
-  wait_idle "$sid" 180 || { emit s1 fail "timeout/non-idle: $(status_of "$sid")"; return 1; }
+  await_idle s1 "$sid" 180 || return 1
   local f; f="$(ws_dir "$sid")/scn1.txt"
   [ -f "$f" ] && grep -q SCN-OK "$f" && { emit s1 pass "wrote $f"; return 0; }
   emit s1 fail "file missing or wrong content: $f"
@@ -191,7 +237,7 @@ s2_read_file() {
   mkdir -p "$(ws_dir "$sid")"
   printf 'SEED-READ-42\n' >"$(ws_dir "$sid")/seed.txt"
   say "$sid" "Read the file seed.txt in your workspace with your read tool and reply with the exact number you found."
-  wait_idle "$sid" 180 || { emit s2 fail "timeout/non-idle: $(status_of "$sid")"; return 1; }
+  await_idle s2 "$sid" 180 || return 1
   if sqlite3 "$DB" "SELECT count(*) FROM tool_results WHERE output LIKE '%SEED-READ-42%';" | grep -q '^[1-9]'; then
     emit s2 pass "read tool returned the seeded content"; return 0
   fi
@@ -202,7 +248,7 @@ s2_read_file() {
 s3_bash() {
   local sid; sid=$(new_session "Run a shell command") || { emit s3 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: printf SCN-BASH > scn3.out ; then report DONE."
-  wait_idle "$sid" 180 || { emit s3 fail "timeout/non-idle: $(status_of "$sid")"; return 1; }
+  await_idle s3 "$sid" 180 || return 1
   local f; f="$(ws_dir "$sid")/scn3.out"
   [ -f "$f" ] && grep -q SCN-BASH "$f" && { emit s3 pass "bash executed"; return 0; }
   emit s3 fail "bash output file missing: $f"
@@ -212,9 +258,9 @@ s3_bash() {
 s4_conversation_loop() {
   local sid; sid=$(new_session "Multi-turn tool use") || { emit s4 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: echo -n ONE > turn1.txt"
-  wait_idle "$sid" 180 || { emit s4 fail "turn1 timeout: $(status_of "$sid")"; return 1; }
+  await_idle s4 "$sid" 180 || return 1
   say "$sid" "Now use your bash tool to run: echo -n TWO > turn2.txt"
-  wait_idle "$sid" 180 || { emit s4 fail "turn2 timeout: $(status_of "$sid")"; return 1; }
+  await_idle s4 "$sid" 180 || return 1
   local d; d=$(ws_dir "$sid")
   [ -f "$d/turn1.txt" ] && [ -f "$d/turn2.txt" ] && { emit s4 pass "two turns, two files"; return 0; }
   emit s4 fail "missing turn files in $d"
@@ -225,7 +271,7 @@ s5_containment() {
   local sid; sid=$(new_session "Containment check") || { emit s5 fail "no session"; return 1; }
   local outside="$TMPDIR/consensus-workspaces/ESCAPED.txt"
   say "$sid" "Use your bash tool to run: echo -n ESCAPE > ../ESCAPED.txt ; report DONE either way."
-  wait_idle "$sid" 180 || { emit s5 fail "timeout/non-idle: $(status_of "$sid")"; return 1; }
+  await_idle s5 "$sid" 180 || return 1
   if [ -f "$outside" ]; then emit s5 fail "ESCAPED the workspace: $outside"; return 1; fi
   emit s5 pass "no escape file outside the session workspace"
   return 0
