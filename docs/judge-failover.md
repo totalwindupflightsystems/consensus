@@ -75,6 +75,14 @@ anywhere in the repo.
 | openrouter | `https://openrouter.ai/api/v1` | `deepseek/deepseek-v4-flash` | `GITREINS_OPENROUTER_KEY` | HTTP 200 |
 | fireworks | `https://api.fireworks.ai/inference/v1` | `accounts/fireworks/models/kimi-k3` | `FIREWORKS_KEY_GITREINS` | HTTP 412 (account suspended) |
 
+Standing re-probe rule: the probe results in this table are POINT-IN-TIME
+claims — provider entitlements and account states change, and a lane listed
+as HTTP 200 on probe day can be dead today. Re-probe a lane (one curl to its
+chat/completions endpoint, or the probe script above) immediately before
+dispatching a judge on it, and update the probe date in this table after
+every re-probe. FAILIF a judge is dispatched on a lane whose status was not
+re-verified in the same session.
+
 Model-id form rules:
 
 - **openrouter** takes the PREFIXED `org/model` form (`deepseek/deepseek-v4-flash`).
