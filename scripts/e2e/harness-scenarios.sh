@@ -233,15 +233,38 @@ s1_write_file() {
 }
 
 s2_read_file() {
-  local sid; sid=$(new_session "Read a file using your tools") || { emit s2 fail "no session"; return 1; }
-  mkdir -p "$(ws_dir "$sid")"
-  printf 'SEED-READ-42\n' >"$(ws_dir "$sid")/seed.txt"
-  say "$sid" "Read the file seed.txt in your workspace with your read tool and reply with the exact number you found."
+  local sid; sid=$(new_session "Read, edit and glob files using your tools") || { emit s2 fail "no session"; return 1; }
+  local d; d="$(ws_dir "$sid")"
+  mkdir -p "$d/reports"
+  printf 'SEED-READ-42\n' >"$d/seed.txt"
+  printf 'STALE-DRAFT v1\n' >"$d/edit-target.txt"
+  printf 'SEED-GLOB-99\n' >"$d/reports/glob-found.log"
+
+  say "$sid" "Use your read tool to read the file seed.txt in your workspace and reply with the exact number you found."
   await_idle s2 "$sid" 180 || return 1
-  if sqlite3 "$DB" "SELECT count(*) FROM tool_results WHERE output LIKE '%SEED-READ-42%';" | grep -q '^[1-9]'; then
-    emit s2 pass "read tool returned the seeded content"; return 0
+
+  say "$sid" "Use your edit tool to replace 'STALE-DRAFT v1' with 'SEED-EDIT-77' in the file edit-target.txt in your workspace. Then use your read tool to read edit-target.txt back and confirm the new text."
+  await_idle s2 "$sid" 180 || return 1
+
+  say "$sid" "Use your glob tool with the pattern 'reports/*.log' to list matching files in your workspace and reply with the filename you found."
+  await_idle s2 "$sid" 180 || return 1
+
+  # Three legs, each a sqlite3 count on tool_results (SCN-CONSENSUS-001):
+  #   read  — a read tool result containing the seeded seed.txt content
+  #   edit  — an edit tool call completed AND the seeded replacement visible in
+  #           a tool result (the edit tool's own output reports the replacement
+  #           count, not the content, so the content is proven via the read-back)
+  #   glob  — a glob tool result containing the matched filename
+  local leg_read leg_edit leg_edit_content leg_glob
+  leg_read=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='read' AND r.is_error=0 AND r.output LIKE '%SEED-READ-42%';")
+  leg_edit=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='edit' AND r.is_error=0;")
+  leg_edit_content=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results WHERE is_error=0 AND output LIKE '%SEED-EDIT-77%';")
+  leg_glob=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='glob' AND r.is_error=0 AND r.output LIKE '%glob-found.log%';")
+  if [ "$leg_read" -ge 1 ] && [ "$leg_edit" -ge 1 ] && [ "$leg_edit_content" -ge 1 ] && [ "$leg_glob" -ge 1 ]; then
+    emit s2 pass "read+edit+glob tool_results: read=$leg_read edit_calls=$leg_edit edit_content=$leg_edit_content glob=$leg_glob"
+    return 0
   fi
-  emit s2 fail "no tool result contains the seeded content"
+  emit s2 fail "tool_results proof failed: read=$leg_read edit_calls=$leg_edit edit_content=$leg_edit_content glob=$leg_glob"
   return 1
 }
 
