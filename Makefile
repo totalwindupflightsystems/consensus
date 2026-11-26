@@ -81,6 +81,14 @@ audit-wire:
 	python3 scripts/audit/test_wirecheck.py
 	python3 scripts/audit/wirecheck.py . --only=table-pair
 
+# Ratchet gate (WIRE-CONSENSUS-4): fails only on NEW gate-able findings
+# (orphan reads / returned stub markers) relative to the committed baseline
+# scripts/audit/wirecheck.baseline. Findings that disappear never fail —
+# tighten the baseline with --write-baseline and commit the smaller file.
+# Cheap and hermetic: stdlib Python, no keys, no database, no egress.
+audit-wire-ratchet:
+	python3 scripts/audit/wirecheck.py . --baseline scripts/audit/wirecheck.baseline
+
 # Opt-in direct execution of the pinned upstream OpenCode TypeScript suites.
 # Requires a running Consensus opencode shim and a live base URL; unlike the
 # ordinary Go test targets this target may fetch the pinned upstream checkout.

@@ -295,5 +295,139 @@ class ResolvedTablesRegressionTest(unittest.TestCase):
             )
 
 
+class WirecheckBaselineModeTest(unittest.TestCase):
+    """WIRE-CONSENSUS-4: the ratchet fails only on NEW findings.
+
+    Every case drives the REAL command line: a baseline is recorded with
+    --write-baseline (the same helper CI's committed baseline was built with),
+    the tree is then mutated, and the --baseline gate is re-run against the
+    committed file.
+    """
+
+    BASELINE_NAME = "ratchet_baseline.txt"
+
+    def build_two_orphan_repo(self, root):
+        """The widgets orphan plus a second one (gadgets) in the same repo."""
+        build_fixture_repo(root, with_writer=False)
+        write(
+            os.path.join(root, "internal", "migrate", "migrations", "002_gadgets.sql"),
+            """
+            CREATE TABLE gadgets (
+                id INTEGER PRIMARY KEY,
+                label TEXT NOT NULL
+            );
+            """,
+        )
+        write(
+            os.path.join(root, "internal", "store", "read_gadgets.go"),
+            """
+            package store
+
+            func gadgetLabels() string {
+            \treturn `SELECT label FROM gadgets ORDER BY label`
+            }
+            """,
+        )
+
+    def record_baseline(self, root):
+        baseline = os.path.join(root, self.BASELINE_NAME)
+        code, out = run_wirecheck(root, "--write-baseline", baseline)
+        self.assertEqual(code, 0, out)
+        self.assertIn("baseline written:", out)
+        return baseline
+
+    def test_equal_set_exits_0(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.build_two_orphan_repo(root)
+            baseline = self.record_baseline(root)
+            code, out = run_wirecheck(root, "--baseline", baseline)
+            self.assertEqual(code, 0, out)
+            self.assertIn("baseline accepts: 2", out)
+            self.assertIn("current findings: 2", out)
+            self.assertIn("RESULT: PASS", out)
+            self.assertNotIn("RATCHET VIOLATION", out)
+
+    def test_strict_superset_exits_1_and_names_the_new_finding(self):
+        with tempfile.TemporaryDirectory() as root:
+            # Baseline recorded on the widgets-only tree; adding a gadgets
+            # orphan afterwards makes the current set a strict superset.
+            build_fixture_repo(root, with_writer=False)
+            baseline = self.record_baseline(root)
+            write(
+                os.path.join(root, "internal", "migrate", "migrations", "002_gadgets.sql"),
+                """
+                CREATE TABLE gadgets (
+                    id INTEGER PRIMARY KEY,
+                    label TEXT NOT NULL
+                );
+                """,
+            )
+            write(
+                os.path.join(root, "internal", "store", "read_gadgets.go"),
+                """
+                package store
+
+                func gadgetLabels() string {
+                \treturn `SELECT label FROM gadgets ORDER BY label`
+                }
+                """,
+            )
+            code, out = run_wirecheck(root, "--baseline", baseline)
+            self.assertEqual(code, 1, out)
+            self.assertIn("RATCHET VIOLATION", out)
+            self.assertIn("table-pair:gadgets", out)
+            self.assertIn("RESULT: FAIL", out)
+
+    def test_subset_exits_0_and_notes_the_baseline_can_be_tightened(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.build_two_orphan_repo(root)
+            baseline = self.record_baseline(root)
+            # Remove the gadgets reader: gadgets leaves the finding set, so
+            # the current set is a strict subset of the baseline. This must
+            # NOT fail — but the note must tell a human the baseline is stale.
+            os.remove(os.path.join(root, "internal", "store", "read_gadgets.go"))
+            code, out = run_wirecheck(root, "--baseline", baseline)
+            self.assertEqual(code, 0, out)
+            self.assertIn("RESULT: PASS", out)
+            self.assertIn("no longer occur", out)
+            self.assertIn("--write-baseline", out)
+
+    def test_missing_baseline_file_is_a_usage_error(self):
+        with tempfile.TemporaryDirectory() as root:
+            build_fixture_repo(root, with_writer=True)
+            code, out = run_wirecheck(root, "--baseline", os.path.join(root, "nope.txt"))
+            self.assertEqual(code, 2, out)
+            self.assertIn("baseline file unreadable", out)
+
+    def test_annotations_are_never_part_of_the_comparison(self):
+        with tempfile.TemporaryDirectory() as root:
+            build_fixture_repo(root, with_writer=False)
+            baseline = self.record_baseline(root)
+            # Rewrite the finding line with a different annotation: the gate
+            # compares keys only, so a richer annotation must not look NEW.
+            with open(baseline, encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn("table-pair:widgets", text)
+            with open(baseline, "w", encoding="utf-8") as handle:
+                handle.write(
+                    text.replace(
+                        "table-pair:widgets",
+                        "table-pair:widgets  # row=WIRE-CONSENSUS-3 annotation override",
+                    )
+                )
+            code, out = run_wirecheck(root, "--baseline", baseline)
+            self.assertEqual(code, 0, out)
+
+    def test_this_tree_is_within_the_committed_baseline(self):
+        # Regression guard on the real repository: no gate-able finding may
+        # appear that the committed baseline does not accept. A new orphan
+        # read or returned stub puts its key in this failure message.
+        committed = os.path.join(HERE, "wirecheck.baseline")
+        self.assertTrue(os.path.isfile(committed), committed)
+        code, out = run_wirecheck(REPO_ROOT, "--baseline", committed)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("RATCHET VIOLATION", out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

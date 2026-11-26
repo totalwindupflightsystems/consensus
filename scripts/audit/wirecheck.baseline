@@ -1,0 +1,29 @@
+# wirecheck ratchet baseline — committed snapshot of the findings this gate accepts.
+#
+# WIRE-CONSENSUS-4. Recorded at base a8a975b4 (2026-11-26).
+#
+# HISTORICAL DELTA: the 2026-11-03 audit this ratchet was sized against
+# recorded FOUR orphan-read tables (enumerated by running the audit at the
+# section-introducing commit 47574e88); the base above records ZERO:
+#
+#   memory_pages, projects, routing_rules — WIRE-CONSENSUS-3 (production
+#       writers landed in internal/api/registries.go)
+#   skills_registry                       — DF-CONSENSUS-67 (same file)
+#
+# The returned-stub class is likewise empty at the base: WIRE-CONSENSUS-2
+# classified every surviving marker as a refusal (a declared failure status)
+# or a narrow allowlist entry, so no dispatch path returns a marker today.
+#
+# The gate (`python3 scripts/audit/wirecheck.py . --baseline
+# scripts/audit/wirecheck.baseline`) fails only on NEW findings — a finding
+# present in a run but absent from this file. Findings that disappear must
+# NOT fail; tighten this file by re-running
+#   python3 scripts/audit/wirecheck.py . --write-baseline scripts/audit/wirecheck.baseline
+# and committing the smaller file.
+#
+# format: one finding per line, sorted. Lines starting with '#' are comments;
+# a trailing ' # ...' annotation is informational only and is never part of
+# the comparison.
+#
+# FINDINGS: (none at a8a975b4 — the acceptable set is empty; everything below
+# this line that is not a comment is a live finding.)

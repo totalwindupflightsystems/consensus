@@ -8,6 +8,7 @@ Hilo answers "what depends on this file". This answers:
   4 DDL-DRIFT    does a test fixture declare a kinder schema than the migration?
 
 Usage: wirecheck.py <repo-root> [--json] [--only=table-pair,stub,test-seam,ddl-drift]
+                    [--baseline PATH | --write-baseline PATH]
 
 --only selects the sections to run AND to judge: with --only=table-pair the
 exit code reflects orphan reads only, so a CI gate can enforce the table-pair
@@ -15,13 +16,28 @@ class while the separately-tracked STUB/TEST-SEAM debt is still printed.
 Without --only every section runs and the run fails on any TABLE-PAIR or STUB
 finding (unchanged behaviour).
 
-Exit 1 if any selected TABLE-PAIR or STUB finding is present (gate-able), 2 on
-usage errors.
+Ratchet mode (WIRE-CONSENSUS-4) — fail on NEW findings, not on known debt:
+  --write-baseline PATH  helper: record the current fail-able findings of the
+                         selected sections into PATH (human-readable text, one
+                         finding per line, sorted, with a per-line annotation)
+                         and exit 0. Re-run it whenever a finding is fixed to
+                         tighten the committed baseline.
+  --baseline PATH        ratchet gate: compare the current findings against the
+                         baseline file. Current findings == baseline or a
+                         subset -> exit 0 (a strict subset prints a note that
+                         the baseline can be tightened). Any NEW finding not
+                         in the baseline -> exit 1, printed clearly as a
+                         ratchet violation. A missing/unreadable baseline file
+                         is a usage error.
+
+Exit 1 if any selected TABLE-PAIR or STUB finding is present (gate-able; in
+--baseline mode only NEW findings fail), 2 on usage errors.
 """
 import json
 import os
 import re
 import sys
+import time
 
 RE_INSERT = re.compile(r"(?i)\bINSERT\s+INTO\s+([a-z_][a-z0-9_]*)")
 RE_UPDATE = re.compile(r"(?i)\bUPDATE\s+([a-z_][a-z0-9_]*)\s+SET")
@@ -371,6 +387,90 @@ def parse_only(argv):
     return selected
 
 
+# ── Ratchet (baseline) mode (WIRE-CONSENSUS-4) ───────────────────────────────
+# Value-taking flags besides --only. Both `--flag VALUE` and `--flag=VALUE`
+# spellings are accepted, mirroring parse_only's convention.
+VALUE_FLAGS = ("--baseline", "--write-baseline")
+
+BASELINE_HEADER = """\
+# wirecheck ratchet baseline
+# generated: {generated}  root={root}
+#
+# The ratchet gate (`wirecheck.py <repo> --baseline <this file>`) fails only on
+# NEW findings: a finding present in a run but absent from this file is a
+# ratchet violation (exit 1). A finding that disappears must NOT fail —
+# tighten the baseline by re-running
+#   python3 scripts/audit/wirecheck.py <repo> --write-baseline <this file>
+# and committing the smaller file.
+#
+# format: one finding per line, sorted. Lines starting with '#' are comments;
+# a trailing ' # ...' annotation is informational only and is never part of
+# the comparison.
+"""
+
+
+def collect_gate_findings(report, selected):
+    """The fail-able findings of the selected sections, as sorted (key, note).
+
+    These are exactly the findings main() exits 1 on: TABLE-PAIR orphan reads
+    and returned STUB markers. TEST-SEAM and DDL-DRIFT are informational and
+    never enter the gate set. The key (before the annotation) is what a
+    baseline records and compares on; the note is context for a human reading
+    the file.
+    """
+    findings = []
+    if "table-pair" in selected:
+        for table, _readers in report.get("table_pair", {}).get("orphan_reads", []):
+            findings.append(
+                ("table-pair:%s" % table, "orphan read: no production writer")
+            )
+    if "stub" in selected:
+        for hit in report.get("stubs", []):
+            findings.append(
+                (
+                    "stub:%s:%d" % (hit["file"], hit["line"]),
+                    "returned marker: %s (in %s)" % (hit["marker"], hit["func"]),
+                )
+            )
+    return sorted(findings)
+
+
+def write_baseline_file(path, findings, root):
+    """Write the baseline for `findings` to PATH (sorted, annotated)."""
+    lines = BASELINE_HEADER.format(
+        generated=time.strftime("%Y-%m-%dT%H:%M:%S"), root=root
+    ).splitlines()
+    for key, note in findings:
+        # No owning board row is known to the audit itself; when a finding is
+        # accepted as debt, name its row here by hand.
+        lines.append(
+            "%s  # TODO row: name the board row accepting this debt (%s)" % (key, note)
+        )
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
+def read_baseline(path):
+    """Return the set of gate keys recorded in a baseline file.
+
+    Comment and blank lines are ignored; the comparison key is the text before
+    the first '#', stripped — so the per-line annotations carry no weight.
+    Raises ValueError when the file cannot be read (a usage error, not a
+    silent "everything is new").
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError as exc:
+        raise ValueError("baseline file unreadable: %s" % exc)
+    keys = set()
+    for ln in text.splitlines():
+        key = ln.split("#", 1)[0].strip()
+        if key:
+            keys.add(key)
+    return keys
+
+
 def main():
     args = list(sys.argv[1:])
     try:
@@ -378,19 +478,42 @@ def main():
     except ValueError as exc:
         print(f"wirecheck: {exc}", file=sys.stderr)
         return 2
-    # --only VALUE consumes a positional-looking token; drop the flag (and its
-    # value, when it was passed space-separated) before picking the root.
+    # A value-taking flag consumes a positional-looking token; drop each flag
+    # (and its value, when it was passed space-separated) before picking the
+    # root and the flag values.
     cleaned, skip_next = [], False
-    for arg in args:
+    values = {}
+    i = 0
+    while i < len(args):
+        arg = args[i]
         if skip_next:
             skip_next = False
+            i += 1
+            continue
+        matched = False
+        for flag in VALUE_FLAGS:
+            if arg.startswith(flag + "="):
+                values[flag] = arg.split("=", 1)[1]
+                matched = True
+                break
+            if arg == flag:
+                if i + 1 >= len(args):
+                    print(f"wirecheck: {flag} requires a path", file=sys.stderr)
+                    return 2
+                values[flag] = args[i + 1]
+                skip_next = True
+                matched = True
+                break
+        if matched:
+            i += 1
             continue
         if arg == "--only":
             skip_next = True
-            continue
-        if arg.startswith("--only="):
-            continue
-        cleaned.append(arg)
+        elif not arg.startswith("--only="):
+            cleaned.append(arg)
+        i += 1
+    baseline = values.get("--baseline")
+    write_baseline = values.get("--write-baseline")
     positional = [a for a in cleaned if not a.startswith("--")]
     if not positional:
         print(__doc__)
@@ -420,14 +543,72 @@ def main():
     if "ddl-drift" in selected:
         check_ddl_drift(root, test, schema, report)
 
-    if as_json:
-        print(json.dumps(report, indent=2))
+    gate_findings = collect_gate_findings(report, selected)
+    report["gate_findings"] = [key for key, _note in gate_findings]
+
+    if write_baseline is not None:
+        write_baseline_file(write_baseline, gate_findings, root)
+        if not as_json:
+            print(f"baseline written: {write_baseline} ({len(gate_findings)} finding(s))")
+        if baseline is None:
+            if as_json:
+                print(json.dumps(report, indent=2))
+            return 0
+
+    if baseline is not None:
+        try:
+            baseline_keys = read_baseline(baseline)
+        except ValueError as exc:
+            print(f"wirecheck: {exc}", file=sys.stderr)
+            return 2
+        gate_keys = {key for key, _note in gate_findings}
+        new = sorted(key for key, _note in gate_findings if key not in baseline_keys)
+        resolved = sorted(baseline_keys - gate_keys)
+        report["ratchet"] = {
+            "baseline": baseline,
+            "baseline_findings": sorted(baseline_keys),
+            "new": new,
+            "resolved": resolved,
+        }
+        if new:
+            if not as_json:
+                print(f"== RATCHET — fail only on NEW findings (baseline: {baseline}) ==")
+                print(f"   baseline accepts: {len(baseline_keys)} finding(s)")
+                print(f"   current findings: {len(gate_findings)}")
+                print("   !! RATCHET VIOLATION — NEW finding(s) not in the baseline:")
+                for key in new:
+                    print(f"      {key}")
+                print("RESULT: FAIL (ratchet violations present)")
+            if as_json:
+                print(json.dumps(report, indent=2))
+            return 1
+        if not as_json:
+            print(f"== RATCHET — fail only on NEW findings (baseline: {baseline}) ==")
+            print(f"   baseline accepts: {len(baseline_keys)} finding(s)")
+            print(f"   current findings: {len(gate_findings)}")
+            if resolved:
+                print(
+                    f"   note: {len(resolved)} finding(s) in the baseline no longer occur —"
+                    " the ratchet can be tightened:"
+                )
+                for key in resolved:
+                    print(f"      resolved: {key}")
+                print(
+                    "   tighten with: python3 scripts/audit/wirecheck.py <repo>"
+                    f" --write-baseline {baseline}"
+                )
+            print("RESULT: PASS")
+        if as_json:
+            print(json.dumps(report, indent=2))
+        return 0
 
     fail = False
     if "table-pair" in selected:
         fail = fail or bool(report.get("table_pair", {}).get("orphan_reads"))
     if "stub" in selected:
         fail = fail or bool(report.get("stubs"))
+    if as_json:
+        print(json.dumps(report, indent=2))
     if not as_json:
         print("RESULT:", "FAIL (wiring gaps present)" if fail else "PASS")
     return 1 if fail else 0

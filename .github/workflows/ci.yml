@@ -49,6 +49,18 @@ jobs:
       - name: Static wiring audit (wirecheck table-pair)
         run: make audit-wire
 
+      # Ratchet gate (WIRE-CONSENSUS-4). The step above enforces the whole
+      # table-pair class; this step enforces the committed baseline
+      # (scripts/audit/wirecheck.baseline): CI fails only on NEW gate-able
+      # findings (orphan reads / returned stub markers), so the gate cannot go
+      # red on day-one debt and get disabled. Whenever a finding is fixed,
+      # tighten the baseline with --write-baseline and commit the smaller
+      # file. The baseline is empty at a8a975b4 — the 2026-11-03 four orphan
+      # tables (memory_pages/projects/routing_rules via WIRE-CONSENSUS-3,
+      # skills_registry via DF-CONSENSUS-67) all gained production writers.
+      - name: Static wiring audit (wirecheck ratchet)
+        run: make audit-wire-ratchet
+
   # ── GolangCI-Lint (pinned, fail-closed) ─────────────────────────
   lint:
     name: GolangCI-Lint
