@@ -1260,3 +1260,5 @@
 {"id":1251,"timestamp":"2026-11-26 04:36:29.518477","event_type":"task_created","task_id":"PERF-CONSENSUS-015","actor":"foreman","detail":"{\"id\":\"PERF-CONSENSUS-015\",\"status\":\"pending\"}","tick_number":null}
 {"id":1252,"timestamp":"2026-11-26 00:12:48.000000","event_type":"task_dispatched","task_id":"DF-CONSENSUS-076","actor":"foreman","detail":"{\"model\": \"glm-5.3-flash\", \"provider\": \"opencode-go-2\", \"pid\": 3064799, \"task\": \"DF-CONSENSUS-076\", \"tick\": 0}","tick_number":0}
 {"id":1253,"timestamp":"2026-11-26 00:12:48.000000","event_type":"task_dispatched","task_id":"PERF-CONSENSUS-015","actor":"foreman","detail":"{\"model\": \"glm-5.3-flash\", \"provider\": \"opencode-go-2\", \"pid\": 2806398, \"task\": \"PERF-CONSENSUS-015\", \"tick\": 0}","tick_number":0}
+{"id":1254,"timestamp":"2026-11-26 06:03:20.692807","event_type":"task_completed","task_id":"PERF-CONSENSUS-015","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
+{"id":1255,"timestamp":"2026-11-26 06:37:54.042779","event_type":"task_completed","task_id":"DF-CONSENSUS-076","actor":"foreman","detail":"{\"status\":\"complete\"}","tick_number":null}
