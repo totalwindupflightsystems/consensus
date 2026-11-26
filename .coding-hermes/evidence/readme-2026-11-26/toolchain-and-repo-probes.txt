@@ -1,0 +1,6 @@
+=== toolchain module availability probes (2026-11-26, tip 7bbc5ff2) ===
+proxy.golang.org golang.org/toolchain v0.0.1-go1.26.11.linux-amd64.info: 200
+sum.golang.org lookup: 200
+=== wojons/consensus anonymous status ===
+github.com/wojons/consensus: 404
+github.com/totalwindupflightsystems/consensus: 200

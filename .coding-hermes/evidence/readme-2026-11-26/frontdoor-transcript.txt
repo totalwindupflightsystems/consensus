@@ -1,0 +1,15 @@
+[frontdoor] building /home/kara/totalwindupflightsystems/consensus into scratch binary
+[frontdoor] starting real-provider server on 127.0.0.1:37109 (model deepseek-flash)
+[frontdoor] created session e1afa267-0192-4e00-aeda-d21cc1cf2de2 with real model deepseek-flash
+[frontdoor] waiting for the provider-issued write to enter executing
+[frontdoor] session e1afa267-0192-4e00-aeda-d21cc1cf2de2 status=planning iteration=1 elapsed=3s
+[frontdoor] session e1afa267-0192-4e00-aeda-d21cc1cf2de2 status=tool_exec iteration=2 elapsed=5s
+[frontdoor] interrupting server with original write request 1 in executing
+[frontdoor] starting real-provider server on 127.0.0.1:37109 (model deepseek-flash)
+[frontdoor] restarted with an expired claim; waiting for recovery and readback
+[frontdoor] session e1afa267-0192-4e00-aeda-d21cc1cf2de2 status=planning iteration=2 elapsed=7s
+[frontdoor] session e1afa267-0192-4e00-aeda-d21cc1cf2de2 status=idle iteration=4 elapsed=11s
+{"billing_models": ["deepseek-flash"], "input_tokens": 5701, "iteration_commits": 0, "memory_events": 2, "original_tool_id": 1, "original_tool_status": "completed", "output_tokens": 475, "provider_calls": 3, "successful_reads": 1, "successful_writes": 1, "tool_requests": 2}
+[frontdoor] PASS: original interrupted write completed; readback, exact bytes, terminal state, and real billing verified
+{"result":"PASS","gate":"real-provider-write-read-df68-recovery","session_id":"e1afa267-0192-4e00-aeda-d21cc1cf2de2","model":"deepseek-flash","base_url":"https://api.deepseek.com/v1","file":"df_probe.txt","content_sha256":"f7deff27a246dc8fb44dd41a006e4caa6ffe4b373e457481975d473ed7859a91","source_commit":"7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90","assertions":{"billing_models":["deepseek-flash"],"input_tokens":5701,"iteration_commits":0,"memory_events":2,"original_tool_id":1,"original_tool_status":"completed","output_tokens":475,"provider_calls":3,"successful_reads":1,"successful_writes":1,"tool_requests":2}}
+frontdoor-rc=0

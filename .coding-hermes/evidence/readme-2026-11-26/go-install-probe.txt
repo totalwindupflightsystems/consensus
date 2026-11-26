@@ -1,0 +1,7 @@
+=== go install github.com/totalwindupflightsystems/consensus/cmd/consensus@latest (isolated caches) ===
+go: downloading github.com/totalwindupflightsystems/consensus v0.0.0-20261125195201-7bbc5ff2538b
+go: github.com/totalwindupflightsystems/consensus/cmd/consensus@latest: version constraints conflict:
+	github.com/totalwindupflightsystems/consensus@v0.0.0-20261125195201-7bbc5ff2538b: parsing go.mod:
+	module declares its path as: github.com/wojons/consensus
+	        but was required as: github.com/totalwindupflightsystems/consensus
+install-rc=1

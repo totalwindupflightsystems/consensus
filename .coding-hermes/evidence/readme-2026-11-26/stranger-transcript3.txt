@@ -1,0 +1,98 @@
+=== recovery: go1.26.11 download ===
+Success. You may now run 'go1.26.11'
+dl-rc=0
+go1.26.11
+=== CMD: go build -o bin/consensus ./cmd/consensus/ (after recovery) ===
+1795657415
+build-rc=0
+1795657451
+-rwxrwxr-x 1 kara kara 28387662 Nov 25 20:44 bin/consensus
+=== CMD: ./bin/consensus --version ===
+consensus version 0.1.0
+version-rc=0
+=== CMD: ./bin/consensus --help (first 35 lines) ===
+Consensus is a database-native cognitive architecture for AI agents.
+
+The CLI is a management tool for the Consensus runtime. It handles
+operational tasks: starting the server, managing sessions, reviewing
+approvals, running migrations, and inspecting system state.
+
+Usage:
+  consensus [command]
+
+Available Commands:
+  approve     Manage human-in-the-loop approvals
+  completion  Generate shell completion script
+  config      Manage configuration
+  help        Help about any command
+  init        Bootstrap a new Consensus instance
+  mcp-stdio   Start MCP server over stdin/stdout (SPEC-015 §5.4)
+  memory      Inspect agent memory
+  migrate     Run database migrations
+  models      Manage the model registry
+  reject      Reject a pending approval request
+  serve       Start the Consensus server
+  session     Manage agent sessions
+  skill       Inspect available skills
+  status      Show system health and metrics
+  tool        Register and inspect tools
+  version     Print the consensus version
+
+Flags:
+      --api-key string   API key for authentication (env: CONSENSUS_API_KEY)
+      --config string    Config file path (default: ./consensus.yaml or ~/.consensus/config.yaml)
+      --format string    Output format: table, json, yaml (default "table")
+  -h, --help             help for consensus
+      --quiet            Suppress non-essential output
+      --server string    Consensus server base URL (env: CONSENSUS_SERVER, default: http://localhost:8090)
+  -v, --version          version for consensus
+=== CMD: ./bin/consensus init --config consensus.yaml ===
+init-rc=0
+consensus: init
+Database:      sqlite://dev.db?_journal_mode=WAL
+Migrations:    applied
+consensus: first_admin_key created=true key=cs_ak_<redacted> key_prefix=cs_ak_<redacted> id=97cdde8f-ffc7-469a-b90d-0a9b204c02ee created_at=2026-11-26T01:44:12Z expires_at=2027-02-24T01:44:12Z
+consensus: this key expires at 2027-02-24T01:44:12Z (2160h0m0s from now)
+consensus: save this key now; it is stored hashed and will not be printed again
+Server URL:    http://127.0.0.1:8090
+Config file:   ./consensus.yaml or ~/.consensus/config.yaml
+Memory bank:   ready
+=== CMD: ./bin/consensus serve --config consensus.yaml (background) ===
+serve-pid=1197835
+=== CMD: curl http://localhost:8090/api/v1/health ===
+
+http=000
+=== CMD: curl /chronicle/ ===
+chronicle http=000
+=== served spec surfaces ===
+openapi.json http=000 bytes=0
+openapi.yaml http=000 bytes=0
+doc/api http=000
+doc http=000
+=== CMD: POST /mcp initialize WITHOUT auth ===
+
+http=000
+=== CMD: curl -N /mcp/sse (first 4 lines) ===
+=== CMD: POST /api/v1/auth/keys Bearer=<init key> ===
+
+http=000
+=== teardown: kill 1197835 ===
+serve stopped
+8090 free after teardown
+=== CMD: CONSENSUS_PORT=18124 serve (env port form) ===
+
+http=000
+18124 free after teardown
+=== CMD: ./bin/consensus serve --port 8095 (occupied by foreign pid; README:296-309 diagnostic) ===
+occupied-port-rc=1
+consensus: port 127.0.0.1:8095 is occupied by a foreign HTTP service (class=foreign-http): curl http://127.0.0.1:8095/api/v1/health returns "404 page not found" instead of {"status":"ok",...} — the tell-tale stale-sidecar shadow symptom
+
+The port is shadowed by a stale consensus-sidecar or other leftover process;
+the fresh server cannot bind (bind: address already in use). Identify the
+occupant read-only — do not kill host state:
+    ss -tlnp | grep :8095
+
+Start on a free port instead (either form):
+    CONSENSUS_PORT=8096 ./bin/consensus serve
+    ./bin/consensus serve --port 8096
+=== stranger v3 done ===

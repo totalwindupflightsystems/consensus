@@ -1,0 +1,51 @@
+=== host go: go version go1.26.5 linux/amd64 ===
+=== CMD: env HOME=<iso> git clone --depth 1 https://github.com/totalwindupflightsystems/consensus.git ===
+Cloning into '/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-repo'...
+clone-rc=0
+HEAD=7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90
+README sha256: 012a7a84dc6a1ce4a68425d326fde3ba8cadec657309cf2c2f41b29428e90de8
+=== CMD: env HOME=<iso> go build -o bin/consensus ./cmd/consensus/ ===
+1795657157
+go1.26.11: not downloaded. Run 'go1.26.11 download' to install to /home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-home/sdk/go1.26.11
+build-rc=1
+1795657157
+=== CMD: ./bin/consensus --version ===
+/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-run.sh: line 26: ./bin/consensus: No such file or directory
+version-rc=127
+=== CMD: ./bin/consensus --help (first 30 lines) ===
+/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-run.sh: line 28: ./bin/consensus: No such file or directory
+=== CMD: ./bin/consensus init --config consensus.yaml ===
+init-rc=127
+env: './bin/consensus': No such file or directory
+env: use -[v]S to pass options in shebang lines
+=== CMD: ./bin/consensus serve --config consensus.yaml (background, PID tracked) ===
+serve-pid=1093886
+=== CMD: curl http://localhost:8090/api/v1/health ===
+
+http=000
+=== CMD: curl /chronicle/ ===
+chronicle http=000
+=== served spec surfaces ===
+openapi.json http=000 bytes=0
+openapi.yaml http=000 bytes=0
+doc/api http=000
+doc http=000
+=== CMD: POST /mcp initialize WITHOUT auth (README:551 surface) ===
+
+http=000
+=== CMD: curl -N /mcp/sse (first 4 lines) ===
+=== CMD: POST /api/v1/auth/keys (Bearer from init) ===
+
+http=000
+=== teardown: kill 1093886 ===
+serve stopped
+8090 free after teardown
+=== CMD: CONSENSUS_PORT=18124 serve (env port form, README:314) ===
+
+http=000
+18124 free after teardown
+=== CMD: ./bin/consensus serve --port 8095 (port occupied by foreign process; README:296-309 diagnostic) ===
+occupied-port-rc=127
+env: './bin/consensus': No such file or directory
+env: use -[v]S to pass options in shebang lines
+=== stranger arm done ===

@@ -1,0 +1,7 @@
+key loaded: yes (len 35)
+=== model: deepseek-chat ===
+{"id":"33c15526-86d7-4275-8ba8-4610c63d1b92","object":"chat.completion","created":1795657264,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"OK"},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":6,"completion_tokens":1,"total_tokens":7,"prompt_tokens_details":{"cached_tokens":0},"prompt_cache_hit_tokens":0,"prompt_cache_miss_tokens":6},"system_fingerprint":"bc19ba97cbe016479903222bb1578db6"}
+http=200
+=== model: deepseek-flash ===
+{"id":"f36c2702-afff-4659-950d-77fe88ba27b2","object":"chat.completion","created":1795657265,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning_content":"The user just says"},"logprobs":null,"finish_reason":"length"}],"usage":{"prompt_tokens":32,"completion_tokens":4,"total_tokens":36,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":4},"prompt_cache_hit_tokens":0,"prompt_cache_miss_tokens":32},"system_fingerprint":"bc19ba97cbe016479903222bb1578db6"}
+http=200

@@ -1,0 +1,13 @@
+=== CMD: make release-dry (README:361) at 7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90 ===
+OK  [1/4] clean tree
+OK  [2/4] remote parity 0/0 (HEAD == origin/main at 7bbc5ff2538b)
+OK  [3/4] VERSION (0.1.0) matches newest CHANGELOG heading ([0.1.0])
+OK  [4/4] CI green on HEAD (run 45689391258 succeeded for 7bbc5ff2538b)
+
+Preflight passed for totalwindupflightsystems/consensus @ 7bbc5ff2538b — release v0.1.0 is ready to cut.
+Exact tag command:
+
+    git tag -a "v0.1.0" -m "Release v0.1.0" && git push origin "v0.1.0"
+
+Dry run: no tag was created and nothing was pushed.
+=== release-dry-rc=0 ===

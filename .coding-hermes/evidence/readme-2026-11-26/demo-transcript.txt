@@ -1,0 +1,45 @@
+/home/kara/.hermes/.env: line 39: Agent: command not found
+=== CMD: DEEPSEEK_API_KEY=<from ~/.hermes/.env> go test -v -run TestDemo -timeout 300s ./demo/ ===
+=== tip: 7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90 ===
+=== RUN   TestDemo_FullAgentHarness
+
+╔══════════════════════════════════════════════════════════════╗
+║     CONSCIENCE — Real LLM-Powered Agent Harness Demo        ║
+╚══════════════════════════════════════════════════════════════╝
+
+✓ Server started — admin key: cs_ak_<redacted>...
+✓ Heartbeat loop active — will auto-process sessions
+
+━━━ DEMO 1: Agent Plans & Executes via LLM ━━━
+   Session 65bb9ba9-5a77-4659-8... created
+   Waking session for heartbeat pickup...
+   Waiting for heartbeat to process session...
+    demo_test.go:129:    ⚠ Session still processing — showing partial results
+   ┌─ Demo 1 ─────────────────────────────
+   │ Status: paused | Iterations: 1 | Tokens: 0 in / 0 out
+   │ Memory events: 1
+    [user_message] Start working on the task now.
+   └─────────────────────────────────────────
+
+━━━ DEMO 2: Multi-Topic Sessions ━━━
+   Waiting for both sessions to process...
+   ┌─ Demo 2a (Security) ─────────────────────────────
+   │ Status: paused | Iterations: 1 | Tokens: 0 in / 0 out
+   │ Memory events: 1
+    [user_message] Start the security audit now.
+   └─────────────────────────────────────────
+
+   ┌─ Demo 2b (Performance) ─────────────────────────────
+   │ Status: paused | Iterations: 1 | Tokens: 0 in / 0 out
+   │ Memory events: 1
+    [user_message] Start the performance analysis now.
+   └─────────────────────────────────────────
+
+━━━ DEMO 3: Crash Recovery ━━━
+   Session d9a5f923-aa3a-4db4-b... created — waiting for one committed agent artifact...
+    demo_test.go:163: crash recovery setup did not reach a terminal status
+--- FAIL: TestDemo_FullAgentHarness (124.29s)
+FAIL
+FAIL	github.com/wojons/consensus/demo	132.183s
+FAIL
+=== demo-exit=1 ===

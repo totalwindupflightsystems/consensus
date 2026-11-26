@@ -1,0 +1,43 @@
+=== link-check ===
+readme=README.md local_links=22 external_links=1
+line 3 OK      docs/social-preview.png
+line 360 OK      docs/release.md
+line 398 OK      docs/API.md
+line 412 OK      docs/quickstart-cross-platform.md#lm-studio-fallback-routing
+line 540 OK      docs/API.md
+line 541 OK      docs/INTEGRATION.md
+line 542 OK      docs/CONFIG.md
+line 543 OK      docs/CLI-EXIT-CODES.md
+line 544 OK      docs/TOOLS.md
+line 545 OK      docs/traceability-doctrine.md
+line 546 OK      docs/testing/README.md
+line 547 OK      docs/runbooks/
+line 563 OK      docs/quickstart-cross-platform.md
+line 564 OK      docs/cross-platform-gotchas.md
+line 565 OK      specs/018-openapi-contract.md
+line 566 OK      docs/MUSTER.md
+line 567 OK      docs/dogfood/
+line 568 OK      docs/DEBUGGING.md
+line 606 OK      demo/
+line 606 OK      specs/
+line 606 OK      deploy/
+line 606 OK      docs/quickstart-cross-platform.md
+line 566 200 https://github.com/wojons/muster  <- https://github.com/wojons/muster
+local_missing=0 external_non_200=0
+link-rc=0
+=== anchors ===
+anchors_checked=2 broken=0
+anchors-rc=0
+=== structure ===
+file=README.md bytes=30474 lines=606
+
+== H2 vs Contents ==
+h2_total=8 contents_bullets=0
+h2_without_toc=8 [(9, 'Your Agent Framework Is Lying To You'), (34, 'The Database *Is* The Agent'), (89, "What Your Current Framework Can't Do"), (113, "The Test Suite Doesn't Lie"), (152, '5-Minute Setup'), (538, 'Documentation'), (572, 'Architecture'), (600, 'License')]
+toc_entries_without_heading=[]
+WARN every heading reports NO-TOC -> treat this census as a parser artifact, not a finding
+
+== documented commands ==
+table_rows=21 distinct=21
+documented_more_than_once={}
+structure-rc=0

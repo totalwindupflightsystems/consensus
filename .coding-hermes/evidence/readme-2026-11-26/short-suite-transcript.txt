@@ -1,0 +1,43 @@
+=== CMD: go test -short -count=1 ./... (README:116) at 7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90 ===
+?   	github.com/wojons/consensus	[no test files]
+?   	github.com/wojons/consensus/chronicle	[no test files]
+ok  	github.com/wojons/consensus/cmd/consensus	0.055s
+ok  	github.com/wojons/consensus/demo	8.475s
+ok  	github.com/wojons/consensus/internal/api	4.949s
+ok  	github.com/wojons/consensus/internal/billing	0.045s
+ok  	github.com/wojons/consensus/internal/bootstrap	0.561s
+ok  	github.com/wojons/consensus/internal/chronicle	0.992s
+ok  	github.com/wojons/consensus/internal/cli	0.460s
+ok  	github.com/wojons/consensus/internal/compression	0.073s
+ok  	github.com/wojons/consensus/internal/config	0.251s
+ok  	github.com/wojons/consensus/internal/crier	0.140s
+ok  	github.com/wojons/consensus/internal/db	0.015s
+ok  	github.com/wojons/consensus/internal/db/driver	0.067s
+ok  	github.com/wojons/consensus/internal/db/dynamic	0.212s
+ok  	github.com/wojons/consensus/internal/db/jsonschema	0.040s
+ok  	github.com/wojons/consensus/internal/db/postgres	0.073s
+ok  	github.com/wojons/consensus/internal/db/sqlite	0.141s
+ok  	github.com/wojons/consensus/internal/harness	12.944s
+ok  	github.com/wojons/consensus/internal/hitl	0.148s
+ok  	github.com/wojons/consensus/internal/llm	0.737s
+ok  	github.com/wojons/consensus/internal/llmcompat	0.040s
+ok  	github.com/wojons/consensus/internal/mcp	0.406s
+ok  	github.com/wojons/consensus/internal/memory	0.086s
+ok  	github.com/wojons/consensus/internal/migrate	3.102s
+ok  	github.com/wojons/consensus/internal/modelsync	0.216s
+ok  	github.com/wojons/consensus/internal/quarantine	0.286s
+ok  	github.com/wojons/consensus/internal/recoverydiag	0.123s
+ok  	github.com/wojons/consensus/internal/secrets	0.048s
+ok  	github.com/wojons/consensus/internal/security	0.163s
+ok  	github.com/wojons/consensus/internal/session	0.150s
+ok  	github.com/wojons/consensus/internal/shim/h3	0.110s
+ok  	github.com/wojons/consensus/internal/shim/opencode	17.335s
+ok  	github.com/wojons/consensus/internal/subagent	0.154s
+ok  	github.com/wojons/consensus/internal/tools	0.417s
+ok  	github.com/wojons/consensus/internal/web	0.033s
+ok  	github.com/wojons/consensus/internal/webhook	1.026s
+ok  	github.com/wojons/consensus/pkg/client	0.037s
+ok  	github.com/wojons/consensus/scripts/loadprobe	0.025s
+?   	github.com/wojons/consensus/specs	[no test files]
+?   	github.com/wojons/consensus/t10probe	[no test files]
+=== short-suite-rc=0 ===

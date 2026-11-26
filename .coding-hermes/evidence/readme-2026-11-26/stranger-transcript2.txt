@@ -1,0 +1,56 @@
+=== CMD: curl -fLO https://go.dev/dl/go1.26.5.linux-amd64.tar.gz (README:175) ===
+  0      0   0      0   0      0      0      0                              0100     75 100     75   0      0     79      0                              0100     75 100     75   0      0     79      0                              0
+  0      0   0      0   0      0      0      0                              0  0 63.78M   0 212.0k   0      0 109.3k      0   09:57   00:01   09:56 212.0k  7 63.78M   7  5.01M   0      0  1.70M      0   00:37   00:02   00:35  2.50M 16 63.78M  16 10.42M   0      0  2.64M      0   00:24   00:03   00:21  3.47M 25 63.78M  25 16.03M   0      0  3.24M      0   00:19   00:04   00:15  4.00M 34 63.78M  34 22.25M   0      0  3.74M      0   00:17   00:05   00:12  4.45M 50 63.78M  50 32.13M   0      0  4.51M      0   00:14   00:07   00:07  6.15M 70 63.78M  70 44.95M   0      0  5.53M      0   00:11   00:08   00:03  7.70M 79 63.78M  79 50.53M   0      0  5.53M      0   00:11   00:09   00:02  7.73M 92 63.78M  92 58.96M   0      0  5.82M      0   00:10   00:10          8.28M100 63.78M 100 63.78M   0      0  6.04M      0   00:10   00:10          8.28M100 63.78M 100 63.78M   0      0  6.04M      0   00:10   00:10          8.28M100 63.78M 100 63.78M   0      0  6.04M      0   00:10   00:10          8.28M
+tarball-rc=0
+-rw-rw-r-- 1 kara kara 66879095 Nov 25 20:40 go1.26.5.linux-amd64.tar.gz
+=== CMD: mkdir -p ~/go-toolchain && tar -C ~/go-toolchain -xzf go1.26.5.linux-amd64.tar.gz (README:193-195, HOME=<iso>) ===
+extract-rc=0
+=== CMD: go version (README:187 promises go1.26.x) ===
+go version go1.26.5 linux/amd64
+HEAD=7bbc5ff2538bd3c6f2c92a7ef90851b49b747e90
+=== CMD: go build -o bin/consensus ./cmd/consensus/ (README:201; toolchain auto-download promise README:191-193) ===
+1795657256
+go1.26.11: not downloaded. Run 'go1.26.11 download' to install to /home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-home/sdk/go1.26.11
+build-rc=1
+1795657256
+ls: cannot access 'bin/consensus': No such file or directory
+=== CMD: ./bin/consensus --version ===
+/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-run2.sh: line 33: ./bin/consensus: No such file or directory
+version-rc=127
+=== CMD: ./bin/consensus --help (first 35 lines) ===
+/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-run2.sh: line 35: ./bin/consensus: No such file or directory
+=== CMD: ./bin/consensus init --config consensus.yaml (README:205) ===
+init-rc=127
+env: './bin/consensus': No such file or directory
+env: use -[v]S to pass options in shebang lines
+=== CMD: ./bin/consensus serve --config consensus.yaml (README:206; background, PID tracked) ===
+serve-pid=1142555
+=== CMD: curl http://localhost:8090/api/v1/health (README:215) ===
+
+http=000
+=== CMD: curl /chronicle/ (README:217) ===
+chronicle http=000
+=== served spec surfaces (README:565) ===
+openapi.json http=000 bytes=0
+openapi.yaml http=000 bytes=0
+doc/api http=000
+doc http=000
+=== CMD: POST /mcp initialize WITHOUT auth (README:551) ===
+
+http=000
+=== CMD: curl -N /mcp/sse (README:558, first 4 lines) ===
+=== CMD: POST /api/v1/auth/keys Bearer=<init key> (README:390-393) ===
+
+http=000
+=== teardown: kill 1142555 ===
+serve stopped
+8090 free after teardown
+=== CMD: CONSENSUS_PORT=18124 serve (README:314 env form) ===
+
+http=000
+18124 free after teardown
+=== CMD: ./bin/consensus serve --port 8095 (README:316 flag form; 8095 occupied by foreign pid -> README:296-309 diagnostic) ===
+occupied-port-rc=127
+env: './bin/consensus': No such file or directory
+env: use -[v]S to pass options in shebang lines
+=== stranger v2 done ===

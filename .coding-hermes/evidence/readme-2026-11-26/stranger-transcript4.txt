@@ -1,0 +1,44 @@
+=== CMD: DEEPSEEK_API_KEY=<set> ./bin/consensus serve --config consensus.yaml (README:200,206) ===
+serve-pid=1218337
+LISTEN 0      4096                                127.0.0.1:8090       0.0.0.0:*    users:(("consensus",pid=1218337,fd=14))      
+=== CMD: curl http://localhost:8090/api/v1/health (README:215) ===
+{"status":"ok","version":"0.1.0","uptime_seconds":0,"api_latency_ms":0,"db_latency_ms":0.104,"llm_latency_ms":0,"error_rate_pct":0,"db_backend":"sqlite","db_path":"/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-repo/dev.db","db_size_mb":0.48828125,"db_tables":38,"db_migrations":35,"schema_version":36,"active_connections":{"websocket":0,"db_pool_active":0,"db_pool_max":0,"llm_active":0,"api_requests_last_min":0},"system_log":[]}
+http=200
+=== CMD: curl /chronicle/ (README:217) ===
+chronicle http=200
+=== served spec surfaces (README:565) ===
+openapi.json http=200 bytes=202497
+openapi.yaml http=200 bytes=151368
+doc/api http=200
+doc http=200
+=== CMD: POST /mcp initialize WITHOUT auth (README:551) ===
+{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Authentication required","data":"API key missing from the MCP initialize request — provide it via --api-key or CONSENSUS_API_KEY (the MCP client forwards it in _meta.authorization)"}}
+
+http=401
+=== CMD: curl -N /mcp/sse (README:558, first 4 lines) ===
+event: endpoint
+data: /mcp/message?sessionId=69c4240a6a5be83655e4ce2331bba2be
+
+=== CMD: POST /api/v1/auth/keys Bearer=<init key> (README:390-393) ===
+{"api_key":"cs_sk_<redacted>","created_at":"2026-11-26T01:45:19Z","id":"1da73dd9-6030-4c93-8b12-29f445009c22","key_prefix":"cs_sk_<redacted>","scope":"readonly"}
+http=201
+=== teardown: kill 1218337 ===
+serve stopped
+8090 free after teardown
+=== CMD: CONSENSUS_PORT=18124 serve (README:314 env form) ===
+{"status":"ok","version":"0.1.0","uptime_seconds":0,"api_latency_ms":0,"db_latency_ms":0.098,"llm_latency_ms":0,"error_rate_pct":0,"db_backend":"sqlite","db_path":"/home/kara/.hermes/stand-in/readme/consensus/probe-20261126/stranger-repo/dev.db","db_size_mb":0.48828125,"db_tables":38,"db_migrations":35,"schema_version":36,"active_connections":{"websocket":0,"db_pool_active":0,"db_pool_max":0,"llm_active":0,"api_requests_last_min":0},"system_log":[]}
+http=200
+18124 free after teardown
+=== CMD: ./bin/consensus serve --port 8095 (README:316 flag form; 8095 occupied by foreign pid -> README:296-309 diagnostic) ===
+occupied-port-rc=1
+consensus: port 127.0.0.1:8095 is occupied by a foreign HTTP service (class=foreign-http): curl http://127.0.0.1:8095/api/v1/health returns "404 page not found" instead of {"status":"ok",...} — the tell-tale stale-sidecar shadow symptom
+
+The port is shadowed by a stale consensus-sidecar or other leftover process;
+the fresh server cannot bind (bind: address already in use). Identify the
+occupant read-only — do not kill host state:
+    ss -tlnp | grep :8095
+
+Start on a free port instead (either form):
+    CONSENSUS_PORT=8096 ./bin/consensus serve
+    ./bin/consensus serve --port 8096
+=== stranger v4 done ===
