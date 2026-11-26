@@ -116,6 +116,12 @@ type ServerConfig struct {
 	// MISSING_LLM_CONFIG gate must not apply to it. Empty (unset callers,
 	// shims) keeps the gate's prior behavior.
 	LLMProvider string
+
+	// DefaultModelID is the resolved llm.default_model (CONSENSUS_LLM_MODEL).
+	// DF-CONSENSUS-076: session creation must report the model the harness
+	// LLM client actually serves, not the cheapest model_registry entry.
+	// Empty (shims, tests) keeps the legacy registry-pick fallback.
+	DefaultModelID string
 }
 
 // NewServer creates a new API server with all middleware and routes.
@@ -143,6 +149,9 @@ func NewServer(cfg ServerConfig) *Server {
 	}
 	s.svc.Sessions.events = s.events
 	s.svc.Messages.events = s.events
+	// DF-CONSENSUS-076: the configured default model is reported by session
+	// creation instead of the cheapest registered model.
+	s.svc.Sessions.SetDefaultModelID(cfg.DefaultModelID)
 
 	r := chi.NewRouter()
 

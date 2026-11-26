@@ -68,12 +68,29 @@ type SessionService struct {
 	// modelSyncer optionally enables auto-registration of unrecognized models
 	// from models.dev during session creation. nil = disabled.
 	modelSyncer *modelsync.Syncer
+
+	// defaultModelID is the resolved llm.default_model (CONSENSUS_LLM_MODEL).
+	// DF-CONSENSUS-076: the harness LLM client serves every call with the
+	// configured model regardless of the session's model_id column, so an
+	// operator-configured default must be reported verbatim instead of the
+	// cheapest enabled model_registry entry. Empty = unset (shims, tests,
+	// legacy callers) — the registry-pick fallback applies unchanged.
+	defaultModelID string
 }
 
 // SetModelSyncer configures the SessionService to auto-register unknown models
 // from models.dev during session creation.
 func (svc *SessionService) SetModelSyncer(s *modelsync.Syncer) {
 	svc.modelSyncer = s
+}
+
+// SetDefaultModelID records the resolved llm.default_model (CONSENSUS_LLM_MODEL)
+// so session creation reports the model the LLM client will actually use
+// (DF-CONSENSUS-076). Empty values are ignored, keeping the legacy behavior.
+func (svc *SessionService) SetDefaultModelID(modelID string) {
+	if modelID != "" {
+		svc.defaultModelID = modelID
+	}
 }
 
 // CreateSessionInput is the data needed to create a new agent session.
@@ -116,6 +133,16 @@ func (svc *SessionService) CreateSession(ctx context.Context, input CreateSessio
 
 	sessionID := newUUID()
 	modelID := input.ModelID
+	if modelID == "" && svc.defaultModelID != "" {
+		// DF-CONSENSUS-076: the harness LLM client is built from
+		// cfg.LLM.DefaultModel and serves every call with that model — the
+		// session's model_id column is reporting/billing metadata. Reporting
+		// the cheapest model_registry entry here (the pre-fix behavior) told
+		// the operator the wrong model whenever CONSENSUS_LLM_MODEL was set.
+		// Prefer the configured default; an explicit request model_id above
+		// still wins. Registration below (modelSyncer) still runs for it.
+		modelID = svc.defaultModelID
+	}
 	if modelID == "" {
 		// Prefer a chat-capable model. Exclude embedding-only models
 		// (e.g. text-embedding-3-small) which are registered by the

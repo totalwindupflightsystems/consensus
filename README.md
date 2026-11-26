@@ -223,7 +223,12 @@ reviewable, but a config file is no longer required for DeepSeek. With only
 `DEEPSEEK_API_KEY` set, Consensus selects `https://api.deepseek.com/v1` and the
 DeepSeek-compatible `deepseek-v4-flash` model instead of the OpenAI defaults.
 Set `CONSENSUS_LLM_BASE_URL`, `CONSENSUS_LLM_MODEL`, or
-`CONSENSUS_LLM_PROVIDER` to override those choices. When no
+`CONSENSUS_LLM_PROVIDER` to override those choices. `CONSENSUS_LLM_PROVIDER`
+also accepts `deepseek` as a first-class provider name: it selects the
+OpenAI-compatible client with the DeepSeek endpoint and model defaults, so
+`CONSENSUS_LLM_PROVIDER=deepseek CONSENSUS_LLM_MODEL=deepseek-v4-flash` works
+without any other configuration, and `POST /api/v1/sessions` reports the
+`CONSENSUS_LLM_MODEL` value you exported. When no
 `database.max_open_conns` is supplied, Consensus uses the fixed default pool of
 8 connections. The `database.max_open_conns` override applies to both backends:
 SQLite passes it to the driver as the connection cap (falling back to 4
@@ -410,7 +415,7 @@ no expiry).
 | `CONSENSUS_LLM_BASE_URL` | `https://api.deepseek.com/v1` | Override LLM API endpoint |
 | `OPENROUTER_BASE_URL` | — | Fallback LLM API endpoint override for OpenRouter |
 | `LM_STUDIO_BASE_URL` | unset (fallback disabled) | Optional LM Studio fallback after primary retries; see [LM Studio fallback routing](docs/quickstart-cross-platform.md#lm-studio-fallback-routing) for precedence and an example |
-| `CONSENSUS_LLM_PROVIDER` | `openai` (with the DeepSeek endpoint and `deepseek-v4-flash` when only `DEEPSEEK_API_KEY` is set) | Override the LLM provider |
+| `CONSENSUS_LLM_PROVIDER` | `openai` (with the DeepSeek endpoint and `deepseek-v4-flash` when only `DEEPSEEK_API_KEY` is set) | Override the LLM provider; `deepseek` is a first-class alias for the OpenAI-compatible DeepSeek client (`openai`, `anthropic`, `openrouter`, `deepseek`, `mock`) |
 | `CONSENSUS_LLM_MODEL` | provider-specific | Override the default LLM model |
 | `CONSENSUS_API_KEY` | — | Protect the API with an auth key |
 | `CONSENSUS_DB_URL` | `sqlite://$HOME/.consensus/consensus.db` | PostgreSQL or SQLite DSN |

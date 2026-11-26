@@ -76,6 +76,11 @@ func ProviderBaseURL(provider Provider, baseURL string) string {
 	switch provider {
 	case ProviderOpenRouter:
 		return "https://openrouter.ai/api/v1"
+	case ProviderDeepSeek:
+		// DF-CONSENSUS-076: the "deepseek" provider alias shares this
+		// resolver with the client factory, so the startup key probe and
+		// the real client always target the same host.
+		return "https://api.deepseek.com/v1"
 	case ProviderAnthropic:
 		return "https://api.anthropic.com/v1"
 	default:

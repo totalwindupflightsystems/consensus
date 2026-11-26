@@ -233,6 +233,7 @@ func TestProviderBaseURL(t *testing.T) {
 	}{
 		{"openai default", ProviderOpenAI, "", "https://api.openai.com/v1"},
 		{"openrouter default", ProviderOpenRouter, "", "https://openrouter.ai/api/v1"},
+		{"deepseek default", ProviderDeepSeek, "", "https://api.deepseek.com/v1"},
 		{"anthropic default", ProviderAnthropic, "", "https://api.anthropic.com/v1"},
 		{"unknown provider defaults openai-compatible", Provider("some-proxy"), "", "https://api.openai.com/v1"},
 		{"explicit base wins over provider default", ProviderOpenAI, "https://api.deepseek.com/v1/", "https://api.deepseek.com/v1"},

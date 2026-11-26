@@ -222,6 +222,45 @@ func TestNewClient_UnknownProvider(t *testing.T) {
 	if !strings.Contains(err.Error(), "unknown") {
 		t.Errorf("error should mention unknown provider: %v", err)
 	}
+	// DF-CONSENSUS-076: the failure must name the supported providers so the
+	// fix is discoverable from the error itself, not the source.
+	if !strings.Contains(err.Error(), "supported providers") {
+		t.Errorf("error should list supported providers: %v", err)
+	}
+	for _, name := range []string{"openai", "anthropic", "openrouter", "deepseek", "mock"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error should list supported provider %q: %v", name, err)
+		}
+	}
+}
+
+// TestNewClient_DeepSeekAlias pins the DF-CONSENSUS-076 contract: the
+// DeepSeek-native provider name is accepted and builds the OpenAI-compatible
+// client aimed at the DeepSeek API endpoint.
+func TestNewClient_DeepSeekAlias(t *testing.T) {
+	client, err := NewClient(&Config{
+		Provider: ProviderDeepSeek,
+		Model:    "deepseek-v4-flash",
+	})
+	if err != nil {
+		t.Fatalf("expected the deepseek provider alias to build a client, got: %v", err)
+	}
+	oc, ok := client.(*openaiClient)
+	if !ok {
+		t.Fatalf("expected the OpenAI-compatible client for provider=deepseek, got %T", client)
+	}
+	if got := oc.baseURL; got != "https://api.deepseek.com/v1" {
+		t.Errorf("provider=deepseek default base URL = %q, want https://api.deepseek.com/v1", got)
+	}
+	// An explicit base URL still wins so proxy/self-hosted deployments work.
+	proxied := NewOpenAIClient(&Config{
+		Provider: ProviderDeepSeek,
+		BaseURL:  "https://gateway.example/v1",
+		Model:    "deepseek-v4-flash",
+	})
+	if pc := proxied.(*openaiClient); pc.baseURL != "https://gateway.example/v1" {
+		t.Errorf("explicit base URL = %q, want https://gateway.example/v1", pc.baseURL)
+	}
 }
 
 // ============================================================================

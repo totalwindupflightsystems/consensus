@@ -508,6 +508,31 @@ func TestEnvOverride_LLMProviderOverridesConfig(t *testing.T) {
 	}
 }
 
+func TestLoad_DeepSeekProviderAliasResolvesEndpointAndModel(t *testing.T) {
+	// DF-CONSENSUS-076: CONSENSUS_LLM_PROVIDER=deepseek is a first-class
+	// alias — the resolved config must point at the DeepSeek API endpoint
+	// and carry the shipped model, exactly like the DEEPSEEK_API_KEY-only
+	// env-only path that predates the alias.
+	hermeticEnv(t)
+	t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+	t.Setenv("DEEPSEEK_API_KEY", "test-deepseek-key")
+	t.Setenv("CONSENSUS_LLM_PROVIDER", "deepseek")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LLM.Provider != "deepseek" {
+		t.Errorf("expected provider %q, got %q", "deepseek", cfg.LLM.Provider)
+	}
+	if cfg.LLM.BaseURL != "https://api.deepseek.com/v1" {
+		t.Errorf("expected the DeepSeek endpoint, got %q", cfg.LLM.BaseURL)
+	}
+	if cfg.LLM.DefaultModel != "deepseek-v4-flash" {
+		t.Errorf("expected the shipped DeepSeek model default, got %q", cfg.LLM.DefaultModel)
+	}
+}
+
 func TestLoad_EnvOnlyDeepSeekUsesCompatibleEndpointAndModel(t *testing.T) {
 	hermeticEnv(t)
 	t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))

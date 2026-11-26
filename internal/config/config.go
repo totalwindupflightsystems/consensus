@@ -484,12 +484,17 @@ func applyEnvOverrides(cfg *Config) {
 		// provider override was configured. Preserve explicit environment and
 		// config-file choices; otherwise make the README's env-only contract
 		// real instead of sending the DeepSeek key to OpenAI.
-		if cfg.LLM.BaseURL == "" && !providerFromEnv && cfg.LLM.Provider == "openai" {
+		// DF-CONSENSUS-076: provider=deepseek (the first-class alias) counts
+		// as an explicit DeepSeek choice too, so the compatible endpoint and
+		// the shipped model are applied exactly as for provider=openai.
+		providerIsDeepSeek := strings.EqualFold(cfg.LLM.Provider, "deepseek")
+		if cfg.LLM.BaseURL == "" &&
+			((cfg.LLM.Provider == "openai" && !providerFromEnv) || providerIsDeepSeek) {
 			cfg.LLM.BaseURL = "https://api.deepseek.com/v1"
 		}
 		baseURL, err := url.Parse(cfg.LLM.BaseURL)
 		usesDeepSeek := err == nil && strings.EqualFold(baseURL.Hostname(), "api.deepseek.com")
-		if usesDeepSeek && cfg.LLM.DefaultModel == "" {
+		if (usesDeepSeek || providerIsDeepSeek) && cfg.LLM.DefaultModel == "" {
 			// DeepSeek rejects the later OpenAI fallback with HTTP 400; use the
 			// shipped model only while the compiled config default is still empty.
 			cfg.LLM.DefaultModel = "deepseek-v4-flash"

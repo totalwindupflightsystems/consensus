@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/wojons/consensus/internal/harness"
 )
@@ -37,8 +38,21 @@ const (
 	ProviderOpenAI     Provider = "openai"
 	ProviderAnthropic  Provider = "anthropic"
 	ProviderOpenRouter Provider = "openrouter"
+	ProviderDeepSeek   Provider = "deepseek"
 	ProviderMock       Provider = "mock"
 )
+
+// supportedProviderNames lists the provider names NewClient accepts. It backs
+// the unknown-provider error so an operator typo (e.g. the DeepSeek-native
+// name "deepseek" before it became an alias, or "ollama", "azure", ...) is
+// discoverable from the failure itself instead of the source (DF-CONSENSUS-076).
+var supportedProviderNames = []string{
+	string(ProviderOpenAI),
+	string(ProviderAnthropic),
+	string(ProviderOpenRouter),
+	string(ProviderDeepSeek),
+	string(ProviderMock),
+}
 
 // ============================================================================
 // Config
@@ -187,13 +201,22 @@ func NewClient(cfg *Config) (harness.LLMClient, error) {
 		return NewMockClient(), nil
 	case ProviderOpenAI:
 		return NewOpenAIClient(cfg), nil
+	case ProviderDeepSeek:
+		// DF-CONSENSUS-076: "deepseek" is a first-class alias for the
+		// OpenAI-compatible client aimed at the DeepSeek API. The base URL
+		// default lives in ProviderBaseURL (shared with the startup key
+		// probe); an explicit CONSENSUS_LLM_BASE_URL / llm.base_url still
+		// wins, so proxy and self-hosted deployments stay reachable via
+		// provider=deepseek too.
+		return NewOpenAIClient(cfg), nil
 	case ProviderOpenRouter:
 		// OpenRouter is API-compatible with OpenAI; same client, different base URL.
 		return NewOpenAIClient(cfg), nil
 	case ProviderAnthropic:
 		return NewAnthropicClient(cfg), nil
 	default:
-		return nil, fmt.Errorf("llm: unknown provider %q", cfg.Provider)
+		return nil, fmt.Errorf("llm: unknown provider %q (supported providers: %s)",
+			cfg.Provider, strings.Join(supportedProviderNames, ", "))
 	}
 }
 

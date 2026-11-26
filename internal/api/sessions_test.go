@@ -193,6 +193,72 @@ func TestCreateSession_Success(t *testing.T) {
 	}
 }
 
+// TestCreateSession_ReportsConfiguredDefaultModel pins the DF-CONSENSUS-076
+// contract: when the operator configures CONSENSUS_LLM_MODEL, session creation
+// must report that model — the one the harness LLM client actually serves —
+// instead of the cheapest enabled model_registry entry.
+func TestCreateSession_ReportsConfiguredDefaultModel(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+	srv.svc.Sessions.SetDefaultModelID("deepseek-v4-flash")
+
+	body := `{"agent_name":"research-agent","goal":"Analyze Q4 revenue data"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp CreateSessionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.ModelID != "deepseek-v4-flash" {
+		t.Errorf("expected the configured default model in the response, got %q", resp.ModelID)
+	}
+
+	ctx := context.Background()
+	rows, err := srv.conn.Query(ctx, `SELECT model_id FROM sessions WHERE id = $1`, resp.ID)
+	if err != nil || len(rows) == 0 {
+		t.Fatalf("session not found in DB: %v", err)
+	}
+	if got := toString(rows[0]["model_id"]); got != "deepseek-v4-flash" {
+		t.Errorf("expected session model_id 'deepseek-v4-flash', got %q", got)
+	}
+}
+
+// TestCreateSession_ExplicitModelBeatsConfiguredDefault proves the precedence
+// ladder: an explicit request model_id wins over the configured default.
+func TestCreateSession_ExplicitModelBeatsConfiguredDefault(t *testing.T) {
+	srv := newIntegrationServer(t)
+	defer srv.close()
+	srv.svc.Sessions.SetDefaultModelID("deepseek-v4-flash")
+
+	body := `{"agent_name":"coder","goal":"Write tests","model_id":"gpt-4o"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+srv.adminKey)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp CreateSessionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.ModelID != "gpt-4o" {
+		t.Errorf("expected explicit request model_id to win, got %q", resp.ModelID)
+	}
+}
+
 func TestCreateSession_WithSpecificModel(t *testing.T) {
 	srv := newIntegrationServer(t)
 	defer srv.close()

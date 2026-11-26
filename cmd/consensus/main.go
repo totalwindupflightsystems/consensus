@@ -355,6 +355,11 @@ func runServer() {
 		// is enforced when that client is built), so a keyless fresh user
 		// in mock mode can create sessions.
 		LLMProvider: cfg.LLM.Provider,
+		// DF-CONSENSUS-076: report the operator-configured default model on
+		// session creation — the same value the harness LLM client serves.
+		// llmCfg.Model (not cfg.LLM.DefaultModel) so the compile-time
+		// "gpt-4o" fallback at client-build time is reported too.
+		DefaultModelID: llmCfg.Model,
 	})
 
 	// DF-CONSENSUS-56: the harness applies terminal status transitions by SQL

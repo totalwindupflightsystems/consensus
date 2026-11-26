@@ -255,7 +255,7 @@ du -sh /var/log/consensus/
 | `db: unsupported driver` | DB URL scheme not recognized | Must start with `postgres://` or `sqlite://` |
 | `migrate: schema version N > max available` | Binary older than DB schema | Update binary to match migration set |
 | `migrate: migration N not found in binary` | DB schema newer than binary | Rollback DB or update binary |
-| `llm: unknown provider` | CONSENSUS_LLM_PROVIDER typo | Must be `openai`, `anthropic`, `openrouter`, or `mock` |
+| `llm: unknown provider` | CONSENSUS_LLM_PROVIDER typo | Must be `openai`, `anthropic`, `openrouter`, `deepseek`, or `mock` — the error itself now lists the supported names |
 | `llm: api error: 401` | Invalid or missing API key | Check OPENAI_API_KEY or ANTHROPIC_API_KEY env var |
 | `llm: api error: 429` | Rate limited | Wait and retry; reduce concurrent sessions |
 
