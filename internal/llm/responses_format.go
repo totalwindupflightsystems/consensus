@@ -24,6 +24,7 @@ package llm
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/wojons/consensus/internal/harness"
@@ -378,6 +379,18 @@ func InterpretResponsesResponse(resp *ResponsesResponse) (*harness.LLMResponse, 
 
 	var output harness.AgentOutput
 	if err := json.Unmarshal([]byte(stripMarkdownCodeBlock(content)), &output); err != nil {
+		// PERF-CONSENSUS-014: prose on a plain conversational turn is the
+		// reply, not a call failure — see proseFallbackOutput in client.go.
+		if len(toolCalls) == 0 {
+			if fb := proseFallbackOutput(content); fb != nil {
+				slog.Warn("llm: responses provider replied in prose, not AgentOutput JSON — promoting content to message_to_user (one call, one reply)",
+					"model", resp.Model,
+					"content_len", len(content),
+				)
+				turn.Output = fb
+				return turn, nil
+			}
+		}
 		return turn, fmt.Errorf("llm: responses parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
 	}
 	turn.Output = &output

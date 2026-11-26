@@ -398,8 +398,18 @@ func TestThinkingCOT_ContinuationRebuiltFromClientTurnMatchesRecordedRequest(t *
 	recordedTurn2 := recordedMessages(t, fx.ToolsPresent.Turn2.Request)
 	turn2 = append(turn2, recordedTurn2[3:]...) // the tool result + the follow-up, owned by the caller
 
-	if _, err := client.Call(t.Context(), turn2); err == nil {
-		t.Fatal("turn 2: expected an AgentOutput parse error from the recorded answer")
+	// PERF-CONSENSUS-014: the recorded turn-2 answer is prose ("consensus CoT
+	// probe") with no tool calls, so the client now promotes it to
+	// message_to_user instead of failing the call with an AgentOutput parse
+	// error — a prose reply is the answer, not a provider failure. The point
+	// of this test is the CONTINUATION WIRE BODY below: the rebuilt request
+	// must still match what the provider accepted, recorded or not.
+	turn2Resp, err := client.Call(t.Context(), turn2)
+	if err != nil {
+		t.Fatalf("turn 2: prose reply must not be a call error (PERF-CONSENSUS-014 promotion): %v", err)
+	}
+	if turn2Resp == nil || turn2Resp.Output == nil || turn2Resp.Output.MessageToUser == "" {
+		t.Fatalf("turn 2: prose answer must ride message_to_user, got %+v", turn2Resp)
 	}
 	if len(*captured) != 2 {
 		t.Fatalf("captured %d requests, want 2", len(*captured))

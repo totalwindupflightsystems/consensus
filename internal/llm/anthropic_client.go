@@ -570,6 +570,20 @@ func (c *anthropicClient) buildAnthropicResponse(msgResp *anthropicMessageRespon
 		if promoted {
 			return resp, fmt.Errorf("llm: promoted reasoning content (last-resort) did not parse as AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(parseTarget, 500))
 		}
+		// PERF-CONSENSUS-014: prose on a plain conversational turn is the
+		// reply, not a call failure — see proseFallbackOutput. Retrying the
+		// identical context via the session re-claim path only re-billed the
+		// full prompt without ever delivering the answer.
+		if len(toolCalls) == 0 {
+			if fb := proseFallbackOutput(parseTarget); fb != nil {
+				slog.Warn("llm: anthropic provider replied in prose, not AgentOutput JSON — promoting content to message_to_user (one call, one reply)",
+					"model", msgResp.Model,
+					"content_len", len(parseTarget),
+				)
+				resp.Output = fb
+				return resp, nil
+			}
+		}
 		return resp, fmt.Errorf("llm: anthropic parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(parseTarget, 500))
 	}
 	resp.Output = &output

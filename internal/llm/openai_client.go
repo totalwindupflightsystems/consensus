@@ -901,9 +901,36 @@ func (c *openaiClient) buildResponse(chatResp *openaiChatResponse, startTime tim
 		if promoted {
 			return resp, fmt.Errorf("llm: promoted reasoning_content (last-resort) did not parse as AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
 		}
-		return resp, fmt.Errorf("llm: parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
+		// PERF-CONSENSUS-014: a plain conversational turn is a real reply.
+		// Providers answer chat in prose even when a JSON protocol was asked
+		// for (response_format json_schema is advisory on several backends).
+		// Treating that shape error as a CALL failure routed the turn into
+		// handleLLMPlanningError, which returns the session to 'thinking' so
+		// the heartbeat re-claims it and re-runs the whole full-context
+		// planning call — 2-3 sequential provider round trips for ONE user
+		// message, ending in a circuit-breaker pause, with the model's answer
+		// never delivered. The prose IS the answer (DF-CONSENSUS-072
+		// doctrine: the text the model addressed to the user is what reaches
+		// it), so carry it as message_to_user; the planner's no-op promotion
+		// settles the turn as a respond in exactly one provider call. A turn
+		// that requested tools still errors: it has no user-facing reply to
+		// demote to, and its tool_calls must not be silently dropped.
+		if len(msg.ToolCalls) == 0 {
+			if fb := proseFallbackOutput(content); fb != nil {
+				slog.Warn("llm: provider replied in prose, not AgentOutput JSON — promoting content to message_to_user (one call, one reply)",
+					"model", chatResp.Model,
+					"content_len", len(content),
+				)
+				resp.Output = fb
+			} else {
+				return resp, fmt.Errorf("llm: parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
+			}
+		} else {
+			return resp, fmt.Errorf("llm: parse AgentOutput JSON: %w\nRaw content: %s", err, truncateStr(content, 500))
+		}
+	} else {
+		resp.Output = &output
 	}
-	resp.Output = &output
 
 	slog.Info("llm: response received",
 		"model", chatResp.Model,

@@ -27,6 +27,25 @@ import (
 // All provider implementations satisfy harness.LLMClient directly.
 type Client = harness.LLMClient
 
+// proseFallbackOutput wraps a non-JSON provider reply as a conversational
+// respond turn (PERF-CONSENSUS-014). A provider that answers a plain chat
+// turn in prose — common even when a JSON output protocol was requested —
+// produced a parse error at every provider client, which the planning loop
+// treated as a call failure and retried via the session re-claim path:
+// 2-3 sequential full-context provider calls for one user message, ending
+// in a circuit-breaker pause, with the answer never delivered. The raw text
+// is the answer the model addressed to the user (DF-CONSENSUS-072), so it
+// rides message_to_user and the planner's no-op promotion settles the turn
+// as a respond in exactly one provider call. Nil means "no fallback": empty
+// content has nothing user-facing to promote, and callers keep their error
+// for tool-call turns and reasoning promotions.
+func proseFallbackOutput(content string) *harness.AgentOutput {
+	if strings.TrimSpace(content) == "" {
+		return nil
+	}
+	return &harness.AgentOutput{MessageToUser: content}
+}
+
 // ============================================================================
 // Provider Type
 // ============================================================================
