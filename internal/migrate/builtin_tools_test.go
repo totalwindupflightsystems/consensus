@@ -17,6 +17,7 @@ import (
 // ch:trace row=DF-CONSENSUS-66 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go,internal/harness/tool_executor_native_test.go evidence=fresh-init-probe:5of5-seeded+go-test-green verdict=none:pending-tier2 commit=2523cba0 memory=none:pending
 // ch:trace row=DF-CONSENSUS-79 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=upgrade-probe:pre033-and-at033-converge+repaired-bash-dispatches-on-upgraded-db+falsification:034-noop-red+go-test-green verdict=tier2:changes_required-then-fixed commit=pending memory=none:pending
 // ch:trace row=DF-CONSENSUS-085 spec=specs/010-tools.md#builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go evidence=fresh-init-probe:shell-aliases-resolve-first-attempt+operator-row-preserved+go-test-green verdict=none:pending-tier2 commit=pending memory=none:pending
+// ch:trace row=DF-CONSENSUS-081 spec=docs/TOOLS.md#reserved-builtin-tools wave=none:serial test=internal/migrate/builtin_tools_test.go,internal/migrate/postgres_builtin_repair_test.go evidence=go-test-green-sqlite-policy+pg-034-test-wired-into-ci-pg-job verdict=none:pending-tier2 commit=pending memory=none:pending
 // STATUS: implemented
 // TIER: T1
 // EVIDENCE: fresh `consensus init` on an empty DB seeds read/write/edit/glob/bash as enabled active go_native rows with registered handler_refs; async ToolExecutor tests assert real filesystem effects.
@@ -206,6 +207,80 @@ func TestMigrationRepairsInstallsAlreadyAt033(t *testing.T) {
 	}
 	if state.MigrationRequired || len(state.PendingMigrations) != 0 {
 		t.Fatalf("migrations still pending after repair: %v", state.PendingMigrations)
+	}
+}
+
+// TestReservedBuiltinsAreProductOwned pins the DF-CONSENSUS-081 override
+// policy: read/write/edit/glob/bash are RESERVED BUILTIN tools owned by the
+// product. An operator who deliberately disabled (or rewired) one of these
+// five names is intentionally overridden by migration 034 — the dispatch
+// fields are rewritten unconditionally so every upgrade converges on the
+// real native handlers — while operator-owned metadata survives. The policy
+// is documented in docs/TOOLS.md ("Reserved builtin tools").
+func TestReservedBuiltinsAreProductOwned(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	runner := applyMigrationsRange(t, database, 1, 32)
+
+	// Simulate an operator who deliberately disabled and rewired ALL five
+	// reserved builtin names, keeping custom metadata.
+	names := []string{"read", "write", "edit", "glob", "bash"}
+	for _, name := range names {
+		if err := database.Exec(ctx, `INSERT INTO tools_registry (name, description, hemisphere, parameter_schema, handler_type, handler_ref, status, enabled, requires_approval) VALUES ($1, 'operator-disabled on purpose', 'external', '{}', 'subprocess', 'operator_stub', 'disabled', false, false)`, name); err != nil {
+			t.Fatalf("seed operator-disabled %s: %v", name, err)
+		}
+	}
+
+	// The migration must run 034's five unconditional UPDATE statements —
+	// the product-owned override, not a preserve-disabled variant.
+	var migration034 Migration
+	for _, migration := range runner.migrations {
+		if migration.Version == 34 {
+			migration034 = migration
+			break
+		}
+	}
+	if migration034.SQL == "" {
+		t.Fatal("migration 034 is not loaded")
+	}
+	updates := strings.Count(migration034.SQL, "UPDATE tools_registry")
+	if updates != 5 {
+		t.Errorf("migration 034 carries %d UPDATE statements, want 5 (one per reserved builtin)", updates)
+	}
+	for _, name := range names {
+		if !strings.Contains(migration034.SQL, "WHERE name = '"+name+"'") {
+			t.Errorf("migration 034 does not target reserved builtin %q", name)
+		}
+	}
+
+	if _, err := runner.AutoMigrate(ctx); err != nil {
+		t.Fatalf("upgrade AutoMigrate: %v", err)
+	}
+
+	// Policy assertion: the disabled reserved builtins are RESTORED (re-enabled
+	// and rewired to the real native handlers) — intentional, by design.
+	wantRefs := map[string]string{"read": "read_file", "write": "write_file", "edit": "edit", "glob": "glob", "bash": "bash"}
+	rows, err := database.Query(ctx, `SELECT name, handler_type, handler_ref, status, enabled, description FROM tools_registry WHERE name IN ('read', 'write', 'edit', 'glob', 'bash') ORDER BY name`)
+	if err != nil {
+		t.Fatalf("query restored builtins: %v", err)
+	}
+	if len(rows) != len(names) {
+		t.Fatalf("restored rows = %d, want %d", len(rows), len(names))
+	}
+	for _, row := range rows {
+		name := toString(row["name"])
+		if toString(row["handler_type"]) != "go_native" || toString(row["status"]) != "active" || toInt(row["enabled"]) == 0 {
+			t.Errorf("%s row = %#v, want the product-owned dispatch (active enabled go_native) restored by 034", name, row)
+		}
+		if got := toString(row["handler_ref"]); got != wantRefs[name] {
+			t.Errorf("%s handler_ref = %q, want %q", name, got, wantRefs[name])
+		}
+		// The override touches ONLY dispatch fields — operator metadata stays.
+		if toString(row["description"]) != "operator-disabled on purpose" {
+			t.Errorf("%s description = %q, want preserved operator metadata", name, row["description"])
+		}
 	}
 }
 

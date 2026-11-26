@@ -18,6 +18,37 @@ Consensus exposes tools and skills to agents through the registry tables
 
 `consensus tool list` shows them immediately after `init`.
 
+## Reserved builtin tools
+
+The five filesystem tools `read`, `write`, `edit`, `glob`, and `bash` are
+**reserved builtin** names owned by the product, not by the operator. They
+are seeded by migration `033_seed_filesystem_builtin_tools.sql` and repaired
+by migration `034_repair_filesystem_builtin_tools.sql`.
+
+Override policy (intentional, by design):
+
+- Migration 034 rewrites the **dispatch fields** (`handler_type`,
+  `handler_ref`, `status`, `enabled`) of these five reserved builtin names
+  unconditionally on every install that applies it. If an operator
+  deliberately disabled or rewired one of them (for example
+  `status = 'disabled'`, `enabled = false`, or a custom `handler_ref`), the
+  upgrade **silently restores the product-owned dispatch**: `go_native`
+  handler, active, enabled. Reserved builtin names cannot be permanently
+  disabled by editing the registry — upgrades will re-enable them.
+- **Operator-owned metadata is preserved**: `description`, `hemisphere`,
+  `parameter_schema`, ownership, and rate-limit settings are never touched
+  by the repair.
+- **Unrelated tool rows are never touched**: any other name in
+  `tools_registry` — including operator-registered tools and the shell
+  aliases seeded by migration 035 — keeps whatever an operator set.
+
+This is enforced by `TestReservedBuiltinsAreProductOwned` (SQLite) and
+`TestPostgresMigration034BuiltinRepair` (Postgres, runs in the CI
+`Postgres Integration` job). If you need a filesystem tool permanently
+unavailable, use the approval gate (`requires_approval`) or remove the
+native handlers from the build — do not rely on registry edits to the five
+reserved builtin names.
+
 ## Registering a tool
 
 Use the CLI (it calls `POST /api/v1/tools`, so a server must be running):

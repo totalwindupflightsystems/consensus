@@ -241,9 +241,14 @@ test-pg:
 # test no longer depends on host port 5432 being free.
 # axiom:trace work_item=WI-postgres-full-integration spec=specs/003-database.md plan=phase-1/task-1/step-1
 .PHONY: test-pg-full
+# DF-CONSENSUS-081: the pattern also runs TestPostgresMigration034BuiltinRepair,
+# the Postgres-only coverage for migration 034's five reserved builtin rows
+# (the PG runner applies a whole migration in one Exec, so the SQLite tests
+# cannot prove that path). Both tests skip when CONSENSUS_TEST_POSTGRES_URL
+# is unset; the CI 'Postgres Integration' job always sets it.
 test-pg-full:
 	CONSENSUS_TEST_POSTGRES_URL="$${CONSENSUS_TEST_POSTGRES_URL:-postgres://consensus:consensus@localhost:5432/consensus?sslmode=disable}" \
-		$(CGO_FLAGS) $(GO) test ./internal/migrate -run TestPostgresFullIntegration -v -count=1
+		$(CGO_FLAGS) $(GO) test ./internal/migrate -run 'TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair' -v -count=1
 
 # --- Run built binary ---
 
