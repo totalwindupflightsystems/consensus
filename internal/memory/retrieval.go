@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 
 	"github.com/wojons/consensus/internal/db"
 )
@@ -152,14 +153,23 @@ func (r *Retriever) FindSimilar(ctx context.Context, sessionID string, query str
 const DefaultEmbeddingDimensions = 1536
 
 // vectorToString converts an embedding vector to its JSON string representation.
+//
+// Each float is formatted with strconv.AppendFloat(dst, val, 'f', 10, 64),
+// which is byte-identical to the previous fmt.Sprintf("%.10f", val): fmt
+// delegates 'f' formatting with a fixed precision to strconv internally.
+// Appending directly into the shared buffer removes the per-float string
+// allocation and Printf machinery (the previous hot spot — 1536 fmt.Sprintf
+// calls and ~3000 allocations per 1536-dim vector).
 func vectorToString(v []float64) string {
-	var b []byte
+	// Pre-size for the common case: "-d.dddddddddd" is ~13 bytes per float
+	// at 10 decimal places (larger magnitudes still grow correctly).
+	b := make([]byte, 0, 2+13*len(v))
 	b = append(b, '[')
 	for i, val := range v {
 		if i > 0 {
 			b = append(b, ',')
 		}
-		b = append(b, []byte(fmt.Sprintf("%.10f", val))...)
+		b = strconv.AppendFloat(b, val, 'f', 10, 64)
 	}
 	b = append(b, ']')
 	return string(b)

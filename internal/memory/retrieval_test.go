@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"strings"
 	"testing"
@@ -122,6 +123,81 @@ func TestVectorToString_Roundtrip(t *testing.T) {
 	}
 	if math.Abs(decoded[1]-0.9876543210) > 1e-9 {
 		t.Errorf("dim 1 mismatch: %.10f", decoded[1])
+	}
+}
+
+// legacyVectorToString is the pre-optimization implementation kept verbatim as
+// the byte-compatibility oracle: vectorToString must produce identical output
+// for every input, since parseVector/FindSimilar consume the stored format.
+func legacyVectorToString(v []float64) string {
+	var b []byte
+	b = append(b, '[')
+	for i, val := range v {
+		if i > 0 {
+			b = append(b, ',')
+		}
+		b = append(b, []byte(fmt.Sprintf("%.10f", val))...)
+	}
+	b = append(b, ']')
+	return string(b)
+}
+
+func TestVectorToString_ByteEquivalence(t *testing.T) {
+	// Non-finite values: %.10f renders NaN/+Inf/-Inf without decimals; the
+	// equivalence test pins that behavior rather than assuming it.
+	inf := math.Inf(1)
+	cases := []float64{
+		0.0, math.Copysign(0, -1), // signed zero → "-0.0000000000"
+		0.00000000005, 1.00000000005, 2.50000000005, // rounding boundary: 11th digit exactly 5
+		-0.00000000005, -1.00000000005,
+		0.000000000049999999, 0.000000000051, // just below / above the boundary
+		0.12345678905, -0.12345678905,
+		math.MaxFloat64, math.SmallestNonzeroFloat64, // extremes
+		1e300, -1e300, 1e15, -1e15, 12345678901234.5,
+		1.5, -1.5, 42, -42,
+		math.NaN(), inf, -inf, // non-finite
+	}
+	for _, val := range cases {
+		got := vectorToString([]float64{val})
+		want := legacyVectorToString([]float64{val})
+		if got != want {
+			t.Errorf("vectorToString(%v) = %q, want %q (legacy %.10f output)", val, got, want, val)
+		}
+	}
+
+	// Empty and multi-element shapes, including sign mixing.
+	shapes := [][]float64{
+		{},
+		{0.0},
+		{math.Copysign(0, -1), 0.0, math.Copysign(0, -1)},
+		{1.5, -2.25, 0.00000000005, math.NaN(), 1e300},
+	}
+	for _, shape := range shapes {
+		got := vectorToString(shape)
+		want := legacyVectorToString(shape)
+		if got != want {
+			t.Errorf("vectorToString(%v) = %q, want %q", shape, got, want)
+		}
+	}
+
+	// Deterministic random sweep: seeded PRNG keeps the test reproducible.
+	rng := rand.New(rand.NewSource(42))
+	for i := 0; i < 500; i++ {
+		val := (rng.Float64() - 0.5) * math.Pow(10, float64(rng.Intn(17)-8))
+		got := vectorToString([]float64{val})
+		want := legacyVectorToString([]float64{val})
+		if got != want {
+			t.Errorf("random case %d: vectorToString(%v) = %q, want %q", i, val, got, want)
+		}
+	}
+
+	// A full 1536-dim embedding-sized vector must match byte-for-byte too.
+	vec := make([]float64, 1536)
+	for i := range vec {
+		vec[i] = (rng.Float64() - 0.5) * 2
+	}
+	if vectorToString(vec) != legacyVectorToString(vec) {
+		t.Error("1536-dim vector output diverges from legacy formatting")
 	}
 }
 
