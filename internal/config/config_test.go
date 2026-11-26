@@ -508,6 +508,86 @@ func TestEnvOverride_LLMProviderOverridesConfig(t *testing.T) {
 	}
 }
 
+// DF-CONSENSUS-076 rework: docs/CONFIG.md §5.2 advertises five provider
+// names (openai, anthropic, openrouter, deepseek, mock), but env ->
+// provider/model resolution was covered only for openai, deepseek, and
+// anthropic. Cover the two missing advertised names. mock is
+// credential-free (DF-CONSENSUS-109), so no key is required. For
+// openrouter, also assert the DOCUMENTED OPENROUTER_API_KEY forced path
+// (config.go: OPENROUTER_API_KEY forces provider=openrouter and drops a
+// stale provider-specific base URL from the config file, DF-CONSENSUS-1 /
+// C-GAP-015) rather than changing product code.
+func TestLoad_EnvProviderSelectionResolvesOpenRouterAndMock(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		configYAML   string
+		env          map[string]string
+		wantProvider string
+		wantModel    string
+		wantBaseURL  string
+		wantAPIKey   string
+	}{
+		{
+			name: "CONSENSUS_LLM_PROVIDER=openrouter resolves provider and model",
+			env: map[string]string{
+				"CONSENSUS_LLM_PROVIDER": "openrouter",
+				"CONSENSUS_LLM_MODEL":    "openrouter/test-model",
+			},
+			wantProvider: "openrouter",
+			wantModel:    "openrouter/test-model",
+		},
+		{
+			name:       "OPENROUTER_API_KEY forces openrouter and drops the stale config base URL",
+			configYAML: "llm:\n  provider: anthropic\n  base_url: https://api.deepseek.com/v1\n",
+			env: map[string]string{
+				"OPENROUTER_API_KEY": "test-openrouter-key",
+			},
+			wantProvider: "openrouter",
+			wantModel:    "",
+			wantBaseURL:  "",
+			wantAPIKey:   "test-openrouter-key",
+		},
+		{
+			name: "CONSENSUS_LLM_PROVIDER=mock resolves provider and model without a credential",
+			env: map[string]string{
+				"CONSENSUS_LLM_PROVIDER": "mock",
+				"CONSENSUS_LLM_MODEL":    "mock-model",
+			},
+			wantProvider: "mock",
+			wantModel:    "mock-model",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hermeticEnv(t)
+			if tc.configYAML == "" {
+				t.Setenv("CONSENSUS_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+			} else {
+				t.Setenv("CONSENSUS_CONFIG", writeConfig(t, tc.configYAML))
+			}
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.LLM.Provider != tc.wantProvider {
+				t.Errorf("expected provider %q, got %q", tc.wantProvider, cfg.LLM.Provider)
+			}
+			if cfg.LLM.DefaultModel != tc.wantModel {
+				t.Errorf("expected model %q, got %q", tc.wantModel, cfg.LLM.DefaultModel)
+			}
+			if cfg.LLM.BaseURL != tc.wantBaseURL {
+				t.Errorf("expected base URL %q, got %q", tc.wantBaseURL, cfg.LLM.BaseURL)
+			}
+			if tc.wantAPIKey != "" && cfg.LLM.APIKey != tc.wantAPIKey {
+				t.Errorf("expected the OPENROUTER_API_KEY credential, got %q", cfg.LLM.APIKey)
+			}
+		})
+	}
+}
+
 func TestLoad_DeepSeekProviderAliasResolvesEndpointAndModel(t *testing.T) {
 	// DF-CONSENSUS-076: CONSENSUS_LLM_PROVIDER=deepseek is a first-class
 	// alias — the resolved config must point at the DeepSeek API endpoint
