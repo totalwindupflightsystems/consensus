@@ -67,6 +67,16 @@ keys are read from the environment and never printed). Keys are referenced by
 env-var NAME only in this document — never write a literal key value here or
 anywhere in the repo.
 
+Re-probed 2026-11-26T08:10Z (same script + direct /models + completion curls):
+z.ai ambient triple HTTP 429 (weekly plan cap), deepseek HTTP 402
+(insufficient balance), ollama-cloud HTTP 429 (weekly usage limit),
+openrouter HTTP 403 (key weekly limit exceeded), fireworks HTTP 412
+(suspended). The ONLY 200 lane is xai, but `grok-4-fast` is now ABSENT from
+`https://api.x.ai/v1/models` — the gitreins lane-coherence check refuses it.
+Current xai ids: grok-4.3 / grok-4.5 / grok-4.6 / grok-4.7 (completion probe
+of grok-4.7 returned HTTP 200). Use `GITREINS_LLM_MODEL=grok-4.7` for the xai
+lane until the next re-probe; the table below reflects the 2026-11-24 probe.
+
 | Provider | Base URL | Model id | Key env-var name | Probe result |
 |---|---|---|---|---|
 | deepseek | `https://api.deepseek.com` | `deepseek-flash` | `DEEPSEEK_API_KEY` | HTTP 200 |

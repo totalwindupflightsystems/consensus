@@ -1,0 +1,6 @@
+Foreman verification 2026-11-26T08:0xZ at tree bee291c6.
+Repro: fresh sqlite serve (config llm.base_url -> recorder :18463, dummy key),
+create session (agent_name+goal required), POST one plain message "got it".
+recorder.jsonl = the EXACT requests the provider received for that one turn.
+jq -s length recorder.jsonl -> 1 (red baseline before the fix was 2).
+roles: system,user,user; content chars 6336 (~1.6k tokens) sent once.

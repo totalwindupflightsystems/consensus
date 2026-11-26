@@ -1,0 +1,1 @@
+time=2026-11-26T03:08:45.643-05:00 level=WARN msg="llm: provider replied in prose, not AgentOutput JSON — promoting content to message_to_user (one call, one reply)" model=gpt-4o content_len=9
