@@ -1,0 +1,4 @@
+{
+  "description": "Front-door parity exclusions (WIRE-CONSENSUS-5). Every operation declared by the served /openapi.json must be exercised by TestFrontDoorParityRealBinary (internal/api/openapi_frontdoor_test.go) with one real HTTP request reaching a handler, OR be listed here with the operation and the reason it cannot safely be exercised. Silent skipping is forbidden: the test fails on any declared operation that is neither exercised nor excluded here, and on any stale entry (an operation that is no longer declared or was exercised anyway). Entry shape: {\"operation\": \"<METHOD> <path>\", \"reason\": \"<why the guard must not invoke it>\"}.",
+  "exclusions": []
+}
