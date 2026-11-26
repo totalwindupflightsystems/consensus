@@ -1,0 +1,159 @@
+{
+  "task_id": "DF-CONSENSUS-081",
+  "task_title": "Harden migration 034 Postgres coverage and reserved builtin policy",
+  "task_criteria": [
+    "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented."
+  ],
+  "passed": false,
+  "worktree": "/home/kara/totalwindupflightsystems/consensus",
+  "branch": "main",
+  "commit": "e9dddf1ab7d7b50f68a4f78ad4172de39d403300",
+  "pass_class": "degraded",
+  "tier2_skipped": false,
+  "working_tree_content_fingerprint": "2f078ae32a99e5ada9b76ba6dd39f339be35edb24194f423e41134f603d96709",
+  "working_tree_dirty_path_count": 2,
+  "items": [],
+  "merge_recommendation": "needs_review",
+  "stages": {
+    "tier1": {
+      "id": "tier1",
+      "passed": true,
+      "any_failed": false,
+      "summary": "  \u2713 secrets: ok (no output)\n  \u2713 lint: ok (no output)\n  \u2713 spec_parity: check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\n  \u2713 tests: ?   \tgithub.com/wojons/consensus\t[no test files]",
+      "steps": [
+        {
+          "id": "secrets",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "lint",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "spec_parity",
+          "type": "script",
+          "passed": true,
+          "output": "check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\ncheck-spec-parity: starting scratch server on 127.0.0.1:38107 (sqlite, mock LLM, no API key needed)\nspec-parity: commit=e9dddf1ab7d7b50f68a4f78ad4172de39d403300 (working tree dirty: 2 paths)\nspec-parity: declared=75 paths / 93 ops from /home/kara/totalwindupflightsystems/consensus/specs/openapi/openapi.yaml\nspec-parity: served=75 paths / 93 ops from http://127.0.0.1:38107/openapi.json\nspec-parity: declared x-not-implemented path items=1 (/vcs/{vcsId}) \u2014 excluded from MISSING/UNANSWERED\nspec-parity: runtime 92 ops probed, 0 unanswered, 1 exempt\nspec-parity: PASS \u2014 declared == served at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300 (75 paths / 93 ops)\ncheck-spec-parity: OK \u2014 declared surface matches the served surface of the built server (commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300)\n",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "tests",
+          "type": "script",
+          "passed": true,
+          "output": "?   \tgithub.com/wojons/consensus\t[no test files]\n?   \tgithub.com/wojons/consensus/chronicle\t[no test files]\nok  \tgithub.com/wojons/consensus/cmd/consensus\t0.163s\nok  \tgithub.com/wojons/consensus/demo\t8.000s\nok  \tgithub.com/wojons/consensus/internal/api\t2.163s\nok  \tgithub.com/wojons/consensus/internal/billing\t0.018s\nok  \tgithub.com/wojons/consensus/internal/bootstrap\t0.493s\nok  \tgithub.com/wojons/consensus/internal/chronicle\t0.582s\nok  \tgithub.com/wojons/consensus/internal/cli\t0.140s\nok  \tgithub.com/wojons/consensus/internal/compression\t0.078s\nok  \tgithub.com/wojons/consensus/internal/config\t0.024s\nok  \tgithub.com/wojons/consensus/internal/crier\t0.035s\nok  \tgithub.com/wojons/consensus/internal/db\t0.019s\nok  \tgithub.com/wojons/consensus/internal/db/driver\t0.023s\nok  \tgithub.com/wojons/consensus/internal/db/dynamic\t0.036s\nok  \tgithub.com/wojons/consensus/internal/db/jsonschema\t0.017s\nok  \tgithub.com/wojons/consensus/internal/db/postgres\t0.010s\nok  \tgithub.com/wojons/consensus/internal/db/sqlite\t0.028s\nok  \tgithub.com/wojons/consensus/internal/harness\t7.736s\nok  \tgithub.com/wojons/consensus/internal/hitl\t0.045s\nok  \tgithub.com/wojons/consensus/internal/llm\t0.298s\nok  \tgithub.com/wojons/consensus/internal/llmcompat\t0.011s\nok  \tgithub.com/wojons/consensus/internal/mcp\t0.110s\nok  \tgithub.com/wojons/consensus/internal/memory\t0.020s\nok  \tgithub.com/wojons/consensus/internal/migrate\t1.132s\nok  \tgithub.com/wojons/consensus/internal/modelsync\t0.138s\nok  \tgithub.com/wojons/consensus/internal/quarantine\t0.146s\nok  \tgithub.com/wojons/consensus/internal/recoverydiag\t0.053s\nok  \tgithub.com/wojons/consensus/internal/secrets\t0.009s\nok  \tgithub.com/wojons/consensus/internal/security\t0.012s\nok  \tgithub.com/wojons/consensus/internal/session\t0.018s\nok  \tgithub.com/wojons/consensus/internal/shim/h3\t0.008s\nok  \tgithub.com/wojons/consensus/internal/shim/opencode\t10.306s\nok  \tgithub.com/wojons/consensus/internal/subagent\t0.030s\nok  \tgithub.com/wojons/consensus/internal/tools\t0.264s\nok  \tgithub.com/wojons/consensus/internal/web\t0.014s\nok  \tgithub.com/wojons/consensus/internal/webhook\t0.393s\nok  \tgithub.com/wojons/consensus/pkg/client\t0.009s\nok  \tgithub.com/wojons/consensus/scripts/loadprobe\t0.004s\n?   \tgithub.com/wojons/consensus/specs\t[no test files]\n?   \tgithub.com/wojons/consensus/t10probe\t[no test files]\n",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        }
+      ]
+    },
+    "tier2": {
+      "id": "tier2",
+      "passed": false,
+      "any_failed": true,
+      "summary": "INCOMPLETE\n  \u2717 Coverage FAILED \u2014 ungraded: PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.\nEvaluator error: LLM call failed: 402 Client Error: Payment Required for url: https://api.deepseek.com/v1/chat/completions (provider=openai model=deepseek-flash url=https://api.deepseek.com/v1/chat/completions key=<GITREINS_LLM_API_KEY>)",
+      "steps": [
+        {
+          "id": "tier2",
+          "type": "ai_eval",
+          "passed": false,
+          "output": "INCOMPLETE\n  \u2717 Coverage FAILED \u2014 ungraded: PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.\nEvaluator error: LLM call failed: 402 Client Error: Payment Required for url: https://api.deepseek.com/v1/chat/completions (provider=openai model=deepseek-flash url=https://api.deepseek.com/v1/chat/completions key=<GITREINS_LLM_API_KEY>)",
+          "error": "",
+          "data": {
+            "verdict": "INCOMPLETE",
+            "items": [],
+            "summary": "Evaluator error: LLM call failed: 402 Client Error: Payment Required for url: https://api.deepseek.com/v1/chat/completions (provider=openai model=deepseek-flash url=https://api.deepseek.com/v1/chat/completions key=<GITREINS_LLM_API_KEY>)",
+            "ungraded_criteria": [
+              "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented."
+            ],
+            "provenance": {
+              "model": "deepseek-flash",
+              "base_url_source": "GITREINS_LLM_BASE_URL",
+              "api_key_source": "GITREINS_LLM_API_KEY"
+            },
+            "context_stats": {
+              "diff_source": "first-parent-merge",
+              "diff_bytes": 16195,
+              "prompt_bytes": 20978
+            }
+          }
+        }
+      ],
+      "model": "deepseek-flash",
+      "base_url_source": "GITREINS_LLM_BASE_URL",
+      "api_key_source": "GITREINS_LLM_API_KEY",
+      "ungraded_criteria": [
+        "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented."
+      ],
+      "context_stats": {
+        "diff_source": "first-parent-merge",
+        "diff_bytes": 16195,
+        "prompt_bytes": 20978
+      }
+    }
+  },
+  "ungraded_criteria": [
+    "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented."
+  ],
+  "context_stats": {
+    "diff_source": "first-parent-merge",
+    "diff_bytes": 16195,
+    "prompt_bytes": 20978
+  },
+  "review": {
+    "reviewer_email": "totalwindupflightsystems@gmail.com",
+    "reviewer_name": "totalwindupflightsystems",
+    "commit_author_email": "totalwindupflightsystems@gmail.com",
+    "commit_author_name": "totalwindupflightsystems",
+    "self_review": true,
+    "findings": [],
+    "summary": "",
+    "error": "LLM call failed: 402 Client Error: Payment Required for url: https://api.deepseek.com/v1/chat/completions (provider=openai model=deepseek-flash url=https://api.deepseek.com/v1/chat/completions key=<GITREINS_LLM_API_KEY>)",
+    "review_state": {
+      "emitted": [],
+      "carried": []
+    }
+  },
+  "summary": "Stage tier1: PASS\n    \u2713 secrets: ok (no output)\n  \u2713 lint: ok (no output)\n  \u2713 spec_parity: check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\n  \u2713 tests: ?   \tgithub.com/wojons/consensus\t[no test files]\n\nStage tier2: FAIL\n  INCOMPLETE\n  \u2717 Coverage FAILED \u2014 ungraded: PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.\nEvaluator error: LLM call failed: 402 Client Error: Payment Required for url: https://api.deepseek.com/v1/chat/completions (provider=openai model=deepseek-flash url=https://api.deepseek.com/v1/chat/completions key=<GITREINS_LLM_API_KEY>)\n\nOverall: FAIL \u2717",
+  "evaluated_at": "2026-11-26T10:08:35.304261",
+  "supersedes": null,
+  "superseded_by": null,
+  "evidence": {
+    "collected_at": "2026-11-26T10:08:35.338696+00:00",
+    "items": [
+      {
+        "name": "patch",
+        "label": "Landed commit patch",
+        "file": "commit.patch",
+        "bytes": 736,
+        "truncated": false,
+        "source": "git show e9dddf1ab7d7"
+      },
+      {
+        "name": "worktree",
+        "label": "Working-tree diff (graded)",
+        "file": "worktree.patch",
+        "bytes": 30749,
+        "truncated": false,
+        "source": "git diff HEAD (working tree)"
+      }
+    ],
+    "task_id": "DF-CONSENSUS-081"
+  }
+}

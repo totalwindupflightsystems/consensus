@@ -1,0 +1,511 @@
+{
+  "task_id": "DF-CONSENSUS-081",
+  "task_title": "Harden migration 034 Postgres coverage and reserved builtin policy",
+  "task_criteria": [
+    "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented."
+  ],
+  "passed": true,
+  "worktree": "/home/kara/totalwindupflightsystems/consensus",
+  "branch": "main",
+  "commit": "e9dddf1ab7d7b50f68a4f78ad4172de39d403300",
+  "pass_class": "judged",
+  "tier2_skipped": false,
+  "working_tree_content_fingerprint": "2f078ae32a99e5ada9b76ba6dd39f339be35edb24194f423e41134f603d96709",
+  "working_tree_dirty_path_count": 2,
+  "items": [
+    {
+      "criterion": "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.",
+      "status": "PASS",
+      "detail": "`go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`. A verbose run showed `--- PASS: TestReservedBuiltinsAreProductOwned` (internal/migrate/builtin_tools_test.go:220) and the expected unset-env skip for the Postgres test. With CONSENSUS_TEST_POSTGRES_URL pointed at a disposable pgvector/pgvector:pg16 instance, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \"reserved builtin\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; docs/TOOLS.md:21-50 documents the intentional dispatch override, preserved metadata, and untouched unrelated rows."
+    },
+    {
+      "criterion": "Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.",
+      "status": "PASS",
+      "detail": ".github/workflows/ci.yml:111 defines the `Postgres Integration` job, lines 152/164 export CONSENSUS_TEST_POSTGRES_URL, and line 180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair`. Running that exact Make target against fresh disposable Postgres exited 0: both tests ran, including `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, ending `ok github.com/wojons/consensus/internal/migrate 1.209s`.",
+      "derived": true
+    },
+    {
+      "criterion": "Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.",
+      "status": "PASS",
+      "detail": "internal/migrate/postgres_reserved_builtins_test.go:60-61 baselines through the real Runner, lines 104-107 make version 34 pending and call `runner.Up`, and line 111 requires `034_repair_filesystem_builtin_tools.sql` in the applied list. internal/migrate/migrate.go:279-337 implements Up, with the non-SQLite whole-migration Exec at lines 330-334. The live Postgres run exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving this path and its queries execute successfully.",
+      "derived": true
+    },
+    {
+      "criterion": "Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.",
+      "status": "PASS",
+      "detail": "internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql:24-30 updates only dispatch fields plus updated_at for exactly read/write/edit/glob/bash. SQLite assertions at internal/migrate/builtin_tools_test.go:220-283 verify restored dispatch and preserved operator descriptions; Postgres assertions at internal/migrate/postgres_reserved_builtins_test.go:114-146 additionally verify hemisphere and unrelated `operator_tool` preservation. Fresh package tests exited 0 (`ok .../internal/migrate 0.789s`), the SQLite policy test passed verbosely, and the live Postgres policy test passed in 1.53s.",
+      "derived": true
+    }
+  ],
+  "merge_recommendation": "no_concerns_found",
+  "stages": {
+    "tier1": {
+      "id": "tier1",
+      "passed": true,
+      "any_failed": false,
+      "summary": "  \u2713 secrets: ok (no output)\n  \u2713 lint: ok (no output)\n  \u2713 spec_parity: check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\n  \u2713 tests: ?   \tgithub.com/wojons/consensus\t[no test files]",
+      "steps": [
+        {
+          "id": "secrets",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "lint",
+          "type": "script",
+          "passed": true,
+          "output": "",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "spec_parity",
+          "type": "script",
+          "passed": true,
+          "output": "check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\ncheck-spec-parity: starting scratch server on 127.0.0.1:57771 (sqlite, mock LLM, no API key needed)\nspec-parity: commit=e9dddf1ab7d7b50f68a4f78ad4172de39d403300 (working tree dirty: 2 paths)\nspec-parity: declared=75 paths / 93 ops from /home/kara/totalwindupflightsystems/consensus/specs/openapi/openapi.yaml\nspec-parity: served=75 paths / 93 ops from http://127.0.0.1:57771/openapi.json\nspec-parity: declared x-not-implemented path items=1 (/vcs/{vcsId}) \u2014 excluded from MISSING/UNANSWERED\nspec-parity: runtime 92 ops probed, 0 unanswered, 1 exempt\nspec-parity: PASS \u2014 declared == served at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300 (75 paths / 93 ops)\ncheck-spec-parity: OK \u2014 declared surface matches the served surface of the built server (commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300)\n",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        },
+        {
+          "id": "tests",
+          "type": "script",
+          "passed": true,
+          "output": "?   \tgithub.com/wojons/consensus\t[no test files]\n?   \tgithub.com/wojons/consensus/chronicle\t[no test files]\nok  \tgithub.com/wojons/consensus/cmd/consensus\t0.032s\nok  \tgithub.com/wojons/consensus/demo\t29.465s\nok  \tgithub.com/wojons/consensus/internal/api\t2.122s\nok  \tgithub.com/wojons/consensus/internal/billing\t0.027s\nok  \tgithub.com/wojons/consensus/internal/bootstrap\t0.480s\nok  \tgithub.com/wojons/consensus/internal/chronicle\t0.621s\nok  \tgithub.com/wojons/consensus/internal/cli\t0.160s\nok  \tgithub.com/wojons/consensus/internal/compression\t0.066s\nok  \tgithub.com/wojons/consensus/internal/config\t0.058s\nok  \tgithub.com/wojons/consensus/internal/crier\t0.045s\nok  \tgithub.com/wojons/consensus/internal/db\t0.007s\nok  \tgithub.com/wojons/consensus/internal/db/driver\t0.031s\nok  \tgithub.com/wojons/consensus/internal/db/dynamic\t0.034s\nok  \tgithub.com/wojons/consensus/internal/db/jsonschema\t0.015s\nok  \tgithub.com/wojons/consensus/internal/db/postgres\t0.014s\nok  \tgithub.com/wojons/consensus/internal/db/sqlite\t0.035s\nok  \tgithub.com/wojons/consensus/internal/harness\t7.583s\nok  \tgithub.com/wojons/consensus/internal/hitl\t0.042s\nok  \tgithub.com/wojons/consensus/internal/llm\t0.284s\nok  \tgithub.com/wojons/consensus/internal/llmcompat\t0.033s\nok  \tgithub.com/wojons/consensus/internal/mcp\t0.214s\nok  \tgithub.com/wojons/consensus/internal/memory\t0.078s\nok  \tgithub.com/wojons/consensus/internal/migrate\t1.048s\nok  \tgithub.com/wojons/consensus/internal/modelsync\t0.130s\nok  \tgithub.com/wojons/consensus/internal/quarantine\t0.130s\nok  \tgithub.com/wojons/consensus/internal/recoverydiag\t0.091s\nok  \tgithub.com/wojons/consensus/internal/secrets\t0.017s\nok  \tgithub.com/wojons/consensus/internal/security\t0.060s\nok  \tgithub.com/wojons/consensus/internal/session\t0.014s\nok  \tgithub.com/wojons/consensus/internal/shim/h3\t0.009s\nok  \tgithub.com/wojons/consensus/internal/shim/opencode\t10.650s\nok  \tgithub.com/wojons/consensus/internal/subagent\t0.019s\nok  \tgithub.com/wojons/consensus/internal/tools\t0.255s\nok  \tgithub.com/wojons/consensus/internal/web\t0.008s\nok  \tgithub.com/wojons/consensus/internal/webhook\t0.372s\nok  \tgithub.com/wojons/consensus/pkg/client\t0.009s\nok  \tgithub.com/wojons/consensus/scripts/loadprobe\t0.004s\n?   \tgithub.com/wojons/consensus/specs\t[no test files]\n?   \tgithub.com/wojons/consensus/t10probe\t[no test files]\n",
+          "error": "",
+          "data": {
+            "exit_code": 0
+          }
+        }
+      ]
+    },
+    "tier2": {
+      "id": "tier2",
+      "passed": true,
+      "any_failed": false,
+      "summary": "COMPLETE\n  \u2713 PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.: `go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`. A verbose run showed `--- PASS: TestReservedBuiltinsAreProductOwned` (internal/migrate/builtin_tools_test.go:220) and the expected unset-env skip for the Postgres test. With CONSENSUS_TEST_POSTGRES_URL pointed at a disposable pgvector/pgvector:pg16 instance, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \"reserved builtin\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; docs/TOOLS.md:21-50 documents the intentional dispatch override, preserved metadata, and untouched unrelated rows.\n  \u2713 Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.: .github/workflows/ci.yml:111 defines the `Postgres Integration` job, lines 152/164 export CONSENSUS_TEST_POSTGRES_URL, and line 180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair`. Running that exact Make target against fresh disposable Postgres exited 0: both tests ran, including `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, ending `ok github.com/wojons/consensus/internal/migrate 1.209s`.\n  \u2713 Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.: internal/migrate/postgres_reserved_builtins_test.go:60-61 baselines through the real Runner, lines 104-107 make version 34 pending and call `runner.Up`, and line 111 requires `034_repair_filesystem_builtin_tools.sql` in the applied list. internal/migrate/migrate.go:279-337 implements Up, with the non-SQLite whole-migration Exec at lines 330-334. The live Postgres run exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving this path and its queries execute successfully.\n  \u2713 Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.: internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql:24-30 updates only dispatch fields plus updated_at for exactly read/write/edit/glob/bash. SQLite assertions at internal/migrate/builtin_tools_test.go:220-283 verify restored dispatch and preserved operator descriptions; Postgres assertions at internal/migrate/postgres_reserved_builtins_test.go:114-146 additionally verify hemisphere and unrelated `operator_tool` preservation. Fresh package tests exited 0 (`ok .../internal/migrate 0.789s`), the SQLite policy test passed verbosely, and the live Postgres policy test passed in 1.53s.\nMigration 034 now has passing SQLite and real Postgres coverage wired into the Postgres CI target, and the reserved builtin override policy is documented and enforced by both tests.",
+      "steps": [
+        {
+          "id": "tier2",
+          "type": "ai_eval",
+          "passed": true,
+          "output": "COMPLETE\n  \u2713 PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.: `go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`. A verbose run showed `--- PASS: TestReservedBuiltinsAreProductOwned` (internal/migrate/builtin_tools_test.go:220) and the expected unset-env skip for the Postgres test. With CONSENSUS_TEST_POSTGRES_URL pointed at a disposable pgvector/pgvector:pg16 instance, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \"reserved builtin\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; docs/TOOLS.md:21-50 documents the intentional dispatch override, preserved metadata, and untouched unrelated rows.\n  \u2713 Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.: .github/workflows/ci.yml:111 defines the `Postgres Integration` job, lines 152/164 export CONSENSUS_TEST_POSTGRES_URL, and line 180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair`. Running that exact Make target against fresh disposable Postgres exited 0: both tests ran, including `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, ending `ok github.com/wojons/consensus/internal/migrate 1.209s`.\n  \u2713 Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.: internal/migrate/postgres_reserved_builtins_test.go:60-61 baselines through the real Runner, lines 104-107 make version 34 pending and call `runner.Up`, and line 111 requires `034_repair_filesystem_builtin_tools.sql` in the applied list. internal/migrate/migrate.go:279-337 implements Up, with the non-SQLite whole-migration Exec at lines 330-334. The live Postgres run exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving this path and its queries execute successfully.\n  \u2713 Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.: internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql:24-30 updates only dispatch fields plus updated_at for exactly read/write/edit/glob/bash. SQLite assertions at internal/migrate/builtin_tools_test.go:220-283 verify restored dispatch and preserved operator descriptions; Postgres assertions at internal/migrate/postgres_reserved_builtins_test.go:114-146 additionally verify hemisphere and unrelated `operator_tool` preservation. Fresh package tests exited 0 (`ok .../internal/migrate 0.789s`), the SQLite policy test passed verbosely, and the live Postgres policy test passed in 1.53s.\nMigration 034 now has passing SQLite and real Postgres coverage wired into the Postgres CI target, and the reserved builtin override policy is documented and enforced by both tests.",
+          "error": "",
+          "data": {
+            "verdict": "COMPLETE",
+            "items": [
+              {
+                "criterion": "PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.",
+                "status": "PASS",
+                "detail": "`go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`. A verbose run showed `--- PASS: TestReservedBuiltinsAreProductOwned` (internal/migrate/builtin_tools_test.go:220) and the expected unset-env skip for the Postgres test. With CONSENSUS_TEST_POSTGRES_URL pointed at a disposable pgvector/pgvector:pg16 instance, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \"reserved builtin\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; docs/TOOLS.md:21-50 documents the intentional dispatch override, preserved metadata, and untouched unrelated rows."
+              },
+              {
+                "criterion": "Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.",
+                "status": "PASS",
+                "detail": ".github/workflows/ci.yml:111 defines the `Postgres Integration` job, lines 152/164 export CONSENSUS_TEST_POSTGRES_URL, and line 180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair`. Running that exact Make target against fresh disposable Postgres exited 0: both tests ran, including `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, ending `ok github.com/wojons/consensus/internal/migrate 1.209s`.",
+                "derived": true
+              },
+              {
+                "criterion": "Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.",
+                "status": "PASS",
+                "detail": "internal/migrate/postgres_reserved_builtins_test.go:60-61 baselines through the real Runner, lines 104-107 make version 34 pending and call `runner.Up`, and line 111 requires `034_repair_filesystem_builtin_tools.sql` in the applied list. internal/migrate/migrate.go:279-337 implements Up, with the non-SQLite whole-migration Exec at lines 330-334. The live Postgres run exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving this path and its queries execute successfully.",
+                "derived": true
+              },
+              {
+                "criterion": "Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.",
+                "status": "PASS",
+                "detail": "internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql:24-30 updates only dispatch fields plus updated_at for exactly read/write/edit/glob/bash. SQLite assertions at internal/migrate/builtin_tools_test.go:220-283 verify restored dispatch and preserved operator descriptions; Postgres assertions at internal/migrate/postgres_reserved_builtins_test.go:114-146 additionally verify hemisphere and unrelated `operator_tool` preservation. Fresh package tests exited 0 (`ok .../internal/migrate 0.789s`), the SQLite policy test passed verbosely, and the live Postgres policy test passed in 1.53s.",
+                "derived": true
+              }
+            ],
+            "summary": "Migration 034 now has passing SQLite and real Postgres coverage wired into the Postgres CI target, and the reserved builtin override policy is documented and enforced by both tests.",
+            "provenance": {
+              "model": "neuralwatt/kimi-k3.1-pro",
+              "base_url_source": "GITREINS_LLM_BASE_URL",
+              "api_key_source": "GITREINS_LLM_API_KEY"
+            },
+            "context_stats": {
+              "diff_source": "first-parent-merge",
+              "diff_bytes": 16195,
+              "prompt_bytes": 20979
+            }
+          }
+        }
+      ],
+      "model": "neuralwatt/kimi-k3.1-pro",
+      "base_url_source": "GITREINS_LLM_BASE_URL",
+      "api_key_source": "GITREINS_LLM_API_KEY",
+      "context_stats": {
+        "diff_source": "first-parent-merge",
+        "diff_bytes": 16195,
+        "prompt_bytes": 20979
+      },
+      "tool_calls": [
+        {
+          "tool": "get_task_item",
+          "command": "get_task_item {\"id\": \"DF-CONSENSUS-081\"}",
+          "exit_code": 0,
+          "output_sha": "76ae34611fbef1e9edb45a7e55cbc92c86b50646eea64610cbab985bfc09acab"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 55, \"offset\": 220, \"path\": \"Makefile\"}",
+          "exit_code": 0,
+          "output_sha": "bddf3bf16421ca8d502d2300d20ad595c2baa1c9ca6293d6e7f3ed77b14343dc"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 115, \"offset\": 1, \"path\": \"docs/TOOLS.md\"}",
+          "exit_code": 0,
+          "output_sha": "808ca9db1d246a95a1a8ef2197c59a47ac4466682f59c23edf181bc0a323ec49"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \"internal/migrate/builtin_tools_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "7c856025efbb2d8bbae2bd141e9925da8967c80d49304de2e89791dbbffc92ef"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \"internal/migrate/postgres_reserved_builtins_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "930985da82d23ab09333fd166eab99750c4006e21071197f274ce99822aa0db3"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \".gitreins/config.yaml\"}",
+          "exit_code": 0,
+          "output_sha": "fad3e84bfa64215b69d3b0e39ba8c0eecee6c68865e70acfc2d3cc83a4430e11"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"regex\": \"TestPostgresMigration034BuiltinRepair|TestReservedBuiltinsAreProductOwned|CONSENSUS_TEST_POSTGRES_URL|034_repair_filesystem_builtin_tools|reserved builtin\"}",
+          "exit_code": 0,
+          "output_sha": "b7a0bf046aab9ef82e17473645809b5622573cc4239341ccc6c96833be49f41c"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.\", \"key\": \"derived_0\"}",
+          "exit_code": 0,
+          "output_sha": "e197d3caebda0344f823c9d3e1c560d58fb13364ee8c9b90d212ab892eacc186"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.\", \"key\": \"derived_1\"}",
+          "exit_code": 0,
+          "output_sha": "551ca6b71eaccc98d883b547df4c8b8c682d0217ad24db78ba7fe9bc325d4f8b"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.\", \"key\": \"derived_2\"}",
+          "exit_code": 0,
+          "output_sha": "090a237e9371b445bb24b8be744c61df3f3e0dcab642023682201d95c06be722"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 220, \"offset\": 1, \"path\": \"Makefile\"}",
+          "exit_code": 0,
+          "output_sha": "0d051770f95febc85ec41acf74ce7cc852175612c6f6a1476cfdcd076ccbd989"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 50, \"offset\": 275, \"path\": \"Makefile\"}",
+          "exit_code": 0,
+          "output_sha": "147d7ed08c662ba20a2c6babcb9d2763f371633ea9b67e7c72b285a2683077c6"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 50, \"offset\": 116, \"path\": \"docs/TOOLS.md\"}",
+          "exit_code": 0,
+          "output_sha": "f7b12662439cf682665e09a5c77309e8252921936f06c6e101eba83ee56b4758"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 160, \"offset\": 401, \"path\": \"internal/migrate/builtin_tools_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "f706b7c6716d60e7cb04b43fcfcfa0228270d59c9eb17bd443cb2a6eee1c2a6a"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \"internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql\"}",
+          "exit_code": 0,
+          "output_sha": "d713312b74f453ba37365a80b053db8b57f4e7d41380c73cf6037d1af1832236"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \"*.yml\", \"regex\": \"test-pg-full|Postgres Integration|postgres-full|TestPostgresFullIntegration\"}",
+          "exit_code": 0,
+          "output_sha": "a1ecf1c383e5f203c180356f1e6e5c2fde1828a2544a7d362813bf9cf4ee82e1"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \"internal/migrate/*.go\", \"regex\": \"func \\\\(.*\\\\) Up\\\\(|func containsMigration|func grantAgentRoleSchemaPrivs|func \\\\(.*\\\\) AutoMigrate|BackendSQLite\"}",
+          "exit_code": 0,
+          "output_sha": "ae4e4b09df16559b362cc746848ad468229dae1df815ee3c8cb0f0611cc95f72"
+        },
+        {
+          "tool": "run_command",
+          "command": "go test ./internal/migrate/ -count=1",
+          "exit_code": 0,
+          "output_sha": "26da9f2053ac876f68afe2b055778a3f7f8b48140de017bf74b58c170f29cccb"
+        },
+        {
+          "tool": "run_command",
+          "command": "git grep -n \"reserved builtin\" docs/",
+          "exit_code": 0,
+          "output_sha": "131f5d8b0a4451609fc537472f2d2dbd387db117a9bff70f5bec61f589cc3db7"
+        },
+        {
+          "tool": "run_command",
+          "command": "git status --short && git diff --stat && git diff --name-only",
+          "exit_code": 0,
+          "output_sha": "fabb8e4d6917f5d65719aea9bdc2c89ad3ef2d3cf68b1baa1d44855b5f270efb"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \".github/**\", \"regex\": \"test-pg-full|Postgres Integration|CONSENSUS_TEST_POSTGRES_URL\"}",
+          "exit_code": 0,
+          "output_sha": "bb6cdc377f35371bfaf9396cf1f5dd9348d615cfa418e9a5e600e5925e4253d0"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 180, \"offset\": 1, \"path\": \"internal/migrate/migrate.go\"}",
+          "exit_code": 0,
+          "output_sha": "0b2f1fcdf5284c177606be424d3e010203fb831bae48933f8e0e7b6d103723b4"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 230, \"offset\": 250, \"path\": \"internal/migrate/migrate.go\"}",
+          "exit_code": 0,
+          "output_sha": "ce7a0136156057fd7309ea9a9daaba5717239d72c35b60b6a5c23465e5353598"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 120, \"offset\": 1, \"path\": \"internal/migrate/postgres_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "35a5cf02476f24b3a22b5372540bb9cbdf19c8856f68b07f00c3cfa9902df084"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 205, \"offset\": 230, \"path\": \"internal/migrate/postgres_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "6c83d447a5637fc9788150d862e8c42ac6cec79d36ea54f35c70a23189c37749"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 180, \"offset\": 1, \"path\": \"internal/migrate/postgres_full_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "800efec52fb31fc9264280d50fee260f4f5e095eea64a3260598de121e4d253e"
+        },
+        {
+          "tool": "read_lsp_diagnostics",
+          "command": "read_lsp_diagnostics {}",
+          "exit_code": 0,
+          "output_sha": "ef420cbeebd549fc8c5438d6ea41a3e521fa58e29563c4cae80f491b9bfe2143"
+        },
+        {
+          "tool": "run_command",
+          "command": "go test ./internal/migrate/ -run 'TestReservedBuiltinsAreProductOwned|TestPostgresMigration034BuiltinRepair' -v -count=1",
+          "exit_code": 0,
+          "output_sha": "fe77142fe23779789503240ef38d15196105b5dbc8a4b1e03249192b1f1bec06"
+        },
+        {
+          "tool": "run_command",
+          "command": "if [ -n \"${CONSENSUS_TEST_POSTGRES_URL:-}\" ]; then echo 'CONSENSUS_TEST_POSTGRES_URL is set'; else echo 'CONSENSUS_TEST_POSTGRES_URL is not set'; fi; if command -v docker >/dev/null 2>&1; then echo 'docker available'; docker ps --format '{{.Names}} {{.Image}} {{.Ports}}' 2>&1; else echo 'docker unavailable'; fi; if command -v pg_isready >/dev/null 2>&1; then pg_isready -h localhost -p 5432 2>&1; else echo 'pg_isready unavailable'; fi",
+          "exit_code": 0,
+          "output_sha": "b2e5ccbd289f4aae058e43c6f337857d41484042f2d75dc15a2fe4a9efcf1218"
+        },
+        {
+          "tool": "run_command",
+          "command": "git ls-files | grep -E '(^|/)(\\.github|\\.gitlab|ci|workflows?)(/|\\.|$)|workflow|postgres' | head -120",
+          "exit_code": 0,
+          "output_sha": "3bd1210b8bd95d783aaacf23219914a30a501690079d5fbd6c2af5d682a02cf4"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"regex\": \"test-pg|Postgres Integration|postgres-integration|postgres_full|postgres-full\"}",
+          "exit_code": 0,
+          "output_sha": "1bb46000fc380a8a60fcf985ecc8ad3c4958fa965c8303ac598fac4542e36c4c"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \"internal/migrate/*_test.go\", \"regex\": \"func toInt|func toString|func setupTestDB\"}",
+          "exit_code": 0,
+          "output_sha": "5f90f91ba938a908c5fc6e3ec93985d50eb74e1b49b9840dcd724a6c4512ed39"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \"docker-compose.yml\"}",
+          "exit_code": 0,
+          "output_sha": "6e05d47b1e01537fc6ce1ba28124aa02ffb50fcdce17c809ffe36e3d7dd81870"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 75, \"offset\": 180, \"path\": \"internal/migrate/migrate.go\"}",
+          "exit_code": 0,
+          "output_sha": "8161f8e8f0a8b3a9a31a69c429b4389e0381b4341ad6bdf339694fe4d589fc4e"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \".github/workflows/ci.yml\"}",
+          "exit_code": 0,
+          "output_sha": "011dc09c09cad3ae1d4ba79d098c5b28dc785dbce69e0dc627ef9757d1767aef"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \"internal/migrate/*.go\", \"regex\": \"func toInt\\\\(|func toString\\\\(\"}",
+          "exit_code": 0,
+          "output_sha": "9416ba1ff28748765c7fee49f0506e640c12cf6408bf1e9786ea9e63ff8b7ca9"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 85, \"offset\": 1020, \"path\": \"internal/migrate/migrate_test.go\"}",
+          "exit_code": 0,
+          "output_sha": "fc757fdc1646163e3f67e91fd08bf059a02822e91f53a5f425a1f780422b201f"
+        },
+        {
+          "tool": "run_command",
+          "command": "docker ps --filter publish=5432 --format '{{.ID}} {{.Names}} {{.Image}} {{.Ports}}'; docker compose ps 2>&1; docker compose config --volumes 2>&1",
+          "exit_code": 0,
+          "output_sha": "ab272af88ac2d9e2b8be034fed13e07b5cfbece5387b42c1a0765ade58a2a91d"
+        },
+        {
+          "tool": "run_command",
+          "command": "git log -1 --oneline -- internal/migrate/postgres_reserved_builtins_test.go && git diff --check HEAD -- Makefile docs/TOOLS.md internal/migrate/builtin_tools_test.go internal/migrate/postgres_reserved_builtins_test.go",
+          "exit_code": 0,
+          "output_sha": "55e585b944c154b6b4730fb72e198125c7fc290fbe9632b46772faa5269c1bd6"
+        },
+        {
+          "tool": "run_command",
+          "command": "docker image inspect pgvector/pgvector:pg16 --format '{{.RepoTags}}' 2>&1; docker ps -a --filter name=consensus-df081-pg --format '{{.Names}} {{.Status}}'",
+          "exit_code": 0,
+          "output_sha": "8258164459b8db0e1381ab179ca4608d6a42307519fbc92b6ae011d1b6f9021d"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"limit\": 43, \"offset\": 1635, \"path\": \"internal/migrate/migrate.go\"}",
+          "exit_code": 0,
+          "output_sha": "087a44dd421b90b5cb01f87c80acf1c06e1ffdc5aa59c24dd24a6783f494d666"
+        },
+        {
+          "tool": "read_file",
+          "command": "read_file {\"path\": \"internal/migrate/migrations/033_seed_filesystem_builtin_tools.sql\"}",
+          "exit_code": 1,
+          "output_sha": "d77a9d76fdee476e26411a2f797d2c28e98a032647583dabac956c49734c4ca9"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \"internal/migrate/migrations/*.sql\", \"regex\": \"CREATE TABLE.*tools_registry|tools_registry \\\\(\"}",
+          "exit_code": 0,
+          "output_sha": "b718c3ded830a6e84537219df540f9b27b6290a652d4b38ceb342fd1b2fcc69a"
+        },
+        {
+          "tool": "run_command",
+          "command": "set -e\nname=consensus-df081-pg\ncleanup() { docker rm -f \"$name\" >/dev/null 2>&1 || true; }\ntrap cleanup EXIT\ncleanup\ndocker run -d --name \"$name\" -e POSTGRES_USER=consensus -e POSTGRES_PASSWORD=consensus -e POSTGRES_DB=consensus -p 127.0.0.1::5432 pgvector/pgvector:pg16 >/dev/null\nready=0\nfor attempt in $(seq 1 30); do\n  if docker exec \"$name\" pg_isready -U consensus -d consensus >/dev/null 2>&1; then ready=1; break; fi\n  sleep 1\ndone\nif [ \"$ready\" -ne 1 ]; then docker logs \"$name\"; exit 1; fi\nport=$(docker port \"$name\" 5432/tcp | head -n1 | sed 's/.*://')\necho \"Disposable Postgres ready on 127.0.0.1:$port\"\nCONSENSUS_TEST_POSTGRES_URL=\"postgres://consensus:consensus@127.0.0.1:${port}/consensus?sslmode=disable\" go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1",
+          "exit_code": 0,
+          "output_sha": "a24afa273c232f9e42a72d831507d8c19f2581b362d2202a65f644e9b665fa39"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"PASS: `go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`; verbose selection showed `--- PASS: TestReservedBuiltinsAreProductOwned` and the PG test's explicit unset-env skip. Against a disposable pgvector/pgvector:pg16 with CONSENSUS_TEST_POSTGRES_URL set, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \\\"reserved builtin\\\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; the override policy is detailed at docs/TOOLS.md:21-50. Migration 034 therefore has both SQLite and real Postgres coverage and the policy is documented.\", \"key\": \"verified_0\"}",
+          "exit_code": 0,
+          "output_sha": "beb3994909139f1bb9241944b86b34c8b70160557fcae451c106f2ec1ee75cdb"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"PASS: .github/workflows/ci.yml's `Postgres Integration` job exports CONSENSUS_TEST_POSTGRES_URL in its start step and runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair` with -count=1. The new test is reachable from the actual CI entrypoint.\", \"key\": \"verified_derived_0\"}",
+          "exit_code": 0,
+          "output_sha": "07d3499022c8e4eb7db514fce647ef5627e9f3ab8822f0fa8556ce1ce6fceebc"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"PASS: internal/migrate/postgres_reserved_builtins_test.go:58-64 baselines through the real Runner, :105-112 deletes version 34 and calls runner.Up, and :111 requires 034_repair_filesystem_builtin_tools.sql in applied. migrate.go:279-337 implements Up and its non-SQLite branch executes the whole migration in one Exec. Live PG command exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving the helpers and queries on that path.\", \"key\": \"verified_derived_1\"}",
+          "exit_code": 0,
+          "output_sha": "bb907513edfeb5c524caedcf08ef95b5a3c7804db1a88cbd7f28927ea72f6f71"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"PASS: migrations/034_repair_filesystem_builtin_tools.sql:24-30 rewrites only handler_type/handler_ref/status/enabled/updated_at for exactly read/write/edit/glob/bash. SQLite assertions at builtin_tools_test.go:220-283 and PG assertions at postgres_reserved_builtins_test.go:66-146 check restored dispatch, preserved description/hemisphere, and unrelated operator_tool preservation. Fresh package test exited 0 (`ok .../internal/migrate 0.789s`), SQLite policy test passed verbosely, and live PG test passed in 1.53s.\", \"key\": \"verified_derived_2\"}",
+          "exit_code": 0,
+          "output_sha": "05b128b71d3a705bb0eb29398ad50e6d2405d7a858729fd9801a486b2e806414"
+        },
+        {
+          "tool": "search_pattern",
+          "command": "search_pattern {\"file_glob\": \".github/workflows/ci.yml\", \"regex\": \"name: Postgres Integration|CONSENSUS_TEST_POSTGRES_URL=postgres|run: make test-pg-full\"}",
+          "exit_code": 0,
+          "output_sha": "bb6cdc377f35371bfaf9396cf1f5dd9348d615cfa418e9a5e600e5925e4253d0"
+        },
+        {
+          "tool": "run_command",
+          "command": "grep -nE 'name: Postgres Integration|CONSENSUS_TEST_POSTGRES_URL=postgres|run: make test-pg-full' .github/workflows/ci.yml; grep -nE 'test-pg-full:|TestPostgresFullIntegration\\|TestPostgresMigration034BuiltinRepair' Makefile; grep -nE '^func TestPostgresMigration034BuiltinRepair|runner := New|runner.AutoMigrate|DELETE FROM schema_versions|runner.Up|containsMigration|operator_tool|appliedAgain|GetState' internal/migrate/postgres_reserved_builtins_test.go; grep -nE '^func TestReservedBuiltinsAreProductOwned|migration034|restored builtins|operator-disabled on purpose' internal/migrate/builtin_tools_test.go",
+          "exit_code": 0,
+          "output_sha": "e2af2e34aec71a2de6207c6d6efa9ccd1f30404371f23abe99f1a36928465644"
+        },
+        {
+          "tool": "run_command",
+          "command": "set -e\nname=consensus-df081-pg-full\ncleanup() { docker rm -f \"$name\" >/dev/null 2>&1 || true; }\ntrap cleanup EXIT\ncleanup\ndocker run -d --name \"$name\" -e POSTGRES_USER=consensus -e POSTGRES_PASSWORD=consensus -e POSTGRES_DB=consensus -p 127.0.0.1::5432 pgvector/pgvector:pg16 >/dev/null\nready=0\nfor attempt in $(seq 1 30); do\n  if docker exec \"$name\" pg_isready -U consensus -d consensus >/dev/null 2>&1; then ready=1; break; fi\n  sleep 1\ndone\nif [ \"$ready\" -ne 1 ]; then docker logs \"$name\"; exit 1; fi\nport=$(docker port \"$name\" 5432/tcp | head -n1 | sed 's/.*://')\necho \"Disposable Postgres ready on 127.0.0.1:$port; running make test-pg-full\"\nCONSENSUS_TEST_POSTGRES_URL=\"postgres://consensus:consensus@127.0.0.1:${port}/consensus?sslmode=disable\" make test-pg-full",
+          "exit_code": 0,
+          "output_sha": "d2e698ae9871a89aaaf670f9aede5dbce0059259f01efb6f3067d1419c211c3c"
+        },
+        {
+          "tool": "sandbox_write",
+          "command": "sandbox_write {\"content\": \"PASS: .github/workflows/ci.yml:111 names the `Postgres Integration` job, :152/:164 export CONSENSUS_TEST_POSTGRES_URL, and :180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair` with -count=1. I ran that exact Make target against a fresh disposable pgvector/pgvector:pg16 with the env var set: exit 0, both tests ran, `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, final `ok github.com/wojons/consensus/internal/migrate 1.209s`.\", \"key\": \"verified_derived_0\"}",
+          "exit_code": 0,
+          "output_sha": "e1df6e8fcc2c657d8e5dd9a1e4760b9560af6eb089f4789d6eadcc33cbdbff8e"
+        }
+      ]
+    }
+  },
+  "context_stats": {
+    "diff_source": "first-parent-merge",
+    "diff_bytes": 16195,
+    "prompt_bytes": 20979
+  },
+  "review": {
+    "reviewer_email": "totalwindupflightsystems@gmail.com",
+    "reviewer_name": "totalwindupflightsystems",
+    "commit_author_email": "totalwindupflightsystems@gmail.com",
+    "commit_author_name": "totalwindupflightsystems",
+    "self_review": true,
+    "findings": [],
+    "summary": "The board event and task row consistently record DF-CONSENSUS-081 as in_progress with matching r2 branch and worktree paths, and no defect is evidenced by the diff.",
+    "review_state": {
+      "emitted": [],
+      "carried": []
+    }
+  },
+  "summary": "Stage tier1: PASS\n    \u2713 secrets: ok (no output)\n  \u2713 lint: ok (no output)\n  \u2713 spec_parity: check-spec-parity: building scratch binary at commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300\n  \u2713 tests: ?   \tgithub.com/wojons/consensus\t[no test files]\n\nStage tier2: PASS\n  COMPLETE\n  \u2713 PROOF: go test ./internal/migrate/ -count=1 exercises SQLite migration 034 coverage and the Postgres integration test is present and runs when CONSENSUS_TEST_POSTGRES_URL is configured; git grep -n \"reserved builtin\" docs/ finds the policy; FAILIF: migration 034 remains covered only by SQLite or the reserved builtin override policy is undocumented.: `go test ./internal/migrate/ -count=1` exited 0 with `ok github.com/wojons/consensus/internal/migrate 0.789s`. A verbose run showed `--- PASS: TestReservedBuiltinsAreProductOwned` (internal/migrate/builtin_tools_test.go:220) and the expected unset-env skip for the Postgres test. With CONSENSUS_TEST_POSTGRES_URL pointed at a disposable pgvector/pgvector:pg16 instance, `go test ./internal/migrate/ -run '^TestPostgresMigration034BuiltinRepair$' -v -count=1` exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`. `git grep -n \"reserved builtin\" docs/` exited 0 and found docs/TOOLS.md:24,31,50; docs/TOOLS.md:21-50 documents the intentional dispatch override, preserved metadata, and untouched unrelated rows.\n  \u2713 Reachability: the Postgres migration-034 test is selected by the repository's real Postgres test/CI entrypoint when CONSENSUS_TEST_POSTGRES_URL is set, rather than existing only as an unreferenced test file.: .github/workflows/ci.yml:111 defines the `Postgres Integration` job, lines 152/164 export CONSENSUS_TEST_POSTGRES_URL, and line 180 runs `make test-pg-full`; Makefile:249-251 selects `TestPostgresFullIntegration|TestPostgresMigration034BuiltinRepair`. Running that exact Make target against fresh disposable Postgres exited 0: both tests ran, including `--- PASS: TestPostgresMigration034BuiltinRepair (0.05s)`, ending `ok github.com/wojons/consensus/internal/migrate 1.209s`.\n  \u2713 Execution seam: the Postgres test drives the real Runner.Up non-SQLite migration path, proves migration 034 was applied, and uses helpers/schema queries that are valid for that path.: internal/migrate/postgres_reserved_builtins_test.go:60-61 baselines through the real Runner, lines 104-107 make version 34 pending and call `runner.Up`, and line 111 requires `034_repair_filesystem_builtin_tools.sql` in the applied list. internal/migrate/migrate.go:279-337 implements Up, with the non-SQLite whole-migration Exec at lines 330-334. The live Postgres run exited 0 with `--- PASS: TestPostgresMigration034BuiltinRepair (1.53s)`, proving this path and its queries execute successfully.\n  \u2713 Policy fidelity: the SQLite and Postgres assertions match migration 034's actual dispatch-only rewrite, including preservation of operator metadata and unrelated rows, and the package test command passes fresh.: internal/migrate/migrations/034_repair_filesystem_builtin_tools.sql:24-30 updates only dispatch fields plus updated_at for exactly read/write/edit/glob/bash. SQLite assertions at internal/migrate/builtin_tools_test.go:220-283 verify restored dispatch and preserved operator descriptions; Postgres assertions at internal/migrate/postgres_reserved_builtins_test.go:114-146 additionally verify hemisphere and unrelated `operator_tool` preservation. Fresh package tests exited 0 (`ok .../internal/migrate 0.789s`), the SQLite policy test passed verbosely, and the live Postgres policy test passed in 1.53s.\nMigration 034 now has passing SQLite and real Postgres coverage wired into the Postgres CI target, and the reserved builtin override policy is documented and enforced by both tests.\n\nOverall: PASS \u2713",
+  "evaluated_at": "2026-11-26T10:12:26.383967",
+  "supersedes": null,
+  "superseded_by": null,
+  "evidence": {
+    "collected_at": "2026-11-26T10:12:26.416656+00:00",
+    "items": [
+      {
+        "name": "patch",
+        "label": "Landed commit patch",
+        "file": "commit.patch",
+        "bytes": 736,
+        "truncated": false,
+        "source": "git show e9dddf1ab7d7"
+      },
+      {
+        "name": "worktree",
+        "label": "Working-tree diff (graded)",
+        "file": "worktree.patch",
+        "bytes": 30749,
+        "truncated": false,
+        "source": "git diff HEAD (working tree)"
+      }
+    ],
+    "task_id": "DF-CONSENSUS-081"
+  }
+}

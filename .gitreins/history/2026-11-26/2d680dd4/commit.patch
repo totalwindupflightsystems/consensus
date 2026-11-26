@@ -1,0 +1,16 @@
+commit e9dddf1ab7d7b50f68a4f78ad4172de39d403300
+Merge: adace9dc 929aba7f
+Author:     totalwindupflightsystems <totalwindupflightsystems@gmail.com>
+AuthorDate: Thu Nov 26 05:04:31 2026 -0500
+Commit:     totalwindupflightsystems <totalwindupflightsystems@gmail.com>
+CommitDate: Thu Nov 26 05:04:31 2026 -0500
+
+    Merge branch 'wt/DF-CONSENSUS-081-r2'
+    
+    Co-authored-by: Alexis Okuwa <wojonstech@gmail.com>
+
+ Makefile                                           |   7 +-
+ docs/TOOLS.md                                      |  31 ++++
+ internal/migrate/builtin_tools_test.go             |  75 ++++++++++
+ .../migrate/postgres_reserved_builtins_test.go     | 166 +++++++++++++++++++++
+ 4 files changed, 278 insertions(+), 1 deletion(-)
