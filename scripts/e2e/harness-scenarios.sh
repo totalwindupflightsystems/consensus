@@ -64,7 +64,7 @@ log()  { printf '%s\n' "$*" >&2; }
 emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
 
 # ---------- scenario registry + selector (validated before anything boots) ----------
-ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment"
+ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume"
 
 scenario_matches() { # $1=fn $2=selector token -> 0 when the token names this scenario
   local fn="$1" tok="$2"
@@ -219,6 +219,18 @@ await_idle() { # $1=scenario-name $2=sid $3=timeout_s -> 0 if idle; emits the fa
     *) emit "$1" fail "timeout/non-idle: $st"; return 1 ;;
   esac
 }
+wait_paused() { # $1=sid $2=timeout_s -> 0 if paused, 1 otherwise (s6: the park IS the expected state)
+  local i st
+  for i in $(seq 1 "$2"); do
+    st=$(status_of "$1")
+    case "$st" in
+      paused) return 0 ;;
+      failed|completed) return 1 ;;
+    esac
+    sleep 1
+  done
+  return 1
+}
 ws_dir() { echo "$TMPDIR/consensus-workspaces/$1"; }
 
 # ---------- scenarios ----------
@@ -298,6 +310,64 @@ s5_containment() {
   if [ -f "$outside" ]; then emit s5 fail "ESCAPED the workspace: $outside"; return 1; fi
   emit s5 pass "no escape file outside the session workspace"
   return 0
+}
+
+s6_approve_resume() {
+  # Attended approval gate (SCN-CONSENSUS-004): the one scenario that MUST run
+  # with a human on the other side of the wall — never arm --auto-approve for
+  # it (its own setup below re-gates the tool even if the flag is set).
+  #
+  # Scenario setup, not a product change: no enabled builtin defaults to
+  # requires_approval=true, and the registry has no update API (POST /tools
+  # 409s existing names), so gate exactly ONE tool — the write builtin — via
+  # the same sqlite seam the --auto-approve seeding uses, before creating the
+  # session.
+  if ! sqlite3 "$DB" "UPDATE tools_registry SET requires_approval = 1 WHERE name = 'write' AND enabled = 1;"; then
+    emit s6_approve_resume fail "could not seed requires_approval=1 on the write tool"
+    return 1
+  fi
+  local gated; gated=$(sqlite3 "$DB" "SELECT count(*) FROM tools_registry WHERE name = 'write' AND enabled = 1 AND requires_approval = 1;")
+  [ "$gated" -eq 1 ] || { emit s6_approve_resume fail "write tool not gated after seeding (rows=$gated)"; return 1; }
+
+  local sid; sid=$(new_session "Approval gate check") || { emit s6_approve_resume fail "no session"; return 1; }
+  say "$sid" "Use your write tool to write the file scn6.txt with the exact content HELLO-S6 (then report DONE)."
+
+  # Leg 1: the session must PARK at the approval wall — never idle through it.
+  wait_paused "$sid" 180 || { emit s6_approve_resume fail "session never reached paused (status=$(status_of "$sid"))"; return 1; }
+
+  # Leg 2: a pending approvals row must exist for the session, targeting write.
+  local appr pending aid
+  appr=$(curl -s "http://127.0.0.1:$PORT/api/v1/sessions/$sid/approvals" -H "$H")
+  pending=$(printf '%s' "$appr" | jq '[.[] | select(.status == "pending" and .target_tool == "write")] | length' 2>/dev/null)
+  [ "${pending:-0}" -ge 1 ] || { emit s6_approve_resume fail "no pending approval row for write, sid=$sid: $appr"; return 1; }
+  aid=$(printf '%s' "$appr" | jq -r '[.[] | select(.status == "pending" and .target_tool == "write")][0].id')
+
+  # Leg 3: the human decision — POST the review with the admin bootstrap key.
+  local reviewed
+  reviewed=$(curl -s -X POST "http://127.0.0.1:$PORT/api/v1/approvals/$aid/review" -H "$H" \
+    -H 'Content-Type: application/json' -d '{"decision":"approved"}')
+  [ "$(printf '%s' "$reviewed" | jq -r '.status // empty')" = "approved" ] \
+    || { emit s6_approve_resume fail "review POST did not approve $aid: $reviewed"; return 1; }
+
+  # Leg 4: after the approval the session must resume and the approved call
+  # must EXECUTE. A re-pause here is its own outcome: the planning-path gate
+  # (planHasGatedTools) re-reads the registry and ignores approved approvals,
+  # so an approved call can bounce straight back to the wall.
+  local wst=0
+  wait_idle "$sid" 180 || wst=$?
+  if [ "$wst" -eq 2 ]; then
+    emit s6_approve_resume fail "re-paused: approval wall after approve, sid=$sid (approved tool never executed)"
+    return 1
+  elif [ "$wst" -ne 0 ]; then
+    emit s6_approve_resume fail "post-approve wait failed (status=$(status_of "$sid"))"
+    return 1
+  fi
+
+  # Leg 5: the approved write must have produced the file.
+  local f; f="$(ws_dir "$sid")/scn6.txt"
+  [ -f "$f" ] && grep -q HELLO-S6 "$f" && { emit s6_approve_resume pass "paused -> pending approval -> approved -> wrote $f"; return 0; }
+  emit s6_approve_resume fail "approved but tool never executed (status=$(status_of "$sid")): file missing or wrong content: $f"
+  return 1
 }
 
 run_one() {

@@ -126,8 +126,8 @@ wl_line="$(grep -n 'paused) return 2' "$SCN" | head -1 | cut -d: -f1)"
                     || bad "static: wait_idle has the paused arm" "no 'paused) return 2' in $SCN"
 
 calls="$(grep -c 'await_idle s[0-9] "\$sid" 180 || return 1' "$SCN")"
-[ "$calls" -eq 6 ] && ok "static: all 6 scenario wait_idle call sites go through await_idle" \
-                     || bad "static: all 6 scenario wait_idle call sites go through await_idle" "found $calls"
+[ "$calls" -eq 8 ] && ok "static: all 8 scenario wait_idle call sites go through await_idle" \
+                   || bad "static: all 8 scenario wait_idle call sites go through await_idle" "found $calls"
 
 seed_after_db="$(grep -n '^DB="\$STATE/db.sqlite"' "$SCN" | head -1 | cut -d: -f1)"
 seed_line="$(grep -n 'UPDATE tools_registry SET requires_approval = 0' "$SCN" | head -1 | cut -d: -f1)"
@@ -147,17 +147,17 @@ grep -q -- '--auto-approve' "$SCN" && grep -q 'CONSENSUS_E2E_AUTO_APPROVE' "$SCN
 # ── INVOCATION: both spellings accepted, --dry-run stays side-effect free ────
 run() { stdout="$(bash "$SCN" "$@" 2>"$TMP/err")"; rc=$?; }
 run --auto-approve --dry-run
-if [ "$rc" -eq 0 ] && [ "$(printf '%s\n' "$stdout" | grep -c '^scenario: ')" -eq 5 ]; then
-  ok "invocation: --auto-approve --dry-run accepted, all five scenarios selected"
+if [ "$rc" -eq 0 ] && [ "$(printf '%s\n' "$stdout" | grep -c '^scenario: ')" -eq 6 ]; then
+  ok "invocation: --auto-approve --dry-run accepted, all six scenarios selected"
 else
-  bad "invocation: --auto-approve --dry-run accepted, all five scenarios selected" \
+  bad "invocation: --auto-approve --dry-run accepted, all six scenarios selected" \
       "rc=$rc out=$stdout err=$(cat "$TMP/err")"
 fi
 CONSENSUS_E2E_AUTO_APPROVE=1 bash "$SCN" --dry-run 2>"$TMP/err2" >"$TMP/out2"; rc2=$?
-if [ "$rc2" -eq 0 ] && [ "$(grep -c '^scenario: ' "$TMP/out2")" -eq 5 ]; then
-  ok "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all five scenarios selected"
+if [ "$rc2" -eq 0 ] && [ "$(grep -c '^scenario: ' "$TMP/out2")" -eq 6 ]; then
+  ok "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all six scenarios selected"
 else
-  bad "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all five scenarios selected" \
+  bad "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all six scenarios selected" \
       "rc2=$rc2 out: $(cat "$TMP/out2") err: $(cat "$TMP/err2")"
 fi
 run --bogus-arg --dry-run
