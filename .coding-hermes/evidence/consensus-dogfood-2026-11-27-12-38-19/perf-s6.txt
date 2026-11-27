@@ -1,0 +1,5 @@
+Command: PORT=18528 bash scripts/e2e/harness-scenarios.sh --scenarios s6
+Build profile: CGO_ENABLED=0, fresh scratch battery binary, SQLite scratch DB, real DeepSeek provider.
+Warm/cold scope: one fresh-data run; no controlled OS page-cache eviction. The runner built a new binary and database. The measured user-visible arm completed in 8.48s wall, rc=1; this is a correctness failure, not a slow successful path.
+Result: s6_approve_resume FAIL; approval POST accepted, session ended idle, approved write never executed.
+Profile: not taken because the headline operation terminated in correctness failure; no PERF row warranted.
