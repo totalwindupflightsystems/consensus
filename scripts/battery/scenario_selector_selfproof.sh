@@ -99,9 +99,13 @@ fi
 # ── GREEN: every documented spelling selects the scenarios it names ─────────
 arm_selection "full id accepted: s4_conversation_loop" "s4_conversation_loop" --scenarios s4_conversation_loop --dry-run
 arm_selection "bare prefix: s4"                        "s4_conversation_loop" --scenarios s4 --dry-run
+arm_selection "bare prefix: s13 (S13 registered)"      "s13_concurrent_sessions" --scenarios s13 --dry-run
+arm_selection "full id accepted: s13_concurrent_sessions" "s13_concurrent_sessions" --scenarios s13_concurrent_sessions --dry-run
+# Prefix isolation: 's1' must name ONLY s1 — never the longer s13 id.
+arm_selection "prefix isolation: s1 does not match s13" "s1_write_file" --scenarios s1 --dry-run
 arm_selection "multi-selector: s1,s3"                  "s1_write_file s3_bash" --scenarios s1,s3 --dry-run
 arm_selection "no selector: every registered scenario" \
-    "s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability" --dry-run
+    "s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability s13_concurrent_sessions" --dry-run
 arm_selection "whitespace + trailing comma: ' s1 , s5 ,'" "s1_write_file s5_containment" \
     --scenarios ' s1 , s5 ,' --dry-run
 

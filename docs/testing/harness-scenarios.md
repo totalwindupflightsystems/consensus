@@ -24,7 +24,7 @@ Our coverage below was measured from the tree at `origin/main` on 2026-11-16 (te
 | S10 | **MCP tool call** | `internal/mcp` 152 tests | not exercised live | PARTIAL |
 | S11 | **subagent dispatch** | `internal/subagent` 12 tests | never exercised live | MISSING (live) |
 | S12 | **provider failover / LLM error surfacing** | `internal/llm` 12 tests | not exercised live | PARTIAL |
-| S13 | **concurrent sessions** | none | never exercised | MISSING |
+| S13 | **concurrent sessions** | `internal/harness` TestConcurrentSessions_ProcessSimultaneously + TestConcurrentSessions_ManySessionsProcessSimultaneously (in-process, mock LLM) | `s13_concurrent_sessions` (SCN-CONSENSUS-003) proves it LIVE: `bash scripts/e2e/harness-scenarios.sh --scenarios s13 --auto-approve` creates four sessions through the real HTTP API, dispatches four message POSTs, and the heartbeat loop drives all four concurrently (one goroutine each). Asserts from observed DB + filesystem state: 4 distinct session ids read back from SQLite, 4 distinct marker files (one per session workspace), each file's content exactly its own distinct marker, no workspace holding another session's marker file or content, and all 4 sessions reaching idle (paused fails fast per SCN-CONSENSUS-024) | HAVE |
 | S14 | **opencode protocol shim** (session.create/message/event stream) | `internal/shim/opencode` 762 tests | partial via shim battery | PARTIAL |
 | S15 | **issue-tag / pr-automation** (harness-action) | none | never exercised | MISSING — analogue for us is "agent completes a coding task in a repo and commits"; no scenario exists |
 
