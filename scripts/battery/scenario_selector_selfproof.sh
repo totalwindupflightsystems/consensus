@@ -2,21 +2,21 @@
 # scenario_selector_selfproof.sh — prove the e2e scenario selector cannot go vacuous.
 #
 # `scripts/e2e/harness-scenarios.sh --scenarios <tok,...>` used to compare each token
-# against the scenario's bare prefix only (s1..s5). Any other token -- a typo, a bare
-# `s8`, or even the documented full id `s4_conversation_loop` -- matched NO function,
-# so zero scenarios ran, FAILS stayed 0 and the script exited 0 with a green
-# "failures: 0" summary (SCN-CONSENSUS-023, measured 2026-11-21).
+# against the scenario's bare prefix only (s1..s5). Any other token -- a typo, an
+# unregistered bare prefix, or even the documented full id `s4_conversation_loop` --
+# matched NO function, so zero scenarios ran, FAILS stayed 0 and the script exited 0
+# with a green "failures: 0" summary (SCN-CONSENSUS-023, measured 2026-11-21).
 #
 # This harness pins the whole selector contract, cheaply and without a provider:
 #
-#   RED    --scenarios s8                  exit 2, names s8, no green summary
+#   RED    --scenarios s99                 exit 2, names s99, no green summary
 #   RED    --scenarios s4_conversation     exit 2, names the token (typo arm)
-#   RED    --scenarios s1,s8               exit 2 before running s1 (no partial run)
+#   RED    --scenarios s1,s99              exit 2 before running s1 (no partial run)
 #   RED    --scenarios ,                   exit 2, "names no scenario"
 #   GREEN  --scenarios s4_conversation_loop --dry-run   full id is accepted (s4 only)
 #   GREEN  --scenarios s4 --dry-run                     bare prefix (s4 only)
 #   GREEN  --scenarios s1,s3 --dry-run                  multi-selector = exactly s1,s3
-#   GREEN  --dry-run                                    no selector = all five
+#   GREEN  --dry-run                                    no selector = every registered scenario
 #   GREEN  --scenarios ' s1 , s5 ,' --dry-run           whitespace + trailing comma
 #   ORDER  unknown token is rejected BEFORE the build (stub `go` never invoked)
 #   ORDER  a known token passes validation INTO the build (stub `go` invoked)
@@ -87,9 +87,9 @@ echo "runner: $SCN"
 echo
 
 # ── RED: selectors that name nothing must be refused, loudly, exit 2 ────────
-arm_reject "unknown: s8"                  s8              "unknown scenario 's8'"            --scenarios s8
+arm_reject "unknown: s99"                 s99             "unknown scenario 's99'"            --scenarios s99
 arm_reject "unknown: full-id typo"        s4_conversation "unknown scenario 's4_conversation'" --scenarios s4_conversation
-arm_reject "unknown: mixed s1,s8"         s8              "unknown scenario 's8'"            --scenarios s1,s8
+arm_reject "unknown: mixed s1,s99"        s99             "unknown scenario 's99'"            --scenarios s1,s99
 rm -f "$TMP/err"; run --scenarios ,
 if [ "$RC" -eq 2 ] && printf '%s' "$ERR" | grep -qF "names no scenario" \
    && ! printf '%s' "$OUT$ERR" | grep -q 'failures:'; then
@@ -102,16 +102,16 @@ fi
 arm_selection "full id accepted: s4_conversation_loop" "s4_conversation_loop" --scenarios s4_conversation_loop --dry-run
 arm_selection "bare prefix: s4"                        "s4_conversation_loop" --scenarios s4 --dry-run
 arm_selection "multi-selector: s1,s3"                  "s1_write_file s3_bash" --scenarios s1,s3 --dry-run
-arm_selection "no selector: all five" \
-    "s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment" --dry-run
+arm_selection "no selector: every registered scenario" \
+    "s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability" --dry-run
 arm_selection "whitespace + trailing comma: ' s1 , s5 ,'" "s1_write_file s5_containment" \
     --scenarios ' s1 , s5 ,' --dry-run
 
 # ── ORDER: validation runs before the build (stub go is the tripwire) ───────
 : > "$STUB_GO_MARK"
-RC=0; OUT="$(PATH="$TMP/stub:$PATH" bash "$SCN" --scenarios s8 2>"$TMP/err")"; RC=$?
+RC=0; OUT="$(PATH="$TMP/stub:$PATH" bash "$SCN" --scenarios s99 2>"$TMP/err")"; RC=$?
 ERR="$(cat "$TMP/err")"
-if [ "$RC" -eq 2 ] && printf '%s' "$ERR" | grep -qF "unknown scenario 's8'" \
+if [ "$RC" -eq 2 ] && printf '%s' "$ERR" | grep -qF "unknown scenario 's99'" \
    && [ ! -s "$STUB_GO_MARK" ]; then
     ok "order: unknown token rejected before the build (go never invoked)"
 else
