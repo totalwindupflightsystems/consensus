@@ -143,8 +143,8 @@ func TestApprovalGatedExecution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("re-query session: %v", err)
 	}
-	if got := toString(sessRows[0]["status"]); got != "idle" {
-		t.Errorf("session after approve = %q, want 'idle' (resumed)", got)
+	if got := toString(sessRows[0]["status"]); got != "tool_exec" {
+		t.Errorf("session after approve = %q, want 'tool_exec'", got)
 	}
 
 	// =========================================================================

@@ -58,7 +58,9 @@ func ToolRequiresApproval(ctx context.Context, database db.DB, toolName string) 
 //   - Updating the tool_request status to 'awaiting_approval'
 //   - Linking the approval_request_id to the tool_request
 //   - Checking approval status on subsequent poll cycles
-func CreateToolApprovalRequest(ctx context.Context, database db.DB, sessionID, toolName string, parameters map[string]any) (string, error) {
+func CreateToolApprovalRequest(ctx context.Context, database interface {
+	Exec(context.Context, string, ...any) error
+}, sessionID, toolName string, parameters map[string]any) (string, error) {
 	if database == nil {
 		return "", fmt.Errorf("approval: no database configured")
 	}

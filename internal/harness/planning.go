@@ -1544,17 +1544,14 @@ func countIdenticalHandoffCycles(calls, prior []toolCallSignature) int {
 // APPROV-GATE-001 §4.3 — planning-path approval gate
 // ============================================================================
 
-// createPlanningApprovalRequests creates an approval_request for every gated
-// tool the planning loop was asked to run. Uses tools.CreateToolApprovalRequest
-// (the same helper the legacy path's handleApprovalGated calls), which pauses
-// the session; the loop then COMMITs and reports NextStatus='paused' so no
-// tool_call_ref staging rows are written and no external consumer sees the
-// call until the approval is reviewed.
-//
-// Fail-closed: an unresolvable gate DB error fails the turn with a rollback —
-// the exact failure the defect class forbids is dispatching a gated tool
-// without an approval row.
+// createPlanningApprovalRequests atomically persists the approval, parked tool
+// request and paused session so a reviewer cannot observe a partial handoff.
 func (h *Harness) createPlanningApprovalRequests(ctx context.Context, sessionID string, plan TurnPlan) error {
+	tx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("planning: begin approval handoff: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	for _, tr := range plan.ToolRequests {
 		requires, err := tools.ToolRequiresApproval(ctx, h.db, tr.ToolName)
 		if err != nil {
@@ -1564,35 +1561,31 @@ func (h *Harness) createPlanningApprovalRequests(ctx context.Context, sessionID 
 			continue
 		}
 
-		approvalID, err := tools.CreateToolApprovalRequest(ctx, h.db, sessionID, tr.ToolName, tr.Parameters)
+		approvalID, err := tools.CreateToolApprovalRequest(ctx, tx, sessionID, tr.ToolName, tr.Parameters)
 		if err != nil {
 			return fmt.Errorf("planning: approval gate create %q: %w", tr.ToolName, err)
+		}
+		params, err := json.Marshal(tr.Parameters)
+		if err != nil {
+			return fmt.Errorf("planning: marshal gated tool %q: %w", tr.ToolName, err)
+		}
+		if err := tx.Exec(ctx, `
+			INSERT INTO tool_requests (session_id, iteration_id, tool_name, parameters, status, approval_request_id, created_at)
+			SELECT id, iteration, $1, $2, 'awaiting_approval', $3, CURRENT_TIMESTAMP FROM sessions WHERE id = $4
+		`, tr.ToolName, string(params), approvalID, sessionID); err != nil {
+			return fmt.Errorf("planning: persist gated tool %q: %w", tr.ToolName, err)
 		}
 		slog.Info("planning: approval gate created",
 			"session_id", sessionID, "tool", tr.ToolName, "approval_id", approvalID,
 		)
 	}
 
-	return nil
+	return tx.Commit()
 }
 
-// handleApprovalGatedSuspension closes the planning transaction and parks the
-// session for a human decision. Order is load-bearing (APPROV-GATE-001):
-//  1. rollback the iteration tx — it holds the SQLite WAL write lock from
-//     turn 1, and step 2 writes through the pool, so creating the approval
-//     request inside the open tx deadlocks on SQLITE_BUSY;
-//  2. create the approval_requests rows through the pool (the durable,
-//     rollback-surviving record the operator reviews);
-//  3. set the session status to 'paused' — CreateToolApprovalRequest also
-//     pauses, but an explicit write keeps the iteration's intent visible
-//     even when no tool was gated (all-gated fast path still pauses).
-//
-// No tool_call_ref staging rows exist at this point — the dispatch loop's
-// persistence block never ran — so no external consumer can observe the
-// gated call while the approval is pending (the §4.3 defect). After a
-// decision, ReviewApproval resumes the session to 'idle' with the user
-// message still unconsumed; the next iteration re-reads it and the LLM
-// re-issues the (now-blessed) tool call.
+// handleApprovalGatedSuspension rolls back the planning transaction before
+// atomically persisting the approvals and parked tool requests. Approval
+// requeues the exact request; it does not depend on the model reissuing it.
 func (h *Harness) handleApprovalGatedSuspension(ctx context.Context, tx db.Tx, sessionID string, plan TurnPlan, turn int) (*IterationResult, error) {
 	_ = tx.Rollback()
 
@@ -1601,12 +1594,6 @@ func (h *Harness) handleApprovalGatedSuspension(ctx context.Context, tx db.Tx, s
 		// state ('failed' via handlePlanningError's pool write) rather
 		// than leaving it claimed-but-dead in 'planning'.
 		return nil, err
-	}
-
-	if err := h.db.Exec(ctx,
-		`UPDATE sessions SET status = 'paused', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1`,
-		sessionID); err != nil {
-		return nil, fmt.Errorf("approval gate: park session: %w", err)
 	}
 
 	slog.Info("planning: approval gate suspended session",
