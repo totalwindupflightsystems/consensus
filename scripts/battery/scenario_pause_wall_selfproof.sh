@@ -35,11 +35,12 @@ ok()  { printf 'PASS  %s\n' "$1"; PASS=$((PASS+1)); }
 bad() { local name="$1"; shift
         printf 'FAIL  %s\n' "$name"; printf '%s\n' "$@" | sed 's/^/      | /'; FAIL=$((FAIL+1)); }
 
-# ── extract wait_idle + await_idle + status_of verbatim from the runner ──────
+# ── extract wait_idle + await_idle + last_turn_error + status_of verbatim from the runner ──
 # (scripted extraction so the behavioral arms exercise the real source lines);
 # emit() is stubbed to append JSON lines to CAPTURE so the detail is assertable.
 awk '
   /^status_of\(\) \{/ {p=1}
+  /^last_turn_error\(\) \{/ {p=1}
   /^wait_idle\(\) \{/ {p=1}
   /^await_idle\(\) \{/ {p=1}
   p {print; if ($0 ~ /^\}/) p=0}
@@ -55,8 +56,12 @@ fi
 fix_db() { echo "$TMP/fix-$1-$RANDOM-$(date +%s%N).db"; }
 
 make_fixture() { # <db> <status>
+  # The paused fixture carries a pending approval row (the approval-wall shape);
+  # SCN-CONSENSUS-025: a paused session WITHOUT one is the circuit-breaker shape
+  # and gets its own behavioral arm below.
   sqlite3 "$1" \
-    "CREATE TABLE sessions (id TEXT PRIMARY KEY, status TEXT); INSERT INTO sessions VALUES ('sid-1','$2');"
+    "CREATE TABLE sessions (id TEXT PRIMARY KEY, status TEXT); INSERT INTO sessions VALUES ('sid-1','$2');
+     CREATE TABLE approval_requests (id TEXT PRIMARY KEY, session_id TEXT, status TEXT, target_tool TEXT);$( [ "$2" = paused ] && printf " INSERT INTO approval_requests VALUES ('apr-1','sid-1','pending','write');" )"
 }
 
 cat > "$TMP/behavior_inner.sh" <<'INNER'
@@ -120,14 +125,67 @@ fi
 behavior "idle: immediate success, rc=0" idle 0
 behavior "thinking: still consumes the full timeout (live wait preserved), rc=1" thinking 1
 
+# ── BEHAVIORAL: leg attribution (SCN-CONSENSUS-025) ───────────────────────────
+# A multi-leg scenario names its leg in the failure detail, so a 3-leg session
+# failure is attributable from the runner output alone.
+cat > "$TMP/leg_inner.sh" <<'INNER'
+: > "${CAPTURE:?}"
+emit() { printf '%s\n' "$*" >> "${CAPTURE:?}"; }
+DB="${FIX_DB:?}"
+source "${HELPERS:?}"
+start=$(date +%s)
+await_idle s2 "sid-1" 5 leg=read
+echo "rc=$? elapsed=$(( $(date +%s) - start ))"
+INNER
+behavior "failed: leg-attributed detail, rc=1" failed 1 "$TMP/leg_inner.sh"
+if [ -s "$TMP/capture.jsonl" ] && grep -qF "leg=read" "$TMP/capture.jsonl" \
+   && grep -qF "timeout/non-idle: failed, sid=sid-1, leg=read" "$TMP/capture.jsonl"; then
+  ok "failed: detail names the leg (leg=read) alongside sid and status"
+else
+  bad "failed: detail names the leg (leg=read) alongside sid and status" \
+      "capture: $(cat "$TMP/capture.jsonl" 2>/dev/null)"
+fi
+
+# ── BEHAVIORAL: paused attribution (SCN-CONSENSUS-025) ────────────────────────
+# A paused session with NO pending approval row is the consecutive-error circuit
+# breaker, not the approval wall — the detail must name it instead of blaming
+# the approval wall (live mislabel, 2026-11-28 proof run 3: an --auto-approve
+# run where no tool was gated cannot be a wall).
+cat > "$TMP/breaker_inner.sh" <<'INNER'
+: > "${CAPTURE:?}"
+emit() { printf '%s\n' "$*" >> "${CAPTURE:?}"; }
+DB="${FIX_DB:?}"
+source "${HELPERS:?}"
+start=$(date +%s)
+await_idle s2 "sid-1" 5 leg=edit
+echo "rc=$? elapsed=$(( $(date +%s) - start ))"
+INNER
+bdb="$(fix_db breaker-paused)"
+sqlite3 "$bdb" \
+  "CREATE TABLE sessions (id TEXT PRIMARY KEY, status TEXT); INSERT INTO sessions VALUES ('sid-1','paused');
+   CREATE TABLE approval_requests (id TEXT PRIMARY KEY, session_id TEXT, status TEXT, target_tool TEXT);"
+bout="$( FIX_DB="$bdb" CAPTURE="$TMP/capture.jsonl" HELPERS="$TMP/helpers.sh" bash "$TMP/breaker_inner.sh" 2>&1 )"
+brc="$(printf '%s' "$bout" | sed -n 's/^rc=\([0-9]*\).*/\1/p')"
+belapsed="$(printf '%s' "$bout" | sed -n 's/^rc=[0-9]* elapsed=\([0-9]*\).*/\1/p')"
+bproblems=""
+[ "$brc" = "1" ] || bproblems="$problems rc=$brc (want 1)"
+[ "${belapsed:-999}" -le 2 ] || bproblems="$problems elapsed=$belapsed (want <= 2)"
+if [ -z "$bproblems" ] && grep -qF "paused: no pending approval row — consecutive-error circuit breaker" "$TMP/capture.jsonl" \
+   && grep -qF "leg=edit" "$TMP/capture.jsonl"; then
+  ok "paused without a pending approval: detail names the circuit breaker + leg"
+else
+  bad "paused without a pending approval: detail names the circuit breaker + leg" \
+      "$bproblems" "output: $bout" "capture: $(cat "$TMP/capture.jsonl" 2>/dev/null)"
+fi
+
 # ── STATIC: the source pins what the behavioral arms can't reach ─────────────
 wl_line="$(grep -n 'paused) return 2' "$SCN" | head -1 | cut -d: -f1)"
 [ -n "$wl_line" ] && ok "static: wait_idle has the paused arm (line $wl_line)" \
                     || bad "static: wait_idle has the paused arm" "no 'paused) return 2' in $SCN"
 
-calls="$(grep -c 'await_idle s[0-9] "\$sid" 180 || return 1' "$SCN")"
-[ "$calls" -eq 8 ] && ok "static: all 8 scenario wait_idle call sites go through await_idle" \
-                   || bad "static: all 8 scenario wait_idle call sites go through await_idle" "found $calls"
+calls="$(grep -c 'await_idle s[0-9] "\$sid" "\$LEG_TIMEOUT"' "$SCN")"
+[ "$calls" -eq 8 ] && ok "static: all 8 scenario wait_idle call sites go through await_idle with the LEG_TIMEOUT budget" \
+                   || bad "static: all 8 scenario wait_idle call sites go through await_idle with the LEG_TIMEOUT budget" "found $calls"
 
 seed_after_db="$(grep -n '^DB="\$STATE/db.sqlite"' "$SCN" | head -1 | cut -d: -f1)"
 seed_line="$(grep -n 'UPDATE tools_registry SET requires_approval = 0' "$SCN" | head -1 | cut -d: -f1)"
@@ -147,17 +205,17 @@ grep -q -- '--auto-approve' "$SCN" && grep -q 'CONSENSUS_E2E_AUTO_APPROVE' "$SCN
 # ── INVOCATION: both spellings accepted, --dry-run stays side-effect free ────
 run() { stdout="$(bash "$SCN" "$@" 2>"$TMP/err")"; rc=$?; }
 run --auto-approve --dry-run
-if [ "$rc" -eq 0 ] && [ "$(printf '%s\n' "$stdout" | grep -c '^scenario: ')" -eq 7 ]; then
-  ok "invocation: --auto-approve --dry-run accepted, all seven scenarios selected"
+if [ "$rc" -eq 0 ] && [ "$(printf '%s\n' "$stdout" | grep -c '^scenario: ')" -eq 8 ]; then
+  ok "invocation: --auto-approve --dry-run accepted, all eight scenarios selected"
 else
-  bad "invocation: --auto-approve --dry-run accepted, all seven scenarios selected" \
+  bad "invocation: --auto-approve --dry-run accepted, all eight scenarios selected" \
       "rc=$rc out=$stdout err=$(cat "$TMP/err")"
 fi
 CONSENSUS_E2E_AUTO_APPROVE=1 bash "$SCN" --dry-run 2>"$TMP/err2" >"$TMP/out2"; rc2=$?
-if [ "$rc2" -eq 0 ] && [ "$(grep -c '^scenario: ' "$TMP/out2")" -eq 7 ]; then
-  ok "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all seven scenarios selected"
+if [ "$rc2" -eq 0 ] && [ "$(grep -c '^scenario: ' "$TMP/out2")" -eq 8 ]; then
+  ok "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all eight scenarios selected"
 else
-  bad "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all seven scenarios selected" \
+  bad "invocation: CONSENSUS_E2E_AUTO_APPROVE=1 --dry-run accepted, all eight scenarios selected" \
       "rc2=$rc2 out: $(cat "$TMP/out2") err: $(cat "$TMP/err2")"
 fi
 run --bogus-arg --dry-run
