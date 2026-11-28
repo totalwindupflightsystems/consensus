@@ -64,7 +64,7 @@ log()  { printf '%s\n' "$*" >&2; }
 emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
 
 # ---------- scenario registry + selector (validated before anything boots) ----------
-ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume"
+ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability"
 
 scenario_matches() { # $1=fn $2=selector token -> 0 when the token names this scenario
   local fn="$1" tok="$2"
@@ -364,6 +364,110 @@ s6_approve_resume() {
     sleep 1
   done
   emit s6_approve_resume fail "approved write did not complete with result and idle: status=$st successful_results=${count:-0} file=$f"
+  return 1
+}
+
+s8_restart_durability() {
+  # Restart durability (S8): SIGKILL the server mid-turn, restart the SAME
+  # binary against the SAME SQLite DB and port, and prove the session is
+  # re-armed and finishes the work it was killed on.
+  #
+  # Recovery after the crash is path-dependent — both paths are real:
+  #
+  #  - the killed turn had already queued a tool request but the dead
+  #    process had not claimed it yet ('pending'): the restarted server's
+  #    ToolExecutor claims pending requests straight from the table,
+  #    re-runs it from the row's own parameters, and its hand-back
+  #    (UPDATE ... WHERE status='tool_exec') flips the session to 'thinking'
+  #    and wakes the planner for the continuation turn. Seconds.
+  #  - the request was already 'executing' when the process died: nothing
+  #    can claim it, so recovery goes through the claim-lease reaper
+  #    (REVIEW-CONSENSUS-1 + DF-CONSENSUS-68): once the claim's heartbeat is
+  #    older than the lease visibility timeout (5 minutes), the reaper hands
+  #    the session back to 'tool_exec', requeues 'executing'→'pending', and
+  #    wakes the executor. Minutes — the wait budget below covers it.
+  #
+  # Either way the assertion is the same: the request outstanding at kill time
+  # is completed by the restarted process, and the file it was writing lands
+  # on disk with the session idle. The kill lands during an executing-ish
+  # window created by the 10s sleep; the runner reports which state it saw.
+  #
+  # The admin API key is stored hashed and is never reprinted, so the
+  # restarted server logs no key: the runner keeps using the key captured on
+  # the first boot (same DB, same key).
+  local sc="s8_restart_durability"
+  local marker="SCN-S8-RESTART-OK"
+  local sid; sid=$(new_session "Restart durability check") || { emit "$sc" fail "no session"; return 1; }
+  say "$sid" "Use your bash tool to run: sleep 10 && echo -n $marker > s8.txt (then report DONE)."
+
+  # Kill mid-flight: only when the session sits in tool_exec with a bash
+  # request still outstanding. Anything else (the model finished before we got
+  # there, or the turn died) is a scenario setup failure, reported loudly.
+  local i st rstatus
+  st=""
+  for i in $(seq 1 120); do
+    st=$(status_of "$sid")
+    rstatus=$(sqlite3 "$DB" "SELECT status FROM tool_requests WHERE session_id='$sid' AND status IN ('pending','executing') ORDER BY created_at ASC LIMIT 1;" 2>/dev/null)
+    case "$st" in
+      tool_exec) [ -n "$rstatus" ] && break ;;
+      idle|completed) emit "$sc" fail "session settled before the mid-flight kill (status=$st) — nothing to resume"; return 1 ;;
+      failed) emit "$sc" fail "session failed before the kill (sid=$sid)"; return 1 ;;
+    esac
+    sleep 0.5
+  done
+  [ "$st" = "tool_exec" ] && [ -n "$rstatus" ] \
+    || { emit "$sc" fail "never caught the session mid-turn (status=$st outstanding=$rstatus)"; return 1; }
+
+  local rid; rid=$(sqlite3 "$DB" "SELECT id FROM tool_requests WHERE session_id='$sid' AND status IN ('pending','executing') ORDER BY created_at ASC LIMIT 1;")
+  [ -n "$rid" ] || { emit "$sc" fail "no outstanding tool request captured at kill time"; return 1; }
+
+  # Crash, not shutdown: SIGKILL leaves no chance to settle the turn, and the
+  # killed child tool process is never waited on.
+  local dead_srv="$SRV_PID"
+  kill -9 "$dead_srv" 2>/dev/null
+  wait "$dead_srv" 2>/dev/null
+  kill -0 "$dead_srv" 2>/dev/null \
+    && { emit "$sc" fail "server pid $dead_srv still alive after SIGKILL"; return 1; }
+  log "$sc: server (pid $dead_srv) killed mid-session: status=$st request=$rid/$rstatus"
+  sleep 2 # let the listener release the port before the restart binds it
+
+  # Restart the SAME binary against the SAME DB + port. Separate log so the
+  # restarted server's recovery lines are greppable on their own.
+  local LOG2="$STATE/serve2.log"
+  CONSENSUS_API_KEY="$DK" DEEPSEEK_API_KEY="$DK" \
+  CONSENSUS_DB_URL="sqlite://$DB" \
+    "$BIN" serve --hostname 127.0.0.1 --port "$PORT" --log-level info >"$LOG2" 2>&1 &
+  SRV_PID=$!
+  local up=0
+  for i in $(seq 1 60); do
+    if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$PORT/openapi.json"; then up=1; break; fi
+    kill -0 "$SRV_PID" 2>/dev/null || break
+    sleep 1
+  done
+  [ "$up" -eq 1 ] \
+    || { emit "$sc" fail "restarted server did not serve :$PORT (log tail: $(tail -c 400 "$LOG2" 2>/dev/null | tr '\n' ' '))"; return 1; }
+  log "$sc: server restarted on :$PORT (pid $SRV_PID) against the same DB"
+
+  # Lease expiry is wall-clock when recovery needs the reaper: allow 600s for
+  # reap + re-execution + the planner continuation turn. The pending-request
+  # path settles in seconds.
+  await_idle "$sc" "$sid" 600 || return 1
+
+  local reaps; reaps=$(grep -c "reclaimed stale session claim" "$LOG2" 2>/dev/null)
+  log "$sc: claim-reaper reclaims in restarted log: ${reaps:-0} (0 = the killed request was still pending, so the restarted executor claimed it directly)"
+
+  # Proof 1: the request that was outstanding when the process died reached a
+  # successful result — only the restarted server could have moved it.
+  # Proof 2: the requested file exists with the expected content.
+  local req_end res_ok f
+  req_end=$(sqlite3 "$DB" "SELECT status FROM tool_requests WHERE id='$rid';")
+  res_ok=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results WHERE request_id='$rid' AND is_error=0;")
+  f="$(ws_dir "$sid")/s8.txt"
+  if [ "$req_end" = "completed" ] && [ "${res_ok:-0}" -ge 1 ] && [ -f "$f" ] && grep -q "$marker" "$f"; then
+    emit "$sc" pass "killed at status=$st request=$rid/$rstatus; restarted same DB; session idle; request completed; $f verified"
+    return 0
+  fi
+  emit "$sc" fail "recovery incomplete: request_status=$req_end successful_results=${res_ok:-0} file=$f content=$(head -c 80 "$f" 2>/dev/null | tr '\n' ' ')"
   return 1
 }
 
