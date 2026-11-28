@@ -70,6 +70,17 @@ before any scenario creates a session. Seeding at the registry is deliberate: th
 planning-path gate (`planHasGatedTools`) re-reads the registry on every attempt and ignores
 an already-approved approval, so a runtime approve-loop would just re-pause.
 
+Leg attribution (SCN-CONSENSUS-025): every non-paused `await_idle` failure names the leg
+(`leg=read|edit|glob` for the three s2 waits), the session id, the terminal status, and the
+session's recorded error text — the most recent `audit_logs.error_message` (the same query
+the API surfaces as `last_error`, DOGFOOD-004) plus the newest `is_error=1` tool result —
+so a flake is attributable from the runner output alone and never again reads as a bare
+`timeout/non-idle: failed`. The s2 leg proof keys on a SUCCESSFUL tool result carrying the
+seeded marker under the product's own alias semantics: models intermittently reach for
+`read_file`/`edit_file` vocabulary, which the harness resolves to `read`/`edit` by design
+(SCN-CONSENSUS-009 handler_ref resolution; 037 seeds `edit_file` after 035 did the same for
+shell names). The per-leg wait budget is `CONSENSUS_E2E_LEG_TIMEOUT` (default 180).
+
 The sixth scenario, `s6_approve_resume` (SCN-CONSENSUS-004), is the attended counterpart:
 it must never run with `--auto-approve` (its own setup re-gates the `write` builtin even if
 the flag is set). It proves the wall end-to-end — park → pending approvals row → approve —

@@ -25,6 +25,9 @@
 #         CONSENSUS_E2E_AUTO_APPROVE=1 (same as --auto-approve), PORT (default
 #         18460). When the fallback file is used, DEEPSEEK_API_KEY supplies the
 #         provider key.
+#         CONSENSUS_E2E_LEG_TIMEOUT — per-leg wait budget in seconds (SCN-
+#         CONSENSUS-025), default 180; tunes the s1–s5 per-leg waits without
+#         editing the script. s8 keeps its own longer recovery budget.
 #
 # Unattended runs and the approval wall (SCN-CONSENSUS-024):
 #   --auto-approve / CONSENSUS_E2E_AUTO_APPROVE=1 arms the e2e approval path for
@@ -42,6 +45,9 @@
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 PORT=${PORT:-18460}
+# Per-leg wait budget (SCN-CONSENSUS-025): default unchanged at 180; the env
+# override lets a slow-provider window tune the budget without editing the script.
+LEG_TIMEOUT="${CONSENSUS_E2E_LEG_TIMEOUT:-180}"
 KEEP=0
 DRY_RUN=0
 ONLY=""
@@ -198,6 +204,28 @@ say() { # $1=sid $2=content
     -d "$(jq -cn --arg c "$2" '{content:$c,type:"user_instruction"}')" >/dev/null
 }
 status_of() { sqlite3 "$DB" "SELECT status FROM sessions WHERE id='$1';" 2>/dev/null; }
+last_turn_error() { # $1=sid -> compact one-line diagnostics for a failed/non-idle session
+  # Real columns only — no invented fields. A failed session's error text is the
+  # most recent audit_logs.error_message (the exact query the API surfaces as
+  # last_error, DOGFOOD-004, internal/api/service.go GetSession), and tool-level
+  # failures persist tool_results.output/is_error/error_code joined to
+  # tool_requests.tool_name. Missing tables (fixture DBs) degrade to the fallback
+  # text instead of failing the emit.
+  local em terr
+  em=$(sqlite3 "$DB" "SELECT error_message FROM audit_logs WHERE session_id='$1' AND error_message IS NOT NULL AND error_message != '' ORDER BY id DESC LIMIT 1;" 2>/dev/null)
+  terr=$(sqlite3 "$DB" "SELECT q.tool_name || ': ' || r.output FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE r.session_id='$1' AND r.is_error=1 ORDER BY r.id DESC LIMIT 1;" 2>/dev/null)
+  em=$(printf '%s' "$em" | tr '\n\r\t' '   ' | cut -c1-240)
+  terr=$(printf '%s' "$terr" | tr '\n\r\t' '   ' | cut -c1-240)
+  if [ -n "$em" ] && [ -n "$terr" ]; then
+    printf 'last_error=%s; last_tool_error=%s' "$em" "$terr"
+  elif [ -n "$em" ]; then
+    printf 'last_error=%s' "$em"
+  elif [ -n "$terr" ]; then
+    printf 'last_tool_error=%s; no audit_logs.error_message' "$terr"
+  else
+    printf 'no error text recorded (no audit_logs.error_message, no is_error=1 tool_results)'
+  fi
+}
 wait_idle() { # $1=sid $2=timeout_s -> 0 if idle, 2 if paused (approval wall), 1 otherwise
   local i st
   for i in $(seq 1 "$2"); do
@@ -211,12 +239,26 @@ wait_idle() { # $1=sid $2=timeout_s -> 0 if idle, 2 if paused (approval wall), 1
   done
   return 1
 }
-await_idle() { # $1=scenario-name $2=sid $3=timeout_s -> 0 if idle; emits the failure and returns 1 otherwise
+await_idle() { # $1=scenario-name $2=sid $3=timeout_s [$4=leg] -> 0 if idle; emits the failure and returns 1 otherwise
+  # SCN-CONSENSUS-025: $4 (optional) names the leg (read|edit|glob) so a
+  # multi-leg scenario failure is attributable, and every non-paused failure
+  # line carries the session's terminal status plus its recorded error text
+  # (last_turn_error) — never a bare "timeout/non-idle: failed" again.
   if wait_idle "$2" "$3"; then return 0; fi
   local st; st=$(status_of "$2")
   case "$st" in
-    paused) emit "$1" fail "paused: approval wall, sid=$2 (arm --auto-approve to ungate tools)"; return 1 ;;
-    *) emit "$1" fail "timeout/non-idle: $st"; return 1 ;;
+    paused)
+      # status=paused has TWO live causes (SCN-CONSENSUS-025): the approval wall
+      # (a pending approval_requests row) and the consecutive-error circuit
+      # breaker (planning.go pauses without any approval row). Name which, plus
+      # the leg and the recorded error text — never a bare "paused".
+      local pend
+      pend=$(sqlite3 "$DB" "SELECT count(*) FROM approval_requests WHERE session_id='$2' AND status='pending';" 2>/dev/null)
+      if [ "${pend:-0}" -ge 1 ]; then
+        emit "$1" fail "paused: approval wall, sid=$2${4:+, $4} (arm --auto-approve to ungate tools); $(last_turn_error "$2")"; return 1
+      fi
+      emit "$1" fail "paused: no pending approval row — consecutive-error circuit breaker (or other non-approval pause), sid=$2${4:+, $4}; $(last_turn_error "$2")"; return 1 ;;
+    *) emit "$1" fail "timeout/non-idle: $st, sid=$2${4:+, $4}; $(last_turn_error "$2")"; return 1 ;;
   esac
 }
 wait_paused() { # $1=sid $2=timeout_s -> 0 if paused, 1 otherwise (s6: the park IS the expected state)
@@ -254,7 +296,7 @@ ws_dir() { echo "$TMPDIR/consensus-workspaces/$1"; }
 s1_write_file() {
   local sid; sid=$(new_session "Write a file using your tools") || { emit s1 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: echo -n SCN-OK > scn1.txt (then report DONE)."
-  await_idle s1 "$sid" 180 || return 1
+  await_idle s1 "$sid" "$LEG_TIMEOUT" || return 1
   local f; f="$(ws_dir "$sid")/scn1.txt"
   [ -f "$f" ] && grep -q SCN-OK "$f" && { emit s1 pass "wrote $f"; return 0; }
   emit s1 fail "file missing or wrong content: $f"
@@ -270,13 +312,13 @@ s2_read_file() {
   printf 'SEED-GLOB-99\n' >"$d/reports/glob-found.log"
 
   say "$sid" "Use your read tool to read the file seed.txt in your workspace and reply with the exact number you found."
-  await_idle s2 "$sid" 180 || return 1
+  await_idle s2 "$sid" "$LEG_TIMEOUT" leg=read || return 1
 
   say "$sid" "Use your edit tool to replace 'STALE-DRAFT v1' with 'SEED-EDIT-77' in the file edit-target.txt in your workspace. Then use your read tool to read edit-target.txt back and confirm the new text."
-  await_idle s2 "$sid" 180 || return 1
+  await_idle s2 "$sid" "$LEG_TIMEOUT" leg=edit || return 1
 
   say "$sid" "Use your glob tool with the pattern 'reports/*.log' to list matching files in your workspace and reply with the filename you found."
-  await_idle s2 "$sid" 180 || return 1
+  await_idle s2 "$sid" "$LEG_TIMEOUT" leg=glob || return 1
 
   # Three legs, each a sqlite3 count on tool_results (SCN-CONSENSUS-001):
   #   read  — a read tool result containing the seeded seed.txt content
@@ -284,23 +326,38 @@ s2_read_file() {
   #           a tool result (the edit tool's own output reports the replacement
   #           count, not the content, so the content is proven via the read-back)
   #   glob  — a glob tool result containing the matched filename
+  #
+  # SCN-CONSENSUS-025 root cause (live, 2026-11-28): the model intermittently
+  # reaches for the _file-suffixed vocabulary (read_file/edit_file). The harness
+  # itself absorbs that drift — ResolveToolRegistryRow matches registry name
+  # first, handler_ref second (SCN-CONSENSUS-009; migrations 033/034 seed
+  # read/write with handler_ref read_file/write_file; 037 seeds edit_file) — so
+  # the leg proof keys on a SUCCESSFUL RESULT carrying the seeded marker, under
+  # either spelling, instead of on which spelling the request row recorded. The
+  # marker/is_error assertions are unchanged.
   local leg_read leg_edit leg_edit_content leg_glob
-  leg_read=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='read' AND r.is_error=0 AND r.output LIKE '%SEED-READ-42%';")
-  leg_edit=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='edit' AND r.is_error=0;")
+  leg_read=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name IN ('read','read_file') AND r.is_error=0 AND r.output LIKE '%SEED-READ-42%';")
+  leg_edit=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name IN ('edit','edit_file') AND r.is_error=0;")
   leg_edit_content=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results WHERE is_error=0 AND output LIKE '%SEED-EDIT-77%';")
   leg_glob=$(sqlite3 "$DB" "SELECT count(*) FROM tool_results r JOIN tool_requests q ON r.request_id=q.id WHERE q.tool_name='glob' AND r.is_error=0 AND r.output LIKE '%glob-found.log%';")
   if [ "$leg_read" -ge 1 ] && [ "$leg_edit" -ge 1 ] && [ "$leg_edit_content" -ge 1 ] && [ "$leg_glob" -ge 1 ]; then
     emit s2 pass "read+edit+glob tool_results: read=$leg_read edit_calls=$leg_edit edit_content=$leg_edit_content glob=$leg_glob"
     return 0
   fi
-  emit s2 fail "tool_results proof failed: read=$leg_read edit_calls=$leg_edit edit_content=$leg_edit_content glob=$leg_glob"
+  # Name the failing legs and print the session's terminal state + recorded
+  # error text, so a leg-proof miss is attributable from the runner output alone.
+  local bad_legs=""
+  [ "$leg_read" -ge 1 ] || bad_legs="${bad_legs:+$bad_legs,}read"
+  { [ "$leg_edit" -ge 1 ] && [ "$leg_edit_content" -ge 1 ]; } || bad_legs="${bad_legs:+$bad_legs,}edit"
+  [ "$leg_glob" -ge 1 ] || bad_legs="${bad_legs:+$bad_legs,}glob"
+  emit s2 fail "leg-proof failed: legs_missing=${bad_legs:-none} (read=$leg_read edit_calls=$leg_edit edit_content=$leg_edit_content glob=$leg_glob), sid=$sid, status=$(status_of "$sid"); $(last_turn_error "$sid")"
   return 1
 }
 
 s3_bash() {
   local sid; sid=$(new_session "Run a shell command") || { emit s3 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: printf SCN-BASH > scn3.out ; then report DONE."
-  await_idle s3 "$sid" 180 || return 1
+  await_idle s3 "$sid" "$LEG_TIMEOUT" || return 1
   local f; f="$(ws_dir "$sid")/scn3.out"
   [ -f "$f" ] && grep -q SCN-BASH "$f" && { emit s3 pass "bash executed"; return 0; }
   emit s3 fail "bash output file missing: $f"
@@ -310,9 +367,9 @@ s3_bash() {
 s4_conversation_loop() {
   local sid; sid=$(new_session "Multi-turn tool use") || { emit s4 fail "no session"; return 1; }
   say "$sid" "Use your bash tool to run: echo -n ONE > turn1.txt"
-  await_idle s4 "$sid" 180 || return 1
+  await_idle s4 "$sid" "$LEG_TIMEOUT" || return 1
   say "$sid" "Now use your bash tool to run: echo -n TWO > turn2.txt"
-  await_idle s4 "$sid" 180 || return 1
+  await_idle s4 "$sid" "$LEG_TIMEOUT" || return 1
   local d; d=$(ws_dir "$sid")
   [ -f "$d/turn1.txt" ] && [ -f "$d/turn2.txt" ] && { emit s4 pass "two turns, two files"; return 0; }
   emit s4 fail "missing turn files in $d"
@@ -323,7 +380,7 @@ s5_containment() {
   local sid; sid=$(new_session "Containment check") || { emit s5 fail "no session"; return 1; }
   local outside="$TMPDIR/consensus-workspaces/ESCAPED.txt"
   say "$sid" "Use your bash tool to run: echo -n ESCAPE > ../ESCAPED.txt ; report DONE either way."
-  await_idle s5 "$sid" 180 || return 1
+  await_idle s5 "$sid" "$LEG_TIMEOUT" || return 1
   if [ -f "$outside" ]; then emit s5 fail "ESCAPED the workspace: $outside"; return 1; fi
   emit s5 pass "no escape file outside the session workspace"
   return 0
