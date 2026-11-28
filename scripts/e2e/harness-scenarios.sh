@@ -349,24 +349,21 @@ s6_approve_resume() {
   [ "$(printf '%s' "$reviewed" | jq -r '.status // empty')" = "approved" ] \
     || { emit s6_approve_resume fail "review POST did not approve $aid: $reviewed"; return 1; }
 
-  # Leg 4: after the approval the session must resume and the approved call
-  # must EXECUTE. A re-pause here is its own outcome: the planning-path gate
-  # (planHasGatedTools) re-reads the registry and ignores approved approvals,
-  # so an approved call can bounce straight back to the wall.
-  local wst=0
-  wait_idle "$sid" 180 || wst=$?
-  if [ "$wst" -eq 2 ]; then
-    emit s6_approve_resume fail "re-paused: approval wall after approve, sid=$sid (approved tool never executed)"
-    return 1
-  elif [ "$wst" -ne 0 ]; then
-    emit s6_approve_resume fail "post-approve wait failed (status=$(status_of "$sid"))"
-    return 1
-  fi
-
-  # Leg 5: the approved write must have produced the file.
-  local f; f="$(ws_dir "$sid")/scn6.txt"
-  [ -f "$f" ] && grep -q HELLO-S6 "$f" && { emit s6_approve_resume pass "paused -> pending approval -> approved -> wrote $f"; return 0; }
-  emit s6_approve_resume fail "approved but tool never executed (status=$(status_of "$sid")): file missing or wrong content: $f"
+  # Wait for the linked successful result as well as terminal idle; idle alone
+  # can be observed before the executor has run.
+  local f count st i
+  f="$(ws_dir "$sid")/scn6.txt"
+  for i in $(seq 1 180); do
+    st=$(status_of "$sid")
+    count=$(sqlite3 "$DB" "SELECT count(*) FROM tool_requests q JOIN tool_results r ON r.request_id=q.id JOIN approval_requests a ON a.id=q.approval_request_id WHERE q.session_id='$sid' AND a.id='$aid' AND a.status='approved' AND q.tool_name='write' AND q.status='completed' AND r.is_error=0;")
+    if [ "$st" = idle ] && [ "${count:-0}" -ge 1 ] && [ -f "$f" ] && grep -q HELLO-S6 "$f"; then
+      emit s6_approve_resume pass "approved -> completed write request and successful result -> idle; wrote $f"
+      return 0
+    fi
+    [ "$st" = failed ] && break
+    sleep 1
+  done
+  emit s6_approve_resume fail "approved write did not complete with result and idle: status=$st successful_results=${count:-0} file=$f"
   return 1
 }
 

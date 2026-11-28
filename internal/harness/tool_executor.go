@@ -530,14 +530,26 @@ func ResumeApprovedToolRequestsByApproval(ctx context.Context, database db.DB, a
 		return 0, nil
 	}
 
-	if err := database.Exec(ctx, `
-		UPDATE tool_requests
-		SET status = 'pending', approval_request_id = $3
-		WHERE session_id = $1
-		  AND tool_name = $2
-		  AND status = 'awaiting_approval'
-	`, sessionID, targetTool, approvalID); err != nil {
+	tx, err := database.BeginTx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("approval_resume: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.Query(ctx, `
+		UPDATE tool_requests SET status = 'pending'
+		WHERE session_id = $1 AND tool_name = $2 AND approval_request_id = $3
+		  AND status = 'awaiting_approval' RETURNING id
+	`, sessionID, targetTool, approvalID)
+	if err != nil {
 		return 0, fmt.Errorf("approval_resume: re-queue: %w", err)
+	}
+	if len(rows) > 0 {
+		if err := tx.Exec(ctx, `UPDATE sessions SET status = 'tool_exec', heartbeat_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'paused'`, sessionID); err != nil {
+			return 0, fmt.Errorf("approval_resume: wake session: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("approval_resume: commit: %w", err)
 	}
 
 	slog.Info("tool_executor: approved tool request re-queued",

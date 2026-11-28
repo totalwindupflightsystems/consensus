@@ -336,6 +336,15 @@ func (m *Manager) ReviewApproval(ctx context.Context, approvalID string, decisio
 		if err := m.approval(ctx, approvalID, sessionID); err != nil {
 			return fmt.Errorf("hitl: re-queue approved tool: %w", err)
 		}
+		if decision == DecisionApproved {
+			current, err := m.getSessionStatus(ctx, sessionID)
+			if err != nil {
+				return fmt.Errorf("hitl: check resumed session: %w", err)
+			}
+			if current != session.StatusPaused {
+				return nil // The callback handed the session to the tool executor.
+			}
+		}
 	}
 
 	// Resume the session
