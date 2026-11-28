@@ -64,7 +64,7 @@ log()  { printf '%s\n' "$*" >&2; }
 emit() { printf '{"scenario":"%s","status":"%s","detail":%s}\n' "$1" "$2" "$(jq -Rn --arg d "$3" '$d')"; }
 
 # ---------- scenario registry + selector (validated before anything boots) ----------
-ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability"
+ALL="s1_write_file s2_read_file s3_bash s4_conversation_loop s5_containment s6_approve_resume s8_restart_durability s13_concurrent_sessions"
 
 scenario_matches() { # $1=fn $2=selector token -> 0 when the token names this scenario
   local fn="$1" tok="$2"
@@ -230,6 +230,23 @@ wait_paused() { # $1=sid $2=timeout_s -> 0 if paused, 1 otherwise (s6: the park 
     sleep 1
   done
   return 1
+}
+wait_terminal() { # $1=sid $2=timeout_s -> echoes the FIRST terminal status reached
+  # (idle|completed|paused|failed), or 'timeout:<last-seen>' when none arrives
+  # within the budget. Sessions are born 'booting' and a message POST flips
+  # them to 'thinking', so any of the four terminal values ends the wait —
+  # paused fails fast per the SCN-CONSENSUS-024 convention, never burning the
+  # budget on the approval wall. Used by s13 to wait on 4 sessions at once.
+  local i st=""
+  for i in $(seq 1 "$2"); do
+    st=$(status_of "$1")
+    case "$st" in
+      idle|completed|paused|failed) printf '%s' "$st"; return 0 ;;
+    esac
+    sleep 1
+  done
+  printf 'timeout:%s' "${st:-unknown}"
+  return 0
 }
 ws_dir() { echo "$TMPDIR/consensus-workspaces/$1"; }
 
@@ -469,6 +486,112 @@ s8_restart_durability() {
   fi
   emit "$sc" fail "recovery incomplete: request_status=$req_end successful_results=${res_ok:-0} file=$f content=$(head -c 80 "$f" 2>/dev/null | tr '\n' ' ')"
   return 1
+}
+
+s13_concurrent_sessions() {
+  # Concurrent sessions (S13): four sessions created up front, four message
+  # POSTs dispatched back to back through the real HTTP API, and the server's
+  # heartbeat loop (pollAndDispatch claims each active session into its own
+  # goroutine) driving all four at the same time. Each session is told to
+  # write its own marker file with its own distinct marker content.
+  #
+  # The proof is observed filesystem + database state, NOT ws_dir() path
+  # arithmetic: four DISTINCT session ids read back from SQLite, four distinct
+  # marker files, each file containing exactly its own marker, no session
+  # workspace containing another session's marker (by file name or content),
+  # and all four sessions reaching idle — or an explicitly named terminal
+  # failure with a reason (paused fails fast, per the SCN-CONSENSUS-024
+  # convention). Waits run in background subshells so one slow session cannot
+  # serialize the other three.
+  local sc="s13_concurrent_sessions"
+  local -a sids=() markers=() pids=() files=() contents=() bad=()
+  local n sid marker d f content st db_distinct
+
+  # Leg 1: create all four sessions BEFORE dispatching or waiting, so the
+  # server can claim them in parallel.
+  for n in 1 2 3 4; do
+    marker="SCN-S13-M$n"
+    sid=$(new_session "Concurrent sessions check $n") || { emit "$sc" fail "no session (slot $n)"; return 1; }
+    [ -n "$sid" ] || { emit "$sc" fail "empty session id (slot $n)"; return 1; }
+    sids[$n]="$sid"
+    markers[$n]="$marker"
+  done
+
+  # Leg 2: distinct session ids, read back from the DATABASE — not from the
+  # runner's own array, which could only ever agree with itself.
+  db_distinct=$(sqlite3 "$DB" "SELECT count(DISTINCT id) FROM sessions WHERE id IN ('${sids[1]}','${sids[2]}','${sids[3]}','${sids[4]}');")
+  [ "${db_distinct:-0}" -eq 4 ] || { emit "$sc" fail "session ids not distinct in DB: ${db_distinct:-0} of 4"; return 1; }
+
+  # Leg 3: dispatch all four instructions (four HTTP POSTs, back to back).
+  for n in 1 2 3 4; do
+    say "${sids[$n]}" "Use your bash tool to run: echo -n ${markers[$n]} > s13_marker_$n.txt (then report DONE)."
+  done
+
+  # Leg 4: wait for all four concurrently — one background waiter per session.
+  for n in 1 2 3 4; do
+    wait_terminal "${sids[$n]}" 300 >"$STATE/s13.status.$n" &
+    pids[$n]=$!
+  done
+  for n in 1 2 3 4; do wait "${pids[$n]}"; done
+
+  for n in 1 2 3 4; do
+    st=$(cat "$STATE/s13.status.$n" 2>/dev/null)
+    case "$st" in
+      idle|completed) ;;
+      paused) bad+=("sid=${sids[$n]} paused: approval wall (arm --auto-approve to ungate tools)") ;;
+      failed) bad+=("sid=${sids[$n]} failed") ;;
+      timeout:*) bad+=("sid=${sids[$n]} $st (non-idle)") ;;
+      *) bad+=("sid=${sids[$n]} unknown status: ${st:-empty}") ;;
+    esac
+  done
+  if [ "${#bad[@]}" -gt 0 ]; then
+    emit "$sc" fail "not all sessions reached idle: ${bad[*]}"
+    return 1
+  fi
+
+  # Leg 5: four distinct files, each holding exactly its own marker.
+  for n in 1 2 3 4; do
+    f="$(ws_dir "${sids[$n]}")/s13_marker_$n.txt"
+    files[$n]="$f"
+    if [ ! -f "$f" ]; then
+      emit "$sc" fail "session ${sids[$n]}: marker file missing: $f"
+      return 1
+    fi
+    content=$(cat "$f" 2>/dev/null)
+    contents[$n]="$content"
+    if [ "$content" != "${markers[$n]}" ]; then
+      emit "$sc" fail "session ${sids[$n]}: $f content '$content' != own marker '${markers[$n]}'"
+      return 1
+    fi
+  done
+  if [ "$(printf '%s\n' "${files[@]}" | sort -u | wc -l)" -ne 4 ]; then
+    emit "$sc" fail "marker files are not 4 distinct paths: ${files[*]}"
+    return 1
+  fi
+  if [ "$(printf '%s\n' "${contents[@]}" | sort -u | wc -l)" -ne 4 ]; then
+    emit "$sc" fail "marker contents are not 4 distinct values: ${contents[*]}"
+    return 1
+  fi
+
+  # Leg 6: no cross-talk — no workspace holds another session's marker, under
+  # either the marker FILE name or the marker CONTENT.
+  for n in 1 2 3 4; do
+    d="$(ws_dir "${sids[$n]}")"
+    for m in 1 2 3 4; do
+      [ "$m" = "$n" ] && continue
+      if [ -f "$d/s13_marker_$m.txt" ]; then
+        emit "$sc" fail "cross-talk: workspace of sid=${sids[$n]} holds session $m's marker FILE"
+        return 1
+      fi
+      if grep -rqF -- "${markers[$m]}" "$d" 2>/dev/null; then
+        emit "$sc" fail "cross-talk: workspace of sid=${sids[$n]} contains session $m's marker CONTENT"
+        return 1
+      fi
+    done
+  done
+
+  emit "$sc" pass "4 sessions concurrent: ids distinct in DB, 4 distinct files, 4 distinct contents, no foreign marker in any workspace, all 4 idle"
+  return 0
 }
 
 run_one() {
