@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 # scenario_selector_selfproof.sh — prove the e2e scenario selector cannot go vacuous.
 #
-# `scripts/e2e/harness-scenarios.sh --scenarios <tok,...>` used to compare each token
-# against the scenario's bare prefix only (s1..s5). Any other token -- a typo, an
-# unregistered bare prefix, or even the documented full id `s4_conversation_loop` --
-# matched NO function, so zero scenarios ran, FAILS stayed 0 and the script exited 0
-# with a green "failures: 0" summary (SCN-CONSENSUS-023, measured 2026-11-21).
+# `scripts/e2e/harness-scenarios.sh --scenarios <tok,...>` validates each token against
+# the registered scenario set. Unknown tokens — including typos and unregistered
+# prefixes — are rejected before the build, so zero scenarios can never look green.
 #
 # This harness pins the whole selector contract, cheaply and without a provider:
 #
-#   RED    --scenarios s99                 exit 2, names s99, no green summary
+#   RED    --scenarios s9                  exit 2, names s9, no green summary
 #   RED    --scenarios s4_conversation     exit 2, names the token (typo arm)
-#   RED    --scenarios s1,s99              exit 2 before running s1 (no partial run)
+#   RED    --scenarios s1,s9               exit 2 before running s1 (no partial run)
 #   RED    --scenarios ,                   exit 2, "names no scenario"
 #   GREEN  --scenarios s4_conversation_loop --dry-run   full id is accepted (s4 only)
 #   GREEN  --scenarios s4 --dry-run                     bare prefix (s4 only)
